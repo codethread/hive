@@ -8,12 +8,14 @@ import {
 	restoreTestEnv,
 	deps,
 	writeConfig,
-	initRepoWithOrigin,
+	useOriginFixture,
 	commitFile,
 	commitOnRemoteDefault,
 	run,
 	runRaw,
 } from "./support.ts";
+
+const { initRepoWithOrigin } = useOriginFixture();
 
 describe("honeycomb non-pool remove", () => {
 	let tmp: string;

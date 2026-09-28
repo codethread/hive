@@ -8,13 +8,15 @@ import {
 	restoreTestEnv,
 	testDeps,
 	writeConfig,
-	initRepoWithOrigin,
+	useOriginFixture,
 	createRemoteBranch,
 	commitFile,
 	commitOnRemoteDefault,
 	run,
 	runRaw,
 } from "./support.ts";
+
+const { initRepoWithOrigin } = useOriginFixture();
 
 describe("pooled honeycomb remove", () => {
 	let tmp: string;

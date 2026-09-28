@@ -9,10 +9,12 @@ import {
 	restoreTestEnv,
 	deps,
 	writeConfig,
-	initRepoWithOrigin,
+	useOriginFixture,
 	createPoolSlot,
 	run,
 } from "./support.ts";
+
+const { initRepoWithOrigin } = useOriginFixture();
 
 describe("honeycomb pool status", () => {
 	let tmp: string;

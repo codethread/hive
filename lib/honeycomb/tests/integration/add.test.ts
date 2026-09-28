@@ -16,12 +16,14 @@ import {
 	restoreTestEnv,
 	deps,
 	writeConfig,
-	initRepoWithOrigin,
+	useOriginFixture,
 	createRemoteBranch,
 	commitOnRemoteDefault,
 	run,
 	runRaw,
 } from "./support.ts";
+
+const { initRepoWithOrigin } = useOriginFixture();
 
 describe("honeycomb non-pool add", () => {
 	let tmp: string;

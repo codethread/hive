@@ -14,14 +14,9 @@ import {
 import { homedir, tmpdir } from "node:os";
 import { basename, join, resolve } from "node:path";
 import { dispatch, EXIT_CODES } from "../../src/index";
-import {
-	setTestEnv,
-	restoreTestEnv,
-	deps,
-	writeConfig,
-	initRepoWithOrigin,
-	run,
-} from "./support.ts";
+import { setTestEnv, restoreTestEnv, deps, writeConfig, useOriginFixture, run } from "./support.ts";
+
+const { initRepoWithOrigin } = useOriginFixture();
 
 describe("honeycomb copy", () => {
 	let tmp: string;

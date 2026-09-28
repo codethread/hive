@@ -3,7 +3,9 @@ import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { ConfigError, dispatch, EXIT_CODES } from "../../src/index";
-import { setTestEnv, restoreTestEnv, deps, initRepoWithOrigin, initRepo, run } from "./support.ts";
+import { setTestEnv, restoreTestEnv, deps, useOriginFixture, initRepo, run } from "./support.ts";
+
+const { initRepoWithOrigin } = useOriginFixture();
 
 describe("honeycomb read-only commands", () => {
 	let tmp: string;

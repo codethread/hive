@@ -9,10 +9,12 @@ import {
 	deps,
 	testDeps,
 	writeConfig,
-	initRepoWithOrigin,
+	useOriginFixture,
 	createPoolSlot,
 	run,
 } from "./support.ts";
+
+const { initRepoWithOrigin } = useOriginFixture();
 
 describe("honeycomb ensure", () => {
 	let tmp: string;

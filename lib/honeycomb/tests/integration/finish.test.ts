@@ -9,12 +9,14 @@ import {
 	deps,
 	testDeps,
 	writeConfig,
-	initRepoWithOrigin,
+	useOriginFixture,
 	commitFile,
 	commitOnRemoteDefault,
 	run,
 	runRaw,
 } from "./support.ts";
+
+const { initRepoWithOrigin } = useOriginFixture();
 
 describe("honeycomb finish", () => {
 	let tmp: string;

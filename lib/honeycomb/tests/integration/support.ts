@@ -87,38 +87,42 @@ export function writeConfig(
 	setTestEnv("XDG_CONFIG_HOME", configHome);
 }
 
-let baseOriginFixture: { root: string; remote: string; tmp: string } | null = null;
+export const useOriginFixture = () => {
+	let baseOriginFixture: { root: string; remote: string; tmp: string } | null = null;
 
-afterAll(() => {
-	if (baseOriginFixture) rmSync(baseOriginFixture.tmp, { recursive: true, force: true });
-});
+	afterAll(() => {
+		if (baseOriginFixture) rmSync(baseOriginFixture.tmp, { recursive: true, force: true });
+	});
 
-export async function initRepoWithOrigin(tmp: string) {
-	const fixture = await ensureBaseOriginFixture();
-	let root = join(tmp, "repo");
-	const remote = join(tmp, "origin.git");
-	cpSync(fixture.root, root, { recursive: true });
-	cpSync(fixture.remote, remote, { recursive: true });
-	root = realpathSync(root);
-	await run(["git", "-C", root, "remote", "set-url", "origin", remote]);
-	return { root, remote };
-}
+	const ensureBaseOriginFixture = async () => {
+		if (baseOriginFixture) return baseOriginFixture;
+		const tmp = mkdtempSync(join(tmpdir(), "honeycomb-origin-fixture-"));
+		let root = join(tmp, "repo");
+		await initRepo(root);
+		root = realpathSync(root);
+		const remote = join(tmp, "origin.git");
+		await run(["git", "init", "--bare", remote]);
+		await run(["git", "-C", root, "remote", "add", "origin", remote]);
+		await run(["git", "-C", root, "push", "-u", "origin", "main"]);
+		await run(["git", "-C", remote, "symbolic-ref", "HEAD", "refs/heads/main"]);
+		await run(["git", "-C", root, "remote", "set-head", "origin", "-a"]);
+		baseOriginFixture = { root, remote, tmp };
+		return baseOriginFixture;
+	};
 
-async function ensureBaseOriginFixture() {
-	if (baseOriginFixture) return baseOriginFixture;
-	const tmp = mkdtempSync(join(tmpdir(), "honeycomb-origin-fixture-"));
-	let root = join(tmp, "repo");
-	await initRepo(root);
-	root = realpathSync(root);
-	const remote = join(tmp, "origin.git");
-	await run(["git", "init", "--bare", remote]);
-	await run(["git", "-C", root, "remote", "add", "origin", remote]);
-	await run(["git", "-C", root, "push", "-u", "origin", "main"]);
-	await run(["git", "-C", remote, "symbolic-ref", "HEAD", "refs/heads/main"]);
-	await run(["git", "-C", root, "remote", "set-head", "origin", "-a"]);
-	baseOriginFixture = { root, remote, tmp };
-	return baseOriginFixture;
-}
+	const initRepoWithOrigin = async (tmp: string) => {
+		const fixture = await ensureBaseOriginFixture();
+		let root = join(tmp, "repo");
+		const remote = join(tmp, "origin.git");
+		cpSync(fixture.root, root, { recursive: true });
+		cpSync(fixture.remote, remote, { recursive: true });
+		root = realpathSync(root);
+		await run(["git", "-C", root, "remote", "set-url", "origin", remote]);
+		return { root, remote };
+	};
+
+	return { initRepoWithOrigin };
+};
 
 export async function createPoolSlot(
 	...args: [root: string, index: number, branch: string, initialized: boolean]

@@ -10,12 +10,14 @@ import {
 	TestPicker,
 	testDeps,
 	writeConfig,
-	initRepoWithOrigin,
+	useOriginFixture,
 	createRemoteBranch,
 	commitOnRemoteDefault,
 	run,
 	runRaw,
 } from "./support.ts";
+
+const { initRepoWithOrigin } = useOriginFixture();
 
 describe("honeycomb pooled add", () => {
 	let tmp: string;
