@@ -2,6 +2,10 @@
 
 Hive is a strict TypeScript monorepo providing coding agent tooling. It ships `colony`, a CLI that abstracts over model providers, and `ghost`, the daemon process that runs it, on top of a shared core.
 
+## Worktrees
+
+This repo uses `wktree` for Git worktrees (see `wktree -h`). Always work in a worktree unless given specific guidance to do otherwise.
+
 ## Packages
 
 - `lib/shared` — utilities and models common to all packages. Not a grab bag: only add what consumers clearly need.
