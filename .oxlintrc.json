@@ -1,0 +1,76 @@
+{
+	"$schema": "./node_modules/oxlint/configuration_schema.json",
+	"categories": {
+		"correctness": "error",
+		"suspicious": "error",
+		"pedantic": "error",
+		"perf": "error",
+		"style": "error",
+		"restriction": "off",
+		"nursery": "off"
+	},
+	"plugins": ["eslint", "typescript", "oxc", "unicorn", "import", "promise", "node"],
+	"env": {
+		"es2026": true,
+		"node": true
+	},
+	"globals": {
+		"Bun": "readonly"
+	},
+	"rules": {
+		"import/group-exports": "off",
+		"import/no-named-export": "off",
+		"import/prefer-default-export": "off",
+		"one-var": "off"
+	},
+	"overrides": [
+		{
+			"files": ["lib/shared/**/*.{ts,tsx}"],
+			"rules": {
+				"no-restricted-imports": [
+					"error",
+					{
+						"patterns": [
+							{
+								"regex": "^@hive/(colony|ghost)(/|$)|(^|\\.\\./)(colony|ghost)(/|$)",
+								"message": "shared sits at the base of the dependency graph and must not import colony or ghost."
+							}
+						]
+					}
+				]
+			}
+		},
+		{
+			"files": ["lib/colony/**/*.{ts,tsx}"],
+			"rules": {
+				"no-restricted-imports": [
+					"error",
+					{
+						"patterns": [
+							{
+								"regex": "^@hive/(colony|ghost)(/|$)|(^|\\.\\./)(colony|ghost)(/|$)",
+								"message": "packages may only import from @hive/shared; imports from colony or ghost are forbidden."
+							}
+						]
+					}
+				]
+			}
+		},
+		{
+			"files": ["lib/ghost/**/*.{ts,tsx}"],
+			"rules": {
+				"no-restricted-imports": [
+					"error",
+					{
+						"patterns": [
+							{
+								"regex": "^@hive/(colony|ghost)(/|$)|(^|\\.\\./)(colony|ghost)(/|$)",
+								"message": "packages may only import from @hive/shared; imports from colony or ghost are forbidden."
+							}
+						]
+					}
+				]
+			}
+		}
+	]
+}
