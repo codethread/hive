@@ -48,8 +48,8 @@
 					{
 						"patterns": [
 							{
-								"regex": "^@hive/(colony|ghost)(/|$)|(^|\\.\\./)(colony|ghost)(/|$)",
-								"message": "packages may only import from @hive/shared; imports from colony or ghost are forbidden."
+								"regex": "^@hive/(colony|ghost)(/|$)|(^|\\.\\./)(colony|ghost|shared)(/|$)",
+								"message": "packages may only import from @hive/shared via the package specifier; relative cross-package imports are forbidden."
 							}
 						]
 					}
@@ -64,8 +64,8 @@
 					{
 						"patterns": [
 							{
-								"regex": "^@hive/(colony|ghost)(/|$)|(^|\\.\\./)(colony|ghost)(/|$)",
-								"message": "packages may only import from @hive/shared; imports from colony or ghost are forbidden."
+								"regex": "^@hive/(colony|ghost)(/|$)|(^|\\.\\./)(colony|ghost|shared)(/|$)",
+								"message": "packages may only import from @hive/shared via the package specifier; relative cross-package imports are forbidden."
 							}
 						]
 					}
