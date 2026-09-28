@@ -19,11 +19,11 @@ bun install
 
 Husky runs on every commit:
 
-- `pre-commit` — lint-staged auto-fixes staged files (`oxlint --fix`, then `oxfmt`) and a
-  repo-wide typecheck runs afterwards. A staged violation blocks the commit.
+- `pre-commit` — lint-staged auto-fixes staged files (`oxlint --fix`, then `oxfmt`) and a repo-wide typecheck runs afterwards. A staged violation blocks the commit.
 - `commit-msg` — commitlint enforces Conventional Commits.
+
+Run `bun run prepare` (or bare `bunx husky`) to reinstall the hooks. Husky has no `--version` flag: any argument, including `--version`, is treated as the hooks directory and will move `core.hooksPath` there.
 
 ## Formatting
 
-oxfmt uses tabs and otherwise defaults. It formats TypeScript, JSON and Markdown, so no manual
-formatting decisions are needed: run `bun run fmt` and commit the result.
+oxfmt uses tabs and never wraps prose (`useTabs: true`, `proseWrap: "never"`); all other options are defaults. It formats TypeScript, JSON and Markdown, so no manual formatting decisions are needed: run `bun run fmt` and commit the result.
