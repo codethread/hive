@@ -1,10 +1,10 @@
 # Hive
 
-Hive is a strict TypeScript monorepo providing coding agent tooling. It ships `colony`, a CLI that abstracts over model providers, and `ghost`, the daemon process that runs it, on top of a shared core.
+Hive is a strict TypeScript monorepo providing coding agent tooling. It ships `colony`, a CLI that abstracts over model providers, `ghost`, the daemon process that runs it, and `honeycomb`, a Git worktree manager, on top of a shared core.
 
 ## Worktrees
 
-This repo uses `wktree` for Git worktrees (see `wktree -h`). Always work in a worktree unless given specific guidance to do otherwise.
+This repo uses `honeycomb` for Git worktrees (see `honeycomb -h`). Create this repository's new worktrees inside `.worktrees/` using the `nested` location. Always work in a worktree unless given specific guidance to do otherwise.
 
 ## Workflow
 
@@ -28,12 +28,13 @@ Project subagents live in `.pi/agents/`:
 - `lib/shared` — utilities and models common to all packages. Not a grab bag: only add what consumers clearly need.
 - `lib/colony` — CLI abstraction over providers.
 - `lib/ghost` — the daemon process that runs.
+- `lib/honeycomb` — the Git worktree manager and Nushell wrapper.
 
 ## Architecture rules
 
-- Packages may only import from `shared`. `colony` and `ghost` must not import each other.
+- Packages may only import from `shared`. `colony`, `ghost`, and `honeycomb` must not import each other.
 - Cross-package imports must use the `@hive/shared` package specifier; relative paths that traverse into another package are rejected.
-- `shared` must never import `colony` or `ghost`.
+- `shared` must never import `colony`, `ghost`, or `honeycomb`.
 - `.oxlintrc.json` enforces these rules through per-package `no-restricted-imports` overrides.
 
 ## Conventions
