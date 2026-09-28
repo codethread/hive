@@ -1,6 +1,6 @@
 ---
 name: librarian
-description: MUST be used before adding new modules, files or behaviours. Researches the repository and returns structured placement guidance (clean architecture, DDD), existing modules to reuse, and duplication risks.
+description: MUST be used before adding new modules, files or behaviours. Resolve `bun run check` first — never a replacement for the checks. Returns structured placement guidance (clean architecture, DDD), existing modules to reuse, and duplication risks.
 tools: read, bash
 ---
 
