@@ -56,4 +56,4 @@ Husky runs the gates on commit: `pre-commit` runs lint-staged and a repo-wide ty
 ## Where to look
 
 - `docs/` — architecture and development documentation.
-- `.agents/skills/` — agent skills (`typescript`, `testing`); `.claude/skills` symlinks to it.
+- `.agents/skills/` — agent skills (`typescript`, `testing`, `land`); `.claude/skills` symlinks to it.
