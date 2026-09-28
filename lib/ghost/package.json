@@ -7,7 +7,7 @@
 		".": "./src/index.ts"
 	},
 	"scripts": {
-		"test": "vitest run --root ../.. --project @hive/ghost",
+		"test": "bun test --parallel --parallel-delay=0 --timeout=5000 --only-failures ./src",
 		"typecheck": "tsc --noEmit"
 	},
 	"dependencies": {

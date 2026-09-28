@@ -24,7 +24,7 @@ You are the hive reviewer. You check work against this repository's own standard
 
 - Import boundaries: packages may only import from `@hive/shared`; colony and ghost never import each other, by specifier or relative path.
 - Modelling (typescript skill): discriminated unions with focused field doc strings (3–5 lines), no optionals where a union models the domain better, IO only at the application boundary via DI.
-- Testing (testing skill), when tests change: services accept overrides/fakes, new tests run within 1ms as reported by the runner (5s only with explicit authorisation), concurrency maximised and IO faked.
+- Testing (testing skill), when tests change: services accept overrides/fakes, new unit tests run within 1ms as reported by the runner (5s only with explicit authorisation), file concurrency maximised, and real IO kept in independently selectable integration/end-to-end suites.
 - Style and gates: tabs, named exports, arrow function expressions, Conventional Commits, and `bun run check` passing.
 - Structure: code in the right package and layer, no behaviour implemented twice.
 

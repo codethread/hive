@@ -7,13 +7,13 @@ description: Testing conventions for hive. Use for any test change or addition �
 
 ## Table-driven tests
 
-Favour pure `test.each` tables in every test — vitest's `it.each` is the same API: enumerate cases as data and keep the test body to the assertion.
+Import test APIs from `bun:test`. Favour pure `test.each` tables in every test — `it.each` is the same API: enumerate cases as data and keep the test body to the assertion.
 
 ```ts
 const cases = [
 	{ expected: "Hello, world!", name: "world" },
 	{ expected: "Hello, hive!", name: "hive" },
-] as const;
+];
 
 it.each(cases)("greets $name", ({ name, expected }) => {
 	expect(hello(name)).toBe(expected);
@@ -29,10 +29,11 @@ All services follow dependency injection so tests can replace them with override
 
 ## Speed budget
 
-- Always check the test time when adding or editing tests, and ensure new tests run inside 1ms as reported by the runner.
-- The default `minimal` reporter hides per-test durations: run `bun run test --reporter=verbose` to check the budget.
+- Always check the test time when adding or editing unit tests, and ensure new unit tests run inside 1ms as reported by the runner.
+- Package scripts hide passing output with `--only-failures`. Run `bun test --parallel --parallel-delay=0 ./lib/honeycomb/tests/unit` (or the relevant package/file path) to see per-test durations. The scripts' 5s runtime timeout does not enforce the 1ms reported-duration budget.
 - Tests may reach up to 5s only when given explicit authorisation from the user.
 
 ## Concurrency and IO
 
-- Maximise concurrency and minimise IO: favour fakes and overrides over actual network or disk reads.
+- Maximise file concurrency with Bun's isolated `--parallel` workers. Keep tests sequential within files that share mutable fixtures or environment state.
+- Minimise IO in unit tests: favour fakes and overrides. Real IO belongs in integration or end-to-end tests that exercise the relevant boundary; keep those layers independently selectable.

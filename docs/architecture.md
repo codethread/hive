@@ -28,7 +28,7 @@ honeycomb
 
 ## Runtime model
 
-- Bun 1.4+ runs the TypeScript sources; `tsc --noEmit` at the repo root and in each workspace is the only type gate.
+- Bun 1.4+ runs the TypeScript sources; `tsc --noEmit` in each workspace checks all application and test sources.
 - `colony` and `ghost` declare `"@hive/shared": "workspace:*"`, so imports resolve to source.
 - `honeycomb` runs its TypeScript CLI from source; its optional build script writes a launcher for that CLI.
 - Formatting, linting and typechecking are wired into Husky; see [Development](./development.md).
@@ -39,4 +39,4 @@ honeycomb
 - The imported `honeycomb` package has package-scoped exceptions for legacy style rules that would otherwise rewrite its source without changing behavior. Global rules and package import boundaries remain active.
 - **oxfmt** — tabs and unwrapped prose (`useTabs: true`, `proseWrap: "never"`), otherwise defaults; formats TypeScript, JSON and Markdown.
 - **commitlint** — Conventional Commits.
-- **vitest** — colocated `src/*.test.ts` suites, wired through a root `vitest.config.ts` that registers each package as a project and prints with the `minimal` reporter: passing tests produce no per-test output, failures print in full. Each package's `test` script delegates to the root config with `--root ../..`.
+- **bun test** — built-in runner with `bun:test` imports, colocated `src/*.test.ts` and package-local unit/integration suites. Root `bunfig.toml` limits discovery to `lib/` and excludes the opt-in Nushell wrapper. Root and package scripts run isolated files across CPU cores with failure-only output and explicit 5s timeouts. See [Development](./development.md) for package and layer selection.

@@ -1,11 +1,11 @@
 import { expect, test } from "bun:test";
-import { buildPoolState } from "../src/application/pool.ts";
-import { runPreRemoteCheck } from "../src/application/preflight.ts";
-import { explainPolicy, type TreesConfig } from "../src/domain/config.ts";
-import { PreRemoteCheckError } from "../src/errors.ts";
-import { parseWorktreeList } from "../src/git/worktrees.ts";
-import { toListJson } from "../src/protocol.ts";
-import type { GitRunner } from "../src/services.ts";
+import { buildPoolState } from "../../src/application/pool.ts";
+import { runPreRemoteCheck } from "../../src/application/preflight.ts";
+import { explainPolicy, type TreesConfig } from "../../src/domain/config.ts";
+import { PreRemoteCheckError } from "../../src/errors.ts";
+import { parseWorktreeList } from "../../src/git/worktrees.ts";
+import { toListJson } from "../../src/protocol.ts";
+import type { GitRunner } from "../../src/services.ts";
 
 const run: GitRunner["runRaw"] = async (args) => {
 	const stdout = args.includes("symbolic-ref")

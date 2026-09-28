@@ -12,7 +12,7 @@ import {
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 
-const repoRoot = resolve(import.meta.dir, "..");
+const repoRoot = resolve(import.meta.dirname, "../../..");
 const nuModule = join(repoRoot, "nu/honeycomb/mod.nu");
 
 describe("wk nushell smoke", () => {
@@ -182,7 +182,7 @@ describe("wk nushell smoke", () => {
 		expect((await run(["git", "-C", slot2, "branch", "--show-current"])).stdout.trim()).toBe(
 			"wk-pool/feat2",
 		);
-	}, 30_000);
+	});
 });
 
 function writeConfig(spec: {
@@ -255,7 +255,11 @@ async function run(cmd: string[], env?: Record<string, string>) {
 }
 
 async function runRaw(cmd: string[], env?: Record<string, string>) {
-	const proc = Bun.spawn(cmd, { stdout: "pipe", stderr: "pipe", env: env ?? process.env });
+	const proc = Bun.spawn(cmd, {
+		stdout: "pipe",
+		stderr: "pipe",
+		env: { ...(env ?? process.env), GIT_CONFIG_NOSYSTEM: "1", GIT_CONFIG_GLOBAL: "/dev/null" },
+	});
 	const [stdout, stderr, exitCode] = await Promise.all([
 		new Response(proc.stdout).text(),
 		new Response(proc.stderr).text(),

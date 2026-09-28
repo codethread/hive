@@ -274,9 +274,18 @@ The package keeps its runtime boundaries explicit:
 From the Hive root:
 
 ```nu
-bun test lib/honeycomb/tests
+bun run --filter @hive/honeycomb test:unit
+bun run --filter @hive/honeycomb test:integration
 bun run --filter @hive/honeycomb typecheck
 bun run check
+```
+
+`tests/unit/` contains pure data tables and injected application boundaries. `tests/integration/` exercises the real Git, filesystem, and hook adapters with isolated temporary repositories. Both layers use `bun:test` and run in the root suite, with isolated files running in parallel across CPU cores. Scripts set a 5s runtime timeout; unit tests additionally have a 1ms reported-duration budget checked manually. From the Hive root, use `bun test --parallel --parallel-delay=0 ./lib/honeycomb/tests/unit` to inspect individual durations. The runtime timeout does not enforce the stricter unit budget.
+
+The Nushell wrapper has a separate, opt-in end-to-end suite under `nu/honeycomb/tests/`, with a 5s timeout. It requires Nushell, Git, Bash, and Bun and is not part of library or root tests:
+
+```nu
+bun run --filter @hive/honeycomb test:wrapper
 ```
 
 After editing `src/schemas.ts`, regenerate the editor artifact. The regular typecheck/check gate also rejects a stale artifact:

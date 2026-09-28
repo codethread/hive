@@ -10,11 +10,14 @@
 		".": "./src/index.ts"
 	},
 	"scripts": {
-		"test": "bun test tests",
+		"test": "bun test --parallel --parallel-delay=0 --timeout=5000 --only-failures ./tests",
 		"typecheck": "tsc --noEmit && bun run schema:check",
 		"schema:generate": "bun run ./scripts/config-schema.ts",
 		"schema:check": "bun run ./scripts/config-schema.ts --check",
-		"build": "bun run ./scripts/build-bin.ts"
+		"build": "bun run ./scripts/build-bin.ts",
+		"test:wrapper": "bun test --parallel --parallel-delay=0 --timeout=5000 --only-failures ./nu/honeycomb/tests",
+		"test:unit": "bun test --parallel --parallel-delay=0 --timeout=5000 --only-failures ./tests/unit",
+		"test:integration": "bun test --parallel --parallel-delay=0 --timeout=5000 --only-failures ./tests/integration"
 	},
 	"dependencies": {
 		"commander": "^14.0.3",
