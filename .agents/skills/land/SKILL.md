@@ -34,7 +34,7 @@ Land completed work: tidy it up, prove it, and merge it to `main`. Run this only
 
 ## 4. Merge to main
 
-- This repository works in worktrees, so land through the worktree workflow rather than merging by hand; run `wktree -h` and follow its guidance.
+- This repository works in worktrees, so land through the worktree workflow rather than merging by hand; run `honeycomb -h` and follow its guidance.
 - If the tooling refuses or stops (dirty tree, conflicts, missing remote), resolve that state instead of falling back to a raw merge.
 - Verify the canonical `main` afterwards: the expected commits are present, checks are green, and no worktree or branch is left stale.
 
