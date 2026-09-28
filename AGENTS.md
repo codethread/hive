@@ -16,6 +16,13 @@ All work follows the explore → plan → build cycle:
 
 Clean code and clean architecture practices apply throughout. Before building library code ourselves, always consult online tooling: if there is no clear winner, suggest the candidate approaches, and favour precise, well-maintained tools over bloated tool sets.
 
+## Subagents
+
+Project subagents live in `.pi/agents/`:
+
+- `librarian` — **must be used before adding new modules, files or behaviours.** Returns placement guidance (clean architecture, DDD), existing modules to reuse, and duplication risks.
+- `reviewer` — checks a change against AGENTS.md, the local skills and repository conventions. Use after building and before committing.
+
 ## Packages
 
 - `lib/shared` — utilities and models common to all packages. Not a grab bag: only add what consumers clearly need.
