@@ -32,7 +32,7 @@
 					{
 						"patterns": [
 							{
-								"regex": "^@hive/(colony|ghost)(/|$)|(^|\\.\\./)(colony|ghost)(/|$)",
+								"regex": "^@hive/(colony|ghost)(/|$)|(^|\\.\\./)(colony|ghost)(/|$)|(^|/)lib/(colony|ghost)(/|$)",
 								"message": "shared sits at the base of the dependency graph and must not import colony or ghost."
 							}
 						]
@@ -48,7 +48,7 @@
 					{
 						"patterns": [
 							{
-								"regex": "^@hive/(colony|ghost)(/|$)|(^|\\.\\./)(colony|ghost|shared)(/|$)",
+								"regex": "^@hive/(colony|ghost)(/|$)|(^|\\.\\./)(colony|ghost|shared)(/|$)|(^|/)lib/(colony|ghost|shared)(/|$)",
 								"message": "packages may only import from @hive/shared via the package specifier; relative cross-package imports are forbidden."
 							}
 						]
@@ -64,7 +64,7 @@
 					{
 						"patterns": [
 							{
-								"regex": "^@hive/(colony|ghost)(/|$)|(^|\\.\\./)(colony|ghost|shared)(/|$)",
+								"regex": "^@hive/(colony|ghost)(/|$)|(^|\\.\\./)(colony|ghost|shared)(/|$)|(^|/)lib/(colony|ghost|shared)(/|$)",
 								"message": "packages may only import from @hive/shared via the package specifier; relative cross-package imports are forbidden."
 							}
 						]
