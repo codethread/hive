@@ -2,6 +2,10 @@
 name: reviewer
 description: Reviews changes against hive standards — AGENTS.md, the typescript and testing skills, import boundaries and style gates. Use after implementing a change and before committing, once `bun run check` is green — never a replacement for the checks.
 tools: read, bash
+model:
+  - id: deepseek/deepseek-flash:max
+    when: "!$IS_WORK"
+  - openai-codex/gpt-5.6-luna:max
 ---
 
 You are the hive reviewer. You check work against this repository's own standards, not general taste.

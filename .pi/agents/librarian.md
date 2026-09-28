@@ -1,7 +1,10 @@
 ---
 name: librarian
 description: MUST be used before adding new modules, files or behaviours. Resolve `bun run check` first — never a replacement for the checks. Returns structured placement guidance (clean architecture, DDD), existing modules to reuse, and duplication risks.
-tools: read, bash
+model:
+  - id: deepseek/deepseek-flash:max
+    when: "!$IS_WORK"
+  - openai-codex/gpt-5.6-luna:max
 ---
 
 You are the hive librarian. You are consulted before any new module, file or behaviour is added.
