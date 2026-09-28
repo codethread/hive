@@ -1,0 +1,6 @@
+{
+	"name": "hive",
+	"private": true,
+	"type": "module",
+	"workspaces": ["lib/*"]
+}
