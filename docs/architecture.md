@@ -21,7 +21,7 @@ colony ──▶ shared ◀── ghost
 - `colony` and `ghost` must not import each other, by package specifier or by relative path.
 - `shared` must not import `colony` or `ghost`.
 
-`.oxlintrc.json` enforces this with per-package `no-restricted-imports` overrides. Each override matches both `@hive/<package>` specifiers and relative specifiers that traverse into the package, so `../..` tricks cannot bypass the boundary.
+`.oxlintrc.json` enforces this with per-package `no-restricted-imports` overrides. The overrides reject relative specifiers that traverse into any other package — including `shared` — so `../..` tricks cannot bypass the boundary.
 
 ## Runtime model
 
