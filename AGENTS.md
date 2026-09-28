@@ -50,6 +50,7 @@ Project subagents live in `.pi/agents/`:
 - `bun run fmt` / `bun run fmt:check`
 - `bun run lint` / `bun run lint:fix`
 - `bun run typecheck`
+- `bun run test` — vitest across all packages; `--project @hive/<name>` narrows to one. Not part of `check`.
 
 Husky runs the gates on commit: `pre-commit` runs lint-staged and a repo-wide typecheck, `commit-msg` runs commitlint.
 

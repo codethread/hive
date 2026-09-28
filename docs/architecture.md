@@ -25,7 +25,7 @@ colony ──▶ shared ◀── ghost
 
 ## Runtime model
 
-- Bun 1.4+ runs the TypeScript sources; `tsc --noEmit` in each workspace is the only type gate.
+- Bun 1.4+ runs the TypeScript sources; `tsc --noEmit` at the repo root and in each workspace is the only type gate.
 - `colony` and `ghost` declare `"@hive/shared": "workspace:*"`, so imports resolve to source.
 - Formatting, linting and typechecking are wired into Husky; see [Development](./development.md).
 
@@ -34,3 +34,4 @@ colony ──▶ shared ◀── ghost
 - **oxlint** — strict categories (correctness, suspicious, pedantic, perf, style) at error, with `nursery` and `restriction` off. The restriction category is a wholesale ban-list, so bans are configured explicitly instead (see `no-restricted-imports` below). The named-export style rules (`import/no-named-export`, `import/prefer-default-export`, `import/group-exports`) and `one-var` are disabled because they fight the repository's conventions.
 - **oxfmt** — tabs and unwrapped prose (`useTabs: true`, `proseWrap: "never"`), otherwise defaults; formats TypeScript, JSON and Markdown.
 - **commitlint** — Conventional Commits.
+- **vitest** — colocated `src/*.test.ts` suites, wired through a root `vitest.config.ts` that registers each package as a project and prints with the `minimal` reporter: passing tests produce no per-test output, failures print in full. Each package's `test` script delegates to the root config with `--root ../..`.

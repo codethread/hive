@@ -13,7 +13,16 @@ bun install
 - `bun run check` — everything: format check, lint and typecheck. Run this before committing.
 - `bun run fmt` / `bun run fmt:check` — write or verify formatting.
 - `bun run lint` / `bun run lint:fix` — oxlint with strict categories.
-- `bun run typecheck` — `tsc --noEmit` in every workspace.
+- `bun run typecheck` — `tsc --noEmit` at the repo root and in every workspace.
+
+## Tests
+
+Vitest runs against the TypeScript sources. Test files are colocated (`src/*.test.ts`) and follow the table-driven style from `.agents/skills/testing/SKILL.md`.
+
+- `bun run test` — every package from the repo root, using the `minimal` reporter: passing tests produce no per-test output, failures print in full.
+- `bun run test --project @hive/shared` — one package by name or glob.
+- `bun run test --reporter=verbose` — per-test durations, needed when checking the testing skill's 1ms speed budget.
+- `bun run test` inside a package delegates to the root config with `--root ../..`; vitest 5 does not look up parent configs on its own.
 
 ## Commit gates
 
