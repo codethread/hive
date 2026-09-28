@@ -6,4 +6,4 @@ Git worktree lifecycle engine, CLI, and Nushell wrapper.
 - Keep structured JSON output stable; clients branch on `kind` values.
 - Keep the TypeScript engine authoritative. The Nushell wrapper consumes its commands and output.
 - Preserve the canonical worktree safety rules in [`devflow/specs/git-worktrees.md`](./devflow/specs/git-worktrees.md).
-- Follow the root Hive instructions and the package-scoped lint conventions documented in [`README.md`](./README.md).
+- Keep orchestration in `src/commands/` and `src/application/`, pure models in `src/domain/`, and Git/filesystem/process IO behind injected services.

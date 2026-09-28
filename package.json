@@ -12,6 +12,7 @@
 		"lint:fix": "oxlint --fix",
 		"typecheck": "bun run --filter '*' typecheck",
 		"test": "bun test --parallel --parallel-delay=0 --timeout=5000 --only-failures",
+		"test:changed": "bun run test --changed",
 		"check": "bun run fmt:check && bun run lint && bun run typecheck",
 		"prepare": "husky"
 	},
@@ -26,6 +27,7 @@
 		"typescript": "^7.0.2"
 	},
 	"lint-staged": {
+		"lib/honeycomb/{src/schemas.ts,scripts/config-schema.ts}": "bun run --filter @hive/honeycomb schema:stage",
 		"*.{js,jsx,ts,tsx,mjs,cjs}": [
 			"oxlint --fix",
 			"oxfmt"

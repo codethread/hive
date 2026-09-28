@@ -1,39 +1,29 @@
 ---
 name: testing
-description: Testing conventions for hive. Use for any test change or addition — new tests, edited tests, fixtures, fakes or mocks — and when designing services for testability.
+description: Select and run tests after code changes in hive, including changed-code iteration and pre-commit validation. Also use for test changes, fixtures, fakes, mocks and designing services for testability.
 ---
 
 # Testing
 
-## Table-driven tests
+## Running tests
 
-Import test APIs from `bun:test`. Favour pure `test.each` tables in every test — `it.each` is the same API: enumerate cases as data and keep the test body to the assertion.
+From the worktree root:
 
-```ts
-const cases = [
-	{ expected: "Hello, world!", name: "world" },
-	{ expected: "Hello, hive!", name: "hive" },
-];
+| Scope        | Example                                       |
+| ------------ | --------------------------------------------- |
+| One file     | `bun run test ./lib/shared/src/index.test.ts` |
+| Changed code | `bun run test:changed`                        |
+| Full suite   | `bun run test`                                |
 
-it.each(cases)("greets $name", ({ name, expected }) => {
-	expect(hello(name)).toBe(expected);
-});
-```
+## Writing tests
 
-- Keep table rows pure data: no functions, promises, side effects or assertions in the table.
-- Reach for a plain `it` only when a table would collapse to a single artificial row, such as a no-argument call.
+- Import APIs from `bun:test`. Prefer `test.each` / `it.each` when cases share setup and assertions; use a plain test when a table would be artificial.
+- Keep table rows pure data, without functions, promises, side effects or assertions.
+- Inject service dependencies so unit tests can use fakes or overrides. Keep real IO in independently selectable integration/end-to-end suites.
+- Scripts already parallelise isolated test files. Keep tests sequential within files sharing mutable fixtures or environment state.
 
-## Dependency injection
+## Timing
 
-All services follow dependency injection so tests can replace them with overrides or fake implementations.
+Check runner-reported durations when adding or editing unit tests. New unit tests must run within 1ms; slower tests require explicit user authorisation, up to 5s.
 
-## Speed budget
-
-- Always check the test time when adding or editing unit tests, and ensure new unit tests run inside 1ms as reported by the runner.
-- Package scripts hide passing output with `--only-failures`. Run `bun test --parallel --parallel-delay=0 ./lib/honeycomb/tests/unit` (or the relevant package/file path) to see per-test durations. The scripts' 5s runtime timeout does not enforce the 1ms reported-duration budget.
-- Tests may reach up to 5s only when given explicit authorisation from the user.
-
-## Concurrency and IO
-
-- Maximise file concurrency with Bun's isolated `--parallel` workers. Keep tests sequential within files that share mutable fixtures or environment state.
-- Minimise IO in unit tests: favour fakes and overrides. Real IO belongs in integration or end-to-end tests that exercise the relevant boundary; keep those layers independently selectable.
+Test scripts use `--only-failures`, which hides passing tests and their timings. Omit the flag to see timings.

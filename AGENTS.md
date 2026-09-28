@@ -16,13 +16,6 @@ All work follows the explore → plan → build cycle:
 
 Clean code and clean architecture practices apply throughout. Before building library code ourselves, always consult online tooling: if there is no clear winner, suggest the candidate approaches, and favour precise, well-maintained tools over bloated tool sets.
 
-## Subagents
-
-Project subagents live in `.pi/agents/`:
-
-- `librarian` — **must be used before adding new modules, files or behaviours.** Returns placement guidance (clean architecture, DDD), existing modules to reuse, and duplication risks.
-- `reviewer` — checks a change against AGENTS.md, the local skills and repository conventions. Use after building and before committing.
-
 ## Packages
 
 - `lib/shared` — utilities and models common to all packages. Not a grab bag: only add what consumers clearly need.
@@ -47,15 +40,17 @@ Project subagents live in `.pi/agents/`:
 ## Commands
 
 - `bun install`
-- `bun run check` — `fmt:check` + `lint` + `typecheck`; run before every commit.
+- `bun run check` — `fmt:check` + `lint` + `typecheck`; does not run tests.
 - `bun run fmt` / `bun run fmt:check`
 - `bun run lint` / `bun run lint:fix`
 - `bun run typecheck`
-- `bun run test` — Bun tests across all packages with isolated files running in parallel; `bun run test ./lib/shared` narrows to one package. Not part of `check`.
 
-Husky runs the gates on commit: `pre-commit` runs lint-staged and a repo-wide typecheck, `commit-msg` runs commitlint.
+## Validation
+
+Before committing or handing off, run full `bun run check` and tests appropriate to the complete change. Explain any skipped verification.
+
+Husky runs `lint-staged` and a repo-wide typecheck on `pre-commit`, and commitlint on `commit-msg`. It does not run tests.
 
 ## Where to look
 
-- `docs/` — architecture and development documentation.
-- `.agents/skills/` — agent skills (`typescript`, `testing`, `land`); `.claude/skills` symlinks to it.
+- `docs/` — architecture documentation.

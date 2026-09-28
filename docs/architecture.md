@@ -1,42 +1,34 @@
 # Architecture
 
-Hive is a Bun workspace monorepo written in strict TypeScript. TypeScript runs directly on Bun: each package exports its `src/index.ts`, there is no transpilation step, and packages consume each other through workspace dependencies.
+Honeycomb is currently the implemented tool: a Git worktree lifecycle engine with a CLI and an optional Nushell/tmux wrapper. Colony (provider-facing CLI) and Ghost (daemon) are placeholders; both currently call a greeting helper in Shared. There is no provider or daemon runtime connecting them yet.
 
-## Packages
+Product packages do not import one another. Shared is the only permitted cross-package dependency; Honeycomb currently operates independently of it.
 
+## Honeycomb's execution boundary
+
+```text
+Human / automation / Nushell wrapper
+                |
+                v
+CLI -> command dispatch -> lifecycle workflows
+                               |          |
+                               v          v
+                         Domain policy   Injected services
+                                              |
+                                              v
+                                      Git / files / hooks
 ```
-lib/
-├── shared/   utilities and models common to all packages (not a grab bag)
-├── colony/   CLI abstraction over model providers
-├── ghost/    daemon process that runs
-└── honeycomb/   Git worktree manager and Nushell wrapper
-```
 
-## Dependency rules
+The [CLI](../lib/honeycomb/src/cli.ts) composes live dependencies and handles terminal output and process exit. Commands coordinate add, remove, finish and query operations; application helpers handle reusable repository, branch and pool workflows. Domain code holds models and pure policy decisions. Workflows access external state through the [service interfaces](../lib/honeycomb/src/services.ts), allowing tests to replace Git, filesystem, hooks, interaction and time without replacing the lifecycle logic.
 
-```
-colony ──▶ shared ◀── ghost
-honeycomb
-```
+## State and safety
 
-- Cross-package imports must use the `@hive/shared` package specifier.
-- `colony`, `ghost`, and `honeycomb` must not import each other, by package specifier or by relative path.
-- `shared` must not import `colony`, `ghost`, or `honeycomb`.
-- `honeycomb` is self-contained and does not import the other Hive packages.
+There is no application database. Git's registered worktrees, branches and working-tree status provide repository state; filesystem markers record successful pool initialization. Configuration supplies policy, not a second registry of existing worktrees.
 
-`.oxlintrc.json` enforces this with per-package `no-restricted-imports` overrides. The overrides reject relative specifiers that traverse into any other package — including `shared` — so `../..` tricks cannot bypass the boundary.
+The canonical checkout anchors configuration and default-branch decisions and is protected from removal. Regular worktrees are created and removed; pooled worktrees retain their directories and switch between working branches and reserved placeholder branches. Destructive operations check observed Git state before proceeding rather than trusting shell-session state.
 
-## Runtime model
+## Engine and shell responsibilities
 
-- Bun 1.4+ runs the TypeScript sources; `tsc --noEmit` in each workspace checks all application and test sources.
-- `colony` and `ghost` declare `"@hive/shared": "workspace:*"`, so imports resolve to source.
-- `honeycomb` runs its TypeScript CLI from source; its optional build script writes a launcher for that CLI.
-- Formatting, linting and typechecking are wired into Husky; see [Development](./development.md).
+The engine owns worktree policy and lifecycle mutations. The Nushell wrapper adds shell navigation, interactive worktree selection and tmux session handling. It invokes the CLI as a subprocess and interprets structured outcomes and exit status through the [command protocol](../lib/honeycomb/src/protocol.ts), rather than importing engine internals.
 
-## Tooling
-
-- **oxlint** — strict categories (correctness, suspicious, pedantic, perf, style) at error, with `nursery` and `restriction` off. The restriction category is a wholesale ban-list, so bans are configured explicitly instead (see `no-restricted-imports` below). The named-export style rules (`import/no-named-export`, `import/prefer-default-export`, `import/group-exports`) and `one-var` are disabled because they fight the repository's conventions.
-- The imported `honeycomb` package has package-scoped exceptions for legacy style rules that would otherwise rewrite its source without changing behavior. Global rules and package import boundaries remain active.
-- **oxfmt** — tabs and unwrapped prose (`useTabs: true`, `proseWrap: "never"`), otherwise defaults; formats TypeScript, JSON and Markdown.
-- **commitlint** — Conventional Commits.
-- **bun test** — built-in runner with `bun:test` imports, colocated `src/*.test.ts` and package-local unit/integration suites. Root `bunfig.toml` limits discovery to `lib/` and excludes the opt-in Nushell wrapper. Root and package scripts run isolated files across CPU cores with failure-only output and explicit 5s timeouts. See [Development](./development.md) for package and layer selection.
+An add result can hand back a bootstrap script. The caller must run it before using the checkout; the wrapper runs it and coordinates rollback on failure. Tmux state never determines whether a worktree exists or is safe to remove.
