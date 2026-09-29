@@ -57,72 +57,17 @@ Husky reconciles and stages Beads state before commits and merges, runs `lint-st
 
 - `docs/` — architecture documentation.
 
-<!-- br-agent-instructions-v1 -->
+## Beads / br
 
----
+Track work and implementation steps in repo-local Beads with `br`, from the repository root, instead of native harness todo lists. Start with the work assigned by the user or coordinating agent; do not run triage to replace it with a different task. `bv` is for read-only work selection, prioritization, and coordination—not a prerequisite for execution. Never run bare `bv`, which launches an interactive TUI.
 
-## Beads Workflow Integration
+1. **Identify:** If given a bead ID, run `br show <id> --json`. Otherwise, use `br search "<topic>" --json` to find an existing bead; if none fits, create one with `br create --title="..." --type=task --priority=2 --description="Scope and completion criteria" --json`.
+2. **Claim:** Before implementation, run `br update <id> --claim --json`. Respect existing ownership and blockers; do not force a claim. A request to just record work ("bead this") stops after creation and sync, without claiming or implementing it.
+3. **Work:** Break multi-step work, especially features, into child beads so steps can be claimed, verified, and closed incrementally. Keep progress, decisions, blockers, and handoff context in `br update <id> --append-notes="..." --json`. Pass the relevant bead ID when delegating; reuse it for the same scope rather than creating duplicates.
+4. **Finish:** Verify the work, record the verification in notes, then `br close <id> --reason="Completed" --json`. Leave unfinished or blocked work open with a clear next step.
 
-This project uses [beads_rust](https://github.com/Dicklesworthstone/beads_rust) (`br`) for issue tracking. Issues are stored in `.beads/` and tracked in git.
+Use `task` for scoped work, `bug` for defects, `feature` for new capability, and `epic` for a larger effort; `chore` and `docs` cover maintenance and documentation. Nesting is not limited to epics: any bead can have children, and children can have their own children. Create a step with `br create --title="..." --type=task --parent=<parent-id> --json`; use as many levels as useful (e.g. feature → task → subtask), without splitting trivial work unnecessarily. Close a parent only after its children and overall completion criteria are satisfied.
 
-`.beads/issues.jsonl` is generated and included in normal commits by the pre-commit hook; ignore incidental diffs and do not edit it manually.
+Priorities run P0 (critical) through P4 (backlog), with P2 for normal work. Parent-child links group work; record execution prerequisites separately with `br dep add <issue> <depends-on>`: the first issue is blocked by the second.
 
-`bun install` requires `br`, registers the `hive-beads` merge driver, and bootstraps the local database from the tracked JSONL file. The driver automatically combines changes to different issue IDs and leaves incompatible changes to the same issue as an ordinary Git conflict. Resolve pull-request conflicts locally because hosted Git services do not run repository-local merge drivers.
-
-Automatic Beads import and export are disabled in project configuration. Git hooks reconcile the database and JSONL through their shared merge anchor before either side can overwrite the other. If reconciliation reports that both sides changed the same issue, inspect the changes and explicitly choose `br sync --merge --force-db` or `br sync --merge --force-jsonl`; hooks never choose a winner.
-
-### Essential Commands
-
-```bash
-# View ready issues (open, unblocked, not deferred)
-br ready
-
-# List and search
-br list --status=open # All open issues
-br show <id>          # Full issue details with dependencies
-br search "keyword"   # Full-text search
-
-# Create and update
-br create --title="..." --description="..." --type=task --priority=2
-br update <id> --claim
-br close <id> --reason="Completed"
-br close <id1> <id2>  # Close multiple issues at once
-
-# Sync with git
-br sync --merge   # Reconcile DB and JSONL through their merge anchor
-br sync --status  # Check sync status
-```
-
-### Workflow Pattern
-
-1. **Start**: Run `br ready` to find actionable work
-2. **Claim**: Use `br update <id> --claim`
-3. **Work**: Implement the task
-4. **Complete**: Use `br close <id>`
-5. **Sync**: Always run `br sync --merge` at session end
-
-### Key Concepts
-
-- **Dependencies**: Issues can block other issues. `br ready` shows only open, unblocked work.
-- **Priority**: P0=critical, P1=high, P2=medium, P3=low, P4=backlog (use numbers 0-4, not words)
-- **Types**: task, bug, feature, epic, chore, docs, question
-- **Blocking**: `br dep add <issue> <depends-on>` to add dependencies
-
-### Session Protocol
-
-**Before ending any session, run this checklist:**
-
-```bash
-git status              # Check what changed
-br sync --merge         # Reconcile beads changes with JSONL
-```
-
-### Best Practices
-
-- Check `br ready` at session start to find available work
-- Update status as you work (in_progress → closed)
-- Create new issues with `br create` when you discover tasks
-- Use descriptive titles and set appropriate priority/type
-- Always reconcile with `br sync --merge` before ending a session
-
-<!-- end-br-agent-instructions -->
+`.beads/issues.jsonl` is generated and included in normal commits by the pre-commit hook; ignore incidental diffs and do not edit it manually. Tracker commands do not grant permission to commit or push application code.
