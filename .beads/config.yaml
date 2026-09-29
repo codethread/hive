@@ -1,0 +1,4 @@
+issue_prefix: hv
+sync:
+  auto_import: false
+  auto_flush: false

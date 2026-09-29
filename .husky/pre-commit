@@ -1,2 +1,5 @@
-bunx lint-staged
-bun run typecheck
+repo_root="$(git rev-parse --show-toplevel)" || exit $?
+sh "$repo_root/.husky/beads-sync" --stage || exit $?
+bunx lint-staged || exit $?
+git diff --cached --check || exit $?
+bun run typecheck || exit $?

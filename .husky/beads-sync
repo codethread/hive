@@ -1,0 +1,29 @@
+stage_mode="${1:-}"
+case "$stage_mode" in
+	"") ;;
+	--stage) ;;
+	*)
+		printf '%s\n' 'usage: beads-sync [--stage]' >&2
+		exit 2
+		;;
+esac
+
+repo_root="$(git rev-parse --show-toplevel)" || exit $?
+database="$repo_root/.beads/beads.db"
+if test -n "$(git -C "$repo_root" ls-files --unmerged -- .beads/issues.jsonl)"; then
+	printf '%s\n' 'Resolve .beads/issues.jsonl before synchronizing Beads.' >&2
+	exit 1
+fi
+
+if test -e "$database"; then
+	br --db "$database" --no-auto-import --quiet sync --merge || exit $?
+else
+	br --db "$database" --no-auto-import --quiet sync --merge --force-jsonl || exit $?
+fi
+
+if test "$stage_mode" = --stage; then
+	case "$(basename "${GIT_INDEX_FILE:-index}")" in
+		next-index-*) ;; # Git's path-limited commit index: do not widen its scope.
+		*) git add -- "$repo_root/.beads/issues.jsonl" || exit $? ;;
+	esac
+fi
