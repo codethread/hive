@@ -22,12 +22,13 @@ Clean code and clean architecture practices apply throughout. Before building li
 - `lib/colony` — CLI abstraction over providers.
 - `lib/ghost` — the daemon process that runs.
 - `lib/honeycomb` — the Git worktree manager and Nushell wrapper.
+- `lib/tooling` — repository maintenance commands.
 
 ## Architecture rules
 
-- Packages may only import from `shared`. `colony`, `ghost`, and `honeycomb` must not import each other.
+- Packages may only import from `shared`. `colony`, `ghost`, `honeycomb`, and `tooling` must not import each other.
 - Cross-package imports must use the `@hive/shared` package specifier; relative paths that traverse into another package are rejected.
-- `shared` must never import `colony`, `ghost`, or `honeycomb`.
+- `shared` must never import `colony`, `ghost`, `honeycomb`, or `tooling`.
 - `.oxlintrc.json` enforces these rules through per-package `no-restricted-imports` overrides.
 
 ## Conventions
@@ -44,6 +45,7 @@ Clean code and clean architecture practices apply throughout. Before building li
 - `bun run fmt` / `bun run fmt:check`
 - `bun run lint` / `bun run lint:fix`
 - `bun run typecheck`
+- `bun run agents:sync` — regenerate `.pi/agents` from `.codex/agents`.
 
 ## Validation
 

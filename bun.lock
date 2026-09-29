@@ -47,6 +47,13 @@
         "zod": "^4.6.5",
       },
     },
+    "lib/tooling": {
+      "name": "@hive/tooling",
+      "version": "0.0.0",
+      "dependencies": {
+        "zod": "^4.6.5",
+      },
+    },
   },
   "packages": {
     "@babel/code-frame": ["@babel/code-frame@7.29.7", "", { "dependencies": { "@babel/helper-validator-identifier": "^7.29.7", "js-tokens": "^4.0.0", "picocolors": "^1.1.1" } }, "sha512-Aup7aUOfpbAUg2ROOJN6Iw5f9DMBlzu0mIkm/malLQFN/YQgO48wCj0Kxa3sEHJvPVFg7siR+qRInwXd2qhQKw=="],
@@ -98,6 +105,8 @@
     "@hive/honeycomb": ["@hive/honeycomb@workspace:lib/honeycomb"],
 
     "@hive/shared": ["@hive/shared@workspace:lib/shared"],
+
+    "@hive/tooling": ["@hive/tooling@workspace:lib/tooling"],
 
     "@oxfmt/binding-android-arm-eabi": ["@oxfmt/binding-android-arm-eabi@0.71.0", "", { "os": "android", "cpu": "arm" }, "sha512-l31EyBfB4egJeFua11aQFEUE9nnDtfpWCadqQovm0WL30t/yUHtdFl/5HyFXvd5xT8Ewh3U4TI9f30GowrQ1fw=="],
 

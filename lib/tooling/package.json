@@ -1,0 +1,13 @@
+{
+	"name": "@hive/tooling",
+	"version": "0.0.0",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"agents:sync": "bun run ./src/sync-agents.ts",
+		"typecheck": "tsc --noEmit"
+	},
+	"dependencies": {
+		"zod": "^4.6.5"
+	}
+}
