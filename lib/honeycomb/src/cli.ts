@@ -1,13 +1,8 @@
 import { Command, CommanderError } from "commander";
-import { closeSync, openSync, readSync, writeFileSync } from "node:fs";
-import { EXIT_CODES, PickerCancelled, HoneycombError } from "./errors.ts";
-import { fzf } from "./fzf.ts";
-import { LiveGitRunner } from "./git/executor.ts";
-import { LiveHookRunner } from "./hooks.ts";
-import { createLiveConfigService } from "./live-config-service.ts";
+import { EXIT_CODES, HoneycombError } from "./errors.ts";
+import { createLiveDeps } from "./live-deps.ts";
 import { dispatch } from "./main.ts";
-import type { Deps, PickerItem, PickerService, ProgressReporter } from "./services.ts";
-import { LiveWorkspaceFiles } from "./setup.ts";
+import type { Deps } from "./services.ts";
 
 export const main = async (
 	argv: string[] = Bun.argv,
@@ -26,6 +21,10 @@ export const main = async (
 			"Path inside the worktree set to operate on; defaults to the current directory",
 			process.cwd(),
 		)
+		.option(
+			"--interactive",
+			"Human wrapper mode: add opens the worktree's multiplexer session; remove and finish leave and close it",
+		)
 		.configureOutput({
 			writeOut: (str) => process.stderr.write(str),
 			writeErr: (str) => process.stderr.write(str),
@@ -36,8 +35,14 @@ export const main = async (
 Agent workflow:
   Pass --cwd <path> only when targeting a worktree set other than the current
   directory. Prefer --json when available and branch on payload kind rather than
-  stderr text. If add returns post_create_script_path, run that script with bash
-  before treating the worktree as ready.
+  stderr text. add runs configured setup before reporting ready; with --json,
+  setup output goes to stderr.
+
+Interactive wrappers:
+  Human wrappers pass --interactive so add focuses the new worktree's multiplexer
+  session, and remove/finish move the caller to the canonical root and close the
+  removed worktree's sessions. Outside a multiplexer, the directory to change to is
+  written to the file named by HONEYCOMB_CD_FILE. Agents must not pass it.
 
 Common flows:
   honeycomb add --branch <feature> --json
@@ -146,6 +151,7 @@ Notes:
 		.option("--json", "Machine-readable output")
 		.option("--slot <path>", "Specific pool slot path")
 		.option("--base <branch>", "Base branch for new branches")
+		.option("--base-current", "Use the branch checked out in the worktree containing --cwd")
 		.option("--force", "Force operation")
 		.addHelpText(
 			"after",
@@ -153,12 +159,14 @@ Notes:
 Use when:
   Starting work on a branch. This is the preferred entry point over raw git
   worktree add because it applies repository policy, deterministic paths, pool
-  allocation, copy setup, and bootstrap script generation.
+  allocation, copy setup, and the configured setup command.
 
 Notes:
   Without --base, new branches start from the configured policy target. Use
-  --base only for intentional stacked/non-default work. If --json returns
-  post_create_script_path, run that script with bash before opening the worktree.
+  --base only for intentional stacked/non-default work. --base-current uses the
+  branch checked out in the worktree containing --cwd instead, and is refused for
+  a detached HEAD or combined with --base. Setup failure rolls the add back and
+  exits 1; with --json, setup output goes to stderr.
 
 Blocked outcomes:
   Existing branches, stale or dirty canonical roots, pool exhaustion, and unsafe
@@ -177,7 +185,7 @@ Blocked outcomes:
 			"Remove a regular worktree or free a pooled worktree slot, refusing unsafe states unless forced.",
 		)
 		.option("--branch <branch>", "Branch to remove")
-		.option("--self <path>", "Remove the worktree at this path")
+		.option("--self", "Remove the worktree containing --cwd")
 		.option("--json", "Machine-readable output")
 		.option("--force", "Force removal")
 		.option("--keep-branch", "Remove/free worktree without deleting branch")
@@ -185,14 +193,13 @@ Blocked outcomes:
 			"--integrated-into <origin/ref>",
 			"Delete a clean branch only after proving its content is in this fetched ref",
 		)
-		.option("--skip-pre-remote-check", "Skip configured pre-remote check")
 		.addHelpText(
 			"after",
 			`
 Use when:
   Cleaning up branch worktrees after work is done or abandoned. Use --branch for
-  a named branch, or --self with the current worktree path when a wrapper or
-  agent wants to remove the checkout it is operating in.
+  a named branch, or --self to remove the worktree containing the global --cwd
+  path when a wrapper or agent wants to remove the checkout it is operating in.
 
 Safety:
   The canonical root is protected. Without --force, removal refuses dirty or
@@ -314,6 +321,33 @@ Cleanup:
 		});
 
 	program
+		.command("pick")
+		.summary("Fuzzy-pick worktree")
+		.description(
+			"Fuzzy-pick a worktree with fzf and print its path, or with --interactive hand it to the invoking shell or open its multiplexer session.",
+		)
+		.option("--open", "Open the selection's multiplexer session instead of printing its path")
+		.addHelpText(
+			"after",
+			`
+Use when:
+  A human wants to switch worktrees. pick needs a terminal; agents should use
+  list or path instead.
+
+Notes:
+  Rows list every worktree, with * marking the one containing --cwd, and preview
+  its multiplexer session or recent history. Inside tmux fzf opens in a popup.
+  Without --open, the selected path is printed; with --interactive it is also
+  written to the file named by HONEYCOMB_CD_FILE so a shell wrapper can change to
+  it. --open requires --interactive and a multiplexer session. Cancelling exits
+  130 without output.
+`,
+		)
+		.action(async (_opts, command) => {
+			await runAction("pick", optsToArgs(command.optsWithGlobals()), deps);
+		});
+
+	program
 		.command("config")
 		.summary("Inspect configuration")
 		.description("Inspect effective honeycomb configuration and policy.")
@@ -364,8 +398,10 @@ Notes:
 const runAction = async (subcmd: string, args: string[], deps: Deps): Promise<void> => {
 	try {
 		const result = await dispatch(subcmd, args, deps);
-		if (result.stdout) process.stdout.write(result.stdout);
-		if (result.stderr) process.stderr.write(result.stderr);
+		// Await the writes: afterOutput may close the invoking session and end this process.
+		if (result.stdout) await Bun.write(Bun.stdout, result.stdout);
+		if (result.stderr) await Bun.write(Bun.stderr, result.stderr);
+		await result.afterOutput?.();
 		process.exit(result.exitCode);
 	} catch (error) {
 		if (error instanceof HoneycombError) {
@@ -386,59 +422,3 @@ const optsToArgs = (opts: Record<string, unknown>): string[] => {
 	}
 	return args;
 };
-
-export const createLiveDeps = (): Deps => {
-	const git = new LiveGitRunner();
-	const files = new LiveWorkspaceFiles(git);
-	return {
-		git,
-		config: createLiveConfigService(files.normalizePath),
-		files,
-		clock: { now: () => Date.now() },
-		internalRollback: process.env.HONEYCOMB_INTERNAL_ROLLBACK === "1",
-		hooks: new LiveHookRunner(),
-		picker: new LivePickerService(),
-		progress: new ConsoleProgressReporter(),
-	};
-};
-
-class LivePickerService implements PickerService {
-	async pick(items: PickerItem[], header: string): Promise<PickerItem> {
-		const byDisplay = new Map(items.map((item) => [item.display, item]));
-		const selection = await fzf(
-			items.map((item) => item.display),
-			{ header, preview: items[0]?.preview, withNth: "2..", tty: true },
-		);
-		const item = byDisplay.get(selection.trim());
-		if (!item) throw new PickerCancelled();
-		return item;
-	}
-
-	async confirm(prompt: string): Promise<boolean> {
-		const tty = openSync("/dev/tty", "r+");
-		try {
-			writeFileSync(tty, prompt);
-			const answer = Buffer.alloc(1);
-			readSync(tty, answer, 0, 1, null);
-			writeFileSync(tty, "\n");
-			return answer.toString() === "y" || answer.toString() === "Y";
-		} finally {
-			closeSync(tty);
-		}
-	}
-}
-
-class ConsoleProgressReporter implements ProgressReporter {
-	banner(line: string): void {
-		process.stderr.write(`${line}\n`);
-	}
-
-	stream(stream: "stdout" | "stderr", line: string): void {
-		const target = stream === "stdout" ? process.stdout : process.stderr;
-		target.write(`${line}\n`);
-	}
-
-	error(msg: string): void {
-		process.stderr.write(`${msg}\n`);
-	}
-}

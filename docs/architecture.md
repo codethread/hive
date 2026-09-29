@@ -1,13 +1,13 @@
 # Architecture
 
-Honeycomb is currently the implemented tool: a Git worktree lifecycle engine with a CLI and an optional Nushell/tmux wrapper. Colony (provider-facing CLI) and Ghost (daemon) are placeholders; both currently call a greeting helper in Shared. There is no provider or daemon runtime connecting them yet.
+Honeycomb is currently the implemented tool: a Git worktree lifecycle engine with a CLI and a thin Nushell shim. Colony (provider-facing CLI) and Ghost (daemon) are placeholders; both currently call a greeting helper in Shared. There is no provider or daemon runtime connecting them yet.
 
 Product packages do not import one another. Shared is the only permitted cross-package dependency; Honeycomb currently operates independently of it.
 
 ## Honeycomb's execution boundary
 
 ```text
-Human / automation / Nushell wrapper
+Human / automation / Nushell shim
                 |
                 v
 CLI -> command dispatch -> lifecycle workflows
@@ -29,6 +29,6 @@ The canonical checkout anchors configuration and default-branch decisions and is
 
 ## Engine and shell responsibilities
 
-The engine owns worktree policy and lifecycle mutations. The Nushell wrapper adds shell navigation, interactive worktree selection and tmux session handling. It invokes the CLI as a subprocess and interprets structured outcomes and exit status through the [command protocol](../lib/honeycomb/src/protocol.ts), rather than importing engine internals.
+The engine owns worktree policy and lifecycle mutations. The Nushell shim only runs `honeycomb --interactive` with a temporary `HONEYCOMB_CD_FILE` and changes the shell's directory when the engine writes one; it holds no worktree, git, multiplexer, or prompt logic. Agents call the CLI directly and never pass `--interactive`, so they cannot move the user's focus or close sessions.
 
-An add result can hand back a bootstrap script. The caller must run it before using the checkout; the wrapper runs it and coordinates rollback on failure. Tmux state never determines whether a worktree exists or is safe to remove.
+Configured setup and its rollback run inside the engine, so every caller gets the same ready-or-rolled-back result. Multiplexer state never determines whether a worktree exists or is safe to remove; sessions are an integration that only `--interactive` may touch.

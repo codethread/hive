@@ -144,6 +144,25 @@ describe("honeycomb finish", () => {
 		expect(readFileSync(join(root, "finished.txt"), "utf8")).toBe("finished\n");
 	});
 
+	test("non-json finish prints a one-line summary to stderr", async () => {
+		const { root } = await initRepoWithOrigin(tmp);
+		writeConfig(tmp, root, "echo ready");
+		await dispatch("add", ["--cwd", root, "--branch", "feature/human-finish", "--json"], deps);
+		const worktreePath = `${root}__feature--human-finish`;
+		await commitFile({
+			repo: worktreePath,
+			path: "human.txt",
+			content: "human\n",
+			message: "human work",
+		});
+
+		const result = await dispatch("finish", ["--cwd", worktreePath], deps);
+
+		expect(result.exitCode).toBe(EXIT_CODES.SUCCESS);
+		expect(result.stdout).toBeUndefined();
+		expect(result.stderr).toBe("honeycomb: finished feature/human-finish into main\n");
+	});
+
 	test("pushes target branch after successful finish when enabled", async () => {
 		const { root, remote } = await initRepoWithOrigin(tmp);
 		writeConfig(tmp, root, "echo ready", undefined, "[project.finish]\npush = true\n");

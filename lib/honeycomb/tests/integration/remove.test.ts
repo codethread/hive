@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { dispatch, EXIT_CODES } from "../../src/index";
@@ -62,14 +62,38 @@ describe("honeycomb non-pool remove", () => {
 		});
 	});
 
-	test("removes by --self path", async () => {
+	test("removes the worktree containing --cwd with boolean --self", async () => {
 		const { root } = await initRepoWithOrigin(tmp);
 		writeConfig(tmp, root, "echo ready");
 		await dispatch("add", ["--cwd", root, "--branch", "feature/self", "--json"], deps);
+		const worktreePath = `${root}__feature--self`;
+		const nested = join(worktreePath, "nested");
+		mkdirSync(nested, { recursive: true });
 
-		await dispatch("remove", ["--cwd", root, "--self", `${root}__feature--self`, "--json"], deps);
+		const result = await dispatch("remove", ["--cwd", nested, "--self", "--json"], deps);
 
-		expect(existsSync(`${root}__feature--self`)).toBe(false);
+		expect(JSON.parse(result.stdout ?? "{}")).toMatchObject({
+			kind: "ready",
+			worktree_path: worktreePath,
+			removed: true,
+		});
+		expect(existsSync(worktreePath)).toBe(false);
+	});
+
+	test("non-json remove prints a one-line summary to stderr", async () => {
+		const { root } = await initRepoWithOrigin(tmp);
+		writeConfig(tmp, root, "echo ready");
+		await dispatch("add", ["--cwd", root, "--branch", "feature/human-remove", "--json"], deps);
+
+		const result = await dispatch(
+			"remove",
+			["--cwd", root, "--branch", "feature/human-remove"],
+			deps,
+		);
+
+		expect(result.exitCode).toBe(0);
+		expect(result.stdout).toBeUndefined();
+		expect(result.stderr).toBe(`honeycomb: removed worktree at ${root}__feature--human-remove\n`);
 	});
 
 	test("removes non-pool branches whose encoded paths resemble pool slots", async () => {
@@ -283,18 +307,18 @@ describe("honeycomb non-pool remove", () => {
 		expect(existsSync(`${root}__feature--unmerged-json`)).toBe(true);
 	});
 
-	test("refuses canonical root and non-worktree targets", async () => {
+	test("refuses canonical root and requires exactly one target selector", async () => {
 		const { root } = await initRepoWithOrigin(tmp);
 		writeConfig(tmp, root, "echo ready");
 
-		const canonicalRoot = await dispatch("remove", ["--cwd", root, "--self", root, "--json"], deps);
+		const canonicalRoot = await dispatch("remove", ["--cwd", root, "--self", "--json"], deps);
 		expect(canonicalRoot.exitCode).toBe(EXIT_CODES.UNSAFE);
 		expect(JSON.parse(canonicalRoot.stdout ?? "{}")).toMatchObject({
 			kind: "blocked",
 			reason: "canonical_root",
 		});
-		await expect(
-			dispatch("remove", ["--cwd", root, "--self", join(tmp, "missing"), "--json"], deps),
-		).rejects.toThrow("not a git worktree");
+		await expect(dispatch("remove", ["--cwd", root, "--json"], deps)).rejects.toThrow(
+			"provide exactly one of --branch or --self",
+		);
 	});
 });

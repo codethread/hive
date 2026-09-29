@@ -1,10 +1,16 @@
-import { createLiveDeps } from "../../src/cli.ts";
+import { createLiveDeps } from "../../src/live-deps.ts";
 import { afterAll } from "bun:test";
 import { cpSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { LiveGitRunner } from "../../src/git/executor";
-import { type Deps, LiveHookRunner, PickerCancelled } from "../../src/index";
+import {
+	type Deps,
+	type MultiplexerOpenRequest,
+	LiveHookRunner,
+	PickerCancelled,
+} from "../../src/index";
+import { gitLogPreviewCommand } from "../../src/integrations/multiplexer.ts";
 
 const savedEnv = new Map<string, string | undefined>();
 
@@ -21,11 +27,55 @@ export const restoreTestEnv = (): void => {
 	savedEnv.clear();
 };
 
+/** Records session calls, optionally into a log shared with TestCdDirective to check ordering. */
+export class TestMultiplexer {
+	opened: MultiplexerOpenRequest[] = [];
+	closedPaths: string[] = [];
+	previewCalls = 0;
+	readonly attached: boolean;
+	private readonly log: string[];
+
+	constructor(attached = true, log: string[] = []) {
+		this.attached = attached;
+		this.log = log;
+	}
+
+	async open(request: MultiplexerOpenRequest): Promise<void> {
+		this.log.push(`open ${request.path}`);
+		this.opened.push(request);
+	}
+
+	async closeUnder(path: string): Promise<void> {
+		this.log.push(`close ${path}`);
+		this.closedPaths.push(path);
+	}
+
+	previewCommand(): string {
+		this.previewCalls++;
+		return this.attached ? "test-preview" : gitLogPreviewCommand();
+	}
+}
+
+export class TestCdDirective {
+	paths: string[] = [];
+	private readonly log: string[];
+
+	constructor(log: string[] = []) {
+		this.log = log;
+	}
+
+	write(path: string): void {
+		this.log.push(`cd ${path}`);
+		this.paths.push(path);
+	}
+}
+
 export const deps: Deps = {
 	...createLiveDeps(),
-	internalRollback: false,
 	git: new LiveGitRunner(),
 	hooks: { runInline: async () => undefined, runCommand: new LiveHookRunner().runCommand },
+	multiplexer: new TestMultiplexer(),
+	cdDirective: new TestCdDirective(),
 	picker: {
 		pick: async () => ({ key: "", display: "", preview: "" }),
 		confirm: async () => true,
@@ -39,6 +89,7 @@ export const deps: Deps = {
 
 export class TestPicker {
 	items: { key: string; display: string; preview: string }[] = [];
+	options: { interactive?: boolean } | undefined;
 	confirmCalls = 0;
 	private choice: string | null;
 	private confirmed: boolean;
@@ -48,8 +99,13 @@ export class TestPicker {
 		this.confirmed = confirmed;
 	}
 
-	async pick(items: { key: string; display: string; preview: string }[]) {
+	async pick(
+		items: { key: string; display: string; preview: string }[],
+		_header: string,
+		options?: { interactive?: boolean },
+	) {
 		this.items = items;
+		this.options = options;
 		if (this.choice === null) throw new PickerCancelled();
 		const item = items.find((candidate) => candidate.key === this.choice);
 		if (!item) throw new PickerCancelled();
@@ -65,9 +121,10 @@ export class TestPicker {
 export function testDeps(overrides: Partial<Deps> = {}): Deps {
 	return {
 		...createLiveDeps(),
-		internalRollback: false,
 		git: new LiveGitRunner(),
 		hooks: new LiveHookRunner(),
+		multiplexer: new TestMultiplexer(),
+		cdDirective: new TestCdDirective(),
 		picker: deps.picker,
 		progress: deps.progress,
 		...overrides,

@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { buildPoolState } from "../../src/application/pool.ts";
-import { runPreRemoteCheck } from "../../src/application/preflight.ts";
+import { runPreRemoteCheck } from "../../src/application/hooks.ts";
 import { explainPolicy, type TreesConfig } from "../../src/domain/config.ts";
 import { PreRemoteCheckError } from "../../src/errors.ts";
 import { parseWorktreeList } from "../../src/git/worktrees.ts";

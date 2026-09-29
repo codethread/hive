@@ -55,6 +55,19 @@ describe("honeycomb copy", () => {
 		});
 	});
 
+	test("non-json copy prints a one-line summary to stderr", async () => {
+		const { root } = await initRepoWithOrigin(tmp);
+		writeConfig(tmp, root, "echo ready");
+		await dispatch("add", ["--cwd", root, "--branch", "feature/human-copy", "--json"], deps);
+		const worktreePath = `${root}__feature--human-copy`;
+
+		const result = await dispatch("copy", ["--cwd", worktreePath], deps);
+
+		expect(result.exitCode).toBe(EXIT_CODES.SUCCESS);
+		expect(result.stdout).toBeUndefined();
+		expect(result.stderr).toBe(`honeycomb: copied 0 items into ${worktreePath}\n`);
+	});
+
 	test("local-only copy skips failing pre_remote_check", async () => {
 		const { root } = await initRepoWithOrigin(tmp);
 		writeFileSync(join(root, ".env"), "SECRET=copy\n");

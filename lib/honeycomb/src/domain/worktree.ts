@@ -128,8 +128,6 @@ export interface AddPlan {
 	root: string;
 	/** Human-facing session title. */
 	title: string;
-	/** Bootstrap file the wrapper must execute, if setup is configured. */
-	postCreateScriptPath: string | null;
 	/** Whether allocation created a local branch ref. */
 	createdNewBranch: boolean;
 	/** Previous branch head available for rollback. */

@@ -1,14 +1,8 @@
 # Git Worktrees Engine
 
-**Status:** Implemented, with pending changes
+**Status:** Implemented
 
 **Last Updated:** 2026-09-29
-
-Pending changes, tracked by epic `hv-honeycomb-engine-owns-wk-2by` (remove each item when it lands):
-
-- `add` runs bootstrap in the engine (§3 Bootstrap).
-- `--interactive`, the multiplexer integration and the cd directive (§3 Interactive mode).
-- `remove --self` takes no path (§4 Commands).
 
 ## 1. Overview
 
@@ -141,6 +135,7 @@ Project config defines required `command`s that prepare a worktree or slot for w
 
 - `add` opens the worktree's multiplexer session and focuses it. Outside a multiplexer it writes the worktree path to the cd directive instead.
 - `remove`, and `finish` when its cleanup removes or recycles the worktree, write the canonical root to the cd directive if the caller's working directory was inside that worktree, then close multiplexer sessions rooted at or below its path. Closing sessions is the last step, after all output, because closing the invoking session may end the `honeycomb` process.
+- `pick` writes the selected worktree path to the cd directive; `pick --open` instead opens and focuses its multiplexer session, and requires one.
 - Multiplexer failures are warnings on stderr. They never undo a completed git operation.
 
 Without `--interactive`, `honeycomb` makes no multiplexer calls and writes no cd directive.
@@ -190,7 +185,7 @@ Rules match canonical root paths with an explicit `root_glob`. Glob matching is 
 | `fresh_canonical` | Fetch `origin`, require the canonical root to be clean and checked out on origin's default branch, fast-forward it to `origin/<default>`, then create new branches without an explicit `--base` from the canonical default branch. Any failure blocks default-base `add`. |
 | `origin_default` | Fetch `origin` and create new branches without an explicit `--base` from `origin/<default>` without mutating the canonical root. This is the escape hatch for repositories that cannot reliably keep the canonical checkout clean or worktree-only. |
 
-An explicit `--base` remains a user override for stacked or non-default work. It still fetches first and resolves the selected base deterministically, but it does not require or mutate the canonical default branch. Strict policies must not silently fall back to stale `HEAD` when the requested base cannot be resolved. Existing local or remote branches are checked out according to normal branch-state rules; if policy later governs remote fast-forward of existing branch worktrees, failures must be structured as either blocked or warning outcomes rather than stderr-only text.
+An explicit `--base` or `--base-current` remains a user override for stacked or non-default work. It still fetches first and resolves the selected base deterministically, but it does not require or mutate the canonical default branch. Strict policies must not silently fall back to stale `HEAD` when the requested base cannot be resolved. Existing local or remote branches are checked out according to normal branch-state rules; if policy later governs remote fast-forward of existing branch worktrees, failures must be structured as either blocked or warning outcomes rather than stderr-only text.
 
 ### Remote pre-check
 
@@ -233,15 +228,18 @@ Supported strategies mirror common forge merge choices while preserving local de
 | `honeycomb [--cwd <path>] root` | Print canonical worktree root. |
 | `honeycomb [--cwd <path>] list [--json]` | List worktrees and initialize configured pools. |
 | `honeycomb [--cwd <path>] path --branch <branch>` | Print the worktree path for a branch. |
-| `honeycomb [--cwd <path>] add --branch <branch> [--json] [--slot <path>] [--base <branch>] [--force]` | Create or allocate a worktree. |
+| `honeycomb [--cwd <path>] add --branch <branch> [--json] [--slot <path>] [--base <branch>] [--base-current] [--force]` | Create or allocate a worktree. |
 | `honeycomb [--cwd <path>] remove (--branch <branch> \| --self) [--json] [--force] [--keep-branch] [--integrated-into <origin/ref>]` | Remove a regular worktree or free a pooled worktree slot. `--self` targets the worktree containing `cwd`. `--integrated-into` proves clean squash-aware cleanup against a fetched target. |
 | `honeycomb [--cwd <path>] ensure` | Materialize configured pool slots. |
 | `honeycomb [--cwd <path>] status` | Print pool status JSON. |
 | `honeycomb [--cwd <path>] copy [--json]` | Re-run configured copy setup for the non-canonical worktree containing `cwd`. |
 | `honeycomb [--cwd <path>] config explain [--json]` | Show the effective policy after defaults, matching rules, and exact project overrides. |
 | `honeycomb [--cwd <path>] finish [--json]` | Integrate a completed worktree into the canonical root using effective finish policy. |
+| `honeycomb [--cwd <path>] pick [--open]` | Fuzzy-pick a worktree with fzf, marking the one containing `cwd`, and print its path. `--open` requires `--interactive`. Cancelling exits `130` without output. With `--interactive` inside tmux, the picker opens in a popup and previews each worktree's session; otherwise it runs inline and previews recent history. |
 
 `--cwd` is a global option. It may point at any path inside the intended worktree set and defaults to the current directory. Commands resolve the canonical root from that path; commands that operate on the current/source worktree, such as `copy`, `finish` and `remove --self`, target the worktree containing that path.
+
+`add --base-current` uses the branch checked out in the worktree containing `--cwd` as its base. A detached worktree and combining it with `--base` are usage errors.
 
 `--interactive` is a global option for human wrappers; see §3 Interactive mode.
 

@@ -34,6 +34,8 @@ export interface CommandResult {
 	stderr?: string;
 	/** Process status from the documented exit-code taxonomy. */
 	exitCode: number;
+	/** Interactive follow-up run once output is written; it may end the process. */
+	afterOutput?: (() => Promise<void>) | undefined;
 }
 
 export interface OutputMode {
@@ -53,6 +55,16 @@ export const finalizeStructuredResult = (
 	stdout: output.json ? `${JSON.stringify(payload, null, 2)}\n` : undefined,
 	exitCode,
 });
+
+export const finalizeReadyResult = (
+	payload: object,
+	output: OutputMode,
+	summary: string,
+	afterOutput?: () => Promise<void>,
+): CommandResult => {
+	if (output.json) return { ...finalizeStructuredResult(payload, output), afterOutput };
+	return { stderr: `${summary}\n`, exitCode: EXIT_CODES.SUCCESS, afterOutput };
+};
 
 export const toBlockedCommandResult = (
 	error: unknown,
@@ -110,7 +122,7 @@ export const toAddPayload = (plan: AddPlan): ReadyAddPayload => ({
 	root: plan.root,
 	title: plan.title,
 	session: toSessionInfo(plan.worktreePath),
-	post_create_script_path: plan.postCreateScriptPath,
+	post_create_script_path: null,
 	created_new_branch: plan.createdNewBranch,
 	rollback_branch_head: plan.rollbackBranchHead,
 });
@@ -213,8 +225,8 @@ export interface ReadyAddPayload {
 	title: string;
 	/** Session identity derived from the checkout path. */
 	session: SessionInfo;
-	/** Bootstrap script the wrapper must run, or null when none is configured. */
-	post_create_script_path: string | null;
+	/** Retained for compatibility; always null because add runs bootstrap itself. */
+	post_create_script_path: null;
 	/** Whether allocation created a local branch ref. */
 	created_new_branch: boolean;
 	/** Previous branch head available for wrapper rollback. */
@@ -283,9 +295,12 @@ export const parseOptions = (args: string[]) => {
 		const arg = args[index];
 		if (
 			arg === "--json" ||
+			arg === "--interactive" ||
 			arg === "--force" ||
 			arg === "--keep-branch" ||
-			arg === "--skip-pre-remote-check"
+			arg === "--open" ||
+			arg === "--base-current" ||
+			arg === "--self"
 		) {
 			opts[arg.slice(2)] = true;
 			continue;

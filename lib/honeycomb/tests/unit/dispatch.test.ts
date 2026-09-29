@@ -17,9 +17,15 @@ const deps: Deps = {
 	},
 	hooks: { runInline: unexpectedIO, runCommand: unexpectedIO },
 	picker: { pick: unexpectedIO, confirm: unexpectedIO },
+	multiplexer: {
+		attached: false,
+		open: unexpectedIO,
+		closeUnder: unexpectedIO,
+		previewCommand: unexpectedIO,
+	},
+	cdDirective: { write: unexpectedIO },
 	progress: { banner: unexpectedIO, stream: unexpectedIO, error: unexpectedIO },
 	clock: { now: unexpectedIO },
-	internalRollback: false,
 };
 
 test.each([

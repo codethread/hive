@@ -5,6 +5,7 @@ import type {
 	WorktreeLocation,
 } from "./domain/config.ts";
 import type { CopiedFile, PostCreateScriptSpec } from "./domain/worktree.ts";
+import type { Multiplexer } from "./integrations/multiplexer.ts";
 
 export interface GitResult {
 	/** Captured standard output. */
@@ -66,15 +67,20 @@ export interface HookRunner {
 export interface PickerItem {
 	/** Stable identity returned by the picker. */
 	key: string;
-	/** Row shown to the user. */
+	/** Tab-delimited row: a hidden first field the preview reads as `{1}`, then the text shown. */
 	display: string;
 	/** Shell preview associated with the row. */
 	preview: string;
 }
 
+export interface PickerOptions {
+	/** Whether the invocation is human-interactive, so the picker may use multiplexer UI. */
+	interactive?: boolean;
+}
+
 export interface PickerService {
 	/** Select one of the supplied items. */
-	pick(items: PickerItem[], header: string): Promise<PickerItem>;
+	pick(items: PickerItem[], header: string, options?: PickerOptions): Promise<PickerItem>;
 	/** Ask whether the user accepts the described operation. */
 	confirm(prompt: string): Promise<boolean>;
 }
@@ -88,6 +94,11 @@ export interface ProgressReporter {
 	error(msg: string): void;
 }
 
+export interface CdDirective {
+	/** Ask the invoking wrapper to change its shell's directory to path. */
+	write(path: string): void;
+}
+
 export interface Deps {
 	/** Git process boundary. */
 	git: GitRunner;
@@ -99,10 +110,12 @@ export interface Deps {
 	hooks: HookRunner;
 	/** Interactive selection and confirmation. */
 	picker: PickerService;
+	/** Terminal multiplexer session control; the null implementation outside one. */
+	multiplexer: Multiplexer;
+	/** Shell directory change requested of an interactive wrapper. */
+	cdDirective: CdDirective;
 	/** Command diagnostics and hook output. */
 	progress: ProgressReporter;
 	/** Time source for human-readable commit ages. */
 	clock: { now(): number };
-	/** Whether the invoking wrapper is performing an internal rollback. */
-	internalRollback: boolean;
 }

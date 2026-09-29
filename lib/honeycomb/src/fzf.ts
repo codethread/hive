@@ -1,34 +1,35 @@
-// Provides a fuzzy-finder function for interactive selection of strings using fzf
+// Single-selection fuzzy finder over lines using fzf, which draws its UI on /dev/tty itself
+import { HoneycombError, PickerCancelled } from "./errors.ts";
+
 interface Options {
-	multi?: boolean;
 	header?: string;
 	preview?: string | undefined;
+	previewWindow?: string;
+	delimiter?: string;
 	withNth?: string;
-	tty?: boolean;
+	/** Popup placement inside tmux; fzf ignores it outside tmux and runs inline. */
+	tmux?: string | undefined;
 }
 
-export async function fzf<Opts extends Options>(
-	lines: string[],
-	opts?: Opts,
-): Promise<Opts["multi"] extends true ? string[] : string> {
-	const flags = Object.entries(opts || {}).flatMap(([flag, value]) => {
-		if (!value || flag === "tty") return [];
-		const cliFlag = flag.replace(/[A-Z]/g, (char) => `-${char.toLowerCase()}`);
-		if (typeof value === "string") return [`--${cliFlag}`, value];
-		return [`--${flag}`];
-	});
+/** fzf exits 1 when nothing matched and 130 when interrupted (Esc or Ctrl-C). */
+const CANCEL_EXIT_CODES = new Set([1, 130]);
 
-	const fzf = Bun.spawn(["fzf", ...flags], {
+export const fzf = async (lines: string[], opts: Options = {}): Promise<string> => {
+	const flags = Object.entries(opts).flatMap(([option, value]) =>
+		value === undefined
+			? []
+			: [`--${option.replace(/[A-Z]/g, (char) => `-${char.toLowerCase()}`)}`, value],
+	);
+
+	const proc = Bun.spawn(["fzf", ...flags], {
 		stdio: ["pipe", "pipe", "inherit"],
 	});
 
-	fzf.stdin.write(lines.join("\n"));
-	fzf.stdin.end();
+	proc.stdin.write(lines.join("\n"));
+	proc.stdin.end();
 
-	const output = await new Response(fzf.stdout).text();
-	if (opts?.multi) {
-		const lines: string[] = output.split("\n").map((l) => l.trim());
-		return lines as Opts["multi"] extends true ? string[] : string;
-	}
-	return output.trim() as Opts["multi"] extends true ? string[] : string;
-}
+	const [output, exitCode] = await Promise.all([new Response(proc.stdout).text(), proc.exited]);
+	if (CANCEL_EXIT_CODES.has(exitCode)) throw new PickerCancelled();
+	if (exitCode !== 0) throw new HoneycombError(`fzf failed (exit ${exitCode})`);
+	return output.trim();
+};

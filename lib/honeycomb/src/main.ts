@@ -9,6 +9,7 @@ import {
 	rootCommand,
 	statusCommand,
 } from "./commands/query.ts";
+import { pickCommand } from "./commands/pick.ts";
 import { removeCommand } from "./commands/remove.ts";
 import { EXIT_CODES } from "./errors.ts";
 import type { CommandResult } from "./protocol.ts";
@@ -29,9 +30,11 @@ Subcommands:
   copy      Re-run configured copy setup
   config    Inspect effective configuration
   finish    Integrate a completed worktree into the canonical root
+  pick      Fuzzy-pick a worktree to switch to
 
 Options:
-  -h, --help  Show this help message
+  --interactive  Follow the command with multiplexer focus and the cd directive
+  -h, --help     Show this help message
 `;
 
 export const dispatch = async (
@@ -64,6 +67,8 @@ export const dispatch = async (
 			return configCommand(args, deps);
 		case "finish":
 			return finishCommand(args, deps);
+		case "pick":
+			return pickCommand(args, deps);
 		default:
 			return { stderr: USAGE, exitCode: EXIT_CODES.USAGE };
 	}

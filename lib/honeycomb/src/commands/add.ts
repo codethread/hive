@@ -1,10 +1,10 @@
-import { basename } from "node:path";
 import {
 	detectBranchState,
 	detectOriginDefaultBranch,
 	resolveBaseRef,
 	resolveDefaultBaseForNewBranch,
 } from "../application/branches.ts";
+import { focusWorktree } from "../application/interactive.ts";
 import {
 	buildPoolState,
 	describeSlotRisk,
@@ -12,16 +12,24 @@ import {
 	ensurePool,
 	recycleSlot,
 } from "../application/pool.ts";
-import { runPreRemoteCheck } from "../application/preflight.ts";
-import { listWorktrees, resolveCanonicalRoot } from "../application/repository.ts";
-import type { ProjectConfig, TreesConfig, WorktreeLocation } from "../domain/config.ts";
+import { runBootstrap, runPreRemoteCheck } from "../application/hooks.ts";
+import {
+	listWorktrees,
+	resolveCanonicalRoot,
+	resolveWorktreeContainingPath,
+} from "../application/repository.ts";
+import {
+	type ProjectConfig,
+	type TreesConfig,
+	type WorktreeLocation,
+	projectNameFor,
+} from "../domain/config.ts";
 import {
 	type AddPlan,
 	type BranchState,
 	type PoolState,
 	type Slot,
 	encodeBranch,
-	shellQuote,
 	worktreePathForName,
 } from "../domain/worktree.ts";
 
@@ -41,6 +49,7 @@ import {
 	type OutputMode,
 	type PoolFullPayload,
 	type ReadyAddPayload,
+	finalizeReadyResult,
 	finalizeStructuredResult,
 	parseOptions,
 	parseOutputMode,
@@ -59,7 +68,12 @@ export const addCommand = async (args: string[], deps: Deps) => {
 	const output = parseOutputMode(opts);
 	const machineDeps = withMachineJsonProgress(deps, output);
 	const slotPath = typeof opts.slot === "string" ? opts.slot : null;
-	const base = typeof opts.base === "string" ? opts.base : null;
+	const baseOption = typeof opts.base === "string" ? opts.base : null;
+	const baseCurrent = opts["base-current"] === true;
+	if (baseCurrent && baseOption !== null) {
+		throw new UsageError("--base-current cannot be combined with --base");
+	}
+	const interactive = opts.interactive === true;
 	if (branch.startsWith("wk-pool/")) {
 		throw new ReservedPrefixError("branch names starting with wk-pool/ are reserved");
 	}
@@ -75,6 +89,15 @@ export const addCommand = async (args: string[], deps: Deps) => {
 		if (existing) {
 			throw new DuplicateBranchError(`branch ${branch} is already checked out at ${existing.path}`);
 		}
+		const currentWorktree = baseCurrent
+			? resolveWorktreeContainingPath(worktrees, cwd, deps.files)
+			: null;
+		if (baseCurrent && !currentWorktree?.branch) {
+			throw new UsageError(
+				"--base-current requires the worktree containing --cwd to be on a branch",
+			);
+		}
+		const base = currentWorktree?.branch ?? baseOption;
 		if (slotPath && !project?.poolSize) {
 			throw new UsageError("--slot is only valid for pooled projects");
 		}
@@ -92,6 +115,7 @@ export const addCommand = async (args: string[], deps: Deps) => {
 				force: opts.force === true,
 				command: effectiveCommand.command,
 				worktreeLocation,
+				interactive,
 			});
 		}
 
@@ -135,6 +159,15 @@ export const addCommand = async (args: string[], deps: Deps) => {
 			if (project) {
 				await deps.files.copy(canonicalRoot, worktreePath, project.copy);
 			}
+			if (effectiveCommand.command) {
+				await runBootstrap(machineDeps, {
+					projectName: projectNameFor(project, canonicalRoot),
+					command: effectiveCommand.command,
+					root: canonicalRoot,
+					created: worktreePath,
+					pooled: false,
+				});
+			}
 		} catch (error) {
 			await rollbackNonPoolAdd({
 				git: machineDeps.git,
@@ -147,25 +180,15 @@ export const addCommand = async (args: string[], deps: Deps) => {
 			throw error;
 		}
 
-		const postCreateScriptPath = effectiveCommand.command
-			? deps.files.writePostCreateScript({
-					projectName: project?.name ?? basename(canonicalRoot),
-					command: effectiveCommand.command,
-					root: canonicalRoot,
-					created: worktreePath,
-					pooled: false,
-				})
-			: null;
 		const plan: AddPlan = {
 			worktreePath,
 			branch,
 			root: canonicalRoot,
 			title: branch,
-			postCreateScriptPath,
 			createdNewBranch: branchState === "none" || branchState === "remote",
 			rollbackBranchHead: originalBranchHead,
 		};
-		return finalizeStructuredResult(toAddPayload(plan), output);
+		return finalizeReadyAdd({ payload: toAddPayload(plan), output, deps, interactive });
 	} catch (error) {
 		const blocked = toBlockedCommandResult(error, output, {
 			branch,
@@ -188,6 +211,7 @@ const addPooledWorktree = async (options: {
 	force: boolean;
 	command: string | null;
 	worktreeLocation: WorktreeLocation;
+	interactive: boolean;
 }): Promise<CommandResult> => {
 	const {
 		deps,
@@ -201,6 +225,7 @@ const addPooledWorktree = async (options: {
 		force,
 		command,
 		worktreeLocation,
+		interactive,
 	} = options;
 	let worktrees = await listWorktrees(deps.git, root);
 	for (const worktree of worktrees) {
@@ -266,8 +291,8 @@ const addPooledWorktree = async (options: {
 			targetSlot =
 				state.slots.find((candidate) => candidate.index === selected.index) ?? targetSlot;
 		}
-		return finalizeStructuredResult(
-			await allocatePooledSlot({
+		return finalizeReadyAdd({
+			payload: await allocatePooledSlot({
 				deps,
 				project,
 				root,
@@ -278,15 +303,17 @@ const addPooledWorktree = async (options: {
 				command,
 			}),
 			output,
-		);
+			deps,
+			interactive,
+		});
 	}
 
 	const slot = state.slots.find(
 		(candidate) => candidate.exists && candidate.initialized && candidate.placeholder,
 	);
 	if (slot) {
-		return finalizeStructuredResult(
-			await allocatePooledSlot({
+		return finalizeReadyAdd({
+			payload: await allocatePooledSlot({
 				deps,
 				project,
 				root,
@@ -297,7 +324,9 @@ const addPooledWorktree = async (options: {
 				command,
 			}),
 			output,
-		);
+			deps,
+			interactive,
+		});
 	}
 
 	if (output.json) {
@@ -308,7 +337,7 @@ const addPooledWorktree = async (options: {
 		);
 	}
 
-	const selected = await pickFullPoolSlot({ deps, state });
+	const selected = await pickFullPoolSlot({ deps, state, interactive });
 	if (!force) {
 		const confirmed = await deps.picker.confirm(
 			await buildRecycleConfirmPrompt(deps.git, selected),
@@ -334,8 +363,8 @@ const addPooledWorktree = async (options: {
 	);
 	const recycled = state.slots.find((candidate) => candidate.index === selected.index);
 	if (!recycled) throw new HoneycombError(`pool slot disappeared after recycle: ${selected.path}`);
-	return finalizeStructuredResult(
-		await allocatePooledSlot({
+	return finalizeReadyAdd({
+		payload: await allocatePooledSlot({
 			deps,
 			project,
 			root,
@@ -346,8 +375,29 @@ const addPooledWorktree = async (options: {
 			command,
 		}),
 		output,
-	);
+		deps,
+		interactive,
+	});
 };
+
+const finalizeReadyAdd = (options: {
+	payload: ReadyAddPayload;
+	output: OutputMode;
+	deps: Deps;
+	interactive: boolean;
+}): CommandResult =>
+	finalizeReadyResult(
+		options.payload,
+		options.output,
+		`honeycomb: added ${options.payload.branch} at ${options.payload.worktree_path}`,
+		options.interactive
+			? () =>
+					focusWorktree(options.deps, {
+						path: options.payload.worktree_path,
+						title: options.payload.title,
+					})
+			: undefined,
+	);
 
 const allocatePooledSlot = async (options: {
 	deps: Deps;
@@ -360,6 +410,10 @@ const allocatePooledSlot = async (options: {
 	command: string | null;
 }): Promise<ReadyAddPayload> => {
 	const { deps, project, root, slot, branch, branchState, base, command } = options;
+	if (!command)
+		throw new ConfigError(
+			`project ${project.name ?? project.root} requires command for pooled setup`,
+		);
 	const originalBranchHead = await captureExistingBranchHead({
 		git: deps.git,
 		root,
@@ -382,6 +436,13 @@ const allocatePooledSlot = async (options: {
 			progress: deps.progress,
 		});
 		await deps.files.copy(root, slot.path, project.copy);
+		await runBootstrap(deps, {
+			projectName: projectNameFor(project, root),
+			command,
+			root,
+			created: slot.path,
+			pooled: true,
+		});
 	} catch (error) {
 		await rollbackPooledAllocation({
 			git: deps.git,
@@ -393,31 +454,23 @@ const allocatePooledSlot = async (options: {
 		});
 		throw error;
 	}
-	if (!command)
-		throw new ConfigError(
-			`project ${project.name ?? project.root} requires command for pooled setup`,
-		);
-	const postCreateScriptPath = deps.files.writePostCreateScript({
-		projectName: project.name ?? basename(root),
-		command,
-		root,
-		created: slot.path,
-		pooled: true,
-	});
 	const plan: AddPlan = {
 		worktreePath: slot.path,
 		branch,
 		root,
 		title: branch,
-		postCreateScriptPath,
 		createdNewBranch: branchState === "none" || branchState === "remote",
 		rollbackBranchHead: originalBranchHead,
 	};
 	return toAddPayload(plan);
 };
 
-const pickFullPoolSlot = async (options: { deps: Deps; state: PoolState }): Promise<Slot> => {
-	const { deps, state } = options;
+const pickFullPoolSlot = async (options: {
+	deps: Deps;
+	state: PoolState;
+	interactive: boolean;
+}): Promise<Slot> => {
+	const { deps, state, interactive } = options;
 	const candidates = state.slots.filter(
 		(slot) => slot.exists && slot.initialized && !slot.placeholder,
 	);
@@ -428,11 +481,13 @@ const pickFullPoolSlot = async (options: { deps: Deps; state: PoolState }): Prom
 		const risk = await describeSlotRisk(deps.git, slot);
 		items.push({
 			key: String(slot.index),
-			display: `${shellQuote(slot.path)}\tfeat${slot.index}  ${slot.branch ?? "(detached)"}  ${formatRelativeAge(slot.lastCommitIso, deps.clock.now())}${slot.dirty ? "  [dirty]" : ""}${risk.ahead > 0 ? `  [${risk.ahead} ahead]` : ""}${risk.localOnly ? "  [local-only]" : ""}`,
+			display: `${slot.path}\tfeat${slot.index}  ${slot.branch ?? "(detached)"}  ${formatRelativeAge(slot.lastCommitIso, deps.clock.now())}${slot.dirty ? "  [dirty]" : ""}${risk.ahead > 0 ? `  [${risk.ahead} ahead]` : ""}${risk.localOnly ? "  [local-only]" : ""}`,
 			preview: buildPickerPreview(),
 		});
 	}
-	const selected = await deps.picker.pick(items, "Select a worktree slot to recycle");
+	const selected = await deps.picker.pick(items, "Select a worktree slot to recycle", {
+		interactive,
+	});
 	return candidates.find((slot) => String(slot.index) === selected.key) ?? firstCandidate;
 };
 

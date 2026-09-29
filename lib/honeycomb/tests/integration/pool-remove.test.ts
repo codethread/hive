@@ -150,7 +150,7 @@ describe("pooled honeycomb remove", () => {
 		writeFileSync(join(`${root}__feat1`, "dirty.txt"), "dirty\n");
 
 		await expect(
-			dispatch("remove", ["--cwd", root, "--self", `${root}__feat1`, "--keep-branch"], testDeps()),
+			dispatch("remove", ["--cwd", `${root}__feat1`, "--self", "--keep-branch"], testDeps()),
 		).rejects.toThrow("uncommitted changes");
 
 		expect(
@@ -178,7 +178,7 @@ describe("pooled honeycomb remove", () => {
 		mkdirSync(join(`${root}__feat1`, "node_modules"));
 		writeFileSync(join(`${root}__feat1`, "node_modules", "keep.txt"), "keep\n");
 
-		await dispatch("remove", ["--cwd", root, "--self", `${root}__feat1`, "--force"], testDeps());
+		await dispatch("remove", ["--cwd", `${root}__feat1`, "--self", "--force"], testDeps());
 
 		expect(
 			(await run(["git", "-C", `${root}__feat1`, "branch", "--show-current"])).stdout.trim(),
@@ -210,7 +210,7 @@ describe("pooled honeycomb remove", () => {
 			testDeps(),
 		);
 		await expect(
-			dispatch("remove", ["--cwd", root, "--self", `${root}__feat1`], testDeps()),
+			dispatch("remove", ["--cwd", `${root}__feat1`, "--self"], testDeps()),
 		).rejects.toThrow("no upstream");
 		await run([
 			"git",
@@ -226,7 +226,7 @@ describe("pooled honeycomb remove", () => {
 		await run(["git", "-C", `${root}__feat1`, "commit", "-m", "ahead"]);
 
 		await expect(
-			dispatch("remove", ["--cwd", root, "--self", `${root}__feat1`], testDeps()),
+			dispatch("remove", ["--cwd", `${root}__feat1`, "--self"], testDeps()),
 		).rejects.toThrow("not merged");
 		expect(
 			(await run(["git", "-C", `${root}__feat1`, "branch", "--show-current"])).stdout.trim(),

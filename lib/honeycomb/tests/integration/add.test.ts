@@ -9,12 +9,13 @@ import {
 	writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { basename, join } from "node:path";
+import { basename, join, resolve } from "node:path";
 import { dispatch, EXIT_CODES } from "../../src/index";
 import {
 	setTestEnv,
 	restoreTestEnv,
 	deps,
+	testDeps,
 	writeConfig,
 	useOriginFixture,
 	createRemoteBranch,
@@ -41,14 +42,14 @@ describe("honeycomb non-pool add", () => {
 		rmSync(tmp, { recursive: true, force: true });
 	});
 
-	test("adds a new branch, writes ready JSON to stdout, and post-create script is re-executable", async () => {
+	test("adds a new branch, runs setup, and writes ready JSON to stdout", async () => {
 		const { root } = await initRepoWithOrigin(tmp);
-		writeConfig(tmp, root, `echo hook > "$WK_CREATED/hook-sentinel"`);
+		writeConfig(tmp, root, `echo "$WK_ROOT" > "$WK_CREATED/hook-sentinel"`);
 
 		const result = await dispatch(
 			"add",
 			["--cwd", root, "--branch", "feature/new", "--json"],
-			deps,
+			testDeps(),
 		);
 
 		expect(result.exitCode).toBe(0);
@@ -61,17 +62,78 @@ describe("honeycomb non-pool add", () => {
 			branch: "feature/new",
 			root,
 			title: "feature/new",
+			post_create_script_path: null,
 			created_new_branch: true,
 			session: {
 				name: basename(worktreePath).replaceAll(".", "_"),
 				path: worktreePath,
 			},
 		});
-		expect(plan.post_create_script_path).toContain(`/${plan.session.name}.wktree.`);
-		expect(plan.post_create_script_path).toMatch(/\/post-create\.sh$/);
-		await run(["bash", plan.post_create_script_path]);
-		await run(["bash", plan.post_create_script_path]);
-		expect(readFileSync(join(worktreePath, "hook-sentinel"), "utf8")).toBe("hook\n");
+		expect(readFileSync(join(worktreePath, "hook-sentinel"), "utf8")).toBe(`${root}\n`);
+	});
+
+	test("--json keeps stdout a single payload while setup prints output", async () => {
+		const { root } = await initRepoWithOrigin(tmp);
+		writeConfig(tmp, root, "echo setup-stdout\necho setup-stderr >&2");
+
+		const proc = Bun.spawn(
+			[
+				"bun",
+				resolve(import.meta.dirname, "../../bin/honeycomb.ts"),
+				"add",
+				"--cwd",
+				root,
+				"--branch",
+				"feature/noisy",
+				"--json",
+			],
+			{ env: process.env, stdout: "pipe", stderr: "pipe" },
+		);
+		const [stdout, stderr, exitCode] = await Promise.all([
+			new Response(proc.stdout).text(),
+			new Response(proc.stderr).text(),
+			proc.exited,
+		]);
+
+		expect(exitCode).toBe(0);
+		expect(JSON.parse(stdout)).toMatchObject({ kind: "ready", branch: "feature/noisy" });
+		expect(stderr).toContain("setup-stdout");
+		expect(stderr).toContain("setup-stderr");
+	});
+
+	test("setup failure rolls back the new worktree and branch", async () => {
+		const { root } = await initRepoWithOrigin(tmp);
+		writeConfig(tmp, root, "echo failing >&2\nexit 7");
+
+		await expect(
+			dispatch("add", ["--cwd", root, "--branch", "feature/setup-fail", "--json"], testDeps()),
+		).rejects.toThrow("hook failed");
+
+		expect(existsSync(`${root}__feature--setup-fail`)).toBe(false);
+		expect(
+			(await runRaw(["git", "-C", root, "show-ref", "--verify", "refs/heads/feature/setup-fail"]))
+				.exitCode,
+		).not.toBe(0);
+	});
+
+	test("setup failure restores an existing branch tip", async () => {
+		const { root } = await initRepoWithOrigin(tmp);
+		await run(["git", "-C", root, "branch", "feature/setup-restore"]);
+		const originalHead = (
+			await run(["git", "-C", root, "rev-parse", "refs/heads/feature/setup-restore"])
+		).stdout.trim();
+		writeConfig(tmp, root, "exit 7");
+
+		await expect(
+			dispatch("add", ["--cwd", root, "--branch", "feature/setup-restore", "--json"], testDeps()),
+		).rejects.toThrow("hook failed");
+
+		expect(existsSync(`${root}__feature--setup-restore`)).toBe(false);
+		expect(
+			(
+				await run(["git", "-C", root, "rev-parse", "refs/heads/feature/setup-restore"])
+			).stdout.trim(),
+		).toBe(originalHead);
 	});
 
 	test("creates nested worktrees under the canonical root without dirtying it", async () => {
@@ -151,21 +213,18 @@ describe("honeycomb non-pool add", () => {
 		);
 		setTestEnv("XDG_CONFIG_HOME", configHome);
 
-		const result = await dispatch(
+		await dispatch(
 			"add",
 			["--cwd", root, "--branch", "feature/rule-command", "--json"],
-			deps,
+			testDeps(),
 		);
-		const plan = JSON.parse(result.stdout ?? "{}");
-		await run(["bash", plan.post_create_script_path]);
 
-		expect(plan.post_create_script_path).toMatch(/\/post-create\.sh$/);
 		expect(readFileSync(join(`${root}__feature--rule-command`, "rule-sentinel"), "utf8")).toBe(
 			"inherited\n",
 		);
 	});
 
-	test("copies configured files before returning the post-create script", async () => {
+	test("copies configured files before running setup", async () => {
 		const { root } = await initRepoWithOrigin(tmp);
 		writeFileSync(join(root, ".env"), "SECRET=setup\n");
 		writeConfig(
@@ -176,17 +235,10 @@ describe("honeycomb non-pool add", () => {
 			'copy = [".env"]\n',
 		);
 
-		const result = await dispatch(
-			"add",
-			["--cwd", root, "--branch", "feature/copy-setup", "--json"],
-			deps,
-		);
+		await dispatch("add", ["--cwd", root, "--branch", "feature/copy-setup", "--json"], testDeps());
 		const worktreePath = `${root}__feature--copy-setup`;
-		const plan = JSON.parse(result.stdout ?? "{}");
 
 		expect(readFileSync(join(worktreePath, ".env"), "utf8")).toBe("SECRET=setup\n");
-		expect((await run(["git", "-C", worktreePath, "status", "--porcelain"])).stdout).toBe("");
-		await run(["bash", plan.post_create_script_path]);
 		expect(readFileSync(join(worktreePath, "hook-read-env"), "utf8")).toBe("SECRET=setup\n");
 	});
 
@@ -525,6 +577,99 @@ describe("honeycomb non-pool add", () => {
 			warnDeps,
 		);
 		expect(warnings.join("\n")).toContain("--base ignored");
+	});
+
+	test("--base-current stacks a new branch on the worktree containing cwd", async () => {
+		const { root } = await initRepoWithOrigin(tmp);
+		writeConfig(tmp, root, "echo ready");
+		await dispatch("add", ["--cwd", root, "--branch", "feature/parent", "--json"], deps);
+		const parentPath = `${root}__feature--parent`;
+		writeFileSync(join(parentPath, "parent.txt"), "parent\n");
+		await run(["git", "-C", parentPath, "add", "parent.txt"]);
+		await run(["git", "-C", parentPath, "commit", "-m", "parent work"]);
+		const nestedCwd = join(parentPath, "nested");
+		mkdirSync(nestedCwd, { recursive: true });
+
+		const result = await dispatch(
+			"add",
+			["--cwd", nestedCwd, "--branch", "feature/child", "--base-current", "--json"],
+			deps,
+		);
+
+		expect(result.exitCode).toBe(0);
+		expect(
+			(await run(["git", "-C", `${root}__feature--child`, "show", "HEAD:parent.txt"])).stdout,
+		).toBe("parent\n");
+	});
+
+	test("--base-current from canonical root stacks on the canonical branch", async () => {
+		const { root } = await initRepoWithOrigin(tmp);
+		writeConfig(tmp, root, "echo ready");
+		writeFileSync(join(root, "canonical.txt"), "canonical\n");
+		await run(["git", "-C", root, "add", "canonical.txt"]);
+		await run(["git", "-C", root, "commit", "-m", "canonical work"]);
+
+		const result = await dispatch(
+			"add",
+			["--cwd", root, "--branch", "feature/from-canonical", "--base-current", "--json"],
+			deps,
+		);
+
+		expect(result.exitCode).toBe(0);
+		expect(
+			(await run(["git", "-C", `${root}__feature--from-canonical`, "show", "HEAD:canonical.txt"]))
+				.stdout,
+		).toBe("canonical\n");
+	});
+
+	test("--base-current refuses a detached worktree", async () => {
+		const { root } = await initRepoWithOrigin(tmp);
+		writeConfig(tmp, root, "echo ready");
+		await dispatch("add", ["--cwd", root, "--branch", "feature/detached", "--json"], deps);
+		const worktreePath = `${root}__feature--detached`;
+		await run(["git", "-C", worktreePath, "checkout", "--detach"]);
+
+		await expect(
+			dispatch(
+				"add",
+				["--cwd", worktreePath, "--branch", "feature/stacked", "--base-current", "--json"],
+				deps,
+			),
+		).rejects.toThrow("--base-current requires the worktree containing --cwd to be on a branch");
+		expect(existsSync(`${root}__feature--stacked`)).toBe(false);
+	});
+
+	test("--base-current is refused together with --base", async () => {
+		const { root } = await initRepoWithOrigin(tmp);
+		writeConfig(tmp, root, "echo ready");
+
+		await expect(
+			dispatch(
+				"add",
+				[
+					"--cwd",
+					root,
+					"--branch",
+					"feature/conflicting-base",
+					"--base-current",
+					"--base",
+					"main",
+					"--json",
+				],
+				deps,
+			),
+		).rejects.toThrow("--base-current cannot be combined with --base");
+	});
+
+	test("non-json add prints a one-line summary to stderr", async () => {
+		const { root } = await initRepoWithOrigin(tmp);
+		writeConfig(tmp, root, "echo ready");
+
+		const result = await dispatch("add", ["--cwd", root, "--branch", "feature/human"], deps);
+
+		expect(result.exitCode).toBe(0);
+		expect(result.stdout).toBeUndefined();
+		expect(result.stderr).toBe(`honeycomb: added feature/human at ${root}__feature--human\n`);
 	});
 
 	test("accepts --force for wrapper compatibility", async () => {

@@ -3,8 +3,9 @@ import {
 	detectOriginDefaultBranch,
 	fastForwardCanonicalDefault,
 } from "../application/branches.ts";
+import { planLeaveWorktree } from "../application/interactive.ts";
 import { buildPoolState, ensurePlaceholderBranch } from "../application/pool.ts";
-import { runPreRemoteCheck } from "../application/preflight.ts";
+import { runPreRemoteCheck } from "../application/hooks.ts";
 import { listWorktrees, resolveWorktreeContainingPath } from "../application/repository.ts";
 import type {
 	AddPolicy,
@@ -25,7 +26,7 @@ import {
 	HoneycombError,
 } from "../errors.ts";
 import {
-	finalizeStructuredResult,
+	finalizeReadyResult,
 	parseOptions,
 	parseOutputMode,
 	requireOption,
@@ -38,8 +39,10 @@ export const finishCommand = async (args: string[], deps: Deps) => {
 	const opts = parseOptions(args);
 	const cwd = requireOption(opts, "cwd");
 	const output = parseOutputMode(opts);
+	const interactive = opts.interactive === true;
 	for (const key of Object.keys(opts)) {
-		if (key !== "cwd" && key !== "json") throw new UsageError(`unknown option --${key}`);
+		if (key !== "cwd" && key !== "json" && key !== "interactive")
+			throw new UsageError(`unknown option --${key}`);
 	}
 	const machineDeps = withMachineJsonProgress(deps, output);
 	let sourceBranch: string | undefined;
@@ -109,6 +112,7 @@ export const finishCommand = async (args: string[], deps: Deps) => {
 		});
 
 		const cleanupActions: string[] = [];
+		let afterOutput: (() => Promise<void>) | undefined;
 		if (push) {
 			const pushed = await machineDeps.git.runRaw([
 				"-C",
@@ -121,6 +125,13 @@ export const finishCommand = async (args: string[], deps: Deps) => {
 			cleanupActions.push("push");
 		}
 		if (removeWorktree) {
+			if (interactive) {
+				afterOutput = planLeaveWorktree(deps, {
+					cwd,
+					root: canonical.path,
+					worktreePath: source.path,
+				});
+			}
 			await cleanupFinishedWorktree({
 				files: deps.files,
 				git: machineDeps.git,
@@ -134,17 +145,20 @@ export const finishCommand = async (args: string[], deps: Deps) => {
 			if (deleteBranch) cleanupActions.push("delete_branch");
 		}
 
-		return finalizeStructuredResult(
-			{
-				kind: "ready",
-				root: canonical.path,
-				worktree_path: source.path,
-				source_branch: source.branch,
-				target_branch: targetBranch,
-				strategy,
-				cleanup_actions: cleanupActions,
-			},
+		const payload = {
+			kind: "ready",
+			root: canonical.path,
+			worktree_path: source.path,
+			source_branch: source.branch,
+			target_branch: targetBranch,
+			strategy,
+			cleanup_actions: cleanupActions,
+		};
+		return finalizeReadyResult(
+			payload,
 			output,
+			`honeycomb: finished ${payload.source_branch} into ${payload.target_branch}`,
+			afterOutput,
 		);
 	} catch (error) {
 		const blocked = toBlockedCommandResult(error, output, {

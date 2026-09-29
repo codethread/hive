@@ -67,6 +67,8 @@ honeycomb remove --branch feature/example
 honeycomb remove --branch feature/example --keep-branch
 # Delete a clean branch after proving a squash merge into the fetched target
 honeycomb remove --branch feature/example --integrated-into origin/main
+# Fuzzy-pick a worktree with fzf and print its path
+honeycomb pick
 ```
 
 For scripts and agents, prefer JSON where available and branch on the payload `kind`:
@@ -77,7 +79,7 @@ honeycomb list --json
 honeycomb finish --json
 ```
 
-If `add --json` returns `post_create_script_path`, run that script with bash before treating the worktree as ready.
+`add` runs the configured setup command before reporting `ready`; with `--json`, setup output goes to stderr. If setup fails, `add` rolls back and exits `1`.
 
 Use this to see what config applies to the current repository:
 
@@ -259,4 +261,14 @@ honeycomb finish --json
 
 ## Nushell wrapper
 
-The TypeScript CLI is the source of truth. `nu/honeycomb/` provides human-friendly `wk` commands and tmux switching around the same engine.
+The TypeScript CLI is the source of truth. [`nu/honeycomb/mod.nu`](./nu/honeycomb/mod.nu) is a thin `wk` shim for interactive shells: it runs `honeycomb --interactive`, applies the directory the engine writes to `HONEYCOMB_CD_FILE`, and propagates the engine's exit code. It holds no worktree, git, multiplexer, or prompt logic.
+
+| `wk` command | Engine call |
+| --- | --- |
+| `wk add <branch> [--base <branch> \| --base-current] [--force]` | `honeycomb --interactive add` |
+| `wk remove [<branch>] [--self] [--force]` | `honeycomb --interactive remove` |
+| `wk finish` | `honeycomb --interactive finish` |
+| `wk switch` / `wk select` | `honeycomb --interactive pick --open` / `honeycomb --interactive pick` |
+| `wk list`, `wk root`, `wk path <branch>`, `wk copy` | the same-named `honeycomb` command |
+
+`--interactive` is what authorises session focus and the shell directory handoff. It is only for human shells: agents and scripts call `honeycomb` directly and must not pass it.

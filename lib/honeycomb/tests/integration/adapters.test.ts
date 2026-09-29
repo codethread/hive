@@ -110,3 +110,41 @@ describe("LiveGitRunner", () => {
 		}
 	});
 });
+
+describe("LiveCommandRunner", () => {
+	test("runs a command from a neutral cwd when the process cwd was removed", async () => {
+		const directory = mkdtempSync(join(tmpdir(), "honeycomb-multiplexer-cwd-test-"));
+		const runner = new URL("../../src/integrations/tmux.ts", import.meta.url).href;
+		try {
+			const child = Bun.spawn(
+				[
+					"bun",
+					"-e",
+					`
+    import { mkdirSync, rmSync } from "node:fs";
+    import { LiveCommandRunner } from ${JSON.stringify(runner)};
+    const doomed = ${JSON.stringify(join(directory, "deleted-worktree"))};
+    mkdirSync(doomed);
+    process.chdir(doomed);
+    rmSync(doomed, { recursive: true });
+    const result = await new LiveCommandRunner().run("pwd", []);
+    process.stdout.write(result.stdout);
+   `,
+				],
+				{ stdout: "pipe", stderr: "pipe" },
+			);
+			const [stdout, stderr, exitCode] = await Promise.all([
+				new Response(child.stdout).text(),
+				new Response(child.stderr).text(),
+				child.exited,
+			]);
+			expect({ exitCode, stderr, stdout }).toEqual({
+				exitCode: 0,
+				stderr: "",
+				stdout: "/\n",
+			});
+		} finally {
+			rmSync(directory, { recursive: true, force: true });
+		}
+	});
+});

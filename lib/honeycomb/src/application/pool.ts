@@ -1,5 +1,10 @@
-import { basename, resolve } from "node:path";
-import type { ProjectConfig, TreesConfig, WorktreeLocation } from "../domain/config.ts";
+import { resolve } from "node:path";
+import {
+	type ProjectConfig,
+	type TreesConfig,
+	type WorktreeLocation,
+	projectNameFor,
+} from "../domain/config.ts";
 import {
 	type PoolState,
 	type Slot,
@@ -14,6 +19,7 @@ import {
 	assertBranchIntegratedInto,
 	detectOriginDefaultBranch,
 } from "./branches.ts";
+import { runBootstrap } from "./hooks.ts";
 import { listWorktrees } from "./repository.ts";
 
 export const buildPoolState = async (
@@ -208,18 +214,15 @@ export const ensurePool = async (
 			throw new ConfigError(
 				`project ${project.name ?? project.root} requires command for pooled setup`,
 			);
-		const postCreateScriptPath = deps.files.writePostCreateScript({
-			projectName: project.name ?? basename(root),
-			command,
-			root,
-			created: slot.path,
-			pooled: true,
-		});
 		try {
 			await deps.files.copy(root, slot.path, project.copy);
-			await deps.hooks.runInline(postCreateScriptPath, slot.path, {}, (stream, line) =>
-				deps.progress.stream(stream, line),
-			);
+			await runBootstrap(deps, {
+				projectName: projectNameFor(project, root),
+				command,
+				root,
+				created: slot.path,
+				pooled: true,
+			});
 		} catch (error) {
 			if (createdWorktree)
 				await deps.git.runRaw(["-C", root, "worktree", "remove", "--force", slot.path]);

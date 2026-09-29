@@ -1,4 +1,4 @@
-import { isAbsolute, resolve } from "node:path";
+import { basename, isAbsolute, resolve } from "node:path";
 
 export type AddPolicy = "origin_default" | "fresh_canonical";
 export type WorktreeLocation = "sibling" | "nested";
@@ -229,3 +229,7 @@ const globSegmentMatches = (pattern: string, value: string): boolean => {
 	const escaped = pattern.replace(/[.+^${}()|[\]\\]/g, "\\$&").replace(/\*/g, "[^/]*");
 	return new RegExp(`^${escaped}$`).test(value);
 };
+
+/** Project name for bootstrap scripts: the configured name, else the canonical root's basename. */
+export const projectNameFor = (project: ProjectConfig | undefined, root: string): string =>
+	project?.name ?? basename(root);

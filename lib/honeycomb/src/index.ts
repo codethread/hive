@@ -12,6 +12,8 @@ export { generatePostCreateScript } from "./domain/worktree.ts";
 export * from "./errors.ts";
 export { GitError } from "./git/executor.ts";
 export { LiveHookRunner, runInlineBash } from "./hooks.ts";
+export { NoMultiplexer } from "./integrations/multiplexer.ts";
+export type { Multiplexer, MultiplexerOpenRequest } from "./integrations/multiplexer.ts";
 export { dispatch } from "./main.ts";
 export type { CommandResult } from "./protocol.ts";
 export type * from "./services.ts";

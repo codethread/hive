@@ -1,5 +1,5 @@
 import { buildPoolState, ensurePool } from "../application/pool.ts";
-import { runPreRemoteCheck } from "../application/preflight.ts";
+import { runPreRemoteCheck } from "../application/hooks.ts";
 import {
 	listWorktrees,
 	resolveCanonicalRoot,
@@ -15,7 +15,7 @@ import {
 } from "../errors.ts";
 import {
 	type OutputMode,
-	finalizeStructuredResult,
+	finalizeReadyResult,
 	formatCommandSource,
 	formatWorktreeList,
 	parseOptions,
@@ -144,15 +144,17 @@ export const copyCommand = async (args: string[], deps: Deps) => {
 		}
 		const project = deps.config.explain(config, canonical.path).project;
 		const copied = await deps.files.copy(canonical.path, target.path, project?.copy ?? []);
-		return finalizeStructuredResult(
-			{
-				kind: "ready",
-				root: canonical.path,
-				worktree_path: target.path,
-				copied,
-				exclude_paths: [...new Set(copied.map((entry) => entry.to))].sort(),
-			},
+		const payload = {
+			kind: "ready",
+			root: canonical.path,
+			worktree_path: target.path,
+			copied,
+			exclude_paths: [...new Set(copied.map((entry) => entry.to))].sort(),
+		};
+		return finalizeReadyResult(
+			payload,
 			output,
+			`honeycomb: copied ${payload.copied.length} items into ${payload.worktree_path}`,
 		);
 	} catch (error) {
 		const blocked = toBlockedCommandResult(error, output, {});

@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { dispatch, EXIT_CODES } from "../../src/index";
 import {
 	setTestEnv,
@@ -18,6 +18,8 @@ import {
 } from "./support.ts";
 
 const { initRepoWithOrigin } = useOriginFixture();
+
+const FAIL_OUTSIDE_PLACEHOLDER = '[[ "$(git branch --show-current)" == wk-pool/* ]] || exit 7';
 
 describe("honeycomb pooled add", () => {
 	let tmp: string;
@@ -279,9 +281,14 @@ describe("honeycomb pooled add", () => {
 		);
 	});
 
-	test("allocates the lowest initialized free slot and writes a pooled post-create script", async () => {
+	test("allocates the lowest initialized free slot and runs setup", async () => {
 		const { root } = await initRepoWithOrigin(tmp);
-		writeConfig(tmp, root, "touch pooled-sentinel", 2);
+		writeConfig(
+			tmp,
+			root,
+			'git branch --show-current > "$(git rev-parse --git-path setup-branch)"',
+			2,
+		);
 		await dispatch("ensure", ["--cwd", root], testDeps());
 
 		const result = await dispatch(
@@ -291,15 +298,18 @@ describe("honeycomb pooled add", () => {
 		);
 
 		const plan = JSON.parse(result.stdout ?? "{}");
-		const postCreateScriptPath = plan.post_create_script_path as string;
 		expect(plan).toMatchObject({
 			worktree_path: `${root}__feat1`,
 			branch: "feature/pooled",
+			post_create_script_path: null,
 			created_new_branch: true,
 		});
-		expect(postCreateScriptPath).toContain(".wktree.");
-		expect(postCreateScriptPath).toMatch(/\/post-create\.sh$/);
-		expect(readFileSync(postCreateScriptPath, "utf8")).toContain("wk-pool-initialized");
+		const setupBranchPath = (
+			await run(["git", "-C", `${root}__feat1`, "rev-parse", "--git-path", "setup-branch"])
+		).stdout.trim();
+		expect(readFileSync(resolve(`${root}__feat1`, setupBranchPath), "utf8")).toBe(
+			"feature/pooled\n",
+		);
 		expect(
 			(await run(["git", "-C", `${root}__feat1`, "branch", "--show-current"])).stdout.trim(),
 		).toBe("feature/pooled");
@@ -308,25 +318,68 @@ describe("honeycomb pooled add", () => {
 		).toBe("wk-pool/feat2");
 	});
 
-	test("copies into allocated slot after checkout and before post-create script", async () => {
+	test("copies into allocated slot after checkout and before setup", async () => {
 		const { root } = await initRepoWithOrigin(tmp);
 		writeFileSync(join(root, ".env"), "pooled\n");
 		writeConfig(tmp, root, 'cat .env > "$WK_CREATED/allocated-read"', 1, 'copy = [".env"]\n');
 		await dispatch("ensure", ["--cwd", root], testDeps());
 
-		const result = await dispatch(
+		await dispatch(
 			"add",
 			["--cwd", root, "--branch", "feature/allocated-copy", "--json"],
 			testDeps(),
 		);
-		const plan = JSON.parse(result.stdout ?? "{}");
 
 		expect(readFileSync(join(`${root}__feat1`, ".env"), "utf8")).toBe("pooled\n");
 		expect(
 			(await run(["git", "-C", `${root}__feat1`, "branch", "--show-current"])).stdout.trim(),
 		).toBe("feature/allocated-copy");
-		await run(["bash", plan.post_create_script_path]);
 		expect(readFileSync(join(`${root}__feat1`, "allocated-read"), "utf8")).toBe("pooled\n");
+	});
+
+	test("setup failure during allocation frees the slot and deletes the new branch", async () => {
+		const { root } = await initRepoWithOrigin(tmp);
+		writeConfig(tmp, root, FAIL_OUTSIDE_PLACEHOLDER, 1);
+		await dispatch("ensure", ["--cwd", root], testDeps());
+
+		await expect(
+			dispatch("add", ["--cwd", root, "--branch", "feature/setup-fail", "--json"], testDeps()),
+		).rejects.toThrow("hook failed");
+
+		expect(
+			(await run(["git", "-C", `${root}__feat1`, "branch", "--show-current"])).stdout.trim(),
+		).toBe("wk-pool/feat1");
+		expect(
+			(await runRaw(["git", "-C", root, "show-ref", "--verify", "refs/heads/feature/setup-fail"]))
+				.exitCode,
+		).not.toBe(0);
+	});
+
+	test("setup failure during allocation restores an existing branch tip", async () => {
+		const { root } = await initRepoWithOrigin(tmp);
+		await run(["git", "-C", root, "branch", "feature/pool-setup-restore"]);
+		const originalHead = (
+			await run(["git", "-C", root, "rev-parse", "refs/heads/feature/pool-setup-restore"])
+		).stdout.trim();
+		writeConfig(tmp, root, FAIL_OUTSIDE_PLACEHOLDER, 1);
+		await dispatch("ensure", ["--cwd", root], testDeps());
+
+		await expect(
+			dispatch(
+				"add",
+				["--cwd", root, "--branch", "feature/pool-setup-restore", "--json"],
+				testDeps(),
+			),
+		).rejects.toThrow("hook failed");
+
+		expect(
+			(await run(["git", "-C", `${root}__feat1`, "branch", "--show-current"])).stdout.trim(),
+		).toBe("wk-pool/feat1");
+		expect(
+			(
+				await run(["git", "-C", root, "rev-parse", "refs/heads/feature/pool-setup-restore"])
+			).stdout.trim(),
+		).toBe(originalHead);
 	});
 
 	test("copy setup failure during allocation restores the slot placeholder", async () => {
@@ -627,5 +680,25 @@ describe("honeycomb pooled add", () => {
 		expect(
 			(await run(["git", "-C", `${root}__feat1`, "branch", "--show-current"])).stdout.trim(),
 		).toBe("feature/one");
+	});
+
+	test("human pool_full recycle tells the picker the invocation is not interactive", async () => {
+		const { root } = await initRepoWithOrigin(tmp);
+		writeConfig(tmp, root, "echo ready", 1);
+		await dispatch("add", ["--cwd", root, "--branch", "feature/one", "--json"], testDeps());
+		const picker = new TestPicker("1", true);
+
+		const recycled = await dispatch(
+			"add",
+			["--cwd", root, "--branch", "feature/two"],
+			testDeps({ picker }),
+		);
+
+		expect(recycled.exitCode).toBe(EXIT_CODES.SUCCESS);
+		expect(picker.options).toEqual({ interactive: false });
+		expect(picker.confirmCalls).toBe(1);
+		expect(
+			(await run(["git", "-C", `${root}__feat1`, "branch", "--show-current"])).stdout.trim(),
+		).toBe("feature/two");
 	});
 });

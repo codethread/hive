@@ -167,9 +167,12 @@ describe("honeycomb ensure", () => {
 
 		rmSync(`${root}__feat1`, { recursive: true, force: true });
 		await run(["git", "-C", root, "worktree", "prune"]);
+		// The recreated slot is addressable by its placeholder branch: remove --self
+		// resolves the worktree containing an existing --cwd path, and the slot
+		// directory is gone until this remove call ensures the pool.
 		const blocked = await dispatch(
 			"remove",
-			["--cwd", root, "--self", `${root}__feat1`, "--json"],
+			["--cwd", root, "--branch", "wk-pool/feat1", "--json"],
 			testDeps(),
 		);
 		expect(blocked.exitCode).toBe(EXIT_CODES.UNSAFE);
@@ -192,7 +195,7 @@ describe("honeycomb ensure", () => {
 
 		const blocked = await dispatch(
 			"remove",
-			["--cwd", root, "--self", `${root}__feat1`, "--json"],
+			["--cwd", `${root}__feat1`, "--self", "--json"],
 			testDeps(),
 		);
 
