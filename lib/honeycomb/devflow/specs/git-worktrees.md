@@ -1,14 +1,20 @@
 # Git Worktrees Engine
 
-**Status:** Implemented
+**Status:** Implemented, with pending changes
 
-**Last Updated:** 2026-09-06
+**Last Updated:** 2026-09-29
+
+Pending changes, tracked by epic `hv-honeycomb-engine-owns-wk-2by` (remove each item when it lands):
+
+- `add` runs bootstrap in the engine (§3 Bootstrap).
+- `--interactive`, the multiplexer integration and the cd directive (§3 Interactive mode).
+- `remove --self` takes no path (§4 Commands).
 
 ## 1. Overview
 
 ### Purpose
 
-`honeycomb` is a deterministic local engine for creating, reusing, inspecting, and removing git worktrees. It gives the same lifecycle contract to humans, shell wrappers, tmux workflows, and agents. Durable state lives in git metadata, filesystem paths, project config, and optional per-repository pool slots; tmux is a consumer, not a database.
+`honeycomb` is a deterministic local engine for creating, reusing, inspecting, and removing git worktrees. It gives the same lifecycle contract to humans, shell wrappers, terminal multiplexers, and agents. Durable state lives in git metadata, filesystem paths, project config, and optional per-repository pool slots; terminal multiplexers are an integration, not a database.
 
 ### Goals
 
@@ -24,8 +30,8 @@
 ### Non-Goals
 
 - No durable worktree/session database beyond git/filesystem/config state.
-- No tmux resurrection or persistent session registry.
-- No requirement that each worktree has a live tmux session.
+- No multiplexer session resurrection or persistent session registry.
+- No requirement that each worktree has a live multiplexer session.
 - No implicit pool expansion.
 - No periodic repository sync daemon, background auto-pull, or auto-push loop.
 - No automatic commits for normal source repositories.
@@ -35,10 +41,12 @@
 
 ## 2. Design Decisions
 
-- **Decision:** `honeycomb` owns all git/worktree state transitions (creation, removal, pool allocation, recycling, safety checks, bootstrap script generation).
+- **Decision:** `honeycomb` owns all git/worktree state transitions (creation, removal, pool allocation, recycling, safety checks, bootstrap).
   - **Rationale:** Centralizing avoids duplicated, drift-prone shell behavior across the multiple consumers (humans, wrappers, tmux, agents) that all need identical semantics.
-- **Decision:** Tmux is a consumer, not the source of truth. Session identity is emitted for wrappers but correctness derives from git and filesystem state.
-  - **Rationale:** A persistent session registry would be a second database to keep in sync; reconstructable identity removes that failure mode.
+- **Decision:** Terminal multiplexers are an injected integration service, not the source of truth. The engine opens, focuses and closes sessions through a small interface (tmux is the first implementation) but stores no session state; correctness derives from git and filesystem state.
+  - **Rationale:** Keeping session handling in the engine removes duplicated wrapper logic, and the interface keeps another multiplexer with a similar API swappable. A persistent session registry would be a second database to keep in sync; reconstructable identity removes that failure mode.
+- **Decision:** Focus follows the human, never the agent. Only an explicit `--interactive` flag, passed by human wrappers, permits multiplexer calls and the cd directive. Terminal detection is not used.
+  - **Rationale:** Agents run inside the user's multiplexer panes, inherit its environment and may have a PTY, so no ambient signal distinguishes them from a human. Without `--interactive` the engine never touches sessions, so an agent cannot steal focus or close a session the user is working in.
 - **Decision:** Branch/path naming is the coordination spine (see §3).
   - **Rationale:** Deterministic naming lets every consumer derive identity independently with no shared state or handshake.
 - **Decision:** Worktrees may use the default sibling layout or a configured nested layout. The configured layout is a creation preference, not an invariant for registered worktrees.
@@ -49,14 +57,14 @@
   - **Rationale:** Pools trade branch-named paths for bounded reusable environments; silent growth would defeat the bound and surprise high-cost-repo owners.
 - **Decision:** Pool exhaustion is a recoverable, structured `pool_full` outcome.
   - **Rationale:** Machine consumers can branch on it programmatically and humans can pick a slot interactively, instead of hitting an opaque hard failure.
-- **Decision:** Bootstrap is part of ready-to-work semantics, and failures are loud.
-  - **Rationale:** A worktree that looks created but isn't prepared is a worse trap than an explicit failure; newly-created pooled slots roll back so state stays clean.
+- **Decision:** Bootstrap is part of ready-to-work semantics, runs inside the engine, and failures are loud.
+  - **Rationale:** A worktree that looks created but isn't prepared is a worse trap than an explicit failure. Running bootstrap in the engine keeps its rollback in one process, so every consumer gets the same result and no caller has to compensate for a failed setup.
 - **Decision:** Copy setup runs before configured commands and is rerunnable with `honeycomb copy`.
   - **Rationale:** Local config and shared tool assets should be present before project bootstrap commands run, and users need an explicit way to apply config changes after a worktree already exists.
 - **Decision:** Copy destinations are worktree-relative untracked setup paths and are recorded in the canonical exclude file.
   - **Rationale:** Copied assets are local workspace material, not repository changes. Refusing to overwrite tracked paths prevents accidental modification of versioned project files, while an idempotent fenced exclude block prevents noisy status output and duplicate rules.
 - **Decision:** Fresh parsing over synchronized caches.
-  - **Rationale:** Git worktree metadata, filesystem paths, and project config are cheap enough for the engine to inspect directly. Tmux state is wrapper-only UI state and must not affect engine correctness.
+  - **Rationale:** Git worktree metadata, filesystem paths, and project config are cheap enough for the engine to inspect directly. Multiplexer state is UI state and must not affect engine correctness.
 - **Decision:** Add-time freshness policy belongs in the engine, not only in shell wrappers.
   - **Rationale:** Humans and agents should get the same safety guarantees. If a repository requires new work to start from an up-to-date canonical default branch, that invariant must hold for direct `honeycomb add --json` consumers as well as the Nushell wrapper.
 - **Decision:** Strict add policy fails instead of falling back to stale bases.
@@ -90,17 +98,17 @@ The canonical/root worktree is protected: it MUST NOT be removed or recycled, an
 
 ### Session identity
 
-Emitted in `add`, `remove`, and `list` payloads; the wrapper/tmux layer derives the same identity from the worktree path:
+Emitted in `add`, `remove`, and `list` payloads and used by the multiplexer integration; derived from the worktree path:
 
 - sibling `session.name = basename(worktree_path).replaceAll(".", "_")`
 - nested `session.name = "<canonical-root-basename>__<worktree-basename>".replaceAll(".", "_")`
 - `session.path = worktree_path`
 
-The nested form preserves the repository prefix used by sibling paths, preventing common branch names in different repositories from colliding in tmux. Manually located worktrees use their path basename.
+The nested form preserves the repository prefix used by sibling paths, preventing common branch names in different repositories from colliding in a multiplexer. Manually located worktrees use their path basename.
 
 - default window/title = branch name
 
-Missing tmux sessions are normal and reconstructable, never an error.
+Missing multiplexer sessions are normal and reconstructable, never an error.
 
 ### Safety invariants
 
@@ -121,7 +129,23 @@ A project with `pool_size` uses fixed reusable slots. Pooled mode changes comman
 
 ### Bootstrap
 
-Project config defines required `command`s that prepare a worktree or slot for work, plus optional copy setup that materializes local files or directories into the created worktree. Copy setup runs before the configured command. For add/allocation the engine writes a fresh temporary post-create script (run under bash) and returns its path; the script exports `WK_ROOT` (canonical root) and `WK_CREATED` (the created worktree or allocated slot). Human wrappers run the returned script synchronously before opening a session. Pool initialization runs setup inside `honeycomb` so initialized slots are actually ready; newly-created pooled slots roll back on setup failure, while existing half-initialized slots remain uninitialized until a later successful run.
+Project config defines required `command`s that prepare a worktree or slot for work, plus optional copy setup that materializes local files or directories into the created worktree. Copy setup runs before the configured command. The command runs under bash with `WK_ROOT` (canonical root) and `WK_CREATED` (the created worktree or allocated slot) exported.
+
+- Add/allocation runs the command inside `honeycomb` before reporting `ready`. On failure the engine rolls back the add: a newly created worktree is removed, a newly created branch is deleted, a pre-existing branch is restored to its previous head, and an allocated pool slot returns to its placeholder. The command fails as a hook failure (exit `1`) with the command's output on stderr.
+- With `--json`, bootstrap output goes to stderr so stdout remains a single payload.
+- Pool initialization runs setup inside `honeycomb` so initialized slots are actually ready; newly-created pooled slots roll back on setup failure, while existing half-initialized slots remain uninitialized until a later successful run.
+
+### Interactive mode
+
+`--interactive` is a global flag for human wrappers. It lets the engine move the user's focus to follow the command:
+
+- `add` opens the worktree's multiplexer session and focuses it. Outside a multiplexer it writes the worktree path to the cd directive instead.
+- `remove`, and `finish` when its cleanup removes or recycles the worktree, write the canonical root to the cd directive if the caller's working directory was inside that worktree, then close multiplexer sessions rooted at or below its path. Closing sessions is the last step, after all output, because closing the invoking session may end the `honeycomb` process.
+- Multiplexer failures are warnings on stderr. They never undo a completed git operation.
+
+Without `--interactive`, `honeycomb` makes no multiplexer calls and writes no cd directive.
+
+The cd directive lets a wrapper change its shell's directory. When `HONEYCOMB_CD_FILE` names a file and `--interactive` is set, the engine writes one absolute directory path to it. The wrapper creates the file, reads it after `honeycomb` exits, `cd`s if it holds a path, and deletes it.
 
 ### Copy setup
 
@@ -210,20 +234,23 @@ Supported strategies mirror common forge merge choices while preserving local de
 | `honeycomb [--cwd <path>] list [--json]` | List worktrees and initialize configured pools. |
 | `honeycomb [--cwd <path>] path --branch <branch>` | Print the worktree path for a branch. |
 | `honeycomb [--cwd <path>] add --branch <branch> [--json] [--slot <path>] [--base <branch>] [--force]` | Create or allocate a worktree. |
-| `honeycomb [--cwd <path>] remove (--branch <branch> \| --self <path>) [--json] [--force] [--keep-branch] [--integrated-into <origin/ref>]` | Remove a regular worktree or free a pooled worktree slot. `--integrated-into` proves clean squash-aware cleanup against a fetched target. |
+| `honeycomb [--cwd <path>] remove (--branch <branch> \| --self) [--json] [--force] [--keep-branch] [--integrated-into <origin/ref>]` | Remove a regular worktree or free a pooled worktree slot. `--self` targets the worktree containing `cwd`. `--integrated-into` proves clean squash-aware cleanup against a fetched target. |
 | `honeycomb [--cwd <path>] ensure` | Materialize configured pool slots. |
 | `honeycomb [--cwd <path>] status` | Print pool status JSON. |
 | `honeycomb [--cwd <path>] copy [--json]` | Re-run configured copy setup for the non-canonical worktree containing `cwd`. |
 | `honeycomb [--cwd <path>] config explain [--json]` | Show the effective policy after defaults, matching rules, and exact project overrides. |
 | `honeycomb [--cwd <path>] finish [--json]` | Integrate a completed worktree into the canonical root using effective finish policy. |
 
-`--cwd` is a global option. It may point at any path inside the intended worktree set and defaults to the current directory. Commands resolve the canonical root from that path; commands that operate on the current/source worktree, such as `copy` and `finish`, target the worktree containing that path.
+`--cwd` is a global option. It may point at any path inside the intended worktree set and defaults to the current directory. Commands resolve the canonical root from that path; commands that operate on the current/source worktree, such as `copy`, `finish` and `remove --self`, target the worktree containing that path.
+
+`--interactive` is a global option for human wrappers; see §3 Interactive mode.
 
 ### Structured output rules
 
 - `--json` writes only structured payloads to stdout.
 - stderr carries diagnostics, progress, warnings, and human-readable errors.
 - Consumers branch on `kind`, never on stderr text.
+- Payload changes are additive: existing `kind` values and fields are kept.
 
 ### Exit codes
 
@@ -253,6 +280,8 @@ Successful add-like payload:
 	"rollback_branch_head": null
 }
 ```
+
+`post_create_script_path` is retained for compatibility and is always `null` because the engine runs bootstrap itself.
 
 Successful remove-like payload. Non-pooled removal reports `removed: true`; pooled removal recycles the slot in place and reports `kind: "ready"` with `removed: false`:
 
@@ -371,7 +400,7 @@ Implemented exact project fields:
 | Field | Required | Purpose |
 | --- | --- | --- |
 | `root` | yes | Canonical root worktree path. |
-| `command` | when no matching rule command exists and using pools, copy, or bootstrap setup | Bootstrap command run as the post-create script. Policy-only exact projects may omit it; absent effective commands emit no bootstrap script. |
+| `command` | when no matching rule command exists and using pools, copy, or bootstrap setup | Bootstrap command run after add/allocation and pool initialization. Policy-only exact projects may omit it; absent effective commands skip bootstrap. |
 | `pre_remote_check` | no | Bash snippet run before remote-aware operations for this exact root; exact project values override matching rules. |
 | `name` | no | Project identifier; defaults to the basename of `root`. |
 | `worktree_location` | no | Exact-root override for where new worktrees and missing pool slots are created. |
@@ -394,7 +423,7 @@ Policy fields:
 | `[project.add].policy` | exact project | Exact-root add policy override. |
 | `[project.finish]` | exact project | Exact-root finish policy override: `enabled`, `strategy`, `push`, `remove_worktree`, and `delete_branch`. |
 
-Bootstrap scripts run under bash with `WK_ROOT` and `WK_CREATED` exported (see §3).
+Bootstrap commands run under bash with `WK_ROOT` and `WK_CREATED` exported (see §3).
 
 Example:
 
