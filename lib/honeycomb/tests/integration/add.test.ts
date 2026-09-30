@@ -10,7 +10,15 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, join, resolve } from "node:path";
-import { dispatch, EXIT_CODES } from "../../src/index";
+import {
+	ConfigError,
+	dispatch,
+	EXIT_CODES,
+	HookError,
+	PreRemoteCheckError,
+	ReservedPrefixError,
+	UsageError,
+} from "../../src/index";
 import {
 	setTestEnv,
 	restoreTestEnv,
@@ -72,7 +80,7 @@ describe("honeycomb non-pool add", () => {
 		expect(readFileSync(join(worktreePath, "hook-sentinel"), "utf8")).toBe(`${root}\n`);
 	});
 
-	test("--json keeps stdout a single payload while setup prints output", async () => {
+	test("--json captures setup output in the payload and keeps stderr silent", async () => {
 		const { root } = await initRepoWithOrigin(tmp);
 		writeConfig(tmp, root, "echo setup-stdout\necho setup-stderr >&2");
 
@@ -96,18 +104,32 @@ describe("honeycomb non-pool add", () => {
 		]);
 
 		expect(exitCode).toBe(0);
-		expect(JSON.parse(stdout)).toMatchObject({ kind: "ready", branch: "feature/noisy" });
-		expect(stderr).toContain("setup-stdout");
-		expect(stderr).toContain("setup-stderr");
+		expect(stderr).toBe("");
+		const payload = JSON.parse(stdout);
+		expect(payload).toMatchObject({ ok: true, kind: "ready", branch: "feature/noisy" });
+		expect(payload.setup_output).toContainEqual({ stream: "stdout", line: "setup-stdout" });
+		expect(payload.setup_output).toContainEqual({ stream: "stderr", line: "setup-stderr" });
 	});
 
 	test("setup failure rolls back the new worktree and branch", async () => {
 		const { root } = await initRepoWithOrigin(tmp);
 		writeConfig(tmp, root, "echo failing >&2\nexit 7");
 
-		await expect(
-			dispatch("add", ["--cwd", root, "--branch", "feature/setup-fail", "--json"], testDeps()),
-		).rejects.toThrow("hook failed");
+		const result = await dispatch(
+			"add",
+			["--cwd", root, "--branch", "feature/setup-fail", "--json"],
+			testDeps(),
+		);
+
+		expect(result.failure).toBeInstanceOf(HookError);
+		expect(JSON.parse(result.stdout ?? "{}")).toMatchObject({
+			ok: false,
+			kind: "error",
+			reason: "setup_failed",
+			branch: "feature/setup-fail",
+			setup_exit_code: 7,
+			setup_output: expect.arrayContaining([{ stream: "stderr", line: "failing" }]),
+		});
 
 		expect(existsSync(`${root}__feature--setup-fail`)).toBe(false);
 		expect(
@@ -124,9 +146,12 @@ describe("honeycomb non-pool add", () => {
 		).stdout.trim();
 		writeConfig(tmp, root, "exit 7");
 
-		await expect(
-			dispatch("add", ["--cwd", root, "--branch", "feature/setup-restore", "--json"], testDeps()),
-		).rejects.toThrow("hook failed");
+		const { failure } = await dispatch(
+			"add",
+			["--cwd", root, "--branch", "feature/setup-restore", "--json"],
+			testDeps(),
+		);
+		expect(failure).toBeInstanceOf(HookError);
 
 		expect(existsSync(`${root}__feature--setup-restore`)).toBe(false);
 		expect(
@@ -186,9 +211,9 @@ describe("honeycomb non-pool add", () => {
 			(await dispatch("path", ["--cwd", root, "--branch", "feature/manual"], deps)).stdout,
 		).toBe(`${manualPath}\n`);
 		const listed = JSON.parse(
-			(await dispatch("list", ["--cwd", root, "--json"], deps)).stdout ?? "[]",
+			(await dispatch("list", ["--cwd", root, "--json"], deps)).stdout ?? "{}",
 		);
-		expect(listed.map((worktree: { path: string }) => worktree.path)).toEqual(
+		expect(listed.worktrees.map((worktree: { path: string }) => worktree.path)).toEqual(
 			expect.arrayContaining([root, legacyPath, manualPath, nestedPath]),
 		);
 		const duplicate = await dispatch(
@@ -246,9 +271,12 @@ describe("honeycomb non-pool add", () => {
 		const { root } = await initRepoWithOrigin(tmp);
 		writeConfig(tmp, root, "echo should-not-run", undefined, 'copy = [".env.missing"]\n');
 
-		await expect(
-			dispatch("add", ["--cwd", root, "--branch", "feature/copy-fail", "--json"], deps),
-		).rejects.toThrow("copy source does not exist");
+		const { failure } = await dispatch(
+			"add",
+			["--cwd", root, "--branch", "feature/copy-fail", "--json"],
+			deps,
+		);
+		expect(failure).toBeInstanceOf(ConfigError);
 
 		expect(existsSync(`${root}__feature--copy-fail`)).toBe(false);
 		expect(
@@ -267,9 +295,12 @@ describe("honeycomb non-pool add", () => {
 		).stdout.trim();
 		writeConfig(tmp, root, "echo should-not-run", undefined, 'copy = [".env.missing"]\n');
 
-		await expect(
-			dispatch("add", ["--cwd", root, "--branch", "feature/restore-tip", "--json"], deps),
-		).rejects.toThrow("copy source does not exist");
+		const { failure } = await dispatch(
+			"add",
+			["--cwd", root, "--branch", "feature/restore-tip", "--json"],
+			deps,
+		);
+		expect(failure).toBeInstanceOf(ConfigError);
 
 		expect(existsSync(`${root}__feature--restore-tip`)).toBe(false);
 		expect(
@@ -277,7 +308,7 @@ describe("honeycomb non-pool add", () => {
 		).toBe(originalHead);
 	});
 
-	test("pre_remote_check blocks add before fetch and surfaces stderr", async () => {
+	test("pre_remote_check blocks add before fetch and reports its stderr", async () => {
 		const { root, remote } = await initRepoWithOrigin(tmp);
 		await commitOnRemoteDefault({
 			remote,
@@ -300,11 +331,13 @@ describe("honeycomb non-pool add", () => {
 		);
 
 		expect(result.exitCode).toBe(EXIT_CODES.BLOCKED);
-		expect(result.stderr).toContain("precheck blocked");
+		expect(result.stderr).toBeUndefined();
+		expect(result.failure).toBeInstanceOf(PreRemoteCheckError);
+		expect(result.failure).toMatchObject({ stderr: "precheck blocked" });
 		expect(JSON.parse(result.stdout ?? "{}")).toMatchObject({
+			ok: false,
 			kind: "blocked",
 			reason: "pre_remote_check_failed",
-			message: expect.stringContaining("precheck blocked"),
 		});
 		expect(existsSync(`${root}__feature--precheck-blocked`)).toBe(false);
 		expect(
@@ -364,20 +397,19 @@ describe("honeycomb non-pool add", () => {
 		await run(["git", "-C", root, "commit", "-m", "local"]);
 		await run(["git", "-C", root, "checkout", "main"]);
 		writeConfig(tmp, root, "echo ready");
-		const warnings: string[] = [];
-		const warnDeps = {
-			...deps,
-			progress: { ...deps.progress, error: (msg: string) => warnings.push(msg) },
-		};
 
 		const result = await dispatch(
 			"add",
 			["--cwd", root, "--branch", "feature/diverged", "--json"],
-			warnDeps,
+			deps,
 		);
 
 		expect(result.exitCode).toBe(0);
-		expect(warnings.join("\n")).toContain("couldn't fast-forward");
+		expect(JSON.parse(result.stdout ?? "{}").diagnostics).toMatchInlineSnapshot(`
+		  [
+		    "warning: couldn't fast-forward from origin/feature/diverged; preserving local work",
+		  ]
+		`);
 	});
 
 	test("defaults new branches to origin default branch instead of current HEAD", async () => {
@@ -535,16 +567,11 @@ describe("honeycomb non-pool add", () => {
 		const { root, remote } = await initRepoWithOrigin(tmp);
 		await createRemoteBranch(remote, "base/topic");
 		writeConfig(tmp, root, "echo ready");
-		const warnings: string[] = [];
-		const warnDeps = {
-			...deps,
-			progress: { ...deps.progress, error: (msg: string) => warnings.push(msg) },
-		};
 
 		await dispatch(
 			"add",
 			["--cwd", root, "--branch", "feature/from-base", "--base", "base/topic", "--json"],
-			warnDeps,
+			deps,
 		);
 		const baseFile = await run([
 			"git",
@@ -563,7 +590,7 @@ describe("honeycomb non-pool add", () => {
 		await dispatch(
 			"add",
 			["--cwd", root, "--branch", "feature/from-local-base", "--base", "local/base", "--json"],
-			warnDeps,
+			deps,
 		);
 		expect(
 			(await run(["git", "-C", `${root}__feature--from-local-base`, "show", "HEAD:local-base.txt"]))
@@ -571,12 +598,16 @@ describe("honeycomb non-pool add", () => {
 		).toBe("local base\n");
 
 		await run(["git", "-C", root, "branch", "feature/base-ignored"]);
-		await dispatch(
+		const ignored = await dispatch(
 			"add",
 			["--cwd", root, "--branch", "feature/base-ignored", "--base", "base/topic", "--json"],
-			warnDeps,
+			deps,
 		);
-		expect(warnings.join("\n")).toContain("--base ignored");
+		expect(JSON.parse(ignored.stdout ?? "{}").diagnostics).toMatchInlineSnapshot(`
+		  [
+		    "--base ignored: branch already exists",
+		  ]
+		`);
 	});
 
 	test("--base-current stacks a new branch on the worktree containing cwd", async () => {
@@ -629,13 +660,12 @@ describe("honeycomb non-pool add", () => {
 		const worktreePath = `${root}__feature--detached`;
 		await run(["git", "-C", worktreePath, "checkout", "--detach"]);
 
-		await expect(
-			dispatch(
-				"add",
-				["--cwd", worktreePath, "--branch", "feature/stacked", "--base-current", "--json"],
-				deps,
-			),
-		).rejects.toThrow("--base-current requires the worktree containing --cwd to be on a branch");
+		const { failure } = await dispatch(
+			"add",
+			["--cwd", worktreePath, "--branch", "feature/stacked", "--base-current", "--json"],
+			deps,
+		);
+		expect(failure).toBeInstanceOf(UsageError);
 		expect(existsSync(`${root}__feature--stacked`)).toBe(false);
 	});
 
@@ -643,22 +673,21 @@ describe("honeycomb non-pool add", () => {
 		const { root } = await initRepoWithOrigin(tmp);
 		writeConfig(tmp, root, "echo ready");
 
-		await expect(
-			dispatch(
-				"add",
-				[
-					"--cwd",
-					root,
-					"--branch",
-					"feature/conflicting-base",
-					"--base-current",
-					"--base",
-					"main",
-					"--json",
-				],
-				deps,
-			),
-		).rejects.toThrow("--base-current cannot be combined with --base");
+		const { failure } = await dispatch(
+			"add",
+			[
+				"--cwd",
+				root,
+				"--branch",
+				"feature/conflicting-base",
+				"--base-current",
+				"--base",
+				"main",
+				"--json",
+			],
+			deps,
+		);
+		expect(failure).toBeInstanceOf(UsageError);
 	});
 
 	test("non-json add prints a one-line summary to stderr", async () => {
@@ -700,8 +729,11 @@ describe("honeycomb non-pool add", () => {
 
 	test("rejects reserved pool branch prefix", async () => {
 		const { root } = await initRepoWithOrigin(tmp);
-		await expect(
-			dispatch("add", ["--cwd", root, "--branch", "wk-pool/feat1", "--json"], deps),
-		).rejects.toThrow("reserved");
+		const { failure } = await dispatch(
+			"add",
+			["--cwd", root, "--branch", "wk-pool/feat1", "--json"],
+			deps,
+		);
+		expect(failure).toBeInstanceOf(ReservedPrefixError);
 	});
 });

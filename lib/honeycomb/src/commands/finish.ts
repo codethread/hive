@@ -24,15 +24,9 @@ import {
 	UnsafeOperationError,
 	UsageError,
 	HoneycombError,
+	withFailureContext,
 } from "../errors.ts";
-import {
-	finalizeReadyResult,
-	parseOptions,
-	parseOutputMode,
-	requireOption,
-	toBlockedCommandResult,
-	withMachineJsonProgress,
-} from "../protocol.ts";
+import { finalizeReadyResult, parseOptions, parseOutputMode, requireOption } from "../protocol.ts";
 import type { Deps, GitRunner, WorkspaceFiles } from "../services.ts";
 
 export const finishCommand = async (args: string[], deps: Deps) => {
@@ -44,13 +38,14 @@ export const finishCommand = async (args: string[], deps: Deps) => {
 		if (key !== "cwd" && key !== "json" && key !== "interactive")
 			throw new UsageError(`unknown option --${key}`);
 	}
-	const machineDeps = withMachineJsonProgress(deps, output);
 	let sourceBranch: string | undefined;
 	let worktreePath: string | undefined;
+	let integrated = false;
+	const cleanupActions: string[] = [];
 
 	try {
 		const config = deps.config.read();
-		const worktrees = await listWorktrees(machineDeps.git, cwd);
+		const worktrees = await listWorktrees(deps.git, cwd);
 		const canonical = worktrees.find((worktree) => worktree.canonical);
 		if (!canonical) throw new HoneycombError("couldn't determine canonical worktree");
 		const source = resolveWorktreeContainingPath(worktrees, cwd, deps.files);
@@ -78,15 +73,15 @@ export const finishCommand = async (args: string[], deps: Deps) => {
 			);
 		}
 
-		const sourceStatus = await machineDeps.git.run(["-C", source.path, "status", "--porcelain=v1"]);
+		const sourceStatus = await deps.git.run(["-C", source.path, "status", "--porcelain=v1"]);
 		if (sourceStatus.stdout.trim() !== "")
 			throw new DirtyWorktreeError("source worktree has uncommitted changes");
 
-		await machineDeps.git.run(["-C", canonical.path, "fetch", "origin"]);
-		const targetBranch = await detectOriginDefaultBranch(machineDeps.git, canonical.path);
+		await deps.git.run(["-C", canonical.path, "fetch", "origin"]);
+		const targetBranch = await detectOriginDefaultBranch(deps.git, canonical.path);
 		const policy = explanation.addPolicy;
 		const targetRef = await assertFinishTargetReady({
-			git: machineDeps.git,
+			git: deps.git,
 			root: canonical.path,
 			policy,
 			targetBranch,
@@ -94,33 +89,27 @@ export const finishCommand = async (args: string[], deps: Deps) => {
 
 		if (strategy === "ff_only") {
 			await assertSourceCanFastForwardTarget({
-				git: machineDeps.git,
+				git: deps.git,
 				canonicalPath: canonical.path,
 				targetRef,
 				sourceBranch: source.branch,
 			});
 		}
 		if (policy === "fresh_canonical")
-			await fastForwardCanonicalDefault(machineDeps.git, canonical.path, targetBranch);
+			await fastForwardCanonicalDefault(deps.git, canonical.path, targetBranch);
 		await integrateFinishedBranch({
-			git: machineDeps.git,
+			git: deps.git,
 			canonicalPath: canonical.path,
 			sourcePath: source.path,
 			sourceBranch: source.branch,
 			targetRef,
 			strategy,
 		});
+		integrated = true;
 
-		const cleanupActions: string[] = [];
 		let afterOutput: (() => Promise<void>) | undefined;
 		if (push) {
-			const pushed = await machineDeps.git.runRaw([
-				"-C",
-				canonical.path,
-				"push",
-				"origin",
-				targetBranch,
-			]);
+			const pushed = await deps.git.runRaw(["-C", canonical.path, "push", "origin", targetBranch]);
 			if (pushed.exitCode !== 0) throw new PushRejectedError(`push rejected for ${targetBranch}`);
 			cleanupActions.push("push");
 		}
@@ -134,7 +123,7 @@ export const finishCommand = async (args: string[], deps: Deps) => {
 			}
 			await cleanupFinishedWorktree({
 				files: deps.files,
-				git: machineDeps.git,
+				git: deps.git,
 				project,
 				root: canonical.path,
 				source,
@@ -161,12 +150,12 @@ export const finishCommand = async (args: string[], deps: Deps) => {
 			afterOutput,
 		);
 	} catch (error) {
-		const blocked = toBlockedCommandResult(error, output, {
+		throw withFailureContext(error, {
 			branch: sourceBranch,
 			worktree_path: worktreePath,
+			integrated,
+			cleanup_actions: cleanupActions,
 		});
-		if (blocked) return blocked;
-		throw error;
 	}
 };
 

@@ -2,11 +2,18 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { dispatch, EXIT_CODES } from "../../src/index";
+import {
+	BlockedError,
+	ConfigError,
+	dispatch,
+	EXIT_CODES,
+	HookError,
+	PreRemoteCheckError,
+	ReservedPrefixError,
+} from "../../src/index";
 import {
 	setTestEnv,
 	restoreTestEnv,
-	deps,
 	TestPicker,
 	testDeps,
 	writeConfig,
@@ -56,11 +63,13 @@ describe("honeycomb pooled add", () => {
 		const result = await dispatch("status", ["--cwd", root, "--json"], testDeps());
 
 		expect(result.exitCode).toBe(EXIT_CODES.BLOCKED);
-		expect(result.stderr).toContain("pooled blocked");
+		expect(result.stderr).toBeUndefined();
+		expect(result.failure).toBeInstanceOf(PreRemoteCheckError);
+		expect(result.failure).toMatchObject({ stderr: "pooled blocked" });
 		expect(JSON.parse(result.stdout ?? "{}")).toMatchObject({
+			ok: false,
 			kind: "blocked",
 			reason: "pre_remote_check_failed",
-			message: expect.stringContaining("pooled blocked"),
 		});
 		expect(
 			(await runRaw(["git", "-C", root, "show", "origin/main:pooled-status-remote.txt"])).exitCode,
@@ -342,9 +351,12 @@ describe("honeycomb pooled add", () => {
 		writeConfig(tmp, root, FAIL_OUTSIDE_PLACEHOLDER, 1);
 		await dispatch("ensure", ["--cwd", root], testDeps());
 
-		await expect(
-			dispatch("add", ["--cwd", root, "--branch", "feature/setup-fail", "--json"], testDeps()),
-		).rejects.toThrow("hook failed");
+		const { failure } = await dispatch(
+			"add",
+			["--cwd", root, "--branch", "feature/setup-fail", "--json"],
+			testDeps(),
+		);
+		expect(failure).toBeInstanceOf(HookError);
 
 		expect(
 			(await run(["git", "-C", `${root}__feat1`, "branch", "--show-current"])).stdout.trim(),
@@ -364,13 +376,12 @@ describe("honeycomb pooled add", () => {
 		writeConfig(tmp, root, FAIL_OUTSIDE_PLACEHOLDER, 1);
 		await dispatch("ensure", ["--cwd", root], testDeps());
 
-		await expect(
-			dispatch(
-				"add",
-				["--cwd", root, "--branch", "feature/pool-setup-restore", "--json"],
-				testDeps(),
-			),
-		).rejects.toThrow("hook failed");
+		const { failure } = await dispatch(
+			"add",
+			["--cwd", root, "--branch", "feature/pool-setup-restore", "--json"],
+			testDeps(),
+		);
+		expect(failure).toBeInstanceOf(HookError);
 
 		expect(
 			(await run(["git", "-C", `${root}__feat1`, "branch", "--show-current"])).stdout.trim(),
@@ -388,13 +399,12 @@ describe("honeycomb pooled add", () => {
 		await dispatch("ensure", ["--cwd", root], testDeps());
 		writeConfig(tmp, root, "echo should-not-run", 1, 'copy = [".env.missing"]\n');
 
-		await expect(
-			dispatch(
-				"add",
-				["--cwd", root, "--branch", "feature/allocated-copy-fail", "--json"],
-				testDeps(),
-			),
-		).rejects.toThrow("copy source does not exist");
+		const { failure } = await dispatch(
+			"add",
+			["--cwd", root, "--branch", "feature/allocated-copy-fail", "--json"],
+			testDeps(),
+		);
+		expect(failure).toBeInstanceOf(ConfigError);
 
 		expect(
 			(await run(["git", "-C", `${root}__feat1`, "branch", "--show-current"])).stdout.trim(),
@@ -425,13 +435,12 @@ describe("honeycomb pooled add", () => {
 		await dispatch("ensure", ["--cwd", root], testDeps());
 		writeConfig(tmp, root, "echo should-not-run", 1, 'copy = [".env.missing"]\n');
 
-		await expect(
-			dispatch(
-				"add",
-				["--cwd", root, "--branch", "feature/pool-restore-tip", "--json"],
-				testDeps(),
-			),
-		).rejects.toThrow("copy source does not exist");
+		const { failure } = await dispatch(
+			"add",
+			["--cwd", root, "--branch", "feature/pool-restore-tip", "--json"],
+			testDeps(),
+		);
+		expect(failure).toBeInstanceOf(ConfigError);
 
 		expect(
 			(await run(["git", "-C", `${root}__feat1`, "branch", "--show-current"])).stdout.trim(),
@@ -469,13 +478,20 @@ describe("honeycomb pooled add", () => {
 		await run(["git", "-C", root, "commit", "-m", "local"]);
 		await run(["git", "-C", root, "checkout", "main"]);
 		writeConfig(tmp, root, "echo ready", 2);
-		const warnings: string[] = [];
-		const warnDeps = testDeps({
-			progress: { ...deps.progress, error: (msg: string) => warnings.push(msg) },
-		});
+		const warnDeps = testDeps();
 
-		await dispatch("add", ["--cwd", root, "--branch", "feature/diverged-pool", "--json"], warnDeps);
-		expect(warnings.join("\n")).toContain("couldn't fast-forward");
+		const diverged = await dispatch(
+			"add",
+			["--cwd", root, "--branch", "feature/diverged-pool", "--json"],
+			warnDeps,
+		);
+		expect(JSON.parse(diverged.stdout ?? "{}").diagnostics).toMatchInlineSnapshot(`
+		  [
+		    "[wk-pool] initializing feat1…",
+		    "[wk-pool] initializing feat2…",
+		    "warning: couldn't fast-forward from origin/feature/diverged-pool; preserving local work",
+		  ]
+		`);
 
 		const duplicate = await dispatch(
 			"add",
@@ -506,9 +522,12 @@ describe("honeycomb pooled add", () => {
 			reason: "duplicate_branch",
 			message: expect.stringContaining(root),
 		});
-		await expect(
-			dispatch("add", ["--cwd", root, "--branch", "wk-pool/feat9", "--json"], testDeps()),
-		).rejects.toThrow("reserved");
+		const { failure } = await dispatch(
+			"add",
+			["--cwd", root, "--branch", "wk-pool/feat9", "--json"],
+			testDeps(),
+		);
+		expect(failure).toBeInstanceOf(ReservedPrefixError);
 		expect(existsSync(`${root}__feat1`)).toBe(false);
 	});
 
@@ -518,10 +537,7 @@ describe("honeycomb pooled add", () => {
 		await run(["git", "-C", root, "fetch", "origin"]);
 		await run(["git", "-C", root, "branch", "feature/existing-base"]);
 		writeConfig(tmp, root, "echo ready", 2);
-		const warnings: string[] = [];
-		const warnDeps = testDeps({
-			progress: { ...deps.progress, error: (msg: string) => warnings.push(msg) },
-		});
+		const warnDeps = testDeps();
 
 		await dispatch(
 			"add",
@@ -534,16 +550,23 @@ describe("honeycomb pooled add", () => {
 		expect(
 			(await dispatch("path", ["--cwd", root, "--branch", "feature/from-base"], warnDeps)).stdout,
 		).toBe(`${root}__feat1\n`);
-		await expect(
-			dispatch("path", ["--cwd", root, "--branch", "feature/missing"], warnDeps),
-		).rejects.toThrow("no pooled worktree");
+		const { failure } = await dispatch(
+			"path",
+			["--cwd", root, "--branch", "feature/missing"],
+			warnDeps,
+		);
+		expect(failure).toBeInstanceOf(BlockedError);
 
-		await dispatch(
+		const ignored = await dispatch(
 			"add",
 			["--cwd", root, "--branch", "feature/existing-base", "--base", "base/pool", "--json"],
 			warnDeps,
 		);
-		expect(warnings.join("\n")).toContain("--base ignored");
+		expect(JSON.parse(ignored.stdout ?? "{}").diagnostics).toMatchInlineSnapshot(`
+		  [
+		    "--base ignored: branch already exists",
+		  ]
+		`);
 	});
 
 	test("machine json add reports pool_full and --slot selects a specific slot", async () => {

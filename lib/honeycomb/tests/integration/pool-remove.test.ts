@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { dispatch } from "../../src/index";
+import { DirtySlotError, dispatch, UnmergedBranchError } from "../../src/index";
 import {
 	setTestEnv,
 	restoreTestEnv,
@@ -149,9 +149,12 @@ describe("pooled honeycomb remove", () => {
 		await dispatch("add", ["--cwd", root, "--branch", "feature/dirty", "--json"], testDeps());
 		writeFileSync(join(`${root}__feat1`, "dirty.txt"), "dirty\n");
 
-		await expect(
-			dispatch("remove", ["--cwd", `${root}__feat1`, "--self", "--keep-branch"], testDeps()),
-		).rejects.toThrow("uncommitted changes");
+		const { failure } = await dispatch(
+			"remove",
+			["--cwd", `${root}__feat1`, "--self", "--keep-branch"],
+			testDeps(),
+		);
+		expect(failure).toBeInstanceOf(DirtySlotError);
 
 		expect(
 			(await run(["git", "-C", `${root}__feat1`, "branch", "--show-current"])).stdout.trim(),
@@ -209,9 +212,12 @@ describe("pooled honeycomb remove", () => {
 			["--cwd", root, "--branch", "feature/upstream-blocked", "--json"],
 			testDeps(),
 		);
-		await expect(
-			dispatch("remove", ["--cwd", `${root}__feat1`, "--self"], testDeps()),
-		).rejects.toThrow("no upstream");
+		const { failure: missingUpstream } = await dispatch(
+			"remove",
+			["--cwd", `${root}__feat1`, "--self"],
+			testDeps(),
+		);
+		expect(missingUpstream).toBeInstanceOf(UnmergedBranchError);
 		await run([
 			"git",
 			"-C",
@@ -225,9 +231,12 @@ describe("pooled honeycomb remove", () => {
 		await run(["git", "-C", `${root}__feat1`, "add", "ahead.txt"]);
 		await run(["git", "-C", `${root}__feat1`, "commit", "-m", "ahead"]);
 
-		await expect(
-			dispatch("remove", ["--cwd", `${root}__feat1`, "--self"], testDeps()),
-		).rejects.toThrow("not merged");
+		const { failure: unmerged } = await dispatch(
+			"remove",
+			["--cwd", `${root}__feat1`, "--self"],
+			testDeps(),
+		);
+		expect(unmerged).toBeInstanceOf(UnmergedBranchError);
 		expect(
 			(await run(["git", "-C", `${root}__feat1`, "branch", "--show-current"])).stdout.trim(),
 		).toBe("feature/upstream-blocked");

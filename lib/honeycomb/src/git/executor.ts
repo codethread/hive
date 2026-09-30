@@ -1,7 +1,9 @@
+import { HoneycombError } from "../errors.ts";
 import type { GitResult, GitRunner } from "../services.ts";
 // :module: Git command execution utilities for honeycomb
 
-export class GitError extends Error {
+export class GitError extends HoneycombError {
+	override readonly reason = "git_failed";
 	args: string[];
 	stderr: string;
 	gitExitCode: number;
@@ -10,7 +12,6 @@ export class GitError extends Error {
 		this.args = args;
 		this.stderr = stderr;
 		this.gitExitCode = gitExitCode;
-		this.name = "GitError";
 	}
 }
 

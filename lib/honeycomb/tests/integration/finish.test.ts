@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { chmodSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { dispatch, EXIT_CODES } from "../../src/index";
+import { dispatch, EXIT_CODES, PushRejectedError, UsageError } from "../../src/index";
 import {
 	setTestEnv,
 	restoreTestEnv,
@@ -205,9 +205,13 @@ describe("honeycomb finish", () => {
 		const result = await dispatch("finish", ["--cwd", worktreePath, "--json"], deps);
 
 		expect(result.exitCode).toBe(EXIT_CODES.BLOCKED);
+		expect(result.failure).toBeInstanceOf(PushRejectedError);
 		expect(JSON.parse(result.stdout ?? "{}")).toMatchObject({
+			ok: false,
 			kind: "blocked",
 			reason: "push_rejected",
+			integrated: true,
+			cleanup_actions: [],
 		});
 		expect(existsSync(worktreePath)).toBe(true);
 		expect(
@@ -573,9 +577,12 @@ describe("honeycomb finish", () => {
 		});
 		const originalHead = (await run(["git", "-C", root, "rev-parse", "HEAD"])).stdout.trim();
 
-		await expect(
-			dispatch("finish", ["--cwd", worktreePath, "--json", "--strategy", "ff_only"], deps),
-		).rejects.toThrow("unknown option --strategy");
+		const { failure } = await dispatch(
+			"finish",
+			["--cwd", worktreePath, "--json", "--strategy", "ff_only"],
+			deps,
+		);
+		expect(failure).toBeInstanceOf(UsageError);
 		expect((await run(["git", "-C", root, "rev-parse", "HEAD"])).stdout.trim()).toBe(originalHead);
 	});
 

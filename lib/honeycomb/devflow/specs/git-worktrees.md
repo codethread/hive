@@ -125,8 +125,8 @@ A project with `pool_size` uses fixed reusable slots. Pooled mode changes comman
 
 Project config defines required `command`s that prepare a worktree or slot for work, plus optional copy setup that materializes local files or directories into the created worktree. Copy setup runs before the configured command. The command runs under bash with `WK_ROOT` (canonical root) and `WK_CREATED` (the created worktree or allocated slot) exported.
 
-- Add/allocation runs the command inside `honeycomb` before reporting `ready`. On failure the engine rolls back the add: a newly created worktree is removed, a newly created branch is deleted, a pre-existing branch is restored to its previous head, and an allocated pool slot returns to its placeholder. The command fails as a hook failure (exit `1`) with the command's output on stderr.
-- With `--json`, bootstrap output goes to stderr so stdout remains a single payload.
+- Add/allocation runs the command inside `honeycomb` before reporting `ready`. On failure the engine rolls back the add: a newly created worktree is removed, a newly created branch is deleted, a pre-existing branch is restored to its previous head, and an allocated pool slot returns to its placeholder. The command fails as a hook failure (exit `1`); without `--json`, its output streams to the terminal as it runs.
+- With `--json`, bootstrap output is captured in the payload's `setup_output`; a failure reports `reason: "setup_failed"` with `setup_exit_code`.
 - Pool initialization runs setup inside `honeycomb` so initialized slots are actually ready; newly-created pooled slots roll back on setup failure, while existing half-initialized slots remain uninitialized until a later successful run.
 
 ### Interactive mode
@@ -136,7 +136,7 @@ Project config defines required `command`s that prepare a worktree or slot for w
 - `add` opens the worktree's multiplexer session and focuses it. Outside a multiplexer it writes the worktree path to the cd directive instead.
 - `remove`, and `finish` when its cleanup removes or recycles the worktree, write the canonical root to the cd directive if the caller's working directory was inside that worktree, then close multiplexer sessions rooted at or below its path. Closing sessions is the last step, after all output, because closing the invoking session may end the `honeycomb` process.
 - `pick` writes the selected worktree path to the cd directive; `pick --open` instead opens and focuses its multiplexer session, and requires one.
-- Multiplexer failures are warnings on stderr. They never undo a completed git operation.
+- Multiplexer failures are warnings on stderr, written after any JSON document. They never undo a completed git operation.
 
 Without `--interactive`, `honeycomb` makes no multiplexer calls and writes no cd directive.
 
@@ -245,9 +245,12 @@ Supported strategies mirror common forge merge choices while preserving local de
 
 ### Structured output rules
 
-- `--json` writes only structured payloads to stdout.
-- stderr carries diagnostics, progress, warnings, and human-readable errors.
-- Consumers branch on `kind`, never on stderr text.
+This follows the [CLI output contract](../../../../docs/architecture.md#cli-output-contract).
+
+- `--json` writes exactly one JSON object to stdout, on success and on every failure, and nothing to stderr. `status` always behaves as `--json`.
+- Every document carries `ok` (`true` exactly when the exit code is `0`), a `kind`, and the captured output of the run: `diagnostics` (honeycomb's progress lines and warnings) and `setup_output` (bootstrap lines as `{ stream, line }`).
+- Without `--json`, stdout carries results and stderr carries diagnostics, progress, warnings, and human-readable errors.
+- Consumers branch on `ok`, `kind`, and `reason`, never on message text.
 - Payload changes are additive: existing `kind` values and fields are kept.
 
 ### Exit codes
@@ -267,6 +270,7 @@ Successful add-like payload:
 
 ```json
 {
+	"ok": true,
 	"kind": "ready",
 	"worktree_path": "/repo__feature--foo",
 	"branch": "feature/foo",
@@ -275,11 +279,15 @@ Successful add-like payload:
 	"session": { "name": "repo__feature--foo", "path": "/repo__feature--foo" },
 	"post_create_script_path": null,
 	"created_new_branch": true,
-	"rollback_branch_head": null
+	"rollback_branch_head": null,
+	"diagnostics": [],
+	"setup_output": [{ "stream": "stdout", "line": "installed 12 packages" }]
 }
 ```
 
 `post_create_script_path` is retained for compatibility and is always `null` because the engine runs bootstrap itself.
+
+Later examples omit `ok`, `diagnostics`, and `setup_output`.
 
 Successful remove-like payload. Non-pooled removal reports `removed: true`; pooled removal recycles the slot in place and reports `kind: "ready"` with `removed: false`:
 
@@ -292,7 +300,9 @@ Successful remove-like payload. Non-pooled removal reports `removed: true`; pool
 }
 ```
 
-Blocked/recoverable failures (when `--json`) emit a `blocked` payload. `reason` is an enumerated machine token such as `duplicate_branch`, `dirty_slot`, `unmerged_branch`, `canonical_root`, `unsafe`, `dirty_canonical`, `wrong_canonical_branch`, `non_ff_canonical`, `dirty_worktree`, `target_not_fresh`, `push_rejected`, `conflict`, or `blocked`, and `message` is human-readable. Optional `branch`, `worktree_path`, and `slot_path` are included when known:
+Failures emit `ok: false` with a `kind`, an enumerated machine `reason`, and a human-readable `message`. Optional `branch`, `worktree_path`, and `slot_path` are included when known.
+
+Blocked/recoverable refusals use `kind: "blocked"` with a `reason` such as `duplicate_branch`, `dirty_slot`, `unmerged_branch`, `canonical_root`, `unsafe`, `dirty_canonical`, `wrong_canonical_branch`, `non_ff_canonical`, `dirty_worktree`, `target_not_fresh`, `push_rejected`, `conflict`, `pre_remote_check_failed`, or `blocked`:
 
 ```json
 {
@@ -303,13 +313,29 @@ Blocked/recoverable failures (when `--json`) emit a `blocked` payload. `reason` 
 }
 ```
 
+Failures to run use `kind: "error"` with a `reason` such as `usage`, `config`, `reserved_prefix`, `trunk_detection_failed`, `setup_failed`, `git_failed`, `cancelled`, or `internal`. Setup failures add `setup_exit_code`. Failed `finish` runs report partial progress as `integrated` and the `cleanup_actions` that completed:
+
+```json
+{
+	"ok": false,
+	"kind": "error",
+	"reason": "setup_failed",
+	"message": "hook failed in /repo__feature--foo (7)",
+	"branch": "feature/foo",
+	"worktree_path": "/repo__feature--foo",
+	"setup_exit_code": 7,
+	"diagnostics": [],
+	"setup_output": [{ "stream": "stderr", "line": "missing .envrc" }]
+}
+```
+
 `pool_full` payloads include recyclable candidate slots with risk metadata (see the slot shape below): index, path, branch, dirty state, last-commit ISO timestamp and subject, placeholder/initialized flags.
 
-`list --json` emits an array of worktree items, each: `path`, `head`, `branch`, `branch_ref`, `detached`, `bare`, `locked`, `lock_reason`, `prunable`, `prunable_reason`, `canonical`, `pool`, and `session` (`{ name, path }`).
+`list --json` emits `{ "kind": "list", "worktrees": [...] }`, each worktree item carrying: `path`, `head`, `branch`, `branch_ref`, `detached`, `bare`, `locked`, `lock_reason`, `prunable`, `prunable_reason`, `canonical`, `pool`, and `session` (`{ name, path }`).
 
-`status` emits pool state. With no configured pool it is `{ root, trunk: null, hasPool: false, size: 0, slots: [] }`; otherwise `hasPool: true`, `trunk`, and `size` are populated and `slots` is an array of: `index`, `path`, `exists`, `branch`, `placeholder`, `dirty`, `lastCommitIso`, `lastCommitSubject`, `initialized`.
+`status` emits pool state with `kind: "status"`. With no configured pool it is `{ root, trunk: null, hasPool: false, size: 0, slots: [] }`; otherwise `hasPool: true`, `trunk`, and `size` are populated and `slots` is an array of: `index`, `path`, `exists`, `branch`, `placeholder`, `dirty`, `lastCommitIso`, `lastCommitSubject`, `initialized`.
 
-`copy` targets the non-canonical worktree containing `--cwd` or the current directory. Targeting the canonical root is refused with exit code `11` and, when `--json` is used, a `{"kind":"blocked","reason":"canonical_root"}` payload, matching the root protection invariant. Copy config errors, invalid copy paths, and missing sources are usage/config failures with exit code `12`; even with `--json`, they fail like existing config errors rather than emitting a structured stdout payload. Destinations that overlap tracked files are unsafe refusals with exit code `11`; with `--json`, they emit a blocked payload with `reason: "unsafe"`.
+`copy` targets the non-canonical worktree containing `--cwd` or the current directory. Targeting the canonical root is refused with exit code `11` and, when `--json` is used, a `{"kind":"blocked","reason":"canonical_root"}` payload, matching the root protection invariant. Copy config errors, invalid copy paths, and missing sources are config failures with exit code `12`; with `--json`, they emit an error payload with `reason: "config"`. Destinations that overlap tracked files are unsafe refusals with exit code `11`; with `--json`, they emit a blocked payload with `reason: "unsafe"`.
 
 `copy --json` emits a successful setup payload:
 

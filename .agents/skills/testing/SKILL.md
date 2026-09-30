@@ -19,6 +19,7 @@ From the worktree root:
 
 - Import APIs from `bun:test`. Prefer `test.each` / `it.each` when cases share setup and assertions; use a plain test when a table would be artificial.
 - Keep table rows pure data, without functions, promises, side effects or assertions.
+- Assert failures by error class (`toBeInstanceOf`), not hardcoded message strings. When a message's interpolated values are what the test proves, snapshot it with `toMatchInlineSnapshot`.
 - Inject service dependencies so unit tests can use fakes or overrides. Keep real IO in independently selectable integration/end-to-end suites.
 - Scripts already parallelise isolated test files. Keep tests sequential within files sharing mutable fixtures or environment state.
 

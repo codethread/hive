@@ -122,7 +122,8 @@ describe("honeycomb pick", () => {
 	])("--open %s is a usage error before picking", async (_case, flags, attached) => {
 		const { deps, picker } = pickDeps(featurePath, attached);
 
-		await expect(dispatch("pick", ["--cwd", root, ...flags], deps)).rejects.toThrow(UsageError);
+		const { failure } = await dispatch("pick", ["--cwd", root, ...flags], deps);
+		expect(failure).toBeInstanceOf(UsageError);
 		expect(picker.items).toEqual([]);
 	});
 });

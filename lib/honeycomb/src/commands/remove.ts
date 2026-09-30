@@ -6,15 +6,13 @@ import { planLeaveWorktree } from "../application/interactive.ts";
 import { ensurePool, recycleSlot } from "../application/pool.ts";
 import { runPreRemoteCheck } from "../application/hooks.ts";
 import { listWorktrees, resolveRemoveTarget } from "../application/repository.ts";
-import { CanonicalRootError, UsageError, HoneycombError } from "../errors.ts";
+import { CanonicalRootError, UsageError, HoneycombError, withFailureContext } from "../errors.ts";
 import {
 	finalizeReadyResult,
 	parseOptions,
 	parseOutputMode,
 	requireOption,
-	toBlockedCommandResult,
 	toRemovePayload,
-	withMachineJsonProgress,
 } from "../protocol.ts";
 import type { Deps } from "../services.ts";
 
@@ -22,7 +20,6 @@ export const removeCommand = async (args: string[], deps: Deps) => {
 	const opts = parseOptions(args);
 	const cwd = requireOption(opts, "cwd");
 	const output = parseOutputMode(opts);
-	const machineDeps = withMachineJsonProgress(deps, output);
 	const branch = typeof opts.branch === "string" ? opts.branch : null;
 	const self = opts.self === true;
 	const force = opts.force === true;
@@ -45,7 +42,7 @@ export const removeCommand = async (args: string[], deps: Deps) => {
 
 	let targetPath: string | undefined;
 	try {
-		let worktrees = await listWorktrees(machineDeps.git, cwd);
+		let worktrees = await listWorktrees(deps.git, cwd);
 		const canonical = worktrees.find((worktree) => worktree.canonical);
 		if (!canonical) throw new HoneycombError("couldn't determine canonical worktree");
 		const config = deps.config.read();
@@ -58,10 +55,10 @@ export const removeCommand = async (args: string[], deps: Deps) => {
 				operation: "honeycomb remove",
 			});
 		}
-		if (integratedInto) await machineDeps.git.run(["-C", canonical.path, "fetch", "origin"]);
+		if (integratedInto) await deps.git.run(["-C", canonical.path, "fetch", "origin"]);
 		if (project?.poolSize) {
-			await ensurePool(project, machineDeps, worktrees, config);
-			worktrees = await listWorktrees(machineDeps.git, cwd);
+			await ensurePool(project, deps, worktrees, config);
+			worktrees = await listWorktrees(deps.git, cwd);
 		}
 		const target = resolveRemoveTarget(
 			worktrees,
@@ -80,7 +77,7 @@ export const removeCommand = async (args: string[], deps: Deps) => {
 		if (project?.poolSize && target.pool) {
 			await recycleSlot({
 				files: deps.files,
-				git: machineDeps.git,
+				git: deps.git,
 				project,
 				root: canonical.path,
 				slotPath: target.path,
@@ -100,17 +97,17 @@ export const removeCommand = async (args: string[], deps: Deps) => {
 		if (target.branch && !force && !keepBranch) {
 			if (integratedInto) {
 				await assertBranchIntegratedInto({
-					git: machineDeps.git,
+					git: deps.git,
 					root: canonical.path,
 					worktreePath: target.path,
 					branch: target.branch,
 					integratedInto,
 				});
 			} else {
-				await assertBranchSafelyDeletable(machineDeps.git, canonical.path, target.branch);
+				await assertBranchSafelyDeletable(deps.git, canonical.path, target.branch);
 			}
 		}
-		await machineDeps.git.run([
+		await deps.git.run([
 			"-C",
 			canonical.path,
 			"worktree",
@@ -119,7 +116,7 @@ export const removeCommand = async (args: string[], deps: Deps) => {
 			target.path,
 		]);
 		if (target.branch && !keepBranch) {
-			await machineDeps.git.run([
+			await deps.git.run([
 				"-C",
 				canonical.path,
 				"branch",
@@ -141,11 +138,9 @@ export const removeCommand = async (args: string[], deps: Deps) => {
 			afterOutput,
 		);
 	} catch (error) {
-		const blocked = toBlockedCommandResult(error, output, {
+		throw withFailureContext(error, {
 			branch: branch ?? undefined,
 			worktree_path: targetPath,
 		});
-		if (blocked) return blocked;
-		throw error;
 	}
 };

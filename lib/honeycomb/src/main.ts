@@ -12,7 +12,12 @@ import {
 import { pickCommand } from "./commands/pick.ts";
 import { removeCommand } from "./commands/remove.ts";
 import { EXIT_CODES } from "./errors.ts";
-import type { CommandResult } from "./protocol.ts";
+import {
+	type CommandResult,
+	type OutputMode,
+	createJsonCollector,
+	formatFailure,
+} from "./protocol.ts";
 import type { Deps } from "./services.ts";
 
 const USAGE = `honeycomb - reusable git worktree pool manager
@@ -37,7 +42,41 @@ Options:
   -h, --help     Show this help message
 `;
 
+/**
+ * The command boundary: every throw is formatted here. With --json (and for status,
+ * which is always JSON), stdout is one document and progress is captured into it.
+ */
 export const dispatch = async (
+	subcommand: string | undefined,
+	args: string[],
+	deps: Deps,
+): Promise<CommandResult> => {
+	const output: OutputMode = { json: subcommand === "status" || args.includes("--json") };
+	if (!output.json) return routeFormatted(subcommand, args, deps, output);
+	const collector = createJsonCollector(deps.progress);
+	const result = await routeFormatted(
+		subcommand,
+		args,
+		{ ...deps, progress: collector.progress },
+		output,
+	);
+	return collector.render(result);
+};
+
+const routeFormatted = async (
+	subcommand: string | undefined,
+	args: string[],
+	deps: Deps,
+	output: OutputMode,
+): Promise<CommandResult> => {
+	try {
+		return await route(subcommand, args, deps);
+	} catch (error) {
+		return formatFailure(error, output);
+	}
+};
+
+const route = async (
 	subcommand: string | undefined,
 	args: string[],
 	deps: Deps,

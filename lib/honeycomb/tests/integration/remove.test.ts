@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { dispatch, EXIT_CODES } from "../../src/index";
+import { dispatch, EXIT_CODES, UsageError } from "../../src/index";
 import {
 	setTestEnv,
 	restoreTestEnv,
@@ -317,8 +317,7 @@ describe("honeycomb non-pool remove", () => {
 			kind: "blocked",
 			reason: "canonical_root",
 		});
-		await expect(dispatch("remove", ["--cwd", root, "--json"], deps)).rejects.toThrow(
-			"provide exactly one of --branch or --self",
-		);
+		const { failure } = await dispatch("remove", ["--cwd", root, "--json"], deps);
+		expect(failure).toBeInstanceOf(UsageError);
 	});
 });

@@ -13,7 +13,7 @@ import {
 } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { basename, join, resolve } from "node:path";
-import { dispatch, EXIT_CODES } from "../../src/index";
+import { ConfigError, dispatch, EXIT_CODES } from "../../src/index";
 import { setTestEnv, restoreTestEnv, deps, writeConfig, useOriginFixture, run } from "./support.ts";
 
 const { initRepoWithOrigin } = useOriginFixture();
@@ -47,11 +47,14 @@ describe("honeycomb copy", () => {
 
 		expect(result.exitCode).toBe(EXIT_CODES.SUCCESS);
 		expect(JSON.parse(result.stdout ?? "{}")).toEqual({
+			ok: true,
 			kind: "ready",
 			root,
 			worktree_path: worktreePath,
 			copied: [],
 			exclude_paths: [],
+			diagnostics: [],
+			setup_output: [],
 		});
 	});
 
@@ -113,11 +116,14 @@ describe("honeycomb copy", () => {
 		expect(result.exitCode).toBe(EXIT_CODES.SUCCESS);
 		expect(readFileSync(join(worktreePath, ".env"), "utf8")).toBe("SECRET=one\n");
 		expect(JSON.parse(result.stdout ?? "{}")).toEqual({
+			ok: true,
 			kind: "ready",
 			root,
 			worktree_path: worktreePath,
 			copied: [{ from: join(root, ".env"), to: ".env", type: "file" }],
 			exclude_paths: [".env"],
+			diagnostics: [],
+			setup_output: [],
 		});
 	});
 
@@ -156,7 +162,7 @@ describe("honeycomb copy", () => {
 	});
 
 	test.each(["", "/tmp/abs", "~/secret", "../escape"])(
-		"invalid copy string %p fails as config error without stdout",
+		"invalid copy string %p fails as a config error",
 		async (path) => {
 			const { root } = await initRepoWithOrigin(tmp);
 			writeConfig(tmp, root, "echo ready");
@@ -167,24 +173,38 @@ describe("honeycomb copy", () => {
 			);
 			writeConfig(tmp, root, "echo ready", undefined, `copy = [${JSON.stringify(path)}]\n`);
 
-			await expect(
-				dispatch("copy", ["--cwd", `${root}__feature--invalid-${path.length}`, "--json"], deps),
-			).rejects.toMatchObject({ exitCode: EXIT_CODES.USAGE });
+			const result = await dispatch(
+				"copy",
+				["--cwd", `${root}__feature--invalid-${path.length}`, "--json"],
+				deps,
+			);
+			expect(result.failure).toBeInstanceOf(ConfigError);
 		},
 	);
 
-	test("missing source fails as config error without structured stdout", async () => {
+	test("missing source fails as a config error payload", async () => {
 		const { root } = await initRepoWithOrigin(tmp);
 		writeConfig(tmp, root, "echo ready");
 		await dispatch("add", ["--cwd", root, "--branch", "feature/missing-copy", "--json"], deps);
 		writeConfig(tmp, root, "echo ready", undefined, 'copy = [".env.missing"]\n');
 
-		await expect(
-			dispatch("copy", ["--cwd", `${root}__feature--missing-copy`, "--json"], deps),
-		).rejects.toMatchObject({
-			message: expect.stringContaining("copy source does not exist"),
-			exitCode: EXIT_CODES.USAGE,
-		});
+		const result = await dispatch(
+			"copy",
+			["--cwd", `${root}__feature--missing-copy`, "--json"],
+			deps,
+		);
+
+		expect(result.failure).toBeInstanceOf(ConfigError);
+		expect(JSON.parse(result.stdout ?? "{}")).toMatchInlineSnapshot(`
+		  {
+		    "diagnostics": [],
+		    "kind": "error",
+		    "message": "copy source does not exist: .env.missing",
+		    "ok": false,
+		    "reason": "config",
+		    "setup_output": [],
+		  }
+		`);
 	});
 
 	test("symlink source files fail as config errors in copy mode", async () => {
@@ -195,12 +215,12 @@ describe("honeycomb copy", () => {
 		await dispatch("add", ["--cwd", root, "--branch", "feature/symlink-source", "--json"], deps);
 		writeConfig(tmp, root, "echo ready", undefined, 'copy = [".env.link"]\n');
 
-		await expect(
-			dispatch("copy", ["--cwd", `${root}__feature--symlink-source`, "--json"], deps),
-		).rejects.toMatchObject({
-			message: expect.stringContaining("not a regular file"),
-			exitCode: EXIT_CODES.USAGE,
-		});
+		const result = await dispatch(
+			"copy",
+			["--cwd", `${root}__feature--symlink-source`, "--json"],
+			deps,
+		);
+		expect(result.failure).toBeInstanceOf(ConfigError);
 	});
 
 	test("symlink mode creates destination symlinks to resolved source targets", async () => {
@@ -239,9 +259,8 @@ describe("honeycomb copy", () => {
 		const worktreePath = `${root}__feature--preflight`;
 		writeFileSync(join(worktreePath, ".env"), "do not replace\n");
 
-		await expect(dispatch("copy", ["--cwd", worktreePath, "--json"], deps)).rejects.toMatchObject({
-			exitCode: EXIT_CODES.USAGE,
-		});
+		const result = await dispatch("copy", ["--cwd", worktreePath, "--json"], deps);
+		expect(result.failure).toBeInstanceOf(ConfigError);
 
 		expect(readFileSync(join(worktreePath, ".env"), "utf8")).toBe("do not replace\n");
 	});
@@ -446,11 +465,12 @@ describe("honeycomb copy", () => {
 		await dispatch("add", ["--cwd", root, "--branch", "feature/invalid-object", "--json"], deps);
 		writeConfig(tmp, root, "echo ready", undefined, `${config}\n`);
 
-		await expect(
-			dispatch("copy", ["--cwd", `${root}__feature--invalid-object`, "--json"], deps),
-		).rejects.toMatchObject({
-			exitCode: EXIT_CODES.USAGE,
-		});
+		const result = await dispatch(
+			"copy",
+			["--cwd", `${root}__feature--invalid-object`, "--json"],
+			deps,
+		);
+		expect(result.failure).toBeInstanceOf(ConfigError);
 	});
 
 	test("env-var and glob-looking object sources are treated literally", async () => {

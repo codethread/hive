@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { ConfigError, dispatch, EXIT_CODES } from "../../src/index";
+import { BlockedError, ConfigError, dispatch, EXIT_CODES } from "../../src/index";
 import { setTestEnv, restoreTestEnv, deps, useOriginFixture, initRepo, run } from "./support.ts";
 
 const { initRepoWithOrigin } = useOriginFixture();
@@ -44,8 +44,9 @@ describe("honeycomb read-only commands", () => {
 		expect(listResult.stdout).toContain("[canonical]");
 
 		const jsonResult = await dispatch("list", ["--cwd", root, "--json"], deps);
-		const parsed = JSON.parse(jsonResult.stdout ?? "[]");
-		expect(parsed[0]).toMatchObject({
+		const parsed = JSON.parse(jsonResult.stdout ?? "{}");
+		expect(parsed).toMatchObject({ ok: true, kind: "list", diagnostics: [], setup_output: [] });
+		expect(parsed.worktrees[0]).toMatchObject({
 			path: root,
 			branch: "main",
 			branch_ref: "refs/heads/main",
@@ -54,7 +55,7 @@ describe("honeycomb read-only commands", () => {
 			canonical: true,
 			pool: null,
 		});
-		expect(parsed[0].branchRef).toBeUndefined();
+		expect(parsed.worktrees[0].branchRef).toBeUndefined();
 
 		const pathResult = await dispatch("path", ["--cwd", root, "--branch", "feature/cool"], deps);
 		expect(pathResult.stdout).toBe(`${root}__feature--cool\n`);
@@ -77,6 +78,7 @@ describe("honeycomb read-only commands", () => {
 
 		expect(result.exitCode).toBe(EXIT_CODES.SUCCESS);
 		expect(payload).toEqual({
+			ok: true,
 			kind: "config_explain",
 			root,
 			matched_rules: [{ root_glob: `${realpathSync(tmp)}/**` }],
@@ -92,6 +94,8 @@ describe("honeycomb read-only commands", () => {
 				remove_worktree: false,
 				delete_branch: true,
 			},
+			diagnostics: [],
+			setup_output: [],
 		});
 	});
 
@@ -104,7 +108,8 @@ describe("honeycomb read-only commands", () => {
 		writeFileSync(join(configHome, "honeycomb.toml"), "[[project]]\nroot = ");
 		setTestEnv("XDG_CONFIG_HOME", configHome);
 
-		await expect(dispatch("list", ["--cwd", root], deps)).rejects.toThrow(ConfigError);
+		const { failure } = await dispatch("list", ["--cwd", root], deps);
+		expect(failure).toBeInstanceOf(ConfigError);
 	});
 
 	test("list annotates pool slots and path refuses pooled repos before slot state exists", async () => {
@@ -124,11 +129,10 @@ describe("honeycomb read-only commands", () => {
 		const listResult = await dispatch("list", ["--cwd", root], deps);
 		expect(listResult.stdout).toContain("[pool:free]");
 		const jsonResult = await dispatch("list", ["--cwd", root, "--json"], deps);
-		const json = JSON.parse(jsonResult.stdout ?? "[]");
-		expect(json[1]).toMatchObject({ locked: true, lock_reason: "keep slot" });
+		const json = JSON.parse(jsonResult.stdout ?? "{}");
+		expect(json.worktrees[1]).toMatchObject({ locked: true, lock_reason: "keep slot" });
 
-		await expect(
-			dispatch("path", ["--cwd", root, "--branch", "feature/cool"], deps),
-		).rejects.toThrow("no pooled worktree");
+		const { failure } = await dispatch("path", ["--cwd", root, "--branch", "feature/cool"], deps);
+		expect(failure).toBeInstanceOf(BlockedError);
 	});
 });

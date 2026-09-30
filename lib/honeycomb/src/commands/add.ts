@@ -43,6 +43,7 @@ import {
 	ReservedPrefixError,
 	UsageError,
 	HoneycombError,
+	withFailureContext,
 } from "../errors.ts";
 import {
 	type CommandResult,
@@ -55,8 +56,6 @@ import {
 	parseOutputMode,
 	requireOption,
 	toAddPayload,
-	toBlockedCommandResult,
-	withMachineJsonProgress,
 } from "../protocol.ts";
 
 import type { Deps, GitRunner, PickerItem, ProgressReporter } from "../services.ts";
@@ -66,7 +65,6 @@ export const addCommand = async (args: string[], deps: Deps) => {
 	const cwd = requireOption(opts, "cwd");
 	const branch = requireOption(opts, "branch");
 	const output = parseOutputMode(opts);
-	const machineDeps = withMachineJsonProgress(deps, output);
 	const slotPath = typeof opts.slot === "string" ? opts.slot : null;
 	const baseOption = typeof opts.base === "string" ? opts.base : null;
 	const baseCurrent = opts["base-current"] === true;
@@ -79,12 +77,12 @@ export const addCommand = async (args: string[], deps: Deps) => {
 	}
 
 	try {
-		const canonicalRoot = await resolveCanonicalRoot(machineDeps.git, cwd);
+		const canonicalRoot = await resolveCanonicalRoot(deps.git, cwd);
 		const config = deps.config.read();
 		const project = deps.config.explain(config, canonicalRoot).project;
 		const worktreeLocation = deps.config.explain(config, canonicalRoot).worktreeLocation;
 		const effectiveCommand = deps.config.explain(config, canonicalRoot).command;
-		const worktrees = await listWorktrees(machineDeps.git, canonicalRoot);
+		const worktrees = await listWorktrees(deps.git, canonicalRoot);
 		const existing = worktrees.find((worktree) => worktree.branch === branch);
 		if (existing) {
 			throw new DuplicateBranchError(`branch ${branch} is already checked out at ${existing.path}`);
@@ -104,7 +102,7 @@ export const addCommand = async (args: string[], deps: Deps) => {
 		await runPreRemoteCheck(deps, { config, root: canonicalRoot, operation: "honeycomb add" });
 		if (project?.poolSize) {
 			return addPooledWorktree({
-				deps: machineDeps,
+				deps,
 				project,
 				config,
 				root: canonicalRoot,
@@ -124,43 +122,43 @@ export const addCommand = async (args: string[], deps: Deps) => {
 			throw new CanonicalRootError("refusing to use canonical root as worktree target");
 		}
 
-		await machineDeps.git.run(["-C", canonicalRoot, "fetch", "origin"]);
-		const branchState = await detectBranchState(machineDeps.git, canonicalRoot, branch);
+		await deps.git.run(["-C", canonicalRoot, "fetch", "origin"]);
+		const branchState = await detectBranchState(deps.git, canonicalRoot, branch);
 		const defaultBase = await resolveDefaultBaseForNewBranch({
-			git: machineDeps.git,
+			git: deps.git,
 			root: canonicalRoot,
 			policy: deps.config.explain(config, canonicalRoot).addPolicy,
 			branchState,
 			base,
 		});
 		const originalBranchHead = await captureExistingBranchHead({
-			git: machineDeps.git,
+			git: deps.git,
 			root: canonicalRoot,
 			branch,
 			branchState,
 		});
 		await deps.files.prepareParent(canonicalRoot, worktreePath, worktreeLocation);
 		await addNonPoolWorktree({
-			git: machineDeps.git,
+			git: deps.git,
 			root: canonicalRoot,
 			path: worktreePath,
 			branch,
 			state: branchState,
 			base: base ?? defaultBase,
-			progress: machineDeps.progress,
+			progress: deps.progress,
 		});
 		try {
 			await mergeOriginIfPresent({
-				git: machineDeps.git,
+				git: deps.git,
 				worktreePath,
 				branch,
-				progress: machineDeps.progress,
+				progress: deps.progress,
 			});
 			if (project) {
 				await deps.files.copy(canonicalRoot, worktreePath, project.copy);
 			}
 			if (effectiveCommand.command) {
-				await runBootstrap(machineDeps, {
+				await runBootstrap(deps, {
 					projectName: projectNameFor(project, canonicalRoot),
 					command: effectiveCommand.command,
 					root: canonicalRoot,
@@ -170,7 +168,7 @@ export const addCommand = async (args: string[], deps: Deps) => {
 			}
 		} catch (error) {
 			await rollbackNonPoolAdd({
-				git: machineDeps.git,
+				git: deps.git,
 				root: canonicalRoot,
 				worktreePath,
 				branch,
@@ -190,12 +188,10 @@ export const addCommand = async (args: string[], deps: Deps) => {
 		};
 		return finalizeReadyAdd({ payload: toAddPayload(plan), output, deps, interactive });
 	} catch (error) {
-		const blocked = toBlockedCommandResult(error, output, {
+		throw withFailureContext(error, {
 			branch,
 			slot_path: slotPath ?? undefined,
 		});
-		if (blocked) return blocked;
-		throw error;
 	}
 };
 
@@ -235,23 +231,13 @@ const addPooledWorktree = async (options: {
 	}
 	await deps.git.run(["-C", root, "fetch", "origin"]);
 	const branchState = await detectBranchState(deps.git, root, branch);
-	let defaultBase: string | null;
-	try {
-		defaultBase = await resolveDefaultBaseForNewBranch({
-			git: deps.git,
-			root,
-			policy: deps.config.explain(config, root).addPolicy,
-			branchState,
-			base,
-		});
-	} catch (error) {
-		const blocked = toBlockedCommandResult(error, output, {
-			branch,
-			slot_path: slotPath ?? undefined,
-		});
-		if (blocked) return blocked;
-		throw error;
-	}
+	const defaultBase = await resolveDefaultBaseForNewBranch({
+		git: deps.git,
+		root,
+		policy: deps.config.explain(config, root).addPolicy,
+		branchState,
+		base,
+	});
 	await ensurePool(project, deps, worktrees, config, command);
 	worktrees = await listWorktrees(deps.git, root);
 	for (const worktree of worktrees) {

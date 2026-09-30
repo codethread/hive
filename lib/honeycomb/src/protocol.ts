@@ -7,33 +7,26 @@ import {
 } from "./domain/worktree.ts";
 
 import {
-	BlockedError,
-	CanonicalRootError,
-	DirtyCanonicalError,
-	DirtySlotError,
-	DirtyWorktreeError,
-	DuplicateBranchError,
 	EXIT_CODES,
-	FinishConflictError,
-	NonFastForwardCanonicalError,
-	PreRemoteCheckError,
-	PushRejectedError,
-	TargetNotFreshError,
-	UnmergedBranchError,
-	UnsafeOperationError,
+	type FailureContext,
+	type FailureKind,
+	type HoneycombError,
+	toHoneycombError,
 	UsageError,
-	HoneycombError,
-	WrongCanonicalBranchError,
 } from "./errors.ts";
-import type { Deps } from "./services.ts";
+import type { ProgressReporter } from "./services.ts";
 
 export interface CommandResult {
 	/** Output returned to the invoking shell, when present. */
 	stdout?: string | undefined;
 	/** Diagnostics returned to the invoking shell, when present. */
 	stderr?: string;
+	/** Structured result rendered as the single JSON document in --json mode. */
+	payload?: object | undefined;
 	/** Process status from the documented exit-code taxonomy. */
 	exitCode: number;
+	/** The failure this result was formatted from, for in-process callers. */
+	failure?: HoneycombError | undefined;
 	/** Interactive follow-up run once output is written; it may end the process. */
 	afterOutput?: (() => Promise<void>) | undefined;
 }
@@ -51,10 +44,7 @@ export const finalizeStructuredResult = (
 	payload: object,
 	output: OutputMode,
 	exitCode: number = EXIT_CODES.SUCCESS,
-): CommandResult => ({
-	stdout: output.json ? `${JSON.stringify(payload, null, 2)}\n` : undefined,
-	exitCode,
-});
+): CommandResult => (output.json ? { payload, exitCode } : { exitCode });
 
 export const finalizeReadyResult = (
 	payload: object,
@@ -66,54 +56,79 @@ export const finalizeReadyResult = (
 	return { stderr: `${summary}\n`, exitCode: EXIT_CODES.SUCCESS, afterOutput };
 };
 
-export const toBlockedCommandResult = (
-	error: unknown,
-	output: OutputMode,
-	context: Omit<BlockedPayload, "kind" | "reason" | "message">,
-): CommandResult | null => {
-	if (!output.json || !(error instanceof HoneycombError)) return null;
-	const payload = toBlockedPayload(error, context);
-	if (!payload) return null;
-	const result = finalizeStructuredResult(payload, output, error.exitCode);
-	if (error instanceof PreRemoteCheckError && error.stderr.trim() !== "") {
-		return { ...result, stderr: `${error.stderr.trimEnd()}\n` };
-	}
-	return result;
+/** The one formatter for anything a command throws: human text or a failure payload. */
+export const formatFailure = (error: unknown, output: OutputMode): CommandResult => {
+	const failure = toHoneycombError(error);
+	if (!output.json) return { stderr: `${failure.message}\n`, exitCode: failure.exitCode, failure };
+	return { payload: toFailurePayload(failure), exitCode: failure.exitCode, failure };
 };
 
-const toBlockedPayload = (
-	error: HoneycombError,
-	context: Omit<BlockedPayload, "kind" | "reason" | "message">,
-): BlockedPayload | null => {
-	if (!(error instanceof BlockedError) && !(error instanceof UnsafeOperationError)) return null;
-	let reason = "blocked";
-	if (error instanceof DuplicateBranchError) reason = "duplicate_branch";
-	else if (error instanceof DirtySlotError) reason = "dirty_slot";
-	else if (error instanceof DirtyWorktreeError) reason = "dirty_worktree";
-	else if (error instanceof DirtyCanonicalError) reason = "dirty_canonical";
-	else if (error instanceof WrongCanonicalBranchError) reason = "wrong_canonical_branch";
-	else if (error instanceof NonFastForwardCanonicalError) reason = "non_ff_canonical";
-	else if (error instanceof TargetNotFreshError) reason = "target_not_fresh";
-	else if (error instanceof FinishConflictError) reason = "conflict";
-	else if (error instanceof PushRejectedError) reason = "push_rejected";
-	else if (error instanceof UnmergedBranchError) reason = "unmerged_branch";
-	else if (error instanceof PreRemoteCheckError) reason = "pre_remote_check_failed";
-	else if (error instanceof CanonicalRootError) reason = "canonical_root";
-	else if (error.exitCode === EXIT_CODES.UNSAFE) reason = "unsafe";
-	return { kind: "blocked", reason, message: error.message, ...context };
-};
+const toFailurePayload = (failure: HoneycombError): FailurePayload => ({
+	kind: failure.kind,
+	reason: failure.reason,
+	message: failure.message,
+	...failure.context,
+});
 
-export const withMachineJsonProgress = (deps: Deps, output: OutputMode): Deps => {
-	if (!output.json) return deps;
-	return {
-		...deps,
-		progress: {
-			banner: (line: string) => deps.progress.banner(line),
-			stream: (_stream: "stdout" | "stderr", line: string) => deps.progress.error(line),
-			error: (msg: string) => deps.progress.error(msg),
+/** Output captured during a --json invocation so stderr stays silent. */
+export interface JsonLog {
+	/** Honeycomb's own progress lines and warnings, in order. */
+	diagnostics: string[];
+	/** Setup command output, in order, tagged with its original stream. */
+	setup_output: SetupOutputLine[];
+}
+
+interface SetupOutputLine {
+	/** Stream the setup command wrote the line to. */
+	stream: "stdout" | "stderr";
+	/** Line text without its terminator. */
+	line: string;
+}
+
+/**
+ * Collect progress into the JSON document. Once rendered, later lines (interactive
+ * follow-ups only) fall through to the terminal reporter.
+ */
+export const createJsonCollector = (terminal: ProgressReporter) => {
+	const log: JsonLog = { diagnostics: [], setup_output: [] };
+	let rendered = false;
+	const progress: ProgressReporter = {
+		banner: (line) => {
+			if (rendered) terminal.banner(line);
+			else log.diagnostics.push(line);
+		},
+		stream: (stream, line) => {
+			if (rendered) terminal.stream(stream, line);
+			else log.setup_output.push({ stream, line });
+		},
+		error: (msg) => {
+			if (rendered) terminal.error(msg);
+			else log.diagnostics.push(msg);
 		},
 	};
+	const render = (result: CommandResult): CommandResult => {
+		rendered = true;
+		return renderJsonResult(result, log);
+	};
+	return { progress, render };
 };
+
+const NO_OUTPUT: JsonLog = { diagnostics: [], setup_output: [] };
+
+/** Render a result as the single stdout document: `ok`, then the payload, then captured output. */
+export const renderJsonResult = (
+	result: CommandResult,
+	log: JsonLog = NO_OUTPUT,
+): CommandResult => ({
+	stdout: `${JSON.stringify(
+		{ ok: result.exitCode === EXIT_CODES.SUCCESS, ...result.payload, ...log },
+		null,
+		2,
+	)}\n`,
+	exitCode: result.exitCode,
+	failure: result.failure,
+	afterOutput: result.afterOutput,
+});
 
 export const toAddPayload = (plan: AddPlan): ReadyAddPayload => ({
 	kind: "ready",
@@ -274,19 +289,13 @@ export interface PoolFullPayload {
 	candidates: PoolFullCandidate[];
 }
 
-interface BlockedPayload {
-	/** Discriminator used by CLI and Nushell consumers. */
-	kind: "blocked";
-	/** Machine-readable refusal reason. */
+interface FailurePayload extends FailureContext {
+	/** Recoverable refusal or failure to run. */
+	kind: FailureKind;
+	/** Machine-readable failure token. */
 	reason: string;
-	/** Human-readable explanation of the refusal. */
+	/** Human-readable explanation of the failure. */
 	message: string;
-	/** Requested or checked-out branch name. */
-	branch?: string | undefined;
-	/** Checkout selected or created by the operation. */
-	worktree_path?: string | undefined;
-	/** Explicitly selected pool path, when applicable. */
-	slot_path?: string | undefined;
 }
 
 export const parseOptions = (args: string[]) => {

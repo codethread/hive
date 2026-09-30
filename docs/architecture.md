@@ -32,3 +32,14 @@ The canonical checkout anchors configuration and default-branch decisions and is
 The engine owns worktree policy and lifecycle mutations. The Nushell shim only runs `honeycomb --interactive` with a temporary `HONEYCOMB_CD_FILE` and changes the shell's directory when the engine writes one; it holds no worktree, git, multiplexer, or prompt logic. Agents call the CLI directly and never pass `--interactive`, so they cannot move the user's focus or close sessions.
 
 Configured setup and its rollback run inside the engine, so every caller gets the same ready-or-rolled-back result. Multiplexer state never determines whether a worktree exists or is safe to remove; sessions are an integration that only `--interactive` may touch.
+
+## CLI output contract
+
+Every Hive CLI has two audiences. Humans and TTY usage get readable output: results on stdout, progress and errors on stderr. Machine callers pass `--json` and get exactly one JSON document on stdout, whether the command succeeds or fails; stderr stays silent, so a caller never has to read or interleave two streams.
+
+- The document is an object with a boolean `ok`. Success payloads carry `ok: true` and a `kind`. Failures carry `ok: false`, a `kind`, a machine-readable `reason`, a human `message` and whatever the command knew before failing, such as the target it resolved or the steps that already completed. Callers branch on `ok`, `kind` and `reason`, never on message text.
+- Output that would otherwise reach the terminal, such as setup-command lines and warnings, is captured into the document.
+- Exit codes keep their meaning in both modes.
+- Commands do not format their own failures. They throw typed errors that carry their `kind` and `reason`, attaching context as they unwind, and one handler at the command boundary formats anything thrown for the active mode. An unrecognized throw is normalized into the same shape.
+
+Honeycomb's [`dispatch`](../lib/honeycomb/src/main.ts) is the reference implementation, with its error model in [`errors.ts`](../lib/honeycomb/src/errors.ts).

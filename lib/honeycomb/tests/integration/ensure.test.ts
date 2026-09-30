@@ -2,11 +2,10 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { dispatch, EXIT_CODES, HookError } from "../../src/index";
+import { ConfigError, dispatch, EXIT_CODES, HookError } from "../../src/index";
 import {
 	setTestEnv,
 	restoreTestEnv,
-	deps,
 	testDeps,
 	writeConfig,
 	useOriginFixture,
@@ -82,7 +81,8 @@ describe("honeycomb ensure", () => {
 			3,
 		);
 
-		await expect(dispatch("ensure", ["--cwd", root], testDeps())).rejects.toThrow(HookError);
+		const { failure } = await dispatch("ensure", ["--cwd", root], testDeps());
+		expect(failure).toBeInstanceOf(HookError);
 		expect(existsSync(`${root}__feat1`)).toBe(true);
 		expect(existsSync(`${root}__feat2`)).toBe(false);
 		expect(existsSync(`${root}__feat3`)).toBe(false);
@@ -107,7 +107,8 @@ describe("honeycomb ensure", () => {
 
 		writeConfig(tmp, root, "exit 9", 2);
 		await createPoolSlot(root, 2, "wk-pool/feat2", false);
-		await expect(dispatch("ensure", ["--cwd", root], testDeps())).rejects.toThrow(HookError);
+		const { failure } = await dispatch("ensure", ["--cwd", root], testDeps());
+		expect(failure).toBeInstanceOf(HookError);
 		expect(existsSync(`${root}__feat2`)).toBe(true);
 	});
 
@@ -115,9 +116,8 @@ describe("honeycomb ensure", () => {
 		const { root } = await initRepoWithOrigin(tmp);
 		writeConfig(tmp, root, "touch should-not-run", 1, 'copy = [".env.missing"]\n');
 
-		await expect(dispatch("ensure", ["--cwd", root], testDeps())).rejects.toMatchObject({
-			exitCode: EXIT_CODES.USAGE,
-		});
+		const { failure } = await dispatch("ensure", ["--cwd", root], testDeps());
+		expect(failure).toBeInstanceOf(ConfigError);
 
 		expect(existsSync(`${root}__feat1`)).toBe(false);
 	});
@@ -128,9 +128,8 @@ describe("honeycomb ensure", () => {
 		await createPoolSlot(root, 1, "wk-pool/feat1", true);
 		await createPoolSlot(root, 2, "wk-pool/feat2", false);
 
-		await expect(dispatch("ensure", ["--cwd", root], testDeps())).rejects.toMatchObject({
-			exitCode: EXIT_CODES.USAGE,
-		});
+		const { failure } = await dispatch("ensure", ["--cwd", root], testDeps());
+		expect(failure).toBeInstanceOf(ConfigError);
 
 		expect(existsSync(`${root}__feat2`)).toBe(true);
 		expect(existsSync(join(`${root}__feat2`, "should-not-run"))).toBe(false);
@@ -140,19 +139,21 @@ describe("honeycomb ensure", () => {
 		expect(existsSync(resolve(`${root}__feat2`, marker))).toBe(false);
 	});
 
-	test("list json keeps pool initialization stdout out of structured output", async () => {
+	test("list json captures pool initialization output in the payload", async () => {
 		const { root } = await initRepoWithOrigin(tmp);
 		writeConfig(tmp, root, "echo setup-output", 1);
-		const diagnostics: string[] = [];
 
-		const result = await dispatch(
-			"list",
-			["--cwd", root, "--json"],
-			testDeps({ progress: { ...deps.progress, error: (msg: string) => diagnostics.push(msg) } }),
-		);
+		const result = await dispatch("list", ["--cwd", root, "--json"], testDeps());
 
-		expect(() => JSON.parse(result.stdout ?? "")).not.toThrow();
-		expect(diagnostics).toContain("setup-output");
+		expect(result.stderr).toBeUndefined();
+		const payload = JSON.parse(result.stdout ?? "{}");
+		expect(payload).toMatchObject({ ok: true, kind: "list" });
+		expect(payload.diagnostics).toMatchInlineSnapshot(`
+		  [
+		    "[wk-pool] initializing feat1…",
+		  ]
+		`);
+		expect(payload.setup_output).toContainEqual({ stream: "stdout", line: "setup-output" });
 	});
 
 	test("list and pooled remove trigger first-run ensure", async () => {

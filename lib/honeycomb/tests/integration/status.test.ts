@@ -135,6 +135,16 @@ describe("honeycomb pool status", () => {
 
 		writeConfig(tmp, root, "echo ready");
 		const nonPooled = JSON.parse((await dispatch("status", ["--cwd", root], deps)).stdout ?? "{}");
-		expect(nonPooled).toEqual({ root, trunk: null, hasPool: false, size: 0, slots: [] });
+		expect(nonPooled).toEqual({
+			ok: true,
+			kind: "status",
+			root,
+			trunk: null,
+			hasPool: false,
+			size: 0,
+			slots: [],
+			diagnostics: [],
+			setup_output: [],
+		});
 	});
 });

@@ -79,7 +79,7 @@ honeycomb list --json
 honeycomb finish --json
 ```
 
-`add` runs the configured setup command before reporting `ready`; with `--json`, setup output goes to stderr. If setup fails, `add` rolls back and exits `1`.
+With `--json`, stdout is always a single JSON object and stderr stays silent. Check `ok`: failures carry `ok: false` with a `kind` (`blocked` or `error`) and a machine-readable `reason`. `add` runs the configured setup command before reporting `ready`, capturing its output in `setup_output`. If setup fails, `add` rolls back and exits `1` with `reason: "setup_failed"`.
 
 Use this to see what config applies to the current repository:
 

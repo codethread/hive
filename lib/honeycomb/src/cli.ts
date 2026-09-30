@@ -1,13 +1,16 @@
 import { Command, CommanderError } from "commander";
-import { EXIT_CODES, HoneycombError } from "./errors.ts";
+import { EXIT_CODES, UsageError } from "./errors.ts";
 import { createLiveDeps } from "./live-deps.ts";
 import { dispatch } from "./main.ts";
+import { type CommandResult, formatFailure, renderJsonResult } from "./protocol.ts";
 import type { Deps } from "./services.ts";
 
 export const main = async (
 	argv: string[] = Bun.argv,
 	deps: Deps = createLiveDeps(),
 ): Promise<void> => {
+	// Commander reports parse errors before dispatch runs, so detect JSON mode from argv.
+	const json = argv.includes("--json");
 	const program = new Command();
 	program
 		.name("honeycomb")
@@ -27,16 +30,19 @@ export const main = async (
 		)
 		.configureOutput({
 			writeOut: (str) => process.stderr.write(str),
-			writeErr: (str) => process.stderr.write(str),
+			writeErr: (str) => {
+				if (!json) process.stderr.write(str);
+			},
 		})
 		.addHelpText(
 			"after",
 			`
 Agent workflow:
   Pass --cwd <path> only when targeting a worktree set other than the current
-  directory. Prefer --json when available and branch on payload kind rather than
-  stderr text. add runs configured setup before reporting ready; with --json,
-  setup output goes to stderr.
+  directory. Prefer --json when available: stdout is then one JSON object, on
+  success and failure alike, and stderr stays silent. Branch on ok, kind, and
+  reason rather than message text. Setup output and warnings are captured in the
+  payload's setup_output and diagnostics.
 
 Interactive wrappers:
   Human wrappers pass --interactive so add focuses the new worktree's multiplexer
@@ -105,8 +111,7 @@ Use when:
 
 Notes:
   In pooled repositories, list ensures configured slots exist before reporting
-  them. With --json, stdout is an array of worktree items; diagnostics stay on
-  stderr.
+  them. With --json, the payload's worktrees array holds one item per worktree.
 
 Related:
   status shows pool-focused slot state. path resolves one branch to its expected
@@ -166,12 +171,12 @@ Notes:
   --base only for intentional stacked/non-default work. --base-current uses the
   branch checked out in the worktree containing --cwd instead, and is refused for
   a detached HEAD or combined with --base. Setup failure rolls the add back and
-  exits 1; with --json, setup output goes to stderr.
+  exits 1 with reason setup_failed; with --json, setup output is in setup_output.
 
 Blocked outcomes:
   Existing branches, stale or dirty canonical roots, pool exhaustion, and unsafe
   slot states are reported explicitly. Machine consumers should branch on kind
-  such as ready, blocked, or pool_full.
+  such as ready, blocked, or pool_full, and on ok.
 `,
 		)
 		.action(async (_opts, command) => {
@@ -386,30 +391,26 @@ Notes:
 	try {
 		await program.parseAsync(argv);
 	} catch (error) {
-		if (error instanceof CommanderError) {
-			process.exit(error.exitCode === 0 ? 0 : EXIT_CODES.USAGE);
-		}
-		const exitCode = error instanceof HoneycombError ? error.exitCode : EXIT_CODES.FAILURE;
-		process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
-		process.exit(exitCode);
+		if (!(error instanceof CommanderError)) throw error;
+		if (error.exitCode === 0) process.exit(0);
+		if (!json) process.exit(EXIT_CODES.USAGE);
+		const usage = new UsageError(error.message.replace(/^error: /, ""));
+		await writeResult(renderJsonResult(formatFailure(usage, { json })));
+		process.exit(EXIT_CODES.USAGE);
 	}
 };
 
 const runAction = async (subcmd: string, args: string[], deps: Deps): Promise<void> => {
-	try {
-		const result = await dispatch(subcmd, args, deps);
-		// Await the writes: afterOutput may close the invoking session and end this process.
-		if (result.stdout) await Bun.write(Bun.stdout, result.stdout);
-		if (result.stderr) await Bun.write(Bun.stderr, result.stderr);
-		await result.afterOutput?.();
-		process.exit(result.exitCode);
-	} catch (error) {
-		if (error instanceof HoneycombError) {
-			process.stderr.write(`${error.message}\n`);
-			process.exit(error.exitCode);
-		}
-		throw error;
-	}
+	const result = await dispatch(subcmd, args, deps);
+	await writeResult(result);
+	await result.afterOutput?.();
+	process.exit(result.exitCode);
+};
+
+// Await the writes: afterOutput may close the invoking session and end this process.
+const writeResult = async (result: CommandResult): Promise<void> => {
+	if (result.stdout) await Bun.write(Bun.stdout, result.stdout);
+	if (result.stderr) await Bun.write(Bun.stderr, result.stderr);
 };
 
 const optsToArgs = (opts: Record<string, unknown>): string[] => {
