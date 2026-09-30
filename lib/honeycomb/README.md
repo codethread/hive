@@ -31,6 +31,24 @@ honeycomb add --help
 honeycomb config explain --help
 ```
 
+## Zsh completions
+
+Generate a completion script after installing Honeycomb:
+
+```nu
+honeycomb completions zsh | save --force ~/.honeycomb-completion.zsh
+```
+
+Add these lines to `~/.zshrc`, after putting `honeycomb` on your `PATH`. Skip `compinit` if your shell framework already runs it:
+
+```zsh
+autoload -Uz compinit
+compinit
+source ~/.honeycomb-completion.zsh
+```
+
+Restart zsh to enable completion for commands, nested subcommands, and flags. The script queries the installed `honeycomb` at tab time, so suggestions follow the current CLI. Branch names and filesystem paths are not suggested.
+
 ## How it works
 
 `honeycomb` resolves one checkout as the **canonical root** for a repository. That root is protected and anchors config lookup, default-branch policy, generated paths, and safety checks.

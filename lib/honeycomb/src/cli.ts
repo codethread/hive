@@ -1,3 +1,4 @@
+import tab from "@bomb.sh/tab/commander";
 import { Command, CommanderError } from "commander";
 import { EXIT_CODES, UsageError } from "./errors.ts";
 import { createLiveDeps } from "./live-deps.ts";
@@ -387,6 +388,14 @@ Notes:
 		.action(async (_opts, command) => {
 			await runAction("config", ["explain", ...optsToArgs(command.optsWithGlobals())], deps);
 		});
+
+	const completion = tab(program, { completionCommandName: "completions" });
+	// The adapter collects local options only; Commander also accepts root options on subcommands.
+	for (const command of completion.commands.values()) {
+		for (const [name, option] of completion.options) {
+			if (!command.options.has(name)) command.options.set(name, option);
+		}
+	}
 
 	try {
 		await program.parseAsync(argv);
