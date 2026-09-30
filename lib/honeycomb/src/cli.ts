@@ -354,6 +354,27 @@ Notes:
 		});
 
 	program
+		.command("shell-init <shell>")
+		.summary("Print shell integration")
+		.description("Print a wk picker function for zsh or nu; does not require a repository.")
+		.addHelpText(
+			"after",
+			`
+Setup:
+  zsh: add eval "$(honeycomb shell-init zsh)" to ~/.zshrc.
+  Nushell: save honeycomb shell-init nu to honeycomb.nu in your config directory,
+  then import it with use in config.nu.
+
+Usage:
+  wk picks a worktree and changes the current shell's directory.
+  Arguments are passed to honeycomb --interactive pick, not other commands.
+`,
+		)
+		.action(async (shell: string) => {
+			await runAction("shell-init", [shell], deps);
+		});
+
+	program
 		.command("config")
 		.summary("Inspect configuration")
 		.description("Inspect effective honeycomb configuration and policy.")

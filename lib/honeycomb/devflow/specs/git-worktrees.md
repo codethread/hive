@@ -2,7 +2,7 @@
 
 **Status:** Implemented
 
-**Last Updated:** 2026-09-29
+**Last Updated:** 2026-09-30
 
 ## 1. Overview
 
@@ -60,7 +60,7 @@
 - **Decision:** Fresh parsing over synchronized caches.
   - **Rationale:** Git worktree metadata, filesystem paths, and project config are cheap enough for the engine to inspect directly. Multiplexer state is UI state and must not affect engine correctness.
 - **Decision:** Add-time freshness policy belongs in the engine, not only in shell wrappers.
-  - **Rationale:** Humans and agents should get the same safety guarantees. If a repository requires new work to start from an up-to-date canonical default branch, that invariant must hold for direct `honeycomb add --json` consumers as well as the Nushell wrapper.
+  - **Rationale:** Humans and agents should get the same safety guarantees. If a repository requires new work to start from an up-to-date canonical default branch, that invariant must hold for direct `honeycomb add --json` consumers as well as human interactive callers.
 - **Decision:** Strict add policy fails instead of falling back to stale bases.
   - **Rationale:** Falling back to an old canonical checkout hides the real problem and can cause humans or agents to build, test, or diff against a misleading root worktree. Repositories that cannot support strict worktree development must opt into a looser policy.
 - **Decision:** Root-glob rules are selectors for explainable defaults, not a general inheritance language.
@@ -236,6 +236,8 @@ Supported strategies mirror common forge merge choices while preserving local de
 | `honeycomb [--cwd <path>] config explain [--json]` | Show the effective policy after defaults, matching rules, and exact project overrides. |
 | `honeycomb [--cwd <path>] finish [--json]` | Integrate a completed worktree into the canonical root using effective finish policy. |
 | `honeycomb [--cwd <path>] pick [--open]` | Fuzzy-pick a worktree with fzf, marking the one containing `cwd`, and print its path. `--open` requires `--interactive`. Cancelling exits `130` without output. With `--interactive` inside tmux, the picker opens in a popup and previews each worktree's session; otherwise it runs inline and previews recent history. |
+
+`honeycomb shell-init <zsh|nu>` prints a single `wk` picker function without requiring a repository. It invokes `honeycomb --interactive pick`, forwards pick options, applies the cd directive on success, and cleans up its temporary file. Other commands use the CLI directly.
 
 `--cwd` is a global option. It may point at any path inside the intended worktree set and defaults to the current directory. Commands resolve the canonical root from that path; commands that operate on the current/source worktree, such as `copy`, `finish` and `remove --self`, target the worktree containing that path.
 

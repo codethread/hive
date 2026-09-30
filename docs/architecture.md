@@ -1,13 +1,13 @@
 # Architecture
 
-Honeycomb is currently the implemented tool: a Git worktree lifecycle engine with a CLI and a thin Nushell shim. Colony (provider-facing CLI) and Ghost (daemon) are placeholders; both currently call a greeting helper in Shared. There is no provider or daemon runtime connecting them yet.
+Honeycomb is currently the implemented tool: a Git worktree lifecycle engine with a CLI and thin zsh/Nushell picker integrations. Colony (provider-facing CLI) and Ghost (daemon) are placeholders; both currently call a greeting helper in Shared. There is no provider or daemon runtime connecting them yet.
 
 Product packages do not import one another. Shared is the only permitted cross-package dependency; Honeycomb currently operates independently of it.
 
 ## Honeycomb's execution boundary
 
 ```text
-Human / automation / Nushell shim
+Human / automation / shell picker
                 |
                 v
 CLI -> command dispatch -> lifecycle workflows
@@ -29,7 +29,7 @@ The canonical checkout anchors configuration and default-branch decisions and is
 
 ## Engine and shell responsibilities
 
-The engine owns worktree policy and lifecycle mutations. The Nushell shim only runs `honeycomb --interactive` with a temporary `HONEYCOMB_CD_FILE` and changes the shell's directory when the engine writes one; it holds no worktree, git, multiplexer, or prompt logic. Agents call the CLI directly and never pass `--interactive`, so they cannot move the user's focus or close sessions.
+The engine owns worktree policy and lifecycle mutations. `shell-init zsh` and `shell-init nu` generate a single `wk` function that runs `honeycomb --interactive pick` with a temporary `HONEYCOMB_CD_FILE` and changes the shell's directory when the engine writes one; it holds no worktree, git, multiplexer, or prompt logic. Agents call the CLI directly and never pass `--interactive`, so they cannot move the user's focus or close sessions.
 
 Configured setup and its rollback run inside the engine, so every caller gets the same ready-or-rolled-back result. Multiplexer state never determines whether a worktree exists or is safe to remove; sessions are an integration that only `--interactive` may touch.
 

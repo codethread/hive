@@ -16,7 +16,6 @@
 		"schema:stage": "bun run schema:generate && git add -- honeycomb.schema.json",
 		"schema:check": "bun run ./scripts/config-schema.ts --check",
 		"build": "bun run ./scripts/build-bin.ts",
-		"test:wrapper": "bun test --parallel --parallel-delay=0 --timeout=5000 --only-failures ./nu/honeycomb/tests",
 		"test:unit": "bun test --parallel --parallel-delay=0 --timeout=5000 --only-failures ./tests/unit",
 		"test:integration": "bun test --parallel --parallel-delay=0 --timeout=5000 --only-failures ./tests/integration"
 	},

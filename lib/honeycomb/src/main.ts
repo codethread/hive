@@ -11,6 +11,7 @@ import {
 } from "./commands/query.ts";
 import { pickCommand } from "./commands/pick.ts";
 import { removeCommand } from "./commands/remove.ts";
+import { shellInitCommand } from "./commands/shell-init.ts";
 import { EXIT_CODES } from "./errors.ts";
 import {
 	type CommandResult,
@@ -36,6 +37,7 @@ Subcommands:
   config    Inspect effective configuration
   finish    Integrate a completed worktree into the canonical root
   pick      Fuzzy-pick a worktree to switch to
+  shell-init Print a wk picker function for zsh or nu
 
 Options:
   --interactive  Follow the command with multiplexer focus and the cd directive
@@ -108,6 +110,8 @@ const route = async (
 			return finishCommand(args, deps);
 		case "pick":
 			return pickCommand(args, deps);
+		case "shell-init":
+			return shellInitCommand(args);
 		default:
 			return { stderr: USAGE, exitCode: EXIT_CODES.USAGE };
 	}

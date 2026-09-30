@@ -21,7 +21,7 @@ Clean code and clean architecture practices apply throughout. Before building li
 - `lib/shared` — utilities and models common to all packages. Not a grab bag: only add what consumers clearly need.
 - `lib/colony` — CLI abstraction over providers.
 - `lib/ghost` — the daemon process that runs.
-- `lib/honeycomb` — the Git worktree manager and Nushell wrapper.
+- `lib/honeycomb` — the Git worktree manager and shell picker integrations.
 - `lib/tooling` — repository maintenance commands.
 
 ## Architecture rules

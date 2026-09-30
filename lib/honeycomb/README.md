@@ -6,7 +6,7 @@ It is useful when you want predictable worktree paths, safe cleanup, JSON output
 
 ## Install from Hive
 
-Requirements: git and Bun. Nushell is also needed for the optional `wk` wrapper.
+Requirements: git and Bun. The optional `wk` picker requires fzf and zsh or Nushell.
 
 From the Hive root, install workspace dependencies and generate the `honeycomb` launcher:
 
@@ -277,16 +277,38 @@ From a non-canonical worktree:
 honeycomb finish --json
 ```
 
-## Nushell wrapper
+## Shell picker
 
-The TypeScript CLI is the source of truth. [`nu/honeycomb/mod.nu`](./nu/honeycomb/mod.nu) is a thin `wk` shim for interactive shells: it runs `honeycomb --interactive`, applies the directory the engine writes to `HONEYCOMB_CD_FILE`, and propagates the engine's exit code. It holds no worktree, git, multiplexer, or prompt logic.
+`honeycomb shell-init zsh` and `honeycomb shell-init nu` print shell integration without requiring a repository. They define just `wk`: a function that runs `honeycomb --interactive pick` and changes the current shell's directory to the selected worktree. Arguments are forwarded to `pick`; use `honeycomb` directly for other commands.
 
-| `wk` command | Engine call |
-| --- | --- |
-| `wk add <branch> [--base <branch> \| --base-current] [--force]` | `honeycomb --interactive add` |
-| `wk remove [<branch>] [--self] [--force]` | `honeycomb --interactive remove` |
-| `wk finish` | `honeycomb --interactive finish` |
-| `wk switch` / `wk select` | `honeycomb --interactive pick --open` / `honeycomb --interactive pick` |
-| `wk list`, `wk root`, `wk path <branch>`, `wk copy` | the same-named `honeycomb` command |
+### zsh
 
-`--interactive` is what authorises session focus and the shell directory handoff. It is only for human shells: agents and scripts call `honeycomb` directly and must not pass it.
+Add this line to `~/.zshrc`, then restart zsh:
+
+```text
+eval "$(honeycomb shell-init zsh)"
+```
+
+### Nushell
+
+Generate the module once, and regenerate it after upgrading Honeycomb:
+
+```nu
+honeycomb shell-init nu | save --force ($nu.default-config-dir | path join "honeycomb.nu")
+```
+
+Add this import to `config.nu`, then restart Nushell:
+
+```nu
+use ($nu.default-config-dir | path join "honeycomb.nu") wk
+```
+
+### Use
+
+```nu
+wk                         # pick a worktree and cd into it
+wk --cwd ~/dev/my-project   # pick from another repository
+wk --open                  # focus its multiplexer session instead of changing directory
+```
+
+The engine owns selection and multiplexer behaviour; the function only applies the `HONEYCOMB_CD_FILE` handoff and cleans up its temporary file. Cancellation or failure leaves the current directory unchanged. Agents and scripts call `honeycomb` directly and must not pass `--interactive`.

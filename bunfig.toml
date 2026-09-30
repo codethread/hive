@@ -1,4 +1,2 @@
 [test]
 root = "lib"
-# The Nushell wrapper has its own opt-in package script.
-pathIgnorePatterns = ["**/nu/honeycomb/tests/**"]
