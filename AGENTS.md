@@ -63,6 +63,8 @@ Track work and implementation steps in repo-local Beads with `br`, from the repo
 
 Write each bead so another agent can act without the originating conversation: explain the problem, scope, relevant code or documentation pointers, and observable completion criteria. Scale detail to the work; leave unnecessary fields unset rather than filling a template mechanically.
 
+Beads labelled `system` are reserved for automation, do not browse them; access requires an explicit system-maintenance or debugging assignment. Exclude them from day-to-day `br search`, `br list`, and `br ready` queries with `--exclude-label system`; use `bv --recipe work --robot-triage` for ordinary work selection.
+
 Identity and ownership:
 
 - **Owner:** Always set `--owner ct` when creating or claiming a bead, including child beads. Ownership does not assign the work to ct.
@@ -71,7 +73,7 @@ Identity and ownership:
 
 The commands below assume the agent has set `BD_ACTOR`; otherwise add `--actor` to each mutation.
 
-1. **Identify:** If given a bead ID, run `br show <id> --json`. Otherwise, use `br search "<topic>" --json` to find an existing bead; if none fits, create one with `br create --title="..." --type=task --priority=2 --owner ct --description="Problem, scope, and relevant context" --acceptance-criteria="- [ ] Observable completion outcome" --json`.
+1. **Identify:** If given a bead ID within the permitted scope, run `br show <id> --json`. Otherwise, use `br search "<topic>" --exclude-label system --json` to find an existing bead; if none fits, create one with `br create --title="..." --type=task --priority=2 --owner ct --description="Problem, scope, and relevant context" --acceptance-criteria="- [ ] Observable completion outcome" --json`.
 2. **Claim:** Before implementation, run `br update <id> --claim --owner ct --json`. Respect existing assignments and blockers; do not force a claim. A request to just record work ("bead this") stops after creation and sync, without claiming or implementing it.
 3. **Work:** Break multi-step work, especially features, into child beads so steps can be claimed, verified, and closed incrementally. Keep the current approach and rationale in `br update <id> --design="..." --json`; append progress, discoveries, blockers, and handoff next steps with `br update <id> --append-notes="..." --json`. Pass the relevant bead ID when delegating; reuse it for the same scope rather than creating duplicates.
 4. **Finish:** Verify the acceptance criteria, mark checklist items complete only with evidence, record verification commands and results in notes, then `br close <id> --reason="Completed: <specific proof>" --json`. Leave unfinished or blocked work open with a clear next step.

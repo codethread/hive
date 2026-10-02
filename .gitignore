@@ -4,3 +4,8 @@ coverage/
 *.tsbuildinfo
 .DS_Store
 /.worktrees/
+
+# Track viewer recipes, not local viewer state.
+!/.bv/
+/.bv/*
+!/.bv/recipes.yaml

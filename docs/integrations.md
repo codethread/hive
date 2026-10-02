@@ -16,6 +16,7 @@ Hive relies on external programs it does not ship. This document records, for ea
 | POSIX `sh` | Runs picker preview commands | With fzf | Preview builders in [`pick.ts`](../lib/honeycomb/src/commands/pick.ts), [`add.ts`](../lib/honeycomb/src/commands/add.ts) and the multiplexer |
 | Bun | Runtime, package manager, test runner and script shell | Always | None; see [Development toolchain](#development-toolchain) |
 | br (Beads) | Repository work tracking | Development only | [`.husky/beads-sync`](../.husky/beads-sync), [`scripts/`](../scripts) |
+| bv (Beads Viewer) | Read-only work selection | Optional, development only | [`.bv/recipes.yaml`](../.bv/recipes.yaml) |
 
 Honeycomb reaches every runtime tool through a service in [`services.ts`](../lib/honeycomb/src/services.ts) (`GitRunner`, `HookRunner`, `PickerService`, `Multiplexer`, `CdDirective`), composed once in `createLiveDeps`. Commands and domain code never spawn processes directly, so a replacement is a new service implementation, not a change to lifecycle logic. Preview strings are the one leak: they are shell text the picker executes, and they reference picker and multiplexer syntax (see below).
 
@@ -98,5 +99,25 @@ Supporting another shell means adding one more template that honours the same `H
 These support working on Hive rather than running it; replacing them changes contributor workflow, not product behaviour.
 
 - **Bun** runs TypeScript directly (no build step), installs dependencies, runs tests (`bun test`) and provides the `$` shell in scripts. Code uses `Bun.spawn` and Bun's test runner, so moving runtimes means replacing those calls, not just the launcher.
-- **br (Beads)** tracks work in `.beads/`. Husky hooks call `br sync --merge` to reconcile the SQLite database with `.beads/issues.jsonl`, which Git merges with the custom driver above. [`scripts/beads-loop.ts`](../scripts/beads-loop.ts) reads `br ready --json` and `br show --json` output.
+- **br (Beads)** tracks work in `.beads/`. Husky hooks call `br sync --merge` to reconcile the SQLite database with `.beads/issues.jsonl`, which Git merges with the custom driver above. [`scripts/beads-loop.ts`](../scripts/beads-loop.ts) reads label-filtered `br ready --json` and `br show --json` output.
 - **Husky, lint-staged, commitlint, oxlint, oxfmt and TypeScript** are npm dev dependencies pinned in [`package.json`](../package.json) and configured in the repository root; they need no separate installation.
+
+### Automation bead maintenance and debugging
+
+This section is for maintainers explicitly working on the automation-owned `system` workstream, not day-to-day agent task selection. Ordinary agents must avoid these beads. A normal implementation task does not become a system bead merely because an agent performs it or it changes automation code.
+
+When maintaining automation records, use the lowercase `system` label (`create --labels system` or `update --add-label system`), not a custom type or status. Label each system child explicitly too. Runner labels remain independent of this classification.
+
+The project [viewer recipes](../.bv/recipes.yaml) provide `work` (exclude `system`) and `system` (require `system`) views. They affect `bv`, not `br` or worker execution, and are not automatically selected on startup. For read-only investigation, run from the repository root:
+
+```nu
+bv --recipe system --robot-triage
+br list --label system --json
+br ready --label system --json
+```
+
+The worker loop excludes system beads by default. Its `--system` option is for intentional automation execution, not inspection: it launches agents that may claim, modify, and close system beads. Use it only for an explicitly authorized automation run; dependency/readiness checks and `--agent worker|lead` routing still apply:
+
+```nu
+bun scripts/beads-loop.ts --system
+```
