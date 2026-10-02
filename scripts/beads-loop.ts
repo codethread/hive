@@ -25,8 +25,10 @@ interface Pick {
 
 const EXIT_SUCCESS = 0;
 const agents = new Map([
-	["lead", { args: ["--dangerously-skip-permissions", "--model", "opus"], cli: "claude" }],
-	["worker", { args: ["--model", "deepseek/deepseek-flash", "--thinking", "max"], cli: "pi" }],
+	// ["opus", { args: ["--dangerously-skip-permissions", "--model", "opus"], cli: "claude" }],
+	["lead", { args: ["--model", "openai-codex/gpt-6-astra:xhigh"], cli: "pi" }],
+	["worker", { args: ["--model", "openai-codex/gpt-6.1-sol:xhigh"], cli: "pi" }],
+	// ["lead", { args: ["--model", "deepseek/deepseek-flash", "--thinking", "max"], cli: "pi" }],
 ]);
 const { values } = parseArgs({
 	options: {
