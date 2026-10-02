@@ -84,15 +84,15 @@ Separate the task brief from its implementation history. Read the existing bead 
 
 For a small task, a description and concrete acceptance criteria are enough. Add design, prerequisites, or shared context only when they convey information the next agent needs. Child beads need their own scope and completion criteria; a parent link does not copy its narrative fields.
 
-Example: capture a scoped documentation task with a separate preparation checklist. The Nushell variable retains the created ID for follow-up edits:
+Example: a Pi agent captures a scoped documentation task with a separate preparation checklist. The Nushell variable retains the created ID for follow-up edits:
 
 ```nu
-let bead = (br create --title "Document Honeycomb pick cancellation" --type docs --priority 2
+let bead = (br create --title "Document Honeycomb pick cancellation" --type docs --priority 2 --owner ct --actor pi
     --description "Explain how cancelling the picker affects the shell directory. Update the shell integration guidance; do not change picker behavior. Inspect lib/honeycomb/README.md and lib/honeycomb/src/commands/pick.ts."
     --acceptance-criteria "- [ ] Shell integration guidance explains that cancelling leaves the current directory unchanged"
     --prerequisites "- [ ] Confirm the existing cancellation behavior in code and tests"
     --json | from json)
-br update $bead.id --design "Describe the existing behavior alongside the shell wrapper usage, without duplicating the full picker reference." --json
+br update $bead.id --actor pi --design "Describe the existing behavior alongside the shell wrapper usage, without duplicating the full picker reference." --json
 br show $bead.id --json
 ```
 
@@ -215,7 +215,7 @@ br capabilities --format json --command "ready"
 1. Resolve the workspace with `br where`; do not initialize one unless the task explicitly calls for it.
 2. Discover the installed contract with `br capabilities` or focused help.
 3. Select with `br ready --brief --json`, then inspect the chosen item with `br show <id> --json`.
-4. Claim through `br update <id> --claim --json` when ownership is appropriate.
+4. Claim through `br update <id> --claim --owner ct --actor <harness-name> --json` when ownership is appropriate.
 5. Record discovered work with `create` and an explicit relationship or parent.
 6. Complete through policy-aware commands such as `update`, `close`, `defer`, or `reopen`.
 7. Inspect `br sync --status --json`; use `br sync --flush-only` as an idempotent final export check when the repository expects JSONL to be committed.

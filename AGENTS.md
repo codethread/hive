@@ -63,12 +63,20 @@ Track work and implementation steps in repo-local Beads with `br`, from the repo
 
 Write each bead so another agent can act without the originating conversation: explain the problem, scope, relevant code or documentation pointers, and observable completion criteria. Scale detail to the work; leave unnecessary fields unset rather than filling a template mechanically.
 
-1. **Identify:** If given a bead ID, run `br show <id> --json`. Otherwise, use `br search "<topic>" --json` to find an existing bead; if none fits, create one with `br create --title="..." --type=task --priority=2 --description="Problem, scope, and relevant context" --acceptance-criteria="- [ ] Observable completion outcome" --json`.
-2. **Claim:** Before implementation, run `br update <id> --claim --json`. Respect existing ownership and blockers; do not force a claim. A request to just record work ("bead this") stops after creation and sync, without claiming or implementing it.
+Identity and ownership:
+
+- **Owner:** Always set `--owner ct` when creating or claiming a bead, including child beads. Ownership does not assign the work to ct.
+- **Actor:** Agents must supply their own identity on every mutation: pass `--actor` or set `BD_ACTOR` in the agent's process environment to the harness name (`pi`, `claude`, or `codex`). Never act as `ct` or rely on the `USER` fallback in agent runs. Do not persist an agent identity in shared config or the user's shell; human shell commands should retain the normal `USER` fallback. No `--agent-name`, `--harness`, or `--model` metadata is required.
+- **Assignee:** `--claim` assigns the actor and starts work; no separate `--assignee` is needed. Agent work stays assigned to an agent. Assign `ct` only for a deliberate human handoff, such as review, and record the action needed. Treat an existing `ct` assignment as reserved for human action: do not claim, clear, or replace it without ct's instruction.
+
+The commands below assume the agent has set `BD_ACTOR`; otherwise add `--actor` to each mutation.
+
+1. **Identify:** If given a bead ID, run `br show <id> --json`. Otherwise, use `br search "<topic>" --json` to find an existing bead; if none fits, create one with `br create --title="..." --type=task --priority=2 --owner ct --description="Problem, scope, and relevant context" --acceptance-criteria="- [ ] Observable completion outcome" --json`.
+2. **Claim:** Before implementation, run `br update <id> --claim --owner ct --json`. Respect existing assignments and blockers; do not force a claim. A request to just record work ("bead this") stops after creation and sync, without claiming or implementing it.
 3. **Work:** Break multi-step work, especially features, into child beads so steps can be claimed, verified, and closed incrementally. Keep the current approach and rationale in `br update <id> --design="..." --json`; append progress, discoveries, blockers, and handoff next steps with `br update <id> --append-notes="..." --json`. Pass the relevant bead ID when delegating; reuse it for the same scope rather than creating duplicates.
 4. **Finish:** Verify the acceptance criteria, mark checklist items complete only with evidence, record verification commands and results in notes, then `br close <id> --reason="Completed: <specific proof>" --json`. Leave unfinished or blocked work open with a clear next step.
 
-Use `task` for scoped work, `bug` for defects, `feature` for new capability, and `epic` for a larger effort; `chore` and `docs` cover maintenance and documentation. Nesting is not limited to epics: any bead can have children, and children can have their own children. Create a step with `br create --title="..." --type=task --parent=<parent-id> --json`; use as many levels as useful (e.g. feature → task → subtask), without splitting trivial work unnecessarily. Close a parent only after its children and overall completion criteria are satisfied.
+Use `task` for scoped work, `bug` for defects, `feature` for new capability, and `epic` for a larger effort; `chore` and `docs` cover maintenance and documentation. Nesting is not limited to epics: any bead can have children, and children can have their own children. Create a step with `br create --title="..." --type=task --parent=<parent-id> --owner ct --json`; use as many levels as useful (e.g. feature → task → subtask), without splitting trivial work unnecessarily. Close a parent only after its children and overall completion criteria are satisfied.
 
 Priorities run P0 (critical) through P4 (backlog), with P2 for normal work. Parent-child links group work; record execution prerequisites separately with `br dep add <issue> <depends-on>`: the first issue is blocked by the second.
 
