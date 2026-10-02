@@ -28,8 +28,9 @@ Shared vocabulary for agent identity and spawning. Use these terms, exactly, in 
 | **Colony** | The single system-wide daemon that turns spawn beads into running bees, for every registered repository. | A per-repository process or the old provider CLI. | `lib/colony` |
 | **Wake** | Register a repository with colony by running `colony wake` where its `bees.toml` lives. | Starting colony itself. | `lib/colony` |
 | **Launch rule** | Colony launches a bee only when all of its open task beads are ready; closed ones count as satisfied. A dependency graph that never becomes ready is a mistake to fix. | A launch while only some task beads are ready. | `lib/colony` |
-| **Respawn budget** | How many times colony relaunches a bee, with the same identity, after its process exits while its spawn bead is still open. When exhausted, the spawn bead is blocked. | A retry of a failed `br` command. | `lib/colony` |
+| **`max_retries`** | How many times colony relaunches a bee, with the same identity, after its process exits while its spawn bead is still open. When exhausted, colony closes the spawn bead and tidies up. | A retry of a failed `br` command. | `lib/colony` |
 | **Reap** | End a bee: closing its spawn bead stops its process, and a spawn bead whose tasks all closed before launch is closed unlaunched. | Respawning. | `lib/colony` |
+| **Tidy up** | After a reap or `max_retries`, colony returns each task the bee claimed to `open` and removes the claim. | Closing the tasks. | `lib/colony` |
 
 ## Beads
 
@@ -40,6 +41,8 @@ Shared vocabulary for agent identity and spawning. Use these terms, exactly, in 
 | **`system` label** | Marks automation-owned beads, which ordinary work excludes with `--exclude-label system`. | A prefix: label filters match exactly, so `system:bee` would not be excluded. | labels |
 | **`bee` label** | Marks a spawn bead; colony selects `--label system --label bee`. | A bee kind. | labels |
 | **`agent:<kind>` label** | The bee kind a spawn bead requests. | The harness or the identity. | labels |
+| **`outcome:<value>` label** | How colony saw a spawn bead end: `exhausted` (closed after `max_retries`), `reaped` (closed by someone else while waiting or running) or `unlaunched` (every task closed before launch). Only colony sets it; no label means the bee closed its own spawn bead. | A label on task beads, or one set by bees. | labels |
+| **`hitl` label** | Human in the loop: the bead is worked in tandem with the user, so autonomous runners skip it. | A handoff to a human (assignee `ct`) or a blocker. | labels |
 
 ## Environment
 
