@@ -18,6 +18,7 @@ Use labels for classification and supported routing, not as a second issue schem
 | Labels | Cardinality | Meaning and consumer |
 | --- | --- | --- |
 | `system` | Reserved marker | Automation-owned beads excluded from ordinary work by the `work` viewer recipe and default worker loop. Ordinary agents must not read, claim, modify, or execute these beads; access requires an explicit system-maintenance or debugging assignment. |
+| `hitl` | Marker | Human in the loop: the bead must be worked in tandem with the user, such as design work that needs their decisions. The worker loop always skips it; an agent works it only in a session with the user, confirming decisions as it goes. This is not a handoff: assigning `ct` hands work to the user, while `hitl` keeps an agent working with them. |
 | `agent:lead`, `agent:worker` | Zero or one | Select a runner in the [worker loop](../../../scripts/beads-loop.ts), not the owner, assignee, or author's harness. Multiple or unknown `agent:*` labels are rejected by the loop. Without one, the loop uses `--agent`, defaulting to `worker`. |
 | `area:shared`, `area:colony`, `area:ghost`, `area:honeycomb`, `area:tooling` | Zero or more | Classify affected Hive packages for filtering; these labels do not select a runner, block work, or enforce policy. Use multiple only for genuinely cross-package work; omit for repository-wide work without a package scope. |
 

@@ -30,6 +30,7 @@ const { values } = parseArgs({
 if (values.help) {
 	console.log("Usage: bun scripts/beads-loop.ts [--agent worker|lead] [--system]");
 	console.log("Default: exclude system-labeled beads. --system: select only system-labeled beads.");
+	console.log("hitl-labeled beads are always skipped; they are worked with the user.");
 } else {
 	let labelFilter = "--exclude-label";
 	if (values.system) {
@@ -38,7 +39,8 @@ if (values.help) {
 	// Each agent must finish before querying the next ready bead.
 	/* eslint-disable no-await-in-loop */
 	while (true) {
-		const [bead]: Bead[] = await $`br ready ${labelFilter} system --json`.json();
+		const [bead]: Bead[] =
+			await $`br ready ${labelFilter} system --exclude-label hitl --json`.json();
 		if (!bead) {
 			console.log("No ready beads.");
 			break;
