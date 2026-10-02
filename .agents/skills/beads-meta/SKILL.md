@@ -1,6 +1,6 @@
 ---
 name: beads-meta
-description: Understand and operate beads_rust (`br`), including its issue model, readiness graph, workflow policy, SQLite/JSONL persistence, machine contracts, coordination diagnostics, and source layout. Use when working with a `.beads` tracker, invoking `br`, designing tracker automation, or investigating beads_rust behavior.
+description: Understand and operate beads_rust (`br`), including actionable task briefs, checklists, inherited agent context, readiness, workflow policy, persistence, and machine contracts. Use when authoring or handing off beads, working with a `.beads` tracker, invoking `br`, designing tracker automation, or investigating beads_rust behavior.
 ---
 
 # Beads meta
@@ -67,14 +67,44 @@ SQLite runtime state <---- import/export/merge ----> JSONL interchange state
 | Event | Local issue mutation/audit history exposed with issue details where requested |
 | Tombstone | Durable deletion representation created by `br delete` |
 
-Important issue text fields are distinct:
-
-- `description`, `design`, `notes`: narrative fields.
-- `acceptance_criteria`: delivery criteria; Markdown checklists can be edited item-by-item and emitted as structured `acceptance_items` by `show`.
-- `prerequisites`: a separate preparation checklist. It is not a dependency edge.
-- `agent_context`: open JSON for inherited governing instructions. It is not general searchable issue metadata.
-
 `br` does not expose a general arbitrary issue-metadata field. Dependency edges can store JSON metadata, but current list/show/query projections do not provide a public edge-metadata filter. For automation, define indexed namespaced labels appropriate to the application—for example, `harness:claude` and `effort:high` for daemon dispatch.
+
+## Authoring and handing off work
+
+Separate the task brief from its implementation history. Read the existing bead before editing; preserve relevant context rather than replacing it with the latest progress report.
+
+| Field | What to put here |
+| --- | --- |
+| `description` | Problem, intended outcome, scope/non-goals, and relevant code or documentation pointers. Include enough context to start without the original conversation. |
+| `design` | Current approach, constraints, and rationale for important decisions. Set with `update --design`; `create` has no design flag. |
+| `acceptance_criteria` | Observable delivery outcomes, preferably `- [ ]` Markdown items that can be verified independently. Avoid vague items such as "works correctly". |
+| `prerequisites` | Preparation needed before implementation, such as confirming a fixture or obtaining a decision. Other tracked work that must finish first belongs in a dependency edge, not only this text. |
+| `notes` | Progress, discoveries, blockers, verification evidence, and the next handoff action. Use `update --append-notes` to retain earlier entries. |
+| `agent_context` | JSON governing instructions specific to a parent/subtree, such as constraints shared by its children. Keep repository-wide rules in `AGENTS.md`; do not use this as a progress log or searchable routing metadata. |
+
+For a small task, a description and concrete acceptance criteria are enough. Add design, prerequisites, or shared context only when they convey information the next agent needs. Child beads need their own scope and completion criteria; a parent link does not copy its narrative fields.
+
+Example: capture a scoped documentation task with a separate preparation checklist. The Nushell variable retains the created ID for follow-up edits:
+
+```nu
+let bead = (br create --title "Document Honeycomb pick cancellation" --type docs --priority 2
+    --description "Explain how cancelling the picker affects the shell directory. Update the shell integration guidance; do not change picker behavior. Inspect lib/honeycomb/README.md and lib/honeycomb/src/commands/pick.ts."
+    --acceptance-criteria "- [ ] Shell integration guidance explains that cancelling leaves the current directory unchanged"
+    --prerequisites "- [ ] Confirm the existing cancellation behavior in code and tests"
+    --json | from json)
+br update $bead.id --design "Describe the existing behavior alongside the shell wrapper usage, without duplicating the full picker reference." --json
+br show $bead.id --json
+```
+
+For longer descriptions, use `--description-file <path>` on `create` or `update` to preserve Markdown verbatim. Whole-field updates replace content; do not reach for `--force` to discard accumulated context. Prefer `--add-acceptance "New outcome"`, `--check-acceptance "unique item text"`, and `--uncheck-acceptance "unique item text"` for acceptance edits. Check/uncheck selectors also accept comma-separated 1-based item numbers. `show --json` exposes parsed `acceptance_items`; tick an item only after verification and append the command/result or other evidence to notes. Prerequisites have no equivalent item-edit flags: preserve the rest of the checklist when replacing it with `--prerequisites`.
+
+Checklists describe preparation and completion; they do not create dependency edges or enforce transitions by themselves. Record tracked blockers with `br dep add <issue> <depends-on>`. On handoff, append what changed, what remains, the blocker if any, and a concrete next action; update the design if the intended approach changed.
+
+### Inherited agent context
+
+Set `--agent-context` on `create` or `update` with inline JSON such as `'{"constraints":["Keep this feature CLI-only"]}'`, or `@path/to/context.json` / `@path/to/context.yaml` (YAML is normalized to JSON). These are instructions for the consuming agent, not executable policy or a replacement for repository/user instructions.
+
+Inherited emission is opt-in through `inherited_context.enabled: true` in `.beads/config.yaml` (nested YAML) or the `BR_INHERITED_CONTEXT` environment override. Hive does not currently enable it in repository config. When enabled, `show --json` includes `inherited_context` blocks from the root ancestor (preferring the topmost epic) and immediate parent, root first; intermediate ancestors are not all included. Blocks retain their source IDs and are not merged into one JSON object. Inspect the returned context and explicitly read any other ancestor whose design or instructions the task needs; do not assume ordinary descriptions, designs, or notes are inherited.
 
 ## Readiness and the graph
 
