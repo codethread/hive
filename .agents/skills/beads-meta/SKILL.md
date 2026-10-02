@@ -1,6 +1,6 @@
 ---
 name: beads-meta
-description: Understand and operate beads_rust (`br`), including actionable task briefs, checklists, inherited agent context, readiness, workflow policy, persistence, and machine contracts. Use when authoring or handing off beads, working with a `.beads` tracker, invoking `br`, designing tracker automation, or investigating beads_rust behavior.
+description: Investigate beads_rust (`br`) behavior or use advanced tracker features such as workflow policy, inherited context, coordination, machine contracts, and sync/recovery. Use for CLI research, troubleshooting, or tracker automation—not routine bead creation, claiming, progress updates, or closure covered by AGENTS.md.
 ---
 
 # Beads meta
