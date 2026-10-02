@@ -1,12 +1,6 @@
 ---
 name: beads-meta
-# prettier-ignore
-description: >-
-  Understand and operate beads_rust (`br`), including actionable task briefs,
-  checklists, inherited agent context, readiness, workflow policy, persistence,
-  and machine contracts. Use when authoring or handing off beads, working with a
-  `.beads` tracker, invoking `br`, designing tracker automation, or investigating
-  beads_rust behavior.
+description: Understand and operate beads_rust (`br`), including actionable task briefs, checklists, inherited agent context, readiness, workflow policy, persistence, and machine contracts. Use when authoring or handing off beads, working with a `.beads` tracker, invoking `br`, designing tracker automation, or investigating beads_rust behavior.
 ---
 
 # Beads meta
