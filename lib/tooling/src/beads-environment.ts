@@ -13,9 +13,16 @@ const miseDirectiveKey = "_";
 const miseEnvironmentSchema = z.looseObject({
 	[miseDirectiveKey]: miseDirectivesSchema.optional(),
 });
-const miseSchema = z.looseObject({ env: miseEnvironmentSchema.optional() });
+const miseSettingsSchema = z.looseObject({ activate_aggressive: z.boolean().optional() });
+const miseSchema = z.looseObject({
+	env: miseEnvironmentSchema.optional(),
+	settings: miseSettingsSchema.optional(),
+});
 const codexPolicySchema = z.looseObject({ set: z.record(z.string(), z.string()).optional() });
-const codexSchema = z.looseObject({ shell_environment_policy: codexPolicySchema.optional() });
+const codexSchema = z.looseObject({
+	allow_login_shell: z.boolean().optional(),
+	shell_environment_policy: codexPolicySchema.optional(),
+});
 
 const parseDatabase = (value: unknown): string => databaseSchema.parse(value);
 const environmentSchema = z.object({
@@ -61,6 +68,7 @@ const renderMiseConfig = (contents: string, environment: TrackerEnvironment): st
 				path: [directory, ...paths.filter((entry) => entry !== directory)],
 			},
 		},
+		settings: { ...config.settings, activate_aggressive: true },
 	});
 };
 
@@ -69,6 +77,7 @@ const renderCodexConfig = (contents: string, environment: TrackerEnvironment): s
 	const policy = config.shell_environment_policy;
 	return renderConfig({
 		...config,
+		allow_login_shell: false,
 		shell_environment_policy: {
 			...policy,
 			set: { ...policy?.set, ...environment },
@@ -92,7 +101,8 @@ const runCommand: Command = async (argv, cwd) => {
 
 const resolveEnvironment = async (cwd: string, command: Command): Promise<TrackerEnvironment> => {
 	const output = await command(["mise", "env", "--json"], cwd);
-	return parseEnvironment(JSON.parse(output));
+	const environment = parseEnvironment(JSON.parse(output));
+	return configureEnvironment(environment.BEADS_DB, environment.HIVE_BR_BIN, environment.PATH);
 };
 
 export {
