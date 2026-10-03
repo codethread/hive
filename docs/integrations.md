@@ -15,7 +15,7 @@ Hive relies on external programs it does not ship. This document records, for ea
 | zsh, Nushell | Host the `wk` picker wrapper | Optional | [`commands/shell-init.ts`](../lib/honeycomb/src/commands/shell-init.ts) |
 | POSIX `sh` | Runs picker preview commands | With fzf | Preview builders in [`pick.ts`](../lib/honeycomb/src/commands/pick.ts), [`add.ts`](../lib/honeycomb/src/commands/add.ts) and the multiplexer |
 | Bun | Runtime, package manager, test runner and script shell | Always | None; see [Development toolchain](#development-toolchain) |
-| br (Beads) | Repository work tracking | Development only | [`.husky/beads-sync`](../.husky/beads-sync), [`scripts/`](../scripts) |
+| br (Beads) | Repository work tracking | Development only | [`.beads/config.yaml`](../.beads/config.yaml), [`scripts/`](../scripts) |
 | bv (Beads Viewer) | Read-only work selection | Optional, development only | [`.bv/recipes.yaml`](../.bv/recipes.yaml) |
 
 Honeycomb reaches every runtime tool through a service in [`services.ts`](../lib/honeycomb/src/services.ts) (`GitRunner`, `HookRunner`, `PickerService`, `Multiplexer`, `CdDirective`), composed once in `createLiveDeps`. Commands and domain code never spawn processes directly, so a replacement is a new service implementation, not a change to lifecycle logic. Preview strings are the one leak: they are shell text the picker executes, and they reference picker and multiplexer syntax (see below).
@@ -99,7 +99,8 @@ Supporting another shell means adding one more template that honours the same `H
 These support working on Hive rather than running it; replacing them changes contributor workflow, not product behaviour.
 
 - **Bun** runs TypeScript directly (no build step), installs dependencies, runs tests (`bun test`) and provides the `$` shell in scripts. Code uses `Bun.spawn` and Bun's test runner, so moving runtimes means replacing those calls, not just the launcher.
-- **br (Beads)** tracks work in `.beads/`. Husky hooks call `br sync --merge` to reconcile the SQLite database with `.beads/issues.jsonl`, which Git merges with the custom driver above. [`scripts/beads-loop.ts`](../scripts/beads-loop.ts) reads label-filtered `br ready --json` and `br show --json` output.
+- **br (Beads)** tracks work in the selected `BEADS_DB`, shared by local feature worktrees and normally stored in the permanent `.worktrees/tracker--state` checkout. Automatic import and export are enabled there; `bun run beads:sync` receives compatible changes and publishes new claims and completed work on `tracker/state`, separately from code integration. Git uses the custom merge driver above when published snapshots change on both sides. [`scripts/beads-loop.ts`](../scripts/beads-loop.ts) honors the selected endpoint and reads label-filtered `br ready --json` and `br show --json` output. [Beads integration](./beads-integration.md) explains setup, publication and colleague coordination.
+- **mise** supplies the checkout's project environment, including `BEADS_DB` from ignored `mise.local.toml`. `bun run beads:setup` records that selection and generates matching ignored Codex shell-environment configuration without replacing unrelated settings. Actor identity stays process-local and is not part of this shared project selection.
 - **Husky, lint-staged, commitlint, oxlint, oxfmt and TypeScript** are npm dev dependencies pinned in [`package.json`](../package.json) and configured in the repository root; they need no separate installation.
 
 ### Automation bead maintenance and debugging

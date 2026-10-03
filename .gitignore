@@ -4,6 +4,10 @@ coverage/
 *.tsbuildinfo
 .DS_Store
 /.worktrees/
+/.beads/
+/mise.local.toml
+/.codex/config.toml
+/.direnv/
 
 # Track viewer recipes, not local viewer state.
 !/.bv/

@@ -1,0 +1,24 @@
+{
+	"hooks": {
+		"SessionStart": [
+			{
+				"hooks": [
+					{
+						"type": "command",
+						"command": "bun run \"$(git rev-parse --show-toplevel)/lib/tooling/src/beads-hook.ts\" claude SessionStart"
+					}
+				]
+			}
+		],
+		"PreToolUse": [
+			{
+				"hooks": [
+					{
+						"type": "command",
+						"command": "bun run \"$(git rev-parse --show-toplevel)/lib/tooling/src/beads-hook.ts\" claude PreToolUse"
+					}
+				]
+			}
+		]
+	}
+}
