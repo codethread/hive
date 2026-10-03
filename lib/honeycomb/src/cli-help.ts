@@ -64,7 +64,9 @@ Notes:
   requires a clean/fresh target, and stops on conflicts. Strategy, push, worktree
   cleanup, and branch deletion all come from finish policy in config; use config
   explain to inspect the effective values. Valid strategies are ff_only,
-  rebase_ff, squash, and merge_commit.
+  rebase_ff, squash, and merge_commit. The squash strategy requires --title and
+  writes a commit body from --body, the source branch, and every source commit
+  message; other strategies reject --title and --body.
 
 Cleanup:
   Configured remove_worktree removes regular worktrees or frees pooled slots only
@@ -106,6 +108,7 @@ Common flows:
   honeycomb remove --branch <feature> --json
   honeycomb remove --branch <feature> --integrated-into origin/main --json
   honeycomb finish --json
+  honeycomb finish --title "<subject>" --json   # squash strategy
   honeycomb config explain --json
 
 Pools:

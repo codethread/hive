@@ -100,7 +100,11 @@ test("deletes source branch after squash finish when configured", async () => {
 		repo: worktreePath,
 	});
 
-	const result = await dispatch("finish", ["--cwd", worktreePath, "--json"], deps);
+	const result = await dispatch(
+		"finish",
+		["--cwd", worktreePath, "--title", "chore: squash delete work", "--json"],
+		deps,
+	);
 
 	expect(result.exitCode).toBe(EXIT_CODES.SUCCESS);
 	expect(JSON.parse(result.stdout ?? "{}")).toMatchObject({

@@ -95,6 +95,7 @@ For scripts and agents, prefer JSON where available and branch on the payload `k
 honeycomb add --branch feature/example --json
 honeycomb list --json
 honeycomb finish --json
+honeycomb finish --title "<subject>" --json   # squash strategy
 ```
 
 With `--json`, stdout is always a single JSON object and stderr stays silent. Check `ok`: failures carry `ok: false` with a `kind` (`blocked` or `error`) and a machine-readable `reason`. `add` runs the configured setup command before reporting `ready`, capturing its output in `setup_output`. If setup fails, `add` rolls back and exits `1` with `reason: "setup_failed"`.
@@ -274,8 +275,10 @@ delete_branch = true
 From a non-canonical worktree:
 
 ```bash
-honeycomb finish --json
+honeycomb finish --title "feat: integrate library work" --json
 ```
+
+The `squash` strategy requires `--title` and accepts an optional `--body`. The squash commit body also carries the source branch and every source commit message, oldest first, so breaking-change notes and per-commit context survive squashing. Other strategies reject `--title` and `--body`.
 
 ## Shell picker
 

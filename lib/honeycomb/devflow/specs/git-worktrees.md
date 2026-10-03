@@ -210,12 +210,14 @@ Repositories may resolve an optional `pre_remote_check` Bash snippet from matchi
 
 Supported strategies mirror common forge merge choices while preserving local determinism:
 
-| Strategy       | Contract                                                           |
-| -------------- | ------------------------------------------------------------------ |
-| `ff_only`      | Move the target only if it can fast-forward to the source branch.  |
-| `rebase_ff`    | Rebase the source onto the target, then fast-forward the target.   |
-| `squash`       | Apply the source branch changes onto the target as one new commit. |
-| `merge_commit` | Merge the source into the target with an explicit merge commit.    |
+| Strategy | Contract |
+| --- | --- |
+| `ff_only` | Move the target only if it can fast-forward to the source branch. |
+| `rebase_ff` | Rebase the source onto the target, then fast-forward the target. |
+| `squash` | Apply the source branch changes onto the target as one new commit. `--title` is required; `--body` is optional. |
+| `merge_commit` | Merge the source into the target with an explicit merge commit. |
+
+Squash integration is explicit: `--title` is required and `--body` is optional. The squash commit body is composed from the caller's body, the source branch, and every squashed commit message, oldest first, so breaking-change notes and per-commit context survive squashing. Strategies other than `squash` reject `--title` and `--body`.
 
 `finish` may optionally push the target branch, delete the finished branch, and clean up the worktree after successful integration when enabled by effective finish policy. Push rejection is a blocking result, not a reason to retry with force. Cleanup uses finish-aware safety: once a configured strategy has successfully integrated the source changes into the target, the source branch/worktree may be cleaned up even when the source branch is local-only or was squash-finished. Branch deletion requires cleaning up the source worktree in the same effective finish policy; otherwise finish blocks before integration. Standalone `remove` keeps its upstream-merge safety rules.
 
@@ -234,7 +236,7 @@ Supported strategies mirror common forge merge choices while preserving local de
 | `honeycomb [--cwd <path>] status` | Print pool status JSON. |
 | `honeycomb [--cwd <path>] copy [--json]` | Re-run configured copy setup for the non-canonical worktree containing `cwd`. |
 | `honeycomb [--cwd <path>] config explain [--json]` | Show the effective policy after defaults, matching rules, and exact project overrides. |
-| `honeycomb [--cwd <path>] finish [--json]` | Integrate a completed worktree into the canonical root using effective finish policy. |
+| `honeycomb [--cwd <path>] finish [--title <subject>] [--body <text>] [--json]` | Integrate a completed worktree into the canonical root using effective finish policy. `--title` is required with the `squash` strategy; other strategies reject both message options. |
 | `honeycomb [--cwd <path>] pick [--open]` | Fuzzy-pick a worktree with fzf, marking the one containing `cwd`, and print its path. `--open` requires `--interactive`. Cancelling exits `130` without output. With `--interactive` inside tmux, the picker opens in a popup and previews each worktree's session; otherwise it runs inline and previews recent history. |
 
 `honeycomb shell-init <zsh|nu>` prints a single `wk` picker function without requiring a repository. It invokes `honeycomb --interactive pick`, forwards pick options, applies the cd directive on success, and cleans up its temporary file. Other commands use the CLI directly.

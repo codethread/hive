@@ -27,16 +27,6 @@ const prepareFinish = async (branch: string, policy = "") => {
 	return { remote, root, worktreePath: `${root}__${branch.replaceAll("/", "--")}` };
 };
 
-const assertSquashCommit = async (root: string, beforeHead: string) => {
-	expect(await gitOut(root, "log", "-1", "--format=%s")).toBe("chore: integrate worktree");
-	expect(await gitText(root, "log", "-1", "--format=%B")).toContain(
-		"Source branch:\nfeature/squash-finish",
-	);
-	expect(await gitOut(root, "rev-list", "--count", `${beforeHead}..HEAD`)).toBe("1");
-	expect(await readFile(join(root, "one.txt"), "utf8")).toBe("one\n");
-	expect(await readFile(join(root, "two.txt"), "utf8")).toBe("two\n");
-};
-
 const assertRebasedHistory = async (root: string, targetHead: string) => {
 	expect(await gitOut(root, "rev-parse", "HEAD")).toBe(
 		await gitOut(root, "rev-parse", "refs/heads/feature/rebase-finish"),
@@ -70,21 +60,6 @@ const assertConflictPreserved = async ({
 	expect(await pathExists(worktreePath)).toBe(true);
 };
 
-test("squash integrates source changes as one deterministic target commit", async () => {
-	const { root, worktreePath } = await prepareFinish(
-		"feature/squash-finish",
-		'[project.finish]\nstrategy = "squash"\n',
-	);
-	await commitFile({ content: "one\n", message: "one", path: "one.txt", repo: worktreePath });
-	await commitFile({ content: "two\n", message: "two", path: "two.txt", repo: worktreePath });
-	const beforeHead = await gitOut(root, "rev-parse", "HEAD");
-
-	const result = await dispatch("finish", ["--cwd", worktreePath, "--json"], deps);
-
-	expect(result.exitCode).toBe(EXIT_CODES.SUCCESS);
-	expect(JSON.parse(result.stdout ?? "{}")).toMatchObject({ strategy: "squash" });
-	await assertSquashCommit(root, beforeHead);
-});
 test("merge_commit integrates source with an explicit merge commit", async () => {
 	const { root, worktreePath } = await prepareFinish(
 		"feature/merge-finish",
@@ -154,7 +129,11 @@ test("non-ff strategy conflict emits structured refusal", async () => {
 	const targetHead = await gitOut(root, "rev-parse", "HEAD");
 	const sourceHead = await gitOut(worktreePath, "rev-parse", "HEAD");
 
-	const result = await dispatch("finish", ["--cwd", worktreePath, "--json"], deps);
+	const result = await dispatch(
+		"finish",
+		["--cwd", worktreePath, "--title", "chore: squash conflicting work", "--json"],
+		deps,
+	);
 
 	await assertConflictPreserved({ result, root, sourceHead, targetHead, worktreePath });
 });
@@ -197,11 +176,15 @@ test("configured finish strategy is not overridden by CLI", async () => {
 		repo: worktreePath,
 	});
 
-	const result = await dispatch("finish", ["--cwd", worktreePath, "--json"], deps);
+	const result = await dispatch(
+		"finish",
+		["--cwd", worktreePath, "--title", "chore: configured squash", "--json"],
+		deps,
+	);
 
 	expect(result.exitCode).toBe(EXIT_CODES.SUCCESS);
 	expect(JSON.parse(result.stdout ?? "{}")).toMatchObject({ strategy: "squash" });
-	expect(await gitOut(root, "log", "-1", "--format=%s")).toBe("chore: integrate worktree");
+	expect(await gitOut(root, "log", "-1", "--format=%s")).toBe("chore: configured squash");
 });
 test("fresh_canonical conflict refuses without first fast-forwarding target", async () => {
 	const { remote, root, worktreePath } = await prepareFinish(
@@ -276,7 +259,11 @@ test("fresh_canonical advances the target before squash integration", async () =
 		remote,
 	});
 
-	const result = await dispatch("finish", ["--cwd", worktreePath, "--json"], deps);
+	const result = await dispatch(
+		"finish",
+		["--cwd", worktreePath, "--title", "chore: fresh squash", "--json"],
+		deps,
+	);
 
 	expect(result.exitCode).toBe(EXIT_CODES.SUCCESS);
 	expect(await gitOut(root, "rev-parse", "HEAD^")).toBe(

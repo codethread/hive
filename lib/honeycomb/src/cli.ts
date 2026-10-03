@@ -152,6 +152,11 @@ const registerFinish = (program: Command, deps: Deps): void => {
 			"Integrate the current non-canonical worktree into the canonical root using effective finish policy.",
 		)
 		.option("--json", "Machine-readable output")
+		.option("--title <text>", "Squash integration commit title; required by the squash strategy")
+		.option(
+			"--body <text>",
+			"Squash integration commit body; the source branch and its commit messages are appended",
+		)
 		.addHelpText("after", HELP.finish)
 		.action((_opts, command) => runAction("finish", optsToArgs(command.optsWithGlobals()), deps));
 };

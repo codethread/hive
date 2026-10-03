@@ -18,6 +18,7 @@ import {
 	assertFinishTargetReady,
 	assertSourceCanFastForwardTarget,
 	integrateSource,
+	parseIntegrationPlan,
 } from "./finish-integration.ts";
 import { detectOriginDefaultBranch, fastForwardCanonicalDefault } from "../application/branches.ts";
 import { finalizeReadyResult, parseOptions, parseOutputMode, requireOption } from "../protocol.ts";
@@ -36,6 +37,10 @@ interface FinishRequest {
 	interactive: boolean;
 	/** Requested output rendering. */
 	output: OutputMode;
+	/** Raw --title value; the squash plan validates it. */
+	title: string | boolean | undefined;
+	/** Raw --body value; the squash plan validates it. */
+	body: string | boolean | undefined;
 }
 
 interface FinishState {
@@ -77,11 +82,23 @@ const parseFinishRequest = (args: string[]): FinishRequest => {
 	const opts = parseOptions(args);
 	const cwd = requireOption(opts, "cwd");
 	for (const key of Object.keys(opts)) {
-		if (key !== "cwd" && key !== "json" && key !== "interactive") {
+		if (
+			key !== "cwd" &&
+			key !== "json" &&
+			key !== "interactive" &&
+			key !== "title" &&
+			key !== "body"
+		) {
 			throw new UsageError(`unknown option --${key}`);
 		}
 	}
-	return { cwd, interactive: opts.interactive === true, output: parseOutputMode(opts) };
+	return {
+		body: opts.body,
+		cwd,
+		interactive: opts.interactive === true,
+		output: parseOutputMode(opts),
+		title: opts.title,
+	};
 };
 
 const resolveSourceWorktree = (options: {
@@ -208,18 +225,25 @@ const executeFinish = async (
 	state: FinishState,
 ): Promise<CommandResult> => {
 	const source = await resolveFinishSource(request, deps, state);
+	const integration = parseIntegrationPlan(
+		source.explanation.finishPolicy.strategy,
+		request.title,
+		request.body,
+	);
 	const target = await prepareFinishTarget(source, deps);
 	if (source.explanation.addPolicy === "fresh_canonical") {
 		await fastForwardCanonicalDefault(deps.git, source.canonical.path, target.targetBranch);
 	}
-	await integrateSource({
-		canonicalPath: source.canonical.path,
-		git: deps.git,
-		sourceBranch: source.sourceBranch,
-		sourcePath: source.source.path,
-		strategy: target.plan.strategy,
-		targetRef: target.targetRef,
-	});
+	await integrateSource(
+		{
+			canonicalPath: source.canonical.path,
+			git: deps.git,
+			sourceBranch: source.sourceBranch,
+			sourcePath: source.source.path,
+			targetRef: target.targetRef,
+		},
+		integration,
+	);
 	state.integrated = true;
 	const afterOutput = await pushAndCleanup({
 		cleanupActions: state.cleanupActions,
