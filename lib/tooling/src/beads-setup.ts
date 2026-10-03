@@ -36,6 +36,8 @@ type Selection =
 	  };
 
 interface SetupServices {
+	/** Original zsh startup directory before applying the Codex adapter. */
+	userZdotdir: string;
 	/** Read existing local configuration, or an empty document when absent. */
 	readConfig: (path: string) => Promise<string>;
 	/** Check that adoption targets an existing runtime store. */
@@ -83,7 +85,7 @@ const setupBeads = async (
 		services.readConfig(codexPath),
 	]);
 	const configs = {
-		codex: renderCodexConfig(codex, environment),
+		codex: renderCodexConfig(codex, environment, services.userZdotdir),
 		mise: renderMiseConfig(mise, environment),
 	};
 	await services.write(misePath, configs.mise);
@@ -102,6 +104,9 @@ const localSetupServices: SetupServices = {
 		}
 		return "";
 	},
+	userZdotdir: z
+		.string()
+		.parse(process.env.HIVE_CODEX_USER_ZDOTDIR ?? process.env.ZDOTDIR ?? process.env.HOME),
 	write: async (path, contents) => {
 		await Bun.write(path, contents);
 	},

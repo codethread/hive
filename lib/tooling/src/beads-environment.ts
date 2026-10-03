@@ -72,15 +72,27 @@ const renderMiseConfig = (contents: string, environment: TrackerEnvironment): st
 	});
 };
 
-const renderCodexConfig = (contents: string, environment: TrackerEnvironment): string => {
+const renderCodexConfig = (
+	contents: string,
+	environment: TrackerEnvironment,
+	userZdotdir: string,
+): string => {
 	const config = codexSchema.parse(parseConfig(contents));
 	const policy = config.shell_environment_policy;
+	const originalZdotdir =
+		policy?.set?.HIVE_CODEX_USER_ZDOTDIR ?? policy?.set?.ZDOTDIR ?? userZdotdir;
+	const shellDirectory = join(trackerRoot(environment.BEADS_DB), "scripts/beads/codex-shell");
 	return renderConfig({
 		...config,
 		allow_login_shell: false,
 		shell_environment_policy: {
 			...policy,
-			set: { ...policy?.set, ...environment },
+			set: {
+				...policy?.set,
+				...environment,
+				HIVE_CODEX_USER_ZDOTDIR: originalZdotdir,
+				ZDOTDIR: shellDirectory,
+			},
 		},
 	});
 };
