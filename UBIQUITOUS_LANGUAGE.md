@@ -10,10 +10,11 @@ Shared vocabulary for agent identity and spawning. Use these terms, exactly, in 
 | **Session** | One harness conversation, keyed by the harness's session id; survives resume and compaction. | A process; a fork is a new session. | harness |
 | **Native session** | A session a human started directly: a desktop app or a CLI in a terminal. | A bee; it has no bee kind. | — |
 | **Identity** | Who an agent is in the audit trail: its friendly name, plus best-effort harness, model and effort. | The owner (always `ct`) or the assignee. | scent, colony |
-| **Friendly name** | A three-word adjective-adjective-noun name such as `amber-quiet-otter`, recorded as the actor. Derived from the session id for native sessions; minted at spawn for bees. | A harness name: `claude` is not an identity. | `BD_ACTOR`, `HIVE_AGENT_NAME` |
+| **Friendly name** | A three-word adjective-adjective-noun name such as `amber-quiet-otter`, recorded as the actor. Derived from the session id for native sessions or a distinct child key for native subagents; minted at spawn for bees. | A harness name: `claude` is not an identity. | `BD_ACTOR`, `HIVE_AGENT_NAME` |
 | **Mint** | Derive a friendly name deterministically from a seed. | Random assignment or a lookup in a registry. | `mintName` in `lib/shared` |
 | **Nested child** | A session started from inside another agent's session, such as `pi --print` run by Claude. It gets its own friendly name and records its parent. | A bee. | `HIVE_AGENT_PARENT` |
-| **Scent** | Per-harness identity plugins: Claude Code and Codex session-start hooks and a Pi extension. They resolve identity, export it where the harness allows and inject it into the prompt. | A reader of `bees.toml`; scent reads only the environment. | `lib/scent` |
+| **Native subagent** | A child created by the harness's own agent tool. Claude Code and Codex expose a distinct agent id while retaining the parent/root session id; identity attribution uses explicit actor guidance. | A separately launched nested CLI or a colony-managed bee. | harness child-start hooks |
+| **Scent** | Per-harness identity plugins: Claude Code and Codex session/child-start hooks and a Pi extension. They resolve identity from harness context and inherited environment, export it where supported and inject it into the prompt. | A reader of `bees.toml`. | `lib/scent` |
 | **Actor** | The identity recorded on a `br` mutation. | The owner or the assignee. | `BD_ACTOR`, `--actor` |
 
 ## Spawning
@@ -49,7 +50,7 @@ Shared vocabulary for agent identity and spawning. Use these terms, exactly, in 
 | Variable | Set by | Carries |
 | --- | --- | --- |
 | `HIVE_AGENT_NAME` | colony, scent | Friendly name. |
-| `HIVE_AGENT_SESSION` | scent | Session the name is bound to; a mismatch marks a nested child. |
+| `HIVE_AGENT_SESSION` | scent, where environment binding is supported | Session the name is bound to; lifecycle context distinguishes a new conversation from a nested child. A mismatch alone does not establish parentage. |
 | `HIVE_AGENT_PARENT` | scent | Parent's friendly name in a nested child. |
 | `BD_ACTOR` | colony, scent | Friendly name, used by `br` as the actor. |
 | `BR_HARNESS`, `BR_MODEL`, `BR_AGENT_NAME` | colony, scent | Harness, model and bee kind recorded on `br` mutations. |
@@ -60,3 +61,5 @@ Shared vocabulary for agent identity and spawning. Use these terms, exactly, in 
 | --- | --- | --- |
 | **Honeycomb** | The Git worktree manager. | `lib/honeycomb` |
 | **Shared** | The contract other packages may import: environment names, `mintName` and the `bees.toml` schema. | `lib/shared` |
+
+The [identity MVP scope](./docs/agent-identity-scope.md) defines supported session transitions and exclusions. The [harness capability contract](./docs/harness-capabilities.md) records which runtime mechanisms and integration outcomes have been verified.
