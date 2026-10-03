@@ -170,7 +170,7 @@ Do not bypass a refused transition by rewriting storage. Inspect the policy, `br
 
 ## Persistence and recovery
 
-Hive uses automatic import and export in the permanent `tracker/state` checkout. Honor its selected `BEADS_DB` from the project environment; feature worktrees do not own private trackers. The configured `br` wrapper receives compatible remote tracker changes, reconciles SQLite and publishes JSONL before and after every successful command, separately from code integration. `bun run beads:sync` runs that checkpoint explicitly. New claims remain provisional until publication succeeds. Use native sync diagnostics when investigating a refusal:
+Hive uses automatic import and export in the permanent `tracker/state` checkout. Honor its selected `BEADS_DB` from the project environment; feature worktrees do not own private trackers. Native `br` stays local. `bun run beads:sync` receives compatible remote tracker changes, reconciles SQLite and publishes JSONL, separately from code integration. Session-start and pre-commit hooks run that checkpoint; ordinary commands and tools do not. Run it explicitly after claiming before work begins, and after closure or handoff. New claims remain provisional until publication succeeds. Use native sync diagnostics when investigating a refusal:
 
 ```nu
 br sync --status --json
@@ -224,6 +224,6 @@ br capabilities --format json --command "ready"
 4. Claim through `br update <id> --claim --owner ct --actor <harness-name> --json` when ownership is appropriate.
 5. Record discovered work with `create` and an explicit relationship or parent.
 6. Complete through policy-aware commands such as `update`, `close`, `defer`, or `reopen`.
-7. In Hive, use `bun run beads:sync` to publish new claims before starting their scope and completion after integration. Routine mutations auto-export to the tracker checkout; a reported record or claim conflict blocks further tracker work pending reviewed resolution.
+7. In Hive, run `bun run beads:sync` immediately after claiming, before starting work, and after closure, handoff or landing updates. Routine mutations auto-export locally but do not push; a reported record or claim conflict blocks further tracker work pending reviewed resolution.
 
 Never assume this workflow grants permission to claim, mutate, repair, commit, or push. Repository and user instructions still control authorization.

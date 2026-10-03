@@ -18,7 +18,6 @@
 		"agents:sync": "bun run --filter @hive/tooling agents:sync",
 		"beads:setup": "bun run ./lib/tooling/src/beads-setup.ts",
 		"beads:env": "bun run ./lib/tooling/src/beads-env.ts",
-		"beads:health": "bun run ./lib/tooling/src/beads-health.ts",
 		"beads:sync": "bun run ./lib/tooling/src/beads-publish.ts",
 		"prepare": "husky && bun run git:setup && bun run ./lib/tooling/src/beads-setup-auto.ts"
 	},

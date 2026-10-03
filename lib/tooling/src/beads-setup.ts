@@ -2,7 +2,6 @@
 // eslint-disable-next-line no-duplicate-imports -- Keep type-only imports separate.
 import type { Command, TrackerEnvironment } from "./beads-environment.ts";
 import {
-	configureEnvironment,
 	parseDatabase,
 	renderCodexConfig,
 	renderMiseConfig,
@@ -23,10 +22,6 @@ type Selection =
 			kind: "database";
 			/** Existing absolute SQLite path in the permanent tracker checkout. */
 			database: string;
-			/** Native br executable beneath the repository wrapper. */
-			native: string;
-			/** Shell search path to extend with the tracker wrapper. */
-			path: string;
 	  }
 	| {
 			/** Inherit a configured checkout's environment. */
@@ -36,8 +31,6 @@ type Selection =
 	  };
 
 interface SetupServices {
-	/** Original zsh startup directory before applying the Codex adapter. */
-	userZdotdir: string;
 	/** Read existing local configuration, or an empty document when absent. */
 	readConfig: (path: string) => Promise<string>;
 	/** Check that adoption targets an existing runtime store. */
@@ -55,7 +48,7 @@ const selectEnvironment = async (
 	if (selection.kind === "source") {
 		return await resolveEnvironment(selection.root, command);
 	}
-	return configureEnvironment(parseDatabase(selection.database), selection.native, selection.path);
+	return { BEADS_DB: parseDatabase(selection.database) };
 };
 
 const verifyDatabase = async (database: string, services: SetupServices): Promise<void> => {
@@ -85,7 +78,7 @@ const setupBeads = async (
 		services.readConfig(codexPath),
 	]);
 	const configs = {
-		codex: renderCodexConfig(codex, environment, services.userZdotdir),
+		codex: renderCodexConfig(codex, environment),
 		mise: renderMiseConfig(mise, environment),
 	};
 	await services.write(misePath, configs.mise);
@@ -104,9 +97,6 @@ const localSetupServices: SetupServices = {
 		}
 		return "";
 	},
-	userZdotdir: z
-		.string()
-		.parse(process.env.HIVE_CODEX_USER_ZDOTDIR ?? process.env.ZDOTDIR ?? process.env.HOME),
 	write: async (path, contents) => {
 		await Bun.write(path, contents);
 	},
@@ -115,7 +105,6 @@ const localSetupServices: SetupServices = {
 if (import.meta.main) {
 	const { values } = parseArgs({
 		options: {
-			br: { type: "string" },
 			db: { type: "string" },
 			help: { short: "h", type: "boolean" },
 			source: { type: "string" },
@@ -134,8 +123,6 @@ if (import.meta.main) {
 			return {
 				database: values.db,
 				kind: "database",
-				native: z.string().parse(values.br ?? process.env.HIVE_BR_BIN ?? Bun.which("br")),
-				path: z.string().parse(process.env.PATH),
 			};
 		};
 		const selection = selectArguments();
