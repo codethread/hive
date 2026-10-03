@@ -38,6 +38,10 @@ When updating from the former wrapper setup, rerun setup in existing configured 
 
 For a fresh clone, create the permanent tracker checkout from the accepted tracker branch. Use native `br` with the selected `--db` to run `sync --import-only` followed by `sync --flush-only`, then configure the checkout. Import creates SQLite from JSONL; flush establishes the local three-way merge base. Do not initialize a private tracker in a feature worktree.
 
+## Pi status bar
+
+Pi shows `bead: <id>` after an agent's Bash tool successfully runs `br update <id> --claim --json`, including Bash calls nested through codemode. The tool output must be the JSON update response without extra command output. The latest claim replaces the previous ID; failed and unrelated calls leave it unchanged. This is a session-local indicator of the last claim, not live tracker state: it clears when a session starts or switches and is not restored on resume.
+
 ## Conflicts and recovery
 
 If synchronization reports a conflict, stop tracker work and preserve the evidence. Independent changes merge automatically; competing claims require review. Timestamps and forced synchronization are not ownership decisions.
