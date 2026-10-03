@@ -4,15 +4,10 @@ import { resolveEnvironment, runCommand, trackerRoot } from "./beads-environment
 // eslint-disable-next-line import/no-nodejs-modules -- Repository CLI filesystem paths.
 import { join } from "node:path";
 import { lock } from "proper-lockfile";
-// eslint-disable-next-line import/no-nodejs-modules -- Remove only the owned freshness marker.
-import { rm } from "node:fs/promises";
-import { z } from "zod";
 
 interface Tracker {
 	/** Absolute runtime database selected by project configuration. */
 	database: string;
-	/** Native executable, bypassing the coordinated br entrypoint internally. */
-	native: string;
 	/** Remote hosting the accepted tracker branch. */
 	remote: string;
 	/** Full checkout retaining merge-driver and quality-hook code. */
@@ -25,27 +20,6 @@ const lockRetryCount = 120;
 const lockRetryDelayMs = 250;
 const initialAttempt = 0;
 const nextAttempt = 1;
-const freshnessIntervalMs = 30_000;
-const successSchema = z.object({ checkedAt: z.number() });
-
-const successPath = (environment: TrackerEnvironment): string =>
-	join(trackerRoot(environment.BEADS_DB), ".beads/.hive-sync-success");
-
-const invalidateSuccess = async (environment: TrackerEnvironment): Promise<void> => {
-	await rm(successPath(environment), { force: true });
-};
-
-const recordSuccess = async (environment: TrackerEnvironment): Promise<void> => {
-	await Bun.write(successPath(environment), JSON.stringify({ checkedAt: Date.now() }));
-};
-
-const readSuccess = async (environment: TrackerEnvironment): Promise<number> => {
-	const file = Bun.file(successPath(environment));
-	if (await file.exists()) {
-		return successSchema.parse(await file.json()).checkedAt;
-	}
-	return initialAttempt;
-};
 
 const selectTracker = async (
 	environment: TrackerEnvironment,
@@ -61,7 +35,7 @@ const selectTracker = async (
 	if (remote === "." || mergeRef !== "refs/heads/tracker/state") {
 		throw new Error("tracker/state must track a remote tracker/state branch.");
 	}
-	return { database: environment.BEADS_DB, native: environment.HIVE_BR_BIN, remote, root };
+	return { database: environment.BEADS_DB, remote, root };
 };
 
 const assertCleanScope = async (tracker: Tracker, command: Command): Promise<void> => {
@@ -85,7 +59,7 @@ const assertCleanScope = async (tracker: Tracker, command: Command): Promise<voi
 };
 
 const reconcileDatabase = async (tracker: Tracker, command: Command): Promise<void> => {
-	await command([tracker.native, "--db", tracker.database, "sync", "--merge"], tracker.root);
+	await command(["br", "--db", tracker.database, "sync", "--merge"], tracker.root);
 };
 
 const commitSnapshot = async (tracker: Tracker, command: Command): Promise<void> => {
@@ -99,7 +73,7 @@ const commitSnapshot = async (tracker: Tracker, command: Command): Promise<void>
 const checkpoint = async (tracker: Tracker, command: Command): Promise<void> => {
 	await assertCleanScope(tracker, command);
 	await reconcileDatabase(tracker, command);
-	await command([tracker.native, "--db", tracker.database, "sync", "--flush-only"], tracker.root);
+	await command(["br", "--db", tracker.database, "sync", "--flush-only"], tracker.root);
 	await commitSnapshot(tracker, command);
 };
 
@@ -141,14 +115,12 @@ const pushSnapshot = async (
 
 const syncBeads = async (environment: TrackerEnvironment, command: Command): Promise<void> => {
 	const tracker = await selectTracker(environment, command);
-	await invalidateSuccess(environment);
 	// Retry only an observed concurrent remote publication, never a forced push.
 	/* eslint-disable no-await-in-loop */
 	for (let attempt = initialAttempt; attempt < publicationAttempts; attempt += nextAttempt) {
 		await checkpoint(tracker, command);
 		const accepted = await receive(tracker, command);
 		if (await pushSnapshot(tracker, accepted, command)) {
-			await recordSuccess(environment);
 			return;
 		}
 	}
@@ -156,20 +128,6 @@ const syncBeads = async (environment: TrackerEnvironment, command: Command): Pro
 	throw new Error(
 		"Tracker remote changed repeatedly. Local state is retained; retry synchronization before working.",
 	);
-};
-
-const checkBeadsHealth = async (
-	environment: TrackerEnvironment,
-	command: Command,
-): Promise<void> => {
-	const tracker = await selectTracker(environment, command);
-	await assertCleanScope(tracker, command);
-	await reconcileDatabase(tracker, command);
-	const pending = await command(["git", "diff", "HEAD", "--", snapshot], tracker.root);
-	const lastSuccess = await readSuccess(environment);
-	if (pending !== "" || Date.now() - lastSuccess >= freshnessIntervalMs) {
-		await syncBeads(environment, command);
-	}
 };
 
 const withTrackerLock = async <Result>(
@@ -197,4 +155,4 @@ if (import.meta.main) {
 	await withTrackerLock(environment, () => syncBeads(environment, runCommand));
 }
 
-export { checkBeadsHealth, syncBeads, withTrackerLock };
+export { syncBeads, withTrackerLock };

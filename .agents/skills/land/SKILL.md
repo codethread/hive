@@ -42,9 +42,9 @@ Land completed work: tidy it up, prove it, and merge it to `main`. Run this only
 
 ## 5. Publish tracker state
 
-- Using the retained endpoint, record landing evidence and close only the completed tasks. The configured `br` wrapper receives, reconciles and publishes before and after every successful command. If it reports a tracker conflict, pause until reviewed recovery succeeds.
+- Using the retained endpoint, record landing evidence and close only the completed tasks. Native `br` auto-exports locally but does not publish; explicitly synchronize these post-commit updates.
 - Run `bun run beads:sync` from a surviving configured code checkout. It receives compatible tracker changes, reconciles SQLite, commits the shared snapshot and pushes the tracker branch's upstream. Main and feature code are not part of this publication.
-- If synchronization reports a record or claim conflict, retain the local and remote evidence and resolve it before further tracker work. For manual recovery from a separate human terminal, pause tracker writers, use the native executable with the retained `--db` to preserve local work with an explicit flush and tracker-only commit before Git integration, then run unforced merge and successful `bun run beads:sync` before ordinary commands resume. Keep unrelated records and yield to an already-published competing claim. Never force sync or push to select ownership.
+- If synchronization reports a record or claim conflict, retain the local and remote evidence and resolve it before further tracker work. For manual recovery from a separate human terminal, pause tracker writers, use the native executable with the retained `--db` to preserve local work with an explicit flush and tracker-only commit before Git integration, then run unforced merge and successful `bun run beads:sync` before tracker work resumes. Keep unrelated records and yield to an already-published competing claim. Never force sync or push to select ownership.
 - Verify canonical main is clean and synchronized, and the tracker branch's accepted snapshot includes completion. Publication may include other agents' ongoing work; it does not close their tasks. A refused flush, commit, reconciliation or push leaves landing incomplete.
 
 ## Done means

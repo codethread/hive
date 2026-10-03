@@ -1,2 +1,0 @@
-#!/bin/sh
-exec bun "$(dirname "$0")/../../../lib/tooling/src/beads-command.ts" "$@"

@@ -84,9 +84,9 @@ if (values.help) {
 		console.log(`Working on ${bead.id}: ${bead.title} [${name}]`);
 		const prompt = `Work only on bead ${bead.id}. Follow the repository instructions.
 Receive and reconcile accepted remote tracker state before reading claims. Inspect this bead and its reserved scope, then claim it with your actor and owner ct.
-Use the configured br entrypoint; it receives accepted tracker changes and publishes your claim before returning. Stop if synchronization fails. Respect already-published competing reservations.
+Immediately after claiming, run bun run beads:sync and wait for success before starting work. Stop if synchronization fails. Respect already-published competing reservations.
 Implement the task and run the required checks and tests. Close it only when all acceptance criteria are satisfied; criteria requiring landing remain open until the post-landing publication.
-If blocked or awaiting landing, record the next action on the bead and stop without closing it. Do not land without explicit user authorization. Tracker mutations auto-export and publish on tracker/state; code branches stay clean.
+If blocked or awaiting landing, record the next action on the bead and stop without closing it. Do not land without explicit user authorization. Tracker mutations auto-export locally; run bun run beads:sync after closure or handoff to publish on tracker/state. Code branches stay clean.
 Do not pick up another bead.`;
 		const child = Bun.spawn([runner.cli, ...runner.args, "-p", prompt], {
 			stderr: "inherit",
