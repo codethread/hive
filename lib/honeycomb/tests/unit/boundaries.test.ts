@@ -1,49 +1,58 @@
 import { expect, test } from "bun:test";
-import { buildPoolState } from "../../src/application/pool.ts";
-import { runPreRemoteCheck } from "../../src/application/hooks.ts";
-import { explainPolicy, type TreesConfig } from "../../src/domain/config.ts";
-import { PreRemoteCheckError } from "../../src/errors.ts";
-import { parseWorktreeList } from "../../src/git/worktrees.ts";
-import { toListJson } from "../../src/protocol.ts";
 import type { GitRunner } from "../../src/services.ts";
+import { PreRemoteCheckError } from "../../src/errors.ts";
+import type { TreesConfig } from "../../src/domain/config.ts";
+import { buildPoolState } from "../../src/application/pool.ts";
+import { explainPolicy } from "../../src/domain/config.ts";
+import { parseWorktreeList } from "../../src/git/worktrees.ts";
+import { runPreRemoteCheck } from "../../src/application/hooks.ts";
+import { toListJson } from "../../src/protocol.ts";
 
-const run: GitRunner["runRaw"] = async (args) => {
-	const stdout = args.includes("symbolic-ref")
-		? "refs/remotes/origin/main\n"
-		: args.includes("log")
-			? "2026-01-01T00:00:00Z\x1finitial\n"
-			: args.includes("rev-parse")
-				? "../repo/.git/worktrees/feat1/wk-pool-initialized\n"
-				: "";
-	return { stdout, stderr: "", exitCode: 0 };
+const run: GitRunner["runRaw"] = (args) => {
+	let stdout = "";
+	if (args.includes("symbolic-ref")) {
+		stdout = "refs/remotes/origin/main\n";
+	} else if (args.includes("log")) {
+		stdout = "2026-01-01T00:00:00Z\u001Finitial\n";
+	} else if (args.includes("rev-parse")) {
+		stdout = "../repo/.git/worktrees/feat1/wk-pool-initialized\n";
+	}
+	return Promise.resolve({ exitCode: 0, stderr: "", stdout });
 };
 
 test("preflight uses the injected command runner and preserves failure diagnostics", async () => {
 	const config: TreesConfig = {
-		projects: [],
-		rules: [{ rootGlob: "/repo", command: null, preRemoteCheck: "check-network" }],
 		defaults: {},
+		projects: [],
+		rules: [
+			{
+				// eslint-disable-next-line unicorn/no-null -- This rule supplies no bootstrap command.
+				command: null,
+				preRemoteCheck: "check-network",
+				rootGlob: "/repo",
+			},
+		],
 		worktreeLocation: "sibling",
 	};
 	const calls: string[][] = [];
 	await expect(
 		runPreRemoteCheck(
 			{
-				config: { read: () => config, explain: explainPolicy },
+				config: { explain: explainPolicy, read: () => config },
 				hooks: {
-					runInline: async () => undefined,
-					runCommand: async (script, cwd) => {
+					runCommand: (script, cwd) => {
 						calls.push([script, cwd]);
-						return { stdout: [], stderr: ["offline"], exitCode: 1 };
+						return Promise.resolve({ exitCode: 1, stderr: ["offline"], stdout: [] });
 					},
+					runInline: () => Promise.resolve(),
 				},
 			},
-			{ config, root: "/repo", operation: "honeycomb add" },
+			{ config, operation: "honeycomb add", root: "/repo" },
 		),
 	).rejects.toMatchObject({
+		exitCode: 10,
 		name: PreRemoteCheckError.name,
 		stderr: "offline",
-		exitCode: 10,
 	});
 	expect(calls).toEqual([["check-network", "/repo"]]);
 });
@@ -54,28 +63,29 @@ test("pool status observes initialization through the injected filesystem", asyn
 	);
 
 	const observedPaths: string[] = [];
-	const state = await buildPoolState(
-		{
-			name: "repo",
-			root: "/repo",
-			command: "setup",
-			poolSize: 1,
-			copyModeDefault: "copy",
-			copy: [],
-		},
-		worktrees,
-		{
-			git: { run, runRaw: run },
+	const state = await buildPoolState({
+		deps: {
 			files: {
-				normalizePath: (path) => path,
 				exists: (path) => {
 					observedPaths.push(path);
 					return true;
 				},
+				normalizePath: (path) => path,
 			},
+			git: { run, runRaw: run },
 		},
-	);
-	expect(state.slots[0]).toMatchObject({ initialized: true, placeholder: true, dirty: false });
+		project: {
+			command: "setup",
+			copy: [],
+			copyModeDefault: "copy",
+			name: "repo",
+			poolSize: 1,
+			root: "/repo",
+		},
+		worktrees,
+	});
+	const [slot] = state.slots;
+	expect(slot).toMatchObject({ dirty: false, initialized: true, placeholder: true });
 	expect(observedPaths).toEqual(["/repo/.git/worktrees/feat1/wk-pool-initialized"]);
 });
 
@@ -85,8 +95,8 @@ test("list rendering retains Git metadata when worktree values are copied", () =
 	);
 	expect(worktrees.map((worktree) => toListJson({ ...worktree }))).toMatchObject([
 		{
-			locked: true,
 			lock_reason: "maintenance",
+			locked: true,
 			prunable: true,
 			prunable_reason: "missing checkout",
 			session: { name: "repo", path: "/repo" },

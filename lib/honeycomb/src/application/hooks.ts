@@ -1,7 +1,7 @@
-import type { TreesConfig } from "../domain/config.ts";
-import type { PostCreateScriptSpec } from "../domain/worktree.ts";
-import { PreRemoteCheckError } from "../errors.ts";
+import { EXIT_CODES, PreRemoteCheckError } from "../errors.ts";
 import type { Deps } from "../services.ts";
+import type { PostCreateScriptSpec } from "../domain/worktree.ts";
+import type { TreesConfig } from "../domain/config.ts";
 
 export const runPreRemoteCheck = async (
 	deps: Pick<Deps, "config" | "hooks">,
@@ -12,10 +12,14 @@ export const runPreRemoteCheck = async (
 	},
 ): Promise<void> => {
 	const { config, root, operation } = options;
-	const preRemoteCheck = deps.config.explain(config, root).preRemoteCheck;
-	if (!preRemoteCheck.value) return;
+	const { preRemoteCheck } = deps.config.explain(config, root);
+	if (!preRemoteCheck.value) {
+		return;
+	}
 	const result = await deps.hooks.runCommand(preRemoteCheck.value, root, {});
-	if (result.exitCode === 0) return;
+	if (result.exitCode === EXIT_CODES.SUCCESS) {
+		return;
+	}
 	throw new PreRemoteCheckError(operation, preRemoteCheck.source, result.stderr.join("\n"));
 };
 
@@ -24,7 +28,9 @@ export const runBootstrap = async (
 	spec: PostCreateScriptSpec,
 ): Promise<void> => {
 	const scriptPath = deps.files.writePostCreateScript(spec);
-	await deps.hooks.runInline(scriptPath, spec.created, {}, (stream, line) =>
-		deps.progress.stream(stream, line),
-	);
+	await deps.hooks.runInline(scriptPath, {
+		cwd: spec.created,
+		env: {},
+		onLine: (stream, line) => deps.progress.stream(stream, line),
+	});
 };

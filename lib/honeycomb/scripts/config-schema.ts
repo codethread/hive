@@ -1,12 +1,12 @@
 #!/usr/bin/env bun
 
-import { z } from "zod";
-import { format } from "oxfmt";
 import { createConfigSchema } from "../src/schemas.ts";
+import { format } from "oxfmt";
+import { z } from "zod";
 
 const schema = z.toJSONSchema(
-	createConfigSchema({ home: "/", cwd: "/", normalizePath: (path) => path }),
-	{ target: "draft-04", io: "input" },
+	createConfigSchema({ cwd: "/", home: "/", normalizePath: (path) => path }),
+	{ io: "input", target: "draft-04" },
 );
 const { code: contents } = await format("honeycomb.schema.json", JSON.stringify(schema), {
 	useTabs: true,

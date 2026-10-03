@@ -1,23 +1,18 @@
-import { buildPoolState, ensurePool } from "../application/pool.ts";
-import { runPreRemoteCheck } from "../application/hooks.ts";
-import {
-	listWorktrees,
-	resolveCanonicalRoot,
-	resolveWorktreeContainingPath,
-} from "../application/repository.ts";
-import { encodeBranch, worktreePathForName } from "../domain/worktree.ts";
 import {
 	BlockedError,
 	CanonicalRootError,
 	EXIT_CODES,
-	UsageError,
 	HoneycombError,
+	UsageError,
 } from "../errors.ts";
+import type { CommandResult, OutputMode } from "../protocol.ts";
+import type { PolicyExplanation, ProjectConfig, TreesConfig } from "../domain/config.ts";
+import { buildPoolState, ensurePool } from "../application/pool.ts";
+import { encodeBranch, worktreePathForName } from "../domain/worktree.ts";
 import {
-	type OutputMode,
 	finalizeReadyResult,
 	finalizeStructuredResult,
-	formatCommandSource,
+	formatConfigSummary,
 	formatWorktreeList,
 	parseOptions,
 	parseOutputMode,
@@ -25,140 +20,279 @@ import {
 	toConfigExplainPayload,
 	toListJson,
 } from "../protocol.ts";
-
+import {
+	listWorktrees,
+	resolveCanonicalRoot,
+	resolveWorktreeContainingPath,
+} from "../application/repository.ts";
 import type { Deps } from "../services.ts";
+import type { Worktree } from "../domain/worktree.ts";
+import { runPreRemoteCheck } from "../application/hooks.ts";
 
-export const rootCommand = async (args: string[], deps: Deps) => {
-	const opts = parseOptions(args);
-	const cwd = requireOption(opts, "cwd");
-	const canonicalRoot = await resolveCanonicalRoot(deps.git, cwd);
-	return { stdout: `${canonicalRoot}\n`, exitCode: 0 };
-};
+interface QueryRequest {
+	/** Checkout the caller is working from. */
+	cwd: string;
+	/** Requested output rendering. */
+	output: OutputMode;
+}
 
-export const listCommand = async (args: string[], deps: Deps) => {
-	const opts = parseOptions(args);
-	const cwd = requireOption(opts, "cwd");
-	const output = parseOutputMode(opts);
-	const config = deps.config.read();
-	const canonicalRoot = await resolveCanonicalRoot(deps.git, cwd);
-	const project = deps.config.explain(config, canonicalRoot).project;
-	if (project?.poolSize) {
-		await runPreRemoteCheck(deps, { config, root: canonicalRoot, operation: "honeycomb list" });
-		await ensurePool(project, deps, undefined, config);
-	}
-	const worktrees = await listWorktrees(deps.git, cwd);
-	if (output.json)
-		return finalizeStructuredResult({ kind: "list", worktrees: worktrees.map(toListJson) }, output);
-	return { stdout: formatWorktreeList(worktrees), exitCode: EXIT_CODES.SUCCESS };
-};
+interface PathRequest {
+	/** Branch whose worktree path is requested. */
+	branch: string;
+	/** Checkout the caller is working from. */
+	cwd: string;
+}
 
-export const pathCommand = async (args: string[], deps: Deps) => {
-	const opts = parseOptions(args);
-	const cwd = requireOption(opts, "cwd");
-	const branch = requireOption(opts, "branch");
-	const config = deps.config.read();
-	const worktrees = await listWorktrees(deps.git, cwd);
+interface EnsurePoolOptions {
+	/** Loaded repository configuration. */
+	config: TreesConfig;
+	/** Service boundary for the command invocation. */
+	deps: Deps;
+	/** Operation name used in preflight failures. */
+	operation: string;
+	/** Project matching the canonical root, when configured. */
+	project: ProjectConfig | undefined;
+	/** Canonical repository root. */
+	root: string;
+	/** Worktrees observed before pool preparation; undefined lets the pool list them itself. */
+	worktrees: Worktree[] | undefined;
+}
+
+const requireCanonical = (worktrees: Worktree[]): Worktree => {
 	const canonical = worktrees.find((worktree) => worktree.canonical);
-	if (!canonical) throw new HoneycombError("couldn't determine canonical worktree");
-	const existing = worktrees.find((worktree) => worktree.branch === branch);
-	if (existing) return { stdout: `${existing.path}\n`, exitCode: 0 };
-
-	const project = deps.config.explain(config, canonical.path).project;
-	const worktreeLocation = deps.config.explain(config, canonical.path).worktreeLocation;
-	if (project?.poolSize) {
-		await runPreRemoteCheck(deps, { config, root: canonical.path, operation: "honeycomb path" });
-		const state = await buildPoolState(project, worktrees, deps, worktreeLocation);
-		const slot = state.slots.find((candidate) => candidate.branch === branch);
-		if (!slot) throw new BlockedError(`no pooled worktree found for branch ${branch}`);
-		return { stdout: `${slot.path}\n`, exitCode: 0 };
+	if (!canonical) {
+		throw new HoneycombError("couldn't determine canonical worktree");
 	}
-	return {
-		stdout: `${worktreePathForName(canonical.path, encodeBranch(branch), worktreeLocation)}\n`,
-		exitCode: 0,
-	};
+	return canonical;
 };
 
-export const ensureCommand = async (args: string[], deps: Deps) => {
+const parseQueryRequest = (args: string[]): QueryRequest => {
 	const opts = parseOptions(args);
-	const cwd = requireOption(opts, "cwd");
-	const worktrees = await listWorktrees(deps.git, cwd);
-	const canonical = worktrees.find((worktree) => worktree.canonical);
-	if (!canonical) throw new HoneycombError("couldn't determine canonical worktree");
-	const config = deps.config.read();
-	const project = deps.config.explain(config, canonical.path).project;
-	if (project?.poolSize) {
-		await runPreRemoteCheck(deps, { config, root: canonical.path, operation: "honeycomb ensure" });
-		await ensurePool(project, deps, worktrees, config);
-	}
-	return { exitCode: 0 };
+	return { cwd: requireOption(opts, "cwd"), output: parseOutputMode(opts) };
 };
 
-export const statusCommand = async (args: string[], deps: Deps) => {
+const parsePathRequest = (args: string[]): PathRequest => {
 	const opts = parseOptions(args);
 	const cwd = requireOption(opts, "cwd");
-	const output: OutputMode = { json: true };
-	const worktrees = await listWorktrees(deps.git, cwd);
-	const canonical = worktrees.find((worktree) => worktree.canonical);
-	if (!canonical) throw new HoneycombError("couldn't determine canonical worktree");
-	const config = deps.config.read();
-	const project = deps.config.explain(config, canonical.path).project;
-	if (!project?.poolSize) {
+	return { branch: requireOption(opts, "branch"), cwd };
+};
+
+const ensurePoolIfConfigured = async (options: EnsurePoolOptions): Promise<void> => {
+	if (!options.project?.poolSize) {
+		return;
+	}
+	await runPreRemoteCheck(options.deps, {
+		config: options.config,
+		operation: options.operation,
+		root: options.root,
+	});
+	await ensurePool({
+		config: options.config,
+		deps: options.deps,
+		initialWorktrees: options.worktrees,
+		project: options.project,
+	});
+};
+
+const renderList = (worktrees: Worktree[], output: OutputMode): CommandResult => {
+	if (output.json) {
 		return finalizeStructuredResult(
-			{ kind: "status", root: canonical.path, trunk: null, hasPool: false, size: 0, slots: [] },
+			{ kind: "list", worktrees: worktrees.map((worktree) => toListJson(worktree)) },
 			output,
 		);
 	}
-	await runPreRemoteCheck(deps, { config, root: canonical.path, operation: "honeycomb status" });
-	const worktreeLocation = deps.config.explain(config, canonical.path).worktreeLocation;
-	const state = await buildPoolState(project, worktrees, deps, worktreeLocation);
-	return finalizeStructuredResult({ kind: "status", ...state }, output);
+	return { exitCode: EXIT_CODES.SUCCESS, stdout: formatWorktreeList(worktrees) };
 };
 
-export const copyCommand = async (args: string[], deps: Deps) => {
-	const opts = parseOptions(args);
-	const cwd = requireOption(opts, "cwd");
-	const output = parseOutputMode(opts);
-	const config = deps.config.read();
-	const worktrees = await listWorktrees(deps.git, cwd);
-	const canonical = worktrees.find((worktree) => worktree.canonical);
-	if (!canonical) throw new HoneycombError("couldn't determine canonical worktree");
-	const target = resolveWorktreeContainingPath(worktrees, cwd, deps.files);
-	if (!target) throw new UsageError(`no worktree contains cwd: ${cwd}`);
-	if (deps.files.normalizePath(target.path) === deps.files.normalizePath(canonical.path)) {
+const findWorktreePath = async (options: {
+	branch: string;
+	canonical: Worktree;
+	config: TreesConfig;
+	deps: Deps;
+	explanation: PolicyExplanation;
+	worktrees: Worktree[];
+}): Promise<string> => {
+	const { branch, canonical, config, deps, explanation, worktrees } = options;
+	const { project } = explanation;
+	if (!project?.poolSize) {
+		return worktreePathForName(canonical.path, encodeBranch(branch), explanation.worktreeLocation);
+	}
+	await runPreRemoteCheck(deps, { config, operation: "honeycomb path", root: canonical.path });
+	const state = await buildPoolState({
+		deps,
+		location: explanation.worktreeLocation,
+		project,
+		worktrees,
+	});
+	const slot = state.slots.find((candidate) => candidate.branch === branch);
+	if (!slot) {
+		throw new BlockedError(`no pooled worktree found for branch ${branch}`);
+	}
+	return slot.path;
+};
+
+const statusPayload = async (options: {
+	config: TreesConfig;
+	deps: Deps;
+	explanation: PolicyExplanation;
+	root: string;
+	worktrees: Worktree[];
+}) => {
+	const { config, deps, explanation, root, worktrees } = options;
+	const { project } = explanation;
+	if (!project?.poolSize) {
+		// eslint-disable-next-line unicorn/no-null -- Public status JSON includes an explicit null trunk when no pool exists.
+		return { hasPool: false, kind: "status", root, size: 0, slots: [], trunk: null };
+	}
+	await runPreRemoteCheck(deps, { config, operation: "honeycomb status", root });
+	const state = await buildPoolState({
+		deps,
+		location: explanation.worktreeLocation,
+		project,
+		worktrees,
+	});
+	return { kind: "status", ...state };
+};
+
+const resolveCopyTarget = (options: {
+	canonical: Worktree;
+	cwd: string;
+	deps: Deps;
+	worktrees: Worktree[];
+}): Worktree => {
+	const target = resolveWorktreeContainingPath(options.worktrees, options.cwd, options.deps.files);
+	if (!target) {
+		throw new UsageError(`no worktree contains cwd: ${options.cwd}`);
+	}
+	if (
+		options.deps.files.normalizePath(target.path) ===
+		options.deps.files.normalizePath(options.canonical.path)
+	) {
 		throw new CanonicalRootError("refusing to copy setup into canonical root");
 	}
-	const project = deps.config.explain(config, canonical.path).project;
+	return target;
+};
+
+const rootCommand = async (args: string[], deps: Deps): Promise<CommandResult> => {
+	const opts = parseOptions(args);
+	const cwd = requireOption(opts, "cwd");
+	const canonicalRoot = await resolveCanonicalRoot(deps.git, cwd);
+	return { exitCode: EXIT_CODES.SUCCESS, stdout: `${canonicalRoot}\n` };
+};
+
+const listCommand = async (args: string[], deps: Deps): Promise<CommandResult> => {
+	const request = parseQueryRequest(args);
+	const config = deps.config.read();
+	const canonicalRoot = await resolveCanonicalRoot(deps.git, request.cwd);
+	const { project } = deps.config.explain(config, canonicalRoot);
+	await ensurePoolIfConfigured({
+		config,
+		deps,
+		operation: "honeycomb list",
+		project,
+		root: canonicalRoot,
+		worktrees: undefined,
+	});
+	const worktrees = await listWorktrees(deps.git, request.cwd);
+	return renderList(worktrees, request.output);
+};
+
+const pathCommand = async (args: string[], deps: Deps): Promise<CommandResult> => {
+	const request = parsePathRequest(args);
+	const config = deps.config.read();
+	const worktrees = await listWorktrees(deps.git, request.cwd);
+	const canonical = requireCanonical(worktrees);
+	const existing = worktrees.find((worktree) => worktree.branch === request.branch);
+	if (existing) {
+		return { exitCode: EXIT_CODES.SUCCESS, stdout: `${existing.path}\n` };
+	}
+	const explanation = deps.config.explain(config, canonical.path);
+	const path = await findWorktreePath({
+		branch: request.branch,
+		canonical,
+		config,
+		deps,
+		explanation,
+		worktrees,
+	});
+	return { exitCode: EXIT_CODES.SUCCESS, stdout: `${path}\n` };
+};
+
+const ensureCommand = async (args: string[], deps: Deps): Promise<CommandResult> => {
+	const request = parseQueryRequest(args);
+	const worktrees = await listWorktrees(deps.git, request.cwd);
+	const canonical = requireCanonical(worktrees);
+	const config = deps.config.read();
+	const { project } = deps.config.explain(config, canonical.path);
+	await ensurePoolIfConfigured({
+		config,
+		deps,
+		operation: "honeycomb ensure",
+		project,
+		root: canonical.path,
+		worktrees,
+	});
+	return { exitCode: EXIT_CODES.SUCCESS };
+};
+
+const statusCommand = async (args: string[], deps: Deps): Promise<CommandResult> => {
+	const request = parseQueryRequest(args);
+	const worktrees = await listWorktrees(deps.git, request.cwd);
+	const canonical = requireCanonical(worktrees);
+	const config = deps.config.read();
+	const explanation = deps.config.explain(config, canonical.path);
+	const payload = await statusPayload({
+		config,
+		deps,
+		explanation,
+		root: canonical.path,
+		worktrees,
+	});
+	return finalizeStructuredResult(payload, { json: true });
+};
+
+const copyCommand = async (args: string[], deps: Deps): Promise<CommandResult> => {
+	const request = parseQueryRequest(args);
+	const config = deps.config.read();
+	const worktrees = await listWorktrees(deps.git, request.cwd);
+	const canonical = requireCanonical(worktrees);
+	const target = resolveCopyTarget({ canonical, cwd: request.cwd, deps, worktrees });
+	const { project } = deps.config.explain(config, canonical.path);
 	const copied = await deps.files.copy(canonical.path, target.path, project?.copy ?? []);
 	const payload = {
+		copied,
+		exclude_paths: [...new Set(copied.map((entry) => entry.to))].toSorted(),
 		kind: "ready",
 		root: canonical.path,
 		worktree_path: target.path,
-		copied,
-		exclude_paths: [...new Set(copied.map((entry) => entry.to))].sort(),
 	};
-	return finalizeReadyResult(
+	return finalizeReadyResult({
+		output: request.output,
 		payload,
-		output,
-		`honeycomb: copied ${payload.copied.length} items into ${payload.worktree_path}`,
-	);
+		summary: `honeycomb: copied ${payload.copied.length} items into ${payload.worktree_path}`,
+	});
 };
 
-export const configCommand = async (args: string[], deps: Deps) => {
+const configCommand = async (args: string[], deps: Deps): Promise<CommandResult> => {
 	const [topic, ...rest] = args;
-	if (topic !== "explain") throw new UsageError("expected config explain");
-	const opts = parseOptions(rest);
-	const cwd = requireOption(opts, "cwd");
-	const output = parseOutputMode(opts);
-	const canonicalRoot = await resolveCanonicalRoot(deps.git, cwd);
-	const explanation = deps.config.explain(deps.config.read(), canonicalRoot);
-	const payload = toConfigExplainPayload(explanation);
-	if (output.json) return finalizeStructuredResult(payload, output);
-	const matchedRules = payload.matched_rules.map((rule) => rule.root_glob).join(", ") || "(none)";
-	const project = payload.project
-		? `${payload.project.name ?? "(unnamed)"} ${payload.project.root}`
-		: "(none)";
-	return {
-		stdout: `root: ${payload.root}\nmatched_rules: ${matchedRules}\nproject: ${project}\ncommand.source: ${formatCommandSource(payload.command.source)}\npre_remote_check.source: ${formatCommandSource(payload.pre_remote_check.source)}\nworktree_location: ${payload.worktree_location}\nadd.policy: ${payload.add.policy}\nfinish.enabled: ${payload.finish.enabled}\nfinish.strategy: ${payload.finish.strategy}\nfinish.push: ${payload.finish.push}\nfinish.remove_worktree: ${payload.finish.remove_worktree}\nfinish.delete_branch: ${payload.finish.delete_branch}\n`,
-		exitCode: EXIT_CODES.SUCCESS,
-	};
+	if (topic !== "explain") {
+		throw new UsageError("expected config explain");
+	}
+	const request = parseQueryRequest(rest);
+	const canonicalRoot = await resolveCanonicalRoot(deps.git, request.cwd);
+	const payload = toConfigExplainPayload(deps.config.explain(deps.config.read(), canonicalRoot));
+	if (request.output.json) {
+		return finalizeStructuredResult(payload, request.output);
+	}
+	return { exitCode: EXIT_CODES.SUCCESS, stdout: formatConfigSummary(payload) };
+};
+
+export {
+	configCommand,
+	copyCommand,
+	ensureCommand,
+	listCommand,
+	pathCommand,
+	rootCommand,
+	statusCommand,
 };

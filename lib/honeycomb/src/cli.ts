@@ -1,17 +1,14 @@
-import tab from "@bomb.sh/tab/commander";
 import { Command, CommanderError } from "commander";
 import { EXIT_CODES, UsageError } from "./errors.ts";
+import { formatFailure, renderJsonResult } from "./protocol.ts";
+import type { CommandResult } from "./protocol.ts";
+import type { Deps } from "./services.ts";
+import { HELP } from "./cli-help.ts";
 import { createLiveDeps } from "./live-deps.ts";
 import { dispatch } from "./main.ts";
-import { type CommandResult, formatFailure, renderJsonResult } from "./protocol.ts";
-import type { Deps } from "./services.ts";
+import tab from "@bomb.sh/tab/commander";
 
-export const main = async (
-	argv: string[] = Bun.argv,
-	deps: Deps = createLiveDeps(),
-): Promise<void> => {
-	// Commander reports parse errors before dispatch runs, so detect JSON mode from argv.
-	const json = argv.includes("--json");
+const createProgram = (json: boolean): Command => {
 	const program = new Command();
 	program
 		.name("honeycomb")
@@ -30,71 +27,31 @@ export const main = async (
 			"Human wrapper mode: add opens the worktree's multiplexer session; remove and finish leave and close it",
 		)
 		.configureOutput({
-			writeOut: (str) => process.stderr.write(str),
 			writeErr: (str) => {
-				if (!json) process.stderr.write(str);
+				if (!json) {
+					process.stderr.write(str);
+				}
 			},
+			writeOut: (str) => process.stderr.write(str),
 		})
-		.addHelpText(
-			"after",
-			`
-Agent workflow:
-  Pass --cwd <path> only when targeting a worktree set other than the current
-  directory. Prefer --json when available: stdout is then one JSON object, on
-  success and failure alike, and stderr stays silent. Branch on ok, kind, and
-  reason rather than message text. Setup output and warnings are captured in the
-  payload's setup_output and diagnostics.
-
-Interactive wrappers:
-  Human wrappers pass --interactive so add focuses the new worktree's multiplexer
-  session, and remove/finish move the caller to the canonical root and close the
-  removed worktree's sessions. Outside a multiplexer, the directory to change to is
-  written to the file named by HONEYCOMB_CD_FILE. Agents must not pass it.
-
-Common flows:
-  honeycomb add --branch <feature> --json
-  honeycomb list --json
-  honeycomb path --branch <feature>
-  honeycomb remove --branch <feature> --json
-  honeycomb remove --branch <feature> --integrated-into origin/main --json
-  honeycomb finish --json
-  honeycomb config explain --json
-
-Pools:
-  Pooled repositories reuse fixed slots instead of creating branch-named sibling
-  directories. Run status and check hasPool to see whether remove/add use pooled
-  slot semantics. Use remove for cleanup in both pooled and non-pooled repositories.
-
-Safety:
-  Unforced destructive operations refuse dirty, ahead, local-only, canonical-root,
-  or otherwise ambiguous states. Use --force only when discarding local work is
-  intentional.
-`,
-		)
+		.addHelpText("after", HELP.overview)
 		.exitOverride();
 
+	return program;
+};
+
+const registerRoot = (program: Command, deps: Deps): void => {
 	program
 		.command("root")
 		.summary("Print canonical root")
 		.description(
 			"Print the protected canonical/root worktree for the repository containing --cwd (or the current directory by default).",
 		)
-		.addHelpText(
-			"after",
-			`
-Use when:
-  You need the repository anchor that honeycomb uses for config lookup, sibling path
-  generation, default-branch policy, and root-protection checks.
+		.addHelpText("after", HELP.root)
+		.action((_opts, command) => runAction("root", optsToArgs(command.optsWithGlobals()), deps));
+};
 
-Notes:
-  The canonical root is never removed or recycled by honeycomb. Run this before
-  reasoning about generated sibling paths or effective project configuration.
-`,
-		)
-		.action(async (_opts, command) => {
-			await runAction("root", optsToArgs(command.optsWithGlobals()), deps);
-		});
-
+const registerList = (program: Command, deps: Deps): void => {
 	program
 		.command("list")
 		.summary("List worktrees")
@@ -102,27 +59,11 @@ Notes:
 			"List every git worktree known to the repository, including canonical and pooled slots.",
 		)
 		.option("--json", "Output as JSON")
-		.addHelpText(
-			"after",
-			`
-Use when:
-  You need to discover existing worktrees, identify the canonical root, inspect
-  branch/path/session identity, or decide whether an agent should reuse an
-  existing checkout instead of creating one.
+		.addHelpText("after", HELP.list)
+		.action((_opts, command) => runAction("list", optsToArgs(command.optsWithGlobals()), deps));
+};
 
-Notes:
-  In pooled repositories, list ensures configured slots exist before reporting
-  them. With --json, the payload's worktrees array holds one item per worktree.
-
-Related:
-  status shows pool-focused slot state. path resolves one branch to its expected
-  worktree path.
-`,
-		)
-		.action(async (_opts, command) => {
-			await runAction("list", optsToArgs(command.optsWithGlobals()), deps);
-		});
-
+const registerPath = (program: Command, deps: Deps): void => {
 	program
 		.command("path")
 		.summary("Resolve branch path")
@@ -130,23 +71,11 @@ Related:
 			"Print the deterministic worktree path for a branch in the repository containing --cwd (or the current directory by default).",
 		)
 		.requiredOption("--branch <branch>", "Branch name")
-		.addHelpText(
-			"after",
-			`
-Use when:
-  A script or agent needs the expected checkout path for a branch without
-  creating, switching, or removing anything.
+		.addHelpText("after", HELP.path)
+		.action((_opts, command) => runAction("path", optsToArgs(command.optsWithGlobals()), deps));
+};
 
-Notes:
-  Non-pooled repositories use sibling paths based on the canonical root and
-  branch name. Pooled repositories may map active branches to reusable slot
-  paths instead.
-`,
-		)
-		.action(async (_opts, command) => {
-			await runAction("path", optsToArgs(command.optsWithGlobals()), deps);
-		});
-
+const registerAdd = (program: Command, deps: Deps): void => {
 	program
 		.command("add")
 		.summary("Create or allocate worktree")
@@ -159,31 +88,11 @@ Notes:
 		.option("--base <branch>", "Base branch for new branches")
 		.option("--base-current", "Use the branch checked out in the worktree containing --cwd")
 		.option("--force", "Force operation")
-		.addHelpText(
-			"after",
-			`
-Use when:
-  Starting work on a branch. This is the preferred entry point over raw git
-  worktree add because it applies repository policy, deterministic paths, pool
-  allocation, copy setup, and the configured setup command.
+		.addHelpText("after", HELP.add)
+		.action((_opts, command) => runAction("add", optsToArgs(command.optsWithGlobals()), deps));
+};
 
-Notes:
-  Without --base, new branches start from the configured policy target. Use
-  --base only for intentional stacked/non-default work. --base-current uses the
-  branch checked out in the worktree containing --cwd instead, and is refused for
-  a detached HEAD or combined with --base. Setup failure rolls the add back and
-  exits 1 with reason setup_failed; with --json, setup output is in setup_output.
-
-Blocked outcomes:
-  Existing branches, stale or dirty canonical roots, pool exhaustion, and unsafe
-  slot states are reported explicitly. Machine consumers should branch on kind
-  such as ready, blocked, or pool_full, and on ok.
-`,
-		)
-		.action(async (_opts, command) => {
-			await runAction("add", optsToArgs(command.optsWithGlobals()), deps);
-		});
-
+const registerRemove = (program: Command, deps: Deps): void => {
 	program
 		.command("remove")
 		.summary("Remove worktree")
@@ -199,77 +108,31 @@ Blocked outcomes:
 			"--integrated-into <origin/ref>",
 			"Delete a clean branch only after proving its content is in this fetched ref",
 		)
-		.addHelpText(
-			"after",
-			`
-Use when:
-  Cleaning up branch worktrees after work is done or abandoned. Use --branch for
-  a named branch, or --self to remove the worktree containing the global --cwd
-  path when a wrapper or agent wants to remove the checkout it is operating in.
+		.addHelpText("after", HELP.remove)
+		.action((_opts, command) => runAction("remove", optsToArgs(command.optsWithGlobals()), deps));
+};
 
-Safety:
-  The canonical root is protected. Without --force, removal refuses dirty or
-  otherwise ambiguous work. Without --keep-branch, it also refuses ahead,
-  local-only, or unmerged branches. --keep-branch removes only the clean
-  checkout/slot occupancy and leaves the branch ref intact. For a clean branch
-  squash-merged by a hosting platform, --integrated-into origin/main fetches the
-  target and requires its source-relative changes to be content-equivalent before
-  removing both checkout and branch. It cannot be combined with --force or
-  --keep-branch.
-
-Related:
-  finish can integrate a completed worktree and then clean it up as one
-  conservative lifecycle operation.
-`,
-		)
-		.action(async (_opts, command) => {
-			await runAction("remove", optsToArgs(command.optsWithGlobals()), deps);
-		});
-
+const registerEnsure = (program: Command, deps: Deps): void => {
 	program
 		.command("ensure")
 		.summary("Materialise pool slots")
 		.description("Create and initialize the configured fixed pool slots for a pooled repository.")
-		.addHelpText(
-			"after",
-			`
-Use when:
-  Pre-warming an expensive repository's worktree pool before agents or humans
-  request work. add and list also ensure pools as needed, so this is mainly for
-  setup, repair, or making failures visible early.
+		.addHelpText("after", HELP.ensure)
+		.action((_opts, command) => runAction("ensure", optsToArgs(command.optsWithGlobals()), deps));
+};
 
-Notes:
-  Non-pooled repositories have no slots to materialize. Pool initialization runs
-  configured copy/setup so slots are ready for later allocation.
-`,
-		)
-		.action(async (_opts, command) => {
-			await runAction("ensure", optsToArgs(command.optsWithGlobals()), deps);
-		});
-
+const registerStatus = (program: Command, deps: Deps): void => {
 	program
 		.command("status")
 		.summary("Show pool status")
 		.description(
 			"Print JSON describing configured pool size and each slot's branch, safety, and initialization state.",
 		)
-		.addHelpText(
-			"after",
-			`
-Use when:
-  Deciding whether a repository is pooled and whether any slots can be removed
-  for reuse. A size of 0 means regular non-pooled worktrees; size greater than 0
-  means remove uses pool semantics.
+		.addHelpText("after", HELP.status)
+		.action((_opts, command) => runAction("status", optsToArgs(command.optsWithGlobals()), deps));
+};
 
-Notes:
-  Output is always JSON. Slot fields include branch, dirty state, placeholder
-  status, last commit details, and initialization state.
-`,
-		)
-		.action(async (_opts, command) => {
-			await runAction("status", optsToArgs(command.optsWithGlobals()), deps);
-		});
-
+const registerCopy = (program: Command, deps: Deps): void => {
 	program
 		.command("copy")
 		.summary("Re-run copy setup")
@@ -277,24 +140,11 @@ Notes:
 			"Re-apply configured local file/directory copy or symlink setup to the current non-canonical worktree.",
 		)
 		.option("--json", "Machine-readable output")
-		.addHelpText(
-			"after",
-			`
-Use when:
-  Project copy configuration changed, local tool assets were updated, or a
-  worktree needs its untracked setup files materialized again without recreating
-  the checkout.
+		.addHelpText("after", HELP.copy)
+		.action((_opts, command) => runAction("copy", optsToArgs(command.optsWithGlobals()), deps));
+};
 
-Notes:
-  copy targets the non-canonical worktree containing --cwd (or the current directory by default) and refuses the
-  canonical root. Destinations are engine-managed untracked setup paths; reruns
-  replace those paths from their configured sources.
-`,
-		)
-		.action(async (_opts, command) => {
-			await runAction("copy", optsToArgs(command.optsWithGlobals()), deps);
-		});
-
+const registerFinish = (program: Command, deps: Deps): void => {
 	program
 		.command("finish")
 		.summary("Integrate completed work")
@@ -302,30 +152,11 @@ Notes:
 			"Integrate the current non-canonical worktree into the canonical root using effective finish policy.",
 		)
 		.option("--json", "Machine-readable output")
-		.addHelpText(
-			"after",
-			`
-Use when:
-  Work on a branch is complete and should be folded back into the canonical
-  target branch with the same lifecycle rules used by creation and cleanup.
+		.addHelpText("after", HELP.finish)
+		.action((_opts, command) => runAction("finish", optsToArgs(command.optsWithGlobals()), deps));
+};
 
-Notes:
-  finish refuses the canonical root, requires a clean source worktree, fetches,
-  requires a clean/fresh target, and stops on conflicts. Strategy, push, worktree
-  cleanup, and branch deletion all come from finish policy in config; use config
-  explain to inspect the effective values. Valid strategies are ff_only,
-  rebase_ff, squash, and merge_commit.
-
-Cleanup:
-  Configured remove_worktree removes regular worktrees or frees pooled slots only
-  after integration and configured push succeed. Configured delete_branch
-  requires remove_worktree to be enabled in the same effective policy.
-`,
-		)
-		.action(async (_opts, command) => {
-			await runAction("finish", optsToArgs(command.optsWithGlobals()), deps);
-		});
-
+const registerPick = (program: Command, deps: Deps): void => {
 	program
 		.command("pick")
 		.summary("Fuzzy-pick worktree")
@@ -333,100 +164,84 @@ Cleanup:
 			"Fuzzy-pick a worktree with fzf and print its path, or with --interactive hand it to the invoking shell or open its multiplexer session.",
 		)
 		.option("--open", "Open the selection's multiplexer session instead of printing its path")
-		.addHelpText(
-			"after",
-			`
-Use when:
-  A human wants to switch worktrees. pick needs a terminal; agents should use
-  list or path instead.
+		.addHelpText("after", HELP.pick)
+		.action((_opts, command) => runAction("pick", optsToArgs(command.optsWithGlobals()), deps));
+};
 
-Notes:
-  Rows list every worktree, with * marking the one containing --cwd, and preview
-  its multiplexer session or recent history. Inside tmux fzf opens in a popup.
-  Without --open, the selected path is printed; with --interactive it is also
-  written to the file named by HONEYCOMB_CD_FILE so a shell wrapper can change to
-  it. --open requires --interactive and a multiplexer session. Cancelling exits
-  130 without output.
-`,
-		)
-		.action(async (_opts, command) => {
-			await runAction("pick", optsToArgs(command.optsWithGlobals()), deps);
-		});
-
+const registerShellInit = (program: Command, deps: Deps): void => {
 	program
 		.command("shell-init <shell>")
 		.summary("Print shell integration")
 		.description("Print a wk picker function for zsh or nu; does not require a repository.")
-		.addHelpText(
-			"after",
-			`
-Setup:
-  zsh: add eval "$(honeycomb shell-init zsh)" to ~/.zshrc.
-  Nushell: save honeycomb shell-init nu to honeycomb.nu in your config directory,
-  then import it with use in config.nu.
+		.addHelpText("after", HELP.shellInit)
+		.action((shell: string) => runAction("shell-init", [shell], deps));
+};
 
-Usage:
-  wk picks a worktree and changes the current shell's directory.
-  Arguments are passed to honeycomb --interactive pick, not other commands.
-`,
-		)
-		.action(async (shell: string) => {
-			await runAction("shell-init", [shell], deps);
-		});
-
+const registerConfig = (program: Command, deps: Deps): void => {
 	program
 		.command("config")
 		.summary("Inspect configuration")
 		.description("Inspect effective honeycomb configuration and policy.")
-		.addHelpText(
-			"after",
-			`
-Use subcommands to explain the configuration resolved for a repository.
-
-Related:
-  config explain --cwd <path> --json
-`,
-		)
+		.addHelpText("after", HELP.config)
 		.command("explain")
 		.summary("Explain effective config")
 		.description(
 			"Show effective policy, bootstrap command source, and matching config layers for a repository.",
 		)
 		.option("--json", "Machine-readable output")
-		.addHelpText(
-			"after",
-			`
-Use when:
-  Debugging why add, finish, pools, copy setup, or bootstrap commands behave a
-  certain way for a repository.
+		.addHelpText("after", HELP.explain)
+		.action((_opts, command) =>
+			runAction("config", ["explain", ...optsToArgs(command.optsWithGlobals())], deps),
+		);
+};
 
-Notes:
-  Resolution starts with built-in defaults, applies matching root_glob rules in
-  file order, then exact project overrides. Use --json for the matched rules,
-  exact project, command source, add policy, and finish policy.
-`,
-		)
-		.action(async (_opts, command) => {
-			await runAction("config", ["explain", ...optsToArgs(command.optsWithGlobals())], deps);
-		});
+const registrations = [
+	registerRoot,
+	registerList,
+	registerPath,
+	registerAdd,
+	registerRemove,
+	registerEnsure,
+	registerStatus,
+	registerCopy,
+	registerFinish,
+	registerPick,
+	registerShellInit,
+	registerConfig,
+];
 
+const configureCompletion = (program: Command): void => {
 	const completion = tab(program, { completionCommandName: "completions" });
 	// The adapter collects local options only; Commander also accepts root options on subcommands.
 	for (const command of completion.commands.values()) {
 		for (const [name, option] of completion.options) {
-			if (!command.options.has(name)) command.options.set(name, option);
+			if (!command.options.has(name)) {
+				command.options.set(name, option);
+			}
 		}
 	}
+};
 
+const handleParseError = async (error: unknown, json: boolean): Promise<void> => {
+	if (!(error instanceof CommanderError)) {
+		throw error;
+	}
+	if (error.exitCode === EXIT_CODES.SUCCESS) {
+		process.exit(EXIT_CODES.SUCCESS);
+	}
+	if (!json) {
+		process.exit(EXIT_CODES.USAGE);
+	}
+	const usage = new UsageError(error.message.replace(/^error: /u, ""));
+	await writeResult(renderJsonResult(formatFailure(usage, { json })));
+	process.exit(EXIT_CODES.USAGE);
+};
+
+const parseProgram = async (program: Command, argv: string[], json: boolean): Promise<void> => {
 	try {
 		await program.parseAsync(argv);
 	} catch (error) {
-		if (!(error instanceof CommanderError)) throw error;
-		if (error.exitCode === 0) process.exit(0);
-		if (!json) process.exit(EXIT_CODES.USAGE);
-		const usage = new UsageError(error.message.replace(/^error: /, ""));
-		await writeResult(renderJsonResult(formatFailure(usage, { json })));
-		process.exit(EXIT_CODES.USAGE);
+		await handleParseError(error, json);
 	}
 };
 
@@ -439,17 +254,36 @@ const runAction = async (subcmd: string, args: string[], deps: Deps): Promise<vo
 
 // Await the writes: afterOutput may close the invoking session and end this process.
 const writeResult = async (result: CommandResult): Promise<void> => {
-	if (result.stdout) await Bun.write(Bun.stdout, result.stdout);
-	if (result.stderr) await Bun.write(Bun.stderr, result.stderr);
+	if (result.stdout) {
+		await Bun.write(Bun.stdout, result.stdout);
+	}
+	if (result.stderr) {
+		await Bun.write(Bun.stderr, result.stderr);
+	}
 };
 
 const optsToArgs = (opts: Record<string, unknown>): string[] => {
 	const args: string[] = [];
 	for (const [key, value] of Object.entries(opts)) {
-		const flag = key.replace(/[A-Z]/g, (char) => `-${char.toLowerCase()}`);
-		if (value === true) args.push(`--${flag}`);
-		else if (value !== false && value !== undefined && value !== null)
+		const flag = key.replaceAll(/[A-Z]/gu, (char) => `-${char.toLowerCase()}`);
+		if (value === true) {
+			args.push(`--${flag}`);
+		} else if (value !== false && value !== undefined && value !== null) {
 			args.push(`--${flag}`, String(value));
+		}
 	}
 	return args;
 };
+
+const main = async (argv: string[] = Bun.argv, deps: Deps = createLiveDeps()): Promise<void> => {
+	// Commander may reject arguments before dispatch can format them.
+	const json = argv.includes("--json");
+	const program = createProgram(json);
+	for (const register of registrations) {
+		register(program, deps);
+	}
+	configureCompletion(program);
+	await parseProgram(program, argv, json);
+};
+
+export { main };

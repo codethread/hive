@@ -1,0 +1,241 @@
+import { ConfigError, EXIT_CODES, dispatch } from "../../src/index";
+import { afterEach, beforeEach, expect, test } from "bun:test";
+import {
+	commitFile,
+	deps,
+	restoreTestEnv,
+	run,
+	setTestEnv,
+	useOriginFixture,
+	writeConfig,
+} from "./support.ts";
+// oxlint-disable-next-line import/no-nodejs-modules -- Integration fixtures exercise real filesystem and process boundaries.
+import { join, resolve } from "node:path";
+// oxlint-disable-next-line import/no-nodejs-modules -- Integration fixtures exercise real filesystem and process boundaries.
+import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
+// oxlint-disable-next-line import/no-nodejs-modules -- Integration fixtures exercise real filesystem and process boundaries.
+import { tmpdir } from "node:os";
+
+const { initRepoWithOrigin } = useOriginFixture();
+
+let tmp = "";
+
+beforeEach(async () => {
+	tmp = await mkdtemp(join(tmpdir(), "honeycomb-copy-test-"));
+	setTestEnv("HOME", tmp);
+	setTestEnv("GIT_CONFIG_NOSYSTEM", "1");
+	setTestEnv("GIT_CONFIG_GLOBAL", join(tmp, "gitconfig"));
+	setTestEnv("XDG_CONFIG_HOME", join(tmp, "config"));
+});
+
+afterEach(async () => {
+	restoreTestEnv();
+	await rm(tmp, { force: true, recursive: true });
+});
+
+const initTrackedDescendant = async () => {
+	const { root } = await initRepoWithOrigin(tmp);
+	await mkdir(join(root, "src-dir"));
+	await writeFile(join(root, "src-dir", "foo.txt"), "source\n");
+	writeConfig({ command: "echo ready", root, tmp });
+	await dispatch("add", ["--cwd", root, "--branch", "feature/tracked-desc", "--json"], deps);
+	writeConfig({
+		command: "echo ready",
+		copyToml: 'copy = [{ from = "src-dir", to = "tracked-dir" }]\n',
+		root,
+		tmp,
+	});
+	const worktreePath = `${root}__feature--tracked-desc`;
+	await mkdir(join(worktreePath, "tracked-dir"));
+	await commitFile({
+		content: "tracked\n",
+		message: "tracked descendant",
+		path: "tracked-dir/keep.txt",
+		repo: worktreePath,
+	});
+	return { worktreePath };
+};
+
+test("tracked descendants under directory destinations block with unsafe JSON", async () => {
+	const { worktreePath } = await initTrackedDescendant();
+
+	const result = await dispatch("copy", ["--cwd", worktreePath, "--json"], deps);
+
+	expect(result.exitCode).toBe(EXIT_CODES.UNSAFE);
+	expect(JSON.parse(result.stdout ?? "{}")).toMatchObject({ kind: "blocked", reason: "unsafe" });
+	expect(await readFile(join(worktreePath, "tracked-dir", "keep.txt"), "utf8")).toBe("tracked\n");
+});
+
+const initTrackedAncestor = async () => {
+	const { root } = await initRepoWithOrigin(tmp);
+	await writeFile(join(root, ".env"), "source\n");
+	await writeFile(join(root, "tracked-file"), "tracked\n");
+	await run(["git", "-C", root, "add", "tracked-file"]);
+	await run(["git", "-C", root, "commit", "-m", "tracked ancestor"]);
+	await run(["git", "-C", root, "push", "origin", "main"]);
+	writeConfig({ command: "echo ready", root, tmp });
+	await dispatch("add", ["--cwd", root, "--branch", "feature/tracked-ancestor", "--json"], deps);
+	writeConfig({
+		command: "echo ready",
+		copyToml: 'copy = [{ from = ".env", to = "tracked-file/nested" }]\n',
+		root,
+		tmp,
+	});
+	return { root };
+};
+
+test("tracked destination ancestors block with unsafe JSON", async () => {
+	const { root } = await initTrackedAncestor();
+
+	const result = await dispatch(
+		"copy",
+		["--cwd", `${root}__feature--tracked-ancestor`, "--json"],
+		deps,
+	);
+
+	expect(result.exitCode).toBe(EXIT_CODES.UNSAFE);
+	expect(JSON.parse(result.stdout ?? "{}")).toMatchObject({ kind: "blocked", reason: "unsafe" });
+});
+
+const commitTrackedSettings = async (root: string) => {
+	await mkdir(join(root, ".claude"));
+	await writeFile(join(root, ".claude", "settings.json"), '{"tracked":true}\n');
+	await run(["git", "-C", root, "add", "source.txt", ".claude/settings.json"]);
+	await run(["git", "-C", root, "commit", "-m", "track claude settings"]);
+	await run(["git", "-C", root, "push", "origin", "main"]);
+};
+
+const initTrackedDirectory = async () => {
+	const { root } = await initRepoWithOrigin(tmp);
+	await writeFile(join(root, "source.txt"), "source\n");
+	await commitTrackedSettings(root);
+	writeConfig({ command: "echo ready", root, tmp });
+	await dispatch(
+		"add",
+		["--cwd", root, "--branch", "feature/tracked-dir-ancestor", "--json"],
+		deps,
+	);
+	writeConfig({
+		command: "echo ready",
+		copyToml: 'copy = [{ from = "source.txt", to = ".claude/settings.local.json" }]\n',
+		root,
+		tmp,
+	});
+	const worktreePath = `${root}__feature--tracked-dir-ancestor`;
+	return { root, worktreePath };
+};
+
+test("untracked file inside tracked directory destination is allowed", async () => {
+	const { root, worktreePath } = await initTrackedDirectory();
+
+	const result = await dispatch("copy", ["--cwd", worktreePath, "--json"], deps);
+
+	expect(result.exitCode).toBe(EXIT_CODES.SUCCESS);
+	expect(await readFile(join(worktreePath, ".claude", "settings.local.json"), "utf8")).toBe(
+		"source\n",
+	);
+	expect(JSON.parse(result.stdout ?? "{}")).toMatchObject({
+		copied: [{ from: join(root, "source.txt"), to: ".claude/settings.local.json", type: "file" }],
+		exclude_paths: [".claude/settings.local.json"],
+		kind: "ready",
+		root,
+		worktree_path: worktreePath,
+	});
+});
+
+test("deduplicates exclude paths across entries and multi-target destinations", async () => {
+	const { root } = await initRepoWithOrigin(tmp);
+	await writeFile(join(root, ".env"), "one\n");
+	writeConfig({
+		command: "echo ready",
+		copyToml:
+			'copy = [".env", { from = ".env", to = [".env", "copy.env"] }, { from = ".env", to = "copy.env" }]\n',
+		root,
+		tmp,
+	});
+	await dispatch("add", ["--cwd", root, "--branch", "feature/dedup", "--json"], deps);
+
+	const result = await dispatch("copy", ["--cwd", `${root}__feature--dedup`, "--json"], deps);
+	const payload = JSON.parse(result.stdout ?? "{}");
+
+	expect(payload.exclude_paths).toEqual([".env", "copy.env"]);
+});
+
+test.each([
+	{ config: 'copy = [{ to = ".env" }]', name: "missing from" },
+	{ config: 'copy = [{ from = ".env" }]', name: "missing to" },
+	{ config: 'copy = [{ from = "", to = ".env" }]', name: "empty from" },
+	{ config: 'copy = [{ from = ".env", to = "" }]', name: "empty to" },
+	{ config: 'copy = [{ from = ".env", to = "/tmp/.env" }]', name: "absolute to" },
+	{ config: 'copy = [{ from = ".env", to = "~/.env" }]', name: "home to" },
+	{ config: 'copy = [{ from = ".env", to = "~secret" }]', name: "leading home to" },
+	{ config: 'copy = [{ from = ".env", to = "../.env" }]', name: "escaping to" },
+])("invalid object config $name fails as config error", async ({ config }) => {
+	const { root } = await initRepoWithOrigin(tmp);
+	writeConfig({ command: "echo ready", root, tmp });
+	await dispatch("add", ["--cwd", root, "--branch", "feature/invalid-object", "--json"], deps);
+	writeConfig({ command: "echo ready", copyToml: `${config}\n`, root, tmp });
+
+	const result = await dispatch(
+		"copy",
+		["--cwd", `${root}__feature--invalid-object`, "--json"],
+		deps,
+	);
+	expect(result.failure).toBeInstanceOf(ConfigError);
+});
+
+const sharedExcludePath = async (root: string) => {
+	const result = await run(["git", "-C", root, "rev-parse", "--git-path", "info/exclude"]);
+	return result.stdout.trim();
+};
+
+const initSymlinkedExclude = async () => {
+	const { root } = await initRepoWithOrigin(tmp);
+	const excludePath = await sharedExcludePath(root);
+	const realExclude = join(tmp, "real-exclude");
+	await rm(resolve(root, excludePath));
+	await symlink(realExclude, resolve(root, excludePath));
+	await writeFile(realExclude, "*.log\n");
+	await writeFile(join(root, ".env"), "ignored\n");
+	writeConfig({ command: "echo ready", copyToml: 'copy = [".env"]\n', root, tmp });
+	await dispatch("add", ["--cwd", root, "--branch", "feature/symlink-exclude", "--json"], deps);
+	return { excludePath, realExclude, root };
+};
+
+test("follows symlinked shared exclude path", async () => {
+	const { root, realExclude, excludePath } = await initSymlinkedExclude();
+
+	await dispatch("copy", ["--cwd", `${root}__feature--symlink-exclude`], deps);
+
+	expect(await readFile(realExclude, "utf8")).toBe("*.log\n# wktree-start\n.env\n# wktree-end\n");
+	const symlinkResult = await run(["test", "-L", resolve(root, excludePath)]);
+	expect(symlinkResult.exitCode).toBe(EXIT_CODES.SUCCESS);
+});
+
+const initExcludeFence = async () => {
+	const { root } = await initRepoWithOrigin(tmp);
+	const excludePath = await sharedExcludePath(root);
+	await writeFile(resolve(root, excludePath), "*.log\n");
+	await writeFile(join(root, ".env"), "ignored\n");
+	writeConfig({ command: "echo ready", copyToml: 'copy = [".env"]\n', root, tmp });
+	await dispatch("add", ["--cwd", root, "--branch", "feature/ignore-copy", "--json"], deps);
+	const worktreePath = `${root}__feature--ignore-copy`;
+	return { excludePath, root, worktreePath };
+};
+
+test("exclude fence is idempotent, preserves unrelated lines, removes when copy is removed, and ignores copied files", async () => {
+	const { root, excludePath, worktreePath } = await initExcludeFence();
+
+	await dispatch("copy", ["--cwd", worktreePath], deps);
+	await dispatch("copy", ["--cwd", worktreePath], deps);
+
+	const withFence = await readFile(resolve(root, excludePath), "utf8");
+	expect(withFence).toBe("*.log\n# wktree-start\n.env\n# wktree-end\n");
+	const status = await run(["git", "-C", worktreePath, "status", "--porcelain"]);
+	expect(status.stdout).toBe("");
+
+	writeConfig({ command: "echo ready", root, tmp });
+	await dispatch("copy", ["--cwd", worktreePath], deps);
+
+	expect(await readFile(resolve(root, excludePath), "utf8")).toBe("*.log\n");
+});

@@ -1,10 +1,10 @@
+import type { CopiedFile, PostCreateScriptSpec } from "./domain/worktree.ts";
 import type {
 	CopyEntry,
 	PolicyExplanation,
 	TreesConfig,
 	WorktreeLocation,
 } from "./domain/config.ts";
-import type { CopiedFile, PostCreateScriptSpec } from "./domain/worktree.ts";
 import type { Multiplexer } from "./integrations/multiplexer.ts";
 
 export interface GitResult {
@@ -18,29 +18,29 @@ export interface GitResult {
 
 export interface GitRunner {
 	/** Run Git, throwing when it exits unsuccessfully. */
-	run(args: string[], opts?: { cwd?: string }): Promise<GitResult>;
+	run: (args: string[], opts?: { cwd?: string }) => Promise<GitResult>;
 	/** Run Git and let the caller interpret its exit status. */
-	runRaw(args: string[], opts?: { cwd?: string }): Promise<GitResult>;
+	runRaw: (args: string[], opts?: { cwd?: string }) => Promise<GitResult>;
 }
 
 export interface ConfigService {
 	/** Load and validate configuration at the command boundary. */
-	read(): TreesConfig;
+	read: () => TreesConfig;
 	/** Resolve policy after canonicalizing filesystem paths. */
-	explain(config: TreesConfig, root: string): PolicyExplanation;
+	explain: (config: TreesConfig, root: string) => PolicyExplanation;
 }
 
 export interface WorkspaceFiles {
 	/** Resolve existing paths through symlinks; preserve missing paths. */
-	normalizePath(path: string): string;
+	normalizePath: (path: string) => string;
 	/** Check whether a filesystem target exists. */
-	exists(path: string): boolean;
+	exists: (path: string) => boolean;
 	/** Prepare the directory and ignore entry for a nested worktree. */
-	prepareParent(root: string, path: string, location: WorktreeLocation): Promise<void>;
+	prepareParent: (root: string, path: string, location: WorktreeLocation) => Promise<void>;
 	/** Validate all destinations before replacing configured local assets. */
-	copy(root: string, target: string, entries: CopyEntry[]): Promise<CopiedFile[]>;
+	copy: (root: string, target: string, entries: CopyEntry[]) => Promise<CopiedFile[]>;
 	/** Write an executable bootstrap script and return its path. */
-	writePostCreateScript(spec: PostCreateScriptSpec): string;
+	writePostCreateScript: (spec: PostCreateScriptSpec) => string;
 }
 
 export interface HookResult {
@@ -52,16 +52,20 @@ export interface HookResult {
 	exitCode: number;
 }
 
+export interface HookExecutionOptions {
+	/** Working directory inherited by the hook. */
+	cwd: string;
+	/** Overrides merged into the invoking process's environment. */
+	env: Record<string, string>;
+	/** Receives output while the hook is running; omitted when only capture is needed. */
+	onLine?: (stream: "stdout" | "stderr", line: string) => void;
+}
+
 export interface HookRunner {
 	/** Execute a bootstrap file, raising a hook failure on nonzero exit. */
-	runInline(
-		scriptPath: string,
-		cwd: string,
-		env: Record<string, string>,
-		onLine: (stream: "stdout" | "stderr", line: string) => void,
-	): Promise<void>;
+	runInline: (scriptPath: string, options: HookExecutionOptions) => Promise<void>;
 	/** Execute a preflight command and capture its output. */
-	runCommand(script: string, cwd: string, env: Record<string, string>): Promise<HookResult>;
+	runCommand: (script: string, cwd: string, env: Record<string, string>) => Promise<HookResult>;
 }
 
 export interface PickerItem {
@@ -80,23 +84,23 @@ export interface PickerOptions {
 
 export interface PickerService {
 	/** Select one of the supplied items. */
-	pick(items: PickerItem[], header: string, options?: PickerOptions): Promise<PickerItem>;
+	pick: (items: PickerItem[], header: string, options?: PickerOptions) => Promise<PickerItem>;
 	/** Ask whether the user accepts the described operation. */
-	confirm(prompt: string): Promise<boolean>;
+	confirm: (prompt: string) => Promise<boolean>;
 }
 
 export interface ProgressReporter {
 	/** Show the current operation. */
-	banner(line: string): void;
+	banner: (line: string) => void;
 	/** Forward a hook output line. */
-	stream(stream: "stdout" | "stderr", line: string): void;
+	stream: (stream: "stdout" | "stderr", line: string) => void;
 	/** Report a diagnostic. */
-	error(msg: string): void;
+	error: (msg: string) => void;
 }
 
 export interface CdDirective {
 	/** Ask the invoking wrapper to change its shell's directory to path. */
-	write(path: string): void;
+	write: (path: string) => void;
 }
 
 export interface Deps {
@@ -117,5 +121,5 @@ export interface Deps {
 	/** Command diagnostics and hook output. */
 	progress: ProgressReporter;
 	/** Time source for human-readable commit ages. */
-	clock: { now(): number };
+	clock: { now: () => number };
 }

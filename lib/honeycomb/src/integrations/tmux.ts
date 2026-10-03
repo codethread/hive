@@ -1,55 +1,12 @@
-import {
-	NoMultiplexer,
-	WORKTREE_PATH_FIELD,
-	type Multiplexer,
-	type MultiplexerOpenRequest,
-} from "./multiplexer.ts";
+import type { Multiplexer, MultiplexerOpenRequest } from "./multiplexer.ts";
+import { NoMultiplexer, WORKTREE_PATH_FIELD } from "./multiplexer.ts";
+import type { CommandRunner } from "./command-runner.ts";
+import { EXIT_CODES } from "../errors.ts";
+import { LiveCommandRunner } from "./command-runner.ts";
+import { TmuxError } from "./tmux-error.ts";
 
-/** Result of one external command. */
-export interface CommandResult {
-	/** Captured standard output. */
-	stdout: string;
-	/** Captured diagnostics. */
-	stderr: string;
-	/** Process exit status. */
-	exitCode: number;
-}
-
-/** Process boundary for multiplexer commands. */
-export interface CommandRunner {
-	/** Run a command and return its exit status and captured output. */
-	run(command: string, args: string[]): Promise<CommandResult>;
-}
-
-export class LiveCommandRunner implements CommandRunner {
-	async run(command: string, args: string[]): Promise<CommandResult> {
-		// Keep a stable neutral cwd: interactive cleanup closes sessions after removing
-		// the worktree that may contain the process's original directory.
-		const proc = Bun.spawn([command, ...args], { cwd: "/", stdout: "pipe", stderr: "pipe" });
-		const [stdout, stderr, exitCode] = await Promise.all([
-			new Response(proc.stdout).text(),
-			new Response(proc.stderr).text(),
-			proc.exited,
-		]);
-		return { stdout, stderr, exitCode };
-	}
-}
-
-export class TmuxError extends Error {
-	args: string[];
-	stderr: string;
-	tmuxExitCode: number;
-	constructor(args: string[], stderr: string, tmuxExitCode: number) {
-		super(`tmux ${args.join(" ")} failed: ${stderr.trim()}`);
-		this.args = args;
-		this.stderr = stderr;
-		this.tmuxExitCode = tmuxExitCode;
-		this.name = "TmuxError";
-	}
-}
-
-/** tmux state inherited from the invoking process. */
-export interface TmuxEnvironment {
+/** Tmux state inherited from the invoking process. */
+interface TmuxEnvironment {
 	/** Server/session identity; present when honeycomb runs inside tmux. */
 	TMUX?: string | undefined;
 	/** Pane that invoked honeycomb, used to resolve the client to switch. */
@@ -57,7 +14,7 @@ export interface TmuxEnvironment {
 }
 
 /** Session observed through tmux. */
-export interface TmuxSession {
+interface TmuxSession {
 	/** Session name. */
 	name: string;
 	/** Directory the session was created in. */
@@ -67,9 +24,12 @@ export interface TmuxSession {
 const TAB = "\t";
 const SESSION_LIST_FORMAT = `#{session_name}${TAB}#{session_path}`;
 const PANE_LIST_FORMAT = `#{pane_id}${TAB}#{pane_current_path}`;
-const NOTHING_TO_CLOSE = /no server running|no sessions/;
+const NOTHING_TO_CLOSE = /no server running|no sessions/u;
 
-export class TmuxMultiplexer implements Multiplexer {
+const pathContains = (parent: string, child: string): boolean =>
+	child === parent || child.startsWith(`${parent}/`);
+
+class TmuxMultiplexer implements Multiplexer {
 	readonly attached = true;
 	private readonly runner: CommandRunner;
 	private readonly env: TmuxEnvironment;
@@ -82,7 +42,7 @@ export class TmuxMultiplexer implements Multiplexer {
 	async open(request: MultiplexerOpenRequest): Promise<void> {
 		const target = `=${request.name}`;
 		const existing = await this.runner.run("tmux", ["has-session", "-t", target]);
-		if (existing.exitCode !== 0) {
+		if (existing.exitCode !== EXIT_CODES.SUCCESS) {
 			await this.run([
 				"new-session",
 				"-d",
@@ -95,20 +55,30 @@ export class TmuxMultiplexer implements Multiplexer {
 			]);
 		}
 		const client = await this.invokingClient();
-		await this.run(["switch-client", ...(client ? ["-c", client] : []), "-t", target]);
+		const switchArgs = ["switch-client"];
+		if (client !== undefined) {
+			switchArgs.push("-c", client);
+		}
+		switchArgs.push("-t", target);
+		await this.run(switchArgs);
 	}
 
 	async closeUnder(path: string): Promise<void> {
 		const args = ["list-sessions", "-F", SESSION_LIST_FORMAT];
 		const listed = await this.runner.run("tmux", args);
-		if (listed.exitCode !== 0) {
+		if (listed.exitCode !== EXIT_CODES.SUCCESS) {
 			// An absent server or no sessions means nothing to close; anything else is a failure.
-			if (NOTHING_TO_CLOSE.test(listed.stderr)) return;
+			if (NOTHING_TO_CLOSE.test(listed.stderr)) {
+				return;
+			}
 			throw new TmuxError(args, listed.stderr, listed.exitCode);
 		}
 		for (const session of parseSessionList(listed.stdout)) {
-			if (!pathContains(path, session.path)) continue;
-			await this.run(["kill-session", "-t", `=${session.name}`]);
+			if (pathContains(path, session.path)) {
+				// Kill sessions one at a time so the first tmux failure surfaces deterministically.
+				// oxlint-disable-next-line eslint/no-await-in-loop
+				await this.run(["kill-session", "-t", `=${session.name}`]);
+			}
 		}
 	}
 
@@ -121,9 +91,11 @@ export class TmuxMultiplexer implements Multiplexer {
 	}
 
 	/** Client whose focus switch-client should move; absent when the pane cannot be resolved. */
-	private async invokingClient(): Promise<string | null> {
+	private async invokingClient(): Promise<string | undefined> {
 		const pane = this.env.TMUX_PANE;
-		if (!pane) return null;
+		if (!pane) {
+			return;
+		}
 		const result = await this.runner.run("tmux", [
 			"display-message",
 			"-p",
@@ -131,34 +103,47 @@ export class TmuxMultiplexer implements Multiplexer {
 			pane,
 			"#{client_tty}",
 		]);
-		if (result.exitCode !== 0) return null;
+		if (result.exitCode !== EXIT_CODES.SUCCESS) {
+			return;
+		}
 		const client = result.stdout.trim();
-		return client === "" ? null : client;
+		if (client === "") {
+			return;
+		}
+		return client;
 	}
 
 	/** Run tmux, surfacing a nonzero exit as TmuxError. */
 	private async run(args: string[]): Promise<void> {
 		const result = await this.runner.run("tmux", args);
-		if (result.exitCode !== 0) throw new TmuxError(args, result.stderr, result.exitCode);
+		if (result.exitCode !== EXIT_CODES.SUCCESS) {
+			throw new TmuxError(args, result.stderr, result.exitCode);
+		}
 	}
 }
 
 /** Parse name/path rows from list-sessions, skipping rows without both fields. */
-export const parseSessionList = (output: string): TmuxSession[] => {
+const parseSessionList = (output: string): TmuxSession[] => {
 	const sessions: TmuxSession[] = [];
 	for (const line of output.split("\n")) {
-		const parts = line.split(TAB);
-		const name = parts[0];
-		const path = parts[1];
-		if (!name || !path) continue;
-		sessions.push({ name, path });
+		const [name, path] = line.split(TAB);
+		if (name && path) {
+			sessions.push({ name, path });
+		}
 	}
 	return sessions;
 };
 
-const pathContains = (parent: string, child: string): boolean =>
-	child === parent || child.startsWith(`${parent}/`);
-
 /** Select tmux when the process runs inside it, otherwise the null implementation. */
-export const selectMultiplexer = (env: TmuxEnvironment): Multiplexer =>
-	env.TMUX ? new TmuxMultiplexer(new LiveCommandRunner(), env) : new NoMultiplexer();
+const selectMultiplexer = (env: TmuxEnvironment): Multiplexer => {
+	if (env.TMUX) {
+		return new TmuxMultiplexer(new LiveCommandRunner(), env);
+	}
+	return new NoMultiplexer();
+};
+
+export { parseSessionList, selectMultiplexer, TmuxMultiplexer };
+export { LiveCommandRunner } from "./command-runner.ts";
+export type { CommandResult, CommandRunner } from "./command-runner.ts";
+export { TmuxError } from "./tmux-error.ts";
+export type { TmuxEnvironment, TmuxSession };

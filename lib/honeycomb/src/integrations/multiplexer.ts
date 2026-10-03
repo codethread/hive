@@ -19,18 +19,18 @@ export interface Multiplexer {
 	/** Whether honeycomb runs inside this multiplexer, so open can move the user's focus. */
 	readonly attached: boolean;
 	/** Create the session when it is missing, then focus it. */
-	open(request: MultiplexerOpenRequest): Promise<void>;
+	open: (request: MultiplexerOpenRequest) => Promise<void>;
 	/** Close every session whose working directory is path or below it. */
-	closeUnder(path: string): Promise<void>;
+	closeUnder: (path: string) => Promise<void>;
 	/**
 	 * Shell command for the picker's live preview of a worktree. The command
 	 * reads the worktree path from fzf's first tab-delimited field, so picker
 	 * rows must keep the path first and fzf must run with a tab delimiter.
 	 */
-	previewCommand(): string;
+	previewCommand: () => string;
 }
 
-/** fzf field holding the worktree path in picker rows. */
+/** Field holding the worktree path in picker rows; read by fzf as `{1}`. */
 export const WORKTREE_PATH_FIELD = "{1}";
 
 /** Preview command for worktrees no session shows: recent history. */
@@ -56,6 +56,6 @@ export class NoMultiplexer implements Multiplexer {
 /** Build an open request whose session name matches the payload session identity. */
 export const openRequestForWorktree = (path: string, title: string): MultiplexerOpenRequest => ({
 	name: sessionNameForWorktreePath(path),
-	title,
 	path,
+	title,
 });

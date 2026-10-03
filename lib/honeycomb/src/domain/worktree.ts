@@ -1,33 +1,39 @@
+// eslint-disable-next-line import/no-nodejs-modules -- Worktree paths are real filesystem paths by contract.
 import { basename, dirname, isAbsolute, resolve } from "node:path";
 import { UsageError } from "../errors.ts";
 import type { WorktreeLocation } from "./config.ts";
 
-export const NESTED_WORKTREE_DIR = ".worktrees";
+const LEGACY_NESTED_WORKTREE_DIR = ".wktree";
+const MIN_BRANCH_PARTS = 1;
+const NESTED_WORKTREE_DIR = ".worktrees";
+const TILDE_PREFIX = "~/";
 
-export const sessionNameForWorktreePath = (worktreePath: string): string => {
+const sessionNameForWorktreePath = (worktreePath: string): string => {
 	const parent = dirname(worktreePath);
 	const parentName = basename(parent);
-	const name =
-		parentName === NESTED_WORKTREE_DIR || parentName === ".wktree"
-			? `${basename(dirname(parent))}__${basename(worktreePath)}`
-			: basename(worktreePath);
+	let name = basename(worktreePath);
+	if (parentName === NESTED_WORKTREE_DIR || parentName === LEGACY_NESTED_WORKTREE_DIR) {
+		name = `${basename(dirname(parent))}__${name}`;
+	}
 	return name.replaceAll(".", "_");
 };
 
-export const encodeBranch = (branch: string): string => {
+const encodeBranch = (branch: string): string => {
 	const parts = branch.split("/").filter((part) => part !== "");
-	if (parts.length === 0) throw new UsageError(`invalid branch name: ${branch}`);
+	if (parts.length < MIN_BRANCH_PARTS) {
+		throw new UsageError(`invalid branch name: ${branch}`);
+	}
 	return parts.join("--");
 };
 
-export const worktreePathForName = (
-	root: string,
-	name: string,
-	location: WorktreeLocation,
-): string =>
-	location === "nested" ? resolve(root, NESTED_WORKTREE_DIR, name) : `${root}__${name}`;
+const worktreePathForName = (root: string, name: string, location: WorktreeLocation): string => {
+	if (location === "nested") {
+		return resolve(root, NESTED_WORKTREE_DIR, name);
+	}
+	return `${root}__${name}`;
+};
 
-export const generatePostCreateScript = (spec: PostCreateScriptSpec): string => {
+const generatePostCreateScript = (spec: PostCreateScriptSpec): string => {
 	const lines = [
 		"#!/usr/bin/env bash",
 		"set -euo pipefail",
@@ -43,15 +49,22 @@ export const generatePostCreateScript = (spec: PostCreateScriptSpec): string => 
 	return `${lines.join("\n")}\n`;
 };
 
-export const shellQuote = (value: string): string => `'${value.replaceAll("'", "'\\''")}'`;
+const shellQuote = (value: string): string => `'${value.replaceAll("'", String.raw`'\''`)}'`;
 
-export const resolveCopySource = (root: string, from: string, home: string): string => {
-	if (from === "~") return home;
-	if (from.startsWith("~/")) return resolve(home, from.slice(2));
-	return isAbsolute(from) ? from : resolve(root, from);
+const resolveCopySource = (root: string, from: string, home: string): string => {
+	if (from === "~") {
+		return home;
+	}
+	if (from.startsWith(TILDE_PREFIX)) {
+		return resolve(home, from.slice(TILDE_PREFIX.length));
+	}
+	if (isAbsolute(from)) {
+		return from;
+	}
+	return resolve(root, from);
 };
 
-export interface Worktree {
+interface Worktree {
 	/** Checkout path reported by Git. */
 	path: string;
 	/** Checked-out commit, absent for a bare repository. */
@@ -78,14 +91,14 @@ export interface Worktree {
 	pool: PoolSlotIdentity | null;
 }
 
-export interface PoolSlotIdentity {
+interface PoolSlotIdentity {
 	/** One-based slot number. */
 	index: number;
 	/** Whether the slot currently holds its reserved placeholder branch. */
 	placeholder: boolean;
 }
 
-export interface Slot {
+interface Slot {
 	/** One-based slot number. */
 	index: number;
 	/** Actual or planned path of the slot. */
@@ -106,7 +119,7 @@ export interface Slot {
 	initialized: boolean;
 }
 
-export interface PoolState {
+interface PoolState {
 	/** Canonical repository root. */
 	root: string;
 	/** Origin's default branch; empty when no pool is configured. */
@@ -119,7 +132,7 @@ export interface PoolState {
 	slots: Slot[];
 }
 
-export interface AddPlan {
+interface AddPlan {
 	/** Allocated checkout path. */
 	worktreePath: string;
 	/** Checked-out local branch. */
@@ -134,14 +147,14 @@ export interface AddPlan {
 	rollbackBranchHead: string | null;
 }
 
-export interface RemovePlan {
+interface RemovePlan {
 	/** Checkout path selected for cleanup. */
 	worktreePath: string;
 	/** Whether cleanup removed the directory rather than recycling a slot. */
 	removed: boolean;
 }
 
-export interface PostCreateScriptSpec {
+interface PostCreateScriptSpec {
 	/** Project name displayed during setup. */
 	projectName: string;
 	/** Canonical root exported to the hook. */
@@ -154,7 +167,7 @@ export interface PostCreateScriptSpec {
 	pooled: boolean;
 }
 
-export interface CopiedFile {
+interface CopiedFile {
 	/** Materialized source path. */
 	from: string;
 	/** Destination relative to the target checkout. */
@@ -163,4 +176,23 @@ export interface CopiedFile {
 	type: "file" | "directory" | "symlink";
 }
 
-export type BranchState = "local" | "remote" | "local-remote" | "none";
+type BranchState = "local" | "remote" | "local-remote" | "none";
+
+export {
+	encodeBranch,
+	generatePostCreateScript,
+	NESTED_WORKTREE_DIR,
+	resolveCopySource,
+	sessionNameForWorktreePath,
+	shellQuote,
+	worktreePathForName,
+	type AddPlan,
+	type BranchState,
+	type CopiedFile,
+	type PoolSlotIdentity,
+	type PoolState,
+	type PostCreateScriptSpec,
+	type RemovePlan,
+	type Slot,
+	type Worktree,
+};

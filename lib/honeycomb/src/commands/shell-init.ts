@@ -1,5 +1,7 @@
-import { UsageError } from "../errors.ts";
+import { EXIT_CODES, UsageError } from "../errors.ts";
 import type { CommandResult } from "../protocol.ts";
+
+const EMPTY_COUNT = 0;
 
 const ZSH_INIT = `# Fuzzy-pick a worktree and change the current shell's directory.
 wk() {
@@ -39,15 +41,27 @@ export def --env --wrapped wk [...args: string] {
 }
 `;
 
-/** Emit a picker function for shell configuration without inspecting a repository. */
-export const shellInitCommand = (args: string[]): CommandResult => {
-	if (args.length !== 1) throw new UsageError("shell-init requires one shell: zsh or nu");
-	switch (args[0]) {
-		case "zsh":
-			return { stdout: ZSH_INIT, exitCode: 0 };
-		case "nu":
-			return { stdout: NU_INIT, exitCode: 0 };
-		default:
-			throw new UsageError(`unsupported shell: ${args[0]}; expected zsh or nu`);
+const shellInitScript = (shell: string): string => {
+	switch (shell) {
+		case "zsh": {
+			return ZSH_INIT;
+		}
+		case "nu": {
+			return NU_INIT;
+		}
+		default: {
+			throw new UsageError(`unsupported shell: ${shell}; expected zsh or nu`);
+		}
 	}
 };
+
+/** Emit a picker function for shell configuration without inspecting a repository. */
+const shellInitCommand = (args: string[]): CommandResult => {
+	const [shell, ...extra] = args;
+	if (shell === undefined || extra.length !== EMPTY_COUNT) {
+		throw new UsageError("shell-init requires one shell: zsh or nu");
+	}
+	return { exitCode: EXIT_CODES.SUCCESS, stdout: shellInitScript(shell) };
+};
+
+export { shellInitCommand };

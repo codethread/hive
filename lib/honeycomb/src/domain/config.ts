@@ -1,11 +1,13 @@
-import { basename, isAbsolute, resolve } from "node:path";
+// eslint-disable-next-line import/no-nodejs-modules -- Canonical project names fall back to the root basename.
+import { basename } from "node:path";
+import { rootGlobMatches } from "./paths.ts";
 
-export type AddPolicy = "origin_default" | "fresh_canonical";
-export type WorktreeLocation = "sibling" | "nested";
-export type FinishStrategy = "ff_only" | "rebase_ff" | "squash" | "merge_commit";
-export type CopyMode = "copy" | "symlink";
+type AddPolicy = "origin_default" | "fresh_canonical";
+type WorktreeLocation = "sibling" | "nested";
+type FinishStrategy = "ff_only" | "rebase_ff" | "squash" | "merge_commit";
+type CopyMode = "copy" | "symlink";
 
-export interface FinishPolicy {
+interface FinishPolicy {
 	/** Whether finishing is permitted. */
 	enabled: boolean;
 	/** How the branch is integrated into the canonical checkout. */
@@ -18,14 +20,14 @@ export interface FinishPolicy {
 	deleteBranch: boolean;
 }
 
-export interface PolicyTables {
+interface PolicyTables {
 	/** Overrides the inherited add policy when present. */
 	add?: { policy: AddPolicy };
 	/** Fields omitted from this patch inherit their previous values. */
 	finish?: Partial<FinishPolicy>;
 }
 
-export interface CopyEntry {
+interface CopyEntry {
 	/** Source path, relative to the canonical root or absolute. */
 	from: string;
 	/** Normalized destinations relative to the created checkout. */
@@ -34,7 +36,7 @@ export interface CopyEntry {
 	mode: CopyMode;
 }
 
-export interface ProjectConfig extends PolicyTables {
+interface ProjectConfig extends PolicyTables {
 	/** Display name, defaulting to the configured root's basename. */
 	name: string | null;
 	/** Expanded configured path, retained for source attribution. */
@@ -53,7 +55,7 @@ export interface ProjectConfig extends PolicyTables {
 	copy: CopyEntry[];
 }
 
-export interface PolicyRule extends PolicyTables {
+interface PolicyRule extends PolicyTables {
 	/** Expanded glob matched against canonical repository paths. */
 	rootGlob: string;
 	/** Bootstrap command contributed by this rule, if any. */
@@ -64,7 +66,7 @@ export interface PolicyRule extends PolicyTables {
 	preRemoteCheck?: string | null;
 }
 
-export interface TreesConfig {
+interface TreesConfig {
 	/** Exact-root configuration entries. */
 	projects: ProjectConfig[];
 	/** Rules in precedence order, with later matches winning. */
@@ -75,7 +77,7 @@ export interface TreesConfig {
 	worktreeLocation: WorktreeLocation;
 }
 
-export interface ConfigPathContext {
+interface ConfigPathContext {
 	/** Home directory used for leading tilde expansion. */
 	home: string;
 	/** Base directory for relative paths in the configuration. */
@@ -84,14 +86,14 @@ export interface ConfigPathContext {
 	normalizePath: (path: string) => string;
 }
 
-export interface ResolvedConfigString {
+interface ResolvedConfigString {
 	/** Selected value, or null when no layer supplies one. */
 	value: string | null;
 	/** Project or rule that supplied the value. */
 	source: string | null;
 }
 
-export interface PolicyExplanation {
+interface PolicyExplanation {
 	/** Canonicalized repository path used for rule matching. */
 	canonicalRoot: string;
 	/** Matching rules in precedence order. */
@@ -110,27 +112,35 @@ export interface PolicyExplanation {
 	preRemoteCheck: ResolvedConfigString;
 }
 
-export const BUILTIN_ADD_POLICY: AddPolicy = "origin_default";
-export const BUILTIN_FINISH_POLICY: FinishPolicy = {
+type FieldName = "command" | "preRemoteCheck";
+type NormalizePath = (path: string) => string;
+
+interface StringFieldRequest {
+	config: TreesConfig;
+	/** Canonicalized repository path used for matching. */
+	canonicalRoot: string;
+	field: FieldName;
+	normalizePath: NormalizePath;
+}
+
+interface PolicyLayers {
+	addPolicy: AddPolicy;
+	finishPolicy: FinishPolicy;
+	worktreeLocation: WorktreeLocation;
+}
+
+const BUILTIN_ADD_POLICY: AddPolicy = "origin_default";
+const BUILTIN_FINISH_POLICY: FinishPolicy = {
+	deleteBranch: false,
 	enabled: true,
-	strategy: "ff_only",
 	push: false,
 	removeWorktree: false,
-	deleteBranch: false,
+	strategy: "ff_only",
 };
-
-export const expandConfigPath = (path: string, context: ConfigPathContext): string => {
-	if (path === "~") return context.home;
-	if (path.startsWith("~/")) return resolve(context.home, path.slice(2));
-	return isAbsolute(path) ? resolve(path) : resolve(context.cwd, path);
-};
-
-export const expandConfigGlob = (glob: string, context: ConfigPathContext): string =>
-	isAbsolute(glob) ? glob : expandConfigPath(glob, context);
 
 const identityPath = (path: string): string => path;
 
-export const findProjectForRoot = (
+const findProjectForRoot = (
 	config: TreesConfig,
 	root: string,
 	normalizePath = identityPath,
@@ -139,46 +149,86 @@ export const findProjectForRoot = (
 	return config.projects.find((candidate) => normalizePath(candidate.root) === comparableRoot);
 };
 
-const resolveEffectiveStringField = (
-	config: TreesConfig,
-	canonicalRoot: string,
-	field: "command" | "preRemoteCheck",
-	normalizePath: (path: string) => string,
+const resolveRuleField = (
+	rules: PolicyRule[],
+	field: FieldName,
+	root: string,
 ): ResolvedConfigString => {
-	const root = normalizePath(canonicalRoot);
-	const project = findProjectForRoot(config, root, normalizePath);
+	// oxlint-disable-next-line unicorn/no-null -- A rule value is explicitly absent until a match supplies one.
 	let value: string | null = null;
+	// oxlint-disable-next-line unicorn/no-null -- A rule source is explicitly absent until a match supplies one.
 	let source: string | null = null;
-	for (const rule of config.rules) {
+	for (const rule of rules) {
 		if (rule[field] && rootGlobMatches(rule.rootGlob, root)) {
 			value = rule[field];
 			source = `rule:${rule.rootGlob}`;
 		}
 	}
-	if (project?.[field]) {
-		value = project[field];
-		source = `project:${project.root}`;
-	}
-	return { value, source };
+	return { source, value };
 };
 
-export const resolveEffectiveCommand = (
+const resolveEffectiveStringField = (request: StringFieldRequest): ResolvedConfigString => {
+	const { canonicalRoot, config, field, normalizePath } = request;
+	const root = normalizePath(canonicalRoot);
+	const project = findProjectForRoot(config, root, normalizePath);
+	if (project?.[field]) {
+		return { source: `project:${project.root}`, value: project[field] };
+	}
+	return resolveRuleField(config.rules, field, root);
+};
+
+const resolveEffectiveCommand = (
 	config: TreesConfig,
 	canonicalRoot: string,
 	normalizePath = identityPath,
 ): PolicyExplanation["command"] => {
-	const resolved = resolveEffectiveStringField(config, canonicalRoot, "command", normalizePath);
+	const resolved = resolveEffectiveStringField({
+		canonicalRoot,
+		config,
+		field: "command",
+		normalizePath,
+	});
 	return { command: resolved.value, source: resolved.source };
 };
 
-export const resolvePreRemoteCheck = (
+const resolvePreRemoteCheck = (
 	config: TreesConfig,
 	canonicalRoot: string,
 	normalizePath = identityPath,
 ): ResolvedConfigString =>
-	resolveEffectiveStringField(config, canonicalRoot, "preRemoteCheck", normalizePath);
+	resolveEffectiveStringField({
+		canonicalRoot,
+		config,
+		field: "preRemoteCheck",
+		normalizePath,
+	});
 
-export const explainPolicy = (
+const applyRulesToLayers = (layers: PolicyLayers, rules: PolicyRule[]): PolicyLayers => {
+	let { addPolicy, worktreeLocation } = layers;
+	const finishPolicy = { ...layers.finishPolicy };
+	for (const rule of rules) {
+		addPolicy = rule.add?.policy ?? addPolicy;
+		Object.assign(finishPolicy, rule.finish);
+		worktreeLocation = rule.worktreeLocation ?? worktreeLocation;
+	}
+	return { addPolicy, finishPolicy, worktreeLocation };
+};
+
+const applyProjectToLayers = (
+	layers: PolicyLayers,
+	project: ProjectConfig | undefined,
+): PolicyLayers => {
+	if (project === undefined) {
+		return layers;
+	}
+	return {
+		addPolicy: project.add?.policy ?? layers.addPolicy,
+		finishPolicy: { ...layers.finishPolicy, ...project.finish },
+		worktreeLocation: project.worktreeLocation ?? layers.worktreeLocation,
+	};
+};
+
+const explainPolicy = (
 	config: TreesConfig,
 	canonicalRoot: string,
 	normalizePath = identityPath,
@@ -186,50 +236,54 @@ export const explainPolicy = (
 	const root = normalizePath(canonicalRoot);
 	const matchedRules = config.rules.filter((rule) => rootGlobMatches(rule.rootGlob, root));
 	const project = findProjectForRoot(config, root, normalizePath);
-	let addPolicy = config.defaults.add?.policy ?? BUILTIN_ADD_POLICY;
-	let finishPolicy = { ...BUILTIN_FINISH_POLICY, ...config.defaults.finish };
-	let worktreeLocation = config.worktreeLocation;
-	for (const rule of matchedRules) {
-		if (rule.add?.policy) addPolicy = rule.add.policy;
-		Object.assign(finishPolicy, rule.finish);
-		if (rule.worktreeLocation) worktreeLocation = rule.worktreeLocation;
-	}
-	if (project?.add?.policy) addPolicy = project.add.policy;
-	if (project?.finish) finishPolicy = { ...finishPolicy, ...project.finish };
-	if (project?.worktreeLocation) worktreeLocation = project.worktreeLocation;
-	return {
-		canonicalRoot: root,
-		matchedRules,
+	const { add: defaultAdd, finish: defaultFinish } = config.defaults;
+	const layers = applyProjectToLayers(
+		applyRulesToLayers(
+			{
+				addPolicy: defaultAdd?.policy ?? BUILTIN_ADD_POLICY,
+				finishPolicy: { ...BUILTIN_FINISH_POLICY, ...defaultFinish },
+				worktreeLocation: config.worktreeLocation,
+			},
+			matchedRules,
+		),
 		project,
-		addPolicy,
-		finishPolicy,
-		worktreeLocation,
+	);
+	return {
+		addPolicy: layers.addPolicy,
+		canonicalRoot: root,
 		command: resolveEffectiveCommand(config, root, normalizePath),
+		finishPolicy: layers.finishPolicy,
+		matchedRules,
 		preRemoteCheck: resolvePreRemoteCheck(config, root, normalizePath),
+		project,
+		worktreeLocation: layers.worktreeLocation,
 	};
 };
 
-export const rootGlobMatches = (glob: string, path: string): boolean =>
-	matchGlobSegments(glob.split("/"), path.split("/"));
-
-const matchGlobSegments = (pattern: string[], path: string[]): boolean => {
-	if (pattern.length === 0) return path.length === 0;
-	const [head, ...tail] = pattern;
-	if (head === "**") {
-		return (
-			matchGlobSegments(tail, path) ||
-			(path.length > 0 && matchGlobSegments(pattern, path.slice(1)))
-		);
-	}
-	if (path.length === 0) return false;
-	return globSegmentMatches(head ?? "", path[0] ?? "") && matchGlobSegments(tail, path.slice(1));
-};
-
-const globSegmentMatches = (pattern: string, value: string): boolean => {
-	const escaped = pattern.replace(/[.+^${}()|[\]\\]/g, "\\$&").replace(/\*/g, "[^/]*");
-	return new RegExp(`^${escaped}$`).test(value);
-};
-
 /** Project name for bootstrap scripts: the configured name, else the canonical root's basename. */
-export const projectNameFor = (project: ProjectConfig | undefined, root: string): string =>
+const projectNameFor = (project: ProjectConfig | undefined, root: string): string =>
 	project?.name ?? basename(root);
+
+export {
+	BUILTIN_ADD_POLICY,
+	BUILTIN_FINISH_POLICY,
+	explainPolicy,
+	findProjectForRoot,
+	projectNameFor,
+	resolveEffectiveCommand,
+	resolvePreRemoteCheck,
+	type AddPolicy,
+	type ConfigPathContext,
+	type CopyEntry,
+	type CopyMode,
+	type FinishPolicy,
+	type FinishStrategy,
+	type PolicyExplanation,
+	type PolicyRule,
+	type PolicyTables,
+	type ProjectConfig,
+	type ResolvedConfigString,
+	type TreesConfig,
+	type WorktreeLocation,
+};
+export { expandConfigGlob, expandConfigPath, rootGlobMatches } from "./paths.ts";

@@ -1,106 +1,184 @@
-import { resolve } from "node:path";
-import {
-	type ProjectConfig,
-	type TreesConfig,
-	type WorktreeLocation,
-	projectNameFor,
-} from "../domain/config.ts";
-import {
-	type PoolState,
-	type Slot,
-	type Worktree,
-	worktreePathForName,
-} from "../domain/worktree.ts";
-
-import { BlockedError, ConfigError, DirtySlotError, UsageError } from "../errors.ts";
 import type { Deps, GitRunner, WorkspaceFiles } from "../services.ts";
-import {
-	assertBranchHasMergedUpstream,
-	assertBranchIntegratedInto,
-	detectOriginDefaultBranch,
-} from "./branches.ts";
-import { runBootstrap } from "./hooks.ts";
+import { DirtySlotError, UsageError } from "../errors.ts";
+import type { PoolState, Slot, Worktree } from "../domain/worktree.ts";
+import type { ProjectConfig, TreesConfig, WorktreeLocation } from "../domain/config.ts";
+import { assertBranchHasMergedUpstream, assertBranchIntegratedInto } from "./branches.ts";
+import { buildPoolState, placeholderBranchFor } from "./pool-state.ts";
+import { initializeSlots } from "./pool-init.ts";
 import { listWorktrees } from "./repository.ts";
 
-export const buildPoolState = async (
-	cfg: ProjectConfig,
-	worktrees: Worktree[],
-	deps: { git: GitRunner; files: Pick<WorkspaceFiles, "normalizePath" | "exists"> },
-	location: WorktreeLocation = cfg.worktreeLocation ?? "sibling",
-): Promise<PoolState> => {
-	const { git, files } = deps;
-	if (!cfg.poolSize) throw new ConfigError(`project ${cfg.name ?? cfg.root} is not pooled`);
-	const root = files.normalizePath(cfg.root);
-	const trunk = await detectOriginDefaultBranch(git, root);
-	const slots = await Promise.all(
-		Array.from({ length: cfg.poolSize }, (_, offset) =>
-			buildPoolSlotState({
-				index: offset + 1,
-				root,
-				files,
-				location,
-				worktrees,
-				git,
-			}),
-		),
+/** A pool without configured slots reports zero size. */
+const NO_COUNT = 0;
+
+const unpooledState = (project: ProjectConfig, files: WorkspaceFiles): PoolState => ({
+	hasPool: false,
+	root: files.normalizePath(project.root),
+	size: NO_COUNT,
+	slots: [],
+	trunk: "",
+});
+
+const locateSlot = async (options: {
+	files: WorkspaceFiles;
+	git: GitRunner;
+	project: ProjectConfig;
+	root: string;
+	slotPath: string;
+	worktreeLocation: WorktreeLocation;
+}): Promise<{ slot: Slot; trunk: string }> => {
+	const { files, git, project, root, slotPath, worktreeLocation } = options;
+	const normalizedSlotPath = files.normalizePath(slotPath);
+	const worktrees = await listWorktrees(git, root);
+	const state = await buildPoolState({
+		deps: { files, git },
+		location: worktreeLocation,
+		project,
+		worktrees,
+	});
+	const slot = state.slots.find(
+		(candidate) => files.normalizePath(candidate.path) === normalizedSlotPath,
 	);
-	return { root, trunk, hasPool: true, size: cfg.poolSize, slots };
+	if (!slot?.exists) {
+		throw new UsageError(`pool slot not found: ${slotPath}`);
+	}
+	return { slot, trunk: state.trunk };
 };
 
-const buildPoolSlotState = async (options: {
-	index: number;
-	root: string;
-	location: WorktreeLocation;
-	worktrees: Worktree[];
-	git: GitRunner;
-	files: Pick<WorkspaceFiles, "exists">;
-}): Promise<Slot> => {
-	const { index, root, location, worktrees, git, files } = options;
-	const matches = worktrees.filter(
-		(candidate) => !candidate.canonical && candidate.pool?.index === index,
-	);
-	if (matches.length > 1) {
-		throw new BlockedError(
-			`multiple worktrees claim pool slot feat${index}: ${matches.map((candidate) => candidate.path).join(", ")}`,
-		);
+const recyclableOldBranch = (slot: Slot): string | undefined => {
+	const { branch } = slot;
+	if (!branch || branch === placeholderBranchFor(slot.index)) {
+		return undefined;
 	}
-	const worktree = matches[0];
-	const slotPath = worktree?.path ?? worktreePathForName(root, `feat${index}`, location);
-	if (!worktree) {
-		return {
-			index,
-			path: slotPath,
-			exists: false,
-			branch: null,
-			placeholder: false,
-			dirty: false,
-			lastCommitIso: null,
-			lastCommitSubject: null,
-			initialized: false,
-		};
-	}
+	return branch;
+};
 
-	const branch = worktree.branch;
-	const [status, log, marker] = await Promise.all([
-		git.runRaw(["-C", slotPath, "status", "--porcelain=v1"]),
-		git.runRaw(["-C", slotPath, "log", "-1", "--format=%cI%x1f%s"]),
-		git.runRaw(["-C", slotPath, "rev-parse", "--git-path", "wk-pool-initialized"]),
+const assertSourceBranchRecyclable = async (options: {
+	branch: string;
+	git: GitRunner;
+	integratedInto: string | null;
+	root: string;
+	slotPath: string;
+}): Promise<void> => {
+	const { branch, git, integratedInto, root, slotPath } = options;
+	if (integratedInto) {
+		await assertBranchIntegratedInto({ branch, git, integratedInto, root, worktreePath: slotPath });
+		return;
+	}
+	await assertBranchHasMergedUpstream(git, root, branch);
+};
+
+const deleteSourceBranch = async (options: {
+	git: GitRunner;
+	integratedInto: string | null;
+	oldBranch: string;
+	root: string;
+}): Promise<void> => {
+	const { git, integratedInto, oldBranch, root } = options;
+	if (integratedInto) {
+		await git.run(["-C", root, "branch", "-D", oldBranch]);
+		return;
+	}
+	await git.run(["-C", root, "branch", "-d", oldBranch]);
+};
+
+const checkoutPlaceholder = async (options: {
+	git: GitRunner;
+	placeholderBranch: string;
+	slotPath: string;
+	trunk: string;
+}): Promise<void> => {
+	const { git, placeholderBranch, slotPath, trunk } = options;
+	await git.run(["-C", slotPath, "checkout", "-B", placeholderBranch, `origin/${trunk}`]);
+};
+
+const forceResetSlot = async (options: {
+	git: GitRunner;
+	keepBranch: boolean;
+	root: string;
+	slot: Slot;
+	trunk: string;
+}): Promise<void> => {
+	const { git, keepBranch, root, slot, trunk } = options;
+	const oldBranch = recyclableOldBranch(slot);
+	await git.run([
+		"-C",
+		slot.path,
+		"checkout",
+		"-f",
+		"-B",
+		placeholderBranchFor(slot.index),
+		`origin/${trunk}`,
 	]);
-	const [lastCommitIso, lastCommitSubject] =
-		log.exitCode === 0 && log.stdout.trim() !== ""
-			? log.stdout.trimEnd().split("\x1f", 2)
-			: [null, null];
-	return {
-		index,
-		path: slotPath,
-		exists: true,
-		branch,
-		placeholder: branch === `wk-pool/feat${index}`,
-		dirty: status.stdout.trim() !== "",
-		lastCommitIso,
-		lastCommitSubject,
-		initialized: marker.exitCode === 0 && files.exists(resolve(slotPath, marker.stdout.trim())),
-	};
+	await git.run(["-C", slot.path, "reset", "--hard", placeholderBranchFor(slot.index)]);
+	await git.run(["-C", slot.path, "clean", "-fd"]);
+	if (oldBranch && !keepBranch) {
+		await git.run(["-C", root, "branch", "-D", oldBranch]);
+	}
+};
+
+const recycleSlotSafely = async (options: {
+	git: GitRunner;
+	integratedInto: string | null;
+	keepBranch: boolean;
+	root: string;
+	slot: Slot;
+	trunk: string;
+}): Promise<void> => {
+	const { git, integratedInto, keepBranch, root, slot, trunk } = options;
+	const status = await git.runRaw(["-C", slot.path, "status", "--porcelain=v1"]);
+	if (status.stdout.trim() !== "") {
+		throw new DirtySlotError(`slot ${slot.path} has uncommitted changes; pass --force to recycle`);
+	}
+	const oldBranch = recyclableOldBranch(slot);
+	if (!keepBranch && oldBranch) {
+		await assertSourceBranchRecyclable({
+			branch: oldBranch,
+			git,
+			integratedInto,
+			root,
+			slotPath: slot.path,
+		});
+	}
+	await checkoutPlaceholder({
+		git,
+		placeholderBranch: placeholderBranchFor(slot.index),
+		slotPath: slot.path,
+		trunk,
+	});
+	if (!keepBranch && oldBranch) {
+		await deleteSourceBranch({ git, integratedInto, oldBranch, root });
+	}
+};
+
+const ensurePoolSlots = async (options: {
+	config: TreesConfig;
+	deps: Deps;
+	initialWorktrees: Worktree[] | undefined;
+	project: ProjectConfig;
+	resolvedCommand: string | null | undefined;
+}): Promise<PoolState> => {
+	const { config, deps, initialWorktrees, project, resolvedCommand } = options;
+	const root = deps.files.normalizePath(project.root);
+	const policy = deps.config.explain(config, root);
+	const worktrees = initialWorktrees ?? (await listWorktrees(deps.git, root));
+	const state = await buildPoolState({
+		deps,
+		location: policy.worktreeLocation,
+		project,
+		worktrees,
+	});
+	if (!state.slots.some((slot) => !slot.exists || !slot.initialized)) {
+		return state;
+	}
+	await deps.git.run(["-C", root, "fetch", "origin"]);
+	return initializeSlots({
+		command: resolvedCommand ?? policy.command.command,
+		deps,
+		location: policy.worktreeLocation,
+		project,
+		root,
+		state,
+	});
 };
 
 export const recycleSlot = async (options: {
@@ -114,156 +192,42 @@ export const recycleSlot = async (options: {
 	integratedInto: string | null;
 	worktreeLocation: WorktreeLocation;
 }): Promise<void> => {
-	const {
-		git,
+	const { files, git, project, root, slotPath, keepBranch, integratedInto, worktreeLocation } =
+		options;
+	const { slot, trunk } = await locateSlot({
 		files,
+		git,
 		project,
 		root,
 		slotPath,
-		force,
-		keepBranch,
-		integratedInto,
 		worktreeLocation,
-	} = options;
-	const normalizedSlotPath = files.normalizePath(slotPath);
-	const worktrees = await listWorktrees(git, root);
-	const state = await buildPoolState(project, worktrees, { git, files }, worktreeLocation);
-	const slot = state.slots.find(
-		(candidate) => files.normalizePath(candidate.path) === normalizedSlotPath,
-	);
-	if (!slot?.exists) throw new UsageError(`pool slot not found: ${slotPath}`);
-	const placeholderBranch = `wk-pool/feat${slot.index}`;
-	const oldBranch = slot.branch;
+	});
 	await git.run(["-C", root, "fetch", "origin"]);
-	if (force) {
-		await git.run([
-			"-C",
-			slot.path,
-			"checkout",
-			"-f",
-			"-B",
-			placeholderBranch,
-			`origin/${state.trunk}`,
-		]);
-		await git.run(["-C", slot.path, "reset", "--hard", placeholderBranch]);
-		await git.run(["-C", slot.path, "clean", "-fd"]);
-		if (oldBranch && oldBranch !== placeholderBranch && !keepBranch)
-			await git.run(["-C", root, "branch", "-D", oldBranch]);
+	if (options.force) {
+		await forceResetSlot({ git, keepBranch, root, slot, trunk });
 		return;
 	}
-
-	const dirty =
-		(await git.runRaw(["-C", slot.path, "status", "--porcelain=v1"])).stdout.trim() !== "";
-	if (dirty)
-		throw new DirtySlotError(`slot ${slot.path} has uncommitted changes; pass --force to recycle`);
-	if (oldBranch && oldBranch !== placeholderBranch && !keepBranch) {
-		if (integratedInto) {
-			await assertBranchIntegratedInto({
-				git,
-				root,
-				worktreePath: slot.path,
-				branch: oldBranch,
-				integratedInto,
-			});
-		} else {
-			await assertBranchHasMergedUpstream(git, root, oldBranch);
-		}
-	}
-	await git.run(["-C", slot.path, "checkout", "-B", placeholderBranch, `origin/${state.trunk}`]);
-	if (oldBranch && oldBranch !== placeholderBranch && !keepBranch)
-		await git.run(["-C", root, "branch", integratedInto ? "-D" : "-d", oldBranch]);
+	await recycleSlotSafely({ git, integratedInto, keepBranch, root, slot, trunk });
 };
 
-export const ensurePool = async (
-	project: ProjectConfig,
-	deps: Deps,
-	initialWorktrees: Worktree[] | undefined,
-	config: TreesConfig,
-	resolvedCommand?: string | null,
-): Promise<PoolState> => {
-	const { files } = deps;
+export const ensurePool = async (options: {
+	/** Pool to materialize. */
+	project: ProjectConfig;
+	/** Injected operation boundaries. */
+	deps: Deps;
+	/** Reuse an inventory already obtained by the command. */
+	initialWorktrees?: Worktree[] | undefined;
+	/** Loaded configuration used to resolve policy. */
+	config: TreesConfig;
+	/** Bootstrap command already resolved by the caller, when available. */
+	resolvedCommand?: string | null;
+}): Promise<PoolState> => {
+	const { project, deps, initialWorktrees, config, resolvedCommand } = options;
 	if (!project.poolSize) {
-		return {
-			root: files.normalizePath(project.root),
-			trunk: "",
-			hasPool: false,
-			size: 0,
-			slots: [],
-		};
+		return unpooledState(project, deps.files);
 	}
-	const root = files.normalizePath(project.root);
-	const command = resolvedCommand ?? deps.config.explain(config, root).command.command;
-	const worktreeLocation = deps.config.explain(config, root).worktreeLocation;
-	let worktrees = initialWorktrees ?? (await listWorktrees(deps.git, root));
-	let state = await buildPoolState(project, worktrees, deps, worktreeLocation);
-	const needsWork = state.slots.some((slot) => !slot.exists || !slot.initialized);
-	if (!needsWork) return state;
-
-	await deps.git.run(["-C", root, "fetch", "origin"]);
-	for (const slot of state.slots) {
-		if (slot.exists && slot.initialized) continue;
-		const branch = `wk-pool/feat${slot.index}`;
-		deps.progress.banner(`[wk-pool] initializing feat${slot.index}…`);
-		await ensurePlaceholderBranch({ git: deps.git, root, branch, trunk: state.trunk });
-		const createdWorktree = !slot.exists;
-		if (createdWorktree) {
-			await deps.files.prepareParent(root, slot.path, worktreeLocation);
-			await deps.git.run(["-C", root, "worktree", "add", slot.path, branch]);
-		}
-		if (!command)
-			throw new ConfigError(
-				`project ${project.name ?? project.root} requires command for pooled setup`,
-			);
-		try {
-			await deps.files.copy(root, slot.path, project.copy);
-			await runBootstrap(deps, {
-				projectName: projectNameFor(project, root),
-				command,
-				root,
-				created: slot.path,
-				pooled: true,
-			});
-		} catch (error) {
-			if (createdWorktree)
-				await deps.git.runRaw(["-C", root, "worktree", "remove", "--force", slot.path]);
-			throw error;
-		}
-		worktrees = await listWorktrees(deps.git, root);
-		state = await buildPoolState(project, worktrees, deps, worktreeLocation);
-	}
+	const state = await ensurePoolSlots({ config, deps, initialWorktrees, project, resolvedCommand });
 	return state;
 };
 
-export const ensurePlaceholderBranch = async (options: {
-	git: GitRunner;
-	root: string;
-	branch: string;
-	trunk: string;
-}): Promise<void> => {
-	const { git, root, branch, trunk } = options;
-	const exists =
-		(await git.runRaw(["-C", root, "show-ref", "--verify", `refs/heads/${branch}`])).exitCode === 0;
-	if (!exists) await git.run(["-C", root, "branch", branch, `origin/${trunk}`]);
-};
-
-export const describeSlotRisk = async (
-	git: GitRunner,
-	slot: Slot,
-): Promise<{ ahead: number; behind: number; localOnly: boolean }> => {
-	const upstream = await git.runRaw(["-C", slot.path, "rev-parse", "--abbrev-ref", "@{upstream}"]);
-	if (upstream.exitCode !== 0 || upstream.stdout.trim() === "")
-		return { ahead: 0, behind: 0, localOnly: true };
-	const counts = await git.runRaw([
-		"-C",
-		slot.path,
-		"rev-list",
-		"--left-right",
-		"--count",
-		`${upstream.stdout.trim()}...HEAD`,
-	]);
-	const [behind, ahead] = counts.stdout
-		.trim()
-		.split(/\s+/)
-		.map((value) => Number(value));
-	return { ahead: ahead || 0, behind: behind || 0, localOnly: false };
-};
+export { buildPoolState, describeSlotRisk, ensurePlaceholderBranch } from "./pool-state.ts";

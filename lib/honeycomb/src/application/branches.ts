@@ -1,17 +1,134 @@
-import type { AddPolicy } from "../domain/config.ts";
-import type { BranchState } from "../domain/worktree.ts";
 import {
 	DirtyCanonicalError,
 	DirtyWorktreeError,
+	EXIT_CODES,
+	HoneycombError,
 	NonFastForwardCanonicalError,
 	TrunkDetectionError,
 	UnmergedBranchError,
 	UsageError,
-	HoneycombError,
 	WrongCanonicalBranchError,
 } from "../errors.ts";
 import { parseTrunkFromRemoteShow, parseTrunkFromSymbolicRef } from "../git/worktrees.ts";
+import type { AddPolicy } from "../domain/config.ts";
+import type { BranchState } from "../domain/worktree.ts";
 import type { GitRunner } from "../services.ts";
+
+/** Git diff reports differing content with exit status one. */
+const DIFF_FOUND = 1;
+const NO_PATHS = 0;
+
+const branchStateFromRefs = (lines: string[], branch: string): BranchState => {
+	const local = lines.includes(`refs/heads/${branch}`);
+	const remote = lines.includes(`refs/remotes/origin/${branch}`);
+	if (local && remote) {
+		return "local-remote";
+	}
+	if (local) {
+		return "local";
+	}
+	if (remote) {
+		return "remote";
+	}
+	return "none";
+};
+
+const resolveCommitRef = async (options: {
+	git: GitRunner;
+	label: string;
+	ref: string;
+	root: string;
+}): Promise<string> => {
+	const { git, label, ref, root } = options;
+	const resolved = await git.runRaw([
+		"-C",
+		root,
+		"rev-parse",
+		"--verify",
+		"--end-of-options",
+		`${ref}^{commit}`,
+	]);
+	if (resolved.exitCode !== EXIT_CODES.SUCCESS || resolved.stdout.trim() === "") {
+		throw new UsageError(`${label} must name an existing commit: ${ref}`);
+	}
+	return resolved.stdout.trim();
+};
+
+const assertCanonicalClean = async (git: GitRunner, root: string): Promise<void> => {
+	const status = await git.run(["-C", root, "status", "--porcelain=v1"]);
+	if (status.stdout.trim() !== "") {
+		throw new DirtyCanonicalError("canonical root has uncommitted changes");
+	}
+};
+
+const assertHeadIsAncestorOf = async (git: GitRunner, root: string, ref: string): Promise<void> => {
+	const ancestor = await git.runRaw(["-C", root, "merge-base", "--is-ancestor", "HEAD", ref]);
+	if (ancestor.exitCode !== EXIT_CODES.SUCCESS) {
+		throw new NonFastForwardCanonicalError(`canonical root cannot fast-forward to ${ref}`);
+	}
+};
+
+interface ComparisonRequest {
+	branch: string;
+	git: GitRunner;
+	integratedInto: string;
+	root: string;
+	source: string;
+	target: string;
+}
+
+const resolveIntegrationBase = async (options: ComparisonRequest): Promise<string> => {
+	const { branch, git, integratedInto, root, source, target } = options;
+	if (source === target) {
+		throw new UnmergedBranchError(`branch ${branch} cannot be proven integrated into itself`);
+	}
+	const mergeBase = await git.runRaw(["-C", root, "merge-base", source, target]);
+	if (mergeBase.exitCode !== EXIT_CODES.SUCCESS || mergeBase.stdout.trim() === "") {
+		throw new UnmergedBranchError(`branch ${branch} and ${integratedInto} have no common ancestor`);
+	}
+	return mergeBase.stdout.trim();
+};
+
+const changedPathsBetween = async (options: ComparisonRequest): Promise<string[]> => {
+	const { branch, git, integratedInto, root, source, target } = options;
+	const base = await resolveIntegrationBase({ branch, git, integratedInto, root, source, target });
+	const changedPaths = await git.runRaw(["-C", root, "diff", "--name-only", "-z", base, source]);
+	const paths = changedPaths.stdout.split("\0").filter((path) => path !== "");
+	if (paths.length === NO_PATHS) {
+		throw new UnmergedBranchError(`branch ${branch} has no changes to prove integrated`);
+	}
+	return paths;
+};
+
+const assertContentEquivalent = async (
+	options: ComparisonRequest & { paths: string[] },
+): Promise<void> => {
+	const { branch, git, integratedInto, paths, root, source, target } = options;
+	const equivalent = await git.runRaw([
+		"-C",
+		root,
+		"diff",
+		"--quiet",
+		source,
+		target,
+		"--",
+		...paths,
+	]);
+	if (equivalent.exitCode === EXIT_CODES.SUCCESS) {
+		return;
+	}
+	if (equivalent.exitCode === DIFF_FOUND) {
+		throw new UnmergedBranchError(
+			`branch ${branch} is not content-equivalent to ${integratedInto}; refusing to remove it`,
+		);
+	}
+	throw new HoneycombError(
+		`could not compare branch ${branch} with ${integratedInto}: ${equivalent.stderr.trim()}`,
+	);
+};
+
+const readBranchUpstream = (git: GitRunner, root: string, branch: string) =>
+	git.runRaw(["-C", root, "rev-parse", "--abbrev-ref", `${branch}@{upstream}`]);
 
 export const detectBranchState = async (
 	git: GitRunner,
@@ -26,23 +143,22 @@ export const detectBranchState = async (
 		"refs/heads",
 		"refs/remotes/origin",
 	]);
-	const lines = refs.stdout.split("\n");
-	const local = lines.includes(`refs/heads/${branch}`);
-	const remote = lines.includes(`refs/remotes/origin/${branch}`);
-	if (local && remote) return "local-remote";
-	if (local) return "local";
-	if (remote) return "remote";
-	return "none";
+	return branchStateFromRefs(refs.stdout.split("\n"), branch);
 };
 
 export const detectOriginDefaultBranch = async (git: GitRunner, root: string): Promise<string> => {
 	const symbolic = await git.runRaw(["-C", root, "symbolic-ref", "refs/remotes/origin/HEAD"]);
-	const fromSymbolic = symbolic.exitCode === 0 ? parseTrunkFromSymbolicRef(symbolic.stdout) : null;
-	if (fromSymbolic) return fromSymbolic;
+	const fromSymbolic =
+		symbolic.exitCode === EXIT_CODES.SUCCESS && parseTrunkFromSymbolicRef(symbolic.stdout);
+	if (fromSymbolic) {
+		return fromSymbolic;
+	}
 	const remoteShow = await git.runRaw(["-C", root, "remote", "show", "origin"]);
 	const fromRemoteShow =
-		remoteShow.exitCode === 0 ? parseTrunkFromRemoteShow(remoteShow.stdout) : null;
-	if (fromRemoteShow) return fromRemoteShow;
+		remoteShow.exitCode === EXIT_CODES.SUCCESS && parseTrunkFromRemoteShow(remoteShow.stdout);
+	if (fromRemoteShow) {
+		return fromRemoteShow;
+	}
 	throw new TrunkDetectionError("couldn't determine origin default branch");
 };
 
@@ -54,15 +170,19 @@ export const resolveDefaultBaseForNewBranch = async (options: {
 	base: string | null;
 }): Promise<string | null> => {
 	const { git, root, policy, branchState, base } = options;
-	if (branchState !== "none") return null;
-	if (base) return base;
-	if (policy === "fresh_canonical") {
-		const defaultBranch = await detectOriginDefaultBranch(git, root);
-		await fastForwardCanonicalDefault(git, root, defaultBranch);
-		return defaultBranch;
+	if (branchState !== "none") {
+		// oxlint-disable-next-line unicorn/no-null -- public result type signals "no base needed" with null
+		return null;
+	}
+	if (base) {
+		return base;
 	}
 	const defaultBranch = await detectOriginDefaultBranch(git, root);
-	return `origin/${defaultBranch}`;
+	if (policy !== "fresh_canonical") {
+		return `origin/${defaultBranch}`;
+	}
+	await fastForwardCanonicalDefault(git, root, defaultBranch);
+	return defaultBranch;
 };
 
 export const assertCanonicalCanFastForward = async (
@@ -70,29 +190,14 @@ export const assertCanonicalCanFastForward = async (
 	root: string,
 	defaultBranch: string,
 ): Promise<void> => {
-	const status = await git.run(["-C", root, "status", "--porcelain=v1"]);
-	if (status.stdout.trim() !== "") {
-		throw new DirtyCanonicalError("canonical root has uncommitted changes");
-	}
-	const current = (await git.run(["-C", root, "branch", "--show-current"])).stdout.trim();
-	if (current !== defaultBranch) {
+	await assertCanonicalClean(git, root);
+	const current = await git.run(["-C", root, "branch", "--show-current"]);
+	if (current.stdout.trim() !== defaultBranch) {
 		throw new WrongCanonicalBranchError(
-			`canonical root must be checked out on ${defaultBranch}; currently on ${current || "detached HEAD"}`,
+			`canonical root must be checked out on ${defaultBranch}; currently on ${current.stdout.trim() || "detached HEAD"}`,
 		);
 	}
-	const ancestor = await git.runRaw([
-		"-C",
-		root,
-		"merge-base",
-		"--is-ancestor",
-		"HEAD",
-		`origin/${defaultBranch}`,
-	]);
-	if (ancestor.exitCode !== 0) {
-		throw new NonFastForwardCanonicalError(
-			`canonical root cannot fast-forward to origin/${defaultBranch}`,
-		);
-	}
+	await assertHeadIsAncestorOf(git, root, `origin/${defaultBranch}`);
 };
 
 export const fastForwardCanonicalDefault = async (
@@ -111,18 +216,16 @@ export const resolveBaseRef = async (
 ): Promise<string> => {
 	if (base.startsWith("origin/")) {
 		const remoteName = base.slice("origin/".length);
-		const remoteRef =
-			(await git.runRaw(["-C", root, "show-ref", "--verify", `refs/remotes/origin/${remoteName}`]))
-				.exitCode === 0;
-		if (remoteRef) return base;
+		if (await refExists(git, root, `refs/remotes/origin/${remoteName}`)) {
+			return base;
+		}
 	}
-	const local =
-		(await git.runRaw(["-C", root, "show-ref", "--verify", `refs/heads/${base}`])).exitCode === 0;
-	if (local) return base;
-	const remote =
-		(await git.runRaw(["-C", root, "show-ref", "--verify", `refs/remotes/origin/${base}`]))
-			.exitCode === 0;
-	if (remote) return `origin/${base}`;
+	if (await refExists(git, root, `refs/heads/${base}`)) {
+		return base;
+	}
+	if (await refExists(git, root, `refs/remotes/origin/${base}`)) {
+		return `origin/${base}`;
+	}
 	throw new UsageError(`base branch not found locally or on origin: ${base}`);
 };
 
@@ -131,19 +234,13 @@ export const assertBranchHasMergedUpstream = async (
 	root: string,
 	branch: string,
 ): Promise<void> => {
-	const upstream = await git.runRaw([
-		"-C",
-		root,
-		"rev-parse",
-		"--abbrev-ref",
-		`${branch}@{upstream}`,
-	]);
-	if (upstream.exitCode !== 0 || upstream.stdout.trim() === "") {
+	const upstream = await readBranchUpstream(git, root, branch);
+	if (upstream.exitCode !== EXIT_CODES.SUCCESS || upstream.stdout.trim() === "") {
 		throw new UnmergedBranchError(`branch ${branch} has no upstream; pass --force to recycle`);
 	}
 	const upstreamRef = upstream.stdout.trim();
 	const merged = await git.runRaw(["-C", root, "merge-base", "--is-ancestor", branch, upstreamRef]);
-	if (merged.exitCode !== 0) {
+	if (merged.exitCode !== EXIT_CODES.SUCCESS) {
 		throw new UnmergedBranchError(
 			`branch ${branch} is not merged to ${upstreamRef}; pass --force to recycle`,
 		);
@@ -162,61 +259,20 @@ export const assertBranchIntegratedInto = async (options: {
 	if (dirty.stdout.trim() !== "") {
 		throw new DirtyWorktreeError(`worktree ${worktreePath} has uncommitted changes`);
 	}
-
-	const source = await resolveCommitRef(git, root, `refs/heads/${branch}`, "source branch");
-	const target = await resolveCommitRef(git, root, integratedInto, "--integrated-into");
-	if (source === target) {
-		throw new UnmergedBranchError(`branch ${branch} cannot be proven integrated into itself`);
-	}
-	const mergeBase = await git.runRaw(["-C", root, "merge-base", source, target]);
-	if (mergeBase.exitCode !== 0 || mergeBase.stdout.trim() === "") {
-		throw new UnmergedBranchError(`branch ${branch} and ${integratedInto} have no common ancestor`);
-	}
-	const base = mergeBase.stdout.trim();
-	const changedPaths = await git.runRaw(["-C", root, "diff", "--name-only", "-z", base, source]);
-	const paths = changedPaths.stdout.split("\0").filter((path) => path !== "");
-	if (paths.length === 0) {
-		throw new UnmergedBranchError(`branch ${branch} has no changes to prove integrated`);
-	}
-	const equivalent = await git.runRaw([
-		"-C",
+	const source = await resolveCommitRef({
+		git,
+		label: "source branch",
+		ref: `refs/heads/${branch}`,
 		root,
-		"diff",
-		"--quiet",
-		source,
-		target,
-		"--",
-		...paths,
-	]);
-	if (equivalent.exitCode === 0) return;
-	if (equivalent.exitCode === 1) {
-		throw new UnmergedBranchError(
-			`branch ${branch} is not content-equivalent to ${integratedInto}; refusing to remove it`,
-		);
-	}
-	throw new HoneycombError(
-		`could not compare branch ${branch} with ${integratedInto}: ${equivalent.stderr.trim()}`,
-	);
-};
-
-const resolveCommitRef = async (
-	git: GitRunner,
-	root: string,
-	ref: string,
-	label: string,
-): Promise<string> => {
-	const resolved = await git.runRaw([
-		"-C",
+	});
+	const target = await resolveCommitRef({
+		git,
+		label: "--integrated-into",
+		ref: integratedInto,
 		root,
-		"rev-parse",
-		"--verify",
-		"--end-of-options",
-		`${ref}^{commit}`,
-	]);
-	if (resolved.exitCode !== 0 || resolved.stdout.trim() === "") {
-		throw new UsageError(`${label} must name an existing commit: ${ref}`);
-	}
-	return resolved.stdout.trim();
+	});
+	const paths = await changedPathsBetween({ branch, git, integratedInto, root, source, target });
+	await assertContentEquivalent({ branch, git, integratedInto, paths, root, source, target });
 };
 
 export const assertBranchSafelyDeletable = async (
@@ -224,15 +280,18 @@ export const assertBranchSafelyDeletable = async (
 	root: string,
 	branch: string,
 ): Promise<void> => {
-	const upstream = await git.runRaw([
-		"-C",
-		root,
-		"rev-parse",
-		"--abbrev-ref",
-		`${branch}@{upstream}`,
-	]);
-	const mergeTarget = upstream.exitCode === 0 ? upstream.stdout.trim() : "HEAD";
+	const upstream = await readBranchUpstream(git, root, branch);
+	let mergeTarget = "HEAD";
+	if (upstream.exitCode === EXIT_CODES.SUCCESS) {
+		mergeTarget = upstream.stdout.trim();
+	}
 	const merged = await git.runRaw(["-C", root, "merge-base", "--is-ancestor", branch, mergeTarget]);
-	if (merged.exitCode !== 0)
+	if (merged.exitCode !== EXIT_CODES.SUCCESS) {
 		throw new UnmergedBranchError(`branch ${branch} is not merged; pass --force to remove it`);
+	}
+};
+
+export const refExists = async (git: GitRunner, root: string, ref: string): Promise<boolean> => {
+	const result = await git.runRaw(["-C", root, "show-ref", "--verify", ref]);
+	return result.exitCode === EXIT_CODES.SUCCESS;
 };

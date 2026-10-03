@@ -1,12 +1,11 @@
+import type { CommandResult, OutputMode } from "../protocol.ts";
+import { HoneycombError, UsageError, withFailureContext } from "../errors.ts";
+import type { ProjectConfig, TreesConfig, WorktreeLocation } from "../domain/config.ts";
 import {
 	assertBranchIntegratedInto,
 	assertBranchSafelyDeletable,
 } from "../application/branches.ts";
-import { planLeaveWorktree } from "../application/interactive.ts";
 import { ensurePool, recycleSlot } from "../application/pool.ts";
-import { runPreRemoteCheck } from "../application/hooks.ts";
-import { listWorktrees, resolveRemoveTarget } from "../application/repository.ts";
-import { CanonicalRootError, UsageError, HoneycombError, withFailureContext } from "../errors.ts";
 import {
 	finalizeReadyResult,
 	parseOptions,
@@ -14,133 +13,258 @@ import {
 	requireOption,
 	toRemovePayload,
 } from "../protocol.ts";
+import { listWorktrees, resolveRemoveTarget } from "../application/repository.ts";
 import type { Deps } from "../services.ts";
+import type { Worktree } from "../domain/worktree.ts";
+import { planLeaveWorktree } from "../application/interactive.ts";
+import { runPreRemoteCheck } from "../application/hooks.ts";
 
-export const removeCommand = async (args: string[], deps: Deps) => {
+interface RemoveRequest {
+	/** Branch selected with --branch, when not using --self. */
+	branch: string | null;
+	/** Checkout the caller is working from. */
+	cwd: string;
+	/** Whether safety checks are skipped for a forced removal. */
+	force: boolean;
+	/** Origin-tracking ref that must contain the branch, when supplied. */
+	integratedInto: string | null;
+	/** Whether the invocation may hand the shell to another worktree first. */
+	interactive: boolean;
+	/** Whether the checked-out branch is retained. */
+	keepBranch: boolean;
+	/** Requested output rendering. */
+	output: OutputMode;
+	/** Whether the worktree containing cwd is the removal target. */
+	self: boolean;
+}
+
+interface RemoveContext {
+	/** First worktree in Git's listing. */
+	canonical: Worktree;
+	/** Loaded repository configuration. */
+	config: TreesConfig;
+	/** Project matching the canonical root, when configured. */
+	project: ProjectConfig | undefined;
+	/** Configured worktree placement. */
+	worktreeLocation: WorktreeLocation;
+	/** Worktrees observed before pool preparation. */
+	worktrees: Worktree[];
+}
+
+interface RemoveOperation {
+	/** Service boundary for the command invocation. */
+	deps: Deps;
+	/** Validated command-line request. */
+	request: RemoveRequest;
+	/** Repository state observed before removal. */
+	context: RemoveContext;
+	/** Worktree selected for removal or recycling. */
+	target: Worktree;
+}
+
+const optionalRef = (value: string | boolean | undefined): string | null => {
+	if (typeof value === "string") {
+		return value;
+	}
+	// eslint-disable-next-line unicorn/no-null -- resolveRemoveTarget and recycleSlot model an absent branch/ref as null.
+	return null;
+};
+
+const parseRemoveRequest = (args: string[]): RemoveRequest => {
 	const opts = parseOptions(args);
-	const cwd = requireOption(opts, "cwd");
-	const output = parseOutputMode(opts);
-	const branch = typeof opts.branch === "string" ? opts.branch : null;
-	const self = opts.self === true;
-	const force = opts.force === true;
-	const interactive = opts.interactive === true;
-	const keepBranch = opts["keep-branch"] === true;
-	const integratedInto =
-		typeof opts["integrated-into"] === "string" ? opts["integrated-into"] : null;
-	if ((branch && self) || (!branch && !self)) {
+	const request: RemoveRequest = {
+		branch: optionalRef(opts.branch),
+		cwd: requireOption(opts, "cwd"),
+		force: opts.force === true,
+		integratedInto: optionalRef(opts["integrated-into"]),
+		interactive: opts.interactive === true,
+		keepBranch: opts["keep-branch"] === true,
+		output: parseOutputMode(opts),
+		self: opts.self === true,
+	};
+	assertRemoveRequest(request);
+	return request;
+};
+
+const assertRemoveRequest = (request: RemoveRequest): void => {
+	if ((request.branch && request.self) || (!request.branch && !request.self)) {
 		throw new UsageError("provide exactly one of --branch or --self");
 	}
-	if (integratedInto && keepBranch) {
+	if (request.integratedInto && request.keepBranch) {
 		throw new UsageError("--integrated-into cannot be combined with --keep-branch");
 	}
-	if (integratedInto && force) {
+	if (request.integratedInto && request.force) {
 		throw new UsageError("--integrated-into cannot be combined with --force");
 	}
-	if (integratedInto && !integratedInto.startsWith("origin/")) {
+	if (request.integratedInto && !request.integratedInto.startsWith("origin/")) {
 		throw new UsageError("--integrated-into must name an origin remote-tracking ref");
 	}
+};
 
-	let targetPath: string | undefined;
-	try {
-		let worktrees = await listWorktrees(deps.git, cwd);
-		const canonical = worktrees.find((worktree) => worktree.canonical);
-		if (!canonical) throw new HoneycombError("couldn't determine canonical worktree");
-		const config = deps.config.read();
-		const project = deps.config.explain(config, canonical.path).project;
-		const worktreeLocation = deps.config.explain(config, canonical.path).worktreeLocation;
-		if (integratedInto || project?.poolSize) {
-			await runPreRemoteCheck(deps, {
-				config,
-				root: canonical.path,
-				operation: "honeycomb remove",
-			});
-		}
-		if (integratedInto) await deps.git.run(["-C", canonical.path, "fetch", "origin"]);
-		if (project?.poolSize) {
-			await ensurePool(project, deps, worktrees, config);
-			worktrees = await listWorktrees(deps.git, cwd);
-		}
-		const target = resolveRemoveTarget(
-			worktrees,
-			canonical.path,
-			cwd,
-			{ branch, self },
-			deps.files,
-		);
-		targetPath = target.path;
-		if (deps.files.normalizePath(target.path) === deps.files.normalizePath(canonical.path)) {
-			throw new CanonicalRootError("refusing to remove canonical root");
-		}
-		const afterOutput = interactive
-			? planLeaveWorktree(deps, { cwd, root: canonical.path, worktreePath: target.path })
-			: undefined;
-		if (project?.poolSize && target.pool) {
-			await recycleSlot({
-				files: deps.files,
-				git: deps.git,
-				project,
-				root: canonical.path,
-				slotPath: target.path,
-				force,
-				keepBranch,
-				integratedInto,
-				worktreeLocation,
-			});
-			return finalizeReadyResult(
-				toRemovePayload({ worktreePath: target.path, removed: false }),
-				output,
-				`honeycomb: recycled pool slot at ${target.path}`,
-				afterOutput,
-			);
-		}
+const resolveRemoveContext = async (request: RemoveRequest, deps: Deps): Promise<RemoveContext> => {
+	const worktrees = await listWorktrees(deps.git, request.cwd);
+	const canonical = worktrees.find((worktree) => worktree.canonical);
+	if (!canonical) {
+		throw new HoneycombError("couldn't determine canonical worktree");
+	}
+	const config = deps.config.read();
+	const explanation = deps.config.explain(config, canonical.path);
+	return {
+		canonical,
+		config,
+		project: explanation.project,
+		worktreeLocation: explanation.worktreeLocation,
+		worktrees,
+	};
+};
 
-		if (target.branch && !force && !keepBranch) {
-			if (integratedInto) {
-				await assertBranchIntegratedInto({
-					git: deps.git,
-					root: canonical.path,
-					worktreePath: target.path,
-					branch: target.branch,
-					integratedInto,
-				});
-			} else {
-				await assertBranchSafelyDeletable(deps.git, canonical.path, target.branch);
-			}
-		}
-		await deps.git.run([
-			"-C",
-			canonical.path,
-			"worktree",
-			"remove",
-			...(force ? ["--force"] : []),
-			target.path,
-		]);
-		if (target.branch && !keepBranch) {
-			await deps.git.run([
-				"-C",
-				canonical.path,
-				"branch",
-				force || integratedInto ? "-D" : "-d",
-				target.branch,
-			]);
-		}
+const preparePoolRemoval = async (
+	request: RemoveRequest,
+	deps: Deps,
+	context: RemoveContext,
+): Promise<Worktree[]> => {
+	const { canonical, config, project } = context;
+	if (!request.integratedInto && !project?.poolSize) {
+		return context.worktrees;
+	}
+	await runPreRemoteCheck(deps, { config, operation: "honeycomb remove", root: canonical.path });
+	if (request.integratedInto) {
+		await deps.git.run(["-C", canonical.path, "fetch", "origin"]);
+	}
+	if (!project?.poolSize) {
+		return context.worktrees;
+	}
+	await ensurePool({ config, deps, initialWorktrees: context.worktrees, project });
+	return listWorktrees(deps.git, request.cwd);
+};
 
-		const payload = toRemovePayload({
+const buildAfterOutput = (operation: RemoveOperation): (() => Promise<void>) | undefined => {
+	const { context, deps, request, target } = operation;
+	if (request.interactive) {
+		return planLeaveWorktree(deps, {
+			cwd: request.cwd,
+			root: context.canonical.path,
 			worktreePath: target.path,
-			removed: !deps.files.exists(target.path),
 		});
-		return finalizeReadyResult(
-			payload,
-			output,
-			payload.removed
-				? `honeycomb: removed worktree at ${payload.worktree_path}`
-				: `honeycomb: recycled pool slot at ${payload.worktree_path}`,
-			afterOutput,
-		);
+	}
+	return undefined;
+};
+
+const assertRemovableBranch = async (operation: RemoveOperation): Promise<void> => {
+	const { context, deps, request, target } = operation;
+	if (!target.branch || request.force || request.keepBranch) {
+		return;
+	}
+	if (request.integratedInto) {
+		await assertBranchIntegratedInto({
+			branch: target.branch,
+			git: deps.git,
+			integratedInto: request.integratedInto,
+			root: context.canonical.path,
+			worktreePath: target.path,
+		});
+		return;
+	}
+	await assertBranchSafelyDeletable(deps.git, context.canonical.path, target.branch);
+};
+
+const deleteTargetBranch = async (operation: RemoveOperation): Promise<void> => {
+	const { context, deps, request, target } = operation;
+	if (!target.branch || request.keepBranch) {
+		return;
+	}
+	let deleteFlag = "-d";
+	if (request.force || request.integratedInto) {
+		deleteFlag = "-D";
+	}
+	await deps.git.run(["-C", context.canonical.path, "branch", deleteFlag, target.branch]);
+};
+
+const removeInputWorktree = async (operation: RemoveOperation): Promise<void> => {
+	const { context, deps, request, target } = operation;
+	const removeArgs = ["-C", context.canonical.path, "worktree", "remove"];
+	if (request.force) {
+		removeArgs.push("--force");
+	}
+	removeArgs.push(target.path);
+	await deps.git.run(removeArgs);
+	await deleteTargetBranch(operation);
+};
+
+const removeSummary = (removed: boolean, worktreePath: string): string => {
+	if (removed) {
+		return `honeycomb: removed worktree at ${worktreePath}`;
+	}
+	return `honeycomb: recycled pool slot at ${worktreePath}`;
+};
+
+const recyclePoolSlot = async (
+	operation: RemoveOperation,
+	project: ProjectConfig,
+): Promise<CommandResult> => {
+	const { context, deps, request, target } = operation;
+	const afterOutput = buildAfterOutput(operation);
+	await recycleSlot({
+		files: deps.files,
+		force: request.force,
+		git: deps.git,
+		integratedInto: request.integratedInto,
+		keepBranch: request.keepBranch,
+		project,
+		root: context.canonical.path,
+		slotPath: target.path,
+		worktreeLocation: context.worktreeLocation,
+	});
+	return finalizeReadyResult({
+		afterOutput,
+		output: request.output,
+		payload: toRemovePayload({ removed: false, worktreePath: target.path }),
+		summary: `honeycomb: recycled pool slot at ${target.path}`,
+	});
+};
+
+const removeTarget = async (operation: RemoveOperation): Promise<CommandResult> => {
+	const { context, deps, request, target } = operation;
+	const { project } = context;
+	if (project?.poolSize && target.pool) {
+		return recyclePoolSlot(operation, project);
+	}
+	const afterOutput = buildAfterOutput(operation);
+	await assertRemovableBranch(operation);
+	await removeInputWorktree(operation);
+	const payload = toRemovePayload({
+		removed: !deps.files.exists(target.path),
+		worktreePath: target.path,
+	});
+	return finalizeReadyResult({
+		afterOutput,
+		output: request.output,
+		payload,
+		summary: removeSummary(payload.removed, payload.worktree_path),
+	});
+};
+
+const removeCommand = async (args: string[], deps: Deps): Promise<CommandResult> => {
+	const request = parseRemoveRequest(args);
+	let targetPath: string | undefined = undefined;
+	try {
+		const context = await resolveRemoveContext(request, deps);
+		const worktrees = await preparePoolRemoval(request, deps, context);
+		const target = resolveRemoveTarget({
+			canonicalRoot: context.canonical.path,
+			cwd: request.cwd,
+			files: deps.files,
+			selector: { branch: request.branch, self: request.self },
+			worktrees,
+		});
+		targetPath = target.path;
+		return await removeTarget({ context, deps, request, target });
 	} catch (error) {
 		throw withFailureContext(error, {
-			branch: branch ?? undefined,
+			branch: request.branch ?? undefined,
 			worktree_path: targetPath,
 		});
 	}
 };
+
+export { removeCommand };

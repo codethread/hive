@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import type { CommandResult, CommandRunner, TmuxEnvironment } from "../../src/integrations/tmux.ts";
 import {
 	NoMultiplexer,
 	WORKTREE_PATH_FIELD,
@@ -6,23 +6,22 @@ import {
 	openRequestForWorktree,
 } from "../../src/integrations/multiplexer.ts";
 import {
-	type CommandResult,
-	type CommandRunner,
-	type TmuxEnvironment,
 	TmuxError,
 	TmuxMultiplexer,
 	parseSessionList,
 	selectMultiplexer,
 } from "../../src/integrations/tmux.ts";
+import { describe, expect, test } from "bun:test";
 
 const TMUX = "/private/tmp/tmux-501/default,123,0";
 const TAB = "\t";
+const FAILURE_EXIT_CODE = 1;
 
-const ok = (stdout = ""): CommandResult => ({ stdout, stderr: "", exitCode: 0 });
-const fails = (stderr = "failed", exitCode = 1): CommandResult => ({
-	stdout: "",
-	stderr,
+const ok = (stdout = ""): CommandResult => ({ exitCode: 0, stderr: "", stdout });
+const fails = (stderr = "failed", exitCode = FAILURE_EXIT_CODE): CommandResult => ({
 	exitCode,
+	stderr,
+	stdout: "",
 });
 
 class RecordingRunner implements CommandRunner {
@@ -33,9 +32,9 @@ class RecordingRunner implements CommandRunner {
 		this.results = results;
 	}
 
-	async run(command: string, args: string[]): Promise<CommandResult> {
-		this.calls.push({ command, args });
-		return this.results.shift() ?? ok();
+	run(command: string, args: string[]): Promise<CommandResult> {
+		this.calls.push({ args, command });
+		return Promise.resolve(this.results.shift() ?? ok());
 	}
 }
 
@@ -44,20 +43,19 @@ const INVOKING: TmuxEnvironment = { TMUX, TMUX_PANE: "%5" };
 const tmux = (runner: CommandRunner, env: TmuxEnvironment = INVOKING): TmuxMultiplexer =>
 	new TmuxMultiplexer(runner, env);
 
-describe("TmuxMultiplexer.open", () => {
+describe("TmuxMultiplexer.open session handling", () => {
 	test("creates a missing session and switches the invoking client", async () => {
 		const runner = new RecordingRunner([fails(), ok(), ok("/dev/ttys001\n"), ok()]);
 
 		await tmux(runner).open({
 			name: "repo__feature--foo",
-			title: "feature/foo",
 			path: "/repo__feature--foo",
+			title: "feature/foo",
 		});
 
 		expect(runner.calls).toEqual([
-			{ command: "tmux", args: ["has-session", "-t", "=repo__feature--foo"] },
+			{ args: ["has-session", "-t", "=repo__feature--foo"], command: "tmux" },
 			{
-				command: "tmux",
 				args: [
 					"new-session",
 					"-d",
@@ -68,14 +66,15 @@ describe("TmuxMultiplexer.open", () => {
 					"-c",
 					"/repo__feature--foo",
 				],
+				command: "tmux",
 			},
 			{
-				command: "tmux",
 				args: ["display-message", "-p", "-t", "%5", "#{client_tty}"],
+				command: "tmux",
 			},
 			{
-				command: "tmux",
 				args: ["switch-client", "-c", "/dev/ttys001", "-t", "=repo__feature--foo"],
+				command: "tmux",
 			},
 		]);
 	});
@@ -83,32 +82,41 @@ describe("TmuxMultiplexer.open", () => {
 	test("reuses an existing session", async () => {
 		const runner = new RecordingRunner([ok(), ok("/dev/ttys002"), ok()]);
 
-		await tmux(runner).open({ name: "repo__a", title: "a", path: "/repo__a" });
+		await tmux(runner).open({ name: "repo__a", path: "/repo__a", title: "a" });
 
-		expect(runner.calls.map((call) => call.args[0])).toEqual([
+		expect(runner.calls.map(({ args: [subcommand] }) => subcommand)).toEqual([
 			"has-session",
 			"display-message",
 			"switch-client",
 		]);
 	});
+});
 
+describe("TmuxMultiplexer.open client switching", () => {
 	test("switches without a client handle when the pane is unknown", async () => {
 		const runner = new RecordingRunner([ok(), ok()]);
 
-		await tmux(runner, { TMUX }).open({ name: "repo__a", title: "a", path: "/repo__a" });
+		await tmux(runner, { TMUX }).open({ name: "repo__a", path: "/repo__a", title: "a" });
 
 		expect(runner.calls).toEqual([
-			{ command: "tmux", args: ["has-session", "-t", "=repo__a"] },
-			{ command: "tmux", args: ["switch-client", "-t", "=repo__a"] },
+			{ args: ["has-session", "-t", "=repo__a"], command: "tmux" },
+			{ args: ["switch-client", "-t", "=repo__a"], command: "tmux" },
 		]);
 	});
 
 	test("switches without a client handle when client resolution fails", async () => {
 		const runner = new RecordingRunner([ok(), fails("no current client"), ok()]);
 
-		await tmux(runner).open({ name: "repo__a", title: "a", path: "/repo__a" });
+		await tmux(runner).open({ name: "repo__a", path: "/repo__a", title: "a" });
 
-		expect(runner.calls.at(-1)?.args).toEqual(["switch-client", "-t", "=repo__a"]);
+		expect(runner.calls).toEqual([
+			{ args: ["has-session", "-t", "=repo__a"], command: "tmux" },
+			{
+				args: ["display-message", "-p", "-t", "%5", "#{client_tty}"],
+				command: "tmux",
+			},
+			{ args: ["switch-client", "-t", "=repo__a"], command: "tmux" },
+		]);
 	});
 });
 
@@ -124,9 +132,15 @@ describe("TmuxMultiplexer.closeUnder", () => {
 
 		await tmux(runner).closeUnder("/repo__a");
 
-		expect(runner.calls.slice(1)).toEqual([
-			{ command: "tmux", args: ["kill-session", "-t", "=repo__a"] },
-			{ command: "tmux", args: ["kill-session", "-t", "=repo__a--nested"] },
+		const [listCall, ...killCalls] = runner.calls;
+
+		expect(listCall).toEqual({
+			args: ["list-sessions", "-F", `#{session_name}${TAB}#{session_path}`],
+			command: "tmux",
+		});
+		expect(killCalls).toEqual([
+			{ args: ["kill-session", "-t", "=repo__a"], command: "tmux" },
+			{ args: ["kill-session", "-t", "=repo__a--nested"], command: "tmux" },
 		]);
 	});
 
@@ -139,7 +153,7 @@ describe("TmuxMultiplexer.closeUnder", () => {
 		await tmux(runner).closeUnder("/repo__a");
 
 		expect(runner.calls).toEqual([
-			{ command: "tmux", args: ["list-sessions", "-F", `#{session_name}${TAB}#{session_path}`] },
+			{ args: ["list-sessions", "-F", `#{session_name}${TAB}#{session_path}`], command: "tmux" },
 		]);
 	});
 
@@ -190,7 +204,7 @@ describe("multiplexer selection", () => {
 	test("NoMultiplexer is inert and previews git history", async () => {
 		const multiplexer = new NoMultiplexer();
 
-		await multiplexer.open({ name: "repo__a", title: "a", path: "/repo__a" });
+		await multiplexer.open({ name: "repo__a", path: "/repo__a", title: "a" });
 		await multiplexer.closeUnder("/repo__a");
 
 		expect(multiplexer.previewCommand()).toBe(gitLogPreviewCommand());
@@ -199,8 +213,8 @@ describe("multiplexer selection", () => {
 	test("openRequestForWorktree derives the session name from the worktree path", () => {
 		expect(openRequestForWorktree("/repo__feature--foo", "feature/foo")).toEqual({
 			name: "repo__feature--foo",
-			title: "feature/foo",
 			path: "/repo__feature--foo",
+			title: "feature/foo",
 		});
 		expect(openRequestForWorktree("/repo/.worktrees/feat.1", "feat/1").name).toBe("repo__feat_1");
 	});

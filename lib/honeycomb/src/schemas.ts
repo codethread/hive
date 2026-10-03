@@ -1,18 +1,17 @@
+import { expandConfigGlob, expandConfigPath, rootGlobMatches } from "./domain/config.ts";
+// eslint-disable-next-line import/no-nodejs-modules -- Config copy paths normalize against the real filesystem.
 import { isAbsolute, normalize } from "node:path";
+import type { ConfigPathContext } from "./domain/config.ts";
 import { z } from "zod";
-import {
-	expandConfigPath,
-	expandConfigGlob,
-	rootGlobMatches,
-	type ConfigPathContext,
-} from "./domain/config.ts";
 
-export const CopyModeSchema = z.enum(["copy", "symlink"]);
-export const PoolSizeSchema = z.number().int().min(1);
+const MINIMUM_LIST_LENGTH = 1;
 
-const NonEmptyStringSchema = z.string().regex(/\S/, "must be a non-empty string");
+const CopyModeSchema = z.enum(["copy", "symlink"]);
+const PoolSizeSchema = z.number().int().min(MINIMUM_LIST_LENGTH);
+
+const NonEmptyStringSchema = z.string().regex(/\S/u, "must be a non-empty string");
 // oxlint-disable-next-line no-control-regex -- Filesystem paths cannot contain a null byte; also emit this constraint for editors.
-const PathSchema = NonEmptyStringSchema.regex(/^[^\x00]*$/, "path must not contain a null byte");
+const PathSchema = NonEmptyStringSchema.regex(/^[^\u0000]*$/u, "path must not contain a null byte");
 const WorktreeLocationSchema = z.enum(["sibling", "nested"]);
 const AddPolicySchema = z.strictObject({
 	policy: z
@@ -20,22 +19,22 @@ const AddPolicySchema = z.strictObject({
 		.describe("Start from origin's default branch or first fast-forward the canonical checkout."),
 });
 const FinishPolicySchema = z.strictObject({
-	enabled: z.boolean().optional().describe("Allow finishing; built-in default: true."),
-	strategy: z
-		.enum(["ff_only", "rebase_ff", "squash", "merge_commit"])
-		.optional()
-		.describe("Integration strategy; built-in default: ff_only."),
-	push: z.boolean().optional().describe("Push before cleanup; built-in default: false."),
-	remove_worktree: z
-		.boolean()
-		.optional()
-		.describe("Remove the checkout after integration; built-in default: false."),
 	delete_branch: z
 		.boolean()
 		.optional()
 		.describe(
 			"Delete its branch; requires remove_worktree in the effective policy. Default: false.",
 		),
+	enabled: z.boolean().optional().describe("Allow finishing; built-in default: true."),
+	push: z.boolean().optional().describe("Push before cleanup; built-in default: false."),
+	remove_worktree: z
+		.boolean()
+		.optional()
+		.describe("Remove the checkout after integration; built-in default: false."),
+	strategy: z
+		.enum(["ff_only", "rebase_ff", "squash", "merge_commit"])
+		.optional()
+		.describe("Integration strategy; built-in default: ff_only."),
 });
 const PolicyShape = {
 	add: AddPolicySchema.optional().describe("Override the inherited add policy."),
@@ -43,7 +42,7 @@ const PolicyShape = {
 };
 
 const RelativeCopyPathSchema = PathSchema.regex(
-	/^[^/~]/,
+	/^[^/~]/u,
 	"copy path must be relative, not absolute or start with ~",
 )
 	.refine((value) => {
@@ -54,7 +53,7 @@ const RelativeCopyPathSchema = PathSchema.regex(
 
 const CopyDestinationsSchema = z.union([
 	RelativeCopyPathSchema,
-	z.array(RelativeCopyPathSchema).min(1),
+	z.array(RelativeCopyPathSchema).min(MINIMUM_LIST_LENGTH),
 ]);
 
 const CopyEntrySchema = z.union([
@@ -63,8 +62,8 @@ const CopyEntrySchema = z.union([
 		from: PathSchema.describe(
 			"Source relative to the canonical root, absolute, or beginning with ~/.",
 		),
-		to: CopyDestinationsSchema,
 		mode: CopyModeSchema.optional().describe("Override this project's copy_mode_default."),
+		to: CopyDestinationsSchema,
 	}),
 ]);
 
@@ -81,94 +80,135 @@ const SetupShape = {
 };
 
 const ProjectSchema = z.strictObject({
-	root: PathSchema.describe("Canonical checkout path; leading ~/ and relative paths are expanded."),
-	name: z.string().optional().describe("Display name; defaults to the expanded root's basename."),
-	...SetupShape,
-	pool_size: PoolSizeSchema.optional().describe(
-		"Fixed pool size; requires an effective bootstrap command.",
-	),
-	copy_mode_default: CopyModeSchema.optional().describe(
-		"Default copy mode (copy when omitted); setting it requires an effective command.",
-	),
 	copy: z
 		.array(CopyEntrySchema)
 		.default([])
 		.describe(
 			"Files to materialize before bootstrap; non-empty lists require an effective command.",
 		),
+	copy_mode_default: CopyModeSchema.optional().describe(
+		"Default copy mode (copy when omitted); setting it requires an effective command.",
+	),
+	name: z.string().optional().describe("Display name; defaults to the expanded root's basename."),
+	pool_size: PoolSizeSchema.optional().describe(
+		"Fixed pool size; requires an effective bootstrap command.",
+	),
+	root: PathSchema.describe("Canonical checkout path; leading ~/ and relative paths are expanded."),
+	...SetupShape,
 	...PolicyShape,
 });
 
 const RuleSchema = z.strictObject({
 	root_glob: PathSchema.regex(
-		/^(?:~(?:\/|$)|[^~])/,
+		/^(?:~(?:\/|$)|[^~])/u,
 		"root_glob supports only leading ~/ expansion",
 	).describe("Canonical-root glob: * matches within a segment, ** matches zero or more segments."),
 	...SetupShape,
 	...PolicyShape,
 });
 
-/** One TOML schema; path context supplies environment-dependent cross-entry validation. */
-export const createConfigSchema = (context: ConfigPathContext) =>
-	z
-		.strictObject({
-			worktree_location: WorktreeLocationSchema.default("sibling").describe(
-				"Global placement for new worktrees.",
-			),
-			defaults: z
-				.strictObject(PolicyShape)
-				.default({})
-				.describe("Policy patches applied over built-in defaults."),
-			rule: z
-				.array(RuleSchema)
-				.default([])
-				.describe("Matching rules apply in file order; later values win."),
-			project: z
-				.array(ProjectSchema)
-				.default([])
-				.describe("Exact-root overrides; expanded roots must be unique."),
-		})
-		.superRefine((config, refinement) => {
-			const roots = new Set<string>();
-			const projects = config.project.map((project) => ({
-				project,
-				root: expandConfigPath(project.root, context),
-			}));
-			for (const [index, { project, root }] of projects.entries()) {
-				if (roots.has(root)) {
-					refinement.addIssue({
-						code: "custom",
-						path: ["project", index, "root"],
-						message: `duplicate root \`${root}\``,
-					});
-				}
-				roots.add(root);
-				const needsCommand =
-					project.pool_size !== undefined ||
-					project.copy.length > 0 ||
-					project.copy_mode_default !== undefined;
-				if (!needsCommand) continue;
-				const canonicalRoot = context.normalizePath(root);
-				const effectiveProject = projects.find(
-					(candidate) => context.normalizePath(candidate.root) === canonicalRoot,
-				)?.project;
-				if (effectiveProject?.command !== undefined) continue;
-				const inheritedCommand = config.rule.some(
-					(rule) =>
-						rule.command !== undefined &&
-						rootGlobMatches(expandConfigGlob(rule.root_glob, context), canonicalRoot),
-				);
-				if (!inheritedCommand) {
-					refinement.addIssue({
-						code: "custom",
-						path: ["project", index, "command"],
-						message: `root \`${root}\` requires an effective command for pooled or copy setup`,
-					});
-				}
-			}
-		})
-		.describe(
-			"HONEYCOMB configuration. Policy inheritance, canonical path matching and normalized path safety are also checked at runtime.",
-		);
+const ConfigSchema = z.strictObject({
+	defaults: z
+		.strictObject(PolicyShape)
+		.default({})
+		.describe("Policy patches applied over built-in defaults."),
+	project: z
+		.array(ProjectSchema)
+		.default([])
+		.describe("Exact-root overrides; expanded roots must be unique."),
+	rule: z
+		.array(RuleSchema)
+		.default([])
+		.describe("Matching rules apply in file order; later values win."),
+	worktree_location: WorktreeLocationSchema.default("sibling").describe(
+		"Global placement for new worktrees.",
+	),
+});
 
-export type RawConfig = z.output<ReturnType<typeof createConfigSchema>>;
+type ConfigOutput = z.output<typeof ConfigSchema>;
+type ProjectOutput = z.output<typeof ProjectSchema>;
+
+interface ProjectState {
+	index: number;
+	project: ProjectOutput;
+	root: string;
+}
+
+interface ProjectIssue {
+	message: string;
+	path: (number | string)[];
+}
+
+const expandProjects = (config: ConfigOutput, context: ConfigPathContext): ProjectState[] =>
+	config.project.map((project, index) => ({
+		index,
+		project,
+		root: expandConfigPath(project.root, context),
+	}));
+
+const requiresCommand = (project: ProjectOutput): boolean =>
+	project.pool_size !== undefined ||
+	project.copy.length >= MINIMUM_LIST_LENGTH ||
+	project.copy_mode_default !== undefined;
+
+const validateProject = (
+	state: ProjectState,
+	config: ConfigOutput,
+	context: ConfigPathContext,
+): ProjectIssue[] => {
+	if (!requiresCommand(state.project)) {
+		return [];
+	}
+	const canonicalRoot = context.normalizePath(state.root);
+	const effectiveProject = config.project.find(
+		(candidate) =>
+			context.normalizePath(expandConfigPath(candidate.root, context)) === canonicalRoot,
+	);
+	if (effectiveProject?.command !== undefined) {
+		return [];
+	}
+	const inheritedCommand = config.rule.some(
+		(rule) =>
+			rule.command !== undefined &&
+			rootGlobMatches(expandConfigGlob(rule.root_glob, context), canonicalRoot),
+	);
+	if (inheritedCommand) {
+		return [];
+	}
+	return [
+		{
+			message: `root \`${state.root}\` requires an effective command for pooled or copy setup`,
+			path: ["project", state.index, "command"],
+		},
+	];
+};
+
+const collectProjectIssues = (config: ConfigOutput, context: ConfigPathContext): ProjectIssue[] => {
+	const issues: ProjectIssue[] = [];
+	const roots = new Set<string>();
+	for (const state of expandProjects(config, context)) {
+		if (roots.has(state.root)) {
+			issues.push({
+				message: `duplicate root \`${state.root}\``,
+				path: ["project", state.index, "root"],
+			});
+		}
+		roots.add(state.root);
+		issues.push(...validateProject(state, config, context));
+	}
+	return issues;
+};
+
+/** One TOML schema; path context supplies environment-dependent cross-entry validation. */
+const createConfigSchema = (context: ConfigPathContext) =>
+	ConfigSchema.superRefine((config, refinement) => {
+		for (const issue of collectProjectIssues(config, context)) {
+			refinement.addIssue({ code: "custom", message: issue.message, path: issue.path });
+		}
+	}).describe(
+		"HONEYCOMB configuration. Policy inheritance, canonical path matching and normalized path safety are also checked at runtime.",
+	);
+
+type RawConfig = z.output<ReturnType<typeof createConfigSchema>>;
+
+export { CopyModeSchema, createConfigSchema, PoolSizeSchema, type RawConfig };

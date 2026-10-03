@@ -1,306 +1,267 @@
 import {
-	assertCanonicalCanFastForward,
-	detectOriginDefaultBranch,
-	fastForwardCanonicalDefault,
-} from "../application/branches.ts";
-import { planLeaveWorktree } from "../application/interactive.ts";
-import { buildPoolState, ensurePlaceholderBranch } from "../application/pool.ts";
-import { runPreRemoteCheck } from "../application/hooks.ts";
-import { listWorktrees, resolveWorktreeContainingPath } from "../application/repository.ts";
-import type {
-	AddPolicy,
-	FinishStrategy,
-	ProjectConfig,
-	WorktreeLocation,
-} from "../domain/config.ts";
-import type { Worktree } from "../domain/worktree.ts";
-import {
 	BlockedError,
 	CanonicalRootError,
-	DirtyWorktreeError,
-	FinishConflictError,
-	PushRejectedError,
-	TargetNotFreshError,
+	HoneycombError,
 	UnsafeOperationError,
 	UsageError,
-	HoneycombError,
 	withFailureContext,
 } from "../errors.ts";
+import type { CommandResult, OutputMode } from "../protocol.ts";
+import type {
+	FinishStrategy,
+	PolicyExplanation,
+	ProjectConfig,
+	TreesConfig,
+} from "../domain/config.ts";
+import {
+	assertCleanSource,
+	assertFinishTargetReady,
+	assertSourceCanFastForwardTarget,
+	integrateSource,
+} from "./finish-integration.ts";
+import { detectOriginDefaultBranch, fastForwardCanonicalDefault } from "../application/branches.ts";
 import { finalizeReadyResult, parseOptions, parseOutputMode, requireOption } from "../protocol.ts";
-import type { Deps, GitRunner, WorkspaceFiles } from "../services.ts";
+import { listWorktrees, resolveWorktreeContainingPath } from "../application/repository.ts";
+import type { Deps } from "../services.ts";
+import type { Worktree } from "../domain/worktree.ts";
+import { pushAndCleanup } from "./finish-cleanup.ts";
+import { runPreRemoteCheck } from "../application/hooks.ts";
 
-export const finishCommand = async (args: string[], deps: Deps) => {
+type FinishPolicyPlan = PolicyExplanation["finishPolicy"];
+
+interface FinishRequest {
+	/** Checkout the caller is working from. */
+	cwd: string;
+	/** Whether the invocation may hand the shell to the canonical worktree first. */
+	interactive: boolean;
+	/** Requested output rendering. */
+	output: OutputMode;
+}
+
+interface FinishState {
+	/** Cleanup steps completed and reported in failure context. */
+	cleanupActions: string[];
+	/** Whether source changes reached the target branch. */
+	integrated: boolean;
+	/** Source branch observed during resolution, when reached. */
+	sourceBranch: string | undefined;
+	/** Source worktree path observed during resolution, when reached. */
+	worktreePath: string | undefined;
+}
+
+interface FinishSourceInfo {
+	/** First worktree in Git's listing. */
+	canonical: Worktree;
+	/** Loaded repository configuration. */
+	config: TreesConfig;
+	/** Resolved policy for the canonical root. */
+	explanation: PolicyExplanation;
+	/** Project matching the canonical root, when configured. */
+	project: ProjectConfig | undefined;
+	/** Source worktree selected by cwd. */
+	source: Worktree;
+	/** Checked-out source branch. */
+	sourceBranch: string;
+}
+
+interface FinishTargetInfo {
+	/** Validated cleanup and integration policy. */
+	plan: FinishPolicyPlan;
+	/** Origin default branch name. */
+	targetBranch: string;
+	/** Ref that integration must update. */
+	targetRef: string;
+}
+
+const parseFinishRequest = (args: string[]): FinishRequest => {
 	const opts = parseOptions(args);
 	const cwd = requireOption(opts, "cwd");
-	const output = parseOutputMode(opts);
-	const interactive = opts.interactive === true;
 	for (const key of Object.keys(opts)) {
-		if (key !== "cwd" && key !== "json" && key !== "interactive")
+		if (key !== "cwd" && key !== "json" && key !== "interactive") {
 			throw new UsageError(`unknown option --${key}`);
+		}
 	}
-	let sourceBranch: string | undefined;
-	let worktreePath: string | undefined;
-	let integrated = false;
-	const cleanupActions: string[] = [];
+	return { cwd, interactive: opts.interactive === true, output: parseOutputMode(opts) };
+};
 
-	try {
-		const config = deps.config.read();
-		const worktrees = await listWorktrees(deps.git, cwd);
-		const canonical = worktrees.find((worktree) => worktree.canonical);
-		if (!canonical) throw new HoneycombError("couldn't determine canonical worktree");
-		const source = resolveWorktreeContainingPath(worktrees, cwd, deps.files);
-		if (!source) throw new UsageError(`no worktree contains cwd: ${cwd}`);
-		worktreePath = source.path;
-		if (deps.files.normalizePath(source.path) === deps.files.normalizePath(canonical.path)) {
-			throw new CanonicalRootError("refusing to finish from canonical root");
-		}
-		if (!source.branch)
-			throw new UsageError("finish requires a source worktree checked out on a branch");
-		sourceBranch = source.branch;
+const resolveSourceWorktree = (options: {
+	canonical: Worktree;
+	cwd: string;
+	deps: Deps;
+	state: FinishState;
+	worktrees: Worktree[];
+}): { source: Worktree; sourceBranch: string } => {
+	const source = resolveWorktreeContainingPath(options.worktrees, options.cwd, options.deps.files);
+	if (!source) {
+		throw new UsageError(`no worktree contains cwd: ${options.cwd}`);
+	}
+	options.state.worktreePath = source.path;
+	if (
+		options.deps.files.normalizePath(source.path) ===
+		options.deps.files.normalizePath(options.canonical.path)
+	) {
+		throw new CanonicalRootError("refusing to finish from canonical root");
+	}
+	if (!source.branch) {
+		throw new UsageError("finish requires a source worktree checked out on a branch");
+	}
+	options.state.sourceBranch = source.branch;
+	return { source, sourceBranch: source.branch };
+};
 
-		const project = deps.config.explain(config, canonical.path).project;
-		await runPreRemoteCheck(deps, { config, root: canonical.path, operation: "honeycomb finish" });
-		const explanation = deps.config.explain(config, canonical.path);
-		const finishPolicy = explanation.finishPolicy;
-		if (!finishPolicy.enabled) throw new BlockedError("finish is disabled for this repository");
-		const strategy = finishPolicy.strategy;
-		const push = finishPolicy.push;
-		const removeWorktree = finishPolicy.removeWorktree;
-		const deleteBranch = finishPolicy.deleteBranch;
-		if (deleteBranch && !removeWorktree) {
-			throw new UnsafeOperationError(
-				"cannot delete source branch while its worktree remains checked out; enable remove_worktree cleanup",
-			);
-		}
+const resolveFinishSource = async (
+	request: FinishRequest,
+	deps: Deps,
+	state: FinishState,
+): Promise<FinishSourceInfo> => {
+	const config = deps.config.read();
+	const worktrees = await listWorktrees(deps.git, request.cwd);
+	const canonical = worktrees.find((worktree) => worktree.canonical);
+	if (!canonical) {
+		throw new HoneycombError("couldn't determine canonical worktree");
+	}
+	const { source, sourceBranch } = resolveSourceWorktree({
+		canonical,
+		cwd: request.cwd,
+		deps,
+		state,
+		worktrees,
+	});
+	const explanation = deps.config.explain(config, canonical.path);
+	return { canonical, config, explanation, project: explanation.project, source, sourceBranch };
+};
 
-		const sourceStatus = await deps.git.run(["-C", source.path, "status", "--porcelain=v1"]);
-		if (sourceStatus.stdout.trim() !== "")
-			throw new DirtyWorktreeError("source worktree has uncommitted changes");
-
-		await deps.git.run(["-C", canonical.path, "fetch", "origin"]);
-		const targetBranch = await detectOriginDefaultBranch(deps.git, canonical.path);
-		const policy = explanation.addPolicy;
-		const targetRef = await assertFinishTargetReady({
-			git: deps.git,
-			root: canonical.path,
-			policy,
-			targetBranch,
-		});
-
-		if (strategy === "ff_only") {
-			await assertSourceCanFastForwardTarget({
-				git: deps.git,
-				canonicalPath: canonical.path,
-				targetRef,
-				sourceBranch: source.branch,
-			});
-		}
-		if (policy === "fresh_canonical")
-			await fastForwardCanonicalDefault(deps.git, canonical.path, targetBranch);
-		await integrateFinishedBranch({
-			git: deps.git,
-			canonicalPath: canonical.path,
-			sourcePath: source.path,
-			sourceBranch: source.branch,
-			targetRef,
-			strategy,
-		});
-		integrated = true;
-
-		let afterOutput: (() => Promise<void>) | undefined;
-		if (push) {
-			const pushed = await deps.git.runRaw(["-C", canonical.path, "push", "origin", targetBranch]);
-			if (pushed.exitCode !== 0) throw new PushRejectedError(`push rejected for ${targetBranch}`);
-			cleanupActions.push("push");
-		}
-		if (removeWorktree) {
-			if (interactive) {
-				afterOutput = planLeaveWorktree(deps, {
-					cwd,
-					root: canonical.path,
-					worktreePath: source.path,
-				});
-			}
-			await cleanupFinishedWorktree({
-				files: deps.files,
-				git: deps.git,
-				project,
-				root: canonical.path,
-				source,
-				deleteBranch,
-				worktreeLocation: explanation.worktreeLocation,
-			});
-			cleanupActions.push(source.pool ? "recycle_worktree" : "remove_worktree");
-			if (deleteBranch) cleanupActions.push("delete_branch");
-		}
-
-		const payload = {
-			kind: "ready",
-			root: canonical.path,
-			worktree_path: source.path,
-			source_branch: source.branch,
-			target_branch: targetBranch,
-			strategy,
-			cleanup_actions: cleanupActions,
-		};
-		return finalizeReadyResult(
-			payload,
-			output,
-			`honeycomb: finished ${payload.source_branch} into ${payload.target_branch}`,
-			afterOutput,
+const resolveFinishPolicy = (explanation: PolicyExplanation): FinishPolicyPlan => {
+	const { finishPolicy } = explanation;
+	if (!finishPolicy.enabled) {
+		throw new BlockedError("finish is disabled for this repository");
+	}
+	const { deleteBranch, removeWorktree } = finishPolicy;
+	if (deleteBranch && !removeWorktree) {
+		throw new UnsafeOperationError(
+			"cannot delete source branch while its worktree remains checked out; enable remove_worktree cleanup",
 		);
+	}
+	return finishPolicy;
+};
+
+const prepareFinishTarget = async (
+	source: FinishSourceInfo,
+	deps: Deps,
+): Promise<FinishTargetInfo> => {
+	await runPreRemoteCheck(deps, {
+		config: source.config,
+		operation: "honeycomb finish",
+		root: source.canonical.path,
+	});
+	const plan = resolveFinishPolicy(source.explanation);
+	await assertCleanSource(deps.git, source.source);
+	await deps.git.run(["-C", source.canonical.path, "fetch", "origin"]);
+	const targetBranch = await detectOriginDefaultBranch(deps.git, source.canonical.path);
+	const targetRef = await assertFinishTargetReady({
+		git: deps.git,
+		policy: source.explanation.addPolicy,
+		root: source.canonical.path,
+		targetBranch,
+	});
+	if (plan.strategy === "ff_only") {
+		await assertSourceCanFastForwardTarget({
+			canonicalPath: source.canonical.path,
+			git: deps.git,
+			sourceBranch: source.sourceBranch,
+			targetRef,
+		});
+	}
+	return { plan, targetBranch, targetRef };
+};
+
+const readyFinishResult = (options: {
+	afterOutput: (() => Promise<void>) | undefined;
+	cleanupActions: string[];
+	output: OutputMode;
+	root: string;
+	sourceBranch: string;
+	sourcePath: string;
+	strategy: FinishStrategy;
+	targetBranch: string;
+}): CommandResult => {
+	const payload = {
+		cleanup_actions: options.cleanupActions,
+		kind: "ready",
+		root: options.root,
+		source_branch: options.sourceBranch,
+		strategy: options.strategy,
+		target_branch: options.targetBranch,
+		worktree_path: options.sourcePath,
+	};
+	return finalizeReadyResult({
+		afterOutput: options.afterOutput,
+		output: options.output,
+		payload,
+		summary: `honeycomb: finished ${payload.source_branch} into ${payload.target_branch}`,
+	});
+};
+
+const executeFinish = async (
+	request: FinishRequest,
+	deps: Deps,
+	state: FinishState,
+): Promise<CommandResult> => {
+	const source = await resolveFinishSource(request, deps, state);
+	const target = await prepareFinishTarget(source, deps);
+	if (source.explanation.addPolicy === "fresh_canonical") {
+		await fastForwardCanonicalDefault(deps.git, source.canonical.path, target.targetBranch);
+	}
+	await integrateSource({
+		canonicalPath: source.canonical.path,
+		git: deps.git,
+		sourceBranch: source.sourceBranch,
+		sourcePath: source.source.path,
+		strategy: target.plan.strategy,
+		targetRef: target.targetRef,
+	});
+	state.integrated = true;
+	const afterOutput = await pushAndCleanup({
+		cleanupActions: state.cleanupActions,
+		deps,
+		explanation: source.explanation,
+		plan: target.plan,
+		project: source.project,
+		request,
+		root: source.canonical.path,
+		source: source.source,
+		targetBranch: target.targetBranch,
+	});
+	return readyFinishResult({
+		afterOutput,
+		cleanupActions: state.cleanupActions,
+		output: request.output,
+		root: source.canonical.path,
+		sourceBranch: source.sourceBranch,
+		sourcePath: source.source.path,
+		strategy: target.plan.strategy,
+		targetBranch: target.targetBranch,
+	});
+};
+
+const finishCommand = async (args: string[], deps: Deps): Promise<CommandResult> => {
+	const request = parseFinishRequest(args);
+	const state: FinishState = {
+		cleanupActions: [],
+		integrated: false,
+		sourceBranch: undefined,
+		worktreePath: undefined,
+	};
+	try {
+		return await executeFinish(request, deps, state);
 	} catch (error) {
 		throw withFailureContext(error, {
-			branch: sourceBranch,
-			worktree_path: worktreePath,
-			integrated,
-			cleanup_actions: cleanupActions,
+			branch: state.sourceBranch,
+			cleanup_actions: state.cleanupActions,
+			integrated: state.integrated,
+			worktree_path: state.worktreePath,
 		});
 	}
 };
 
-const cleanupFinishedWorktree = async (options: {
-	files: WorkspaceFiles;
-	git: GitRunner;
-	project: ProjectConfig | undefined;
-	root: string;
-	source: Worktree;
-	deleteBranch: boolean;
-	worktreeLocation: WorktreeLocation;
-}): Promise<void> => {
-	const { git, files, project, root, source, deleteBranch, worktreeLocation } = options;
-	if (!source.branch) throw new UsageError("finish cleanup requires a source branch");
-	const status = await git.run(["-C", source.path, "status", "--porcelain=v1"]);
-	if (status.stdout.trim() !== "")
-		throw new DirtyWorktreeError("source worktree has uncommitted changes");
-	if (project?.poolSize && source.pool) {
-		const state = await buildPoolState(
-			project,
-			await listWorktrees(git, root),
-			{ git, files },
-			worktreeLocation,
-		);
-		const slot = state.slots.find(
-			(candidate) => files.normalizePath(candidate.path) === files.normalizePath(source.path),
-		);
-		if (!slot) throw new UsageError(`pool slot not found: ${source.path}`);
-		const placeholderBranch = `wk-pool/feat${slot.index}`;
-		await ensurePlaceholderBranch({ git, root, branch: placeholderBranch, trunk: state.trunk });
-		await git.run([
-			"-C",
-			source.path,
-			"checkout",
-			"-B",
-			placeholderBranch,
-			`origin/${state.trunk}`,
-		]);
-		if (deleteBranch) await git.run(["-C", root, "branch", "-D", source.branch]);
-		return;
-	}
-	await git.run(["-C", root, "worktree", "remove", source.path]);
-	if (deleteBranch) await git.run(["-C", root, "branch", "-D", source.branch]);
-};
-
-const assertSourceCanFastForwardTarget = async (options: {
-	git: GitRunner;
-	canonicalPath: string;
-	targetRef: string;
-	sourceBranch: string;
-}): Promise<void> => {
-	const { git, canonicalPath, targetRef, sourceBranch } = options;
-	const canFastForward = await git.runRaw([
-		"-C",
-		canonicalPath,
-		"merge-base",
-		"--is-ancestor",
-		targetRef,
-		`refs/heads/${sourceBranch}`,
-	]);
-	if (canFastForward.exitCode !== 0)
-		throw new FinishConflictError("source branch cannot fast-forward target branch");
-};
-
-const integrateFinishedBranch = async (options: {
-	git: GitRunner;
-	canonicalPath: string;
-	sourcePath: string;
-	sourceBranch: string;
-	targetRef: string;
-	strategy: FinishStrategy;
-}): Promise<void> => {
-	const { git, canonicalPath, sourcePath, sourceBranch, targetRef, strategy } = options;
-	switch (strategy) {
-		case "ff_only":
-			await git.run(["-C", canonicalPath, "merge", "--ff-only", sourceBranch]);
-			return;
-		case "squash": {
-			const merge = await git.runRaw(["-C", canonicalPath, "merge", "--squash", sourceBranch]);
-			if (merge.exitCode !== 0)
-				throw new FinishConflictError("squash merge stopped with conflicts");
-			const commit = await git.runRaw([
-				"-C",
-				canonicalPath,
-				"commit",
-				"-m",
-				finishCommitMessage("integrate", sourceBranch),
-			]);
-			if (commit.exitCode !== 0) throw new FinishConflictError("squash commit failed");
-			return;
-		}
-		case "merge_commit": {
-			const merge = await git.runRaw([
-				"-C",
-				canonicalPath,
-				"merge",
-				"--no-ff",
-				"-m",
-				finishCommitMessage("merge", sourceBranch),
-				sourceBranch,
-			]);
-			if (merge.exitCode !== 0) throw new FinishConflictError("merge stopped with conflicts");
-			return;
-		}
-		case "rebase_ff": {
-			const rebase = await git.runRaw(["-C", sourcePath, "rebase", targetRef]);
-			if (rebase.exitCode !== 0) throw new FinishConflictError("rebase stopped with conflicts");
-			await git.run(["-C", canonicalPath, "merge", "--ff-only", sourceBranch]);
-			return;
-		}
-	}
-};
-
-const finishCommitMessage = (action: "integrate" | "merge", sourceBranch: string): string =>
-	`chore: ${action} worktree\n\nSource branch:\n${sourceBranch.match(/.{1,40}/gu)?.join("\n") ?? sourceBranch}`;
-
-const assertFinishTargetReady = async (options: {
-	git: GitRunner;
-	root: string;
-	policy: AddPolicy;
-	targetBranch: string;
-}): Promise<string> => {
-	const { git, root, policy, targetBranch } = options;
-	if (policy === "fresh_canonical") {
-		await assertCanonicalCanFastForward(git, root, targetBranch);
-		return `origin/${targetBranch}`;
-	}
-	const status = await git.run(["-C", root, "status", "--porcelain=v1"]);
-	if (status.stdout.trim() !== "")
-		throw new TargetNotFreshError("target worktree has uncommitted changes");
-	const current = (await git.run(["-C", root, "branch", "--show-current"])).stdout.trim();
-	if (current !== targetBranch) {
-		throw new TargetNotFreshError(
-			`target branch must be checked out on ${targetBranch}; currently on ${current || "detached HEAD"}`,
-		);
-	}
-	const targetIsCurrent = await git.runRaw([
-		"-C",
-		root,
-		"merge-base",
-		"--is-ancestor",
-		`origin/${targetBranch}`,
-		"HEAD",
-	]);
-	if (targetIsCurrent.exitCode !== 0)
-		throw new TargetNotFreshError(`target branch is behind origin/${targetBranch}`);
-	return `refs/heads/${targetBranch}`;
-};
+export { finishCommand };

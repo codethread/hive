@@ -1,9 +1,30 @@
-import { resolve } from "node:path";
-import { openRequestForWorktree } from "../integrations/multiplexer.ts";
 import type { Deps, ProgressReporter } from "../services.ts";
+import { openRequestForWorktree } from "../integrations/multiplexer.ts";
 import { pathContains } from "./repository.ts";
+// oxlint-disable-next-line import/no-nodejs-modules -- resolve cwd at the filesystem boundary
+import { resolve } from "node:path";
 
 type InteractiveDeps = Pick<Deps, "cdDirective" | "files" | "multiplexer" | "progress">;
+
+const errorMessage = (error: unknown): string => {
+	if (error instanceof Error) {
+		return error.message;
+	}
+	return String(error);
+};
+
+/** Interactive effects follow a completed git operation, so failures only warn. */
+const warnOnFailure = async (
+	progress: ProgressReporter,
+	action: string,
+	effect: () => void | Promise<void>,
+): Promise<void> => {
+	try {
+		await effect();
+	} catch (error) {
+		progress.error(`warning: couldn't ${action}: ${errorMessage(error)}`);
+	}
+};
 
 /** Move the user's focus into a worktree: its multiplexer session, or the cd directive outside one. */
 export const focusWorktree = async (
@@ -43,19 +64,4 @@ export const planLeaveWorktree = (
 			deps.multiplexer.closeUnder(worktreePath),
 		);
 	};
-};
-
-/** Interactive effects follow a completed git operation, so failures only warn. */
-const warnOnFailure = async (
-	progress: ProgressReporter,
-	action: string,
-	effect: () => void | Promise<void>,
-): Promise<void> => {
-	try {
-		await effect();
-	} catch (error) {
-		progress.error(
-			`warning: couldn't ${action}: ${error instanceof Error ? error.message : String(error)}`,
-		);
-	}
 };

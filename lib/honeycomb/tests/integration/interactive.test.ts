@@ -1,18 +1,25 @@
-import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { existsSync, mkdtempSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { type Deps, dispatch, EXIT_CODES } from "../../src/index";
+import { EXIT_CODES, dispatch } from "../../src/index";
 import {
 	TestCdDirective,
 	TestMultiplexer,
 	commitFile,
+	pathExists,
 	restoreTestEnv,
 	setTestEnv,
 	testDeps,
 	useOriginFixture,
 	writeConfig,
 } from "./support.ts";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+/* oxlint-disable-next-line import/no-nodejs-modules -- interactive fixtures create real repositories on disk */
+import { mkdtemp, rm } from "node:fs/promises";
+import type { Deps } from "../../src/services.ts";
+/* oxlint-disable-next-line import/no-nodejs-modules -- fixture paths are built with node:path */
+import { join } from "node:path";
+/* oxlint-disable-next-line import/no-nodejs-modules -- fixtures live in the host temporary directory */
+import { tmpdir } from "node:os";
+
+const POOL_SIZE = 1;
 
 const { initRepoWithOrigin } = useOriginFixture();
 
@@ -22,15 +29,15 @@ const interactiveDeps = (attached = true) => {
 	const cdDirective = new TestCdDirective(log);
 	const warnings: string[] = [];
 	const deps = testDeps({
-		multiplexer,
 		cdDirective,
+		multiplexer,
 		progress: {
-			banner: () => undefined,
-			stream: () => undefined,
+			banner: () => {},
 			error: (msg) => warnings.push(msg),
+			stream: () => {},
 		},
 	});
-	return { deps, log, multiplexer, cdDirective, warnings };
+	return { cdDirective, deps, log, multiplexer, warnings };
 };
 
 const run = async (subcommand: string, args: string[], deps: Deps) => {
@@ -39,25 +46,25 @@ const run = async (subcommand: string, args: string[], deps: Deps) => {
 	return result;
 };
 
-describe("honeycomb --interactive", () => {
-	let tmp: string;
-	let root: string;
+let tmp = "";
+let root = "";
 
-	beforeEach(async () => {
-		tmp = mkdtempSync(join(tmpdir(), "honeycomb-interactive-test-"));
-		setTestEnv("HOME", tmp);
-		setTestEnv("GIT_CONFIG_NOSYSTEM", "1");
-		setTestEnv("GIT_CONFIG_GLOBAL", join(tmp, "gitconfig"));
-		setTestEnv("XDG_CONFIG_HOME", join(tmp, "config"));
-		({ root } = await initRepoWithOrigin(tmp));
-		writeConfig(tmp, root, "echo ready");
-	});
+beforeEach(async () => {
+	tmp = await mkdtemp(join(tmpdir(), "honeycomb-interactive-test-"));
+	setTestEnv("HOME", tmp);
+	setTestEnv("GIT_CONFIG_NOSYSTEM", "1");
+	setTestEnv("GIT_CONFIG_GLOBAL", join(tmp, "gitconfig"));
+	setTestEnv("XDG_CONFIG_HOME", join(tmp, "config"));
+	({ root } = await initRepoWithOrigin(tmp));
+	writeConfig({ command: "echo ready", root, tmp });
+});
 
-	afterEach(() => {
-		restoreTestEnv();
-		rmSync(tmp, { recursive: true, force: true });
-	});
+afterEach(async () => {
+	restoreTestEnv();
+	await rm(tmp, { force: true, recursive: true });
+});
 
+describe("honeycomb --interactive add", () => {
 	test("add opens the new worktree's session after output", async () => {
 		const { deps, log, multiplexer } = interactiveDeps();
 
@@ -72,8 +79,8 @@ describe("honeycomb --interactive", () => {
 		expect(multiplexer.opened).toEqual([
 			{
 				name: "repo__feature--open",
-				title: "feature/open",
 				path: `${root}__feature--open`,
+				title: "feature/open",
 			},
 		]);
 		expect(log).toEqual([`open ${root}__feature--open`]);
@@ -102,7 +109,9 @@ describe("honeycomb --interactive", () => {
 		expect(result.afterOutput).toBeUndefined();
 		expect(log).toEqual([]);
 	});
+});
 
+describe("honeycomb --interactive remove", () => {
 	test("remove from inside the worktree writes the canonical root, then closes sessions last", async () => {
 		const { deps, log } = interactiveDeps();
 		await dispatch("add", ["--cwd", root, "--branch", "feature/leave", "--json"], deps);
@@ -115,8 +124,9 @@ describe("honeycomb --interactive", () => {
 		);
 
 		expect(result.exitCode).toBe(EXIT_CODES.SUCCESS);
-		expect(existsSync(worktreePath)).toBe(false);
+		expect(await pathExists(worktreePath)).toBe(false);
 		expect(log).toEqual([]);
+
 		await result.afterOutput?.();
 		expect(log).toEqual([`cd ${root}`, `close ${worktreePath}`]);
 	});
@@ -133,9 +143,11 @@ describe("honeycomb --interactive", () => {
 
 		expect(log).toEqual([`close ${root}__feature--other`]);
 	});
+});
 
+describe("honeycomb --interactive sessions", () => {
 	test("pooled add opens the slot and pooled remove leaves and closes it", async () => {
-		writeConfig(tmp, root, "echo ready", 1);
+		writeConfig({ command: "echo ready", poolSize: POOL_SIZE, root, tmp });
 		const { deps, log } = interactiveDeps();
 		const slotPath = `${root}__feat1`;
 
@@ -150,7 +162,7 @@ describe("honeycomb --interactive", () => {
 			deps,
 		);
 
-		expect(existsSync(slotPath)).toBe(true);
+		expect(await pathExists(slotPath)).toBe(true);
 		expect(log).toEqual([`open ${slotPath}`, `cd ${root}`, `close ${slotPath}`]);
 	});
 
@@ -167,16 +179,23 @@ describe("honeycomb --interactive", () => {
 		);
 
 		expect(result.exitCode).toBe(EXIT_CODES.SUCCESS);
-		expect(existsSync(`${root}__feature--warn`)).toBe(false);
+		expect(await pathExists(`${root}__feature--warn`)).toBe(false);
 		expect(warnings).toEqual(["warning: couldn't close multiplexer sessions: tmux exploded"]);
 	});
+});
 
+describe("honeycomb --interactive finish", () => {
 	test("finish cleanup leaves the removed worktree and closes its sessions", async () => {
-		writeConfig(tmp, root, "echo ready", undefined, "[project.finish]\nremove_worktree = true\n");
+		writeConfig({
+			command: "echo ready",
+			copyToml: "[project.finish]\nremove_worktree = true\n",
+			root,
+			tmp,
+		});
 		const { deps, log } = interactiveDeps();
 		await dispatch("add", ["--cwd", root, "--branch", "feature/finish", "--json"], deps);
 		const worktreePath = `${root}__feature--finish`;
-		await commitFile({ repo: worktreePath, path: "a.txt", content: "a\n", message: "work" });
+		await commitFile({ content: "a\n", message: "work", path: "a.txt", repo: worktreePath });
 
 		const result = await dispatch(
 			"finish",
@@ -194,7 +213,7 @@ describe("honeycomb --interactive", () => {
 		const { deps, log } = interactiveDeps();
 		await dispatch("add", ["--cwd", root, "--branch", "feature/keep", "--json"], deps);
 		const worktreePath = `${root}__feature--keep`;
-		await commitFile({ repo: worktreePath, path: "b.txt", content: "b\n", message: "work" });
+		await commitFile({ content: "b\n", message: "work", path: "b.txt", repo: worktreePath });
 
 		const result = await run("finish", ["--cwd", worktreePath, "--json", "--interactive"], deps);
 

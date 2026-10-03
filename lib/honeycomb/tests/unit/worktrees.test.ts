@@ -1,105 +1,128 @@
-import { describe, expect, test } from "bun:test";
 import {
 	branchExistsInList,
 	parseTrunkFromRemoteShow,
 	parseTrunkFromSymbolicRef,
 	parseWorktreeList,
 } from "../../src/git/worktrees.ts";
+import { describe, expect, test } from "bun:test";
+
+const checkoutCases = [
+	{
+		expected: {
+			bare: false,
+			branch: "main",
+			branchRef: "refs/heads/main",
+			detached: false,
+			head: "abc123",
+			path: "/repo",
+		},
+		input: "worktree /repo\nHEAD abc123\nbranch refs/heads/main\n",
+		name: "branch",
+	},
+	{
+		expected: {
+			bare: false,
+			// eslint-disable-next-line unicorn/no-null -- Porcelain reports no branch for a detached checkout.
+			branch: null,
+			// eslint-disable-next-line unicorn/no-null -- Porcelain reports no branch ref for a detached checkout.
+			branchRef: null,
+			detached: true,
+			head: "abc123",
+			path: "/repo",
+		},
+		input: "worktree /repo\nHEAD abc123\ndetached\n",
+		name: "detached",
+	},
+	{
+		expected: {
+			bare: true,
+			// eslint-disable-next-line unicorn/no-null -- Porcelain reports no branch for a bare checkout.
+			branch: null,
+			// eslint-disable-next-line unicorn/no-null -- Porcelain reports no branch ref for a bare checkout.
+			branchRef: null,
+			detached: false,
+			// eslint-disable-next-line unicorn/no-null -- Porcelain reports no HEAD for a bare checkout.
+			head: null,
+			path: "/repo.git",
+		},
+		input: "worktree /repo.git\nbare\n",
+		name: "bare",
+	},
+];
+
+const poolCases = [
+	{ branch: "wk-pool/feat1", index: 1, path: "/repo__feat1", placeholder: true },
+	{ branch: "my-feature", index: 2, path: "/repo__feat2", placeholder: false },
+	{ branch: "wk-pool/feat3", index: 3, path: "/repo/.worktrees/feat3", placeholder: true },
+	{ branch: "wk-pool/feat4", index: 4, path: "/repo/.wktree/feat4", placeholder: true },
+];
+
+const symbolicRefCases = [
+	{ expected: "main", input: "refs/remotes/origin/main\n", name: "main" },
+	{ expected: "develop", input: "refs/remotes/origin/develop\n", name: "develop" },
+	// eslint-disable-next-line unicorn/no-null -- Empty symbolic-ref output has no trunk.
+	{ expected: null, input: "\n", name: "empty output" },
+];
+
+const remoteShowCases = [
+	{
+		expected: "develop",
+		input: "* remote origin\n  Fetch URL: git@example.test/repo\n  HEAD branch: develop\n",
+		name: "declared HEAD",
+	},
+	{
+		// eslint-disable-next-line unicorn/no-null -- A remote without a HEAD branch has no trunk.
+		expected: null,
+		input: "* remote origin\n  Fetch URL: git@example.test/repo\n",
+		name: "missing HEAD",
+	},
+	// eslint-disable-next-line unicorn/no-null -- An unknown remote HEAD has no trunk.
+	{ expected: null, input: "* remote origin\n  HEAD branch: (unknown)\n", name: "unknown HEAD" },
+];
+
+const branchMatchCases = [
+	{ branch: "feature", exists: true, output: "* main\n  feature\n  feature-extra\n" },
+	{ branch: "checked-out-elsewhere", exists: true, output: "* main\n+ checked-out-elsewhere\n" },
+	{ branch: "feature", exists: false, output: "* main\n  feature-extra\n" },
+];
 
 describe("git worktree parsers", () => {
-	test.each([
-		{
-			name: "branch",
-			input: "worktree /repo\nHEAD abc123\nbranch refs/heads/main\n",
-			expected: {
-				path: "/repo",
-				head: "abc123",
-				branch: "main",
-				branchRef: "refs/heads/main",
-				detached: false,
-				bare: false,
-			},
-		},
-		{
-			name: "detached",
-			input: "worktree /repo\nHEAD abc123\ndetached\n",
-			expected: {
-				path: "/repo",
-				head: "abc123",
-				branch: null,
-				branchRef: null,
-				detached: true,
-				bare: false,
-			},
-		},
-		{
-			name: "bare",
-			input: "worktree /repo.git\nbare\n",
-			expected: {
-				path: "/repo.git",
-				head: null,
-				branch: null,
-				branchRef: null,
-				detached: false,
-				bare: true,
-			},
-		},
-	])("parses a $name checkout", ({ input, expected }) => {
+	test.each(checkoutCases)("parses a $name checkout", ({ input, expected }) => {
 		expect(parseWorktreeList(input)).toEqual([
 			{
 				...expected,
 				canonical: true,
-				pool: null,
-				locked: false,
+				// eslint-disable-next-line unicorn/no-null -- Porcelain omits a lock reason when unlocked.
 				lockReason: null,
+				locked: false,
+				// eslint-disable-next-line unicorn/no-null -- A canonical checkout has no pool slot.
+				pool: null,
 				prunable: false,
+				// eslint-disable-next-line unicorn/no-null -- Porcelain omits a prunable reason when not prunable.
 				prunableReason: null,
 			},
 		]);
 	});
 
-	test.each([
-		{ path: "/repo__feat1", branch: "wk-pool/feat1", index: 1, placeholder: true },
-		{ path: "/repo__feat2", branch: "my-feature", index: 2, placeholder: false },
-		{ path: "/repo/.worktrees/feat3", branch: "wk-pool/feat3", index: 3, placeholder: true },
-		{ path: "/repo/.wktree/feat4", branch: "wk-pool/feat4", index: 4, placeholder: true },
-	])("recognizes pool slot $path", ({ path, branch, index, placeholder }) => {
-		expect(
-			parseWorktreeList(
-				`worktree /repo\nHEAD aaa\nbranch refs/heads/main\n\nworktree ${path}\nHEAD bbb\nbranch refs/heads/${branch}\n`,
-			)[1],
-		).toMatchObject({ path, branch, canonical: false, pool: { index, placeholder } });
+	test.each(poolCases)("recognizes pool slot $path", ({ path, branch, index, placeholder }) => {
+		const [, slot] = parseWorktreeList(
+			`worktree /repo\nHEAD aaa\nbranch refs/heads/main\n\nworktree ${path}\nHEAD bbb\nbranch refs/heads/${branch}\n`,
+		);
+		expect(slot).toMatchObject({ branch, canonical: false, path, pool: { index, placeholder } });
 	});
 
-	test.each([
-		{ name: "main", input: "refs/remotes/origin/main\n", expected: "main" },
-		{ name: "develop", input: "refs/remotes/origin/develop\n", expected: "develop" },
-		{ name: "empty output", input: "\n", expected: null },
-	])("parses symbolic-ref: $name", ({ input, expected }) => {
+	test.each(symbolicRefCases)("parses symbolic-ref: $name", ({ input, expected }) => {
 		expect(parseTrunkFromSymbolicRef(input)).toBe(expected);
 	});
 
-	test.each([
-		{
-			name: "declared HEAD",
-			input: "* remote origin\n  Fetch URL: git@example.test/repo\n  HEAD branch: develop\n",
-			expected: "develop",
-		},
-		{
-			name: "missing HEAD",
-			input: "* remote origin\n  Fetch URL: git@example.test/repo\n",
-			expected: null,
-		},
-		{ name: "unknown HEAD", input: "* remote origin\n  HEAD branch: (unknown)\n", expected: null },
-	])("parses remote show: $name", ({ input, expected }) => {
+	test.each(remoteShowCases)("parses remote show: $name", ({ input, expected }) => {
 		expect(parseTrunkFromRemoteShow(input)).toBe(expected);
 	});
 
-	test.each([
-		{ output: "* main\n  feature\n  feature-extra\n", branch: "feature", exists: true },
-		{ output: "* main\n+ checked-out-elsewhere\n", branch: "checked-out-elsewhere", exists: true },
-		{ output: "* main\n  feature-extra\n", branch: "feature", exists: false },
-	])("matches exact branch $branch in $output", ({ output, branch, exists }) => {
-		expect(branchExistsInList(output, branch)).toBe(exists);
-	});
+	test.each(branchMatchCases)(
+		"matches exact branch $branch in $output",
+		({ output, branch, exists }) => {
+			expect(branchExistsInList(output, branch)).toBe(exists);
+		},
+	);
 });

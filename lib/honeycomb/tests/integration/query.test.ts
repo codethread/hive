@@ -1,138 +1,157 @@
-import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { BlockedError, ConfigError, EXIT_CODES, dispatch } from "../../src/index";
+import { afterEach, beforeEach, expect, test } from "bun:test";
+import {
+	deps,
+	initRepo,
+	restoreTestEnv,
+	run,
+	setTestEnv,
+	useOriginFixture,
+	writeConfig,
+} from "./support.ts";
+// oxlint-disable-next-line import/no-nodejs-modules -- Integration fixtures exercise real filesystem and process boundaries.
+import { mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
+// oxlint-disable-next-line import/no-nodejs-modules -- Integration fixtures exercise real filesystem and process boundaries.
 import { join } from "node:path";
-import { BlockedError, ConfigError, dispatch, EXIT_CODES } from "../../src/index";
-import { setTestEnv, restoreTestEnv, deps, useOriginFixture, initRepo, run } from "./support.ts";
+// oxlint-disable-next-line import/no-nodejs-modules -- Integration fixtures exercise real filesystem and process boundaries.
+import { tmpdir } from "node:os";
 
 const { initRepoWithOrigin } = useOriginFixture();
 
-describe("honeycomb read-only commands", () => {
-	let tmp: string;
+let tmp = "";
 
-	beforeEach(() => {
-		tmp = mkdtempSync(join(tmpdir(), "honeycomb-test-"));
-		setTestEnv("HOME", tmp);
-		setTestEnv("GIT_CONFIG_NOSYSTEM", "1");
-		setTestEnv("GIT_CONFIG_GLOBAL", join(tmp, "gitconfig"));
-		setTestEnv("XDG_CONFIG_HOME", join(tmp, "config"));
+beforeEach(async () => {
+	tmp = await mkdtemp(join(tmpdir(), "honeycomb-test-"));
+	setTestEnv("HOME", tmp);
+	setTestEnv("GIT_CONFIG_NOSYSTEM", "1");
+	setTestEnv("GIT_CONFIG_GLOBAL", join(tmp, "gitconfig"));
+	setTestEnv("XDG_CONFIG_HOME", join(tmp, "config"));
+});
+
+afterEach(async () => {
+	restoreTestEnv();
+	await rm(tmp, { force: true, recursive: true });
+});
+
+const initQueryRepo = async () => {
+	const root = join(tmp, "repo");
+	await initRepo(root);
+	return realpath(root);
+};
+
+const writeRawConfig = async (configHome: string, content: string) => {
+	await mkdir(configHome, { recursive: true });
+	await writeFile(join(configHome, "honeycomb.toml"), content);
+	setTestEnv("XDG_CONFIG_HOME", configHome);
+};
+
+const assertCanonicalList = async (root: string) => {
+	const listResult = await dispatch("list", ["--cwd", root], deps);
+	expect(listResult.stdout).toContain(`${root}  `);
+	expect(listResult.stdout).toContain("[main]");
+	expect(listResult.stdout).toContain("[canonical]");
+
+	const jsonResult = await dispatch("list", ["--cwd", root, "--json"], deps);
+	const parsed = JSON.parse(jsonResult.stdout ?? "{}");
+	const [canonical] = parsed.worktrees;
+	expect(parsed).toMatchObject({ diagnostics: [], kind: "list", ok: true, setup_output: [] });
+	expect(canonical).toMatchObject({
+		branch: "main",
+		branch_ref: "refs/heads/main",
+		canonical: true,
+		locked: false,
+		path: root,
+		// oxlint-disable-next-line unicorn/no-null -- Assert the explicit-null JSON protocol contract.
+		pool: null,
+		prunable: false,
 	});
+	expect(canonical.branchRef).toBeUndefined();
+};
 
-	afterEach(() => {
-		restoreTestEnv();
-		rmSync(tmp, { recursive: true, force: true });
+test("root, list, json list, and non-pool path against a real repo", async () => {
+	const root = await initQueryRepo();
+	writeConfig({ command: "echo ready", root, tmp });
+
+	const rootResult = await dispatch("root", ["--cwd", root], deps);
+	expect(rootResult.stdout).toBe(`${root}\n`);
+
+	await assertCanonicalList(root);
+
+	const pathResult = await dispatch("path", ["--cwd", root, "--branch", "feature/cool"], deps);
+	expect(pathResult.stdout).toBe(`${root}__feature--cool\n`);
+});
+
+test("config explain reports effective policy JSON", async () => {
+	const root = await initQueryRepo();
+	const configHome = join(tmp, "config-explain");
+	await writeRawConfig(
+		configHome,
+		`[defaults.finish]\nstrategy = "rebase_ff"\n\n[[rule]]\nroot_glob = "${await realpath(tmp)}/**"\n[rule.add]\npolicy = "fresh_canonical"\n[rule.finish]\npush = true\n\n[[project]]\nname = "repo"\nroot = "${root}"\n[project.finish]\ndelete_branch = true\n`,
+	);
+
+	const result = await dispatch("config", ["explain", "--cwd", root, "--json"], deps);
+	const payload = JSON.parse(result.stdout ?? "{}");
+
+	expect(result.exitCode).toBe(EXIT_CODES.SUCCESS);
+	expect(payload).toEqual({
+		add: { policy: "fresh_canonical" },
+		// oxlint-disable-next-line unicorn/no-null -- Assert the explicit-null JSON protocol contract.
+		command: { source: null, value: null },
+		diagnostics: [],
+		finish: {
+			delete_branch: true,
+			enabled: true,
+			push: true,
+			remove_worktree: false,
+			strategy: "rebase_ff",
+		},
+		kind: "config_explain",
+		matched_rules: [{ root_glob: `${await realpath(tmp)}/**` }],
+		ok: true,
+		// oxlint-disable-next-line unicorn/no-null -- Assert the explicit-null JSON protocol contract.
+		pre_remote_check: { source: null, value: null },
+		project: { name: "repo", root },
+		root,
+		setup_output: [],
+		worktree_location: "sibling",
 	});
+});
 
-	test("root, list, json list, and non-pool path against a real repo", async () => {
-		let root = join(tmp, "repo");
-		await initRepo(root);
-		root = realpathSync(root);
-		const configHome = join(tmp, "config");
-		mkdirSync(configHome, { recursive: true });
-		writeFileSync(
-			join(configHome, "honeycomb.toml"),
-			`[[project]]\nroot = "${root}"\ncommand = "echo ready"\n`,
-		);
-		setTestEnv("XDG_CONFIG_HOME", configHome);
+test("list fails fast on malformed config", async () => {
+	const root = await initQueryRepo();
+	const configHome = join(tmp, "config");
+	await mkdir(configHome, { recursive: true });
+	await writeFile(join(configHome, "honeycomb.toml"), "[[project]]\nroot = ");
+	setTestEnv("XDG_CONFIG_HOME", configHome);
 
-		const rootResult = await dispatch("root", ["--cwd", root], deps);
-		expect(rootResult.stdout).toBe(`${root}\n`);
+	const { failure } = await dispatch("list", ["--cwd", root], deps);
+	expect(failure).toBeInstanceOf(ConfigError);
+});
 
-		const listResult = await dispatch("list", ["--cwd", root], deps);
-		expect(listResult.stdout).toContain(`${root}  `);
-		expect(listResult.stdout).toContain("[main]");
-		expect(listResult.stdout).toContain("[canonical]");
+const initLockedPool = async () => {
+	const configRoot = join(tmp, "repo");
+	const { root } = await initRepoWithOrigin(tmp);
+	await run(["git", "-C", root, "branch", "wk-pool/feat1"]);
+	await run(["git", "-C", root, "worktree", "add", `${root}__feat1`, "wk-pool/feat1"]);
+	await run(["git", "-C", root, "worktree", "lock", "--reason", "keep slot", `${root}__feat1`]);
+	const configHome = join(tmp, "config");
+	await writeRawConfig(
+		configHome,
+		`[[project]]\nroot = "${configRoot}"\ncommand = "echo ready"\npool_size = 1\n`,
+	);
+	return root;
+};
 
-		const jsonResult = await dispatch("list", ["--cwd", root, "--json"], deps);
-		const parsed = JSON.parse(jsonResult.stdout ?? "{}");
-		expect(parsed).toMatchObject({ ok: true, kind: "list", diagnostics: [], setup_output: [] });
-		expect(parsed.worktrees[0]).toMatchObject({
-			path: root,
-			branch: "main",
-			branch_ref: "refs/heads/main",
-			locked: false,
-			prunable: false,
-			canonical: true,
-			pool: null,
-		});
-		expect(parsed.worktrees[0].branchRef).toBeUndefined();
+test("list annotates pool slots and path refuses pooled repos before slot state exists", async () => {
+	const root = await initLockedPool();
 
-		const pathResult = await dispatch("path", ["--cwd", root, "--branch", "feature/cool"], deps);
-		expect(pathResult.stdout).toBe(`${root}__feature--cool\n`);
-	});
+	const listResult = await dispatch("list", ["--cwd", root], deps);
+	expect(listResult.stdout).toContain("[pool:free]");
+	const jsonResult = await dispatch("list", ["--cwd", root, "--json"], deps);
+	const json = JSON.parse(jsonResult.stdout ?? "{}");
+	const [, slot] = json.worktrees;
+	expect(slot).toMatchObject({ lock_reason: "keep slot", locked: true });
 
-	test("config explain reports effective policy JSON", async () => {
-		let root = join(tmp, "repo");
-		await initRepo(root);
-		root = realpathSync(root);
-		const configHome = join(tmp, "config-explain");
-		mkdirSync(configHome, { recursive: true });
-		writeFileSync(
-			join(configHome, "honeycomb.toml"),
-			`[defaults.finish]\nstrategy = "rebase_ff"\n\n[[rule]]\nroot_glob = "${realpathSync(tmp)}/**"\n[rule.add]\npolicy = "fresh_canonical"\n[rule.finish]\npush = true\n\n[[project]]\nname = "repo"\nroot = "${root}"\n[project.finish]\ndelete_branch = true\n`,
-		);
-		setTestEnv("XDG_CONFIG_HOME", configHome);
-
-		const result = await dispatch("config", ["explain", "--cwd", root, "--json"], deps);
-		const payload = JSON.parse(result.stdout ?? "{}");
-
-		expect(result.exitCode).toBe(EXIT_CODES.SUCCESS);
-		expect(payload).toEqual({
-			ok: true,
-			kind: "config_explain",
-			root,
-			matched_rules: [{ root_glob: `${realpathSync(tmp)}/**` }],
-			project: { name: "repo", root },
-			command: { source: null, value: null },
-			pre_remote_check: { source: null, value: null },
-			worktree_location: "sibling",
-			add: { policy: "fresh_canonical" },
-			finish: {
-				enabled: true,
-				strategy: "rebase_ff",
-				push: true,
-				remove_worktree: false,
-				delete_branch: true,
-			},
-			diagnostics: [],
-			setup_output: [],
-		});
-	});
-
-	test("list fails fast on malformed config", async () => {
-		let root = join(tmp, "repo");
-		await initRepo(root);
-		root = realpathSync(root);
-		const configHome = join(tmp, "config");
-		mkdirSync(configHome, { recursive: true });
-		writeFileSync(join(configHome, "honeycomb.toml"), "[[project]]\nroot = ");
-		setTestEnv("XDG_CONFIG_HOME", configHome);
-
-		const { failure } = await dispatch("list", ["--cwd", root], deps);
-		expect(failure).toBeInstanceOf(ConfigError);
-	});
-
-	test("list annotates pool slots and path refuses pooled repos before slot state exists", async () => {
-		const configRoot = join(tmp, "repo");
-		const { root } = await initRepoWithOrigin(tmp);
-		await run(["git", "-C", root, "branch", "wk-pool/feat1"]);
-		await run(["git", "-C", root, "worktree", "add", `${root}__feat1`, "wk-pool/feat1"]);
-		await run(["git", "-C", root, "worktree", "lock", "--reason", "keep slot", `${root}__feat1`]);
-		const configHome = join(tmp, "config");
-		mkdirSync(configHome, { recursive: true });
-		writeFileSync(
-			join(configHome, "honeycomb.toml"),
-			`[[project]]\nroot = "${configRoot}"\ncommand = "echo ready"\npool_size = 1\n`,
-		);
-		setTestEnv("XDG_CONFIG_HOME", configHome);
-
-		const listResult = await dispatch("list", ["--cwd", root], deps);
-		expect(listResult.stdout).toContain("[pool:free]");
-		const jsonResult = await dispatch("list", ["--cwd", root, "--json"], deps);
-		const json = JSON.parse(jsonResult.stdout ?? "{}");
-		expect(json.worktrees[1]).toMatchObject({ locked: true, lock_reason: "keep slot" });
-
-		const { failure } = await dispatch("path", ["--cwd", root, "--branch", "feature/cool"], deps);
-		expect(failure).toBeInstanceOf(BlockedError);
-	});
+	const { failure } = await dispatch("path", ["--cwd", root, "--branch", "feature/cool"], deps);
+	expect(failure).toBeInstanceOf(BlockedError);
 });

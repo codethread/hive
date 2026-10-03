@@ -1,38 +1,38 @@
 import { expect, test } from "bun:test";
-import { dispatch } from "../../src/main.ts";
 import type { Deps } from "../../src/services.ts";
+import { dispatch } from "../../src/main.ts";
 
 const unexpectedIO = (): never => {
 	throw new Error("Usage must not invoke services");
 };
 const deps: Deps = {
-	git: { run: unexpectedIO, runRaw: unexpectedIO },
-	config: { read: unexpectedIO, explain: unexpectedIO },
+	cdDirective: { write: unexpectedIO },
+	clock: { now: unexpectedIO },
+	config: { explain: unexpectedIO, read: unexpectedIO },
 	files: {
-		normalizePath: unexpectedIO,
-		exists: unexpectedIO,
-		prepareParent: unexpectedIO,
 		copy: unexpectedIO,
+		exists: unexpectedIO,
+		normalizePath: unexpectedIO,
+		prepareParent: unexpectedIO,
 		writePostCreateScript: unexpectedIO,
 	},
-	hooks: { runInline: unexpectedIO, runCommand: unexpectedIO },
-	picker: { pick: unexpectedIO, confirm: unexpectedIO },
+	git: { run: unexpectedIO, runRaw: unexpectedIO },
+	hooks: { runCommand: unexpectedIO, runInline: unexpectedIO },
 	multiplexer: {
 		attached: false,
-		open: unexpectedIO,
 		closeUnder: unexpectedIO,
+		open: unexpectedIO,
 		previewCommand: unexpectedIO,
 	},
-	cdDirective: { write: unexpectedIO },
-	progress: { banner: unexpectedIO, stream: unexpectedIO, error: unexpectedIO },
-	clock: { now: unexpectedIO },
+	picker: { confirm: unexpectedIO, pick: unexpectedIO },
+	progress: { banner: unexpectedIO, error: unexpectedIO, stream: unexpectedIO },
 };
 
 test.each([
-	{ name: "missing command", command: undefined, exitCode: 0, stream: "stdout" },
-	{ name: "--help", command: "--help", exitCode: 0, stream: "stdout" },
-	{ name: "-h", command: "-h", exitCode: 0, stream: "stdout" },
-	{ name: "unknown command", command: "somebogus", exitCode: 12, stream: "stderr" },
+	{ command: undefined, exitCode: 0, name: "missing command", stream: "stdout" },
+	{ command: "--help", exitCode: 0, name: "--help", stream: "stdout" },
+	{ command: "-h", exitCode: 0, name: "-h", stream: "stdout" },
+	{ command: "somebogus", exitCode: 12, name: "unknown command", stream: "stderr" },
 ] as const)(
 	"dispatch $name returns usage with exit code $exitCode",
 	async ({ command, exitCode, stream }) => {
