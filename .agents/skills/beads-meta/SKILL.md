@@ -170,12 +170,16 @@ Do not bypass a refused transition by rewriting storage. Inspect the policy, `br
 
 ## Persistence and recovery
 
-Normal work should rely on automatic freshness checks and auto-flush, then use explicit sync diagnostics when needed:
+Upstream defaults use automatic freshness checks and auto-flush. Hive keeps automatic import enabled but disables auto-flush so routine work leaves canonical main clean; select canonical storage through the agent's process environment and publish explicitly at claim and landing checkpoints. Use sync diagnostics when needed:
 
 ```nu
 br sync --status --json
 br sync --flush-only --json
 ```
+
+After receiving Git changes, inspect status before ordinary tracker commands. `jsonl_newer` means the current JSONL differs from its last certified content hash; when true in an established database, use unforced `sync --merge` before further reads, mutations, or exports. Auto-import can skip concurrent divergence with a warning, and export does not generally protect changed fields of an existing issue. Merge updates SQLite and exports JSONL, so complete its Git publication before operations requiring clean main.
+
+For a fresh clone with no local mutations, import accepted JSONL and perform an ordinary flush to establish `.beads/beads.base.jsonl`. An already-diverged database without that base requires explicit recovery; do not invent a base or force a claimant to win.
 
 Choose explicit modes by intent:
 
@@ -218,6 +222,6 @@ br capabilities --format json --command "ready"
 4. Claim through `br update <id> --claim --owner ct --actor <harness-name> --json` when ownership is appropriate.
 5. Record discovered work with `create` and an explicit relationship or parent.
 6. Complete through policy-aware commands such as `update`, `close`, `defer`, or `reopen`.
-7. Inspect `br sync --status --json`; use `br sync --flush-only` as an idempotent final export check when the repository expects JSONL to be committed.
+7. Inspect `br sync --status --json`; in Hive, leave routine changes in SQLite and export only at explicit claim or landing publication checkpoints.
 
 Never assume this workflow grants permission to claim, mutate, repair, commit, or push. Repository and user instructions still control authorization.

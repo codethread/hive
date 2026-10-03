@@ -23,6 +23,29 @@ interface Pick {
 	readonly source_authority: { readonly claim_safe: boolean };
 }
 
+interface SyncStatusOutput {
+	/** Unvalidated CLI field indicating a changed canonical JSONL generation. */
+	readonly jsonl_newer: unknown;
+}
+
+const assertTrackerReady = async (root: string): Promise<void> => {
+	await $`git -C ${root} fetch origin`;
+	const head = await $`git -C ${root} rev-parse HEAD`.text();
+	const accepted = await $`git -C ${root} rev-parse origin/main`.text();
+	if (head.trim() !== accepted.trim()) {
+		throw new Error("Stopped: synchronize canonical main with origin before selecting work.");
+	}
+	const status: SyncStatusOutput = await $`br sync --status --json`.json();
+	if (typeof status.jsonl_newer !== "boolean") {
+		throw new TypeError("Stopped: br did not return a boolean jsonl_newer status.");
+	}
+	if (status.jsonl_newer) {
+		throw new Error(
+			"Stopped: reconcile received tracker state and publish it before selecting work.",
+		);
+	}
+};
+
 const EXIT_SUCCESS = 0;
 const agents = new Map([
 	// ["opus", { args: ["--dangerously-skip-permissions", "--model", "opus"], cli: "claude" }],
@@ -43,6 +66,10 @@ if (values.help) {
 	console.log("Picks with bv's work recipe, or its system recipe with --system.");
 	console.log("hitl-labeled beads are never picked; they are worked with the user.");
 } else {
+	const rootOutput = await $`honeycomb root`.text();
+	const canonicalRoot = rootOutput.trim();
+	process.env.BEADS_DB = `${canonicalRoot}/.beads/beads.db`;
+	$.env(process.env);
 	let recipe = "work";
 	if (values.system) {
 		recipe = "system";
@@ -50,6 +77,7 @@ if (values.help) {
 	// Each agent must finish before querying the next ready bead.
 	/* eslint-disable no-await-in-loop */
 	while (true) {
+		await assertTrackerReady(canonicalRoot);
 		const pick: Pick =
 			await $`bv --recipe ${recipe} --robot-next --robot-not-ready-labels hitl`.json();
 		if (!pick.source_authority.claim_safe) {
@@ -75,9 +103,10 @@ if (values.help) {
 		}
 		console.log(`Working on ${bead.id}: ${bead.title} [${name}]`);
 		const prompt = `Work only on bead ${bead.id}. Follow the repository instructions.
-Read it with \`br show ${bead.id}\`, then claim it with \`br update ${bead.id} --claim\`.
-Implement the task and run the required checks and tests. Close it with \`br close ${bead.id}\` only when complete.
-If blocked, record the blocker on the bead and stop without closing it. Finish with \`br sync --merge\`.
+Receive and reconcile accepted remote tracker state before reading claims. Inspect this bead and its reserved scope, then claim it with your actor and owner ct.
+Publish the claim from canonical main with an explicit flush, tracker-only commit and successful push before implementation. Respect already-published competing reservations.
+Implement the task and run the required checks and tests. Close it only when all acceptance criteria are satisfied; criteria requiring landing remain open until the post-landing publication.
+If blocked or awaiting landing, record the next action on the bead and stop without closing it. Do not land without explicit user authorization. Routine progress stays in SQLite between publication checkpoints.
 Do not pick up another bead.`;
 		const child = Bun.spawn([runner.cli, ...runner.args, "-p", prompt], {
 			stderr: "inherit",
@@ -89,9 +118,11 @@ Do not pick up another bead.`;
 			process.exitCode = exitCode;
 			break;
 		}
+		await assertTrackerReady(canonicalRoot);
 		const [finished]: Bead[] = await $`br show ${bead.id} --json`.json();
 		if (finished?.status !== "closed") {
-			throw new Error(`Stopped: ${bead.id} was not closed.`);
+			console.log(`Stopped: ${bead.id} still needs completion or landing; see its notes.`);
+			break;
 		}
 	}
 	/* eslint-enable no-await-in-loop */

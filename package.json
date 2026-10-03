@@ -16,7 +16,7 @@
 		"check": "bun run fmt:check && bun run lint && bun run typecheck",
 		"git:setup": "bun run ./scripts/setup-git.ts",
 		"agents:sync": "bun run --filter @hive/tooling agents:sync",
-		"prepare": "husky && bun run git:setup && sh .husky/beads-sync"
+		"prepare": "husky && bun run git:setup"
 	},
 	"devDependencies": {
 		"@commitlint/cli": "^21.2.3",

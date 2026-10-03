@@ -1,2 +1,0 @@
-repo_root="$(git rev-parse --show-toplevel)" || exit $?
-sh "$repo_root/.husky/beads-sync" || exit $?
