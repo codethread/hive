@@ -1,77 +1,75 @@
 # Beads integration
 
-Hive uses one Beads SQLite database per local repository, shared by its linked worktrees. SQLite holds live task state; `.beads/issues.jsonl` is the snapshot exchanged through Git. Separate clones have separate databases.
+Hive keeps its live tracker in a permanent full checkout at `.worktrees/tracker--state`, on branch `tracker/state`. Its ignored `.beads/beads.db` is shared by all local feature worktrees. Its tracked `.beads/issues.jsonl` is the snapshot exchanged with colleagues. Separate clones have separate databases and tracker checkouts.
 
-This document records the rationale and expected behavior. Repository policy lives in `AGENTS.md`; the land skill owns the publication procedure.
-
-## Why publication is deliberate
-
-Beads Rust normally writes a mutation to SQLite and automatically exports JSONL during the same command. From a fresh linked worktree, its default discovery selects the canonical checkout's storage. An existing private worktree database can change that selection, so Hive agents explicitly select canonical storage through their process environment.
-
-Hive enables automatic import and disables automatic export. Task updates therefore persist locally and are visible to agents in other worktrees immediately, while canonical main remains clean for Honeycomb. Agents deliberately publish new claims before starting their scope and completion after feature integration. Honeycomb remains responsible for Git lifecycle operations and needs no Beads-specific behavior.
-
-The previous Git hooks initialized a private database in each worktree and reconciled or staged JSONL during checkout, installation, commits and merges. That split live coordination across databases and coupled tracker publication to unrelated Git operations. Those synchronization hooks are removed; formatting, lint, type checks, conflict checks and commit-message validation remain.
-
-## Claim checkpoints, routine work and landing
-
-Before starting a feature, receive the accepted tracker state, claim its exclusive feature scope, and publish that claim from canonical main. Create the worktree and start only after the push succeeds. Several claims can share one checkpoint. When an active feature needs more work, publish the additional claim from main before starting that scope; the feature's code, Git HEAD and tracked JSONL remain untouched.
-
-```mermaid
-flowchart TD
-    P["Claim feature scope<br/>Flush, commit and push from main"] --> A["Concurrent work in feature worktrees"]
-    A --> B["Shared SQLite progress changes<br/>JSONL stays at its last published snapshot<br/>Main stays clean"]
-    B --> C["One agent lands a feature through Honeycomb"]
-    C --> D["Record landing evidence and close completed tasks"]
-    D --> E["Flush the shared database to canonical JSONL<br/>Main becomes dirty"]
-    E --> F["Commit the tracker snapshot<br/>Main becomes clean"]
-    F --> G["Push and verify main matches origin/main"]
-```
-
-Feature work can run concurrently; landing and tracker publication are serialized per local repository. A publication checkpoint temporarily dirties main, then its commit and push restore clean, synchronized state. Honeycomb can push the feature integration first, followed by a separate tracker commit and push. Landing is complete only after both the code and tracker publication succeed.
-
-The snapshot includes every task's current state, including work in progress on other branches. Exporting a task does not mark it complete. An older feature branch with an unchanged JSONL snapshot does not replace newer main state during a normal Git merge.
-
-Claim the highest feature bead whose scope is intended to be exclusive. A parent claim does not assign children or enforce a subtree lock; the reservation is a team convention, and children are claimed or delegated explicitly. A broad epic shared by colleagues remains an aggregation of their separate features.
-
-| Operation | SQLite | JSONL | Canonical Git state |
-| --- | --- | --- | --- |
-| Create, claim, update or close a task | Changes immediately | Unchanged | Clean |
-| Commit feature code | Unchanged | Unchanged | Clean |
-| Integrate feature code | Task state unchanged until recorded | Unchanged when the feature has no tracker edits | Clean after integration commit |
-| Explicit flush | Current task state exported | Changes when the snapshot differs | Dirty |
-| Commit tracker snapshot | Unchanged | Recorded in Git | Clean, possibly ahead of origin |
-| Push | Unchanged | Published to the remote | Clean and synchronized |
-
-SQLite remains persistent between exports. Git backup and visibility to other clones lag until the next publication. Claim checkpoints share intent before work begins; routine progress notes can wait until a later checkpoint. Beads Viewer can read canonical SQLite directly, so local prioritization does not require an export; its normal loader chooses the freshest valid SQLite or JSONL source.
-
-## Working with another contributor
+This separates task publication from code integration. Beads can automatically export every mutation without dirtying main or requiring tracker commits on a protected code branch. Honeycomb handles feature worktrees and code integration; `br` handles SQLite and JSONL; the configured `br` wrapper receives compatible tracker changes, reconciles storage and publishes the combined snapshot before and after each successful command. `bun run beads:sync` runs the same checkpoint explicitly. Beads Rust does not implement Git sync branches merely because it recognizes the legacy `sync-branch` configuration key.
 
 ```mermaid
 flowchart LR
-    A["Contributor A's SQLite"] --> B["A's exported JSONL"]
-    B --> C["Shared Git history"]
-    C --> D["B's received JSONL"]
-    D --> E["Contributor B's SQLite"]
-    E --> F["B's combined export"]
-    F --> C
+	A["Feature worktree A"] --> D["Selected BEADS_DB<br/>Shared local SQLite"]
+	B["Feature worktree B"] --> D
+	D --> J["Automatic export<br/>Tracker checkout JSONL"]
+	J --> P["Automatic commit and push<br/>Remote tracker/state"]
+	A --> M["Code integration<br/>Main"]
+	B --> M
 ```
 
-A contributor first fetches and integrates accepted remote main, then checks synchronization status before ordinary tracker commands can auto-import. When canonical JSONL differs from its last certified generation, unforced three-way reconciliation must precede reads, new claims or exports, even when the database reports no pending export. Reconciliation itself writes SQLite and JSONL; finish publishing its result before asking Honeycomb to operate on clean main. Repeat this check after integration, which can receive additional remote changes.
+The database lives in a local checkout, not in Git. Git carries JSONL, tracker configuration and the history of published snapshots. Code branches carry no competing live tracker snapshot. The former synchronization hooks, which created private worktree databases and staged tracker changes during unrelated Git operations, are removed; normal code quality and commit-message hooks remain.
 
-Updates to different tasks can be combined. Concurrent edits to the same task may require conflict resolution. Auto-import can skip independently changed SQLite and JSONL with a warning, while direct export can still overwrite changed fields of an existing task. An export refusal is therefore insufficient protection for incoming claims.
+## Selecting storage
 
-Both contributors can claim a task locally before exchanging snapshots. A claim is provisional until its push is accepted; after a rejected push, inspect the accepted remote reservation and yield to an already-published competitor. Combine unrelated changes and retry publication. Do not resolve ownership by the newest timestamp or a forced sync. Overlapping parent and child reservations affect different records and may merge cleanly, so scope checks remain necessary.
+Configure the endpoint once per checkout:
 
-Within one shared database, claims by different actors are checked transactionally. Hive currently uses harness names as actors, so two Codex sessions have the same identity and may reclaim idempotently. Record the intended scope and worktree in notes; unique session identities are a separate part of the agent-identity epic. Owner identifies the responsible human and remains `ct` under current repository policy; it is independent of the assignee and does not reserve a task.
+```sh
+bun run beads:setup --db /absolute/hive/.worktrees/tracker--state/.beads/beads.db
+```
 
-A fresh clone imports the accepted JSONL and performs an ordinary flush before its first local mutation, establishing a local three-way merge base. An already-diverged database without that base requires reviewed recovery; forcing a merge or inventing an ancestor can discard valid work.
+Setup preserves unrelated TOML settings and writes the selection to ignored `mise.local.toml` and the ignored Codex project configuration at `.codex/config.toml`. Mise is the project environment authority; Codex receives the same value through `shell_environment_policy.set`. `bun install` automatically inherits the canonical checkout's resolved mise selection for new Honeycomb worktrees; `bun run beads:setup --source <canonical-root>` repeats that setup explicitly. The selected PATH puts the persistent tracker checkout's `br` wrapper ahead of the native executable. Consumers honor `BEADS_DB` rather than deriving another database path from their working directory.
 
-The custom Git merge driver remains responsible for JSONL changes published on both sides. It combines compatible records and surfaces conflicts; database reconciliation still belongs to Beads Rust.
+Setup selects an existing database. In a fresh clone, create the permanent tracker checkout from the accepted tracker branch, then use the native executable with `--db /absolute/tracker/.beads/beads.db` to run `sync --import-only` followed by `sync --flush-only`. Import creates SQLite from the accepted JSONL; flush establishes the local three-way merge base. Run setup afterwards, before any local mutation. Existing agent sessions retain their previous environment; restart them or run through `mise exec -- br` until restarted.
 
-## Existing worktrees
+The tracked `.envrc` projects mise into direnv after its normal local approval. Claude's SessionStart hook exports the selection into its shell environment; Pi's local extension sets its process environment. Codex reads the ignored project config. Review the repository's two Codex hooks through native hook review once per clone; linked worktrees share the main checkout's hook source and trust. Hooks check tracker health before every tool: unresolved local conflicts block immediately, while active sessions check the remote at most 30 seconds apart. A stopped session needs reviewed recovery from a separate human terminal; its tool gate stays closed until tracker synchronization succeeds.
 
-Private databases created by the former hooks remain valuable records. Preserve them and inspect unpublished state before deleting their worktrees; changing database selection does not migrate or preserve files subsequently removed by cleanup. Existing branches also need the current hook and publication policy before continuing this workflow.
+The tracker checkout has automatic import and export enabled. Routine mutations become visible to local workers immediately and normally update its JSONL too. An explicit publication flush still matters: it checks that export succeeded and refreshes the merge base, which automatic export does not do. Beads Viewer uses the same selected storage.
 
-Do not replace canonical JSONL with an older worktree snapshot or rebuild canonical SQLite from it. Fresh worktrees need no private database initialization.
+## Claims and completion
 
-The discovery and synchronization research is recorded on bead `hv-3x8.1`; the policy change and concurrent landing verification are tracked on `hv-3x8.13`.
+Claim the highest feature bead whose scope is intended to be exclusive before creating its feature worktree and starting implementation. The configured `br` command publishes the claim before returning success. If active work needs another bead, claim it the same way before starting its scope; the existing feature checkout stays untouched. Progress notes and completion commands also publish automatically.
+
+```mermaid
+flowchart TD
+	C["Claim feature scope"] --> P["Publish tracker/state<br/>Claim accepted remotely"]
+	P --> W["Create feature worktree<br/>Implement and verify"]
+	W --> A["Additional claim when needed"]
+	A --> P2["Publish tracker/state"]
+	P2 --> W
+	W --> L["Land code through Honeycomb"]
+	L --> E["Record evidence and close completed work"]
+	E --> F["Publish completion on tracker/state"]
+```
+
+Publication includes the shared database's current snapshot, including other agents' ongoing tasks. Exporting a task does not close it. Code integration and tracker publication are separate commits and pushes; landing is complete after both succeed. Never merge `tracker/state` into main to publish task state.
+
+A parent claim does not assign its children or enforce a subtree lock. Reserve the stated feature scope by agreement, claim or delegate children explicitly, and leave a shared epic available as an aggregation of colleagues' features. Different actors' claims are checked transactionally within one database. Hive currently uses harness names, so two Codex sessions share an actor and can reclaim idempotently; scope and worktree notes distinguish competing sessions from continuations. Owner remains `ct` under repository policy and is separate from the assignee.
+
+## Publishing and receiving colleagues' work
+
+Use `bun run beads:sync` from a configured code checkout. It preserves local tracker work, fetches the configured tracker upstream, combines compatible changes, reconciles SQLite and publishes the combined snapshot without force. Updates to different tasks can be exchanged automatically while their feature code remains in separate worktrees. A conflicting record or claim stops synchronization and reports the state that needs review. Configured agents stop tool work until a human resolves the tracker from a separate terminal.
+
+Automatic export often leaves the tracker checkout dirty when another contributor publishes. Local changes must therefore be preserved before incoming Git content is integrated. For manual conflict recovery, the sequence is:
+
+1. Keep local tracker writers paused. Before integrating incoming Git content, explicitly flush current SQLite and commit the tracker JSONL locally. This preserves local work and establishes its database merge base.
+2. Inspect accepted remote reservations and integrate the tracker commits using the Git JSONL merge driver. It combines independent records and surfaces incompatible same-record changes. Resolve disputed records deliberately, preserving unrelated work from both sides.
+3. Use the native executable with the selected `--db` to inspect `sync --status --json`, then run unforced `sync --merge`. This reconciles SQLite, validates JSONL and resumes any interrupted synchronization receipt, even when `jsonl_newer` is false. Commit any resulting snapshot changes and run `bun run beads:sync` successfully before resuming tracker writers.
+
+`jsonl_newer` reports a change from the last certified content hash, not timestamp order. Auto-import can skip independently changed SQLite and JSONL with a warning; an export can overwrite changed fields of an existing task. Do not wait for export to refuse before reconciling. A missing merge base with already-diverged state, or an unresolved database conflict, needs reviewed recovery rather than a forced sync.
+
+Separate clones can both claim the same task locally. Claims remain provisional until a push is accepted. After a rejected push, yield to an already-published competing reservation; do not choose ownership by the newest timestamp or force. Overlapping parent and child reservations affect different records and can merge cleanly, so inspect scope as well as assignment. Reviewed Git conflict resolution may select existing complete JSONL records; routine task edits belong in `br`.
+
+## Checkout maintenance
+
+The tracker checkout is permanent: keep it out of worktree pools and ordinary finish/remove cleanup. Its database, local history and pending work must survive feature checkout deletion. Preserve older private databases until their unpublished state has been reconciled; selecting a different endpoint does not migrate them.
+
+A full checkout supplies the relative Git merge-driver script and normal Husky tooling. Maintain those files deliberately with the relevant tooling commits. Do not routinely merge main into the tracker branch: code branches remove the live `.beads` state. A minimal or orphan tracker branch would need its own hook and merge-driver setup.
+
+The migration and environment integration are tracked by `hv-rgr`; the earlier storage and synchronization research is recorded on `hv-3x8.1` and `hv-3x8.13`.

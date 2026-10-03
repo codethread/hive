@@ -170,14 +170,16 @@ Do not bypass a refused transition by rewriting storage. Inspect the policy, `br
 
 ## Persistence and recovery
 
-Upstream defaults use automatic freshness checks and auto-flush. Hive keeps automatic import enabled but disables auto-flush so routine work leaves canonical main clean; select canonical storage through the agent's process environment and publish explicitly at claim and landing checkpoints. Use sync diagnostics when needed:
+Hive uses automatic import and export in the permanent `tracker/state` checkout. Honor its selected `BEADS_DB` from the project environment; feature worktrees do not own private trackers. The configured `br` wrapper receives compatible remote tracker changes, reconciles SQLite and publishes JSONL before and after every successful command, separately from code integration. `bun run beads:sync` runs that checkpoint explicitly. New claims remain provisional until publication succeeds. Use native sync diagnostics when investigating a refusal:
 
 ```nu
 br sync --status --json
 br sync --flush-only --json
 ```
 
-After receiving Git changes, inspect status before ordinary tracker commands. `jsonl_newer` means the current JSONL differs from its last certified content hash; when true in an established database, use unforced `sync --merge` before further reads, mutations, or exports. Auto-import can skip concurrent divergence with a warning, and export does not generally protect changed fields of an existing issue. Merge updates SQLite and exports JSONL, so complete its Git publication before operations requiring clean main.
+`jsonl_newer` means the current JSONL differs from its last certified content hash. When manually recovering an established database after receiving Git changes, use the native executable with the selected `--db` from a separate human terminal. Inspect status, then use unforced `sync --merge` before ordinary commands resume; this also validates content and resumes pending synchronization receipts when the freshness flag is false. Auto-import can skip concurrent divergence with a warning, and export does not generally protect changed fields of an existing issue. Merge updates SQLite and exports JSONL. Automatic export does not refresh the merge base; explicit flush does.
+
+Preserve local SQLite changes with an explicit flush and tracker-only commit before manual Git integration, with other tracker writers paused. Resolve conflicting records against accepted claims while retaining unrelated work, then reconcile SQLite and publish the result. Git orders publication; neither Git nor Beads infers exclusive subtree ownership. Do not let timestamp priority or a forced sync decide a claimant.
 
 For a fresh clone with no local mutations, import accepted JSONL and perform an ordinary flush to establish `.beads/beads.base.jsonl`. An already-diverged database without that base requires explicit recovery; do not invent a base or force a claimant to win.
 
@@ -222,6 +224,6 @@ br capabilities --format json --command "ready"
 4. Claim through `br update <id> --claim --owner ct --actor <harness-name> --json` when ownership is appropriate.
 5. Record discovered work with `create` and an explicit relationship or parent.
 6. Complete through policy-aware commands such as `update`, `close`, `defer`, or `reopen`.
-7. Inspect `br sync --status --json`; in Hive, leave routine changes in SQLite and export only at explicit claim or landing publication checkpoints.
+7. In Hive, use `bun run beads:sync` to publish new claims before starting their scope and completion after integration. Routine mutations auto-export to the tracker checkout; a reported record or claim conflict blocks further tracker work pending reviewed resolution.
 
 Never assume this workflow grants permission to claim, mutate, repair, commit, or push. Repository and user instructions still control authorization.

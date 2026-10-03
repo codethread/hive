@@ -16,17 +16,23 @@
 		"check": "bun run fmt:check && bun run lint && bun run typecheck",
 		"git:setup": "bun run ./scripts/setup-git.ts",
 		"agents:sync": "bun run --filter @hive/tooling agents:sync",
-		"prepare": "husky && bun run git:setup"
+		"beads:setup": "bun run ./lib/tooling/src/beads-setup.ts",
+		"beads:env": "bun run ./lib/tooling/src/beads-env.ts",
+		"beads:health": "bun run ./lib/tooling/src/beads-health.ts",
+		"beads:sync": "bun run ./lib/tooling/src/beads-publish.ts",
+		"prepare": "husky && bun run git:setup && bun run ./lib/tooling/src/beads-setup-auto.ts"
 	},
 	"devDependencies": {
 		"@commitlint/cli": "^21.2.3",
 		"@commitlint/config-conventional": "^21.2.3",
+		"@earendil-works/pi-coding-agent": "1.0.0",
 		"@types/bun": "^1.4.2",
 		"husky": "^9.1.7",
 		"lint-staged": "^17.6.0",
 		"oxfmt": "^0.71.0",
 		"oxlint": "^1.86.0",
-		"typescript": "^7.0.2"
+		"typescript": "^7.0.2",
+		"zod": "^4.6.5"
 	},
 	"lint-staged": {
 		"lib/honeycomb/{src/schemas.ts,scripts/config-schema.ts}": "bun run --filter @hive/honeycomb schema:stage",

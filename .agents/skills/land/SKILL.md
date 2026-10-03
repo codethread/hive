@@ -12,7 +12,7 @@ Land completed work: tidy it up, prove it, and merge it to `main`. Run this only
 - The user explicitly asked to land.
 - The plan's work is complete and committed.
 - Any librarian/reviewer consultations the plan required are done.
-- Coordinate with other agents so only one landing and tracker publication runs in this repository at a time; feature work can continue concurrently.
+- Coordinate code landing with other agents and resolve any outstanding tracker conflict before closing completed work.
 
 ## 1. Tidy up
 
@@ -35,23 +35,21 @@ Land completed work: tidy it up, prove it, and merge it to `main`. Run this only
 
 ## 4. Merge to main
 
-- Resolve and retain the canonical root with `honeycomb root` before finishing; finishing may remove the source worktree. Select its `.beads/beads.db` through `BEADS_DB`. For worktrees created under the old policy, preserve any private database and reconcile unpublished state before cleanup.
-- Bring accepted remote main into canonical main, then inspect `br sync --status --json` before ordinary tracker commands. If `jsonl_newer` is true, run unforced `br sync --merge` and resolve any conflicts against the accepted reservations. Merge exports JSONL too; commit and push any resulting tracker changes before Honeycomb needs a clean, synchronized main.
+- Retain the canonical root and selected `BEADS_DB` before finishing; finishing may remove the source worktree. The database belongs to the permanent `tracker/state` checkout, not canonical main. Preserve any older private database with unpublished state before cleanup.
 - This repository works in worktrees, so land through the worktree workflow rather than merging by hand; run `honeycomb -h` and follow its guidance.
 - If the tooling refuses or stops (dirty tree, conflicts, missing remote), resolve that state instead of falling back to a raw merge.
-- Verify the canonical `main` afterwards: the expected commits are present, checks are green, and no worktree or branch is left stale.
+- Verify the canonical `main` afterwards: the expected commits are present, checks are green, and feature cleanup succeeded. Keep the permanent tracker checkout and branch; never finish it or merge it into main.
 
 ## 5. Publish tracker state
 
-- From the retained canonical root, inspect `br sync --status --json` again because finishing may have received newer remote JSONL. If `jsonl_newer` is true, reconcile with unforced `br sync --merge` before further tracker commands. Then record landing evidence and close only the completed tasks in the shared database.
-- Run `br sync --flush-only`. This publishes the whole database snapshot, including other agents' ongoing work, and may dirty `.beads/issues.jsonl`. Do not force an export or replace it with a worktree's older snapshot.
-- Stage only `.beads/issues.jsonl` and inspect the staged diff. If it changed, create a conventional commit describing the tracker publication, then push canonical `main`. Honeycomb may already have pushed the feature integration; this is a separate tracker commit and push.
-- Verify canonical main has no staged, unstaged, or untracked changes and `HEAD` equals `origin/main`. A refused flush, commit, or push leaves landing incomplete; resolve it before releasing the landing coordination.
-- After a rejected push, inspect the accepted remote reservations before reconciliation and retry. Keep unrelated changes, yield to an already-published competing claim, and stop for reviewed conflict resolution when needed; timestamp priority is not an ownership decision.
+- Using the retained endpoint, record landing evidence and close only the completed tasks. The configured `br` wrapper receives, reconciles and publishes before and after every successful command. If it reports a tracker conflict, pause until reviewed recovery succeeds.
+- Run `bun run beads:sync` from a surviving configured code checkout. It receives compatible tracker changes, reconciles SQLite, commits the shared snapshot and pushes the tracker branch's upstream. Main and feature code are not part of this publication.
+- If synchronization reports a record or claim conflict, retain the local and remote evidence and resolve it before further tracker work. For manual recovery from a separate human terminal, pause tracker writers, use the native executable with the retained `--db` to preserve local work with an explicit flush and tracker-only commit before Git integration, then run unforced merge and successful `bun run beads:sync` before ordinary commands resume. Keep unrelated records and yield to an already-published competing claim. Never force sync or push to select ownership.
+- Verify canonical main is clean and synchronized, and the tracker branch's accepted snapshot includes completion. Publication may include other agents' ongoing work; it does not close their tasks. A refused flush, commit, reconciliation or push leaves landing incomplete.
 
 ## Done means
 
 - `main` contains the work and the checks pass on a clean checkout.
-- The shared tracker snapshot includes the completed tasks and is committed and pushed with canonical main clean and synchronized.
+- The accepted `tracker/state` snapshot includes the completed tasks; canonical main is clean and synchronized.
 - No temp, stray, generated or untracked leftovers remain.
 - The user is told what landed, what was cleaned up, and anything left unresolved.
