@@ -1,8 +1,8 @@
 # Agent identity: MVP scope
 
-This records the identity and harness-lifecycle scope agreed on 2026-10-03 for the agent identity and bee spawning epic (`hv-3x8`). It is a design reference; scent, bee and colony are not implemented yet. The [harness capability contract](./harness-capabilities.md) tracks the mechanisms, evidence and acceptance cases behind this scope. Terms follow the [ubiquitous language](../UBIQUITOUS_LANGUAGE.md).
+This records the identity and harness-lifecycle scope agreed on 2026-10-03 for the agent identity and bee spawning epic (`hv-3x8`). It is a design reference; scent, bee and colony are not implemented yet. The [harness capability contract](./harness-capabilities.md) tracks the mechanisms, evidence and acceptance cases behind this scope. Terms follow the [glossary](../GLOSSARY.md).
 
-The full bee/colony specification remains work on `hv-3x8.12`, after colony design refinement (`hv-3x8.9.1`). This document does not settle daemon routing, recovery, retry or scheduling details.
+The full bee/colony specification remains work on `hv-3x8.12`, after colony design refinement (`hv-3x8.9.1`). The recorded implementation notes below preserve existing design constraints; they do not settle the remaining daemon routing, recovery, retry or scheduling details. Current tracker operations continue to follow the Beads / br rules in the root `AGENTS.md`, including harness-name actors, until the planned identity integration lands.
 
 ## Supported identity paths
 
@@ -53,6 +53,59 @@ Clearing owned state means replacing this integration's identity state. It does 
 Outside MVP means that Hive does not claim correct identity migration or conformance for those user-fork flows. It does not disable the harness command or grant permission to reuse an identity. Incidental hook behavior is not a support guarantee.
 
 Native subagents remain separate from user forks. The Codex 0.160.0 source routes both fresh and history-forked collaboration children through `SubagentStart`; Claude's native Agent children also expose a child-start event. Internal copying of history does not by itself put a supported child into the excluded user-fork category.
+
+## Recorded implementation notes
+
+These notes preserve the planned bindings and policies formerly kept alongside the vocabulary. They are design context, not claims of implemented behavior.
+
+### Modules and identity bindings
+
+Until the package rename lands, `lib/colony` holds the old provider CLI scaffold and `lib/ghost` the daemon scaffold. Planned responsibilities are:
+
+| Location | Responsibility |
+| --- | --- |
+| `lib/scent` | Claude Code and Codex session/child-start hooks and a Pi extension; resolve identity from harness context and inherited environment, export it where supported and inject it into the prompt. Scent does not read `bees.toml` |
+| `lib/bee` | Module and CLI for requesting bees |
+| `lib/colony` | Single system-wide daemon for registered repositories |
+| `lib/shared` | Shared contract: environment names, `mintName` and the `bees.toml` schema |
+| `lib/honeycomb` | Git worktree manager |
+
+Friendly names are recorded as actors. Native sessions use their harness session ID as the mint seed; native subagents use a distinct child key; bees receive a name minted at spawn. A separately launched nested CLI, such as `pi --print` run by Claude, gets its own friendly name and records its parent. Claude Code and Codex native children expose a distinct agent ID while retaining the parent/root session ID, so their attribution uses explicit actor guidance.
+
+| Variable | Set by | Carries |
+| --- | --- | --- |
+| `HIVE_AGENT_NAME` | colony, scent | Friendly name |
+| `HIVE_AGENT_SESSION` | scent, where environment binding is supported | Session the name is bound to; lifecycle context distinguishes a new conversation from a nested child. A mismatch alone does not establish parentage |
+| `HIVE_AGENT_PARENT` | scent | Parent's friendly name in a nested child |
+| `BD_ACTOR` | colony, scent | Friendly name, used by `br` as the actor; `--actor` explicitly selects attribution |
+| `BR_HARNESS`, `BR_MODEL`, `BR_AGENT_NAME` | colony, scent | Harness, model and bee kind recorded on `br` mutations |
+
+### Bee configuration and lifecycle
+
+The repository-root `bees.toml` registry selects each bee kind's harness CLI, model, effort, arguments and system prompt. It also lists human users; bee refuses tasks assigned to those users. Bee kinds replace harness-native subagent definitions for colony-managed work, not native-child identity support.
+
+- `bee spawn <kind> <task-id>...` creates a spawn bead; colony starts the process. Run `colony wake` where the repository's `bees.toml` lives to register it, not to start colony itself.
+- Colony launches a bee only when all its open task beads are ready; closed tasks count as satisfied. A dependency graph that never becomes ready is a mistake to fix.
+- A bee closes its own spawn bead when done or when its task claim fails.
+- Closing a spawn bead stops its bee's process. If all tasks close before launch, colony closes the spawn bead unlaunched.
+- `max_retries` limits relaunches after a process exits while its spawn bead remains open. Relaunches retain the same identity; exhaustion closes the spawn bead and triggers cleanup.
+- After a reap or retry exhaustion, colony returns each task the bee claimed to `open` and removes its claim. It does not close the tasks.
+
+### Spawn-bead labels and links
+
+Spawn beads carry `system`, `bee` and `agent:<kind>`, are assigned to the bee's friendly name and link to their task beads with `related` dependencies. Colony selects `--label system --label bee`.
+
+`system` marks automation-owned beads excluded from ordinary work with `--exclude-label system`. Label filters match exactly; `system:bee` would not be excluded. `agent:<kind>` denotes the requested bee kind, not the harness or identity.
+
+Only colony sets `outcome:<value>` on spawn beads:
+
+| Value        | Meaning                                         |
+| ------------ | ----------------------------------------------- |
+| `exhausted`  | Closed after `max_retries`                      |
+| `reaped`     | Closed by someone else while waiting or running |
+| `unlaunched` | Every task closed before launch                 |
+
+No outcome label means the bee closed its own spawn bead. These labels do not belong on task beads and are not set by bees. A `hitl` task is worked in tandem with the user and skipped by autonomous runners; a deliberate human handoff instead assigns `ct`.
 
 ## Evidence and remaining work
 

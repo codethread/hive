@@ -57,6 +57,16 @@ Husky runs `lint-staged`, a repo-wide typecheck and tracker synchronization befo
 
 - `docs/` — architecture documentation.
 
+## Agent skills
+
+### Issue tracker
+
+Work is tracked in Beads via `br`. For skill issue operations, see `docs/agents/issue-tracker.md`.
+
+### Domain docs
+
+Single-context: root `GLOSSARY.md` and `docs/adr/`. Before exploring, follow `docs/agents/domain.md`.
+
 ## Beads / br
 
 Track work and implementation steps in repo-local Beads with `br`, from the repository root, instead of native harness todo lists. Start with the work assigned by the user or coordinating agent; do not run triage to replace it with a different task. `bv` is for read-only work selection, prioritization, and coordination—not a prerequisite for execution. Never run bare `bv`, which launches an interactive TUI.
