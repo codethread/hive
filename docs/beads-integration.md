@@ -24,13 +24,15 @@ Progress updates remain local until a checkpoint. Every publication includes the
 
 ## Selecting storage
 
-Configure an existing tracker endpoint:
+Tracked `mise.toml` selects the canonical checkout's `.worktrees/tracker--state/.beads/beads.db` by default. It resolves Git's absolute common directory and uses its parent as the canonical root, so the selection is portable across checkout locations and shared by linked worktrees. This assumes the standard layout with `.git` inside the canonical checkout. Trust `mise.toml` with `mise trust` before resolving the environment.
+
+To explicitly configure an existing tracker endpoint, including Codex's generated environment:
 
 ```nu
 bun run beads:setup --db /absolute/hive/.worktrees/tracker--state/.beads/beads.db
 ```
 
-Setup preserves unrelated TOML settings and writes `BEADS_DB` to ignored `mise.local.toml` and `.codex/config.toml`. `bun install` inherits the canonical checkout's selection for new Honeycomb worktrees; `bun run beads:setup --source <canonical-root>` repeats that setup explicitly. Consumers honor the selected endpoint rather than deriving another database from their working directory.
+Setup preserves unrelated TOML settings and writes `BEADS_DB` to ignored `mise.local.toml` and `.codex/config.toml`. The local mise selection overrides the tracked default. `bun install` inherits the canonical checkout's selection for new Honeycomb worktrees only when that checkout has `mise.local.toml`; with only the tracked default, run `bun run beads:setup --source <canonical-root>` explicitly when generated Codex configuration is needed. Consumers honor the selected endpoint rather than deriving another database from their working directory.
 
 Mise supplies the project environment. Direnv projects the selection after normal local approval; Claude's SessionStart hook exports it; Pi's extension sets it at session start; Codex reads its generated shell-environment configuration. Review Codex's SessionStart hook through native hook review once per clone. A failed session-start sync is reported to the user; there is no ongoing tool-call gate.
 
