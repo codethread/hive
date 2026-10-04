@@ -1,5 +1,4 @@
 bunx lint-staged || exit $?
-git diff --cached --check || exit $?
 bun run typecheck || exit $?
 
 branch="$(git branch --show-current)" || exit $?

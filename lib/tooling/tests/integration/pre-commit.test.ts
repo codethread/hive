@@ -61,6 +61,9 @@ fi
 	const initialized = await run(["git", "init", `--initial-branch=${branch}`], root, env);
 	expect(initialized.exitCode).toBe(success);
 	await writeExecutable(join(root, ".git/hooks/pre-commit"), hook);
+	await Bun.write(join(root, "notes.md"), "First line  \nSecond line\n");
+	const staged = await run(["git", "add", "notes.md"], root, env);
+	expect(staged.exitCode).toBe(success);
 };
 
 test.each([
@@ -83,13 +86,13 @@ test.each([
 		exit: syncFailure,
 	},
 ])(
-	"commit checkpoint on $branch with sync exit $exit",
+	"commit Markdown hard breaks on $branch with sync exit $exit",
 	async ({ branch, commands, committed, exit }) => {
 		const root = await mkdtemp(join(tmpdir(), "hive commit hook "));
 		const env = environment(root, exit);
 		try {
 			await prepare(root, branch, env);
-			const result = await run(["git", "commit", "--allow-empty", "-m", "checkpoint"], root, env);
+			const result = await run(["git", "commit", "-m", "checkpoint"], root, env);
 			expect(result.stderr).not.toContain("leaked Git environment");
 			expect(result.exitCode === success).toBe(committed);
 			const log = await Bun.file(env.HOOK_LOG).text();

@@ -49,7 +49,7 @@ Clean code and clean architecture practices apply throughout. Before building li
 
 Before committing or handing off, run full `bun run check` and tests appropriate to the complete change. Explain any skipped verification.
 
-Husky runs `lint-staged`, a repo-wide typecheck and tracker synchronization before commits and merges, and rejects staged conflict markers. Sync failures block the commit; `tracker/state` commits skip synchronization to avoid recursion. Commitlint runs on `commit-msg`; hooks do not run tests.
+Husky runs `lint-staged`, a repo-wide typecheck and tracker synchronization before commits and merges. Sync failures block the commit; `tracker/state` commits skip synchronization to avoid recursion. Commitlint runs on `commit-msg`; hooks do not run tests.
 
 ## Where to look
 
