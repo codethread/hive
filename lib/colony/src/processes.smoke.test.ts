@@ -10,9 +10,11 @@ import {
 } from "./processes.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Private process fixture paths.
 import { join } from "node:path";
+import psList from "ps-list";
 // eslint-disable-next-line import/no-nodejs-modules -- Private OS fixture directory.
 import { tmpdir } from "node:os";
 
+const PREVIOUS_LIFETIME = 1000;
 const TIMEOUT = 20_000;
 const INTERVAL = 20;
 const SUCCESS = 0;
@@ -201,6 +203,69 @@ setInterval(() => {}, 1000);
 			child.kill();
 			sentinel.kill();
 			await Promise.all([child.exited, sentinel.exited, outcome]);
+			await rm(directory, { force: true, recursive: true });
+		}
+	},
+	TIMEOUT,
+);
+
+test(
+	"cleanup retains a new owned lifetime while unrelated reused PIDs survive",
+	// eslint-disable-next-line max-statements -- Reproduce historical PID reuse with real owned handles and persisted cleanup evidence.
+	async () => {
+		const directory = await mkdtemp(join(tmpdir(), "colony-reused-"));
+		const ref = { directory, token: crypto.randomUUID() };
+		const children = Array.from({ length: DESCENDANTS }, () =>
+			Bun.spawn([process.execPath, "-e", "setInterval(() => {}, 1000)"], {
+				stderr: "ignore",
+				stdout: "ignore",
+			}),
+		);
+		const [ownedChild, sentinel] = children;
+		try {
+			const snapshot = await psList();
+			const fingerprints = children.map(({ pid }) => {
+				const current = snapshot.find((candidate) => candidate.pid === pid)!;
+				return {
+					cmd: current.cmd,
+					pid,
+					ppid: current.ppid,
+					startTime: current.startTime!.getTime(),
+				};
+			});
+			const [ownedProcess] = fingerprints;
+			await Bun.write(
+				join(directory, "ownership.json"),
+				JSON.stringify({
+					// eslint-disable-next-line unicorn/no-null -- Persist the explicit successful ownership state.
+					error: null,
+					harnessPid: ownedChild!.pid,
+					phase: "exited",
+					// eslint-disable-next-line oxc/no-map-spread -- Keep the current fingerprints intact as separate cleanup evidence.
+					processes: fingerprints.map((recorded) => ({
+						...recorded,
+						startTime: recorded.startTime - PREVIOUS_LIFETIME,
+					})),
+					supervisor: ownedProcess,
+					token: ref.token,
+				}),
+			);
+			await Bun.write(
+				join(directory, "cleanup.json"),
+				JSON.stringify({ processes: [ownedProcess], token: ref.token }),
+			);
+			expect(await observeExecution(ref)).toEqual({ kind: "live" });
+			await stopExecution(ref);
+			await ownedChild!.exited;
+			expect(await observeExecution(ref)).toEqual({ kind: "stopped" });
+			expect(sentinel!.exitCode).toBeNull();
+			const cleanup = await Bun.file(join(directory, "cleanup.json")).json();
+			expect(cleanup.processes).toContainEqual(ownedProcess);
+		} finally {
+			for (const child of children) {
+				child.kill();
+			}
+			await Promise.all(children.map((child) => child.exited));
 			await rm(directory, { force: true, recursive: true });
 		}
 	},

@@ -36,6 +36,31 @@ export interface ExecutionRef {
 	token: string;
 }
 
+/** Select live owned lifetimes and discover descendants only through their verified lineage.
+ * Historical fingerprints remain launch evidence; a newer lifetime with the same PID is not owned.
+ */
+export function currentOwnedProcesses(
+	recordedProcesses: ProcessFingerprint[],
+	snapshot: ProcessDescriptor[],
+): ProcessFingerprint[] {
+	const live = recordedProcesses.flatMap((recorded) => {
+		const current = snapshot.find(({ pid }) => pid === recorded.pid);
+		if (!current || (current.startTime && current.startTime.getTime() > recorded.startTime)) {
+			return [];
+		}
+		verify(recorded, current);
+		return [recorded];
+	});
+	for (const parent of live) {
+		for (const child of snapshot.filter(({ ppid }) => ppid === parent.pid)) {
+			if (!live.some(({ pid }) => pid === child.pid)) {
+				live.push(fingerprint(child));
+			}
+		}
+	}
+	return live;
+}
+
 /** Fingerprint the calling process using the same evidence checked before signalling. */
 export async function currentProcessFingerprint(): Promise<ProcessFingerprint> {
 	const snapshot = await psList();
@@ -101,7 +126,7 @@ export async function observeExecution(
 		return { kind: await observeProcess(supervisor) };
 	}
 	const owned = await readOwnership(ref);
-	const live = currentProcesses(owned, await psList());
+	const live = currentOwnedProcesses(owned.processes, await psList());
 	if (live.length > EMPTY) {
 		return { kind: "live" };
 	}
@@ -128,7 +153,7 @@ export async function stopExecution(ref: ExecutionRef): Promise<void> {
 	/* eslint-disable no-await-in-loop -- Re-observe fingerprints before every bounded cleanup pass. */
 	while (true) {
 		const owned = await readOwnership(ref);
-		const live = currentProcesses(owned, await psList());
+		const live = currentOwnedProcesses(owned.processes, await psList());
 		if (live.length === EMPTY) {
 			const observed = await observeExecution(ref);
 			if (observed.kind === "stopped") {
@@ -265,7 +290,7 @@ async function readOwnership(ref: ExecutionRef): Promise<Ownership> {
 			throw new Error("Cleanup ownership token mismatch");
 		}
 		for (const recorded of cleanup.processes) {
-			if (!owned.processes.some(({ pid }) => pid === recorded.pid)) {
+			if (!owned.processes.some((existing) => sameLifetime(existing, recorded))) {
 				owned.processes.push(recorded);
 			}
 		}
@@ -288,29 +313,14 @@ async function capture(owned: Ownership): Promise<void> {
 			owned.processes.push(fingerprint(root));
 		}
 	}
-	for (const live of currentProcesses(owned, snapshot)) {
-		if (!owned.processes.some(({ pid }) => pid === live.pid)) {
+	for (const live of currentOwnedProcesses(owned.processes, snapshot)) {
+		if (!owned.processes.some((existing) => sameLifetime(existing, live))) {
 			owned.processes.push(live);
 		}
 	}
 }
-function currentProcesses(owned: Ownership, snapshot: ProcessDescriptor[]): Fingerprint[] {
-	const live = owned.processes.flatMap((recorded) => {
-		const current = snapshot.find(({ pid }) => pid === recorded.pid);
-		if (!current) {
-			return [];
-		}
-		verify(recorded, current);
-		return [recorded];
-	});
-	for (const parent of live) {
-		for (const child of snapshot.filter(({ ppid }) => ppid === parent.pid)) {
-			if (!live.some(({ pid }) => pid === child.pid)) {
-				live.push(fingerprint(child));
-			}
-		}
-	}
-	return live;
+function sameLifetime(left: Fingerprint, right: Fingerprint): boolean {
+	return left.pid === right.pid && left.startTime === right.startTime;
 }
 function fingerprint(value: ProcessDescriptor): Fingerprint {
 	return processFingerprintSchema.parse({
@@ -351,7 +361,7 @@ async function writeCleanup(
 ): Promise<void> {
 	const processes = [
 		...recorded,
-		...live.filter((candidate) => !recorded.some(({ pid }) => pid === candidate.pid)),
+		...live.filter((candidate) => !recorded.some((existing) => sameLifetime(existing, candidate))),
 	];
 	const temporary = join(ref.directory, "cleanup.json.tmp");
 	await Bun.write(temporary, JSON.stringify({ processes, token: ref.token }));
