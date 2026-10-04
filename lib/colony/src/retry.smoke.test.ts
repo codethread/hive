@@ -157,6 +157,61 @@ test(
 			} finally {
 				native.close();
 			}
+			await Bun.write(join(root, "purple-calm-wren.tasks.json"), JSON.stringify([unfinished]));
+			const replacement = JSON.parse(
+				await run([
+					process.execPath,
+					BEE,
+					"retry",
+					exhausted,
+					"--repo",
+					repo,
+					"--beads-db",
+					database,
+					"--actor",
+					"retry-actor",
+					"--identity",
+					"purple-calm-wren",
+					"--json",
+				]),
+			).request.id as string;
+			/* eslint-disable no-await-in-loop -- Verify the replacement independently receives the full real attempt budget. */
+			for (let attempt = ONE; attempt <= ATTEMPTS; attempt += ONE) {
+				await release("purple-calm-wren", attempt);
+			}
+			/* eslint-enable no-await-in-loop */
+			await terminal(replacement, "exhausted");
+			const oldStatus = JSON.parse(
+				await run([
+					process.execPath,
+					BEE,
+					"status",
+					exhausted,
+					"--repo",
+					repo,
+					"--beads-db",
+					database,
+					"--json",
+				]),
+			);
+			expect(oldStatus.request).toMatchObject({
+				closeReason: "exhausted",
+				needsAttention: false,
+				resolution: { kind: "superseded", replacementIds: [replacement] },
+			});
+			const failures = JSON.parse(
+				await run([
+					process.execPath,
+					BEE,
+					"list",
+					"--repo",
+					repo,
+					"--beads-db",
+					database,
+					"--json",
+				]),
+			);
+			expect(failures.requests.map((entry: { id: string }) => entry.id)).toEqual([replacement]);
 			const completeTask = await task("Actually complete work");
 			const completed = await request("blue-calm-lynx", [completeTask]);
 			await release("blue-calm-lynx", ONE);
@@ -233,6 +288,7 @@ test(
 					.all();
 				expect(outcomes).toEqual([
 					{ claims: "[]", id: exhausted, outcome: "exhausted", state: "terminal" },
+					{ claims: "[]", id: replacement, outcome: "exhausted", state: "terminal" },
 					{ claims: "[]", id: completed, outcome: "completed", state: "terminal" },
 					{ claims: "[]", id: partial, outcome: "claim_failed", state: "terminal" },
 				]);

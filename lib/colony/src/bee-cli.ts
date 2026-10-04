@@ -24,6 +24,10 @@ export interface SpawnOptions {
 	/** Override the kind's work instructions. */
 	prompt?: string;
 }
+export interface RetryOptions extends SpawnOptions {
+	/** Select current defaults from another kind. */
+	kind?: string;
+}
 export interface InspectionOptions {
 	/** Canonical repository discovery directory. */
 	repo: string;
@@ -47,6 +51,8 @@ export interface BeeDependencies {
 	stop: (id: string, options: StopOptions) => Promise<RequestResult>;
 	/** Submit an offline request. */
 	spawn: (kind: string, tasks: string[], options: SpawnOptions) => Promise<SpawnResult>;
+	/** Replace an unsuccessful request from current kind defaults. */
+	retry: (id: string, options: RetryOptions) => Promise<SpawnResult>;
 	/** Write result and help. */
 	stdout: (text: string) => void;
 	/** Write diagnostics. */
@@ -60,20 +66,21 @@ export async function runBeeCli(argv: string[], deps: BeeDependencies): Promise<
 		.option("--json", "Emit errors as JSON too")
 		.configureOutput({ writeErr: () => {}, writeOut: deps.stdout })
 		.exitOverride();
-	program
-		.command("spawn <kind> <tasks...>")
-		.description("Snapshot a kind recipe and relate task beads without claiming them")
-		.option("--repo <directory>", "Repository discovery directory", ".")
-		.requiredOption("--beads-db <path>", "Selected Beads database", process.env["BEADS_DB"])
-		.requiredOption("--actor <identity>", "Requester identity", process.env["BD_ACTOR"])
-		.option("--identity <name>", "Supplied friendly bee identity")
-		.option("--model <model>", "Captured model override")
-		.option("--effort <effort>", "Captured effort override")
-		.option("--harness <name>", "Captured runtime formula name")
-		.option("--cwd <directory>", "Execution directory, resolved from submission cwd")
-		.option("--prompt <text>", "Captured work instructions")
-		.action(async (kind: string, tasks: string[], options: SpawnOptions) => {
-			writeResult(await deps.spawn(kind, tasks, options), argv.includes("--json"), deps.stdout);
+	submissionOptions(
+		program
+			.command("spawn <kind> <tasks...>")
+			.description("Snapshot a kind recipe and relate task beads without claiming them"),
+	).action(async (kind: string, tasks: string[], options: SpawnOptions) => {
+		writeResult(await deps.spawn(kind, tasks, options), argv.includes("--json"), deps.stdout);
+	});
+	submissionOptions(
+		program
+			.command("retry <spawn-id>")
+			.description("Replace an unsuccessful request using current defaults and unfinished tasks"),
+	)
+		.option("--kind <kind>", "Select another kind; defaults to the old request kind")
+		.action(async (id: string, options: RetryOptions) => {
+			writeResult(await deps.retry(id, options), argv.includes("--json"), deps.stdout);
 		});
 	inspectionOptions(
 		program
@@ -85,9 +92,9 @@ export async function runBeeCli(argv: string[], deps: BeeDependencies): Promise<
 	inspectionOptions(
 		program
 			.command("list")
-			.description("List open requests; observations are not live daemon state"),
+			.description("List open requests and unresolved failures; observations may be stale"),
 	)
-		.option("--all", "Include closed requests", false)
+		.option("--all", "Include resolved historical requests", false)
 		.action(async (options: ListOptions) => {
 			writeResult(await deps.list(options), argv.includes("--json"), deps.stdout);
 		});
@@ -107,6 +114,18 @@ export async function runBeeCli(argv: string[], deps: BeeDependencies): Promise<
 }
 
 // --- Private functions ---
+function submissionOptions(command: Command): Command {
+	return command
+		.option("--repo <directory>", "Repository discovery directory", ".")
+		.requiredOption("--beads-db <path>", "Selected Beads database", process.env["BEADS_DB"])
+		.requiredOption("--actor <identity>", "Requester identity", process.env["BD_ACTOR"])
+		.option("--identity <name>", "Supplied friendly bee identity")
+		.option("--model <model>", "Captured model override")
+		.option("--effort <effort>", "Captured effort override")
+		.option("--harness <name>", "Captured runtime formula name")
+		.option("--cwd <directory>", "Execution directory, resolved from submission cwd")
+		.option("--prompt <text>", "Captured work instructions");
+}
 function inspectionOptions(command: Command): Command {
 	return command
 		.option("--repo <directory>", "Repository discovery directory", ".")
@@ -148,6 +167,13 @@ function formatRequest(request: RequestView): string {
 	}
 	if (request.closeReason !== null) {
 		lines.push(`Closure reason: ${request.closeReason}`);
+	}
+	lines.push(`Resolution: ${request.resolution.kind}; needs attention: ${request.needsAttention}`);
+	if (request.resolution.kind === "superseded") {
+		lines.push(`Replacement: ${request.resolution.replacementIds.join(", ")}`);
+	}
+	if (request.supersedes.length > SUCCESS) {
+		lines.push(`Supersedes: ${request.supersedes.join(", ")}`);
 	}
 	for (const task of request.tasks) {
 		lines.push(

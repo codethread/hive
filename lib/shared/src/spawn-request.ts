@@ -4,6 +4,7 @@ import { recipeSchema } from "./bees.ts";
 import { z } from "zod";
 
 const FIRST = 0;
+const NONE = 0;
 /** Native labels used to discover spawn requests, independently of their validity. */
 export const SPAWN_REQUEST_LABELS = ["system", "bee"] as const;
 /** Native comments are timestamped evidence, never a live execution-status authority. */
@@ -30,6 +31,23 @@ export interface SpawnRequest {
 	/** Related task beads whose completion determines the request's success. */
 	taskIds: string[];
 }
+
+/** Failure attention is independent of the retained native outcome. */
+export type RequestResolution =
+	| {
+			/** No completion, cancellation or replacement resolves this request. */
+			kind: "unresolved";
+	  }
+	| {
+			/** Completion or intentional cancellation needs no intervention. */
+			kind: "resolved";
+	  }
+	| {
+			/** A successfully created replacement resolves the original failure. */
+			kind: "superseded";
+			/** Native incoming supersedes links identify replacement requests. */
+			replacementIds: string[];
+	  };
 
 /** Encode the classification required for a spawn request of this kind. */
 export function spawnRequestLabels(kind: string): string[] {
@@ -61,4 +79,32 @@ export function latestColonyObservation(bead: Bead): BeadComment | undefined {
 		.filter(({ text }) => text.startsWith(COLONY_OBSERVATION_PREFIX))
 		.toSorted((left, right) => right.id - left.id)
 		.at(FIRST);
+}
+
+/** Read resolution from native closure and distinct supersession edges. */
+export function requestResolution(bead: Bead): RequestResolution {
+	const replacements = bead.dependents.filter(
+		({ dependency_type }) => dependency_type === "supersedes",
+	);
+	if (replacements.length > NONE) {
+		return { kind: "superseded", replacementIds: replacements.map(({ id }) => id) };
+	}
+	if (
+		bead.status === "closed" &&
+		(bead.close_reason === "completed" ||
+			bead.close_reason === "cancelled" ||
+			bead.close_reason === "Stopped by Bee")
+	) {
+		return { kind: "resolved" };
+	}
+	return { kind: "unresolved" };
+}
+
+/** Only settled unsuccessful requests require intervention. */
+export function requestNeedsAttention(bead: Bead): boolean {
+	return (
+		bead.status === "closed" &&
+		(bead.close_reason === "exhausted" || bead.close_reason === "claim_failed") &&
+		requestResolution(bead).kind === "unresolved"
+	);
 }

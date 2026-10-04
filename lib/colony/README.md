@@ -61,6 +61,21 @@ Use `--model`, `--effort`, `--harness`, `--prompt` or `--cwd` to change the reci
 
 Repository discovery defaults to the current directory and can be selected with `--repo`. Tracker selection is explicit through `--beads-db` or `BEADS_DB`. Blocked tasks can be submitted and wait for eligibility. Unknown kinds, human reservations and overlapping open spawn requests fail. A named harness may be supplied by a later Colony formula update; Bee does not require it to exist in the current file's formula map.
 
+## Retry an unsuccessful request
+
+```sh
+bun run lib/colony/bin/bee.ts retry <spawn-id> \
+  --repo /path/to/repository --beads-db "$BEADS_DB" --actor <requester> --json
+```
+
+`retry` accepts an unresolved request closed as `exhausted` or `claim_failed`. It carries only unfinished related tasks and the old kind choice into a new request. The entire recipe comes from **current canonical `bees.toml` defaults**, followed by explicit `--model`, `--effort`, `--harness`, `--prompt` and `--cwd` overrides. Use `--kind` to select another kind. No captured old recipe values are merged, including execution directory or prompt. The new request gets a new friendly identity unless `--identity` is supplied, and its own fresh automatic retry budget under Colony policy.
+
+Human reservations and overlapping open requests still refuse admission. No unfinished tasks also refuses retry. Creation records a native `supersedes` relationship from replacement to original, separately from `related` task links. A failed submission leaves the original unresolved. The old closure reason, recipe, identity, observations and execution history remain unchanged.
+
+`status <old-id>` shows `resolution: {kind: "superseded", replacementIds: [...]}` and the replacement ID in human output. Replacement status exposes `supersedes` IDs. Completed and intentionally cancelled requests resolve automatically; `exhausted` and `claim_failed` requests with unresolved resolution have `needsAttention: true`. A replacement that fails needs attention independently of its resolved predecessor. `--all` retains resolved requests in discovery.
+
+This is the minimal resolution contract for retry. Colony health/filter interfaces and explicit acknowledgment remain separate planned work (hv-45f.2 and hv-45f.4).
+
 ## Inspect or close requests offline
 
 ```sh
@@ -69,7 +84,7 @@ bun run lib/colony/bin/bee.ts list --all --repo /path/to/repo --beads-db /path/t
 bun run lib/colony/bin/bee.ts stop <spawn-id> --repo /path/to/repo --beads-db /path/to/beads.db --actor operator
 ```
 
-These commands use only Beads and repository discovery. They need neither `bees.toml` nor a running daemon. `list` defaults to open requests; `--all` includes closed ones. `status` reports the captured recipe, friendly identity, linked task status and native readiness, request closure and the timestamp of the latest recorded Colony observation. Native task readiness is separate from Colony's capacity and claim decisions.
+These commands use only Beads and repository discovery. They need neither `bees.toml` nor a running daemon. `list` defaults to open requests and unresolved failures; `--all` also includes resolved history. `status` reports the captured recipe, friendly identity, linked task status and native readiness, request closure and the timestamp of the latest recorded Colony observation. Native task readiness is separate from Colony's capacity and claim decisions.
 
 Observations may be stale. A request can be closed while its last observation still says running; neither `status` nor `list` queries a process or daemon. `stop` closes a validated spawn request using `--actor` or `BD_ACTOR` and preserves an already-closed request's reason. An awake colony then stops the owned execution and releases eligible claims. An asleep colony does that only after wake. Colony writes changing, minimal observations as native comments; full output and execution logs stay local.
 

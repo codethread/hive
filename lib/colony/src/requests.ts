@@ -1,5 +1,5 @@
 /* eslint-disable unicorn/no-null -- Public JSON explicitly distinguishes absent closure and observation facts. */
-import type { Bead, Recipe, RepositoryEndpoint } from "@hive/shared";
+import type { Bead, Recipe, RepositoryEndpoint, RequestResolution } from "@hive/shared";
 import {
 	COLONY_OBSERVATION_PREFIX,
 	SPAWN_REQUEST_LABELS,
@@ -7,6 +7,8 @@ import {
 	beads,
 	latestColonyObservation,
 	readSpawnRequest,
+	requestNeedsAttention,
+	requestResolution,
 	resolveRepository,
 	showBead,
 } from "@hive/shared";
@@ -46,6 +48,12 @@ export interface RequestView {
 	closedAt: string | null;
 	/** Native request closure reason when recorded. */
 	closeReason: string | null;
+	/** Resolution remains separate from the original closure outcome. */
+	resolution: RequestResolution;
+	/** Whether a terminal unsuccessful request still requires intervention. */
+	needsAttention: boolean;
+	/** Requests this request replaces, distinct from its task links. */
+	supersedes: string[];
 	/** Current related task facts from the selected tracker. */
 	tasks: TaskView[];
 	/** Latest recorded Colony comment, which may be stale. */
@@ -64,7 +72,7 @@ export interface RequestListResult {
 	kind: "request_list";
 	/** Explicit canonical repository and tracker authority. */
 	repository: RepositoryEndpoint;
-	/** Matching open requests, or all requests when requested. */
+	/** Active requests and unresolved failures, or all historical requests when requested. */
 	requests: RequestView[];
 }
 
@@ -86,17 +94,13 @@ export async function inspectRequest(
 }
 export async function listRequests(options: ListOptions): Promise<RequestListResult> {
 	const repository = await resolveRepository(options.repo, options.beadsDb);
-	let status = "open";
-	if (options.all) {
-		status = "all";
-	}
 	const listing = z
 		.object({ issues: z.array(beadSchema) })
 		.parse(
 			await beads(repository, INSPECTION_ACTOR, [
 				"list",
 				"--status",
-				status,
+				"all",
 				...SPAWN_REQUEST_LABELS.flatMap((label) => ["--label", label]),
 				"--limit",
 				"0",
@@ -108,7 +112,13 @@ export async function listRequests(options: ListOptions): Promise<RequestListRes
 			requestView(repository, await showBead(repository, INSPECTION_ACTOR, id), ready),
 		),
 	);
-	return { kind: "request_list", repository, requests };
+	return {
+		kind: "request_list",
+		repository,
+		requests: requests.filter(
+			(request) => options.all || request.status !== "closed" || request.needsAttention,
+		),
+	};
 }
 /** Closing a request records intent; an awake Colony performs owned execution cleanup. */
 export async function stopRequest(id: string, options: StopOptions): Promise<RequestResult> {
@@ -167,8 +177,13 @@ async function requestView(
 		id: request.id,
 		identity: request.identity,
 		lastObservation,
+		needsAttention: requestNeedsAttention(bead),
 		recipe: request.recipe,
+		resolution: requestResolution(bead),
 		status: bead.status,
+		supersedes: bead.dependencies
+			.filter(({ dependency_type }) => dependency_type === "supersedes")
+			.map(({ id }) => id),
 		tasks,
 	};
 }

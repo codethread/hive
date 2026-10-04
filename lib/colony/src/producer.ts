@@ -1,11 +1,14 @@
 import type { BeesConfig, Recipe, RepositoryEndpoint } from "@hive/shared";
+import type { RetryOptions, SpawnOptions } from "./bee-cli.ts";
 import {
 	SPAWN_REQUEST_LABELS,
 	beadSchema,
 	beads,
 	canonicalRoot,
 	parseBeesConfig,
+	readSpawnRequest,
 	recipeSchema,
+	requestNeedsAttention,
 	resolveRepository,
 	showBead,
 	spawnRequestLabels,
@@ -16,11 +19,11 @@ import { join, resolve } from "node:path";
 // eslint-disable-next-line import/no-nodejs-modules -- Exclusive configuration creation and execution directory validation.
 import { open, realpath, stat } from "node:fs/promises";
 import type { InitOptions } from "./cli.ts";
-import type { SpawnOptions } from "./bee-cli.ts";
 import { z } from "zod";
 
 const NAME_WORDS = 3;
 const NONEMPTY = 1;
+const NONE = 0;
 
 export interface InitializedResult {
 	/** Canonical configuration created. */
@@ -52,6 +55,39 @@ export async function spawnRequest(
 	options: SpawnOptions,
 ): Promise<SpawnResult> {
 	const endpoint = await resolveRepository(options.repo, options.beadsDb);
+	return createRequest(endpoint, { kind, requestedIds }, options);
+}
+
+/** Replace a terminal failure using current defaults and unfinished work only. */
+export async function retryRequest(id: string, options: RetryOptions): Promise<SpawnResult> {
+	const endpoint = await resolveRepository(options.repo, options.beadsDb);
+	const bead = await showBead(endpoint, options.actor, id);
+	const old = readSpawnRequest(bead);
+	if (!requestNeedsAttention(bead)) {
+		throw new Error(`Request ${old.id} is not an unresolved unsuccessful request`);
+	}
+	const tasks = await Promise.all(
+		old.taskIds.map((taskId) => showBead(endpoint, options.actor, taskId)),
+	);
+	const ids = tasks.filter((task) => task.status !== "closed").map((task) => task.id);
+	if (ids.length === NONE) {
+		throw new Error(`Request ${old.id} has no unfinished tasks`);
+	}
+	return createRequest(
+		endpoint,
+		{ kind: options.kind ?? old.recipe.kind, requestedIds: ids, supersedes: old.id },
+		options,
+	);
+}
+
+// --- Private functions ---
+// eslint-disable-next-line max-statements -- Admission, recipe capture and provenance form one native submission boundary.
+async function createRequest(
+	endpoint: RepositoryEndpoint,
+	input: { kind: string; requestedIds: string[]; supersedes?: string },
+	options: SpawnOptions,
+): Promise<SpawnResult> {
+	const { kind, requestedIds, supersedes } = input;
 	const config = parseBeesConfig(await Bun.file(join(endpoint.root, "bees.toml")).text());
 	const ids = await admitTasks(endpoint, { actor: options.actor, ids: requestedIds }, config);
 	const recipe = await captureRecipe({ ids, kind, options }, config);
@@ -63,6 +99,10 @@ export async function spawnRequest(
 			separator: "-",
 		});
 	z.string().min(NONEMPTY).parse(identity);
+	const dependencies = ids.map((id) => `related:${id}`);
+	if (supersedes !== undefined) {
+		dependencies.push(`supersedes:${supersedes}`);
+	}
 	const created = await beads(endpoint, options.actor, [
 		"create",
 		"--title",
@@ -76,7 +116,7 @@ export async function spawnRequest(
 		"--description",
 		JSON.stringify(recipe),
 		"--deps",
-		ids.map((id) => `related:${id}`).join(","),
+		dependencies.join(","),
 	]);
 	return {
 		kind: "spawn_created",
@@ -84,7 +124,6 @@ export async function spawnRequest(
 	};
 }
 
-// --- Private functions ---
 function initialConfig(options: InitOptions): string {
 	return `owner = ${JSON.stringify(options.owner)}
 humans = [${JSON.stringify(options.owner)}]

@@ -21,6 +21,7 @@ export const beadSchema = z.object({
 	comments: z.array(beadCommentSchema).default([]),
 	created_at: z.string(),
 	dependencies: z.array(dependencySchema).default([]),
+	dependents: z.array(dependencySchema).default([]),
 	description: z.string().default(""),
 	id: z.string(),
 	labels: z.array(z.string()).default([]),
