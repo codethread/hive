@@ -1,73 +1,81 @@
 # Hive
 
-Shared vocabulary for agent identity, spawning and work tracking. Use these terms consistently in code, documentation and beads.
+Shared vocabulary for Hive's agents, work tracking and repository tooling. Use these terms consistently in code, documentation and beads.
+
+_To be built_ marks planned Hive capabilities from the agent identity and bee-spawning epic (`hv-3x8`); the cited beads record their scope.
 
 ## Agents and identity
 
-**Harness**: The agent runtime hosting a model session, such as Claude Code, Codex or Pi. _Avoid_: Model or provider when referring to the runtime.
+**Agent**: A coding assistant operating through a harness, whether started directly or through automation.
 
-**Session**: One harness conversation, keyed by the harness's session ID, that survives resume and compaction. A process is not a session; a fork is a new session.
+**Harness**: The runtime hosting an agent, such as Claude Code, Codex or Pi. _Avoid_: Model or provider when referring to the runtime.
 
-**Native session**: A session a human started directly through a desktop app or terminal CLI. It is not a bee and has no bee kind.
+**Session**: A harness conversation, distinct from an agent identity or an operating-system process.
 
-**Identity**: Who an agent is in the audit trail: its friendly name, plus best-effort harness, model and effort. Identity is distinct from ownership and assignment.
+**Harness subagent**: An agent created through a harness's built-in delegation mechanism rather than through Colony.
 
-**Friendly name**: An agent's three-word adjective-adjective-noun name, such as `amber-quiet-otter`, used for attribution. _Avoid_: Harness names such as `claude` when naming an individual agent.
+**Identity**: Who a human or agent is for attribution, independent of agent attributes, ownership and assignment. An identity ordinarily distinguishes one individual, but uniqueness is not guaranteed.
 
-**Mint**: Derive a friendly name deterministically from a seed, rather than assigning it randomly or looking it up in a registry.
+**Friendly name**: An agent's human-readable, three-word attribution name, such as `amber-quiet-otter`. _Avoid_: Harness names such as `claude` when naming an individual agent. _To be built — hv-3x8.6._
 
-**Nested child**: A session started from inside another agent's session, with its own identity and a recorded parent. It is not a colony-managed bee.
+**Agent attributes**: Best-effort observations of how an agent runs, such as its harness, model and reasoning effort. They describe an identity's execution, not the identity itself, and are not guaranteed to remain unchanged or accurate.
 
-**Native subagent**: A child created by the harness's own agent tool. It is distinct from a separately launched nested CLI and a colony-managed bee.
+**Scent**: Hive's per-harness integration for agent identity attribution and context, independent of bee-kind configuration. _To be built — hv-3x8.7._
 
-**Scent**: Hive's per-harness identity integration, responsible for identity attribution and context. It is separate from bee-kind configuration.
+## Bees
 
-**Actor**: The identity recorded on a Beads mutation. It is distinct from the owner and assignee.
+**Bee**: A running agent spawned by Colony through `bee`. Also the name of the CLI used to request bees. _To be built — hv-3x8.8, hv-3x8.9._
 
-## Spawning
+**Bee kind**: A named configuration describing how a bee runs, distinct from the identity of any bee using it. _To be built — hv-3x8.6._
 
-**Bee**: An agent colony launches to work on task beads, carrying an identity minted at spawn. The name also denotes the tool for requesting bees, not a harness-native subagent definition.
+**Colony**: The system-wide daemon for running bees across registered repositories. _Avoid_: Per-repository daemon or provider CLI. _To be built — hv-3x8.9._
 
-**Bee kind**: A named configuration selecting how a bee runs. Many bees may share one kind; a kind is not an identity.
-
-**`bees.toml`**: The repository's registry of bee kinds and human users, distinct from harness-native agent definitions.
-
-**Users**: The human assignees whose tasks bees must leave to them. Being a user is distinct from owning a bead.
-
-**Spawn**: A request for a bee, represented by a spawn bead. Requesting a bee is distinct from starting its process.
-
-**Colony**: The single system-wide daemon that turns spawn beads into running bees for registered repositories. _Avoid_: Per-repository daemon or provider CLI.
-
-**Wake**: Register a repository with colony, rather than start colony itself.
-
-**Launch rule**: The condition that all of a bee's open task beads must be ready before it launches; closed task beads count as satisfied.
-
-**`max_retries`**: The limit on relaunching a bee after its process exits while its spawn bead remains open. It is not a retry limit for tracker commands.
-
-**Reap**: End a bee's lifecycle, including one whose tasks were all closed before launch. Reaping is distinct from respawning.
-
-**Tidy up**: Return a bee's claimed tasks to unclaimed, open work after its lifecycle ends. Tidying does not close the tasks.
+**Requester**: The human or agent identity that requested a bee, recorded as provenance rather than ownership. _To be built — hv-3x8.8._
 
 ## Beads
 
-**Task bead**: A bead describing work, claimed and closed by whoever does it. It is not a request for a bee.
+**Task bead**: A bead describing a unit of work, not a request to run a bee.
 
-**Spawn bead**: A bead representing one bee throughout its lifetime, linked to the bee's task beads. It is distinct from the work itself.
+**Spawn bead**: A bead recording a request for a bee to work on specified task beads. _To be built — hv-3x8.8._
 
-**`system` label**: Marks automation-owned beads, outside ordinary agent work.
+**Actor**: The identity credited with a change to a bead, distinct from its owner and assignee.
 
-**`bee` label**: Marks a spawn bead, not its bee kind.
+**Owner**: The human accountable for a bead, giving collaborators a clear point of responsibility separate from whoever is assigned to do the work.
 
-**`agent:<kind>` label**: Identifies the bee kind requested by a spawn bead, not its harness or identity.
+**Assignee**: The human or agent identity assigned to work on a bead, distinct from its owner or the actor making a particular change.
 
-**`outcome:<value>` label**: Records how colony saw a spawn bead end. It belongs to the spawn bead, not its task beads.
+## Work modes
 
-**`hitl` label**: Human in the loop: work performed in tandem with the user, which autonomous runners skip. It is neither a handoff to a human assignee nor a blocker.
+**Human-in-the-loop (HITL) work**: Work undertaken by an agent and a human together, distinct from work handed off to a human.
 
-## Related tools
+**Away-from-keyboard (AFK) work**: Work planned by a human with an agent, then carried out autonomously without ongoing human participation. This is the intended default mode for bees. _To be built for bees — hv-3x8.9._
+
+## Repositories and worktrees
 
 **Honeycomb**: Hive's Git worktree manager.
 
-**Shared**: The common contract Hive packages may import.
+**Repository**: A Git repository shared by its worktrees, not a single checkout. _Avoid_: Project when referring to Honeycomb's unit of management.
 
-The [identity design reference](./docs/agent-identity-scope.md) records implementation status, bindings and lifecycle policy; the [harness capability contract](./docs/harness-capabilities.md) records verified runtime mechanisms and integration outcomes.
+**Worktree**: An individual checkout of a repository, with its own working directory and checked-out revision.
+
+**Canonical worktree**: The repository's primary worktree, protected by Honeycomb and used to anchor repository-wide configuration and policy. Its canonical status does not depend on which branch is checked out.
+
+**Canonical root**: The top-level directory of the canonical worktree, not a branch.
+
+**Default branch**: The repository's designated integration branch, commonly `main` or `trunk`, distinct from the canonical worktree and its directory.
+
+**Regular worktree**: A non-canonical worktree that is not part of a worktree pool.
+
+**Worktree pool**: A fixed set of reusable worktree slots for one repository.
+
+**Pool slot**: A fixed position in a worktree pool, reserved for a reusable checkout.
+
+**Pooled worktree**: A reusable worktree occupying a pool slot, whose directory is retained as it moves between working branches.
+
+**Placeholder branch**: A branch reserved for a pool slot when it is not holding a working branch.
+
+**Recycle**: Return a pooled worktree to availability without removing its directory.
+
+**Multiplexer session**: A terminal session associated with a worktree for navigation, distinct from a harness conversation.
+
+Earlier identity and lifecycle proposals are recorded in the [identity design reference](./docs/agent-identity-scope.md); runtime evidence is in the [harness capability contract](./docs/harness-capabilities.md).
