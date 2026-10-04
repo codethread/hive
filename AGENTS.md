@@ -57,47 +57,38 @@ Husky runs `lint-staged`, a repo-wide typecheck and tracker synchronization befo
 
 - `docs/` — architecture documentation.
 
-## Agent skills
-
-### Issue tracker
-
-Work is tracked in Beads via `br`. For skill issue operations, see `docs/agents/issue-tracker.md`.
-
-### Domain docs
+## Domain docs
 
 Single-context: root `GLOSSARY.md` and `docs/adr/`. Before exploring, follow `docs/agents/domain.md`.
 
 ## Beads / br
 
-Track work and implementation steps in repo-local Beads with `br`, from the repository root, instead of native harness todo lists. Start with the work assigned by the user or coordinating agent; do not run triage to replace it with a different task. `bv` is for read-only work selection, prioritization, and coordination—not a prerequisite for execution. Never run bare `bv`, which launches an interactive TUI.
+Use repo-local Beads (`br`) from the checkout root to track implementation, not harness todos or Markdown task files.
 
-All worktrees use the selected `BEADS_DB`, normally `.worktrees/tracker--state/.beads/beads.db` beneath the canonical root. Its permanent full checkout stays on `tracker/state`; do not finish, recycle or remove it as feature work. Configure a checkout with `bun run beads:setup --db /absolute/path/to/.beads/beads.db`, or inherit the canonical checkout's selection with `bun run beads:setup --source <canonical-root>`. Setup writes ignored project environment files for mise and Codex. Honor the selected endpoint; do not derive a replacement from the current worktree or initialize a private database. Existing sessions retain their old environment, so pass the selected `--db` explicitly until restarted.
+### Route the request
 
-Automatic import and export are enabled. Native `br` updates the shared SQLite database and its tracker checkout's JSONL without Git operations; code branches carry no live tracker snapshot. `bun run beads:sync` receives compatible remote changes and commits/pushes the combined snapshot on `tracker/state`. Run it immediately after every claim, before branching or starting that work, and after closure, handoff or landing updates. A claim is provisional until synchronization succeeds. Session-start and pre-commit hooks also sync; ordinary commands and agent tools do not. `bun install` configures new Honeycomb worktrees from canonical mise settings. Each publication includes other agents' ongoing work as well as completed tasks.
+- **Inspect an ID** ("check hv-…"): `br show <id> --json`; report without claiming or changing it. Questions do not need bookkeeping beads.
+- **Search/report** (current WIP, closed epics, history), **choose work**, or **resolve tracker uncertainty**: delegate to `honeybee` with the question and known IDs. It advises; you perform authorized updates. Do not replace supplied work with triage.
+- **Implement**: follow the daily workflow below. **"Bead this"** means record and sync only, without claiming or implementing.
+- **Missing intent or permission**: ask the user. Use honeybee for tracker facts, not user decisions.
 
-Synchronization combines independent tracker changes automatically and stops on conflicting records or claims. Resolve a reported conflict before further tracker work; keep unrelated changes and yield to an already-published competing claim. Timestamps and forced sync are not ownership decisions. There is no per-tool health gate or periodic remote check. If synchronization fails, stop tracker work and report it. Manual recovery happens from a separate human terminal with tracker writers paused: use the native executable and selected `--db` for an explicit flush and tracker-only commit before Git integration, then status and unforced merge. Resume only after `bun run beads:sync` succeeds. Never merge `tracker/state` into a code branch.
+### Daily workflow
 
-A parent claim does not assign its children. Reserve only the feature scope intended to be exclusive, and claim or delegate children explicitly; an epic shared by colleagues is not an exclusive reservation. Same-harness sessions share an actor name under the current identity policy, so record enough scope and worktree context in notes to distinguish continuation from a competing session.
+Every mutation needs your harness actor (`--actor pi|claude|codex`, choosing your own, or process-local `BD_ACTOR`). Never use `ct`/`USER` as the agent actor or persist it in shared configuration. Set `--owner ct` on every creation and claim; ownership is not assignment.
 
-Write each bead so another agent can act without the originating conversation: explain the problem, scope, relevant code or documentation pointers, and observable completion criteria. Scale detail to the work; leave unnecessary fields unset rather than filling a template mechanically.
+1. **Identify:** inspect the supplied bead. Otherwise search for existing scope with `br search "<topic>" --exclude-label system --json`; reuse matches. Create missing work with `br create --title "…" --type task --priority 2 --owner ct --description "…" --acceptance-criteria "- [ ] …" --json`. Include the problem, scope, useful pointers and verifiable outcomes; choose the appropriate native type/priority.
+2. **Claim:** `br update <id> --claim --owner ct --json`, then `bun run beads:sync` before branching or working. Respect assignments and blockers; claim your scope, not a shared epic. A claim is provisional until synchronization succeeds; do not force it. Record scope/worktree context in notes because same-harness sessions share an actor.
+3. **Work:** split substantial work into scoped children (`create --parent <id>`), claiming/delegating each explicitly; a parent claim does not assign children. Parent links group work; `br dep add <issue> <depends-on>` records execution prerequisites. Keep the current approach in `update --design` and append progress/handoff evidence with `update --append-notes`. Pass the bead ID when delegating; avoid duplicate tracking.
+4. **Finish:** verify acceptance, record evidence, then `br close <id> --reason "Completed: <proof>" --json`. Keep unfinished work open with a next step. Parents require completed children; landing-scoped work stays open until integration. Run `bun run beads:sync` after closure, handoff or landing updates, including updates after the final code commit. Recording new work without implementing it also ends with sync.
 
-Beads labelled `system` are reserved for automation, do not browse them; access requires an explicit system-maintenance or debugging assignment. Exclude them from day-to-day `br search`, `br list`, and `br ready` queries with `--exclude-label system`; use `bv --recipe work --robot-triage` for ordinary work selection.
+### Labels and reservations
 
-Identity and ownership:
+- Labels are optional. Before choosing or changing them, use [the task-label taxonomy](docs/beads-labels.md); ask honeybee if uncertain. Keep status, priority, ownership and readiness in native fields, not invented labels. Use `--add-label` / `--remove-label` for incremental edits; `--labels` replaces the set.
+- `system` beads are automation-owned: exclude them from ordinary `search`, `list` and `ready` with `--exclude-label system`. Reading or changing them requires an explicit system-maintenance/debugging assignment. Viewer triage uses `bv --recipe work --robot-triage`, never bare `bv`.
+- `hitl` requires working alongside the user; autonomous agents skip it. Assignment to `ct` instead reserves human action: do not claim, clear or replace it without ct's instruction. Agent work remains assigned to an agent; assign `ct` only for a deliberate, documented handoff.
 
-- **Owner:** Always set `--owner ct` when creating or claiming a bead, including child beads. Ownership does not assign the work to ct.
-- **Actor:** Agents must supply their own identity on every mutation: pass `--actor` or set `BD_ACTOR` in the agent's process environment to the harness name (`pi`, `claude`, or `codex`). Never act as `ct` or rely on the `USER` fallback in agent runs. Do not persist an agent identity in shared config or the user's shell; human shell commands should retain the normal `USER` fallback. No `--agent-name`, `--harness`, or `--model` metadata is required.
-- **Assignee:** `--claim` assigns the actor and starts work; no separate `--assignee` is needed. Agent work stays assigned to an agent. Assign `ct` only for a deliberate human handoff, such as review, and record the action needed. Treat an existing `ct` assignment as reserved for human action: do not claim, clear, or replace it without ct's instruction.
+### Storage and publication
 
-The commands below assume the agent has set `BD_ACTOR`; otherwise add `--actor` to each mutation.
+Use the selected `BEADS_DB`; never create a private tracker or remove `.worktrees/tracker--state`. `br` writes locally; `bun run beads:sync` publishes.
 
-1. **Identify:** If given a bead ID within the permitted scope, run `br show <id> --json`. Otherwise, use `br search "<topic>" --exclude-label system --json` to find an existing bead; if none fits, create one with `br create --title="..." --type=task --priority=2 --owner ct --description="Problem, scope, and relevant context" --acceptance-criteria="- [ ] Observable completion outcome" --json`.
-2. **Claim:** Before implementation, run `br update <id> --claim --owner ct --json`, then `bun run beads:sync`. Do not begin work until synchronization succeeds. Respect existing assignments and blockers; do not force a claim. A request to just record work ("bead this") stops after creation and sync, without claiming or implementing it.
-3. **Work:** Break multi-step work, especially features, into child beads so steps can be claimed, verified, and closed incrementally. Keep the current approach and rationale in `br update <id> --design="..." --json`; append progress, discoveries, blockers, and handoff next steps with `br update <id> --append-notes="..." --json`. Pass the relevant bead ID when delegating; reuse it for the same scope rather than creating duplicates.
-4. **Finish:** Verify the acceptance criteria, mark checklist items complete only with evidence, record verification commands and results in notes, then `br close <id> --reason="Completed: <specific proof>" --json`. Implementation-only children can close when their criteria are met; a scope requiring landing stays open until integration and tracker publication. Leave unfinished or blocked work open with a clear next step. Run `bun run beads:sync` after closure or handoff so peers receive the result.
-
-Use `task` for scoped work, `bug` for defects, `feature` for new capability, and `epic` for a larger effort; `chore` and `docs` cover maintenance and documentation. Nesting is not limited to epics: any bead can have children, and children can have their own children. Create a step with `br create --title="..." --type=task --parent=<parent-id> --owner ct --json`; use as many levels as useful (e.g. feature → task → subtask), without splitting trivial work unnecessarily. Close a parent only after its children and overall completion criteria are satisfied.
-
-Priorities run P0 (critical) through P4 (backlog), with P2 for normal work. Parent-child links group work; record execution prerequisites separately with `br dep add <issue> <depends-on>`: the first issue is blocked by the second.
-
-`.beads/issues.jsonl` is generated in the tracker checkout. Make routine task changes through `br`; the exception is reviewed Git conflict resolution selecting existing records while preserving unrelated changes. Preserve any older private database and reconcile unpublished state before retiring its checkout. After landing code, record evidence, close completed tasks and publish on `tracker/state`. Tracker commands do not grant permission to commit or push application code.
+On synchronization failure, stop tracker work and report it. Preserve unrelated changes and respect published claims; timestamps and force are not ownership decisions. For endpoint setup or human-led recovery, consult [Beads integration](docs/beads-integration.md). Never merge `tracker/state` into code branches or edit generated JSONL for routine updates. Tracker publication does not authorize committing or pushing application code.

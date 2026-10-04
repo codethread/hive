@@ -1,13 +1,8 @@
----
-name: beads-meta
-description: Investigate beads_rust (`br`) behavior or use advanced tracker features such as workflow policy, inherited context, coordination, machine contracts, and sync/recovery. Use for CLI research, troubleshooting, or tracker automation—not routine bead creation, claiming, progress updates, or closure covered by AGENTS.md.
----
+# Beads specialist reference
 
-# Beads meta
+Reference for complex triage, search, task authoring, workflow policy, coordination and `br` investigations. Daily operations remain in the root runbook; Hive's storage and publication contract is in [Beads integration](./beads-integration.md).
 
-Use `br` as a local-first, dependency-aware task tracker and inspect `beads_rust` when behavior is unclear. `beads_rust` is vendored on this machine.
-
-Treat `br` and the vendored `beads_rust` repository as the sole subject. Do not infer behavior from similarly named trackers or compatibility assumptions.
+Use `br` as a local-first, dependency-aware task tracker and inspect the vendored `beads_rust` source when behavior is unclear. Source paths below are relative to that external repository, not Hive. Do not infer behavior from similarly named trackers or compatibility assumptions.
 
 ## Establish the contract
 
@@ -25,7 +20,7 @@ Use this authority order:
 3. Follow dispatch into `src/cli/commands/`, then into the domain or storage module that owns the behavior.
 4. Use `docs/CLI_REFERENCE.md` and focused files under `docs/` for explanation, not exhaustive enumeration.
 
-The detailed inventory is in [references/command-source-map.md](references/command-source-map.md). Read it when selecting a command, locating an implementation, auditing API coverage, or building automation.
+The detailed inventory is in [Beads command and source map](./beads-command-source-map.md). Read it when selecting a command, locating an implementation, auditing API coverage, or building automation.
 
 ## Mental model
 
@@ -67,7 +62,7 @@ SQLite runtime state <---- import/export/merge ----> JSONL interchange state
 | Event | Local issue mutation/audit history exposed with issue details where requested |
 | Tombstone | Durable deletion representation created by `br delete` |
 
-`br` does not expose a general arbitrary issue-metadata field. Dependency edges can store JSON metadata, but current list/show/query projections do not provide a public edge-metadata filter. For automation, define indexed namespaced labels appropriate to the application—for example, `harness:claude` and `effort:high` for daemon dispatch.
+`br` does not expose a general arbitrary issue-metadata field. Dependency edges can store JSON metadata, but current list/show/query projections do not provide a public edge-metadata filter. For Hive automation, use the supported indexed namespaced labels in the [label taxonomy](./beads-labels.md); arbitrary strings do not create new routing behavior.
 
 ## Authoring and handing off work
 
@@ -105,6 +100,22 @@ Checklists describe preparation and completion; they do not create dependency ed
 Set `--agent-context` on `create` or `update` with inline JSON such as `'{"constraints":["Keep this feature CLI-only"]}'`, or `@path/to/context.json` / `@path/to/context.yaml` (YAML is normalized to JSON). These are instructions for the consuming agent, not executable policy or a replacement for repository/user instructions.
 
 Inherited emission is opt-in through `inherited_context.enabled: true` in `.beads/config.yaml` (nested YAML) or the `BR_INHERITED_CONTEXT` environment override. Hive does not currently enable it in repository config. When enabled, `show --json` includes `inherited_context` blocks from the root ancestor (preferring the topmost epic) and immediate parent, root first; intermediate ancestors are not all included. Blocks retain their source IDs and are not merged into one JSON object. Inspect the returned context and explicitly read any other ancestor whose design or instructions the task needs; do not assume ordinary descriptions, designs, or notes are inherited.
+
+## Search and triage
+
+Start with the delegated question or supplied bead, rather than selecting unrelated work. For an ordinary topic search:
+
+```nu
+br search "topic" --exclude-label system --json
+```
+
+Search covers IDs, titles, descriptions and comments. Use `br list --notes-contains "topic" --exclude-label system --json` when the evidence is in progress notes. Closed issues are hidden by default; use `--all` when investigating history or duplicates. Inspect `hidden_closed_count` and pagination fields before treating a search as exhaustive, and hydrate relevant permitted matches with `br show <id> --json`.
+
+For WIP reports, query in-progress work rather than `ready`; report assignment, blockers and the latest progress/handoff notes. For historical questions, include closed records, state the date window and use closure dates rather than last-updated dates. Verify available date filters against installed help; filter structured results when needed.
+
+For requested prioritization, use `bv --recipe work --robot-triage` for ranking and graph evidence, then confirm selected candidates with `br ready --exclude-label system --brief --json` and `br show`. Viewer recommendations are not claims or authority to take work. Explain priority, blockers, assignment and scope alongside any ranking; respect human reservations and `hitl` work.
+
+Keep ordinary queries scoped with `--exclude-label system` on `search`, `list` and `ready`, and the `work` recipe on viewer triage. Broader graph or diagnostic surfaces may expose reserved beads; inspect their filtering contract before using them outside an explicit system-maintenance assignment.
 
 ## Readiness and the graph
 
@@ -146,7 +157,7 @@ Use graph surfaces deliberately:
 Labels are the default routing mechanism for automation. They live in a normalized table with indexes on `label` and `issue_id`; repeated `--label` filters use AND semantics and `--label-any` uses OR semantics.
 
 ```nu
-br ready --label harness:claude --label effort:high --brief --json
+br ready --exclude-label system --label area:honeycomb --label agent:worker --brief --json
 ```
 
 ## Workflow policy
@@ -170,18 +181,9 @@ Do not bypass a refused transition by rewriting storage. Inspect the policy, `br
 
 ## Persistence and recovery
 
-Hive uses automatic import and export in the permanent `tracker/state` checkout. Honor its selected `BEADS_DB` from the project environment; feature worktrees do not own private trackers. Native `br` stays local. `bun run beads:sync` receives compatible remote tracker changes, reconciles SQLite and publishes JSONL, separately from code integration. Session-start and pre-commit hooks run that checkpoint; ordinary commands and tools do not. Run it explicitly after claiming before work begins, and after closure or handoff. New claims remain provisional until publication succeeds. Use native sync diagnostics when investigating a refusal:
+Follow [Beads integration](./beads-integration.md) for Hive's selected endpoint, publication checkpoints, fresh-clone setup and human-led conflict recovery. The modes below explain native `br` mechanics; they do not replace that runbook or authorize repairs.
 
-```nu
-br sync --status --json
-br sync --flush-only --json
-```
-
-`jsonl_newer` means the current JSONL differs from its last certified content hash. When manually recovering an established database after receiving Git changes, use the native executable with the selected `--db` from a separate human terminal. Inspect status, then use unforced `sync --merge` before ordinary commands resume; this also validates content and resumes pending synchronization receipts when the freshness flag is false. Auto-import can skip concurrent divergence with a warning, and export does not generally protect changed fields of an existing issue. Merge updates SQLite and exports JSONL. Automatic export does not refresh the merge base; explicit flush does.
-
-Preserve local SQLite changes with an explicit flush and tracker-only commit before manual Git integration, with other tracker writers paused. Resolve conflicting records against accepted claims while retaining unrelated work, then reconcile SQLite and publish the result. Git orders publication; neither Git nor Beads infers exclusive subtree ownership. Do not let timestamp priority or a forced sync decide a claimant.
-
-For a fresh clone with no local mutations, import accepted JSONL and perform an ordinary flush to establish `.beads/beads.base.jsonl`. An already-diverged database without that base requires explicit recovery; do not invent a base or force a claimant to win.
+`jsonl_newer` means the current JSONL differs from its last certified content hash. Unforced `sync --merge` also validates content and resumes pending synchronization receipts when the freshness flag is false. Merge updates SQLite and exports JSONL. Automatic export does not refresh the merge base; explicit flush does. The local three-way merge base is `.beads/beads.base.jsonl`; do not invent one for diverged state.
 
 Choose explicit modes by intent:
 
@@ -205,7 +207,7 @@ Treat `--force`, rebuild, merge conflict choices, repair, restore, and reviewed-
 Prefer structured mode in automation:
 
 ```nu
-br ready --brief --json
+br ready --exclude-label system --brief --json
 br schema commands --format json
 br capabilities --format json --command "ready"
 ```
@@ -216,14 +218,12 @@ br capabilities --format json --command "ready"
 - `br schema` is explicitly unstable. Generate or validate against the running binary rather than copying an old schema.
 - `serve` is available only with the `mcp` build feature. It exposes local stdio tools, resources, and prompts backed by the same storage and policy paths.
 
-## Operating workflow
+## Investigation workflow
 
-1. Resolve the workspace with `br where`; do not initialize one unless the task explicitly calls for it.
+1. Preserve the delegated scope and selected `BEADS_DB`; use `br where` to confirm the endpoint when needed, not to initialize a workspace.
 2. Discover the installed contract with `br capabilities` or focused help.
-3. Select with `br ready --brief --json`, then inspect the chosen item with `br show <id> --json`.
-4. Claim through `br update <id> --claim --owner ct --actor <harness-name> --json` when ownership is appropriate.
-5. Record discovered work with `create` and an explicit relationship or parent.
-6. Complete through policy-aware commands such as `update`, `close`, `defer`, or `reopen`.
-7. In Hive, run `bun run beads:sync` immediately after claiming, before starting work, and after closure, handoff or landing updates. Routine mutations auto-export locally but do not push; a reported record or claim conflict blocks further tracker work pending reviewed resolution.
+3. Inspect the supplied permitted bead, or search/triage only when the request calls for it.
+4. Follow the command/source map when help and observed behavior leave a question unresolved. Distinguish source-version evidence from installed behavior.
+5. Return relevant IDs, supporting evidence, recommendations and unresolved questions. Identify proposed mutations separately for the caller to perform under the daily runbook.
 
-Never assume this workflow grants permission to claim, mutate, repair, commit, or push. Repository and user instructions still control authorization.
+Investigation does not grant permission to claim, mutate, repair, commit or push.
