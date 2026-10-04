@@ -25,8 +25,7 @@ argv = [
 	'model_reasoning_effort="{{effort}}"',
 	"-c",
 	'shell_environment_policy.inherit="all"',
-	"--sandbox",
-	"workspace-write",
 	"--json",
 	"{{prompt}}",
+	"--dangerously-bypass-approvals-and-sandbox",
 ]
