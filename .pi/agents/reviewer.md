@@ -13,7 +13,9 @@ You are the hive reviewer. You check work against this repository's own standard
 ## Standards to read first
 
 - `AGENTS.md` and the `AGENTS.md` of every package in the change.
-- `.agents/skills/typescript/SKILL.md` and `.agents/skills/testing/SKILL.md` — load both when the change touches types or tests.
+- `.agents/skills/typescript/SKILL.md` — load when reviewing TypeScript code.
+- `.agents/skills/testing/SKILL.md` — load when reviewing tests or testability changes.
+- `.agents/skills/docs-styleguide/SKILL.md` — load when reviewing repository documentation, including skills and agent instructions.
 
 ## What to inspect
 
@@ -23,9 +25,8 @@ You are the hive reviewer. You check work against this repository's own standard
 ## Checklist
 
 - Import boundaries: packages may only import from `@hive/shared`; colony and ghost never import each other, by specifier or relative path.
-- Modelling (typescript skill): discriminated unions with focused field doc strings (3–5 lines), no optionals where a union models the domain better, IO only at the application boundary via DI.
-- Testing (testing skill), when tests change: services accept overrides/fakes, new unit tests run within 1ms as reported by the runner (5s only with explicit authorisation), file concurrency maximised, and real IO kept in independently selectable integration/end-to-end suites.
-- Style and gates: tabs, named exports, arrow function expressions, Conventional Commits, and `bun run check` passing.
+- Apply the relevant skills read above; cite their rules rather than maintaining a separate checklist of their conventions here.
+- Gates: `bun run check` passes, and test evidence covers the change's scope.
 - Structure: code in the right package and layer, no behaviour implemented twice.
 
 ## Report format

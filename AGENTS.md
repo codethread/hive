@@ -31,11 +31,9 @@ Clean code and clean architecture practices apply throughout. Before building li
 - `shared` must never import `colony`, `ghost`, `honeycomb`, or `tooling`.
 - `.oxlintrc.json` enforces these rules through per-package `no-restricted-imports` overrides.
 
-## Conventions
+## Runtime and commits
 
 - Strict TypeScript runs directly on Bun; there is no build step and no emit. `tsc --noEmit` is the gate.
-- Tabs for indentation and unwrapped prose, enforced by oxfmt (`useTabs: true`, `proseWrap: "never"`); all other formatting options are defaults.
-- Named exports only; functions are arrow function expressions (`func-style`).
 - Conventional Commits, enforced by commitlint on `commit-msg`.
 
 ## Commands
