@@ -15,10 +15,10 @@ model = "gpt-6-astra"
 effort = "low"
 prompt = "Work on the related task beads. Read their full instructions, claim only your work, verify outcomes, and close completed tasks."
 
-[kinds.sol-worker]
+[kinds.slow-worker]
 harness = "codex"
 model = "gpt-6.1-sol"
-effort = "low"
+effort = "high"
 prompt = "Work on the related task beads. Read their full instructions, claim only your work, verify outcomes, and close completed tasks."
 
 [formulas.codex]
