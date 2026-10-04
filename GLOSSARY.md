@@ -28,7 +28,7 @@ _To be built_ marks capabilities still planned beyond the Bee and Colony impleme
 
 **Bee kind**: A named set of defaults describing how a bee runs, distinct from the identity of any bee using it.
 
-**Colony**: A repository's scheduling and reconciliation activity, which can be awake or asleep. Also the name of the CLI used to control colonies and their hosting daemon. _Avoid_: Daemon when referring to one repository's colony.
+**Colony**: Hive's scheduling and execution product, including its control CLI and hosting daemon. A repository's colony is its scheduling and reconciliation activity, which can be awake or asleep. _Avoid_: Daemon when referring to one repository's colony.
 
 **Colony daemon**: The server hosting colonies for registered repositories, distinct from any one colony or running bee.
 

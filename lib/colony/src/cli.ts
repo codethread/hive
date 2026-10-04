@@ -69,7 +69,7 @@ export interface ColonyDependencies {
 	stop: (options: ServerOptions) => Promise<DaemonResponse>;
 	/** Write canonical configuration without overwriting it. */
 	init: (options: InitOptions) => Promise<InitializedResult>;
-	/** Execute the isolated Ghost process. */
+	/** Execute the isolated Colony process. */
 	launch: (id: string, options: LaunchOptions) => Promise<LaunchedResult>;
 	/** Print result/help. */
 	stdout: (text: string) => void;

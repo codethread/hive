@@ -27,7 +27,7 @@ export interface ServerTarget {
 	/** Absolute state directory selected by the caller. */
 	state: string;
 	/** Absolute executable entry resolved by the CLI. */
-	ghostEntry: string;
+	runtimeEntry: string;
 }
 
 export async function requestServer(
@@ -103,7 +103,7 @@ async function startServer(target: ServerTarget): Promise<void> {
 	const log = await open(logPath, "a");
 	const child = spawn(
 		process.execPath,
-		[target.ghostEntry, "serve", "--socket", target.socket, "--state", target.state],
+		[target.runtimeEntry, "serve", "--socket", target.socket, "--state", target.state],
 		{ detached: true, stdio: ["ignore", log.fd, log.fd] },
 	);
 	let spawnError: Error | undefined = undefined;

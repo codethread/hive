@@ -16,7 +16,7 @@ Your job: keep one consistent structure across the repository, aligned with clea
 
 ## Then, research before advising
 
-- Scout the repo with `rg`, `fd`, `tree` and `git log` for existing types, services, helpers and modules related to the requested use case. Check `lib/shared`, `lib/colony` and `lib/ghost` before proposing anything new.
+- Scout the repo with `rg`, `fd`, `tree` and `git log` for existing types, services, helpers and modules related to the requested use case. Check `lib/shared` and `lib/colony` before proposing anything new.
 - Prefer pointing at existing code over inventing new abstractions; only propose a new module when no existing one can absorb the behaviour.
 
 ## Return structured guidance

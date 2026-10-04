@@ -1,6 +1,6 @@
 # Hive
 
-Hive is a strict TypeScript monorepo providing coding agent tooling. It ships `bee` for native Beads spawn requests, `colony` for repository scheduling control and inspection, `ghost` for the hosting daemon and execution supervision, `honeycomb` for Git worktrees, and `waggle` for repo-owned classifiers.
+Hive is a strict TypeScript monorepo providing coding agent tooling. It ships `bee` for native Beads spawn requests, `colony` for repository scheduling, the hosting daemon and execution supervision, `honeycomb` for Git worktrees, and `waggle` for repo-owned classifiers.
 
 Read [philosophy](./docs/PHILOSOPHY.md) before making any changes to the system
 
@@ -21,17 +21,16 @@ Clean code and clean architecture practices apply throughout. Before building li
 ## Packages
 
 - `lib/shared` — utilities and models common to all packages. Not a grab bag: only add what consumers clearly need.
-- `lib/colony` — Bee and Colony CLIs, offline request services, daemon client and presentation.
-- `lib/ghost` — daemon ownership, colony/request lifecycles, dispatch, supervision and private persistence.
+- `lib/colony` — Bee and Colony CLIs, offline requests, daemon ownership, colony/request lifecycles, dispatch, supervision and private persistence.
 - `lib/honeycomb` — the Git worktree manager and shell picker integrations.
 - `lib/tooling` — repository maintenance commands.
 - `lib/waggle` — repo-owned JEV classifier discovery and execution.
 
 ## Architecture rules
 
-- Packages may only import from `shared`. `colony`, `ghost`, `honeycomb`, `tooling`, and `waggle` must not import each other.
+- Packages may only import from `shared`. `colony`, `honeycomb`, `tooling`, and `waggle` must not import each other.
 - Cross-package imports must use the `@hive/shared` package specifier; relative paths that traverse into another package are rejected.
-- `shared` must never import `colony`, `ghost`, `honeycomb`, `tooling`, or `waggle`.
+- `shared` must never import `colony`, `honeycomb`, `tooling`, or `waggle`.
 - `.oxlintrc.json` enforces these rules through per-package `no-restricted-imports` overrides.
 
 ## Runtime and commits

@@ -3,7 +3,7 @@
 Tools for running coding agents against Beads work, managing Git worktrees, and reviewing repository changes.
 
 - **Bee** submits captured spawn requests and inspects or closes them through Beads, even while the daemon is unavailable.
-- **Colony** controls repository scheduling, configuration and runtime inspection. **Ghost** hosts the daemon and supervises execution attempts.
+- **Colony** owns repository scheduling, configuration, runtime inspection, the hosting daemon and execution supervision.
 - **Honeycomb** manages Git worktrees and shell picker integration.
 - **Waggle** discovers and runs repository-owned semantic classifiers.
 

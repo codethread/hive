@@ -17,7 +17,7 @@ import { runCli } from "../src/cli.ts";
 
 const USER_ARGUMENTS_START = 2;
 const SUCCESS = 0;
-const ghost = fileURLToPath(new URL("../../ghost/bin/ghost.ts", import.meta.url));
+const runtime = fileURLToPath(new URL("runtime.ts", import.meta.url));
 process.exitCode = await runCli(Bun.argv.slice(USER_ARGUMENTS_START), {
 	add: async (options) =>
 		requestLazyServer(target(options), {
@@ -38,7 +38,7 @@ process.exitCode = await runCli(Bun.argv.slice(USER_ARGUMENTS_START), {
 		}),
 	launch: async (id, options) => {
 		const output = await execute(
-			[process.execPath, ghost, "launch", id, options.repo, options.beadsDb, options.state],
+			[process.execPath, runtime, "launch", id, options.repo, options.beadsDb, options.state],
 			process.cwd(),
 			process.env,
 		);
@@ -53,7 +53,7 @@ process.exitCode = await runCli(Bun.argv.slice(USER_ARGUMENTS_START), {
 	serve: async (options) => {
 		const selected = target(options);
 		const child = Bun.spawn(
-			[process.execPath, ghost, "serve", "--socket", selected.socket, "--state", selected.state],
+			[process.execPath, runtime, "serve", "--socket", selected.socket, "--state", selected.state],
 			{
 				stderr: "pipe",
 				stdin: "inherit",
@@ -103,7 +103,7 @@ function target(options: ServerOptions): ServerTarget {
 	const userState = process.env["XDG_STATE_HOME"] ?? join(homedir(), ".local", "state");
 	const state = resolve(options.state ?? join(userState, "hive", "colony"));
 	return {
-		ghostEntry: ghost,
+		runtimeEntry: runtime,
 		socket: resolve(options.socket ?? join(state, "colony.sock")),
 		state,
 	};

@@ -23,17 +23,9 @@
       "dependencies": {
         "@hive/shared": "workspace:*",
         "commander": "^15.0.0",
-        "ts-pattern": "^5.9.0",
-        "unique-names-generator": "^4.7.1",
-      },
-    },
-    "lib/ghost": {
-      "name": "@hive/ghost",
-      "version": "0.0.0",
-      "dependencies": {
-        "@hive/shared": "workspace:*",
         "ps-list": "^9.0.0",
         "ts-pattern": "^5.9.0",
+        "unique-names-generator": "^4.7.1",
         "xstate": "^5.33.2",
         "zod": "^4.6.5",
       },
@@ -241,8 +233,6 @@
     "@google/genai": ["@google/genai@2.21.0", "", { "dependencies": { "google-auth-library": "^10.3.0", "p-retry": "^4.6.2", "protobufjs": "^7.5.4", "ws": "^8.18.0" }, "peerDependencies": { "@modelcontextprotocol/sdk": "^1.25.2" }, "optionalPeers": ["@modelcontextprotocol/sdk"] }, "sha512-+PDtco2/Z0ONdzCGekCoCT+O1VJS9xJQNN4XzQpXG/t3El/SWWMkCWlFRO1KmivOHPa4Q0VjUYu1HBKCZ/v33Q=="],
 
     "@hive/colony": ["@hive/colony@workspace:lib/colony"],
-
-    "@hive/ghost": ["@hive/ghost@workspace:lib/ghost"],
 
     "@hive/honeycomb": ["@hive/honeycomb@workspace:lib/honeycomb"],
 

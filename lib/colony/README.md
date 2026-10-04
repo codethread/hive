@@ -283,7 +283,7 @@ Run from the Hive checkout. The process smoke also requires Node on `PATH` to ex
 
 ```sh
 bun run check
-bun test lib/colony/src lib/ghost/src
+bun test lib/colony/src
 ```
 
 The smoke fixtures use real disposable Git repositories, Beads databases, sockets and processes. Scripted workers make failure and timing cases reproducible; those results do not by themselves prove a native provider launch.
@@ -292,8 +292,8 @@ The smoke fixtures use real disposable Git repositories, Beads databases, socket
 | --- | --- |
 | Offline submission and manual launch | `bun test lib/colony/src/producer.smoke.test.ts lib/colony/src/launch.smoke.test.ts` |
 | Registry, sleeping, draining and daemon control | `bun test lib/colony/src/daemon.smoke.test.ts lib/colony/src/lifecycle.smoke.test.ts` |
-| Eligibility, priority, PageRank and capacity | `bun test lib/colony/src/scheduler.smoke.test.ts lib/ghost/src/ranking.smoke.test.ts` |
-| Claims, retry and observed descendants | `bun test lib/colony/src/retry.smoke.test.ts lib/ghost/src/processes.smoke.test.ts` |
+| Eligibility, priority, PageRank and capacity | `bun test lib/colony/src/scheduler.smoke.test.ts lib/colony/src/ranking.smoke.test.ts` |
+| Claims, retry and observed descendants | `bun test lib/colony/src/retry.smoke.test.ts lib/colony/src/processes.smoke.test.ts` |
 | Restart, stale sockets and competing daemons | `bun test lib/colony/src/recovery.smoke.test.ts lib/colony/src/server-ownership.smoke.test.ts` |
 | Retained tracker and request authority | `bun test lib/colony/src/authority.smoke.test.ts` |
 | Policy validation and revision capture | `bun test lib/colony/src/config.smoke.test.ts` |

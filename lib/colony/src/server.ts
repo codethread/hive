@@ -44,7 +44,7 @@ interface ServerOptions {
 // eslint-disable-next-line max-statements -- The server owns registry, actors and orderly shutdown in one scope.
 export async function serve(options: ServerOptions): Promise<void> {
 	if (!isAbsolute(options.socket) || !isAbsolute(options.state)) {
-		throw new Error("Ghost requires absolute socket and state paths");
+		throw new Error("Colony requires absolute socket and state paths");
 	}
 	await mkdir(options.state, { mode: 0o700, recursive: true });
 	await mkdir(dirname(options.socket), { recursive: true });

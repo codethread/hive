@@ -24,7 +24,7 @@ You are the hive reviewer. You check work against this repository's own standard
 
 ## Checklist
 
-- Import boundaries: packages may only import from `@hive/shared`; colony and ghost never import each other, by specifier or relative path.
+- Import boundaries: packages may only import from `@hive/shared`; product packages never import each other, by specifier or relative path.
 - Apply the relevant skills read above; cite their rules rather than maintaining a separate checklist of their conventions here.
 - Gates: `bun run check` passes, and test evidence covers the change's scope.
 - Structure: code in the right package and layer, no behaviour implemented twice.

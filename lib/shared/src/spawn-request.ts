@@ -8,7 +8,7 @@ const FIRST = 0;
 export const SPAWN_REQUEST_LABELS = ["system", "bee"] as const;
 /** Native comments are timestamped evidence, never a live execution-status authority. */
 export const COLONY_OBSERVATION_PREFIX = "Colony observation:";
-/** Durable request lifecycle vocabulary; transitions remain owned by Ghost. */
+/** Durable request lifecycle vocabulary; transitions remain owned by Colony. */
 export const requestStateSchema = z.enum([
 	"waiting",
 	"claiming",

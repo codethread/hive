@@ -56,12 +56,11 @@ Native subagents remain separate from user forks. The Codex 0.160.0 source route
 
 ## Current implementation and planned bindings
 
-The earlier proposal to rename the daemon package to Colony and create a separate Bee package was superseded by the current command/library seams:
+Colony owns the CLI and runtime in one package. Bee remains the request interface within that package:
 
 | Location | Current responsibility |
 | --- | --- |
-| `lib/colony` | Public `bee` and `colony` commands, offline requests, daemon client and presentation |
-| `lib/ghost` | Daemon hosting independent repository colonies, dispatch, claims, retries, supervision and recovery |
+| `lib/colony` | Bee request interface and Colony commands, daemon hosting independent repository colonies, dispatch, claims, retries, supervision and recovery |
 | `lib/shared` | Shared recipes, formulas, spawn-request representation, protocol and Beads I/O |
 | `lib/honeycomb` | Git worktree manager and canonical-root discovery |
 | Scent (planned) | Native session/child identity hooks and Pi extension; independent of `bees.toml` |
@@ -82,7 +81,7 @@ Friendly names are recorded as actors. Native sessions use their harness session
 
 Canonical `bees.toml` separates kind defaults from named harness formulas. Bee captures a recipe, friendly identity and related task links at submission. An awake colony applies current policy, acquires task claims, and starts an execution attempt. `colony wake` may lazily start the selected daemon; explicit repository, tracker and server targets remain independent.
 
-Task completion determines success. Ghost closes a satisfied request, reconciles external request closure, stops verified owned execution before releasing eligible claims, and retries unfinished work within configured limits. Sleeping drains the active dispatch pass, then pauses reconciliation while detached workers continue. Removal retains request and attempt history. These behaviors have real process/tracker smoke coverage; they do not establish native Scent hooks or arbitrary daemonized-descendant ownership.
+Task completion determines success. Colony closes a satisfied request, reconciles external request closure, stops verified owned execution before releasing eligible claims, and retries unfinished work within configured limits. Sleeping drains the active dispatch pass, then pauses reconciliation while detached workers continue. Removal retains request and attempt history. These behaviors have real process/tracker smoke coverage; they do not establish native Scent hooks or arbitrary daemonized-descendant ownership.
 
 Spawn beads carry the exact labels `system`, `bee` and `agent:<kind>`, a friendly assignee and `related` links. Shared's [spawn-request model](../lib/shared/src/spawn-request.ts) owns that representation. Current outcomes use native closure reasons, local checkpoints and timestamped observations; the earlier proposed `outcome:<value>` labels are not the implemented contract. A historical observation does not prove current process availability. See the [guide](../lib/colony/README.md) for commands, retries and cleanup boundaries.
 
