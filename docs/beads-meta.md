@@ -6,7 +6,7 @@ Use `br` as a local-first, dependency-aware task tracker and inspect the vendore
 
 ## Establish the contract
 
-The installed binary and vendored source can be different versions. Start by checking:
+For CLI/source investigations, the installed binary and vendored source can be different versions. Start by checking:
 
 ```nu
 br --version
@@ -113,7 +113,7 @@ Search covers IDs, titles, descriptions and comments. Use `br list --notes-conta
 
 For WIP reports, query in-progress work rather than `ready`; report assignment, blockers and the latest progress/handoff notes. For historical questions, include closed records, state the date window and use closure dates rather than last-updated dates. Verify available date filters against installed help; filter structured results when needed.
 
-For requested prioritization, use `bv --recipe work --robot-triage` for ranking and graph evidence, then confirm selected candidates with `br ready --exclude-label system --brief --json` and `br show`. Viewer recommendations are not claims or authority to take work. Explain priority, blockers, assignment and scope alongside any ranking; respect human reservations and `hitl` work.
+For requested prioritization, follow [honeybee's command and escalation recipe](../.codex/agents/honeybee.toml): minimal next-pick output for one task, brief triage for comparisons, and scoped follow-up only for missing evidence. An empty next-pick result means no proven actionable recommendation, not necessarily an empty `br ready` set. Use `br ready` for canonical readiness confirmation when needed and `br show` for selected details. Viewer recommendations are not claims or authority to take work; respect assignments and `hitl` work. Return known answers without escalating into a broader investigation.
 
 Keep ordinary queries scoped with `--exclude-label system` on `search`, `list` and `ready`, and the `work` recipe on viewer triage. Broader graph or diagnostic surfaces may expose reserved beads; inspect their filtering contract before using them outside an explicit system-maintenance assignment.
 
@@ -221,9 +221,9 @@ br capabilities --format json --command "ready"
 ## Investigation workflow
 
 1. Preserve the delegated scope and selected `BEADS_DB`; use `br where` to confirm the endpoint when needed, not to initialize a workspace.
-2. Discover the installed contract with `br capabilities` or focused help.
+2. For uncertain CLI behavior, discover the installed contract with `br capabilities` or focused help.
 3. Inspect the supplied permitted bead, or search/triage only when the request calls for it.
-4. Follow the command/source map when help and observed behavior leave a question unresolved. Distinguish source-version evidence from installed behavior.
+4. Hand unresolved evidence or policy questions back to the caller. Follow the command/source map only for an explicitly requested CLI/source investigation; distinguish source-version evidence from installed behavior.
 5. Return relevant IDs, supporting evidence, recommendations and unresolved questions. Identify proposed mutations separately for the caller to perform under the daily runbook.
 
 Investigation does not grant permission to claim, mutate, repair, commit or push.
