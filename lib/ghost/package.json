@@ -3,14 +3,15 @@
 	"version": "0.0.0",
 	"private": true,
 	"type": "module",
-	"exports": {
-		".": "./src/index.ts"
-	},
 	"scripts": {
 		"test": "bun test --parallel --parallel-delay=0 --timeout=5000 --only-failures ./src",
 		"typecheck": "tsc --noEmit"
 	},
 	"dependencies": {
-		"@hive/shared": "workspace:*"
+		"@hive/shared": "workspace:*",
+		"ps-list": "^9.0.0",
+		"ts-pattern": "^5.9.0",
+		"xstate": "^5.33.2",
+		"zod": "^4.6.5"
 	}
 }

@@ -9,16 +9,26 @@ Hive relies on external programs it does not ship. This document records, for ea
 | Tool | Role | Required | Adapter |
 | --- | --- | --- | --- |
 | Git | Worktree, branch and status state for Honeycomb; hooks and merge driver for the repo | Always | [`git/executor.ts`](../lib/honeycomb/src/git/executor.ts) |
-| Bash | Runs configured setup and preflight snippets | When config defines `command` or `pre_remote_check` | [`hooks.ts`](../lib/honeycomb/src/hooks.ts) |
+| Bash | Installed Bee/Colony wrappers; configured Honeycomb setup and preflight snippets | Installed wrappers, or config with `command` / `pre_remote_check` | [`hooks.ts`](../lib/honeycomb/src/hooks.ts) |
 | fzf | Interactive single selection with live preview | For `pick` and interactive slot recycling | [`fzf.ts`](../lib/honeycomb/src/fzf.ts), used by `LivePickerService` in [`live-deps.ts`](../lib/honeycomb/src/live-deps.ts) |
 | tmux | Session per worktree for human wrappers | Optional; only under `--interactive` inside tmux | [`integrations/tmux.ts`](../lib/honeycomb/src/integrations/tmux.ts) behind [`Multiplexer`](../lib/honeycomb/src/integrations/multiplexer.ts) |
 | zsh, Nushell | Host the `wk` picker wrapper | Optional | [`commands/shell-init.ts`](../lib/honeycomb/src/commands/shell-init.ts) |
 | POSIX `sh` | Runs picker preview commands | With fzf | Preview builders in [`pick.ts`](../lib/honeycomb/src/commands/pick.ts), [`add.ts`](../lib/honeycomb/src/commands/add.ts) and the multiplexer |
 | Bun | Runtime, package manager, test runner and script shell | Always | None; see [Development toolchain](#development-toolchain) |
-| br (Beads) | Repository work tracking | Development only | [`.beads/config.yaml`](../.beads/config.yaml), [`scripts/`](../scripts) |
-| bv (Beads Viewer) | Read-only work selection | Optional, development only | [`.bv/recipes.yaml`](../.bv/recipes.yaml) |
+| br (Beads) | Native tasks, spawn requests, claims and observations; repository work tracking | Bee/Colony runtime and development | [`bees-io.ts`](../lib/shared/src/bees-io.ts), [tracker integration](./beads-integration.md) |
+| bv (Beads Viewer) | PageRank scheduling and read-only work selection | Default Colony ranking; optional with FIFO | [`ranking.ts`](../lib/ghost/src/ranking.ts), [viewer recipes](../.bv/recipes.yaml) |
 
 Honeycomb reaches every runtime tool through a service in [`services.ts`](../lib/honeycomb/src/services.ts) (`GitRunner`, `HookRunner`, `PickerService`, `Multiplexer`, `CdDirective`), composed once in `createLiveDeps`. Commands and domain code never spawn processes directly, so a replacement is a new service implementation, not a change to lifecycle logic. Preview strings are the one leak: they are shell text the picker executes, and they reference picker and multiplexer syntax (see below).
+
+## Bee and Colony runtime
+
+- **Bun** executes the installed Bee/Colony wrappers and Ghost TypeScript directly. Installation points to a retained Hive checkout with dependencies installed; it is not a bundled binary or a service installation.
+- **Honeycomb** resolves the canonical root through its CLI. **br** reads and mutates the explicitly selected tracker; `BEADS_DB` inherited from another repository never overrides `--beads-db`.
+- **BV** supplies complete PageRank insights for the selected tracker through an isolated snapshot. Ghost's [ranking boundary](../lib/ghost/src/ranking.ts) owns that export; it does not mutate the canonical database. `ranking = "fifo"` removes this runtime dependency.
+- **Native harness executables** receive rendered formula tokens directly, execution cwd, friendly identity and tracker environment. The launcher does not evaluate recipe text as shell syntax. Model access and authentication belong to the harness installation.
+- **Process ownership** uses supervisor artifacts and observed process fingerprints. A native CLI owning its work differs from a wrapper dispatching to an external daemon. Wrappers need their own ownership contract; process exit alone does not prove task completion.
+
+The [guide](../lib/colony/README.md) records setup and real smoke commands. The [capability reference](./harness-capabilities.md) separates historical native launch observations from current implementation evidence and remaining Scent work.
 
 ## Git
 
@@ -36,7 +46,7 @@ The repository itself also depends on Git hooks (Husky) and a custom merge drive
 
 ## Bash
 
-**Why:** users write setup (`command`) and preflight (`pre_remote_check`) snippets in config; Bash is a predictable, ubiquitous interpreter for them.
+**Why:** installed Bee/Colony wrappers use Bash to invoke Bun with their retained checkout entry. Honeycomb users write setup (`command`) and preflight (`pre_remote_check`) snippets in config; Bash is a predictable, ubiquitous interpreter for them.
 
 **Contract:**
 
@@ -96,10 +106,11 @@ Supporting another shell means adding one more template that honours the same `H
 
 ## Development toolchain
 
-These support working on Hive rather than running it; replacing them changes contributor workflow, not product behaviour.
+These are the contributor uses of the tools. Bun and br also have the product runtime roles described above.
 
 - **Bun** runs TypeScript directly (no build step), installs dependencies, runs tests (`bun test`) and provides the `$` shell in scripts. Code uses `Bun.spawn` and Bun's test runner, so moving runtimes means replacing those calls, not just the launcher.
 - **br (Beads)** tracks work in the selected `BEADS_DB`, shared by local feature worktrees and normally stored in the permanent `.worktrees/tracker--state` checkout. Automatic import and export are enabled there; ordinary `br` calls stay local. `bun run beads:sync` receives compatible changes and publishes on `tracker/state`, separately from code integration. Session-start and pre-commit hooks sync; agents also explicitly sync after claims and closure/handoff. Git uses the custom merge driver above when published snapshots change on both sides. [`scripts/beads-loop.ts`](../scripts/beads-loop.ts) honors the selected endpoint and reads label-filtered `br ready --json` and `br show --json` output. [Beads integration](./beads-integration.md) explains setup, publication and colleague coordination.
+- **Node** is needed by the process-title regression in `lib/ghost/src/processes.smoke.test.ts`, which reproduces native Pi's mutable process title. It is a test prerequisite, not an additional Bee/Colony runtime requirement.
 - **mise** supplies the checkout's project environment, including the portable `BEADS_DB` default in tracked [`mise.toml`](../mise.toml). An ignored `mise.local.toml` can override that default. `bun run beads:setup` records an explicit local selection and generates matching ignored Codex shell-environment configuration without replacing unrelated settings. Actor identity stays process-local and is not part of this shared project selection.
 - **Husky, lint-staged, commitlint, oxlint, oxfmt and TypeScript** are npm dev dependencies pinned in [`package.json`](../package.json) and configured in the repository root; they need no separate installation.
 

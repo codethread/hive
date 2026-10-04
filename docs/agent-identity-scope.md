@@ -1,10 +1,10 @@
 # Agent identity: MVP scope
 
-This records the identity and harness-lifecycle scope agreed on 2026-10-03 for the agent identity and bee spawning epic (`hv-3x8`). It is a design reference; scent, bee and colony are not implemented yet. The [harness capability contract](./harness-capabilities.md) tracks the mechanisms, evidence and acceptance cases behind this scope. Terms follow the [glossary](../GLOSSARY.md).
+This preserves the native identity scope agreed on 2026-10-03 for `hv-3x8`, while distinguishing the implemented Bee/Colony system from the remaining Scent work. Scent's native session and child hooks are still planned. Bee and Colony are implemented under `hv-e8i`; their current commands, scheduling and recovery behavior are documented in the [guide](../lib/colony/README.md) and [architecture](./architecture.md).
 
-The full bee/colony specification remains work on `hv-3x8.12`, after colony design refinement (`hv-3x8.9.1`). The recorded implementation notes below preserve existing design constraints; they do not settle the remaining daemon routing, recovery, retry or scheduling details. Current tracker operations continue to follow the Beads / br rules in the root `AGENTS.md`, including harness-name actors, until the planned identity integration lands.
+The [harness capability contract](./harness-capabilities.md) keeps dated upstream observations separate from current Hive verification. Terms follow the [glossary](../GLOSSARY.md). Repository contributors continue to follow the root `AGENTS.md` actor rules; Colony workers receive their captured friendly identity through the launcher.
 
-## Supported identity paths
+## Planned native identity paths
 
 | Runtime surface | Planned attribution | Boundary |
 | --- | --- | --- |
@@ -54,21 +54,19 @@ Outside MVP means that Hive does not claim correct identity migration or conform
 
 Native subagents remain separate from user forks. The Codex 0.160.0 source routes both fresh and history-forked collaboration children through `SubagentStart`; Claude's native Agent children also expose a child-start event. Internal copying of history does not by itself put a supported child into the excluded user-fork category.
 
-## Recorded implementation notes
+## Current implementation and planned bindings
 
-These notes preserve the planned bindings and policies formerly kept alongside the vocabulary. They are design context, not claims of implemented behavior.
+The earlier proposal to rename the daemon package to Colony and create a separate Bee package was superseded by the current command/library seams:
 
-### Modules and identity bindings
-
-Until the package rename lands, `lib/colony` holds the old provider CLI scaffold and `lib/ghost` the daemon scaffold. Planned responsibilities are:
-
-| Location | Responsibility |
+| Location | Current responsibility |
 | --- | --- |
-| `lib/scent` | Claude Code and Codex session/child-start hooks and a Pi extension; resolve identity from harness context and inherited environment, export it where supported and inject it into the prompt. Scent does not read `bees.toml` |
-| `lib/bee` | Module and CLI for requesting bees |
-| `lib/colony` | Single system-wide daemon for registered repositories |
-| `lib/shared` | Shared contract: environment names, `mintName` and the `bees.toml` schema |
-| `lib/honeycomb` | Git worktree manager |
+| `lib/colony` | Public `bee` and `colony` commands, offline requests, daemon client and presentation |
+| `lib/ghost` | Daemon hosting independent repository colonies, dispatch, claims, retries, supervision and recovery |
+| `lib/shared` | Shared recipes, formulas, spawn-request representation, protocol and Beads I/O |
+| `lib/honeycomb` | Git worktree manager and canonical-root discovery |
+| Scent (planned) | Native session/child identity hooks and Pi extension; independent of `bees.toml` |
+
+The following session-based identity bindings remain Scent design requirements. Current Bee names are minted at submission or supplied by the requester; execution attempts retain that name.
 
 Friendly names are recorded as actors. Native sessions use their harness session ID as the mint seed; native subagents use a distinct child key; bees receive a name minted at spawn. A separately launched nested CLI, such as `pi --print` run by Claude, gets its own friendly name and records its parent. Claude Code and Codex native children expose a distinct agent ID while retaining the parent/root session ID, so their attribution uses explicit actor guidance.
 
@@ -82,30 +80,11 @@ Friendly names are recorded as actors. Native sessions use their harness session
 
 ### Bee configuration and lifecycle
 
-The repository-root `bees.toml` registry selects each bee kind's harness CLI, model, effort, arguments and system prompt. It also lists human users; bee refuses tasks assigned to those users. Bee kinds replace harness-native subagent definitions for colony-managed work, not native-child identity support.
+Canonical `bees.toml` separates kind defaults from named harness formulas. Bee captures a recipe, friendly identity and related task links at submission. An awake colony applies current policy, acquires task claims, and starts an execution attempt. `colony wake` may lazily start the selected daemon; explicit repository, tracker and server targets remain independent.
 
-- `bee spawn <kind> <task-id>...` creates a spawn bead; colony starts the process. Run `colony wake` where the repository's `bees.toml` lives to register it, not to start colony itself.
-- Colony launches a bee only when all its open task beads are ready; closed tasks count as satisfied. A dependency graph that never becomes ready is a mistake to fix.
-- A bee closes its own spawn bead when done or when its task claim fails.
-- Closing a spawn bead stops its bee's process. If all tasks close before launch, colony closes the spawn bead unlaunched.
-- `max_retries` limits relaunches after a process exits while its spawn bead remains open. Relaunches retain the same identity; exhaustion closes the spawn bead and triggers cleanup.
-- After a reap or retry exhaustion, colony returns each task the bee claimed to `open` and removes its claim. It does not close the tasks.
+Task completion determines success. Ghost closes a satisfied request, reconciles external request closure, stops verified owned execution before releasing eligible claims, and retries unfinished work within configured limits. Sleeping drains the active dispatch pass, then pauses reconciliation while detached workers continue. Removal retains request and attempt history. These behaviors have real process/tracker smoke coverage; they do not establish native Scent hooks or arbitrary daemonized-descendant ownership.
 
-### Spawn-bead labels and links
-
-Spawn beads carry `system`, `bee` and `agent:<kind>`, are assigned to the bee's friendly name and link to their task beads with `related` dependencies. Colony selects `--label system --label bee`.
-
-`system` marks automation-owned beads excluded from ordinary work with `--exclude-label system`. Label filters match exactly; `system:bee` would not be excluded. `agent:<kind>` denotes the requested bee kind, not the harness or identity.
-
-Only colony sets `outcome:<value>` on spawn beads:
-
-| Value        | Meaning                                         |
-| ------------ | ----------------------------------------------- |
-| `exhausted`  | Closed after `max_retries`                      |
-| `reaped`     | Closed by someone else while waiting or running |
-| `unlaunched` | Every task closed before launch                 |
-
-No outcome label means the bee closed its own spawn bead. These labels do not belong on task beads and are not set by bees. A `hitl` task is worked in tandem with the user and skipped by autonomous runners; a deliberate human handoff instead assigns `ct`.
+Spawn beads carry the exact labels `system`, `bee` and `agent:<kind>`, a friendly assignee and `related` links. Shared's [spawn-request model](../lib/shared/src/spawn-request.ts) owns that representation. Current outcomes use native closure reasons, local checkpoints and timestamped observations; the earlier proposed `outcome:<value>` labels are not the implemented contract. A historical observation does not prove current process availability. See the [guide](../lib/colony/README.md) for commands, retries and cleanup boundaries.
 
 ## Evidence and remaining work
 
@@ -113,4 +92,4 @@ No outcome label means the bee closed its own spawn bead. These labels do not be
 - `hv-3x8.14`: stable Pi composition verified with two handlers over three independent runs; final explicit-attribution decision for native Claude/Codex subagents. End-to-end child tracker attribution remains unimplemented.
 - `hv-3x8.1` and `hv-3x8.3`: database discovery and detached-launch findings. Current repository tracker setup is documented in [Beads integration](./beads-integration.md); older spike recommendations are historical evidence, not current configuration instructions.
 
-The adapters still need to demonstrate stale-state cleanup, target-session resume, compaction continuity and parent/child attribution isolation. Production hook trust/installation and colony recovery/descendant ownership remain explicit implementation or design work. Expanding scope requires updating this reference and the capability matrix with the reason and evidence; it does not silently turn an unverified path into a supported one.
+The adapters still need to demonstrate stale-state cleanup, target-session resume, compaction continuity and parent/child attribution isolation. Production Scent hook trust and installation remain implementation work. Colony recovery and observed-descendant ownership are implemented and tested separately; their limitations are documented in the guide. Expanding scope requires updating this reference and the capability matrix with the reason and evidence; it does not silently turn an unverified path into a supported one.

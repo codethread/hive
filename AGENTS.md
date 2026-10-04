@@ -1,6 +1,6 @@
 # Hive
 
-Hive is a strict TypeScript monorepo providing coding agent tooling. It ships `colony`, a CLI that abstracts over model providers, `ghost`, the daemon process that runs it, `honeycomb`, a Git worktree manager, and `waggle`, a repo-owned classifier CLI, alongside a shared core.
+Hive is a strict TypeScript monorepo providing coding agent tooling. It ships `bee` for native Beads spawn requests, `colony` for repository scheduling control and inspection, `ghost` for the hosting daemon and execution supervision, `honeycomb` for Git worktrees, and `waggle` for repo-owned classifiers.
 
 Read [philosophy](./docs/PHILOSOPHY.md) before making any changes to the system
 
@@ -21,8 +21,8 @@ Clean code and clean architecture practices apply throughout. Before building li
 ## Packages
 
 - `lib/shared` — utilities and models common to all packages. Not a grab bag: only add what consumers clearly need.
-- `lib/colony` — CLI abstraction over providers.
-- `lib/ghost` — the daemon process that runs.
+- `lib/colony` — Bee and Colony CLIs, offline request services, daemon client and presentation.
+- `lib/ghost` — daemon ownership, colony/request lifecycles, dispatch, supervision and private persistence.
 - `lib/honeycomb` — the Git worktree manager and shell picker integrations.
 - `lib/tooling` — repository maintenance commands.
 - `lib/waggle` — repo-owned JEV classifier discovery and execution.
@@ -64,7 +64,8 @@ Husky runs `lint-staged`, a repo-wide typecheck and tracker synchronization befo
 
 ## Where to look
 
-- `docs/` — architecture documentation.
+- Before changing request representation, scheduling authority or package placement, read [architecture](docs/architecture.md). It maps the library seams and sources of truth.
+- [Bee and Colony guide](lib/colony/README.md) documents public commands and real I/O verification.
 
 ## Domain docs
 

@@ -1,6 +1,6 @@
 # Harness capability contract
 
-Use this reference to evaluate a harness against Hive's identity and bee-launch requirements without redesigning shared behavior for each vendor. The [MVP scope](./agent-identity-scope.md) determines which behaviors are required. This is an adapter and conformance reference, not an implemented wire protocol or runtime capability detector.
+Use this reference to evaluate a harness against Hive's identity and bee-launch requirements without redesigning shared behavior for each vendor. The [identity scope](./agent-identity-scope.md) preserves the planned Scent behaviors; the [Bee and Colony guide](../lib/colony/README.md) documents the implemented runtime. This is an adapter and conformance reference, not an implemented wire protocol or runtime capability detector.
 
 ## How to record support
 
@@ -90,19 +90,31 @@ Signals establish when an adapter can act. They do not establish stale-state cle
 | `L4` Outcomes | **O** Invocation/provider errors and signal outcomes captured; tool refusal can still finish successfully | **O** Invocation/provider errors and signal outcomes captured; tool refusal differs from process failure | **O** Provider error exits 1 in text mode but can exit 0 with an error event in JSON mode; exit code alone is insufficient |
 | `L5` Reap/recovery | **O** TERM cleaned the tested tool; KILL left it alive. Full recovery **U** | **O** TERM and KILL left tested tools alive. Full recovery **U** | **O** TERM cleaned the tested tool; KILL left it alive. Full recovery **U** |
 
-All three launched tool work in separate process groups. Recorded-descendant cleanup succeeded for the probe trees; that is not proof of race-free ownership of arbitrary daemonized descendants. Colony's ownership/adoption policy remains design work. Pies (`W`) is a separate client/daemon profile: work belongs to the daemon, so client PID cleanup is not the native recipe. Its per-request cancellation and settlement need their own adapter contract.
+All three launched tool work in separate process groups. Recorded-descendant cleanup succeeded for the probe trees; that is not proof of race-free ownership of arbitrary daemonized descendants. These dated probes preceded the current Colony implementation. Ghost now uses recorded process fingerprints and observed lineage for ownership, adoption and cleanup; the scripted process/recovery smokes exercise that implementation separately. Pies (`W`) is a separate client/daemon profile: work belongs to the daemon, so client PID cleanup is not the native recipe. Its per-request cancellation and settlement need their own adapter contract.
 
-The launch probes used isolation flags and did not load production scent. They ran tool-shell `br --version`, not actual bead mutations. Combined hooks, correct actor/endpoint (`B1`) and full colony lifecycle conformance remain pending. Tool capability restrictions and model refusal are not evidence of OS sandbox enforcement; a profile must not claim that guarantee from these probes.
+The launch probes used isolation flags and did not load production scent. They ran tool-shell `br --version`, not actual bead mutations. Those historical probes do not establish combined hooks, correct actor/endpoint (`B1`) or the current Colony lifecycle. Current runtime and native evidence are recorded separately below. Tool capability restrictions and model refusal are not evidence of OS sandbox enforcement; a profile must not claim that guarantee from these probes.
 
-### Hive implementation status
+### Current Hive implementation and evidence
 
-| Profile | Native identity | Native child attribution | Colony integration |
-| --- | --- | --- | --- |
-| Claude Code | Planned: `hv-3x8.7.1` | Planned explicit route, same bead | Planned: `hv-3x8.9.2`; `L5` design unresolved |
-| Codex | Planned: `hv-3x8.7.3` | Planned explicit route, same bead | Planned: `hv-3x8.9.2`; `L5` design unresolved |
-| Native Pi | Planned: `hv-3x8.7.2` | Separate-process identity path; third-party native-like tools unverified | Planned: `hv-3x8.9.2`; `L5` design unresolved |
-| Pies / other wrappers | No dedicated Hive conformance | Unknown for wrapper-owned work | No selected wrapper integration; `W` is evidence, not approval |
-| Other GUI or hosted runtimes | Unknown until profiled | Unknown until profiled | Unknown until profiled |
+Bee/Colony now implements captured recipes, named formulas, task claims, bounded retries, sleep/drain behavior, daemon recovery, verified process ownership and offline/runtime inspection. The [verification matrix](../lib/colony/README.md#verification) names real I/O smoke tests for these boundaries. Their scripted workers prove local runtime behavior; native model/tool behavior needs a separate run of the [native probe](../lib/colony/scripts/native-smoke.ts).
+
+| Profile | Native identity / Scent | Current Colony verification |
+| --- | --- | --- |
+| Claude Code | Planned: `hv-3x8.7.1`, including explicit native-child attribution | Subscription unavailable for this build; current native run unverified. Earlier `L` observations remain historical evidence |
+| Codex CLI 0.160.0 | Planned: `hv-3x8.7.3`, including explicit native-child attribution | **O**, 2026-10-04: native probe passed with `gpt-6-astra`, low effort, workspace-write; see current probe evidence below |
+| Native Pi 1.0.0 | Planned: `hv-3x8.7.2`; third-party subagent tools need separate profiles | **O**, 2026-10-04: native probe passed with `openai-codex/gpt-6-astra`, low effort; see current probe evidence below |
+| Pies / other wrappers | No dedicated Hive conformance | No selected wrapper integration; `W` does not authorize native-process ownership assumptions |
+| Other GUI or hosted runtimes | Unknown until profiled | Unknown until profiled |
+
+A passing native launch does not establish Scent context continuity, native-child attribution or arbitrary detached-descendant capture. Retain the exact profile, selected model, report and task mutation evidence for each run. A failed or skipped native probe remains explicit; a successful scripted fixture cannot replace it.
+
+### Current native probe evidence
+
+The 2026-10-04 `hv-e8i.8.2` runs used Codex CLI 0.160.0 and native Pi 1.0.0, with Bun 1.4.2 and br 0.7.4 on macOS. Both passed with the model profiles above. Each real native tool subprocess recorded the selected cwd and tracker, friendly actor, recipe metadata and attempt identity; it closed the native task, Colony completed the spawn request, and cleanup stopped the private daemon. Initial runs exposed mutable process-title handling and failed reconciliation; the reruns passed after ownership used PID/start time with command text retained as diagnostics.
+
+Passing establishes completed task work and verified cleanup, not a natural successful harness exit. The Codex attempt ended with signal exit 143 after Colony observed task completion and stopped its owned execution.
+
+Private evidence is retained as `profile.json`, `versions.json`, `tool-evidence.json`, `native-rows.json`, `inspection.json`, `result.json` and `cleanup.json`; the bead records the run location. These receipts complement the scripted lifecycle/recovery tests. They do not turn sampled ownership into a race-free OS handle or prove Scent/native-child integration.
 
 ## Adding or upgrading a harness
 

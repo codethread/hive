@@ -3,14 +3,15 @@
 	"version": "0.0.0",
 	"private": true,
 	"type": "module",
-	"exports": {
-		".": "./src/index.ts"
-	},
 	"scripts": {
+		"install:bin": "bun run ./scripts/install-bin.ts",
 		"test": "bun test --parallel --parallel-delay=0 --timeout=5000 --only-failures ./src",
 		"typecheck": "tsc --noEmit"
 	},
 	"dependencies": {
-		"@hive/shared": "workspace:*"
+		"@hive/shared": "workspace:*",
+		"commander": "^15.0.0",
+		"ts-pattern": "^5.9.0",
+		"unique-names-generator": "^4.7.1"
 	}
 }

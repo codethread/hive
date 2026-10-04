@@ -1,7 +1,12 @@
-# hive
+# Hive
 
-Coding agent tooling: a strict TypeScript monorepo providing `colony` (CLI abstraction over providers), `ghost` (the daemon process that runs), `honeycomb` (Git worktree management), and `waggle` (repo-owned JEV classifiers), alongside a shared core.
+Tools for running coding agents against Beads work, managing Git worktrees, and reviewing repository changes.
 
-- Use [Waggle](./lib/waggle/README.md) to discover and run the repository's semantic review classifiers.
-- See [docs](./docs/README.md) for architecture documentation.
-- See [philosophy](./docs/PHILOSOPHY.md) for reasons.
+- **Bee** submits captured spawn requests and inspects or closes them through Beads, even while the daemon is unavailable.
+- **Colony** controls repository scheduling, configuration and runtime inspection. **Ghost** hosts the daemon and supervises execution attempts.
+- **Honeycomb** manages Git worktrees and shell picker integration.
+- **Waggle** discovers and runs repository-owned semantic classifiers.
+
+Start with the [Bee and Colony guide](./lib/colony/README.md) for installation, a disposable quickstart, configuration and verification. See [Honeycomb](./lib/honeycomb/README.md) for worktree commands and [Waggle](./lib/waggle/README.md) for classifiers.
+
+The [documentation index](./docs/README.md) links the [architecture and library boundaries](./docs/architecture.md), [domain vocabulary](./GLOSSARY.md), integration contracts and versioned harness evidence. The [philosophy](./docs/PHILOSOPHY.md) explains the project's scope.

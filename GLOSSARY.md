@@ -2,7 +2,7 @@
 
 Shared vocabulary for Hive's agents, work tracking and repository tooling. Use these terms consistently in code, documentation and beads.
 
-_To be built_ marks planned Hive capabilities from the agent identity and bee-spawning epic (`hv-3x8`); the cited beads record their scope.
+_To be built_ marks capabilities still planned beyond the Bee and Colony implementation.
 
 ## Agents and identity
 
@@ -16,7 +16,7 @@ _To be built_ marks planned Hive capabilities from the agent identity and bee-sp
 
 **Identity**: Who a human or agent is for attribution, independent of agent attributes, ownership and assignment. An identity ordinarily distinguishes one individual, but uniqueness is not guaranteed.
 
-**Friendly name**: An agent's human-readable, three-word attribution name, such as `amber-quiet-otter`. _Avoid_: Harness names such as `claude` when naming an individual agent. _To be built — hv-3x8.6._
+**Friendly name**: An agent's human-readable attribution name, ordinarily three words such as `amber-quiet-otter`. _Avoid_: Harness names such as `claude` when naming an individual agent.
 
 **Agent attributes**: Best-effort observations of how an agent runs, such as its harness, model and reasoning effort. They describe an identity's execution, not the identity itself, and are not guaranteed to remain unchanged or accurate.
 
@@ -24,19 +24,31 @@ _To be built_ marks planned Hive capabilities from the agent identity and bee-sp
 
 ## Bees
 
-**Bee**: A running agent spawned by Colony through `bee`. Also the name of the CLI used to request bees. _To be built — hv-3x8.8, hv-3x8.9._
+**Bee**: A running agent spawned by Colony. Also the name of the CLI used to submit and inspect spawn requests.
 
-**Bee kind**: A named configuration describing how a bee runs, distinct from the identity of any bee using it. _To be built — hv-3x8.6._
+**Bee kind**: A named set of defaults describing how a bee runs, distinct from the identity of any bee using it.
 
-**Colony**: The system-wide daemon for running bees across registered repositories. _Avoid_: Per-repository daemon or provider CLI. _To be built — hv-3x8.9._
+**Colony**: A repository's scheduling and reconciliation activity, which can be awake or asleep. Also the name of the CLI used to control colonies and their hosting daemon. _Avoid_: Daemon when referring to one repository's colony.
 
-**Requester**: The human or agent identity that requested a bee, recorded as provenance rather than ownership. _To be built — hv-3x8.8._
+**Colony daemon**: The server hosting colonies for registered repositories, distinct from any one colony or running bee.
+
+**Requester**: The human or agent identity that requested a bee, recorded as provenance rather than ownership.
+
+**Recipe**: The effective instructions and execution attributes captured for a spawn request, including its bee kind, harness, model, effort and execution directory.
+
+**Formula**: A named harness invocation template applied to a recipe when an execution attempt starts. Changing a formula does not change the captured recipe.
+
+**Execution attempt**: One launch to fulfil a spawn request. A retry is a new attempt using the same request and friendly identity.
+
+**Colony observation**: A timestamped report of what a colony last observed about a spawn request or its execution. It is historical evidence, not proof of present daemon or process availability.
 
 ## Beads
 
 **Task bead**: A bead describing a unit of work, not a request to run a bee.
 
-**Spawn bead**: A bead recording a request for a bee to work on specified task beads. _To be built — hv-3x8.8._
+**Spawn request**: A request for a bee to complete specified task beads, carrying a captured recipe and friendly identity. It can exist before any bee runs and span several execution attempts.
+
+**Spawn bead**: The Beads record representing a spawn request, distinct from its task beads and execution attempts.
 
 **Actor**: The identity credited with a change to a bead, distinct from its owner and assignee.
 
@@ -48,7 +60,7 @@ _To be built_ marks planned Hive capabilities from the agent identity and bee-sp
 
 **Human-in-the-loop (HITL) work**: Work undertaken by an agent and a human together, distinct from work handed off to a human.
 
-**Away-from-keyboard (AFK) work**: Work planned by a human with an agent, then carried out autonomously without ongoing human participation. This is the intended default mode for bees. _To be built for bees — hv-3x8.9._
+**Away-from-keyboard (AFK) work**: Work planned by a human with an agent, then carried out autonomously without ongoing human participation. This is the intended default mode for bees.
 
 ## Repositories and worktrees
 

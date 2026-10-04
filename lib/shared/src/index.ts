@@ -1,4 +1,4 @@
-/** Format a greeting for the given name. */
-export function hello(name: string): string {
-	return `Hello, ${name}!`;
-}
+export * from "./bees.ts";
+export * from "./bees-io.ts";
+export * from "./colony-protocol.ts";
+export * from "./spawn-request.ts";
