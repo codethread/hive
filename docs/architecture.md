@@ -1,6 +1,6 @@
 # Architecture
 
-Honeycomb is currently the implemented tool: a Git worktree lifecycle engine with a CLI and thin zsh/Nushell picker integrations. Colony (provider-facing CLI) and Ghost (daemon) are placeholders; both currently call a greeting helper in Shared. There is no provider or daemon runtime connecting them yet.
+Honeycomb is a Git worktree lifecycle engine with a CLI and thin zsh/Nushell picker integrations. Waggle is an independent JEV classifier CLI proof of concept. Colony (provider-facing CLI) and Ghost (daemon) are placeholders; both currently call a greeting helper in Shared. There is no provider or daemon runtime connecting them yet.
 
 Product packages do not import one another. Shared is the only permitted cross-package dependency; Honeycomb currently operates independently of it.
 
@@ -32,6 +32,12 @@ The canonical checkout anchors configuration and default-branch decisions and is
 The engine owns worktree policy and lifecycle mutations. `shell-init zsh` and `shell-init nu` generate a single `wk` function that runs `honeycomb --interactive pick` with a temporary `HONEYCOMB_CD_FILE` and changes the shell's directory when the engine writes one; it holds no worktree, git, multiplexer, or prompt logic. Agents call the CLI directly and never pass `--interactive`, so they cannot move the user's focus or close sessions.
 
 Configured setup and its rollback run inside the engine, so every caller gets the same ready-or-rolled-back result. Multiplexer state never determines whether a worktree exists or is safe to remove; sessions are an integration that only `--interactive` may touch.
+
+## Waggle's classification boundary
+
+[Waggle](../lib/waggle/README.md) discovers checkout-owned `classifiers/*.toml`. Each definition contains a when-to-use description, required string inputs and named choice questions. Discovery is local; execution validates supplied evidence before a single Typesafe SDK request. Filesystem, environment, transport and terminal access are injected at the CLI boundary. It imports no other Hive product package.
+
+Waggle does not collect code context, publish PR comments or enforce review thresholds. Its answers direct review attention; the caller verifies findings. The POC prints readable JSON for successes and follows the machine-mode failure contract below when `--json` is supplied.
 
 ## CLI output contract
 

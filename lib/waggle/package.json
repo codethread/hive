@@ -1,0 +1,18 @@
+{
+	"name": "@hive/waggle",
+	"version": "0.0.0",
+	"private": true,
+	"bin": {
+		"waggle": "./bin/waggle.ts"
+	},
+	"type": "module",
+	"scripts": {
+		"typecheck": "tsc --noEmit",
+		"test": "bun test --parallel --parallel-delay=0 --timeout=5000 --only-failures ./tests"
+	},
+	"dependencies": {
+		"@typesafe-ai/sdk": "0.6.0",
+		"commander": "^14.0.3",
+		"zod": "^4.6.5"
+	}
+}

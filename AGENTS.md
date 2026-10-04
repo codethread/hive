@@ -1,6 +1,6 @@
 # Hive
 
-Hive is a strict TypeScript monorepo providing coding agent tooling. It ships `colony`, a CLI that abstracts over model providers, `ghost`, the daemon process that runs it, and `honeycomb`, a Git worktree manager, on top of a shared core.
+Hive is a strict TypeScript monorepo providing coding agent tooling. It ships `colony`, a CLI that abstracts over model providers, `ghost`, the daemon process that runs it, `honeycomb`, a Git worktree manager, and `waggle`, a repo-owned classifier CLI, alongside a shared core.
 
 Read [philosophy](./docs/PHILOSOPHY.md) before making any changes to the system
 
@@ -25,12 +25,13 @@ Clean code and clean architecture practices apply throughout. Before building li
 - `lib/ghost` — the daemon process that runs.
 - `lib/honeycomb` — the Git worktree manager and shell picker integrations.
 - `lib/tooling` — repository maintenance commands.
+- `lib/waggle` — repo-owned JEV classifier discovery and execution.
 
 ## Architecture rules
 
-- Packages may only import from `shared`. `colony`, `ghost`, `honeycomb`, and `tooling` must not import each other.
+- Packages may only import from `shared`. `colony`, `ghost`, `honeycomb`, `tooling`, and `waggle` must not import each other.
 - Cross-package imports must use the `@hive/shared` package specifier; relative paths that traverse into another package are rejected.
-- `shared` must never import `colony`, `ghost`, `honeycomb`, or `tooling`.
+- `shared` must never import `colony`, `ghost`, `honeycomb`, `tooling`, or `waggle`.
 - `.oxlintrc.json` enforces these rules through per-package `no-restricted-imports` overrides.
 
 ## Runtime and commits
@@ -46,6 +47,14 @@ Clean code and clean architecture practices apply throughout. Before building li
 - `bun run lint` / `bun run lint:fix`
 - `bun run typecheck`
 - `bun run agents:sync` — regenerate `.pi/agents` from `.codex/agents`.
+
+## Semantic review signals
+
+When reviewing domain-state modelling, abstraction choices or failure semantics, use [Waggle](lib/waggle/README.md) as an optional review aid. From the checkout root, run `bun run --silent waggle list --json`, then `describe <id> --json` to learn when a classifier applies and what evidence it needs. Supply only authorized context via `run <id> --input <file-or-dash> --json`; definitions live in `classifiers/`.
+
+When selecting files for human review, use `review-attention` for I/O boundaries and persistence decisions; describe it before gathering its distinct inputs. Treat `show` as attention, not a defect, and investigate `needs_context` before excluding a file. `skip` is not approval.
+
+State missing context rather than inventing contracts. Validate any concern against the source before reporting it; `no_concern` is not approval. Waggle sends supplied evidence to Typesafe and is not a replacement for lint, tests or reviewer judgment.
 
 ## Validation
 

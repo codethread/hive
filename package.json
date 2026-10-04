@@ -19,7 +19,8 @@
 		"beads:setup": "bun run ./lib/tooling/src/beads-setup.ts",
 		"beads:env": "bun run ./lib/tooling/src/beads-env.ts",
 		"beads:sync": "bun run ./lib/tooling/src/beads-publish.ts",
-		"prepare": "husky && bun run git:setup && bun run ./lib/tooling/src/beads-setup-auto.ts"
+		"prepare": "husky && bun run git:setup && bun run ./lib/tooling/src/beads-setup-auto.ts",
+		"waggle": "bun run ./lib/waggle/bin/waggle.ts"
 	},
 	"devDependencies": {
 		"@commitlint/cli": "^21.2.3",

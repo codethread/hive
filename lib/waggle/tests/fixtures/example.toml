@@ -1,0 +1,13 @@
+version = 1
+description = "Assess evidence against a stated contract."
+
+[inputs]
+evidence = "The relevant source and caller contract."
+
+[questions.review]
+type = "choice"
+instructions = "Does this evidence show a contract mismatch?"
+
+[questions.review.criteria]
+concern = "A concrete mismatch is visible."
+no_concern = "The supplied contract supports the design."
