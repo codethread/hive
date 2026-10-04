@@ -1,5 +1,7 @@
 import type { ColonyStatus, PolicyRevision, PolicyView } from "@hive/shared";
 import type { DaemonResponse } from "./client.ts";
+import type { Explanation } from "./explain.ts";
+import type { HistoryResult } from "./history.ts";
 import type { InitializedResult } from "./producer.ts";
 import { match } from "ts-pattern";
 import { z } from "zod";
@@ -22,7 +24,13 @@ interface DaemonCompletedResult {
 	/** Native successful process exit status. */
 	exitCode: typeof SUCCESS;
 }
-type Result = DaemonResponse | InitializedResult | LaunchedResult | DaemonCompletedResult;
+type Result =
+	| Explanation
+	| HistoryResult
+	| DaemonResponse
+	| InitializedResult
+	| LaunchedResult
+	| DaemonCompletedResult;
 
 export function writeColonyResult(
 	result: Result,
@@ -82,6 +90,8 @@ function formatResult(result: Result): string {
 				...history.map((revision) => formatRevision(revision)),
 			].join("\n"),
 		)
+		.with({ kind: "explanation" }, formatExplanation)
+		.with({ kind: "events" }, formatHistory)
 		.with({ kind: "inspection" }, formatInspection)
 		.exhaustive();
 }
@@ -109,6 +119,7 @@ function formatPolicy(policy: PolicyView | null): string {
 		`Ranking: ${policy.ranking}`,
 		formatLimits(policy.limits),
 		`Retries: ${policy.maxRetries}; delay ${policy.retryDelayMs}ms`,
+		`Inactivity drone: ${policy.inactivityDrone ?? "disabled"}`,
 	].join("\n");
 }
 function formatLimits(limits: PolicyView["limits"]): string {
@@ -148,4 +159,41 @@ function formatInspection(result: Extract<DaemonResponse, { kind: "inspection" }
 	}
 	lines.push(...result.history.map((revision) => formatRevision(revision)));
 	return lines.join("\n");
+}
+
+function formatExplanation(result: Explanation): string {
+	return [
+		`Request ${result.id}: ${result.repository.root}`,
+		`Beads database: ${result.repository.beadsDb}`,
+		...result.diagnostics.map(
+			(item) =>
+				`${item.kind} [${item.code}]: ${item.message}\nNext transition: ${item.nextTransition}\nEvidence: ${item.evidence.join(", ")}`,
+		),
+		...(["tracker", "runtime", "capacity"] as const).map(
+			(name) => `${name}: ${JSON.stringify(result[name])}`,
+		),
+		...result.processes.map(
+			(item) => `processes:${item.attemptId}: ${JSON.stringify(item.evidence)}`,
+		),
+	].join("\n");
+}
+
+function formatHistory(result: HistoryResult): string {
+	return [
+		`Operation history: ${result.repository.root}; retained limits ${result.retention} finished / ${result.unfinishedRetention} unfinished across daemon`,
+		"Start sequence order; unfinished means completion unknown. Checkpoints are historical, not refreshed.",
+		...result.events.flatMap((event) => [
+			`#${event.sequence} ${event.startedAt} ${event.operation} ${event.requestId ?? result.repository.root}: ${event.status}`,
+			`Last boundary: ${event.step.operation} ${event.step.target}`,
+			`Before: ${JSON.stringify(event.before)}; after (last recorded): ${JSON.stringify(event.after)}`,
+			`Known completed effects: ${JSON.stringify(event.completedEffects)}`,
+			// eslint-disable-next-line no-ternary -- Optional failure contributes one human diagnostic line.
+			...(event.failure
+				? [
+						`Failure at ${event.failure.step.operation} ${event.failure.step.target}: ${event.failure.code ?? "unknown"} (exit ${event.failure.exitCode ?? "unknown"}): ${event.failure.message}`,
+					]
+				: []),
+			...event.evidence.map((path) => `Evidence: ${path}`),
+		]),
+	].join("\n");
 }

@@ -1,5 +1,5 @@
 // eslint-disable-next-line import/no-nodejs-modules -- Disposable native trackers, missing-config inspection and owned cleanup.
-import { access, cp, mkdir, mkdtemp, readdir, realpath, rm } from "node:fs/promises";
+import { access, cp, mkdir, mkdtemp, readdir, realpath, rm, stat } from "node:fs/promises";
 import { colonyResponseSchema, execute } from "@hive/shared";
 import { expect, test } from "bun:test";
 import type { ColonyResponse } from "@hive/shared";
@@ -78,21 +78,12 @@ test(
 			);
 		const operation = (kind: string, repo: string) =>
 			client([kind, "--repo", repo, "--beads-db", join(repo, ".beads", "beads.db")]);
-		const request = async (repo: string, identity: string) => {
-			const task = await tracker(repo, ["create", "--title", identity, "--owner", "ct"]);
+		const request = async (repo: string, title: string) => {
+			const task = await tracker(repo, ["create", "--title", title, "--owner", "ct"]);
 			const created = JSON.parse(
-				await bee(repo, [
-					"spawn",
-					"worker",
-					task.id,
-					"--actor",
-					"smoke-seed",
-					"--identity",
-					identity,
-					"--json",
-				]),
+				await bee(repo, ["spawn", "worker", task.id, "--actor", "smoke-seed", "--json"]),
 			);
-			return { spawn: created.request.id, task: task.id };
+			return { identity: created.request.assignee, spawn: created.request.id, task: task.id };
 		};
 		const worker = async (repo: string, identity: string) => {
 			const path = join(repo, `${identity}.json`);
@@ -108,7 +99,7 @@ test(
 		};
 		const pass = async () => {
 			const work = await request(witness, "gold-bright-wren");
-			const running = await worker(witness, "gold-bright-wren");
+			const running = await worker(witness, work.identity);
 			await tracker(witness, ["close", work.task]);
 			await Bun.write(join(witness, "release"), "complete");
 			await until("awake witness completed", () => Promise.resolve(!alive(running.pid)));
@@ -129,7 +120,7 @@ test(
 					await writeFixture(repo);
 				}),
 			);
-			const queued = await request(target, "amber-quiet-otter");
+			const queued = await request(target, "Queued work");
 			const blocker = await tracker(target, ["create", "--title", "Dependency", "--owner", "ct"]);
 			await tracker(target, ["dep", "add", queued.task, blocker.id]);
 			await cp(join(target, ".beads"), join(alternate, ".beads"), { recursive: true });
@@ -140,13 +131,16 @@ test(
 				kind: "request_status",
 				repository: { beadsDb: join(target, ".beads", "beads.db"), root: target },
 				request: {
+					disposition: { outcome: "pending", resolution: "unresolved" },
 					id: queued.spawn,
-					identity: "amber-quiet-otter",
+					identity: queued.identity,
+					labelPublication: "current",
 					status: "open",
 					tasks: [{ id: queued.task, readiness: "blocked" }],
 				},
 			});
 			expect(offline.request.lastObservation).toBeNull();
+			expect(offline.request.stdoutActivity).toBeNull();
 			const offlineHuman = await bee(target, ["status", queued.spawn]);
 			expect(offlineHuman).toContain(`Request ${queued.spawn}: open`);
 			expect(offlineHuman).toContain("blocked");
@@ -155,7 +149,11 @@ test(
 			expect(listing.requests.map((entry: { id: string }) => entry.id)).toEqual([queued.spawn]);
 			expect(await stop(queued.spawn)).toMatchObject({
 				kind: "request_stopped",
-				request: { status: "closed" },
+				request: {
+					disposition: { outcome: "cancelled", resolution: "resolved" },
+					labelPublication: "current",
+					status: "closed",
+				},
 			});
 			const closed = await inspect(queued.spawn);
 			expect(closed.request.lastObservation).toBeNull();
@@ -170,7 +168,7 @@ test(
 			expect(await Bun.file(join(state, "colony.sqlite")).exists()).toBe(false);
 			expect(await Bun.file(socket).exists()).toBe(false);
 			await Bun.write(join(target, "bees.toml"), canonical);
-			const awake = await request(target, "blue-calm-lynx");
+			const awake = await request(target, "Awake work");
 			await operation("wake", target);
 			const current = await client(["list"]);
 			if (current.kind !== "status") {
@@ -178,36 +176,57 @@ test(
 			}
 			daemonPid = current.pid;
 			await operation("wake", witness);
-			const first = await worker(target, "blue-calm-lynx");
+			const first = await worker(target, awake.identity);
 			await observed(awake.spawn, "running");
+			const firstOutput = await stat(join(state, first.id, "stdout.log"));
+			const firstInspection = await inspect(awake.spawn);
+			expect(firstInspection.request.stdoutActivity).toMatchObject({
+				attemptId: first.id,
+				attemptNumber: 1,
+				lastOutputAt: firstOutput.mtime.toISOString(),
+			});
 			await stop(awake.spawn);
 			await until("awake stop stopped process", () => Promise.resolve(!alive(first.pid)));
 			const cancelled = await observed(awake.spawn, "cancelled");
 			expect(cancelled.request.status).toBe("closed");
 			expect(Number.isNaN(Date.parse(cancelled.request.lastObservation.createdAt))).toBe(false);
-			const asleep = await request(target, "green-kind-bear");
-			const second = await worker(target, "green-kind-bear");
+			const asleep = await request(target, "Sleeping work");
+			const second = await worker(target, asleep.identity);
 			await observed(asleep.spawn, "running");
 			await operation("sleep", target);
 			const beforeStop = await inspect(asleep.spawn);
+			await Bun.write(join(target, "emit"), "write stdout while asleep");
+			await until("stdout written while asleep", () => Bun.file(join(target, "emitted")).exists());
+			const asleepOutput = await stat(join(state, second.id, "stdout.log"));
 			await stop(asleep.spawn);
 			await pass();
 			const sleeping = await inspect(asleep.spawn);
 			expect(sleeping.request.status).toBe("closed");
 			expect(sleeping.request.lastObservation).toEqual(beforeStop.request.lastObservation);
+			expect(sleeping.request.stdoutActivity).toEqual(beforeStop.request.stdoutActivity);
 			expect(alive(second.pid)).toBe(true);
 			const claimed = await tracker(target, ["show", asleep.task]);
-			expect(claimed[FIRST]).toMatchObject({ assignee: "green-kind-bear", status: "in_progress" });
+			expect(claimed[FIRST]).toMatchObject({ assignee: asleep.identity, status: "in_progress" });
 			const human = await bee(target, ["status", asleep.spawn]);
 			expect(human).toContain(`Request ${asleep.spawn}: closed`);
 			expect(human).toContain("Last recorded observation (");
 			expect(human).toContain("Observations may be stale; daemon availability is not queried.");
 			expect(human).toContain(sleeping.request.lastObservation.createdAt);
 			expect(human).toContain(sleeping.request.lastObservation.text);
+			expect(human).toContain(sleeping.request.stdoutActivity.lastOutputAt);
+			expect(human).toContain("Stdout silence does not establish idle, stalled or dead execution.");
 			await operation("wake", target);
 			await until("wake stopped sleeping request", () => Promise.resolve(!alive(second.pid)));
 			const settled = await observed(asleep.spawn, "cancelled");
 			expect(settled.request.lastObservation).not.toEqual(beforeStop.request.lastObservation);
+			expect(settled.request.stdoutActivity).toMatchObject({
+				attemptId: second.id,
+				attemptNumber: 1,
+				lastOutputAt: asleepOutput.mtime.toISOString(),
+			});
+			expect(settled.request.stdoutActivity.lastOutputAt).not.toBe(
+				beforeStop.request.stdoutActivity.lastOutputAt,
+			);
 			const released = await tracker(target, ["show", asleep.task]);
 			expect(released[FIRST].assignee).toBeUndefined();
 			const native = await tracker(target, ["show", asleep.spawn]);
@@ -262,9 +281,15 @@ argv=[${JSON.stringify(join(repo, "worker.ts"))}]
 		`
 const repo=${JSON.stringify(repo)};
 console.log(${JSON.stringify(PRIVATE_LOG)});
-await Bun.write(repo+"/"+process.env.HIVE_AGENT_NAME+".json",JSON.stringify({pid:process.pid}));
+await Bun.write(repo+"/"+process.env.HIVE_AGENT_NAME+".json",JSON.stringify({id:process.env.HIVE_ATTEMPT_ID,pid:process.pid}));
 const deadline=Date.now()+60000;
+let emitted=false;
 while(!(await Bun.file(repo+"/release").exists())){
+ if(!emitted&&await Bun.file(repo+"/emit").exists()){
+  console.log(${JSON.stringify(PRIVATE_LOG)});
+  emitted=true;
+  await Bun.write(repo+"/emitted","done");
+ }
  if(Date.now()>=deadline)throw new Error("Fixture deadline expired");
  await Bun.sleep(20);
 }

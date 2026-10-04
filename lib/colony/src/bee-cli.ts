@@ -1,5 +1,7 @@
 import type { RequestListResult, RequestResult, RequestView } from "./requests.ts";
 import { Command } from "commander";
+import type { DroneReportResult } from "./drone.ts";
+import type { FinishResult } from "./launch.ts";
 import type { SpawnResult } from "./producer.ts";
 import { reportFailure } from "./cli.ts";
 
@@ -11,8 +13,6 @@ export interface SpawnOptions {
 	beadsDb: string;
 	/** Requester credited with creation. */
 	actor: string;
-	/** Explicit friendly assignee, or mint one when absent. */
-	identity?: string;
 	/** Override the kind's model. */
 	model?: string;
 	/** Override the kind's reasoning effort. */
@@ -43,6 +43,10 @@ export interface StopOptions extends InspectionOptions {
 	actor: string;
 }
 export interface BeeDependencies {
+	/** Submit one verdict for the injected drone review and exact inspected attempt. */
+	report: (id: string, verdict: string) => Promise<DroneReportResult>;
+	/** Submit an attempt-scoped self-report using injected provenance. */
+	finish: (outcome: string, options: { reason?: string }) => Promise<FinishResult>;
 	/** Read native request, task and last observation facts. */
 	status: (id: string, options: InspectionOptions) => Promise<RequestResult>;
 	/** Inspect requests in the explicitly selected tracker. */
@@ -82,6 +86,19 @@ export async function runBeeCli(argv: string[], deps: BeeDependencies): Promise<
 		.action(async (id: string, options: RetryOptions) => {
 			writeResult(await deps.retry(id, options), argv.includes("--json"), deps.stdout);
 		});
+	program
+		.command("finish <outcome>")
+		.description("Report success or blocked work from this Colony execution")
+		.option("--reason <text>", "Required durable blocker and next action for blocked")
+		.action(async (outcome: string, options: { reason?: string }) => {
+			writeResult(await deps.finish(outcome, options), argv.includes("--json"), deps.stdout);
+		});
+	program
+		.command("report <spawn-id> <verdict>")
+		.description("Report active or inactive from this Colony inactivity drone")
+		.action(async (id: string, verdict: string) => {
+			writeResult(await deps.report(id, verdict), argv.includes("--json"), deps.stdout);
+		});
 	inspectionOptions(
 		program
 			.command("status <spawn-id>")
@@ -119,7 +136,6 @@ function submissionOptions(command: Command): Command {
 		.option("--repo <directory>", "Repository discovery directory", ".")
 		.requiredOption("--beads-db <path>", "Selected Beads database", process.env["BEADS_DB"])
 		.requiredOption("--actor <identity>", "Requester identity", process.env["BD_ACTOR"])
-		.option("--identity <name>", "Supplied friendly bee identity")
 		.option("--model <model>", "Captured model override")
 		.option("--effort <effort>", "Captured effort override")
 		.option("--harness <name>", "Captured runtime formula name")
@@ -133,12 +149,24 @@ function inspectionOptions(command: Command): Command {
 }
 // eslint-disable-next-line max-statements -- Render the three distinct public request results at one output boundary.
 function writeResult(
-	result: RequestResult | RequestListResult | SpawnResult,
+	result: RequestResult | RequestListResult | SpawnResult | FinishResult | DroneReportResult,
 	json: boolean,
 	stdout: (text: string) => void,
 ): void {
 	if (json) {
 		stdout(`${JSON.stringify({ ok: true, ...result })}\n`);
+		return;
+	}
+	if (result.kind === "drone_verdict_submitted") {
+		stdout(
+			`Submitted verdict for ${result.requestId}, attempt ${result.attemptId}, review ${result.reviewId}; Colony validates when awake.\n`,
+		);
+		return;
+	}
+	if (result.kind === "finish_submitted") {
+		stdout(
+			`Submitted finish for ${result.requestId}, attempt ${result.attemptId}; Colony validates and settles when awake.\n`,
+		);
 		return;
 	}
 	if (result.kind === "spawn_created") {
@@ -160,6 +188,7 @@ function formatRequest(request: RequestView): string {
 	const lines = [
 		`Request ${request.id}: ${request.status}`,
 		`Identity: ${request.identity}`,
+		`Outcome: ${request.disposition.outcome}; resolution: ${request.disposition.resolution}; labels: ${request.labelPublication}`,
 		`Recipe: ${request.recipe.kind} / ${request.recipe.harness} / ${request.recipe.model} / ${request.recipe.effort}`,
 	];
 	if (request.closedAt !== null) {
@@ -187,6 +216,17 @@ function formatRequest(request: RequestView): string {
 			`Last recorded observation (${request.lastObservation.createdAt}, ${request.lastObservation.author}): ${request.lastObservation.text}`,
 		);
 	}
-	lines.push("Observations may be stale; daemon availability is not queried.");
+	if (request.stdoutActivity === null) {
+		lines.push("Latest stdout activity: unknown (no attempt observation)");
+	} else {
+		const activity = request.stdoutActivity;
+		lines.push(
+			`Latest stdout activity (attempt ${activity.attemptNumber}, ${activity.attemptId}): ${activity.lastOutputAt ?? "unknown (no output observed)"}`,
+		);
+	}
+	lines.push(
+		"Stdout silence does not establish idle, stalled or dead execution.",
+		"Observations may be stale; daemon availability is not queried.",
+	);
 	return lines.join("\n");
 }

@@ -16,6 +16,8 @@ import { join } from "node:path";
 import { parseArgs } from "node:util";
 import { z } from "zod";
 
+const querySummarySchema = z.object({ name: z.string() });
+
 export const localSetupServices: SetupServices = {
 	command: runCommand,
 	exists: (path) => Bun.file(path).exists(),
@@ -56,6 +58,7 @@ export interface SetupServices {
 	command: Command;
 }
 
+// eslint-disable-next-line max-statements -- Checkout environment and native preset installation share one explicit setup boundary.
 export async function setupBeads(
 	cwd: string,
 	selection: Selection,
@@ -76,7 +79,46 @@ export async function setupBeads(
 	await services.write(misePath, configs.mise);
 	await services.command(["mise", "trust", misePath], cwd);
 	await services.write(codexPath, configs.codex);
+	await installAttentionQuery(cwd, environment.BEADS_DB, services.command);
 	return environment.BEADS_DB;
+}
+
+/** Native list filters are stored by br in the selected tracker, without a Hive query engine. */
+export async function installAttentionQuery(
+	cwd: string,
+	database: string,
+	command: Command,
+): Promise<void> {
+	const endpoint = ["--db", database, "--actor", process.env.BD_ACTOR ?? "hive-setup", "--json"];
+	const { queries } = z
+		.object({ queries: z.array(querySummarySchema) })
+		.parse(JSON.parse(await command(["br", "query", "list", ...endpoint], cwd)));
+	if (queries.some(({ name }) => name === "bee-attention")) {
+		await command(["br", "query", "delete", "bee-attention", ...endpoint], cwd);
+	}
+	await command(
+		[
+			"br",
+			"query",
+			"save",
+			"bee-attention",
+			"--description",
+			"Failed unresolved spawn requests, including closed requests",
+			"--label",
+			"system",
+			"--label",
+			"bee",
+			"--label",
+			"bee-outcome:failed",
+			"--label",
+			"bee-resolution:unresolved",
+			"--all",
+			"--limit",
+			"0",
+			...endpoint,
+		],
+		cwd,
+	);
 }
 // --- Private functions ---
 

@@ -74,6 +74,7 @@ test(
 		let daemonPid: number | undefined = undefined;
 		let passed = false;
 		let attempts: string[] = [];
+		const identities = new Map<string, string>();
 		try {
 			await mkdir(defaultState);
 			await Promise.all(
@@ -114,24 +115,25 @@ test(
 						join(repo, "bees.toml"),
 						`${config}\n[formulas.fixture]\nexecutable=${JSON.stringify(process.execPath)}\nargv=[${JSON.stringify(join(repo, "worker.ts"))}]\n`,
 					);
-					await run([
-						process.execPath,
-						BEE,
-						"spawn",
-						"worker",
-						task.id,
-						"--repo",
-						repo,
-						"--beads-db",
-						join(repo, ".beads", "beads.db"),
-						"--actor",
-						"smoke-requester",
-						"--identity",
-						identity(repo),
-						"--harness",
-						"fixture",
-						"--json",
-					]);
+					const created = JSON.parse(
+						await run([
+							process.execPath,
+							BEE,
+							"spawn",
+							"worker",
+							task.id,
+							"--repo",
+							repo,
+							"--beads-db",
+							join(repo, ".beads", "beads.db"),
+							"--actor",
+							"smoke-requester",
+							"--harness",
+							"fixture",
+							"--json",
+						]),
+					);
+					identities.set(repo, created.request.assignee);
 				}),
 			);
 			const customSocket = Bun.spawn(
@@ -201,14 +203,14 @@ test(
 			await Promise.all(
 				repos.map(async (repo) => {
 					expect(await Bun.file(join(repo, "started.json")).json()).toEqual({
-						actor: identity(repo),
+						actor: identities.get(repo),
 						cwd: repo,
 						db: join(repo, ".beads", "beads.db"),
-						identity: identity(repo),
+						identity: identities.get(repo),
 						kind: "worker",
 					});
 					const rows = await tracker(repo, ["show", task.id]);
-					expect(rows[FIRST].notes).toBe(identity(repo));
+					expect(rows[FIRST].notes).toBe(identities.get(repo));
 					await client(["wake", "--repo", repo, "--beads-db", join(repo, ".beads", "beads.db")]);
 				}),
 			);
@@ -234,7 +236,7 @@ test(
 			});
 			expect(
 				await Promise.all(repos.map((repo) => Bun.file(join(repo, "done.json")).json())),
-			).toEqual(repos.map((repo) => identity(repo)));
+			).toEqual(repos.map((repo) => identities.get(repo)));
 			const missing = Bun.spawn(
 				[
 					process.execPath,
@@ -349,13 +351,6 @@ test(
 );
 
 // --- Private functions ---
-function identity(repo: string): string {
-	if (repo.endsWith("first")) {
-		return "amber-quiet-otter";
-	}
-	return "blue-calm-lynx";
-}
-
 async function writeWorker(repo: string, taskId: string): Promise<void> {
 	await Bun.write(
 		join(repo, "worker.ts"),

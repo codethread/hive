@@ -1,6 +1,7 @@
 // eslint-disable-next-line import/no-nodejs-modules -- Real isolated repositories and server artifacts.
 import { access, mkdir, mkdtemp, readdir, realpath, rm } from "node:fs/promises";
 import { expect, test } from "bun:test";
+import { Database } from "bun:sqlite";
 import { execute } from "@hive/shared";
 // eslint-disable-next-line import/no-nodejs-modules -- Private fixture paths.
 import { join } from "node:path";
@@ -74,6 +75,7 @@ test(
 		};
 		const scoped = (operation: string[]) => [...operation, "--repo", repo, "--beads-db", database];
 		const inspect = () => client(scoped(["inspect"]));
+		const explain = (id: string) => client(scoped(["explain", id]));
 		const pids: number[] = [];
 		let passed = false;
 		try {
@@ -101,12 +103,37 @@ test(
 					database,
 					"--actor",
 					"inspection",
-					"--identity",
-					"amber-quiet-otter",
 					"--json",
 				]),
 			);
 			expect(created.ok).toBe(true);
+			const dependency = await tracker([
+				"create",
+				"--title",
+				"explain prerequisite",
+				"--owner",
+				"ct",
+			]);
+			await tracker(["dep", "add", task.id, dependency.id]);
+			await tracker(["update", task.id, "--assignee", "ct"]);
+			const blocked = await explain(created.request.id);
+			expect(blocked.diagnostics.map((entry: { code: string }) => entry.code)).toEqual(
+				expect.arrayContaining(["claim", "native_readiness"]),
+			);
+			expect(blocked.tracker.result.value.tasks[FIRST].dependencies).toEqual(
+				expect.arrayContaining([expect.objectContaining({ id: dependency.id, status: "open" })]),
+			);
+			await tracker(["close", dependency.id, "--reason", "fixture prerequisite complete"]);
+			await tracker(["update", task.id, "--assignee", ""]);
+			const untouched = await tracker(["show", created.request.id]);
+			const offline = await explain(created.request.id);
+			expect(offline.runtime.result).toMatchObject({
+				kind: "unavailable",
+				reason: "daemon_unavailable",
+			});
+			expect(offline.tracker.result.kind).toBe("available");
+			expect(await exists(targets[FIRST]!.state)).toBe(false);
+			expect(await tracker(["show", created.request.id])).toEqual(untouched);
 			await client(scoped(["wake"]));
 			await client(scoped(["add"]), targets[ONE]!);
 			const first = await client(["daemon", "status"]);
@@ -123,11 +150,17 @@ test(
 			expect(queued.requests[FIRST]).toMatchObject({
 				attempts: SUCCESS,
 				id: created.request.id,
-				identity: "amber-quiet-otter",
+				identity: created.request.assignee,
 				state: "waiting",
 				taskIds: [task.id],
 			});
 			expect(queued.attempts).toEqual([]);
+			const capacity = await explain(created.request.id);
+			expect(capacity.capacity.result.value.available).toBe(false);
+			expect(capacity.diagnostics.map((entry: { code: string }) => entry.code)).toContain(
+				"capacity",
+			);
+			expect(JSON.stringify(capacity)).not.toContain("private-prompt-marker");
 			expect(queued.colony).toMatchObject({
 				policy: { limits: { colony: SUCCESS } },
 				registration: "durable",
@@ -144,6 +177,65 @@ test(
 			const policy = await client(
 				scoped(["config", "update", "--file", file, "--actor", "inspection"]),
 			);
+
+			await until("live worker receipt", async () => {
+				const result = await inspect();
+				const running = result.attempts[FIRST];
+				if (!running || !(await Bun.file(running.paths.worker).exists())) {
+					return false;
+				}
+				const worker = await Bun.file(running.paths.worker).json();
+				return worker.kind === "running";
+			});
+			await client(scoped(["sleep"]));
+			const sleeping = await inspect();
+			const runningAttempt = sleeping.attempts[FIRST];
+			const liveExplanation = await explain(created.request.id);
+			expect(liveExplanation.processes[FIRST].evidence.result).toEqual({
+				kind: "available",
+				value: "live",
+			});
+			expect(liveExplanation.diagnostics.map((entry: { code: string }) => entry.code)).toContain(
+				"colony_asleep",
+			);
+			await Bun.write(join(repo, "release-worker"), "release");
+			await until("detached worker exit while asleep", async () => {
+				const worker = await Bun.file(runningAttempt.paths.worker).json();
+				return worker.kind === "exited";
+			});
+			const snapshot = new Database(join(targets[FIRST]!.state, "colony.sqlite"), {
+				readonly: true,
+			});
+			try {
+				const rowsBefore = snapshot.query("SELECT * FROM attempts").all();
+				const requestsBefore = snapshot.query("SELECT * FROM requests").all();
+				const stale = await explain(created.request.id);
+				expect(stale.processes[FIRST].evidence.result).toEqual({
+					kind: "available",
+					value: "stopped",
+				});
+				expect(stale.diagnostics.map((entry: { code: string }) => entry.code)).toContain(
+					"attempt_process",
+				);
+				expect(stale.runtime.freshness).toBe("checkpoint_age_unknown");
+				expect(snapshot.query("SELECT * FROM attempts").all()).toEqual(rowsBefore);
+				expect(snapshot.query("SELECT * FROM requests").all()).toEqual(requestsBefore);
+				const ownership = join(runningAttempt.paths.receipt, "..", "ownership.json");
+				const original = await Bun.file(ownership).text();
+				const invalid = JSON.parse(original);
+				invalid.token = "wrong-token";
+				await Bun.write(ownership, JSON.stringify(invalid));
+				try {
+					const unknown = await explain(created.request.id);
+					expect(unknown.processes[FIRST].evidence.result.kind).toBe("unavailable");
+					expect(snapshot.query("SELECT * FROM attempts").all()).toEqual(rowsBefore);
+				} finally {
+					await Bun.write(ownership, original);
+				}
+			} finally {
+				snapshot.close();
+			}
+			await client(scoped(["wake"]));
 			await until("completed checkpoint", async () => {
 				const result = await inspect();
 				return result.requests[FIRST]?.state === "terminal";
@@ -154,7 +246,7 @@ test(
 			expect(attempt).toMatchObject({
 				attemptNumber: ONE,
 				cwd: repo,
-				identity: "amber-quiet-otter",
+				identity: created.request.assignee,
 				policyRevisionId: policy.active.revisionId,
 				spawnId: created.request.id,
 			});
@@ -187,6 +279,10 @@ test(
 			await client(scoped(["remove"]));
 			const removed = await inspect();
 			expect(removed.colony).toBeNull();
+			const unregistered = await explain(created.request.id);
+			expect(unregistered.diagnostics.map((entry: { code: string }) => entry.code)).toContain(
+				"unregistered",
+			);
 			expect(removed.requests).toEqual(completed.requests);
 			expect(removed.attempts.map((entry: { id: string }) => entry.id)).toEqual([attempt.id]);
 			expect(removed.history).toEqual(completed.history);
@@ -200,6 +296,12 @@ test(
 			});
 			await client(["daemon", "stop"]);
 			await until("selected server exit", () => Promise.resolve(!alive(first.pid)));
+			const afterStop = await explain(created.request.id);
+			expect(afterStop.runtime.result.reason).toBe("daemon_unavailable");
+			expect(afterStop.tracker.result.value.disposition).toEqual({
+				outcome: "succeeded",
+				resolution: "resolved",
+			});
 			const absent = await invoke(scoped(["inspect"]));
 			expect(absent.code).not.toBe(SUCCESS);
 			expect(absent.stderr).toBe("");
@@ -270,6 +372,7 @@ argv=[${JSON.stringify(join(repo, "worker.ts"))}]
 		join(repo, "worker.ts"),
 		`
 console.log("inspection-output");
+while(!(await Bun.file("release-worker").exists())) await Bun.sleep(25);
 const receipt=await Bun.file(process.env.HIVE_COLONY_STATE+"/"+process.env.HIVE_ATTEMPT_ID+"/receipt.json").json();
 const child=Bun.spawn(["br","close",...receipt.taskIds,"--actor",process.env.BD_ACTOR,"--db",process.env.BEADS_DB,"--json"],{stdout:"ignore",stderr:"inherit"});
 if(await child.exited!==0)throw new Error("Fixture completion failed");

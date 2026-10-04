@@ -1,6 +1,9 @@
 #!/usr/bin/env bun
 import { executeWorker, launchReceiptSchema } from "../src/launch.ts";
 import { awaitExecutionPermission } from "../src/processes.ts";
+import { droneContextSchema } from "../src/drone.ts";
+// eslint-disable-next-line import/no-nodejs-modules -- Read optional attempt-local drone context.
+import { join } from "node:path";
 import { z } from "zod";
 
 const USER_ARGUMENTS_START = 2;
@@ -8,5 +11,18 @@ const [receiptFile, state] = z
 	.tuple([z.string(), z.string()])
 	.parse(Bun.argv.slice(USER_ARGUMENTS_START));
 const receipt = launchReceiptSchema.parse(await Bun.file(receiptFile).json());
-await awaitExecutionPermission(receipt);
-await executeWorker(receipt, state);
+const file = Bun.file(join(receipt.directory, "drone.json"));
+if (await file.exists()) {
+	const drone = droneContextSchema.parse(await file.json());
+	await awaitExecutionPermission(receipt, drone.deadline);
+	await executeWorker(receipt, state, {
+		deadline: drone.deadline,
+		environment: {
+			HIVE_DRONE_REVIEW_ID: drone.reviewId,
+			HIVE_DRONE_TARGET_ATTEMPT_ID: drone.targetAttemptId,
+		},
+	});
+} else {
+	await awaitExecutionPermission(receipt);
+	await executeWorker(receipt, state);
+}

@@ -1,6 +1,6 @@
 // eslint-disable-next-line import/no-nodejs-modules -- Real private repositories and owned process cleanup.
-import { access, mkdir, mkdtemp, readdir, realpath, rm } from "node:fs/promises";
-import { colonyResponseSchema, execute } from "@hive/shared";
+import { access, mkdir, mkdtemp, readdir, realpath, rm, stat } from "node:fs/promises";
+import { beadSchema, colonyResponseSchema, execute, latestStdoutActivity } from "@hive/shared";
 import { expect, test } from "bun:test";
 import type { ColonyResponse } from "@hive/shared";
 // eslint-disable-next-line import/no-nodejs-modules -- Private fixture paths.
@@ -78,8 +78,8 @@ test(
 			const current = await status();
 			return current.colonies.find((entry) => entry.repository.root === repo);
 		};
-		const request = async (repo: string, identity: string) => {
-			const task = await tracker(repo, ["create", "--title", identity, "--owner", "ct"]);
+		const request = async (repo: string, title: string) => {
+			const task = await tracker(repo, ["create", "--title", title, "--owner", "ct"]);
 			const created = JSON.parse(
 				await run([
 					process.execPath,
@@ -93,20 +93,30 @@ test(
 					join(repo, ".beads", "beads.db"),
 					"--actor",
 					"smoke-seed",
-					"--identity",
-					identity,
 					"--json",
 				]),
 			);
-			return { spawn: created.request.id, task: task.id };
+			return { identity: created.request.assignee, spawn: created.request.id, task: task.id };
 		};
 		const worker = async (repo: string, identity: string, attempt = ONE) => {
 			const path = join(repo, `${identity}-${attempt}.json`);
 			await until(`worker ${identity} attempt ${attempt}`, () => Bun.file(path).exists());
 			return Bun.file(path).json();
 		};
-		const pass = async (identity: string) => {
-			const requested = await request(witness, identity);
+		const activity = async (id: string) => {
+			const rows = await tracker(target, ["show", id]);
+			return latestStdoutActivity(beadSchema.parse(rows[FIRST]));
+		};
+		const output = async (record: { id: string; identity: string; attempt: number }) => {
+			const marker = join(target, `${record.identity}-${record.attempt}.emit`);
+			await Bun.write(marker, "write stdout");
+			await until("stdout written with daemon down", () => Bun.file(`${marker}.done`).exists());
+			const metadata = await stat(join(state, record.id, "stdout.log"));
+			return metadata.mtime.toISOString();
+		};
+		const pass = async (title: string) => {
+			const requested = await request(witness, title);
+			const { identity } = requested;
 			const record = await worker(witness, identity);
 			await tracker(witness, ["close", requested.task]);
 			await Bun.write(join(witness, `${identity}.release`), "complete");
@@ -156,16 +166,24 @@ test(
 				"--assignee",
 				"sentinel-owner",
 			]);
-			const live = await request(target, "amber-quiet-otter");
+			const live = await request(target, "Surviving execution");
 			await operation("wake", target);
 			({ pid: daemonPid } = await status());
 			await operation("wake", witness);
 			await operation("wake", temporary, ["--temp"]);
-			const original = await worker(target, "amber-quiet-otter");
+			const original = await worker(target, live.identity);
+			const beforeOutput = await activity(live.spawn);
+			expect(beforeOutput?.lastOutputAt).toBeNull();
 			await crash();
 			expect(alive(original.pid)).toBe(true);
+			const downOutputAt = await output(original);
 			await recover();
 			await pass("gold-bright-wren");
+			expect(await activity(live.spawn)).toMatchObject({
+				attemptId: original.id,
+				attemptNumber: ONE,
+				lastOutputAt: downOutputAt,
+			});
 			expect(await colony(temporary)).toBeUndefined();
 			expect(await colony(target)).toMatchObject({
 				intent: "awake",
@@ -182,7 +200,7 @@ test(
 			await pass("white-soft-deer");
 			const sleepingTask = await tracker(target, ["show", live.task]);
 			expect(sleepingTask[FIRST]).toMatchObject({
-				assignee: "amber-quiet-otter",
+				assignee: live.identity,
 				status: "in_progress",
 			});
 			expect(alive(original.pid)).toBe(true);
@@ -196,17 +214,26 @@ test(
 				Promise.resolve(!alive(original.pid)),
 			);
 			await released(live.task);
-			const dead = await request(target, "blue-calm-lynx");
-			const first = await worker(target, "blue-calm-lynx");
+			const dead = await request(target, "Dead execution");
+			const first = await worker(target, dead.identity);
 			await crash();
+			const deadOutputAt = await output(first);
 			process.kill(first.pid, "SIGKILL");
 			await until("owned worker killed while daemon down", () =>
 				Promise.resolve(!alive(first.pid)),
 			);
 			await recover();
-			const replacement = await worker(target, "blue-calm-lynx", TWO);
-			expect(replacement).toMatchObject({ attempt: TWO, identity: "blue-calm-lynx" });
+			const replacement = await worker(target, dead.identity, TWO);
+			expect(replacement).toMatchObject({ attempt: TWO, identity: dead.identity });
 			expect(replacement.id).not.toBe(first.id);
+			expect(await activity(dead.spawn)).toMatchObject({
+				attemptId: replacement.id,
+				attemptNumber: TWO,
+				// eslint-disable-next-line unicorn/no-null -- Retry must not inherit the dead attempt's stdout.
+				lastOutputAt: null,
+			});
+			const history = await tracker(target, ["show", dead.spawn]);
+			expect(JSON.stringify(history[FIRST].comments)).toContain(deadOutputAt);
 			const retried = await colony(target);
 			expect(retried?.attempts.filter((attempt) => attempt.spawnId === dead.spawn)).toHaveLength(
 				TWO,
@@ -216,8 +243,8 @@ test(
 				Promise.resolve(!alive(replacement.pid)),
 			);
 			await released(dead.task);
-			const removed = await request(target, "green-kind-bear");
-			const detached = await worker(target, "green-kind-bear");
+			const removed = await request(target, "Removed colony execution");
+			const detached = await worker(target, removed.identity);
 			const retained = await operation("remove", target);
 			expect(retained).toMatchObject({
 				attempts: expect.arrayContaining([expect.objectContaining({ id: detached.id })]),
@@ -300,7 +327,14 @@ const identity=process.env.HIVE_AGENT_NAME;
 const attempt=Number(process.env.HIVE_ATTEMPT_NUMBER);
 await Bun.write(repo+"/"+identity+"-"+attempt+".json",JSON.stringify({attempt,id:process.env.HIVE_ATTEMPT_ID,identity,pid:process.pid}));
 const deadline=Date.now()+90000;
+const emit=repo+"/"+identity+"-"+attempt+".emit";
+let emitted=false;
 while(!(await Bun.file(repo+"/release").exists())&&!(await Bun.file(repo+"/"+identity+".release").exists())){
+ if(!emitted&&await Bun.file(emit).exists()){
+  console.log("actual fixture stdout");
+  emitted=true;
+  await Bun.write(emit+".done","written");
+ }
  if(Date.now()>=deadline)throw new Error("Fixture deadline expired");
  await Bun.sleep(20);
 }

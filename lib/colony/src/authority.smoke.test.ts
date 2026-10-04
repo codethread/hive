@@ -112,8 +112,6 @@ argv=["-e", "throw new Error('zero capacity must not launch')"]
 					database,
 					"--actor",
 					"smoke-seed",
-					"--identity",
-					"amber-quiet-otter",
 					"--json",
 				]),
 			);
@@ -142,7 +140,7 @@ argv=["-e", "throw new Error('zero capacity must not launch')"]
 			const afterIdentity = await tracker(["show", first.id]);
 			expect(afterIdentity[FIRST].assignee).toBeUndefined();
 			await mutation("sleep");
-			await tracker(["update", spawn, "--assignee", "amber-quiet-otter"]);
+			await tracker(["update", spawn, "--assignee", created.request.assignee]);
 			await tracker(["dep", "add", spawn, changed.id, "--type", "related"]);
 			await mutation("wake");
 			await failed();

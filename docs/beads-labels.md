@@ -6,7 +6,9 @@ Use labels for classification and supported routing, not as a second issue schem
 
 Bee creates spawn beads with `system`, `bee` and `agent:<kind>`. Colony discovers the exact `system` and `bee` markers, then validates the kind against the captured recipe. The friendly identity is the native assignee, the recipe is the description, and native `related` dependencies name the task beads. The [shared spawn-request model](../lib/shared/src/spawn-request.ts) owns this representation for producers and consumers.
 
-Native status and close reason record request state and outcome. Timestamped `Colony observation:` comments record minimal last-observed facts. There are no parallel status or outcome labels, and logs remain in Colony's private attempt directories. See the [package seams](./architecture.md#package-responsibilities-and-seams) and [operator guide](../lib/colony/README.md).
+Spawn beads also carry exactly one `bee-outcome:*` and one `bee-resolution:*` label. These two explicitly authorized namespaces expose orthogonal outcome and resolution for native queries; they do not replace native lifecycle status. The [spawn state and native query contract](./agents/spawn-requests.md) owns the complete values, valid combinations, source-of-truth mapping, recovery and saved presets. The exception applies only to spawn beads; ordinary task labels remain governed by the taxonomy below.
+
+Timestamped `Colony observation:` comments record minimal last-observed facts; logs remain in Colony's private attempt directories. See the [package seams](./architecture.md#package-responsibilities-and-seams) and [operator guide](../lib/colony/README.md).
 
 ## Taxonomy
 

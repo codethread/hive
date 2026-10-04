@@ -17,6 +17,15 @@ export interface Occupant {
 	bucket: string;
 }
 
+export interface CapacityConstraint {
+	/** Policy dimension limiting admission. */
+	scope: "colony" | "kind" | "worktree";
+	/** Number of retained reservations counted in this dimension. */
+	used: number;
+	/** Effective limit, including named-kind overrides. */
+	maximum: number;
+}
+
 /** Native urgency always dominates graph ranking, with reproducible FIFO ties. */
 export function compareCandidates(left: CandidateOrder, right: CandidateOrder): number {
 	return (
@@ -32,10 +41,28 @@ export function hasCapacity(
 	occupied: Occupant[],
 	limits: BeesConfig["limits"],
 ): boolean {
-	const kindLimit = limits.kinds[candidate.kind] ?? limits.kind;
-	return (
-		occupied.length < limits.colony &&
-		occupied.filter(({ kind }) => kind === candidate.kind).length < kindLimit &&
-		occupied.filter(({ bucket }) => bucket === candidate.bucket).length < limits.worktree
+	return capacityConstraints(candidate, occupied, limits).every(
+		({ used, maximum }) => used < maximum,
 	);
+}
+
+/** The exact capacity constraints used by dispatch, with counts for read-only diagnostics. */
+export function capacityConstraints(
+	candidate: Occupant,
+	occupied: Occupant[],
+	limits: BeesConfig["limits"],
+): CapacityConstraint[] {
+	return [
+		{ maximum: limits.colony, scope: "colony", used: occupied.length },
+		{
+			maximum: limits.kinds[candidate.kind] ?? limits.kind,
+			scope: "kind",
+			used: occupied.filter(({ kind }) => kind === candidate.kind).length,
+		},
+		{
+			maximum: limits.worktree,
+			scope: "worktree",
+			used: occupied.filter(({ bucket }) => bucket === candidate.bucket).length,
+		},
+	];
 }

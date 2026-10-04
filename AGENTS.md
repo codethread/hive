@@ -66,6 +66,10 @@ Husky runs `lint-staged`, a repo-wide typecheck and tracker synchronization befo
 - Before changing request representation, scheduling authority or package placement, read [architecture](docs/architecture.md). It maps the library seams and sources of truth.
 - [Bee and Colony guide](lib/colony/README.md) documents public commands and real I/O verification.
 
+## Spawn state and attention
+
+Before querying spawn requests, interpreting failures or supersession, retrying work, or changing lifecycle publication, read the [spawn state and native query contract](docs/agents/spawn-requests.md). It enumerates every outcome/resolution value and valid combination, recovery semantics, and exact native queries and saved presets, including closed failures. Use this reference for automation-owned spawn beads; ordinary task selection still excludes `system`.
+
 ## Domain docs
 
 Single-context: root `GLOSSARY.md` and `docs/adr/`. Before exploring, follow `docs/agents/domain.md`.

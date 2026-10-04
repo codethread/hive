@@ -10,8 +10,13 @@ import {
 	requestStateSchema,
 	showBead,
 } from "@hive/shared";
+import { cancelDroneReview, reviewInactivity } from "./drone.ts";
 import { observeExecution, resumeExecution, stopExecution } from "./processes.ts";
-import { publishObservation } from "./observations.ts";
+import { publishObservation, publishStdoutActivity } from "./observations.ts";
+import type { OperationEvidence } from "./history.ts";
+import { publishRequestLabels } from "./requests.ts";
+import { readFinishReport } from "./launch.ts";
+// eslint-disable-next-line import/max-dependencies -- Request reconciliation composes claims, execution, drone review and operation evidence.
 import { z } from "zod";
 
 const ZERO = 0;
@@ -41,6 +46,8 @@ interface RequestRuntime {
 	store: Store;
 	/** Current canonical retry policy. */
 	config: BeesConfig;
+	/** Inactivity review clock; production uses the current wall clock. */
+	now?: () => number;
 }
 export type RequestRecord = z.infer<typeof requestRecordSchema>;
 type RequestContext = z.infer<typeof contextSchema>;
@@ -212,22 +219,48 @@ export async function reconcileRequests(runtime: RequestRuntime): Promise<void> 
 	const inventory = await store.inventory(repository.root);
 	for (const saved of store.requests(repository.root).filter(({ state }) => state !== "terminal")) {
 		// eslint-disable-next-line no-await-in-loop -- Finish each request's external effects before advancing another durable checkpoint.
-		await reconcileRequest(runtime, saved, inventory);
+		await store.history.run(
+			{
+				checkpoint: () => store.requests(repository.root).find(({ id }) => id === saved.id),
+				operation: "reconcile",
+				repository,
+				requestId: saved.id,
+			},
+			(evidence) => reconcileRequest(runtime, saved, inventory, evidence),
+		);
 	}
 }
 
 /** Acquire sequentially only after capacity is granted; each intent precedes its tracker write. */
 // eslint-disable-next-line max-statements -- Claim checkpoints and partial-failure cleanup stay adjacent to their mutations.
-export async function claimRequest(
+export function claimRequest(
 	runtime: RequestRuntime,
 	saved: RequestRecord,
+): Promise<RequestRecord | null> {
+	const { repository, store } = runtime;
+	return store.history.run(
+		{
+			checkpoint: () => store.requests(repository.root).find(({ id }) => id === saved.id),
+			operation: "claim",
+			repository,
+			requestId: saved.id,
+		},
+		(evidence) => acquireRequest(runtime, saved, evidence),
+	);
+}
+
+// eslint-disable-next-line max-statements -- Acquisition checkpoints and partial failure settlement remain ordered together.
+async function acquireRequest(
+	runtime: RequestRuntime,
+	saved: RequestRecord,
+	evidence: OperationEvidence,
 ): Promise<RequestRecord | null> {
 	const { repository, store } = runtime;
 	let record = store.advanceRequest(repository.root, saved, { type: "READY" });
 	for (const id of record.context.taskIds) {
 		record = store.advanceRequest(repository.root, record, { id, type: "INTEND" });
 		// eslint-disable-next-line no-await-in-loop -- Persist each acquisition before the next task can be claimed.
-		const outcome = await acquireClaim(repository, record.context.identity, id);
+		const outcome = await acquireClaim(repository, record.context.identity, id, evidence);
 		if (outcome === "conflict") {
 			record = store.advanceRequest(repository.root, record, {
 				message: `Task ${id} changed reservation during acquisition`,
@@ -235,7 +268,7 @@ export async function claimRequest(
 				type: "SETTLE",
 			});
 			// eslint-disable-next-line no-await-in-loop -- No execution has launched; release only already recorded partial acquisitions.
-			await finishSettlement(runtime, record);
+			await finishSettlement(runtime, record, evidence);
 			return null;
 		}
 		// eslint-disable-next-line unicorn/prefer-ternary -- Explicit machine events keep claim and closed-task paths visible.
@@ -251,18 +284,19 @@ export async function claimRequest(
 			outcome: "completed",
 			type: "SETTLE",
 		});
-		await finishSettlement(runtime, record);
+		await finishSettlement(runtime, record, evidence);
 		return null;
 	}
 	return record;
 }
 
 // --- Request effects ---
-// eslint-disable-next-line max-statements -- Reconcile durable lifecycle state with current tracker and verified execution facts.
+// eslint-disable-next-line max-statements, max-params -- Reconcile durable lifecycle state with current tracker and verified execution facts.
 async function reconcileRequest(
 	runtime: RequestRuntime,
 	saved: RequestRecord,
 	inventory: AttemptInventory[],
+	evidence: OperationEvidence,
 ): Promise<void> {
 	const { repository, store } = runtime;
 	let record = saved;
@@ -278,12 +312,10 @@ async function reconcileRequest(
 			type: "SETTLE",
 		});
 	}
+	evidence.step("tracker.show", record.id);
 	const spawn = await showBead(repository, record.context.identity, record.id);
 	const request = readSpawnRequest(spawn);
 	assertRequestAuthority(record, request.identity, request.taskIds);
-	const tasks = await Promise.all(
-		record.context.taskIds.map((id) => showBead(repository, record.context.identity, id)),
-	);
 	if (record.state !== "settling") {
 		if (spawn.status === "closed") {
 			record = store.advanceRequest(repository.root, record, {
@@ -291,47 +323,128 @@ async function reconcileRequest(
 				outcome: "cancelled",
 				type: "SETTLE",
 			});
-		} else if (tasks.length > ZERO && tasks.every(({ status }) => status === "closed")) {
-			record = store.advanceRequest(repository.root, record, {
-				message: "All related tasks are closed",
-				outcome: "completed",
-				type: "SETTLE",
-			});
 		} else if (record.state === "executing") {
 			const attempt = inventory.find(({ id }) => id === record.context.attemptId)!;
+			evidence.reference(attempt.receipt.directory);
+			evidence.step("execution.resume", attempt.id);
 			await resumeExecution(attempt.receipt, (supervisor) =>
 				store.supervisor(attempt.id, supervisor.pid),
 			);
+			evidence.step("execution.observe", attempt.id);
 			const observed = await observeExecution(attempt.receipt);
-			if (attempt.state === "exited" || attempt.state === "failed" || observed.kind === "stopped") {
+			const report = await readFinishReport(attempt.receipt);
+			if (
+				report ||
+				attempt.state === "exited" ||
+				attempt.state === "failed" ||
+				observed.kind === "stopped"
+			) {
+				evidence.step("tracker.show-related", record.id);
+				const tasks = await Promise.all(
+					record.context.taskIds.map((id) => showBead(repository, record.context.identity, id)),
+				);
+				const unfinished = tasks.filter(({ status }) => status !== "closed");
+				let outcome: RequestContext["outcome"] = null;
+				let message = "Execution stopped with unfinished work";
+				if (report?.outcome === "blocked") {
+					outcome = "blocked";
+					message = `Self-report blocked; attempt ${attempt.id}; unfinished tasks: ${unfinished.map(({ id }) => id).join(", ")}; reason: ${report.reason}`;
+				} else if (unfinished.length === ZERO) {
+					outcome = "completed";
+					message = `Execution finished with all tasks closed; attempt ${attempt.id}`;
+				} else if (report?.outcome === "success") {
+					message = `Self-report success with unfinished work; attempt ${attempt.id}`;
+				}
 				record = store.advanceRequest(repository.root, record, {
-					message: "Execution stopped with unfinished work",
-					outcome: null,
+					message,
+					outcome,
 					type: "SETTLE",
 				});
 			} else if (attempt.state === "running") {
-				await publishObservation(
-					repository,
-					record.id,
-					`running: attempt ${attempt.receipt.attemptNumber}`,
-				);
+				evidence.step("drone.review", attempt.id);
+				record = await reviewRunningAttempt(runtime, record, attempt);
+				evidence.step("stdout.publish", record.id);
+				await publishStdoutActivity(repository, attempt.receipt);
+				if (record.state === "executing") {
+					evidence.step("observation.publish", record.id);
+					await publishRunningObservation(runtime, record, attempt);
+				}
+			}
+		} else {
+			evidence.step("tracker.show-related", record.id);
+			const tasks = await Promise.all(
+				record.context.taskIds.map((id) => showBead(repository, record.context.identity, id)),
+			);
+			if (tasks.length > ZERO && tasks.every(({ status }) => status === "closed")) {
+				record = store.advanceRequest(repository.root, record, {
+					message: "All related tasks are closed",
+					outcome: "completed",
+					type: "SETTLE",
+				});
 			}
 		}
 	}
 	if (record.state === "settling") {
 		if (record.context.attemptId !== null) {
 			const attempt = inventory.find(({ id }) => id === record.context.attemptId)!;
+			evidence.step("drone.cancel", attempt.id);
+			await cancelDroneReview(runtime, attempt.id);
+			evidence.reference(attempt.receipt.directory);
+			evidence.step("execution.stop", attempt.id);
 			await stopExecution(attempt.receipt);
+			evidence.completed("execution.stopped", attempt.id);
+			evidence.step("stdout.publish", record.id);
+			await publishStdoutActivity(repository, attempt.receipt, true);
+			evidence.completed("stdout.published", record.id);
 		}
-		await finishSettlement(runtime, record);
+		await finishSettlement(runtime, record, evidence);
 	} else if (record.state === "retrying") {
 		store.advanceRequest(repository.root, record, { now: Date.now(), type: "TICK" });
 	}
 }
+async function reviewRunningAttempt(
+	runtime: RequestRuntime,
+	record: RequestRecord,
+	attempt: AttemptInventory,
+): Promise<RequestRecord> {
+	const { repository, store } = runtime;
+	const tasks = await Promise.all(
+		record.context.taskIds.map((id) => showBead(repository, record.context.identity, id)),
+	);
+	if (tasks.every(({ status }) => status === "closed")) {
+		await cancelDroneReview(runtime, attempt.id);
+		return record;
+	}
+	const message = await reviewInactivity(runtime, record, attempt.receipt);
+	if (message === undefined) {
+		return record;
+	}
+	return store.advanceRequest(repository.root, record, { message, outcome: null, type: "SETTLE" });
+}
+async function publishRunningObservation(
+	runtime: RequestRuntime,
+	record: RequestRecord,
+	attempt: AttemptInventory,
+): Promise<void> {
+	const { repository, store } = runtime;
+	const review = store.latestDroneReview(repository.root, attempt.id);
+	let fact = `running: attempt ${attempt.receipt.attemptNumber}`;
+	if (review !== undefined) {
+		fact += `; inactivity drone ${review.phase}; review ${review.id}; deadline ${new Date(review.deadline).toISOString()}`;
+		if (review.decision !== null) {
+			fact += `; ${review.decision.kind}; ${review.decision.detail}`;
+		}
+	}
+	await publishObservation(repository, record.id, fact);
+}
 // eslint-disable-next-line max-statements -- Release claims and publish the settled fact before the final checkpoint.
-async function finishSettlement(runtime: RequestRuntime, record: RequestRecord): Promise<void> {
+async function finishSettlement(
+	runtime: RequestRuntime,
+	record: RequestRecord,
+	evidence: OperationEvidence,
+): Promise<void> {
 	const { repository, store, config } = runtime;
-	await releaseClaims(repository, record);
+	await releaseClaims(repository, record, evidence);
 	const released = store.advanceRequest(repository.root, record, { type: "RELEASED" });
 	const next = transitionRequest(released, {
 		delay: config.retry_delay_ms,
@@ -339,21 +452,29 @@ async function finishSettlement(runtime: RequestRuntime, record: RequestRecord):
 		now: Date.now(),
 		type: "SETTLED",
 	});
-	let fact = `waiting: retry scheduled after attempt ${record.context.attempts}`;
+	let fact = `waiting: retry scheduled after attempt ${record.context.attempts}; ${record.context.message}`;
 	if (next.state === "terminal") {
 		fact = `settled: ${next.context.outcome}; ${record.context.message}`;
 	}
+	evidence.step("observation.publish", record.id);
 	await publishObservation(repository, record.id, fact);
+	evidence.completed("observation.published", record.id);
 	if (next.state === "terminal") {
+		evidence.step("tracker.show", record.id);
 		const spawn = await showBead(repository, record.context.identity, record.id);
 		if (spawn.status !== "closed") {
+			evidence.step("tracker.close", record.id);
 			await beads(repository, record.context.identity, [
 				"close",
 				record.id,
 				"--reason",
 				next.context.outcome!,
 			]);
+			evidence.completed("tracker.closed", record.id);
 		}
+		evidence.step("labels.publish", record.id);
+		await publishRequestLabels(repository, record.context.identity, record.id);
+		evidence.completed("labels.published", record.id);
 	}
 	store.saveRequest(repository.root, next);
 }

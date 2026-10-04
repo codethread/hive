@@ -6,6 +6,7 @@ import type { ColonyResponse } from "@hive/shared";
 import { Database } from "bun:sqlite";
 // eslint-disable-next-line import/no-nodejs-modules -- Private fixture paths.
 import { join } from "node:path";
+import { readHistory } from "./history.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Private OS temporary fixture root.
 import { tmpdir } from "node:os";
 
@@ -52,8 +53,7 @@ test(
 			const created = await tracker(["create", "--title", title, "--owner", "ct"]);
 			return created.id as string;
 		};
-		const request = async (identity: string, tasks: string[]) => {
-			await Bun.write(join(root, `${identity}.tasks.json`), JSON.stringify(tasks));
+		const request = async (tasks: string[]) => {
 			const result = JSON.parse(
 				await run([
 					process.execPath,
@@ -67,12 +67,10 @@ test(
 					database,
 					"--actor",
 					"smoke-seed",
-					"--identity",
-					identity,
 					"--json",
 				]),
 			);
-			return result.request.id as string;
+			return { identity: result.request.assignee as string, spawn: result.request.id as string };
 		};
 		const client = async (args: string[]) =>
 			parseCliResponse(
@@ -90,7 +88,19 @@ test(
 		const terminal = (spawn: string, reason: string) =>
 			until(`spawn ${spawn} ${reason}`, async () => {
 				const rows = await tracker(["show", spawn]);
-				return rows[FIRST].status === "closed" && rows[FIRST].close_reason === reason;
+				let outcome = "failed";
+				let resolution = "unresolved";
+				if (reason === "completed") {
+					outcome = "succeeded";
+					resolution = "resolved";
+				}
+				return (
+					rows[FIRST].status === "closed" &&
+					rows[FIRST].close_reason === reason &&
+					JSON.stringify(
+						rows[FIRST].labels.filter((label: string) => label.startsWith("bee-")).toSorted(),
+					) === JSON.stringify([`bee-outcome:${outcome}`, `bee-resolution:${resolution}`])
+				);
 			});
 		const receipt = (identity: string, attempt: number) =>
 			Bun.file(join(runs, `${identity}-${attempt}.json`));
@@ -122,7 +132,7 @@ test(
 				"in_progress",
 			]);
 			const unfinished = await task("Exit zero without completing");
-			const exhausted = await request("amber-quiet-otter", [unfinished]);
+			const exhausted = await request([unfinished]);
 			await client(["wake", "--repo", repo, "--beads-db", database]);
 			const current = await client(["list"]);
 			if (current.kind !== "status") {
@@ -132,10 +142,14 @@ test(
 			const records = [];
 			/* eslint-disable no-await-in-loop -- Release each actual attempt only after its handshake and verified predecessor exit. */
 			for (let attempt = ONE; attempt <= ATTEMPTS; attempt += ONE) {
-				records.push(await release("amber-quiet-otter", attempt));
+				const [pending] = await tracker(["show", exhausted.spawn]);
+				expect(
+					pending.labels.filter((label: string) => label.startsWith("bee-")).toSorted(),
+				).toEqual(["bee-outcome:pending", "bee-resolution:unresolved"]);
+				records.push(await release(exhausted.identity, attempt));
 			}
 			/* eslint-enable no-await-in-loop */
-			await terminal(exhausted, "exhausted");
+			await terminal(exhausted.spawn, "exhausted");
 			expect(new Set(records.map((record) => record.id)).size).toBe(ATTEMPTS);
 			const exhaustedTask = await tracker(["show", unfinished]);
 			expect(exhaustedTask[FIRST]).toMatchObject({ status: "open" });
@@ -149,7 +163,7 @@ test(
 					.all(unfinished);
 				expect(changes).toEqual(
 					Array.from({ length: ATTEMPTS }, () => [
-						{ new_value: "amber-quiet-otter" },
+						{ new_value: exhausted.identity },
 						// eslint-disable-next-line unicorn/no-null -- Native SQLite records unassigned ownership as NULL.
 						{ new_value: null },
 					]).flat(),
@@ -157,36 +171,33 @@ test(
 			} finally {
 				native.close();
 			}
-			await Bun.write(join(root, "purple-calm-wren.tasks.json"), JSON.stringify([unfinished]));
 			const replacement = JSON.parse(
 				await run([
 					process.execPath,
 					BEE,
 					"retry",
-					exhausted,
+					exhausted.spawn,
 					"--repo",
 					repo,
 					"--beads-db",
 					database,
 					"--actor",
 					"retry-actor",
-					"--identity",
-					"purple-calm-wren",
 					"--json",
 				]),
-			).request.id as string;
+			).request;
 			/* eslint-disable no-await-in-loop -- Verify the replacement independently receives the full real attempt budget. */
 			for (let attempt = ONE; attempt <= ATTEMPTS; attempt += ONE) {
-				await release("purple-calm-wren", attempt);
+				await release(replacement.assignee, attempt);
 			}
 			/* eslint-enable no-await-in-loop */
-			await terminal(replacement, "exhausted");
+			await terminal(replacement.id, "exhausted");
 			const oldStatus = JSON.parse(
 				await run([
 					process.execPath,
 					BEE,
 					"status",
-					exhausted,
+					exhausted.spawn,
 					"--repo",
 					repo,
 					"--beads-db",
@@ -196,8 +207,10 @@ test(
 			);
 			expect(oldStatus.request).toMatchObject({
 				closeReason: "exhausted",
+				disposition: { outcome: "failed", resolution: "resolved" },
+				labelPublication: "current",
 				needsAttention: false,
-				resolution: { kind: "superseded", replacementIds: [replacement] },
+				resolution: { kind: "superseded", replacementIds: [replacement.id] },
 			});
 			const failures = JSON.parse(
 				await run([
@@ -211,23 +224,24 @@ test(
 					"--json",
 				]),
 			);
-			expect(failures.requests.map((entry: { id: string }) => entry.id)).toEqual([replacement]);
+			expect(failures.requests.map((entry: { id: string }) => entry.id)).toEqual([replacement.id]);
 			const completeTask = await task("Actually complete work");
-			const completed = await request("blue-calm-lynx", [completeTask]);
-			await release("blue-calm-lynx", ONE);
-			await terminal(completed, "completed");
+			await Bun.write(join(root, `${completeTask}.complete`), "complete");
+			const completed = await request([completeTask]);
+			await release(completed.identity, ONE);
+			await terminal(completed.spawn, "completed");
 			const completedTask = await tracker(["show", completeTask]);
 			expect(completedTask[FIRST].status).toBe("closed");
 			const first = await task("Partial claim first");
 			const second = await task("Partial claim raced");
 			await Bun.write(join(root, "gate-tasks.json"), JSON.stringify([first, second]));
-			const partial = await request("green-kind-bear", [first, second]);
+			const partial = await request([first, second]);
 			await until("second claim reached real br boundary", () =>
 				Bun.file(join(root, "claim-gated")).exists(),
 			);
 			const gated = await Bun.file(join(root, "claim-gated")).json();
 			const firstClaim = await tracker(["show", gated.first]);
-			expect(firstClaim[FIRST].assignee).toBe("green-kind-bear");
+			expect(firstClaim[FIRST].assignee).toBe(partial.identity);
 			await run([
 				realBr,
 				"update",
@@ -242,7 +256,7 @@ test(
 				"--json",
 			]);
 			await Bun.write(join(root, "allow-claim"), "continue");
-			await terminal(partial, "claim_failed");
+			await terminal(partial.spawn, "claim_failed");
 			const [released, retained, unrelated] = await Promise.all(
 				[gated.first, gated.second, sentinel].map((id) => tracker(["show", id])),
 			);
@@ -250,22 +264,60 @@ test(
 			expect(released[FIRST].assignee).toBeUndefined();
 			expect(retained[FIRST]).toMatchObject({ assignee: "competing-actor", status: "in_progress" });
 			expect(unrelated[FIRST]).toMatchObject({ assignee: "sentinel-owner", status: "in_progress" });
-			expect(await receipt("green-kind-bear", ONE).exists()).toBe(false);
-			expect(await receipt("blue-calm-lynx", TWO).exists()).toBe(false);
-			expect(await receipt("amber-quiet-otter", ATTEMPTS + ONE).exists()).toBe(false);
+			await until("partial claim history completed", () =>
+				Promise.resolve(
+					readHistory(state, {
+						failures: true,
+						repository: { beadsDb: database, root: repo },
+						request: partial.spawn,
+					}).events.some(
+						({ operation, status: operationStatus }) =>
+							operation === "claim" && operationStatus === "completed",
+					),
+				),
+			);
+			const partialHistory = readHistory(state, {
+				failures: true,
+				repository: { beadsDb: database, root: repo },
+				request: partial.spawn,
+			});
+			const partialClaim = partialHistory.events.find(({ operation }) => operation === "claim");
+			expect(partialClaim).toMatchObject({
+				after: { claims: [], outcome: "claim_failed", state: "terminal" },
+				before: { claims: [], state: "waiting" },
+				status: "completed",
+			});
+			expect(partialClaim?.completedEffects).toContainEqual({
+				operation: "tracker.claimed",
+				target: gated.first,
+			});
+			expect(partialClaim?.completedEffects).toContainEqual({
+				operation: "tracker.released",
+				target: gated.first,
+			});
+			expect(partialClaim?.completedEffects).not.toContainEqual({
+				operation: "tracker.claimed",
+				target: gated.second,
+			});
+			expect(["UPDATE_PRECONDITION_FAILED", "VALIDATION_FAILED"]).toContain(
+				partialClaim?.failure?.code ?? "missing",
+			);
+			expect(await receipt(partial.identity, ONE).exists()).toBe(false);
+			expect(await receipt(completed.identity, TWO).exists()).toBe(false);
+			expect(await receipt(exhausted.identity, ATTEMPTS + ONE).exists()).toBe(false);
 			expect(await Bun.file(join(root, "released-while-alive")).exists()).toBe(false);
 			const status = await client(["list"]);
 			if (status.kind !== "status") {
 				throw new Error(JSON.stringify(status));
 			}
 			expect(
-				status.colonies[FIRST]?.attempts.filter((attempt) => attempt.spawnId === exhausted),
+				status.colonies[FIRST]?.attempts.filter((attempt) => attempt.spawnId === exhausted.spawn),
 			).toHaveLength(ATTEMPTS);
 			expect(
-				status.colonies[FIRST]?.attempts.filter((attempt) => attempt.spawnId === completed),
+				status.colonies[FIRST]?.attempts.filter((attempt) => attempt.spawnId === completed.spawn),
 			).toHaveLength(ONE);
 			expect(
-				status.colonies[FIRST]?.attempts.filter((attempt) => attempt.spawnId === partial),
+				status.colonies[FIRST]?.attempts.filter((attempt) => attempt.spawnId === partial.spawn),
 			).toHaveLength(NONE);
 
 			const durable = new Database(join(state, "colony.sqlite"), { readonly: true });
@@ -274,10 +326,10 @@ test(
 					.query(
 						"SELECT json_extract(snapshot, '$.attemptNumber') AS number, json_extract(snapshot, '$.identity') AS identity FROM attempts WHERE spawn_id = ? ORDER BY rowid",
 					)
-					.all(exhausted);
+					.all(exhausted.spawn);
 				expect(attempts).toEqual(
 					Array.from({ length: ATTEMPTS }, (_value, index) => ({
-						identity: "amber-quiet-otter",
+						identity: exhausted.identity,
 						number: index + ONE,
 					})),
 				);
@@ -287,14 +339,83 @@ test(
 					)
 					.all();
 				expect(outcomes).toEqual([
-					{ claims: "[]", id: exhausted, outcome: "exhausted", state: "terminal" },
-					{ claims: "[]", id: replacement, outcome: "exhausted", state: "terminal" },
-					{ claims: "[]", id: completed, outcome: "completed", state: "terminal" },
-					{ claims: "[]", id: partial, outcome: "claim_failed", state: "terminal" },
+					{ claims: "[]", id: exhausted.spawn, outcome: "exhausted", state: "terminal" },
+					{ claims: "[]", id: replacement.id, outcome: "exhausted", state: "terminal" },
+					{ claims: "[]", id: completed.spawn, outcome: "completed", state: "terminal" },
+					{ claims: "[]", id: partial.spawn, outcome: "claim_failed", state: "terminal" },
 				]);
 			} finally {
 				durable.close();
 			}
+			const unavailable = await task("Tracker failure must remain actionable");
+			await Bun.write(join(root, "claim-error-task"), unavailable);
+			const interrupted = await request([unavailable]);
+			await until("native sync failure stops the colony", async () => {
+				const interruptedStatus = await client(["list"]);
+				return (
+					interruptedStatus.kind === "status" &&
+					interruptedStatus.colonies[FIRST]?.state === "failed"
+				);
+			});
+			const failed = await client(["list"]);
+			if (failed.kind !== "status" || failed.colonies[FIRST]?.state !== "failed") {
+				throw new Error(JSON.stringify(failed));
+			}
+			expect(failed.colonies[FIRST]?.message).toMatchInlineSnapshot(
+				'"br update exited 6: SYNC_CONFLICT: Tracker publication needs reconciliation"',
+			);
+			const interruptedRequest = await tracker(["show", interrupted.spawn]);
+			expect(interruptedRequest[FIRST].status).toBe("open");
+			expect(interruptedRequest[FIRST].close_reason).toBeUndefined();
+			expect(await receipt(interrupted.identity, ONE).exists()).toBe(false);
+			const failedHistory = readHistory(state, {
+				failures: true,
+				repository: { beadsDb: database, root: repo },
+				request: interrupted.spawn,
+			});
+			expect(failedHistory.events).toHaveLength(ONE);
+			expect(failedHistory.events[FIRST]).toMatchObject({
+				after: { pendingClaim: unavailable, state: "claiming" },
+				before: { state: "waiting" },
+				completedEffects: [],
+				failure: {
+					code: "SYNC_CONFLICT",
+					message: "Tracker publication needs reconciliation",
+					step: { operation: "tracker.claim", target: unavailable },
+				},
+				operation: "claim",
+				status: "failed",
+			});
+			await client(["daemon", "stop"]);
+			await until("daemon stopped before offline history", () =>
+				Promise.resolve(!alive(current.pid)),
+			);
+			await Bun.write(join(bin, "br"), "#!/bin/sh\nexit 99\n");
+			const historyArgs = [
+				process.execPath,
+				COLONY,
+				"events",
+				"--repo",
+				repo,
+				"--beads-db",
+				database,
+				"--state",
+				state,
+				"--request",
+				interrupted.spawn,
+				"--failures",
+			];
+			const offlineHistory = JSON.parse(await run([...historyArgs, "--json"]));
+			expect(offlineHistory).toMatchObject({
+				events: failedHistory.events,
+				kind: "events",
+				ok: true,
+			});
+			const humanHistory = await run(historyArgs);
+			expect(humanHistory).toContain("SYNC_CONFLICT");
+			expect(humanHistory).toContain(unavailable);
+			expect(await Bun.file(socket).exists()).toBe(false);
+
 			passed = true;
 		} catch (error) {
 			throw new Error(`Retry smoke artifacts retained at ${root}`, { cause: error });
@@ -338,7 +459,8 @@ argv=[${JSON.stringify(join(root, "worker.ts"))}]
 const root=${JSON.stringify(root)};
 const identity=process.env.HIVE_AGENT_NAME;
 const attempt=Number(process.env.HIVE_ATTEMPT_NUMBER);
-const tasks=await Bun.file(root+"/"+identity+".tasks.json").json();
+const receipt=await Bun.file(process.env.HIVE_COLONY_STATE+"/"+process.env.HIVE_ATTEMPT_ID+"/receipt.json").json();
+const tasks=receipt.taskIds;
 for(const id of tasks){
  const claim=Bun.spawn(["br","update",id,"--claim","--owner","ct","--actor",identity,"--db",process.env.BEADS_DB,"--json"],{stdout:"pipe",stderr:"pipe"});
  if(await claim.exited!==0)throw new Error(await new Response(claim.stderr).text());
@@ -349,7 +471,7 @@ while(!(await Bun.file(root+"/"+identity+"-"+attempt+".release").exists())){
  if(Date.now()>=deadline)throw new Error("Fixture deadline expired");
  await Bun.sleep(20);
 }
-if(identity==="blue-calm-lynx"){
+if(await Bun.file(root+"/"+tasks[0]+".complete").exists()){
  for(const id of tasks){
  const close=Bun.spawn(["br","close",id,"--actor",identity,"--db",process.env.BEADS_DB,"--json"],{stdout:"pipe",stderr:"pipe"});
  if(await close.exited!==0)throw new Error(await new Response(close.stderr).text());
@@ -363,6 +485,11 @@ if(identity==="blue-calm-lynx"){
 import {readdir} from "node:fs/promises";
 const root=${JSON.stringify(root)};
 const args=process.argv.slice(2);
+const failure=Bun.file(root+"/claim-error-task");
+if(args.includes("--claim")&&await failure.exists()&&args.includes(await failure.text())){
+ console.log(JSON.stringify({error:{code:"SYNC_CONFLICT",message:"Tracker publication needs reconciliation",context:null}}));
+ process.exit(6);
+}
 const gate=Bun.file(root+"/gate-tasks.json");
 let gatedTask;
 const firstClaim=Bun.file(root+"/first-claim");

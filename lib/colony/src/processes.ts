@@ -82,13 +82,19 @@ export async function observeProcess(recorded: ProcessFingerprint): Promise<"liv
 }
 
 /** Publish the supervisor identity before waiting for the daemon's durable launch permission. */
-export async function awaitExecutionPermission(ref: ExecutionRef): Promise<void> {
+export async function awaitExecutionPermission(
+	ref: ExecutionRef,
+	deadline?: number,
+): Promise<void> {
 	const supervisor = { process: await currentProcessFingerprint(), token: ref.token };
 	const temporary = join(ref.directory, "supervisor.json.tmp");
 	await Bun.write(temporary, JSON.stringify(supervisor));
 	await rename(temporary, join(ref.directory, "supervisor.json"));
 	/* eslint-disable no-await-in-loop -- A detached supervisor waits without launching until its recorded owner authorizes it. */
 	while (!(await Bun.file(join(ref.directory, "permission.json")).exists())) {
+		if (deadline !== undefined && Date.now() >= deadline) {
+			throw new Error("Execution permission deadline reached");
+		}
 		await Bun.sleep(INTERVAL);
 	}
 	/* eslint-enable no-await-in-loop */
@@ -173,11 +179,12 @@ export async function stopExecution(ref: ExecutionRef): Promise<void> {
 }
 
 /** The child handle proves short-lived root exit; process snapshots retain observed descendants. */
-// eslint-disable-next-line max-statements -- Keep child creation, ownership recording and completion proof together.
+// eslint-disable-next-line max-statements, max-params -- Keep child creation, ownership recording and the optional supervisor deadline beside completion proof.
 export async function runOwnedExecution(
 	ref: ExecutionRef,
 	start: () => Subprocess,
 	onStarted: (pid: number) => Promise<void>,
+	deadline?: number,
 ): Promise<{ pid: number; code: number }> {
 	const snapshot = await psList();
 	const supervisor = snapshot.find(({ pid }) => pid === process.pid);
@@ -196,6 +203,9 @@ export async function runOwnedExecution(
 	};
 	await writeOwnership(ref, owned);
 	try {
+		if (deadline !== undefined && Date.now() >= deadline) {
+			throw new Error("Execution deadline reached before launch");
+		}
 		const child = start();
 		let exited = false;
 		// eslint-disable-next-line promise/prefer-await-to-then -- Observe child completion concurrently with ownership snapshots.
@@ -211,6 +221,10 @@ export async function runOwnedExecution(
 		/* eslint-disable no-await-in-loop -- Capture descendant lineage throughout the live child lifetime. */
 		// eslint-disable-next-line no-unmodified-loop-condition -- The owned child completion promise updates this condition.
 		while (!exited) {
+			if (deadline !== undefined && Date.now() >= deadline) {
+				await stopExecution(ref);
+				break;
+			}
 			await Bun.sleep(INTERVAL);
 			await capture(owned);
 			await writeOwnership(ref, owned);

@@ -38,7 +38,7 @@ _To be built_ marks capabilities still planned beyond the Bee and Colony impleme
 
 **Formula**: A named harness invocation template applied to a recipe when an execution attempt starts. Changing a formula does not change the captured recipe.
 
-**Execution attempt**: One launch to fulfil a spawn request. A retry is a new attempt using the same request and friendly identity.
+**Execution attempt**: One launch to fulfil a spawn request. An automatic retry starts another attempt using the same request and friendly identity.
 
 **Colony observation**: A timestamped report of what a colony last observed about a spawn request or its execution. It is historical evidence, not proof of present daemon or process availability.
 
@@ -49,6 +49,12 @@ _To be built_ marks capabilities still planned beyond the Bee and Colony impleme
 **Spawn request**: A request for a bee to complete specified task beads, carrying a captured recipe and friendly identity. It can exist before any bee runs and span several execution attempts.
 
 **Spawn bead**: The Beads record representing a spawn request, distinct from its task beads and execution attempts.
+
+**Request outcome**: How a spawn request ended, or whether it remains pending. A replacement does not change its predecessor's unsuccessful outcome.
+
+**Request resolution**: Whether a request still needs follow-up. A failed request can be resolved while its failure remains part of the history.
+
+**Supersession**: Replacement of an unsuccessful request with a newly submitted request. The original and replacement retain separate identities, outcomes and execution histories.
 
 **Actor**: The identity credited with a change to a bead, distinct from its owner and assignee.
 

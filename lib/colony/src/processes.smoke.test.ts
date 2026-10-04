@@ -324,6 +324,43 @@ await runOwnedExecution(ref,()=>Bun.spawn([process.execPath,"-e",${JSON.stringif
 	TIMEOUT,
 );
 
+test(
+	"supervisor deadline stops only verified owned execution without Colony polling",
+	// eslint-disable-next-line max-statements -- A real owned harness and unrelated sentinel verify deadline cleanup and retained evidence.
+	async () => {
+		const directory = await mkdtemp(join(tmpdir(), "colony-deadline-"));
+		const ref = { directory, token: crypto.randomUUID() };
+		const sentinel = Bun.spawn([process.execPath, "-e", "setInterval(() => {}, 1000)"], {
+			stderr: "ignore",
+			stdout: "ignore",
+		});
+		const runtimeMs = 1000;
+		try {
+			await runOwnedExecution(
+				ref,
+				() =>
+					Bun.spawn([process.execPath, "-e", "setInterval(() => {}, 1000)"], {
+						stderr: "ignore",
+						stdout: "ignore",
+					}),
+				() => Promise.resolve(),
+				Date.now() + runtimeMs,
+			);
+			expect(await observeExecution(ref)).toEqual({ kind: "stopped" });
+			const ownership = await Bun.file(join(directory, "ownership.json")).json();
+			expect(ownership.phase).toBe("exited");
+			expect(ownership.error).toBeNull();
+			expect(sentinel.exitCode).toBeNull();
+		} finally {
+			await stopExecution(ref);
+			sentinel.kill();
+			await sentinel.exited;
+			await rm(directory, { force: true, recursive: true });
+		}
+	},
+	TIMEOUT,
+);
+
 // --- Private functions ---
 async function until(condition: () => Promise<boolean>): Promise<void> {
 	const deadline = Date.now() + TIMEOUT;

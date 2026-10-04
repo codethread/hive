@@ -10,17 +10,20 @@ import {
 	showBead,
 } from "@hive/shared";
 // eslint-disable-next-line import/no-nodejs-modules -- Resolve owned receipt and execution directories.
-import { join, resolve } from "node:path";
+import { join, resolve as resolvePath } from "node:path";
 // eslint-disable-next-line import/no-nodejs-modules -- Own process log files and canonicalize launch cwd.
-import { mkdir, open, realpath, rename } from "node:fs/promises";
+import { link, mkdir, open, realpath, rename, unlink } from "node:fs/promises";
 import { match } from "ts-pattern";
 import { runOwnedExecution } from "./processes.ts";
+// eslint-disable-next-line import/no-nodejs-modules -- Launch the existing detached supervisor for ordinary attempts and drones.
+import { spawn as spawnSupervisor } from "node:child_process";
 import { z } from "zod";
 
 const EMPTY = 0;
 const SUCCESS = 0;
 const JSON_INDENT = 2;
 const FIRST_ATTEMPT = 1;
+const NONEMPTY = 1;
 export const launchReceiptSchema = z.strictObject({
 	attemptNumber: z.number().int().positive(),
 	beadsDb: z.string(),
@@ -38,6 +41,24 @@ export const launchReceiptSchema = z.strictObject({
 	taskIds: z.array(z.string()),
 	token: z.string(),
 });
+const finishOutcomeSchema = z.discriminatedUnion("outcome", [
+	z.strictObject({ outcome: z.literal("success") }),
+	z.strictObject({ outcome: z.literal("blocked"), reason: z.string().trim().min(NONEMPTY) }),
+]);
+const finishReportSchema = z.strictObject({
+	attemptId: z.string().uuid(),
+	result: finishOutcomeSchema,
+	spawnId: z.string().min(NONEMPTY),
+	token: z.string().uuid(),
+});
+export interface FinishResult {
+	/** Durable submission; an awake Colony still validates current-attempt authority. */
+	kind: "finish_submitted";
+	/** Spawn whose execution submitted the report. */
+	requestId: string;
+	/** Attempt-scoped provenance, never a replacement request. */
+	attemptId: string;
+}
 const workerFields = { startedAt: z.string(), supervisorPid: z.number(), token: z.string() };
 export const workerReceiptSchema = z.discriminatedUnion("kind", [
 	z.strictObject({ ...workerFields, harnessPid: z.number(), kind: z.literal("running") }),
@@ -135,7 +156,7 @@ export async function prepareLaunch(
 	const invocation = renderFormula(formula, recipe);
 	let executionDirectory = request.root;
 	if (recipe.cwd !== null) {
-		executionDirectory = resolve(request.root, recipe.cwd);
+		executionDirectory = resolvePath(request.root, recipe.cwd);
 	}
 	const cwd = await realpath(executionDirectory);
 	return {
@@ -146,7 +167,7 @@ export async function prepareLaunch(
 			bucket: await launchBucket(cwd),
 			createdAt: new Date().toISOString(),
 			cwd,
-			directory: join(resolve(request.state), attemptId),
+			directory: join(resolvePath(request.state), attemptId),
 			formula,
 			id: attemptId,
 			identity,
@@ -175,7 +196,11 @@ export async function writeReceipt(receipt: LaunchReceipt): Promise<void> {
 
 /** The supervisor touches only its own artifacts and never reconciles Beads. */
 // eslint-disable-next-line max-statements -- Acquisition and finally-based cleanup stay beside the owned subprocess.
-export async function executeWorker(receipt: LaunchReceipt, state: string): Promise<Outcome> {
+export async function executeWorker(
+	receipt: LaunchReceipt,
+	state: string,
+	options: { deadline?: number; environment?: Record<string, string> } = {},
+): Promise<Outcome> {
 	const { directory, invocation, cwd, identity, recipe, spawnId, beadsDb, token } = receipt;
 	const stdout = await open(join(directory, "stdout.log"), "w");
 	const stderr = await open(join(directory, "stderr.log"), "w");
@@ -197,13 +222,15 @@ export async function executeWorker(receipt: LaunchReceipt, state: string): Prom
 						HIVE_ATTEMPT_ID: receipt.id,
 						HIVE_ATTEMPT_NUMBER: String(receipt.attemptNumber),
 						HIVE_ATTEMPT_TOKEN: token,
-						HIVE_COLONY_STATE: resolve(state),
+						HIVE_COLONY_STATE: resolvePath(state),
 						HIVE_SPAWN_ID: spawnId,
+						...options.environment,
 					},
 					stderr: stderr.fd,
 					stdout: stdout.fd,
 				}),
 			(harnessPid) => writeWorkerReceipt(directory, { ...ownership, harnessPid, kind: "running" }),
+			options.deadline,
 		);
 		const { code } = result;
 		await writeWorkerReceipt(directory, {
@@ -226,8 +253,94 @@ export async function executeWorker(receipt: LaunchReceipt, state: string): Prom
 	}
 }
 
-// --- Private functions ---
-async function launchBucket(cwd: string): Promise<string> {
+/** Submit once to the injected attempt; no native spawn mutation is trusted to the worker. */
+// eslint-disable-next-line max-statements -- Validate provenance and atomically publish one immutable attempt report.
+export async function submitFinish(
+	outcome: string,
+	options: { reason?: string },
+	env: Record<string, string | undefined> = process.env,
+): Promise<FinishResult> {
+	const report = finishReportSchema.parse({
+		attemptId: env["HIVE_ATTEMPT_ID"],
+		result: { outcome, ...options },
+		spawnId: env["HIVE_SPAWN_ID"],
+		token: env["HIVE_ATTEMPT_TOKEN"],
+	});
+	const state = z.string().min(NONEMPTY).parse(env["HIVE_COLONY_STATE"]);
+	const directory = join(state, report.attemptId);
+	const receipt = launchReceiptSchema.parse(await Bun.file(join(directory, "receipt.json")).json());
+	assertFinishAuthority(report, receipt);
+	const path = join(directory, "finish.json");
+	const temporary = `${path}.${crypto.randomUUID()}.tmp`;
+	await Bun.write(temporary, JSON.stringify(report));
+	try {
+		await link(temporary, path);
+	} catch (error) {
+		if (!(error instanceof Error && "code" in error && error.code === "EEXIST")) {
+			throw error;
+		}
+		const existing = finishReportSchema.parse(await Bun.file(path).json());
+		if (JSON.stringify(existing) !== JSON.stringify(report)) {
+			throw new Error(`Attempt ${report.attemptId} already submitted a different finish report`, {
+				cause: error,
+			});
+		}
+	} finally {
+		await unlink(temporary);
+	}
+	return { attemptId: report.attemptId, kind: "finish_submitted", requestId: report.spawnId };
+}
+
+/** Only call for the recorded current attempt; stale artifact directories are never scanned. */
+export async function readFinishReport(receipt: LaunchReceipt) {
+	const file = Bun.file(join(receipt.directory, "finish.json"));
+	if (!(await file.exists())) {
+		return;
+	}
+	const report = finishReportSchema.parse(await file.json());
+	assertFinishAuthority(report, receipt);
+	return report.result;
+}
+
+/** One detached supervisor handoff serves both task execution and one-shot drone reviews. */
+export async function startSupervisor(
+	receipt: LaunchReceipt,
+	state: string,
+	onSpawned: (pid: number) => void = () => {},
+): Promise<number> {
+	const log = await open(join(receipt.directory, "supervisor.log"), "a");
+	try {
+		const child = spawnSupervisor(
+			process.execPath,
+			[
+				resolvePath(import.meta.dirname, "../bin/worker.ts"),
+				join(receipt.directory, "receipt.json"),
+				state,
+			],
+			{
+				cwd: receipt.cwd,
+				detached: true,
+				env: { ...process.env, BEADS_DB: receipt.beadsDb },
+				stdio: ["ignore", log.fd, log.fd],
+			},
+		);
+		// eslint-disable-next-line promise/avoid-new -- Adapt Node subprocess spawn/error events to the reservation handoff.
+		return await new Promise<number>((resolve, reject) => {
+			child.once("error", reject);
+			child.once("spawn", () => {
+				const pid = z.number().int().positive().parse(child.pid);
+				onSpawned(pid);
+				child.unref();
+				resolve(pid);
+			});
+		});
+	} finally {
+		await log.close();
+	}
+}
+
+/** Resolve the canonical capacity bucket without preparing or reserving an execution. */
+export async function launchBucket(cwd: string): Promise<string> {
 	const child = Bun.spawn(["git", "rev-parse", "--show-toplevel"], {
 		cwd,
 		env: { ...process.env, LC_ALL: "C" },
@@ -248,15 +361,8 @@ async function launchBucket(cwd: string): Promise<string> {
 	throw new Error(`Cannot resolve launch bucket for ${cwd}: ${stderr.trim()}`);
 }
 
-async function writeWorkerReceipt(
-	directory: string,
-	receipt: z.infer<typeof workerReceiptSchema>,
-): Promise<void> {
-	const temporary = join(directory, "worker.json.tmp");
-	await Bun.write(temporary, JSON.stringify(receipt, undefined, JSON_INDENT));
-	await rename(temporary, join(directory, "worker.json"));
-}
-function eligibility(tasks: Bead[], ready: Bead[], identity: string): Eligibility {
+/** Shared native-ready and reservation decision used before launch and by explain. */
+export function eligibility(tasks: Bead[], ready: Bead[], identity: string): Eligibility {
 	if (tasks.length === EMPTY) {
 		return { kind: "waiting", reason: "Spawn request has no related tasks" };
 	}
@@ -274,4 +380,27 @@ function eligibility(tasks: Bead[], ready: Bead[], identity: string): Eligibilit
 		return { kind: "waiting", reason: `Task ${blocked.id} is not ready or is reserved` };
 	}
 	return { kind: "eligible", tasks: unfinished };
+}
+
+// --- Private functions ---
+async function writeWorkerReceipt(
+	directory: string,
+	receipt: z.infer<typeof workerReceiptSchema>,
+): Promise<void> {
+	const temporary = join(directory, "worker.json.tmp");
+	await Bun.write(temporary, JSON.stringify(receipt, undefined, JSON_INDENT));
+	await rename(temporary, join(directory, "worker.json"));
+}
+
+function assertFinishAuthority(
+	report: z.infer<typeof finishReportSchema>,
+	receipt: LaunchReceipt,
+): void {
+	if (
+		report.attemptId !== receipt.id ||
+		report.spawnId !== receipt.spawnId ||
+		report.token !== receipt.token
+	) {
+		throw new Error("Finish report does not match recorded attempt authority");
+	}
 }

@@ -63,6 +63,8 @@ export const configCommandSchema = z.discriminatedUnion("operation", [
 /** Generic inspection names active formulas without exposing their argument values. */
 export const policyViewSchema = z.strictObject({
 	formulas: z.array(z.string()),
+	/** Selected inactivity reviewer kind, or null when reviews are disabled. */
+	inactivityDrone: z.string().nullable(),
 	limits: limitsSchema,
 	maxRetries: z.number().int().nonnegative(),
 	ranking: z.enum(["bv-pagerank", "fifo"]),

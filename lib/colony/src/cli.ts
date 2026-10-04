@@ -2,13 +2,27 @@ import { Command, CommanderError } from "commander";
 import { CommandError } from "@hive/shared";
 import type { DaemonResponse } from "./client.ts";
 import { DaemonUnavailableError } from "./client.ts";
+import type { Explanation } from "./explain.ts";
+import type { HistoryResult } from "./history.ts";
 import type { InitializedResult } from "./producer.ts";
 import type { LaunchedResult } from "./output.ts";
+import { RequestPublicationError } from "./requests.ts";
 import { writeColonyResult } from "./output.ts";
 
 const SUCCESS = 0;
 const FAILURE = 1;
 const USAGE_ERROR = 2;
+
+interface CliFailure {
+	/** Human diagnostic retained from the failing boundary. */
+	message: string;
+	/** Machine-readable command or operational failure. */
+	reason: string | number;
+	/** Request whose native facts need label publication, when applicable. */
+	requestId?: string;
+	/** Replacements already created before a publication failure. */
+	replacementIds?: string[];
+}
 
 export interface InitOptions {
 	/** Canonical discovery directory. */
@@ -49,6 +63,12 @@ export type ConfigOptions = RepositoryOptions &
 		| { operation: "update"; actor: string; file: string }
 	);
 export interface ColonyDependencies {
+	/** Explain one request using read-only tracker and runtime evidence. */
+	explain: (id: string, options: RepositoryOptions) => Promise<Explanation>;
+	/** Read bounded operation evidence without contacting the daemon or tracker. */
+	events: (
+		options: RepositoryOptions & { request?: string; failures: boolean },
+	) => Promise<HistoryResult>;
 	/** Inspect retained request and attempt records for one repository. */
 	inspect: (options: RepositoryOptions) => Promise<DaemonResponse>;
 	/** Inspect or change formula/limit policy on the selected running daemon. */
@@ -84,6 +104,17 @@ export async function runCli(argv: string[], deps: ColonyDependencies): Promise<
 		.option("--json", "Emit errors as JSON too")
 		.configureOutput({ writeErr: () => {}, writeOut: deps.stdout })
 		.exitOverride();
+	program
+		.command("events")
+		.description("Read retained operation evidence without waking or reconciling")
+		.option("--repo <directory>", "Repository discovery directory", ".")
+		.requiredOption("--beads-db <path>", "Selected Beads database", process.env["BEADS_DB"])
+		.option("--state <directory>", "Daemon state directory")
+		.option("--request <spawn-id>", "Only operations for this request")
+		.option("--failures", "Only recorded failures (including handled conflicts)", false)
+		.action(async (options: RepositoryOptions & { request?: string; failures: boolean }) => {
+			writeColonyResult(await deps.events(options), argv.includes("--json"), deps.stdout);
+		});
 	program
 		.command("init")
 		.description("Create canonical bees.toml without overwriting it")
@@ -131,6 +162,14 @@ export async function runCli(argv: string[], deps: ColonyDependencies): Promise<
 	).action(async (options: RepositoryOptions) => {
 		writeColonyResult(await deps.inspect(options), argv.includes("--json"), deps.stdout);
 	});
+	repositoryOptions(
+		program
+			.command("explain <spawn-id>")
+			.description("Explain request progress without lifecycle effects"),
+	).action(async (id: string, options: RepositoryOptions) => {
+		writeColonyResult(await deps.explain(id, options), argv.includes("--json"), deps.stdout);
+	});
+
 	const config = program
 		.command("config")
 		.description("Inspect or change active formula and limit policy");
@@ -206,6 +245,7 @@ export async function runCli(argv: string[], deps: ColonyDependencies): Promise<
 }
 
 // --- Private functions ---
+// eslint-disable-next-line max-statements -- Normalize failures and preserve partial publication context at the shared CLI boundary.
 export function reportFailure(
 	error: unknown,
 	json: boolean,
@@ -218,14 +258,19 @@ export function reportFailure(
 	if (error instanceof Error) {
 		({ message } = error);
 	}
-	writeFailure({ message, reason: failureReason(error) }, json, deps);
+	const failure: CliFailure = { message, reason: failureReason(error) };
+	if (error instanceof RequestPublicationError) {
+		failure.requestId = error.requestId;
+		failure.replacementIds = error.replacementIds;
+	}
+	writeFailure(failure, json, deps);
 	if (error instanceof CommanderError) {
 		return USAGE_ERROR;
 	}
 	return FAILURE;
 }
 function writeFailure(
-	failure: { message: string; reason: string | number },
+	failure: CliFailure,
 	json: boolean,
 	deps: Pick<ColonyDependencies, "stdout" | "stderr"> & { command: "bee" | "colony" },
 ): void {

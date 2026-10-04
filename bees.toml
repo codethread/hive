@@ -3,6 +3,7 @@ humans = ["ct"]
 ranking = "bv-pagerank"
 max_retries = 3
 retry_delay_ms = 250
+inactivity_drone = "drone"
 
 [limits]
 colony = 4
@@ -20,6 +21,12 @@ harness = "codex"
 model = "gpt-6.1-sol"
 effort = "high"
 prompt = "Work on the related task beads. Read their full instructions, claim only your work, verify outcomes, and close completed tasks."
+
+[kinds.drone]
+harness = "codex"
+model = "gpt-6-luna"
+effort = "low"
+prompt = "Inspect the specified bee's logs and process evidence without modifying its work. Distinguish useful work or legitimate waiting from inactivity, then report active or inactive using the supplied Bee command."
 
 [formulas.codex]
 executable = "codex"

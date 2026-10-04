@@ -5,6 +5,12 @@ import { z } from "zod";
 const SUCCESS = 0;
 const ONE = 1;
 const FIRST = 0;
+const nativeDiagnosticSchema = z.object({
+	code: z.string(),
+	context: z.object({ field: z.string().optional() }).nullish(),
+	message: z.string(),
+});
+const nativeErrorSchema = z.object({ error: nativeDiagnosticSchema });
 const dependencySchema = z.object({ dependency_type: z.string(), id: z.string() });
 const beadCommentSchema = z.object({
 	author: z.string(),
@@ -45,11 +51,19 @@ export class CommandError extends Error {
 	readonly code: number;
 	/** Structured command output, when available. */
 	readonly stdout: string;
+	/** Parsed native diagnostic; exit codes alone group unrelated failures. */
+	readonly nativeError: z.infer<typeof nativeDiagnosticSchema> | undefined;
 	constructor(command: string, result: { code: number; stdout: string; stderr: string }) {
-		super(`${command} exited ${result.code}: ${result.stderr.trim()}`);
+		const nativeError = parseNativeError(result.stdout);
+		let diagnostic = result.stderr.trim();
+		if (nativeError) {
+			diagnostic = `${nativeError.code}: ${nativeError.message}`;
+		}
+		super(`${command} exited ${result.code}: ${diagnostic}`);
 		this.name = "CommandError";
 		this.code = result.code;
 		this.stdout = result.stdout;
+		this.nativeError = nativeError;
 	}
 }
 /** Canonical discovery delegates to the repository's existing worktree tool. */
@@ -68,21 +82,8 @@ export async function canonicalRoot(directory: string): Promise<string> {
 	);
 	return output.trim();
 }
-export async function execute(
-	argv: string[],
-	cwd: string,
-	env: NodeJS.ProcessEnv,
-): Promise<string> {
-	const child = Bun.spawn(argv, { cwd, env, stderr: "pipe", stdout: "pipe" });
-	const [stdout, stderr, code] = await Promise.all([
-		new Response(child.stdout).text(),
-		new Response(child.stderr).text(),
-		child.exited,
-	]);
-	if (code !== SUCCESS) {
-		throw new CommandError(argv[FIRST]!, { code, stderr, stdout });
-	}
-	return stdout;
+export function execute(argv: string[], cwd: string, env: NodeJS.ProcessEnv): Promise<string> {
+	return executeNamed(argv[FIRST]!, argv, { cwd, env });
 }
 /** Every tracker operation explicitly selects its endpoint and actor. */
 export async function beads(
@@ -91,13 +92,17 @@ export async function beads(
 	args: string[],
 ): Promise<unknown> {
 	return JSON.parse(
-		await execute(
+		await executeNamed(
+			`br ${args[FIRST]}`,
 			["br", ...args, "--db", endpoint.beadsDb, "--actor", actor, "--json"],
-			endpoint.root,
-			{ ...process.env, BD_ACTOR: actor, BEADS_DB: endpoint.beadsDb },
+			{
+				cwd: endpoint.root,
+				env: { ...process.env, BD_ACTOR: actor, BEADS_DB: endpoint.beadsDb },
+			},
 		),
 	);
 }
+
 export async function showBead(
 	endpoint: RepositoryEndpoint,
 	actor: string,
@@ -107,4 +112,30 @@ export async function showBead(
 		.array(beadSchema)
 		.length(ONE)
 		.parse(await beads(endpoint, actor, ["show", id]))[FIRST]!;
+}
+
+// --- Private functions ---
+async function executeNamed(
+	command: string,
+	argv: string[],
+	options: { cwd: string; env: NodeJS.ProcessEnv },
+): Promise<string> {
+	const child = Bun.spawn(argv, { ...options, stderr: "pipe", stdout: "pipe" });
+	const [stdout, stderr, code] = await Promise.all([
+		new Response(child.stdout).text(),
+		new Response(child.stderr).text(),
+		child.exited,
+	]);
+	if (code !== SUCCESS) {
+		throw new CommandError(command, { code, stderr, stdout });
+	}
+	return stdout;
+}
+
+function parseNativeError(stdout: string): z.infer<typeof nativeDiagnosticSchema> | undefined {
+	try {
+		return nativeErrorSchema.safeParse(JSON.parse(stdout)).data?.error;
+	} catch {
+		return undefined;
+	}
 }

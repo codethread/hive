@@ -22,7 +22,6 @@ const PRIVATE_MODE = 0o700;
 const COMMAND_TIMEOUT = 15_000;
 const PROVIDER_TIMEOUT = 180_000;
 const POLL_INTERVAL = 250;
-const IDENTITY = "amber-quiet-otter";
 const ACTOR = "native-probe";
 const COLONY = fileURLToPath(new URL("../bin/colony.ts", import.meta.url));
 const BEE = fileURLToPath(new URL("../bin/bee.ts", import.meta.url));
@@ -80,7 +79,7 @@ async function run(options: Options): Promise<void> {
 			);
 		await writeProbe(fixture, task.id);
 		const created = z
-			.object({ ok: z.literal(true), request: z.object({ id: z.string() }) })
+			.object({ ok: z.literal(true), request: z.object({ assignee: z.string(), id: z.string() }) })
 			.parse(
 				JSON.parse(
 					await invoke(fixture, BEE, [
@@ -89,8 +88,6 @@ async function run(options: Options): Promise<void> {
 						task.id,
 						"--actor",
 						ACTOR,
-						"--identity",
-						IDENTITY,
 						"--cwd",
 						fixture.repo,
 					]),
@@ -107,7 +104,12 @@ async function run(options: Options): Promise<void> {
 		}, PROVIDER_TIMEOUT);
 		const inspection = await inspect(fixture);
 		await save(fixture, "inspection.json", inspection);
-		await verify(fixture, { inspection, spawnId, taskId: task.id });
+		await verify(fixture, {
+			identity: created.request.assignee,
+			inspection,
+			spawnId,
+			taskId: task.id,
+		});
 	} catch (error) {
 		errors.push(error);
 	}
@@ -252,7 +254,7 @@ function nativeArguments(harness: Options["harness"]): string[] {
 // eslint-disable-next-line max-statements -- Verify native tool evidence against immutable launch and terminal tracker records.
 async function verify(
 	fixture: Fixture,
-	result: { inspection: ColonyInspection; spawnId: string; taskId: string },
+	result: { identity: string; inspection: ColonyInspection; spawnId: string; taskId: string },
 ): Promise<void> {
 	const attempt = result.inspection.attempts[FIRST];
 	if (!attempt || result.inspection.attempts.length !== ONE) {
@@ -266,12 +268,12 @@ async function verify(
 		.object({
 			cwd: z.literal(fixture.repo),
 			env: z.object({
-				BD_ACTOR: z.literal(IDENTITY),
+				BD_ACTOR: z.literal(result.identity),
 				BEADS_DB: z.literal(fixture.database),
 				BR_AGENT_NAME: z.literal("worker"),
 				BR_HARNESS: z.literal(fixture.options.harness),
 				BR_MODEL: z.literal(fixture.options.model),
-				HIVE_AGENT_NAME: z.literal(IDENTITY),
+				HIVE_AGENT_NAME: z.literal(result.identity),
 				HIVE_ATTEMPT_ID: z.literal(attempt.id),
 			}),
 		})

@@ -3,10 +3,13 @@ import type { RequestEvent, RequestRecord } from "./request.ts";
 import { launchReceiptSchema, workerReceiptSchema } from "./launch.ts";
 import { requestRecordSchema, transitionRequest } from "./request.ts";
 import { Database } from "bun:sqlite";
+import type { DroneReview } from "./drone.ts";
 import type { LaunchReceipt } from "./launch.ts";
 import type { PolicySnapshot } from "./policy.ts";
+import { droneReviewSchema } from "./drone.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- SQLite and receipt paths belong to daemon state.
 import { join } from "node:path";
+import { openHistory } from "./history.ts";
 import { policyRevisionSchema } from "@hive/shared";
 // eslint-disable-next-line import/no-nodejs-modules -- Read atomic worker receipt replacements without a cached BunFile size.
 import { readFile } from "node:fs/promises";
@@ -49,6 +52,7 @@ export function openStore(state: string) {
  token TEXT NOT NULL, snapshot TEXT NOT NULL, state TEXT NOT NULL, supervisor_pid INTEGER);
  CREATE TABLE IF NOT EXISTS requests (root TEXT NOT NULL, spawn_id TEXT NOT NULL, snapshot TEXT NOT NULL, PRIMARY KEY(root, spawn_id));
  CREATE TABLE IF NOT EXISTS policy_revisions (id TEXT PRIMARY KEY, root TEXT NOT NULL, metadata TEXT NOT NULL, snapshot TEXT NOT NULL);
+ CREATE TABLE IF NOT EXISTS drone_reviews (id TEXT PRIMARY KEY, root TEXT NOT NULL, target_attempt_id TEXT NOT NULL, snapshot TEXT NOT NULL);
  CREATE TABLE IF NOT EXISTS active_policies (root TEXT PRIMARY KEY, revision_id TEXT NOT NULL REFERENCES policy_revisions(id));`);
 	const assertRepository = (repository: RepositoryEndpoint): void => {
 		const rows = z.array(z.strictObject({ beadsDb: z.string() })).parse(
@@ -64,8 +68,8 @@ export function openStore(state: string) {
 			throw new Error(`Repository ${repository.root} already uses a different Beads database`);
 		}
 	};
-	const inventory = (root: string): Promise<AttemptInventory[]> => {
-		const rows = z
+	const attemptRows = (root: string) =>
+		z
 			.array(attemptRowSchema)
 			.parse(
 				database
@@ -74,6 +78,8 @@ export function openStore(state: string) {
 					)
 					.all(root),
 			);
+	const inventory = (root: string): Promise<AttemptInventory[]> => {
+		const rows = attemptRows(root);
 		return Promise.all(
 			// eslint-disable-next-line max-statements -- Refresh the owned receipt and process liveness together before updating inventory.
 			rows.map(async (row) => {
@@ -137,7 +143,20 @@ export function openStore(state: string) {
 			database.query("DELETE FROM active_policies WHERE root = ?").run(root);
 		},
 		close: () => database.close(),
+		history: openHistory(database, state),
 		inventory,
+		latestDroneReview: (root: string, targetAttemptId: string): DroneReview | undefined => {
+			const row = database
+				.query(
+					"SELECT snapshot FROM drone_reviews WHERE root = ? AND target_attempt_id = ? ORDER BY rowid DESC LIMIT 1",
+				)
+				.get(root, targetAttemptId);
+			if (row === null) {
+				return;
+			}
+			const { snapshot } = z.object({ snapshot: z.string() }).parse(row);
+			return droneReviewSchema.parse(JSON.parse(snapshot));
+		},
 		policyHistory: (root: string): PolicyRevision[] =>
 			z
 				.array(z.object({ metadata: z.string() }))
@@ -190,6 +209,21 @@ export function openStore(state: string) {
 					);
 				return advanceRequest(root, record, { id: receipt.id, type: "START" });
 			})(),
+		/** Retained reservations only: inspection must not refresh or persist process state. */
+		retainedInventory: (root: string): AttemptInventory[] =>
+			attemptRows(root).map((row) => ({
+				id: row.id,
+				receipt: launchReceiptSchema.parse(JSON.parse(row.snapshot)),
+				spawnId: row.spawnId,
+				state: row.state,
+			})),
+		saveDroneReview: (root: string, review: DroneReview): void => {
+			database
+				.query(
+					"INSERT INTO drone_reviews (id, root, target_attempt_id, snapshot) VALUES (?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET snapshot = excluded.snapshot",
+				)
+				.run(review.id, root, review.targetAttemptId, JSON.stringify(review));
+		},
 		saveRequest,
 		setActivity: (root: string, intent: ColonyStatus["intent"]) => {
 			database.query("UPDATE repositories SET intent = ? WHERE root = ?").run(intent, root);
@@ -198,6 +232,30 @@ export function openStore(state: string) {
 			database.query("UPDATE attempts SET supervisor_pid = ? WHERE id = ?").run(pid, id);
 		},
 	};
+}
+
+/** Bee reads the durable current target and review without taking daemon write authority. */
+export function readDroneAuthority(
+	state: string,
+	reviewId: string,
+): { review: DroneReview; request: RequestRecord } {
+	const database = new Database(join(state, "colony.sqlite"), { readonly: true });
+	try {
+		const row = z
+			.object({ root: z.string(), snapshot: z.string() })
+			.parse(database.query("SELECT root, snapshot FROM drone_reviews WHERE id = ?").get(reviewId));
+		const review = droneReviewSchema.parse(JSON.parse(row.snapshot));
+		const requestRow = z
+			.object({ snapshot: z.string() })
+			.parse(
+				database
+					.query("SELECT snapshot FROM requests WHERE root = ? AND spawn_id = ?")
+					.get(row.root, review.spawnId),
+			);
+		return { request: requestRecordSchema.parse(JSON.parse(requestRow.snapshot)), review };
+	} finally {
+		database.close();
+	}
 }
 
 // --- Private functions ---

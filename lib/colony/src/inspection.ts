@@ -4,12 +4,12 @@ import type { AttemptInventory, Store } from "./store.ts";
 import { join } from "node:path";
 
 /** Inspect retained daemon evidence without registering a repository or reconciling its tracker. */
-export async function inspectRepository(
+export function inspectRepository(
 	repository: RepositoryEndpoint,
 	store: Store,
-): Promise<Omit<ColonyInspection, "colony">> {
+): Omit<ColonyInspection, "colony"> {
 	store.assertRepository(repository);
-	const inventory = await store.inventory(repository.root);
+	const inventory = store.retainedInventory(repository.root);
 	return {
 		attempts: inventory.map((attempt) => attemptDetails(attempt)),
 		history: store.policyHistory(repository.root),

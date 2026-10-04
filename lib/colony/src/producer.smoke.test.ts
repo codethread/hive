@@ -97,7 +97,13 @@ test(
 				status: "open",
 			});
 			expect(request.assignee).toMatch(/^[a-z]+-[a-z]+-[a-z]+$/u);
-			expect(request.labels.toSorted()).toEqual(["agent:worker", "bee", "system"]);
+			expect(request.labels.toSorted()).toEqual([
+				"agent:worker",
+				"bee",
+				"bee-outcome:pending",
+				"bee-resolution:unresolved",
+				"system",
+			]);
 			expect(request.dependencies.map((dep: { id: string }) => dep.id).toSorted()).toEqual(
 				[first.id, second.id].toSorted(),
 			);
@@ -202,11 +208,8 @@ test(
 			expect(JSON.parse(String(queued.request.description)).cwd).toBeNull();
 			await br(["close", reserved.id, "--reason", "human completed"]);
 			const next = await br(["create", "--title", "Remaining task", "--owner", "ct"]);
-			const mixed = await spawnRequest("worker", [reserved.id, next.id], {
-				...options,
-				identity: "given-friendly-otter",
-			});
-			expect(mixed.request.assignee).toBe("given-friendly-otter");
+			const mixed = await spawnRequest("worker", [reserved.id, next.id], options);
+			expect(mixed.request.assignee).toMatch(/^[a-z]+-[a-z]+-[a-z]+$/u);
 			expect(mixed.request.status).toBe("open");
 		} finally {
 			await rm(repo, { force: true, recursive: true });
@@ -229,7 +232,7 @@ test(
 			run([process.execPath, beePath, ...args, "--repo", repo, "--beads-db", database]);
 		const inspect = async (id: string) => JSON.parse(await bee(["status", id, "--json"])).request;
 		const retry = async (id: string, options: string[] = []) =>
-			JSON.parse(await bee(["retry", id, "--actor", "retry-actor", ...options, "--json"])).request;
+			JSON.parse(await bee(["retry", id, ...options, "--json"])).request;
 		try {
 			await run(["git", "init", "-b", "main"]);
 			await br(["init", "--prefix", "smoke"]);
@@ -244,8 +247,6 @@ test(
 					second.id,
 					"--actor",
 					"seed",
-					"--identity",
-					"old-friendly-otter",
 					"--model",
 					"old-model",
 					"--effort",
@@ -289,6 +290,9 @@ test(
 			);
 			const replacement = await retry(original.id);
 			const current = await inspect(replacement.id);
+			expect(replacement).toMatchObject({ created_by: "smoke-seed" });
+			expect(current.identity).toBe(replacement.assignee);
+			expect(current.identity).toMatch(/^[a-z]+-[a-z]+-[a-z]+$/u);
 			expect(current.recipe).toMatchObject({
 				effort: "low",
 				harness: "codex",
@@ -304,6 +308,8 @@ test(
 			const resolved = await inspect(original.id);
 			expect(resolved).toEqual({
 				...before,
+				disposition: { outcome: "failed", resolution: "resolved" },
+				labelPublication: "current",
 				needsAttention: false,
 				resolution: { kind: "superseded", replacementIds: [replacement.id] },
 			});
@@ -315,6 +321,8 @@ test(
 				replacement.id,
 			]);
 			const switched = await retry(replacement.id, [
+				"--actor",
+				"retry-actor",
 				"--kind",
 				"other",
 				"--model",
@@ -323,8 +331,6 @@ test(
 				"high",
 				"--prompt",
 				"New instructions",
-				"--identity",
-				"new-friendly-lynx",
 				"--cwd",
 				repo,
 			]);
@@ -337,7 +343,9 @@ test(
 				model: "override-model",
 				prompt: `New instructions\n\nRelated tasks: ${second.id}`,
 			});
-			expect(switched.assignee).toBe("new-friendly-lynx");
+			expect(switched.created_by).toBe("retry-actor");
+			expect(switched.assignee).toMatch(/^[a-z]+-[a-z]+-[a-z]+$/u);
+			expect(switchedView.identity).toBe(switched.assignee);
 			await br(["close", switched.id, "--reason", "exhausted"]);
 			await br(["close", second.id]);
 			await expect(retry(switched.id)).rejects.toBeInstanceOf(Error);

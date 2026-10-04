@@ -60,8 +60,8 @@ test(
 			return result;
 		};
 		const operation = (kind: string) => client([kind, "--repo", repo, "--beads-db", database]);
-		const request = async (identity: string) => {
-			const task = await tracker(["create", "--title", identity, "--owner", "ct"]);
+		const request = async (title: string) => {
+			const task = await tracker(["create", "--title", title, "--owner", "ct"]);
 			const created = JSON.parse(
 				await run([
 					process.execPath,
@@ -75,12 +75,15 @@ test(
 					database,
 					"--actor",
 					"smoke-seed",
-					"--identity",
-					identity,
 					"--json",
 				]),
 			);
-			return { description: created.request.description, spawn: created.request.id, task: task.id };
+			return {
+				description: created.request.description,
+				identity: created.request.assignee,
+				spawn: created.request.id,
+				task: task.id,
+			};
 		};
 		const update = async (change: unknown, actor: string[] = []) => {
 			const file = join(root, `${crypto.randomUUID()}.json`);
@@ -121,6 +124,8 @@ test(
 			const initialPolicy = await config(["show"]);
 			expect(initialPolicy.active).toMatchObject({
 				formulas: ["scripted"],
+				// eslint-disable-next-line unicorn/no-null -- Missing canonical drone kind disables review.
+				inactivityDrone: null,
 				limits: { colony: 0 },
 				ranking: "fifo",
 			});
@@ -163,7 +168,7 @@ test(
 			expect(await config(["show"])).toEqual(beforeInvalid);
 			expect(await config(["history"])).toEqual(historyBeforeInvalid);
 			const applied = await update(limits);
-			const first = await completed("amber-quiet-otter", captured.spawn);
+			const first = await completed(captured.identity, captured.spawn);
 			expect(first).toMatchObject({ model: "captured-model", version: SECRET_MARKER });
 			const unchanged = await tracker(["show", captured.spawn]);
 			expect(unchanged[FIRST].description).toBe(captured.description);
@@ -184,7 +189,7 @@ test(
 			);
 			const second = await request("blue-calm-lynx");
 			await update(limits);
-			expect(await completed("blue-calm-lynx", second.spawn)).toMatchObject({
+			expect(await completed(second.identity, second.spawn)).toMatchObject({
 				model: "captured-model",
 				version: "canonical",
 			});
@@ -198,7 +203,7 @@ test(
 			expect(rewoken.active).toMatchObject({ limits: { colony: 0 } });
 			expect(rewoken.active?.revisionId).not.toBe(reset.active?.revisionId);
 			await update(limits);
-			expect(await completed("green-kind-bear", third.spawn)).toMatchObject({
+			expect(await completed(third.identity, third.spawn)).toMatchObject({
 				model: "captured-model",
 				version: "canonical",
 			});

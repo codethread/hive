@@ -65,8 +65,8 @@ test(
 					repo,
 				),
 			);
-		const request = async (repo: string, identity: string) => {
-			const task = await tracker(repo, ["create", "--title", identity, "--owner", "ct"]);
+		const request = async (repo: string, title: string) => {
+			const task = await tracker(repo, ["create", "--title", title, "--owner", "ct"]);
 			const result = JSON.parse(
 				await run([
 					process.execPath,
@@ -80,14 +80,12 @@ test(
 					join(repo, ".beads", "beads.db"),
 					"--actor",
 					"smoke-seed",
-					"--identity",
-					identity,
 					"--harness",
 					"fixture",
 					"--json",
 				]),
 			);
-			return { spawn: result.request.id, task: task.id };
+			return { identity: result.request.assignee, spawn: result.request.id, task: task.id };
 		};
 		const colony = async (repo: string) => {
 			const current = await registry();
@@ -95,8 +93,9 @@ test(
 		};
 		const started = (repo: string, identity: string) =>
 			Bun.file(join(repo, `${identity}.json`)).exists();
-		const pass = async (identity: string) => {
-			const work = await request(witness, identity);
+		const pass = async (title: string) => {
+			const work = await request(witness, title);
+			const { identity } = work;
 			await until(`awake witness ${identity}`, () => started(witness, identity));
 			const { pid } = await Bun.file(join(witness, `${identity}.json`)).json();
 			await tracker(witness, ["close", work.task]);
@@ -142,11 +141,11 @@ test(
 				state: "asleep",
 			});
 			await operation("wake", witness);
-			await request(target, "amber-quiet-otter");
+			const original = await request(target, "Original worker");
 			await pass("blue-calm-lynx");
-			expect(await started(target, "amber-quiet-otter")).toBe(false);
+			expect(await started(target, original.identity)).toBe(false);
 			await operation("wake", target);
-			await until("target worker", () => started(target, "amber-quiet-otter"));
+			await until("target worker", () => started(target, original.identity));
 			await operation("add", target);
 			expect(await colony(target)).toMatchObject({
 				intent: "awake",
@@ -155,13 +154,13 @@ test(
 			});
 			await expect(operation("wake", target, ["--temp"])).rejects.toBeInstanceOf(Error);
 			await operation("sleep", target);
-			const worker = await Bun.file(join(target, "amber-quiet-otter.json")).json();
+			const worker = await Bun.file(join(target, `${original.identity}.json`)).json();
 			expect(alive(worker.pid)).toBe(true);
-			await request(target, "green-kind-bear");
+			const pending = await request(target, "Pending worker");
 			const closed = await request(target, "red-brave-hare");
 			await tracker(target, ["close", closed.task]);
 			await pass("gold-bright-wren");
-			expect(await started(target, "green-kind-bear")).toBe(false);
+			expect(await started(target, pending.identity)).toBe(false);
 			const sleepingRequest = await tracker(target, ["show", closed.spawn]);
 			expect(sleepingRequest[FIRST].status).toBe("open");
 			const sleeping = await colony(target);
@@ -170,8 +169,8 @@ test(
 			const config = await Bun.file(join(target, "bees.toml")).text();
 			await Bun.write(join(target, "bees.toml"), config.replace('"original"', '"refreshed"'));
 			await operation("wake", target);
-			await until("fresh formula used", () => started(target, "green-kind-bear"));
-			const refreshed = await Bun.file(join(target, "green-kind-bear.json")).json();
+			await until("fresh formula used", () => started(target, pending.identity));
+			const refreshed = await Bun.file(join(target, `${pending.identity}.json`)).json();
 			expect(refreshed.version).toBe("refreshed");
 			const active = await colony(target);
 			const beforeRemoval = active!.attempts;

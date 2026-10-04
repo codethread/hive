@@ -1,4 +1,5 @@
 import type { BeesConfig, Recipe, RepositoryEndpoint } from "@hive/shared";
+import { RequestPublicationError, publishRequestLabels } from "./requests.ts";
 import type { RetryOptions, SpawnOptions } from "./bee-cli.ts";
 import {
 	SPAWN_REQUEST_LABELS,
@@ -22,7 +23,6 @@ import type { InitOptions } from "./cli.ts";
 import { z } from "zod";
 
 const NAME_WORDS = 3;
-const NONEMPTY = 1;
 const NONE = 0;
 
 export interface InitializedResult {
@@ -59,11 +59,13 @@ export async function spawnRequest(
 }
 
 /** Replace a terminal failure using current defaults and unfinished work only. */
+// eslint-disable-next-line max-statements -- Keep admission, replacement creation and predecessor publication ordered at the command boundary.
 export async function retryRequest(id: string, options: RetryOptions): Promise<SpawnResult> {
 	const endpoint = await resolveRepository(options.repo, options.beadsDb);
 	const bead = await showBead(endpoint, options.actor, id);
 	const old = readSpawnRequest(bead);
 	if (!requestNeedsAttention(bead)) {
+		await publishRequestLabels(endpoint, options.actor, old.id);
 		throw new Error(`Request ${old.id} is not an unresolved unsuccessful request`);
 	}
 	const tasks = await Promise.all(
@@ -73,11 +75,20 @@ export async function retryRequest(id: string, options: RetryOptions): Promise<S
 	if (ids.length === NONE) {
 		throw new Error(`Request ${old.id} has no unfinished tasks`);
 	}
-	return createRequest(
+	const replacement = await createRequest(
 		endpoint,
 		{ kind: options.kind ?? old.recipe.kind, requestedIds: ids, supersedes: old.id },
 		options,
 	);
+	try {
+		await publishRequestLabels(endpoint, options.actor, old.id);
+	} catch (error) {
+		throw new RequestPublicationError(
+			{ replacementIds: [replacement.request.id], requestId: old.id },
+			error,
+		);
+	}
+	return replacement;
 }
 
 // --- Private functions ---
@@ -91,14 +102,11 @@ async function createRequest(
 	const config = parseBeesConfig(await Bun.file(join(endpoint.root, "bees.toml")).text());
 	const ids = await admitTasks(endpoint, { actor: options.actor, ids: requestedIds }, config);
 	const recipe = await captureRecipe({ ids, kind, options }, config);
-	const identity =
-		options.identity ??
-		uniqueNamesGenerator({
-			dictionaries: [colors, adjectives, animals],
-			length: NAME_WORDS,
-			separator: "-",
-		});
-	z.string().min(NONEMPTY).parse(identity);
+	const identity = uniqueNamesGenerator({
+		dictionaries: [colors, adjectives, animals],
+		length: NAME_WORDS,
+		separator: "-",
+	});
 	const dependencies = ids.map((id) => `related:${id}`);
 	if (supersedes !== undefined) {
 		dependencies.push(`supersedes:${supersedes}`);

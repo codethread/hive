@@ -54,6 +54,9 @@ export const policyChangeSchema = z.discriminatedUnion("kind", [
 export const beesConfigSchema = z.strictObject({
 	formulas: z.record(z.string(), formulaSchema),
 	humans: z.array(z.string().min(NONEMPTY)),
+	/** Named kind used for one-shot reviews after fifteen minutes without stdout; null disables reviews. */
+	// eslint-disable-next-line unicorn/no-null -- No configured drone means inactivity review is disabled.
+	inactivity_drone: z.string().min(NONEMPTY).nullable().default(null),
 	kinds: z.record(z.string(), kindSchema),
 	limits: limitsSchema.prefault({}),
 	max_retries: z.number().int().min(MINIMUM_CAPACITY).default(DEFAULT_RETRIES),

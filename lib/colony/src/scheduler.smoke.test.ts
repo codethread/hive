@@ -64,7 +64,7 @@ test(
 			return created.id as string;
 		};
 		const workerAtA = { cwd: repo, kind: "worker" };
-		const request = async (identity: string, tasks: string[], options = workerAtA) => {
+		const request = async (tasks: string[], options = workerAtA) => {
 			const created = JSON.parse(
 				await run([
 					process.execPath,
@@ -78,14 +78,12 @@ test(
 					env.BEADS_DB,
 					"--actor",
 					"smoke-seed",
-					"--identity",
-					identity,
 					"--cwd",
 					options.cwd,
 					"--json",
 				]),
 			);
-			return created.request.id as string;
+			return { identity: created.request.assignee as string, spawn: created.request.id as string };
 		};
 		const started = (name: string) => Bun.file(join(root, `${name}.json`)).exists();
 		const waitStarted = (name: string) => until(`worker ${name}`, () => started(name));
@@ -104,12 +102,12 @@ test(
 		const pass = async (name: string) => {
 			const closed = await task(name);
 			await tracker(["close", closed]);
-			const spawn = await request(name, [closed]);
+			const requested = await request([closed]);
 			await until(`scheduler reconciled ${name}`, async () => {
-				const rows = await tracker(["show", spawn]);
+				const rows = await tracker(["show", requested.spawn]);
 				return rows[FIRST].status === "closed";
 			});
-			expect(await started(name)).toBe(false);
+			expect(await started(requested.identity)).toBe(false);
 		};
 		// eslint-disable-next-line unicorn/no-useless-undefined -- Lazy startup may fail before reporting its PID.
 		let daemonPid: number | undefined = undefined;
@@ -144,56 +142,59 @@ test(
 			await tracker(["init", "--prefix", "smoke"]);
 			await writeWorker(root);
 			await writeConfig(repo, root, { colony: 1, kind: 4, worktree: 4 });
-			await request("holding", [await task("holder")]);
+			const holding = await request([await task("holder")]);
 			await wake();
 			({ pid: daemonPid } = await status());
-			await waitStarted("holding");
+			await waitStarted(holding.identity);
 			const blocker = await task("dependency");
 			const blocked = await task("blocked", "0");
 			await tracker(["dep", "add", blocked, blocker]);
 			const ready = await task("ready", "0");
 			const satisfied = await task("already satisfied", "0");
 			await tracker(["close", satisfied]);
-			await request("multi", [blocked, ready, satisfied]);
-			await request("low", [await task("P1", "1")]);
-			await request("high", [await task("P0", "0")]);
+			const multi = await request([blocked, ready, satisfied]);
+			const low = await request([await task("P1", "1")]);
+			const high = await request([await task("P0", "0")]);
 			await pass("closed-before-launch");
-			await release("holding");
-			await waitStarted("high");
-			expect(await started("low")).toBe(false);
-			expect(await started("multi")).toBe(false);
-			await release("high");
-			await waitStarted("low");
-			expect(await started("multi")).toBe(false);
-			await release("low");
+			await release(holding.identity);
+			await waitStarted(high.identity);
+			expect(await started(low.identity)).toBe(false);
+			expect(await started(multi.identity)).toBe(false);
+			await release(high.identity);
+			await waitStarted(low.identity);
+			expect(await started(multi.identity)).toBe(false);
+			await release(low.identity);
 			await pass("blocked-poll");
-			expect(await started("multi")).toBe(false);
+			expect(await started(multi.identity)).toBe(false);
 			await tracker(["close", blocker]);
-			await waitStarted("multi");
-			await release("multi");
+			await waitStarted(multi.identity);
+			await release(multi.identity);
 			await client(["sleep", "--repo", repo, "--beads-db", env.BEADS_DB]);
 			await writeConfig(repo, root, { colony: 3, kind: 2, worktree: 2 });
-			await request("worker-a-one", [await task("worker a one")]);
-			await request("worker-a-two", [await task("worker a two")]);
+			const workerAOne = await request([await task("worker a one")]);
+			const workerATwo = await request([await task("worker a two")]);
 			await wake();
-			await Promise.all([waitStarted("worker-a-one"), waitStarted("worker-a-two")]);
-			await request("worker-b", [await task("worker b")], { cwd: bucketB, kind: "worker" });
-			await request("reviewer-a", [await task("reviewer a")], {
+			await Promise.all([waitStarted(workerAOne.identity), waitStarted(workerATwo.identity)]);
+			const workerB = await request([await task("worker b")], { cwd: bucketB, kind: "worker" });
+			const reviewerA = await request([await task("reviewer a")], {
 				cwd: reviewerDirectory,
 				kind: "reviewer",
 			});
-			await request("reviewer-b", [await task("reviewer b")], { cwd: bucketB, kind: "reviewer" });
-			await waitStarted("reviewer-b");
+			const reviewerB = await request([await task("reviewer b")], {
+				cwd: bucketB,
+				kind: "reviewer",
+			});
+			await waitStarted(reviewerB.identity);
 			await pass("three-scopes-full");
-			expect(await started("worker-b")).toBe(false);
-			expect(await started("reviewer-a")).toBe(false);
+			expect(await started(workerB.identity)).toBe(false);
+			expect(await started(reviewerA.identity)).toBe(false);
 			const capacities = await status();
 			expect(capacities.colonies[FIRST]?.policy).toMatchObject({
 				limits: { colony: 3, kind: 2, worktree: 2 },
 				ranking: "fifo",
 			});
 			const running = await Promise.all(
-				["worker-a-one", "worker-a-two", "reviewer-b"].map((name) =>
+				[workerAOne.identity, workerATwo.identity, reviewerB.identity].map((name) =>
 					Bun.file(join(root, `${name}.json`)).json(),
 				),
 			);
@@ -210,7 +211,9 @@ test(
 			expect(
 				receipts
 					.filter((receipt) =>
-						["worker-a-one", "worker-a-two", "reviewer-b"].includes(receipt.identity),
+						[workerAOne.identity, workerATwo.identity, reviewerB.identity].includes(
+							receipt.identity,
+						),
 					)
 					.map((receipt) => receipt.bucket),
 			).toEqual([bucketA, bucketA, bucketB]);
@@ -218,21 +221,21 @@ test(
 			await wake();
 			await pass("lowered-cap");
 			expect(running.every((worker) => alive(worker.pid))).toBe(true);
-			expect(await started("worker-b")).toBe(false);
-			expect(await started("reviewer-a")).toBe(false);
-			await release("worker-a-one");
+			expect(await started(workerB.identity)).toBe(false);
+			expect(await started(reviewerA.identity)).toBe(false);
+			await release(workerAOne.identity);
 			await pass("occupancy-two");
-			expect(await started("worker-b")).toBe(false);
-			expect(await started("reviewer-a")).toBe(false);
-			await release("worker-a-two");
+			expect(await started(workerB.identity)).toBe(false);
+			expect(await started(reviewerA.identity)).toBe(false);
+			await release(workerATwo.identity);
 			await pass("occupancy-one");
-			expect(await started("worker-b")).toBe(false);
-			expect(await started("reviewer-a")).toBe(false);
-			await release("reviewer-b");
-			await waitStarted("worker-b");
-			expect(await started("reviewer-a")).toBe(false);
-			await release("worker-b");
-			await waitStarted("reviewer-a");
+			expect(await started(workerB.identity)).toBe(false);
+			expect(await started(reviewerA.identity)).toBe(false);
+			await release(reviewerB.identity);
+			await waitStarted(workerB.identity);
+			expect(await started(reviewerA.identity)).toBe(false);
+			await release(workerB.identity);
+			await waitStarted(reviewerA.identity);
 			passed = true;
 		} catch (error) {
 			throw new Error(`Scheduler smoke artifacts retained at ${root}`, { cause: error });
