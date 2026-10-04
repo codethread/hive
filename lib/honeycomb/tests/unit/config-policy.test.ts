@@ -6,12 +6,13 @@ import {
 } from "../../src/domain/config.ts";
 import { parseConfig as parseTomlConfig } from "../../src/config.ts";
 
-const parseConfig = (toml: string) =>
-	parseTomlConfig(toml, {
+function parseConfig(toml: string) {
+	return parseTomlConfig(toml, {
 		cwd: "/work",
 		home: "/home/test",
 		normalizePath: (path) => path,
 	});
+}
 
 test("resolves built-in policy defaults", () => {
 	const policy = explainPolicy(parseConfig(""), "/tmp/repo");

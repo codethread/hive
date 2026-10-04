@@ -19,7 +19,7 @@ import { runCli, useTmpHome } from "./lifecycle-helpers.ts";
 const tmp = useTmpHome("honeycomb-add-test-");
 const { initRepoWithOrigin } = useOriginFixture();
 
-const prepareExistingBranch = async (branch: string, source: string) => {
+async function prepareExistingBranch(branch: string, source: string) {
 	const { root, remote } = await initRepoWithOrigin(tmp.dir);
 	if (source !== "local") {
 		await createRemoteBranch(remote, branch);
@@ -32,7 +32,7 @@ const prepareExistingBranch = async (branch: string, source: string) => {
 		await run(["git", "-C", root, "branch", branch, `origin/${branch}`]);
 	}
 	return root;
-};
+}
 
 test("adds a new branch, runs setup, and writes ready JSON to stdout", async () => {
 	const { root } = await initRepoWithOrigin(tmp.dir);

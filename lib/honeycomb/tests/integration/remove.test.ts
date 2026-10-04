@@ -10,14 +10,14 @@ import { mkdir } from "node:fs/promises";
 const tmp = useTmpHome("honeycomb-remove-test-");
 const { initRepoWithOrigin } = useOriginFixture();
 
-const setupUnmergedWorktree = async (home: string, branch: string) => {
+async function setupUnmergedWorktree(home: string, branch: string) {
 	const { root } = await initRepoWithOrigin(home);
 	writeConfig({ command: "echo ready", root, tmp: home });
 	await dispatch("add", ["--cwd", root, "--branch", branch, "--json"], deps);
 	const path = `${root}__${branch.replaceAll("/", "--")}`;
 	await commitFile({ content: "work\n", message: "unmerged", path: "unmerged.txt", repo: path });
 	return { path, root };
-};
+}
 
 test("removes a non-pool worktree and branch", async () => {
 	const { root } = await initRepoWithOrigin(tmp.dir);

@@ -24,7 +24,7 @@ interface IntegrateOptions {
 }
 
 /** Validated integration inputs: squash needs a caller title, other strategies none. */
-type IntegrationPlan =
+export type IntegrationPlan =
 	| {
 			/** Configured non-squash strategy; carries no message inputs. */
 			strategy: Exclude<FinishStrategy, "squash">;
@@ -41,19 +41,19 @@ type IntegrationPlan =
 /** Narrowed squash inputs accepted by the squash integrator. */
 type SquashIntegration = Extract<IntegrationPlan, { strategy: "squash" }>;
 
-const assertCleanSource = async (git: GitRunner, source: Worktree): Promise<void> => {
+export async function assertCleanSource(git: GitRunner, source: Worktree): Promise<void> {
 	const status = await git.run(["-C", source.path, "status", "--porcelain=v1"]);
 	if (status.stdout.trim() !== "") {
 		throw new DirtyWorktreeError("source worktree has uncommitted changes");
 	}
-};
+}
 
-const assertSourceCanFastForwardTarget = async (options: {
+export async function assertSourceCanFastForwardTarget(options: {
 	canonicalPath: string;
 	git: GitRunner;
 	sourceBranch: string;
 	targetRef: string;
-}): Promise<void> => {
+}): Promise<void> {
 	const canFastForward = await options.git.runRaw([
 		"-C",
 		options.canonicalPath,
@@ -65,16 +65,80 @@ const assertSourceCanFastForwardTarget = async (options: {
 	if (canFastForward.exitCode !== EXIT_CODES.SUCCESS) {
 		throw new FinishConflictError("source branch cannot fast-forward target branch");
 	}
-};
+}
 
-const integrateFastForward = async (options: IntegrateOptions): Promise<void> => {
+export async function integrateSource(
+	options: IntegrateOptions,
+	integration: IntegrationPlan,
+): Promise<void> {
+	switch (integration.strategy) {
+		case "ff_only": {
+			await integrateFastForward(options);
+			return;
+		}
+		case "squash": {
+			await integrateSquash(options, integration);
+			return;
+		}
+		case "merge_commit": {
+			await integrateMergeCommit(options);
+			return;
+		}
+		case "rebase_ff": {
+			await integrateRebase(options);
+		}
+	}
+}
+
+export async function assertFinishTargetReady(options: {
+	git: GitRunner;
+	policy: AddPolicy;
+	root: string;
+	targetBranch: string;
+}): Promise<string> {
+	const { git, policy, root, targetBranch } = options;
+	if (policy === "fresh_canonical") {
+		return assertCanonicalFresh(git, root, targetBranch);
+	}
+	const status = await git.run(["-C", root, "status", "--porcelain=v1"]);
+	if (status.stdout.trim() !== "") {
+		throw new TargetNotFreshError("target worktree has uncommitted changes");
+	}
+	const branch = await git.run(["-C", root, "branch", "--show-current"]);
+	assertWorktreeOnTargetBranch(branch.stdout.trim(), targetBranch);
+	await assertTargetContainsOrigin(git, root, targetBranch);
+	return `refs/heads/${targetBranch}`;
+}
+
+/** Validated integration inputs: squash requires a caller title, other strategies none. */
+export function parseIntegrationPlan(
+	strategy: FinishStrategy,
+	title: string | boolean | undefined,
+	body: string | boolean | undefined,
+): IntegrationPlan {
+	const normalizedTitle = normalizedText(title);
+	const normalizedBody = normalizedText(body);
+	if (strategy !== "squash") {
+		if (normalizedTitle !== undefined || normalizedBody !== undefined) {
+			throw new UsageError("--title and --body require finish strategy squash");
+		}
+		return { strategy };
+	}
+	if (normalizedTitle === undefined) {
+		throw new UsageError("missing required --title");
+	}
+	return { body: normalizedBody, strategy, title: normalizedTitle };
+}
+// --- Private functions ---
+
+async function integrateFastForward(options: IntegrateOptions): Promise<void> {
 	await options.git.run(["-C", options.canonicalPath, "merge", "--ff-only", options.sourceBranch]);
-};
+}
 
-const integrateSquash = async (
+async function integrateSquash(
 	options: IntegrateOptions,
 	integration: SquashIntegration,
-): Promise<void> => {
+): Promise<void> {
 	const message = composeSquashCommitMessage({
 		body: integration.body,
 		messages: await readSourceCommitMessages(options),
@@ -95,9 +159,9 @@ const integrateSquash = async (
 	if (commit.exitCode !== EXIT_CODES.SUCCESS) {
 		throw new FinishConflictError("squash commit failed");
 	}
-};
+}
 
-const integrateMergeCommit = async (options: IntegrateOptions): Promise<void> => {
+async function integrateMergeCommit(options: IntegrateOptions): Promise<void> {
 	const merge = await options.git.runRaw([
 		"-C",
 		options.canonicalPath,
@@ -110,61 +174,38 @@ const integrateMergeCommit = async (options: IntegrateOptions): Promise<void> =>
 	if (merge.exitCode !== EXIT_CODES.SUCCESS) {
 		throw new FinishConflictError("merge stopped with conflicts");
 	}
-};
+}
 
-const integrateRebase = async (options: IntegrateOptions): Promise<void> => {
+async function integrateRebase(options: IntegrateOptions): Promise<void> {
 	const rebase = await options.git.runRaw(["-C", options.sourcePath, "rebase", options.targetRef]);
 	if (rebase.exitCode !== EXIT_CODES.SUCCESS) {
 		throw new FinishConflictError("rebase stopped with conflicts");
 	}
 	await options.git.run(["-C", options.canonicalPath, "merge", "--ff-only", options.sourceBranch]);
-};
+}
 
-const integrateSource = async (
-	options: IntegrateOptions,
-	integration: IntegrationPlan,
-): Promise<void> => {
-	switch (integration.strategy) {
-		case "ff_only": {
-			await integrateFastForward(options);
-			return;
-		}
-		case "squash": {
-			await integrateSquash(options, integration);
-			return;
-		}
-		case "merge_commit": {
-			await integrateMergeCommit(options);
-			return;
-		}
-		case "rebase_ff": {
-			await integrateRebase(options);
-		}
-	}
-};
-
-const assertCanonicalFresh = async (
+async function assertCanonicalFresh(
 	git: GitRunner,
 	root: string,
 	targetBranch: string,
-): Promise<string> => {
+): Promise<string> {
 	await assertCanonicalCanFastForward(git, root, targetBranch);
 	return `origin/${targetBranch}`;
-};
+}
 
-const assertWorktreeOnTargetBranch = (current: string, targetBranch: string): void => {
+function assertWorktreeOnTargetBranch(current: string, targetBranch: string): void {
 	if (current !== targetBranch) {
 		throw new TargetNotFreshError(
 			`target branch must be checked out on ${targetBranch}; currently on ${current || "detached HEAD"}`,
 		);
 	}
-};
+}
 
-const assertTargetContainsOrigin = async (
+async function assertTargetContainsOrigin(
 	git: GitRunner,
 	root: string,
 	targetBranch: string,
-): Promise<void> => {
+): Promise<void> {
 	const targetIsCurrent = await git.runRaw([
 		"-C",
 		root,
@@ -176,49 +217,9 @@ const assertTargetContainsOrigin = async (
 	if (targetIsCurrent.exitCode !== EXIT_CODES.SUCCESS) {
 		throw new TargetNotFreshError(`target branch is behind origin/${targetBranch}`);
 	}
-};
+}
 
-const assertFinishTargetReady = async (options: {
-	git: GitRunner;
-	policy: AddPolicy;
-	root: string;
-	targetBranch: string;
-}): Promise<string> => {
-	const { git, policy, root, targetBranch } = options;
-	if (policy === "fresh_canonical") {
-		return assertCanonicalFresh(git, root, targetBranch);
-	}
-	const status = await git.run(["-C", root, "status", "--porcelain=v1"]);
-	if (status.stdout.trim() !== "") {
-		throw new TargetNotFreshError("target worktree has uncommitted changes");
-	}
-	const branch = await git.run(["-C", root, "branch", "--show-current"]);
-	assertWorktreeOnTargetBranch(branch.stdout.trim(), targetBranch);
-	await assertTargetContainsOrigin(git, root, targetBranch);
-	return `refs/heads/${targetBranch}`;
-};
-
-/** Validated integration inputs: squash requires a caller title, other strategies none. */
-const parseIntegrationPlan = (
-	strategy: FinishStrategy,
-	title: string | boolean | undefined,
-	body: string | boolean | undefined,
-): IntegrationPlan => {
-	const normalizedTitle = normalizedText(title);
-	const normalizedBody = normalizedText(body);
-	if (strategy !== "squash") {
-		if (normalizedTitle !== undefined || normalizedBody !== undefined) {
-			throw new UsageError("--title and --body require finish strategy squash");
-		}
-		return { strategy };
-	}
-	if (normalizedTitle === undefined) {
-		throw new UsageError("missing required --title");
-	}
-	return { body: normalizedBody, strategy, title: normalizedTitle };
-};
-
-const normalizedText = (value: string | boolean | undefined): string | undefined => {
+function normalizedText(value: string | boolean | undefined): string | undefined {
 	if (typeof value !== "string") {
 		return undefined;
 	}
@@ -227,18 +228,19 @@ const normalizedText = (value: string | boolean | undefined): string | undefined
 		return undefined;
 	}
 	return trimmed;
-};
+}
 
-const mergeCommitMessage = (sourceBranch: string): string =>
-	`chore: merge worktree\n\nSource branch:\n${sourceBranch.match(/.{1,40}/gu)?.join("\n") ?? sourceBranch}`;
+function mergeCommitMessage(sourceBranch: string): string {
+	return `chore: merge worktree\n\nSource branch:\n${sourceBranch.match(/.{1,40}/gu)?.join("\n") ?? sourceBranch}`;
+}
 
 /** Squash message sections: caller text, branch provenance, then the squashed history. */
-const composeSquashCommitMessage = (options: {
+function composeSquashCommitMessage(options: {
 	title: string;
 	body: string | undefined;
 	sourceBranch: string;
 	messages: readonly string[];
-}): string => {
+}): string {
 	const { title, body, sourceBranch, messages } = options;
 	const sections = [title];
 	if (body) {
@@ -246,15 +248,15 @@ const composeSquashCommitMessage = (options: {
 	}
 	sections.push(`Source branch: ${sourceBranch}`, ...messages);
 	return sections.join("\n\n");
-};
+}
 
 /** Source commit messages in the range being squashed, oldest first. */
-const readSourceCommitMessages = async (options: {
+async function readSourceCommitMessages(options: {
 	git: GitRunner;
 	canonicalPath: string;
 	targetRef: string;
 	sourceBranch: string;
-}): Promise<string[]> => {
+}): Promise<string[]> {
 	const log = await options.git.run([
 		"-C",
 		options.canonicalPath,
@@ -267,13 +269,4 @@ const readSourceCommitMessages = async (options: {
 		.split("\0")
 		.map((message) => message.trim())
 		.filter((message) => message !== "");
-};
-
-export {
-	assertCleanSource,
-	assertFinishTargetReady,
-	assertSourceCanFastForwardTarget,
-	integrateSource,
-	parseIntegrationPlan,
-	type IntegrationPlan,
-};
+}

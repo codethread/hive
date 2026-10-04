@@ -1,5 +1,8 @@
 import { compareText, parseJsonl } from "./beads-jsonl.ts";
 
+const EMPTY_COUNT = 0;
+const ORDER_EQUAL = 0;
+
 type ParsedJsonl = ReturnType<typeof parseJsonl>;
 type InvalidResult = Extract<ParsedJsonl, { kind: "invalid" }>;
 type ParsedRecords = Extract<ParsedJsonl, { kind: "parsed" }>["records"];
@@ -47,7 +50,7 @@ type RecordMerge =
 			readonly kind: "conflicted";
 	  };
 
-type MergeResult =
+export type MergeResult =
 	| {
 			/** Deterministic JSONL content for Git's current-side file. */
 			readonly contents: string;
@@ -64,120 +67,11 @@ type MergeResult =
 	  }
 	| InvalidResult;
 
-const EMPTY_COUNT = 0;
-const ORDER_EQUAL = 0;
-
-const parseInputs = (
+export function mergeIssueJsonl(
 	ancestorContents: string,
 	currentContents: string,
 	otherContents: string,
-): MergeInputs => {
-	const ancestor = parseJsonl(ancestorContents, "ancestor");
-	if (ancestor.kind === "invalid") {
-		return ancestor;
-	}
-	const current = parseJsonl(currentContents, "current");
-	if (current.kind === "invalid") {
-		return current;
-	}
-	const other = parseJsonl(otherContents, "other");
-	if (other.kind === "invalid") {
-		return other;
-	}
-	return {
-		ancestor: ancestor.records,
-		current: current.records,
-		kind: "parsed",
-		other: other.records,
-	};
-};
-
-const recordsEqual = (left: IssueRecord | undefined, right: IssueRecord | undefined): boolean =>
-	left?.canonical === right?.canonical;
-
-const equivalentRecord = (
-	left: IssueRecord | undefined,
-	right: IssueRecord | undefined,
-): IssueRecord | undefined => {
-	if (left === undefined) {
-		return right;
-	}
-	if (right === undefined) {
-		return left;
-	}
-	if (compareText(left.raw, right.raw) <= ORDER_EQUAL) {
-		return left;
-	}
-	return right;
-};
-
-const selectedMerge = (record: IssueRecord | undefined): RecordMerge => {
-	if (record === undefined) {
-		return { kind: "deleted" };
-	}
-	return { kind: "record", record };
-};
-
-const mergeRecord = (conflict: ConflictRecords): RecordMerge => {
-	const { ancestor, current, other } = conflict;
-	if (recordsEqual(current, other)) {
-		return selectedMerge(equivalentRecord(current, other));
-	}
-	if (recordsEqual(current, ancestor)) {
-		return selectedMerge(other);
-	}
-	if (recordsEqual(other, ancestor)) {
-		return selectedMerge(current);
-	}
-	return { conflict, kind: "conflicted" };
-};
-
-const renderSide = (record: IssueRecord | undefined): readonly string[] => {
-	if (record === undefined) {
-		return [];
-	}
-	return [record.raw];
-};
-
-const renderConflict = ({ ancestor, current, id, other }: ConflictRecords): string =>
-	[
-		`<<<<<<< current (${id})`,
-		...renderSide(current),
-		`||||||| ancestor (${id})`,
-		...renderSide(ancestor),
-		"=======",
-		...renderSide(other),
-		`>>>>>>> other (${id})`,
-	].join("\n");
-
-const renderChunks = (chunks: readonly string[]): string => {
-	if (chunks.length === EMPTY_COUNT) {
-		return "";
-	}
-	return `${chunks.join("\n")}\n`;
-};
-
-const mergeIds = (inputs: Exclude<MergeInputs, InvalidResult>): readonly RecordMerge[] => {
-	const ids = new Set([
-		...inputs.ancestor.keys(),
-		...inputs.current.keys(),
-		...inputs.other.keys(),
-	]);
-	return [...ids].toSorted(compareText).map((id) =>
-		mergeRecord({
-			ancestor: inputs.ancestor.get(id),
-			current: inputs.current.get(id),
-			id,
-			other: inputs.other.get(id),
-		}),
-	);
-};
-
-const mergeIssueJsonl = (
-	ancestorContents: string,
-	currentContents: string,
-	otherContents: string,
-): MergeResult => {
+): MergeResult {
 	const inputs = parseInputs(ancestorContents, currentContents, otherContents);
 	if (inputs.kind === "invalid") {
 		return inputs;
@@ -202,6 +96,113 @@ const mergeIssueJsonl = (
 		issueIds: conflicts.map(({ conflict }) => conflict.id),
 		kind: "conflicted",
 	};
-};
+}
+// --- Private functions ---
 
-export { mergeIssueJsonl, type MergeResult };
+function parseInputs(
+	ancestorContents: string,
+	currentContents: string,
+	otherContents: string,
+): MergeInputs {
+	const ancestor = parseJsonl(ancestorContents, "ancestor");
+	if (ancestor.kind === "invalid") {
+		return ancestor;
+	}
+	const current = parseJsonl(currentContents, "current");
+	if (current.kind === "invalid") {
+		return current;
+	}
+	const other = parseJsonl(otherContents, "other");
+	if (other.kind === "invalid") {
+		return other;
+	}
+	return {
+		ancestor: ancestor.records,
+		current: current.records,
+		kind: "parsed",
+		other: other.records,
+	};
+}
+
+function recordsEqual(left: IssueRecord | undefined, right: IssueRecord | undefined): boolean {
+	return left?.canonical === right?.canonical;
+}
+
+function equivalentRecord(
+	left: IssueRecord | undefined,
+	right: IssueRecord | undefined,
+): IssueRecord | undefined {
+	if (left === undefined) {
+		return right;
+	}
+	if (right === undefined) {
+		return left;
+	}
+	if (compareText(left.raw, right.raw) <= ORDER_EQUAL) {
+		return left;
+	}
+	return right;
+}
+
+function selectedMerge(record: IssueRecord | undefined): RecordMerge {
+	if (record === undefined) {
+		return { kind: "deleted" };
+	}
+	return { kind: "record", record };
+}
+
+function mergeRecord(conflict: ConflictRecords): RecordMerge {
+	const { ancestor, current, other } = conflict;
+	if (recordsEqual(current, other)) {
+		return selectedMerge(equivalentRecord(current, other));
+	}
+	if (recordsEqual(current, ancestor)) {
+		return selectedMerge(other);
+	}
+	if (recordsEqual(other, ancestor)) {
+		return selectedMerge(current);
+	}
+	return { conflict, kind: "conflicted" };
+}
+
+function renderSide(record: IssueRecord | undefined): readonly string[] {
+	if (record === undefined) {
+		return [];
+	}
+	return [record.raw];
+}
+
+function renderConflict({ ancestor, current, id, other }: ConflictRecords): string {
+	return [
+		`<<<<<<< current (${id})`,
+		...renderSide(current),
+		`||||||| ancestor (${id})`,
+		...renderSide(ancestor),
+		"=======",
+		...renderSide(other),
+		`>>>>>>> other (${id})`,
+	].join("\n");
+}
+
+function renderChunks(chunks: readonly string[]): string {
+	if (chunks.length === EMPTY_COUNT) {
+		return "";
+	}
+	return `${chunks.join("\n")}\n`;
+}
+
+function mergeIds(inputs: Exclude<MergeInputs, InvalidResult>): readonly RecordMerge[] {
+	const ids = new Set([
+		...inputs.ancestor.keys(),
+		...inputs.current.keys(),
+		...inputs.other.keys(),
+	]);
+	return [...ids].toSorted(compareText).map((id) =>
+		mergeRecord({
+			ancestor: inputs.ancestor.get(id),
+			current: inputs.current.get(id),
+			id,
+			other: inputs.other.get(id),
+		}),
+	);
+}

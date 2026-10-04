@@ -41,7 +41,17 @@ export def --env --wrapped wk [...args: string] {
 }
 `;
 
-const shellInitScript = (shell: string): string => {
+/** Emit a picker function for shell configuration without inspecting a repository. */
+export function shellInitCommand(args: string[]): CommandResult {
+	const [shell, ...extra] = args;
+	if (shell === undefined || extra.length !== EMPTY_COUNT) {
+		throw new UsageError("shell-init requires one shell: zsh or nu");
+	}
+	return { exitCode: EXIT_CODES.SUCCESS, stdout: shellInitScript(shell) };
+}
+// --- Private functions ---
+
+function shellInitScript(shell: string): string {
 	switch (shell) {
 		case "zsh": {
 			return ZSH_INIT;
@@ -53,15 +63,4 @@ const shellInitScript = (shell: string): string => {
 			throw new UsageError(`unsupported shell: ${shell}; expected zsh or nu`);
 		}
 	}
-};
-
-/** Emit a picker function for shell configuration without inspecting a repository. */
-const shellInitCommand = (args: string[]): CommandResult => {
-	const [shell, ...extra] = args;
-	if (shell === undefined || extra.length !== EMPTY_COUNT) {
-		throw new UsageError("shell-init requires one shell: zsh or nu");
-	}
-	return { exitCode: EXIT_CODES.SUCCESS, stdout: shellInitScript(shell) };
-};
-
-export { shellInitCommand };
+}

@@ -18,9 +18,14 @@ export interface GitResult {
 
 export interface GitRunner {
 	/** Run Git, throwing when it exits unsuccessfully. */
-	run: (args: string[], opts?: { cwd?: string }) => Promise<GitResult>;
+	run: (args: string[], opts?: GitRunOptions) => Promise<GitResult>;
 	/** Run Git and let the caller interpret its exit status. */
-	runRaw: (args: string[], opts?: { cwd?: string }) => Promise<GitResult>;
+	runRaw: (args: string[], opts?: GitRunOptions) => Promise<GitResult>;
+}
+
+export interface GitRunOptions {
+	/** Working directory for the Git process; defaults to the process root. */
+	cwd?: string;
 }
 
 export interface ConfigService {
@@ -121,5 +126,10 @@ export interface Deps {
 	/** Command diagnostics and hook output. */
 	progress: ProgressReporter;
 	/** Time source for human-readable commit ages. */
-	clock: { now: () => number };
+	clock: ClockService;
+}
+
+export interface ClockService {
+	/** Current Unix time in milliseconds. */
+	now: () => number;
 }

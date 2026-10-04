@@ -1,10 +1,16 @@
+const LINE_NUMBER_OFFSET = 1;
+const ORDER_AFTER = 1;
+const ORDER_BEFORE = -1;
+const ORDER_EQUAL = 0;
+
 type JsonPrimitive = boolean | null | number | string;
 type JsonValue = JsonObject | JsonPrimitive | readonly JsonValue[];
+
 interface JsonObject {
 	readonly [key: string]: JsonValue;
 }
 
-interface IssueRecord {
+export interface IssueRecord {
 	/** Key-order-independent representation used for comparisons. */
 	readonly canonical: string;
 	/** Canonical issue identifier used as the merge key. */
@@ -13,14 +19,14 @@ interface IssueRecord {
 	readonly raw: string;
 }
 
-interface InvalidResult {
+export interface InvalidResult {
 	/** Indicates invalid input that cannot be merged safely. */
 	readonly kind: "invalid";
 	/** Actionable boundary-validation failure. */
 	readonly message: string;
 }
 
-type ParsedJsonl =
+export type ParsedJsonl =
 	| {
 			/** Indicates that every JSONL record passed boundary validation. */
 			readonly kind: "parsed";
@@ -38,12 +44,7 @@ type ParsedLine =
 	  }
 	| InvalidResult;
 
-const LINE_NUMBER_OFFSET = 1;
-const ORDER_AFTER = 1;
-const ORDER_BEFORE = -1;
-const ORDER_EQUAL = 0;
-
-const compareText = (left: string, right: string): number => {
+export function compareText(left: string, right: string): number {
 	if (left < right) {
 		return ORDER_BEFORE;
 	}
@@ -51,9 +52,36 @@ const compareText = (left: string, right: string): number => {
 		return ORDER_AFTER;
 	}
 	return ORDER_EQUAL;
-};
+}
 
-const canonicalize = (value: JsonValue): string => {
+export function errorDetail(error: unknown): string {
+	if (error instanceof Error) {
+		return error.message;
+	}
+	return String(error);
+}
+
+export function parseJsonl(contents: string, source: string): ParsedJsonl {
+	const records = new Map<string, IssueRecord>();
+	for (const [index, line] of jsonlLines(contents).entries()) {
+		const parsed = parseLine(line, source, index + LINE_NUMBER_OFFSET);
+		if (parsed.kind === "invalid") {
+			return parsed;
+		}
+		if (records.has(parsed.record.id)) {
+			return {
+				kind: "invalid",
+				message: `${source}: duplicate issue id ${parsed.record.id}`,
+			};
+		}
+		records.set(parsed.record.id, parsed.record);
+	}
+	return { kind: "parsed", records };
+}
+
+// -----------------------------------------------------------------------------
+
+function canonicalize(value: JsonValue): string {
 	if (Array.isArray(value)) {
 		return `[${value.map((entry) => canonicalize(entry)).join(",")}]`;
 	}
@@ -68,27 +96,21 @@ const canonicalize = (value: JsonValue): string => {
 		throw new Error("JSON primitive could not be serialized");
 	}
 	return serialized;
-};
+}
 
-const isJsonObject = (value: unknown): value is JsonObject =>
-	value !== null && typeof value === "object" && !Array.isArray(value);
+function isJsonObject(value: unknown): value is JsonObject {
+	return value !== null && typeof value === "object" && !Array.isArray(value);
+}
 
-const jsonlLines = (contents: string): readonly string[] => {
+function jsonlLines(contents: string): readonly string[] {
 	if (contents === "") {
 		return [];
 	}
 	const withoutFinalNewline = contents.replace(/\n$/u, "");
 	return withoutFinalNewline.split("\n").map((line) => line.replace(/\r$/u, ""));
-};
+}
 
-const errorDetail = (error: unknown): string => {
-	if (error instanceof Error) {
-		return error.message;
-	}
-	return String(error);
-};
-
-const parseLine = (line: string, source: string, lineNumber: number): ParsedLine => {
+function parseLine(line: string, source: string, lineNumber: number): ParsedLine {
 	if (line === "") {
 		return { kind: "invalid", message: `${source}: line ${lineNumber} is empty` };
 	}
@@ -111,31 +133,4 @@ const parseLine = (line: string, source: string, lineNumber: number): ParsedLine
 		kind: "parsed",
 		record: { canonical: canonicalize(value), id: value.id, raw: line },
 	};
-};
-
-const parseJsonl = (contents: string, source: string): ParsedJsonl => {
-	const records = new Map<string, IssueRecord>();
-	for (const [index, line] of jsonlLines(contents).entries()) {
-		const parsed = parseLine(line, source, index + LINE_NUMBER_OFFSET);
-		if (parsed.kind === "invalid") {
-			return parsed;
-		}
-		if (records.has(parsed.record.id)) {
-			return {
-				kind: "invalid",
-				message: `${source}: duplicate issue id ${parsed.record.id}`,
-			};
-		}
-		records.set(parsed.record.id, parsed.record);
-	}
-	return { kind: "parsed", records };
-};
-
-export {
-	compareText,
-	errorDetail,
-	parseJsonl,
-	type InvalidResult,
-	type IssueRecord,
-	type ParsedJsonl,
-};
+}

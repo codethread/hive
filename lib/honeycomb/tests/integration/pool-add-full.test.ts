@@ -1,7 +1,8 @@
 import { EXIT_CODES, dispatch } from "../../src/index";
-import { TestPicker, run, testDeps, useOriginFixture, writeConfig } from "./support.ts";
+import { createTestPicker, run, testDeps, useOriginFixture, writeConfig } from "./support.ts";
 import { expect, test } from "bun:test";
 import { gitOut, useTmpHome } from "./lifecycle-helpers.ts";
+import type { TestPicker } from "./support.ts";
 
 const SINGLE_SLOT = 1;
 const NO_CONFIRMATIONS = 0;
@@ -10,18 +11,18 @@ const ONE_CONFIRMATION = 1;
 const tmp = useTmpHome("honeycomb-pool-add-full-test-");
 const { initRepoWithOrigin } = useOriginFixture();
 
-const occupySlot = async () => {
+async function occupySlot() {
 	const { root } = await initRepoWithOrigin(tmp.dir);
 	writeConfig({ command: "echo ready", poolSize: SINGLE_SLOT, root, tmp: tmp.dir });
 	await dispatch("add", ["--cwd", root, "--branch", "feature/one", "--json"], testDeps());
 	return root;
-};
+}
 
-const assertPickerIgnored = async (
+async function assertPickerIgnored(
 	root: string,
 	picker: TestPicker,
 	request: { branch: string; extra?: string[] },
-) => {
+) {
 	const { branch, extra = [] } = request;
 	const blocked = await dispatch(
 		"add",
@@ -33,7 +34,7 @@ const assertPickerIgnored = async (
 	expect(picker.items).toEqual([]);
 	expect(picker.confirmCalls).toBe(NO_CONFIRMATIONS);
 	expect(await gitOut(`${root}__feat1`, "branch", "--show-current")).toBe("feature/one");
-};
+}
 
 test("machine json add reports pool_full and --slot selects a specific slot", async () => {
 	const root = await occupySlot();
@@ -42,7 +43,7 @@ test("machine json add reports pool_full and --slot selects a specific slot", as
 		"add",
 		["--cwd", root, "--branch", "feature/two", "--json"],
 		// oxlint-disable-next-line unicorn/no-null -- TestPicker uses null to model cancellation.
-		testDeps({ picker: new TestPicker(null, true) }),
+		testDeps({ picker: createTestPicker(null, true) }),
 	);
 
 	expect(blocked.exitCode).toBe(EXIT_CODES.BLOCKED);
@@ -65,7 +66,7 @@ test("machine json add reports pool_full and --slot selects a specific slot", as
 		"add",
 		["--cwd", root, "--branch", "feature/two", "--json", "--slot", `${root}__feat1`, "--force"],
 		// oxlint-disable-next-line unicorn/no-null -- TestPicker uses null to model cancellation.
-		testDeps({ picker: new TestPicker(null, true) }),
+		testDeps({ picker: createTestPicker(null, true) }),
 	);
 
 	expect(selected.exitCode).toBe(EXIT_CODES.SUCCESS);
@@ -88,7 +89,7 @@ test("machine json pool_full bypasses picker and leaves the occupied slot untouc
 		"origin/main",
 		"feature/one",
 	]);
-	const picker = new TestPicker("1", true);
+	const picker = createTestPicker("1", true);
 
 	const blocked = await dispatch(
 		"add",
@@ -109,17 +110,17 @@ test("machine json pool_full bypasses picker and leaves the occupied slot untouc
 test("machine json pool_full ignores picker state and --force without mutating the slot", async () => {
 	const root = await occupySlot();
 	// oxlint-disable-next-line unicorn/no-null -- TestPicker uses null to model cancellation.
-	const cancelPicker = new TestPicker(null, true);
+	const cancelPicker = createTestPicker(null, true);
 	await assertPickerIgnored(root, cancelPicker, { branch: "feature/cancel" });
-	await assertPickerIgnored(root, new TestPicker("1", false), { branch: "feature/no" });
-	await assertPickerIgnored(root, new TestPicker("1", false), {
+	await assertPickerIgnored(root, createTestPicker("1", false), { branch: "feature/no" });
+	await assertPickerIgnored(root, createTestPicker("1", false), {
 		branch: "feature/forced",
 		extra: ["--force"],
 	});
 });
 test("human pool_full recycle tells the picker the invocation is not interactive", async () => {
 	const root = await occupySlot();
-	const picker = new TestPicker("1", true);
+	const picker = createTestPicker("1", true);
 
 	const recycled = await dispatch(
 		"add",

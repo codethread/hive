@@ -29,22 +29,32 @@ interface ProjectSetup {
 	worktreeLocation?: WorktreeLocation;
 }
 
-const errorMessage = (cause: unknown): string => {
+export function parseConfig(toml: string, context: ConfigPathContext): TreesConfig {
+	const raw = parseToml(toml);
+	const result = createConfigSchema(context).safeParse(raw);
+	if (!result.success) {
+		throw new ConfigError(`Invalid honeycomb.toml:\n${z.prettifyError(result.error)}`);
+	}
+	return projectConfig(result.data, context);
+}
+// --- Private functions ---
+
+function errorMessage(cause: unknown): string {
 	if (cause instanceof Error) {
 		return cause.message;
 	}
 	return String(cause);
-};
+}
 
-const parseToml = (toml: string): unknown => {
+function parseToml(toml: string): unknown {
 	try {
 		return TOML.parse(toml);
 	} catch (error) {
 		throw new ConfigError(`Invalid TOML in honeycomb.toml: ${errorMessage(error)}`);
 	}
-};
+}
 
-const projectPolicies = (raw: RawConfig["defaults"]): PolicyTables => {
+function projectPolicies(raw: RawConfig["defaults"]): PolicyTables {
 	const policies: PolicyTables = {};
 	if (raw.add !== undefined) {
 		policies.add = raw.add;
@@ -53,9 +63,9 @@ const projectPolicies = (raw: RawConfig["defaults"]): PolicyTables => {
 		policies.finish = finishPolicy(raw.finish);
 	}
 	return policies;
-};
+}
 
-const finishFlags = (raw: FinishRaw): Partial<FinishPolicy> => {
+function finishFlags(raw: FinishRaw): Partial<FinishPolicy> {
 	const policy: Partial<FinishPolicy> = {};
 	if (raw.enabled !== undefined) {
 		policy.enabled = raw.enabled;
@@ -70,17 +80,17 @@ const finishFlags = (raw: FinishRaw): Partial<FinishPolicy> => {
 		policy.deleteBranch = raw.delete_branch;
 	}
 	return policy;
-};
+}
 
-const finishPolicy = (raw: FinishRaw): Partial<FinishPolicy> => {
+function finishPolicy(raw: FinishRaw): Partial<FinishPolicy> {
 	const policy = finishFlags(raw);
 	if (raw.strategy !== undefined) {
 		policy.strategy = raw.strategy;
 	}
 	return policy;
-};
+}
 
-const projectSetup = (raw: SetupRaw): ProjectSetup => {
+function projectSetup(raw: SetupRaw): ProjectSetup {
 	// oxlint-disable-next-line unicorn/no-null -- ProjectConfig distinguishes an absent command from an inherited one.
 	const setup: ProjectSetup = { command: raw.command ?? null };
 	if (raw.pre_remote_check !== undefined) {
@@ -90,16 +100,16 @@ const projectSetup = (raw: SetupRaw): ProjectSetup => {
 		setup.worktreeLocation = raw.worktree_location;
 	}
 	return setup;
-};
+}
 
-const toDestinations = (to: string | string[]): string[] => {
+function toDestinations(to: string | string[]): string[] {
 	if (typeof to === "string") {
 		return [to];
 	}
 	return to;
-};
+}
 
-const projectCopy = (raw: ProjectRaw): CopyEntry[] => {
+function projectCopy(raw: ProjectRaw): CopyEntry[] {
 	const defaultMode = raw.copy_mode_default ?? "copy";
 	return raw.copy.map((entry) => {
 		if (typeof entry === "string") {
@@ -112,12 +122,12 @@ const projectCopy = (raw: ProjectRaw): CopyEntry[] => {
 			to: toDestinations(entry.to).map((path) => normalize(path)),
 		};
 	});
-};
+}
 
-const buildProject = (
+function buildProject(
 	project: ProjectRaw,
 	context: ConfigPathContext,
-): TreesConfig["projects"][number] => {
+): TreesConfig["projects"][number] {
 	const root = expandConfigPath(project.root, context);
 	return {
 		copy: projectCopy(project),
@@ -129,31 +139,25 @@ const buildProject = (
 		...projectSetup(project),
 		...projectPolicies(project),
 	};
-};
+}
 
-const buildRule = (rule: RuleRaw, context: ConfigPathContext): TreesConfig["rules"][number] => ({
-	rootGlob: expandConfigGlob(rule.root_glob, context),
-	...projectSetup(rule),
-	...projectPolicies(rule),
-});
+function buildRule(rule: RuleRaw, context: ConfigPathContext): TreesConfig["rules"][number] {
+	return {
+		rootGlob: expandConfigGlob(rule.root_glob, context),
+		...projectSetup(rule),
+		...projectPolicies(rule),
+	};
+}
 
-const projectConfig = (raw: RawConfig, context: ConfigPathContext): TreesConfig => ({
-	defaults: projectPolicies(raw.defaults),
-	projects: raw.project.map((project) => buildProject(project, context)),
-	rules: raw.rule.map((rule) => buildRule(rule, context)),
-	worktreeLocation: raw.worktree_location,
-});
+function projectConfig(raw: RawConfig, context: ConfigPathContext): TreesConfig {
+	return {
+		defaults: projectPolicies(raw.defaults),
+		projects: raw.project.map((project) => buildProject(project, context)),
+		rules: raw.rule.map((rule) => buildRule(rule, context)),
+		worktreeLocation: raw.worktree_location,
+	};
+}
 
-const parseConfig = (toml: string, context: ConfigPathContext): TreesConfig => {
-	const raw = parseToml(toml);
-	const result = createConfigSchema(context).safeParse(raw);
-	if (!result.success) {
-		throw new ConfigError(`Invalid honeycomb.toml:\n${z.prettifyError(result.error)}`);
-	}
-	return projectConfig(result.data, context);
-};
-
-export { parseConfig };
 export {
 	BUILTIN_ADD_POLICY,
 	BUILTIN_FINISH_POLICY,

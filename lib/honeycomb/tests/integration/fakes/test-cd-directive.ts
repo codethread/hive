@@ -1,14 +1,17 @@
 /** Records shell directory-change requests in a log shared with TestMultiplexer. */
-export class TestCdDirective {
-	paths: string[] = [];
-	private readonly log: string[];
+export interface TestCdDirective {
+	/** Paths passed to write, in call order. */
+	paths: string[];
+	/** Record a shell directory-change handoff. */
+	write: (path: string) => void;
+}
 
-	constructor(log: string[] = []) {
-		this.log = log;
-	}
+export function createTestCdDirective(log: string[] = []): TestCdDirective {
+	const directive: TestCdDirective = { paths: [], write };
+	return directive;
 
-	write(path: string): void {
-		this.log.push(`cd ${path}`);
-		this.paths.push(path);
+	function write(path: string): void {
+		log.push(`cd ${path}`);
+		directive.paths.push(path);
 	}
 }

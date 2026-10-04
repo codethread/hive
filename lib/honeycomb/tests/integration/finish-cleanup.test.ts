@@ -19,14 +19,14 @@ const SINGLE_SLOT = 1;
 const tmp = useTmpHome("honeycomb-finish-cleanup-test-");
 const { initRepoWithOrigin } = useOriginFixture();
 
-const prepareFinish = async (branch: string, policy = "") => {
+async function prepareFinish(branch: string, policy = "") {
 	const { remote, root } = await initRepoWithOrigin(tmp.dir);
 	writeConfig({ command: "echo ready", copyToml: policy, root, tmp: tmp.dir });
 	await dispatch("add", ["--cwd", root, "--branch", branch, "--json"], deps);
 	return { remote, root, worktreePath: `${root}__${branch.replaceAll("/", "--")}` };
-};
+}
 
-const preparePooledFinish = async () => {
+async function preparePooledFinish() {
 	const { root } = await initRepoWithOrigin(tmp.dir);
 	writeConfig({
 		command: "mkdir -p node_modules; touch node_modules/.keep",
@@ -45,7 +45,7 @@ const preparePooledFinish = async () => {
 	);
 
 	return root;
-};
+}
 
 test("removes a non-pooled source worktree after finish when cleanup is enabled", async () => {
 	const { root, worktreePath } = await prepareFinish(

@@ -3,16 +3,18 @@ import { EXIT_CODES } from "../errors.ts";
 import { GitError } from "./error.ts";
 // :module: Git command execution utilities for honeycomb
 
-export class LiveGitRunner implements GitRunner {
-	async run(args: string[], opts: { cwd?: string } = {}): Promise<GitResult> {
-		const result = await this.runRaw(args, opts);
+export function createLiveGitRunner(): GitRunner {
+	return { run, runRaw };
+
+	async function run(args: string[], opts: { cwd?: string } = {}): Promise<GitResult> {
+		const result = await runRaw(args, opts);
 		if (result.exitCode !== EXIT_CODES.SUCCESS) {
 			throw new GitError(args, result.stderr, result.exitCode);
 		}
 		return result;
 	}
 
-	async runRaw(args: string[], opts: { cwd?: string } = {}): Promise<GitResult> {
+	async function runRaw(args: string[], opts: { cwd?: string } = {}): Promise<GitResult> {
 		// A stable neutral cwd keeps git's own -C flag meaningful after a worktree deletes the process's original directory, and avoids accidental writes into $HOME.
 		const proc = Bun.spawn(["git", ...args], {
 			cwd: opts.cwd ?? "/",

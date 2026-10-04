@@ -58,7 +58,7 @@ test("symlink source files fail as config errors in copy mode", async () => {
 	expect(result.failure).toBeInstanceOf(ConfigError);
 });
 
-const initSymlinkSource = async () => {
+async function initSymlinkSource() {
 	const { root } = await initRepoWithOrigin(tmp);
 	const externalTarget = join(tmp, "external.env");
 	await writeFile(externalTarget, "external\n");
@@ -72,7 +72,7 @@ const initSymlinkSource = async () => {
 	await dispatch("add", ["--cwd", root, "--branch", "feature/symlink-mode", "--json"], deps);
 	const worktreePath = `${root}__feature--symlink-mode`;
 	return { externalTarget, root, worktreePath };
-};
+}
 
 test("symlink mode creates destination symlinks to resolved source targets", async () => {
 	const { externalTarget, worktreePath } = await initSymlinkSource();
@@ -105,7 +105,7 @@ test("copy preflights all entries before replacing destinations", async () => {
 	expect(await readFile(join(worktreePath, ".env"), "utf8")).toBe("do not replace\n");
 });
 
-const initObjectSources = async () => {
+async function initObjectSources() {
 	const { root } = await initRepoWithOrigin(tmp);
 	await writeFile(join(root, "root.env"), "root\n");
 	const absoluteSource = join(tmp, "absolute.env");
@@ -114,18 +114,18 @@ const initObjectSources = async () => {
 	const homeSource = join(homedir(), homeRelative);
 	await writeFile(homeSource, "home\n");
 	return { absoluteSource, homeRelative, homeSource, root };
-};
+}
 
-const assertObjectContents = async (worktreePath: string) => {
+async function assertObjectContents(worktreePath: string) {
 	expect(await readFile(join(worktreePath, "copied/root.env"), "utf8")).toBe("root\n");
 	expect(await readFile(join(worktreePath, "copied/absolute.env"), "utf8")).toBe("absolute\n");
 	expect(await readFile(join(worktreePath, "copied/home-again.env"), "utf8")).toBe("home\n");
-};
+}
 
-const assertObjectPayload = (
+function assertObjectPayload(
 	payload: { copied: unknown; exclude_paths: unknown },
 	sources: { root: string; absoluteSource: string; homeSource: string },
-) => {
+) {
 	const { root, absoluteSource, homeSource } = sources;
 	expect(payload.copied).toEqual([
 		{ from: join(root, "root.env"), to: "copied/root.env", type: "file" },
@@ -139,7 +139,7 @@ const assertObjectPayload = (
 		"copied/home.env",
 		"copied/root.env",
 	]);
-};
+}
 
 test("copies object file sources from root-relative, absolute, and home paths", async () => {
 	const { root, absoluteSource, homeRelative, homeSource } = await initObjectSources();
@@ -164,7 +164,7 @@ test("copies object file sources from root-relative, absolute, and home paths", 
 	}
 });
 
-const initDirectorySource = async () => {
+async function initDirectorySource() {
 	const { root } = await initRepoWithOrigin(tmp);
 	await mkdir(join(root, "skill-dir"));
 	await writeFile(join(root, "skill-dir", "foo.ts"), "one\n");
@@ -178,7 +178,7 @@ const initDirectorySource = async () => {
 	await dispatch("add", ["--cwd", root, "--branch", "feature/dir-copy", "--json"], deps);
 	const worktreePath = `${root}__feature--dir-copy`;
 	return { root, worktreePath };
-};
+}
 
 test("copies directories to exact final destinations and removes stale files on rerun", async () => {
 	const { root, worktreePath } = await initDirectorySource();

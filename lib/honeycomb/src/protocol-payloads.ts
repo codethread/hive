@@ -12,7 +12,7 @@ interface SessionInfo {
 	path: string;
 }
 
-interface ReadyAddPayload {
+export interface ReadyAddPayload {
 	/** Discriminator used by CLI and Nushell consumers. */
 	kind: "ready";
 	/** Checkout selected or created by the operation. */
@@ -63,7 +63,7 @@ interface PoolFullCandidate {
 	last_commit_subject: string | null;
 }
 
-interface PoolFullPayload {
+export interface PoolFullPayload {
 	/** Discriminator used by CLI and Nushell consumers. */
 	kind: "pool_full";
 	/** Canonical repository root. */
@@ -74,55 +74,107 @@ interface PoolFullPayload {
 	candidates: PoolFullCandidate[];
 }
 
-const toSessionInfo = (worktreePath: string): SessionInfo => ({
-	name: sessionNameForWorktreePath(worktreePath),
-	path: worktreePath,
-});
+export function toAddPayload(plan: AddPlan): ReadyAddPayload {
+	return {
+		branch: plan.branch,
+		created_new_branch: plan.createdNewBranch,
+		kind: "ready",
+		// oxlint-disable-next-line unicorn/no-null -- Wrapper protocol retains the retired field as explicit null.
+		post_create_script_path: null,
+		rollback_branch_head: plan.rollbackBranchHead,
+		root: plan.root,
+		session: toSessionInfo(plan.worktreePath),
+		title: plan.title,
+		worktree_path: plan.worktreePath,
+	};
+}
 
-const toAddPayload = (plan: AddPlan): ReadyAddPayload => ({
-	branch: plan.branch,
-	created_new_branch: plan.createdNewBranch,
-	kind: "ready",
-	// oxlint-disable-next-line unicorn/no-null -- Wrapper protocol retains the retired field as explicit null.
-	post_create_script_path: null,
-	rollback_branch_head: plan.rollbackBranchHead,
-	root: plan.root,
-	session: toSessionInfo(plan.worktreePath),
-	title: plan.title,
-	worktree_path: plan.worktreePath,
-});
+export function toRemovePayload(plan: RemovePlan): ReadyRemovePayload {
+	return {
+		kind: "ready",
+		removed: plan.removed,
+		session: toSessionInfo(plan.worktreePath),
+		worktree_path: plan.worktreePath,
+	};
+}
 
-const toRemovePayload = (plan: RemovePlan): ReadyRemovePayload => ({
-	kind: "ready",
-	removed: plan.removed,
-	session: toSessionInfo(plan.worktreePath),
-	worktree_path: plan.worktreePath,
-});
+export function toListJson(worktree: Worktree) {
+	return {
+		bare: worktree.bare,
+		branch: worktree.branch,
+		branch_ref: worktree.branchRef,
+		canonical: worktree.canonical,
+		detached: worktree.detached,
+		head: worktree.head,
+		lock_reason: worktree.lockReason,
+		locked: worktree.locked,
+		path: worktree.path,
+		pool: worktree.pool,
+		prunable: worktree.prunable,
+		prunable_reason: worktree.prunableReason,
+		session: toSessionInfo(worktree.path),
+	};
+}
 
-const toListJson = (worktree: Worktree) => ({
-	bare: worktree.bare,
-	branch: worktree.branch,
-	branch_ref: worktree.branchRef,
-	canonical: worktree.canonical,
-	detached: worktree.detached,
-	head: worktree.head,
-	lock_reason: worktree.lockReason,
-	locked: worktree.locked,
-	path: worktree.path,
-	pool: worktree.pool,
-	prunable: worktree.prunable,
-	prunable_reason: worktree.prunableReason,
-	session: toSessionInfo(worktree.path),
-});
+export function formatWorktreeList(worktrees: Worktree[]): string {
+	const lines = worktrees.map(
+		(worktree) => `${worktree.path}  ${formatHead(worktree.head)}${formatFlagsSuffix(worktree)}`,
+	);
+	return lines.map((line) => `${line}\n`).join("");
+}
 
-const formatHead = (head: string | null): string => {
+export function toConfigExplainPayload(explanation: PolicyExplanation) {
+	return {
+		add: { policy: explanation.addPolicy },
+		command: {
+			source: explanation.command.source,
+			value: explanation.command.command,
+		},
+		finish: {
+			delete_branch: explanation.finishPolicy.deleteBranch,
+			enabled: explanation.finishPolicy.enabled,
+			push: explanation.finishPolicy.push,
+			remove_worktree: explanation.finishPolicy.removeWorktree,
+			strategy: explanation.finishPolicy.strategy,
+		},
+		kind: "config_explain",
+		matched_rules: explanation.matchedRules.map((rule) => ({ root_glob: rule.rootGlob })),
+		pre_remote_check: {
+			source: explanation.preRemoteCheck.source,
+			value: explanation.preRemoteCheck.value,
+		},
+		project: toProjectPayload(explanation.project),
+		root: explanation.canonicalRoot,
+		worktree_location: explanation.worktreeLocation,
+	};
+}
+
+export function formatCommandSource(source: string | null): string {
+	return source ?? "(none)";
+}
+
+export function formatConfigSummary(payload: ReturnType<typeof toConfigExplainPayload>): string {
+	const matchedRules = payload.matched_rules.map((rule) => rule.root_glob).join(", ") || "(none)";
+	const project = formatProject(payload.project);
+	return `root: ${payload.root}\nmatched_rules: ${matchedRules}\nproject: ${project}\ncommand.source: ${formatCommandSource(payload.command.source)}\npre_remote_check.source: ${formatCommandSource(payload.pre_remote_check.source)}\nworktree_location: ${payload.worktree_location}\nadd.policy: ${payload.add.policy}\nfinish.enabled: ${payload.finish.enabled}\nfinish.strategy: ${payload.finish.strategy}\nfinish.push: ${payload.finish.push}\nfinish.remove_worktree: ${payload.finish.remove_worktree}\nfinish.delete_branch: ${payload.finish.delete_branch}\n`;
+}
+// --- Private functions ---
+
+function toSessionInfo(worktreePath: string): SessionInfo {
+	return {
+		name: sessionNameForWorktreePath(worktreePath),
+		path: worktreePath,
+	};
+}
+
+function formatHead(head: string | null): string {
 	if (!head) {
 		return "-";
 	}
 	return head.slice(COMMIT_START, SHORT_COMMIT_LENGTH);
-};
+}
 
-const formatBranch = (worktree: Worktree): string => {
+function formatBranch(worktree: Worktree): string {
 	if (worktree.branch) {
 		return `[${worktree.branch}]`;
 	}
@@ -130,9 +182,9 @@ const formatBranch = (worktree: Worktree): string => {
 		return "(detached)";
 	}
 	return "";
-};
+}
 
-const formatPool = (pool: Worktree["pool"]): string => {
+function formatPool(pool: Worktree["pool"]): string {
 	if (!pool) {
 		return "";
 	}
@@ -140,9 +192,9 @@ const formatPool = (pool: Worktree["pool"]): string => {
 		return "[pool:free]";
 	}
 	return `[pool:feat${pool.index}]`;
-};
+}
 
-const formatFlags = (worktree: Worktree): string => {
+function formatFlags(worktree: Worktree): string {
 	const flags: string[] = [];
 	const branch = formatBranch(worktree);
 	if (branch) {
@@ -156,80 +208,29 @@ const formatFlags = (worktree: Worktree): string => {
 		flags.push(pool);
 	}
 	return flags.join(" ");
-};
+}
 
-const formatFlagsSuffix = (worktree: Worktree): string => {
+function formatFlagsSuffix(worktree: Worktree): string {
 	const flags = formatFlags(worktree);
 	if (!flags) {
 		return "";
 	}
 	return ` ${flags}`;
-};
+}
 
-const formatWorktreeList = (worktrees: Worktree[]): string => {
-	const lines = worktrees.map(
-		(worktree) => `${worktree.path}  ${formatHead(worktree.head)}${formatFlagsSuffix(worktree)}`,
-	);
-	return lines.map((line) => `${line}\n`).join("");
-};
-
-const toProjectPayload = (
+function toProjectPayload(
 	project: ProjectConfig | undefined,
-): { name: string | null; root: string } | null => {
+): { name: string | null; root: string } | null {
 	if (project === undefined) {
 		// oxlint-disable-next-line unicorn/no-null -- CLI protocol renders an unconfigured project as explicit null.
 		return null;
 	}
 	return { name: project.name, root: project.root };
-};
+}
 
-const toConfigExplainPayload = (explanation: PolicyExplanation) => ({
-	add: { policy: explanation.addPolicy },
-	command: {
-		source: explanation.command.source,
-		value: explanation.command.command,
-	},
-	finish: {
-		delete_branch: explanation.finishPolicy.deleteBranch,
-		enabled: explanation.finishPolicy.enabled,
-		push: explanation.finishPolicy.push,
-		remove_worktree: explanation.finishPolicy.removeWorktree,
-		strategy: explanation.finishPolicy.strategy,
-	},
-	kind: "config_explain",
-	matched_rules: explanation.matchedRules.map((rule) => ({ root_glob: rule.rootGlob })),
-	pre_remote_check: {
-		source: explanation.preRemoteCheck.source,
-		value: explanation.preRemoteCheck.value,
-	},
-	project: toProjectPayload(explanation.project),
-	root: explanation.canonicalRoot,
-	worktree_location: explanation.worktreeLocation,
-});
-
-const formatCommandSource = (source: string | null): string => source ?? "(none)";
-
-const formatProject = (project: { name: string | null; root: string } | null): string => {
+function formatProject(project: { name: string | null; root: string } | null): string {
 	if (!project) {
 		return "(none)";
 	}
 	return `${project.name ?? "(unnamed)"} ${project.root}`;
-};
-
-const formatConfigSummary = (payload: ReturnType<typeof toConfigExplainPayload>): string => {
-	const matchedRules = payload.matched_rules.map((rule) => rule.root_glob).join(", ") || "(none)";
-	const project = formatProject(payload.project);
-	return `root: ${payload.root}\nmatched_rules: ${matchedRules}\nproject: ${project}\ncommand.source: ${formatCommandSource(payload.command.source)}\npre_remote_check.source: ${formatCommandSource(payload.pre_remote_check.source)}\nworktree_location: ${payload.worktree_location}\nadd.policy: ${payload.add.policy}\nfinish.enabled: ${payload.finish.enabled}\nfinish.strategy: ${payload.finish.strategy}\nfinish.push: ${payload.finish.push}\nfinish.remove_worktree: ${payload.finish.remove_worktree}\nfinish.delete_branch: ${payload.finish.delete_branch}\n`;
-};
-
-export {
-	formatCommandSource,
-	formatConfigSummary,
-	formatWorktreeList,
-	toAddPayload,
-	toConfigExplainPayload,
-	toListJson,
-	toRemovePayload,
-	type PoolFullPayload,
-	type ReadyAddPayload,
-};
+}

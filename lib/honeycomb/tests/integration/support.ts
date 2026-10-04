@@ -6,74 +6,21 @@ import { join, resolve } from "node:path";
 import { mkdirSync, writeFileSync } from "node:fs";
 import type { Deps } from "../../src/index";
 import { EXIT_CODES } from "../../src/errors.ts";
-import { TestCdDirective } from "./fakes/test-cd-directive.ts";
-import { TestMultiplexer } from "./fakes/test-multiplexer.ts";
 import { afterAll } from "bun:test";
 import { createLiveDeps } from "../../src/live-deps.ts";
+import { createTestCdDirective } from "./fakes/test-cd-directive.ts";
+import { createTestMultiplexer } from "./fakes/test-multiplexer.ts";
 /* oxlint-disable-next-line import/no-nodejs-modules -- fixtures need the host temporary directory */
 import { tmpdir } from "node:os";
 
 const savedEnv = new Map<string, string | undefined>();
-
-interface OriginFixture {
-	remote: string;
-	root: string;
-	tmp: string;
-}
-
 const liveDeps = createLiveDeps();
-
-const configureGitUser = async (repo: string): Promise<void> => {
-	await run(["git", "-C", repo, "config", "user.email", "test@example.test"]);
-	await run(["git", "-C", repo, "config", "user.name", "Test User"]);
-};
-
-const buildBaseOriginFixture = async (): Promise<OriginFixture> => {
-	const tmp = await mkdtemp(join(tmpdir(), "honeycomb-origin-fixture-"));
-	await initRepo(join(tmp, "repo"));
-	const root = await realpath(join(tmp, "repo"));
-	const remote = join(tmp, "origin.git");
-	await run(["git", "init", "--bare", remote]);
-	await run(["git", "-C", root, "remote", "add", "origin", remote]);
-	await run(["git", "-C", root, "push", "-u", "origin", "main"]);
-	await run(["git", "-C", remote, "symbolic-ref", "HEAD", "refs/heads/main"]);
-	await run(["git", "-C", root, "remote", "set-head", "origin", "-a"]);
-	return { remote, root, tmp };
-};
-
-export const setTestEnv = (name: string, value: string): void => {
-	if (!savedEnv.has(name)) {
-		savedEnv.set(name, process.env[name]);
-	}
-	process.env[name] = value;
-};
-
-export const restoreTestEnv = (): void => {
-	for (const [name, value] of savedEnv) {
-		if (value === undefined) {
-			delete process.env[name];
-		} else {
-			process.env[name] = value;
-		}
-	}
-	savedEnv.clear();
-};
-
-/** Async existsSync replacement; Bun.file().exists() is false for directories. */
-export const pathExists = async (path: string): Promise<boolean> => {
-	try {
-		await access(path);
-		return true;
-	} catch {
-		return false;
-	}
-};
 
 export const deps: Deps = {
 	...liveDeps,
-	cdDirective: new TestCdDirective(),
+	cdDirective: createTestCdDirective(),
 	hooks: { runCommand: liveDeps.hooks.runCommand, runInline: async () => {} },
-	multiplexer: new TestMultiplexer(),
+	multiplexer: createTestMultiplexer(),
 	picker: {
 		confirm: () => Promise.resolve(true),
 		pick: () => Promise.resolve({ display: "", key: "", preview: "" }),
@@ -85,22 +32,61 @@ export const deps: Deps = {
 	},
 };
 
-export const testDeps = (overrides: Partial<Deps> = {}): Deps => ({
-	...createLiveDeps(),
-	cdDirective: new TestCdDirective(),
-	multiplexer: new TestMultiplexer(),
-	picker: deps.picker,
-	progress: deps.progress,
-	...overrides,
-});
+interface OriginFixture {
+	/** Bare Git repository used as the fixture's remote origin. */
+	remote: string;
+	/** Working repository with an origin remote configured. */
+	root: string;
+	/** Temporary directory containing the repositories. */
+	tmp: string;
+}
 
-export const writeConfig = (options: {
+export function setTestEnv(name: string, value: string): void {
+	if (!savedEnv.has(name)) {
+		savedEnv.set(name, process.env[name]);
+	}
+	process.env[name] = value;
+}
+
+export function restoreTestEnv(): void {
+	for (const [name, value] of savedEnv) {
+		if (value === undefined) {
+			delete process.env[name];
+		} else {
+			process.env[name] = value;
+		}
+	}
+	savedEnv.clear();
+}
+
+/** Async existsSync replacement; Bun.file().exists() is false for directories. */
+export async function pathExists(path: string): Promise<boolean> {
+	try {
+		await access(path);
+		return true;
+	} catch {
+		return false;
+	}
+}
+
+export function testDeps(overrides: Partial<Deps> = {}): Deps {
+	return {
+		...createLiveDeps(),
+		cdDirective: createTestCdDirective(),
+		multiplexer: createTestMultiplexer(),
+		picker: deps.picker,
+		progress: deps.progress,
+		...overrides,
+	};
+}
+
+export function writeConfig(options: {
 	tmp: string;
 	root: string;
 	command: string;
 	poolSize?: number;
 	copyToml?: string;
-}): void => {
+}): void {
 	const { tmp, root, command, poolSize, copyToml } = options;
 	const configHome = join(tmp, "config");
 	// oxlint-disable-next-line node/no-sync -- writeConfig stays synchronous so every integration suite can call it inline
@@ -115,9 +101,9 @@ export const writeConfig = (options: {
 		`[[project]]\nroot = "${root}"\ncommand = '''\n${command}\n'''\n${poolLine}${copyToml ?? ""}`,
 	);
 	setTestEnv("XDG_CONFIG_HOME", configHome);
-};
+}
 
-export const useOriginFixture = () => {
+export function useOriginFixture() {
 	const state: { base?: OriginFixture } = {};
 
 	afterAll(async () => {
@@ -143,14 +129,14 @@ export const useOriginFixture = () => {
 	};
 
 	return { initRepoWithOrigin };
-};
+}
 
-export const createPoolSlot = async (options: {
+export async function createPoolSlot(options: {
 	root: string;
 	index: number;
 	branch: string;
 	initialized: boolean;
-}): Promise<void> => {
+}): Promise<void> {
 	const { root, index, branch, initialized } = options;
 	await run(["git", "-C", root, "branch", branch]);
 	const slotPath = `${root}__feat${index}`;
@@ -166,9 +152,9 @@ export const createPoolSlot = async (options: {
 		]);
 		await writeFile(resolve(slotPath, result.stdout.trim()), "");
 	}
-};
+}
 
-export const createRemoteBranch = async (remote: string, branch: string): Promise<void> => {
+export async function createRemoteBranch(remote: string, branch: string): Promise<void> {
 	const clone = await mkdtemp(join(tmpdir(), "honeycomb-remote-clone-"));
 	try {
 		await run(["git", "clone", remote, clone]);
@@ -181,25 +167,25 @@ export const createRemoteBranch = async (remote: string, branch: string): Promis
 	} finally {
 		await rm(clone, { force: true, recursive: true });
 	}
-};
+}
 
-export const commitFile = async (change: {
+export async function commitFile(change: {
 	content: string;
 	message: string;
 	path: string;
 	repo: string;
-}): Promise<void> => {
+}): Promise<void> {
 	await writeFile(join(change.repo, change.path), change.content);
 	await run(["git", "-C", change.repo, "add", change.path]);
 	await run(["git", "-C", change.repo, "commit", "-m", change.message]);
-};
+}
 
-export const commitOnRemoteDefault = async (change: {
+export async function commitOnRemoteDefault(change: {
 	content: string;
 	message: string;
 	path: string;
 	remote: string;
-}): Promise<void> => {
+}): Promise<void> {
 	const clone = await mkdtemp(join(tmpdir(), "honeycomb-remote-default-"));
 	try {
 		await run(["git", "clone", change.remote, clone]);
@@ -211,26 +197,26 @@ export const commitOnRemoteDefault = async (change: {
 	} finally {
 		await rm(clone, { force: true, recursive: true });
 	}
-};
+}
 
-export const initRepo = async (root: string): Promise<void> => {
+export async function initRepo(root: string): Promise<void> {
 	await mkdir(root, { recursive: true });
 	await run(["git", "init", "-b", "main", root]);
 	await configureGitUser(root);
 	await writeFile(join(root, "README.md"), "hello\n");
 	await run(["git", "-C", root, "add", "README.md"]);
 	await run(["git", "-C", root, "commit", "-m", "initial"]);
-};
+}
 
-export const run = async (cmd: string[]) => {
+export async function run(cmd: string[]) {
 	const result = await runRaw(cmd);
 	if (result.exitCode !== EXIT_CODES.SUCCESS) {
 		throw new Error(`${cmd.join(" ")} failed\n${result.stdout}\n${result.stderr}`);
 	}
 	return result;
-};
+}
 
-export const runRaw = async (cmd: string[]) => {
+export async function runRaw(cmd: string[]) {
 	const proc = Bun.spawn(cmd, { stderr: "pipe", stdout: "pipe" });
 	const [stdout, stderr, exitCode] = await Promise.all([
 		new Response(proc.stdout).text(),
@@ -238,8 +224,29 @@ export const runRaw = async (cmd: string[]) => {
 		proc.exited,
 	]);
 	return { exitCode, stderr, stdout };
-};
+}
 
-export { TestCdDirective } from "./fakes/test-cd-directive.ts";
-export { TestMultiplexer } from "./fakes/test-multiplexer.ts";
-export { TestPicker } from "./fakes/test-picker.ts";
+// Private integration fixture and Git helpers.
+
+async function configureGitUser(repo: string): Promise<void> {
+	await run(["git", "-C", repo, "config", "user.email", "test@example.test"]);
+	await run(["git", "-C", repo, "config", "user.name", "Test User"]);
+}
+
+async function buildBaseOriginFixture(): Promise<OriginFixture> {
+	const tmp = await mkdtemp(join(tmpdir(), "honeycomb-origin-fixture-"));
+	await initRepo(join(tmp, "repo"));
+	const root = await realpath(join(tmp, "repo"));
+	const remote = join(tmp, "origin.git");
+	await run(["git", "init", "--bare", remote]);
+	await run(["git", "-C", root, "remote", "add", "origin", remote]);
+	await run(["git", "-C", root, "push", "-u", "origin", "main"]);
+	await run(["git", "-C", remote, "symbolic-ref", "HEAD", "refs/heads/main"]);
+	await run(["git", "-C", root, "remote", "set-head", "origin", "-a"]);
+	return { remote, root, tmp };
+}
+
+export { createTestCdDirective } from "./fakes/test-cd-directive.ts";
+export { createTestMultiplexer } from "./fakes/test-multiplexer.ts";
+export { createTestPicker } from "./fakes/test-picker.ts";
+export type { TestPicker } from "./fakes/test-picker.ts";

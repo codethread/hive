@@ -15,7 +15,9 @@ const BOOLEAN_OPTIONS = new Set([
 	"--self",
 ]);
 
-interface CommandResult {
+const NO_OUTPUT: JsonLog = { diagnostics: [], setup_output: [] };
+
+export interface CommandResult {
 	/** Output returned to the invoking shell, when present. */
 	stdout?: string | undefined;
 	/** Diagnostics returned to the invoking shell, when present. */
@@ -30,7 +32,7 @@ interface CommandResult {
 	afterOutput?: (() => Promise<void>) | undefined;
 }
 
-interface OutputMode {
+export interface OutputMode {
 	/** Whether the caller requests structured machine output. */
 	json: boolean;
 }
@@ -43,7 +45,7 @@ interface SetupOutputLine {
 }
 
 /** Output captured during a --json invocation so stderr stays silent. */
-interface JsonLog {
+export interface JsonLog {
 	/** Honeycomb's own progress lines and warnings, in order. */
 	diagnostics: string[];
 	/** Setup command output, in order, tagged with its original stream. */
@@ -59,24 +61,24 @@ interface FailurePayload extends FailureContext {
 	message: string;
 }
 
-const NO_OUTPUT: JsonLog = { diagnostics: [], setup_output: [] };
+export function parseOutputMode(opts: Record<string, string | boolean>): OutputMode {
+	return {
+		json: opts.json === true,
+	};
+}
 
-const parseOutputMode = (opts: Record<string, string | boolean>): OutputMode => ({
-	json: opts.json === true,
-});
-
-const finalizeStructuredResult = (
+export function finalizeStructuredResult(
 	payload: object,
 	output: OutputMode,
 	exitCode: number = EXIT_CODES.SUCCESS,
-): CommandResult => {
+): CommandResult {
 	if (output.json) {
 		return { exitCode, payload };
 	}
 	return { exitCode };
-};
+}
 
-const finalizeReadyResult = (options: {
+export function finalizeReadyResult(options: {
 	/** Structured successful command payload. */
 	payload: object;
 	/** Requested output rendering. */
@@ -85,35 +87,28 @@ const finalizeReadyResult = (options: {
 	summary: string;
 	/** Interactive follow-up run after output has been emitted. */
 	afterOutput?: (() => Promise<void>) | undefined;
-}): CommandResult => {
+}): CommandResult {
 	const { payload, output, summary, afterOutput } = options;
 	if (output.json) {
 		return { ...finalizeStructuredResult(payload, output), afterOutput };
 	}
 	return { afterOutput, exitCode: EXIT_CODES.SUCCESS, stderr: `${summary}\n` };
-};
-
-const toFailurePayload = (failure: HoneycombError): FailurePayload => ({
-	kind: failure.kind,
-	message: failure.message,
-	reason: failure.reason,
-	...failure.context,
-});
+}
 
 /** The one formatter for anything a command throws: human text or a failure payload. */
-const formatFailure = (error: unknown, output: OutputMode): CommandResult => {
+export function formatFailure(error: unknown, output: OutputMode): CommandResult {
 	const failure = toHoneycombError(error);
 	if (!output.json) {
 		return { exitCode: failure.exitCode, failure, stderr: `${failure.message}\n` };
 	}
 	return { exitCode: failure.exitCode, failure, payload: toFailurePayload(failure) };
-};
+}
 
 /**
  * Collect progress into the JSON document. Once rendered, later lines (interactive
  * follow-ups only) fall through to the terminal reporter.
  */
-const createJsonCollector = (terminal: ProgressReporter) => {
+export function createJsonCollector(terminal: ProgressReporter) {
 	const log: JsonLog = { diagnostics: [], setup_output: [] };
 	let rendered = false;
 	const progress: ProgressReporter = {
@@ -144,35 +139,23 @@ const createJsonCollector = (terminal: ProgressReporter) => {
 		return renderJsonResult(result, log);
 	};
 	return { progress, render };
-};
+}
 
 /** Render a result as the single stdout document: `ok`, then the payload, then captured output. */
-const renderJsonResult = (result: CommandResult, log: JsonLog = NO_OUTPUT): CommandResult => ({
-	afterOutput: result.afterOutput,
-	exitCode: result.exitCode,
-	failure: result.failure,
-	stdout: `${JSON.stringify(
-		{ ok: result.exitCode === EXIT_CODES.SUCCESS, ...result.payload, ...log },
-		undefined,
-		JSON_INDENT,
-	)}\n`,
-});
+export function renderJsonResult(result: CommandResult, log: JsonLog = NO_OUTPUT): CommandResult {
+	return {
+		afterOutput: result.afterOutput,
+		exitCode: result.exitCode,
+		failure: result.failure,
+		stdout: `${JSON.stringify(
+			{ ok: result.exitCode === EXIT_CODES.SUCCESS, ...result.payload, ...log },
+			undefined,
+			JSON_INDENT,
+		)}\n`,
+	};
+}
 
-const takeOptionValue = (
-	opts: Record<string, string | boolean>,
-	args: string[],
-	index: number,
-): number => {
-	const key = (args[index] ?? "").slice(FLAG_PREFIX.length);
-	const value = args[index + VALUE_ARGUMENTS];
-	if (value === undefined || value.startsWith(FLAG_PREFIX)) {
-		throw new UsageError(`missing value for --${key}`);
-	}
-	opts[key] = value;
-	return index + VALUE_ARGUMENTS;
-};
-
-const parseOptions = (args: string[]): Record<string, string | boolean> => {
+export function parseOptions(args: string[]): Record<string, string | boolean> {
 	const opts: Record<string, string | boolean> = {};
 	for (let index = 0; index < args.length; index += VALUE_ARGUMENTS) {
 		const arg = args[index] ?? "";
@@ -183,29 +166,40 @@ const parseOptions = (args: string[]): Record<string, string | boolean> => {
 		}
 	}
 	return opts;
-};
+}
 
-const requireOption = (opts: Record<string, string | boolean>, key: string): string => {
+export function requireOption(opts: Record<string, string | boolean>, key: string): string {
 	const value = opts[key];
 	if (typeof value !== "string" || value === "") {
 		throw new UsageError(`missing required --${key}`);
 	}
 	return value;
-};
+}
+// --- Private functions ---
 
-export {
-	createJsonCollector,
-	finalizeReadyResult,
-	finalizeStructuredResult,
-	formatFailure,
-	parseOptions,
-	parseOutputMode,
-	renderJsonResult,
-	requireOption,
-	type CommandResult,
-	type JsonLog,
-	type OutputMode,
-};
+function toFailurePayload(failure: HoneycombError): FailurePayload {
+	return {
+		kind: failure.kind,
+		message: failure.message,
+		reason: failure.reason,
+		...failure.context,
+	};
+}
+
+function takeOptionValue(
+	opts: Record<string, string | boolean>,
+	args: string[],
+	index: number,
+): number {
+	const key = (args[index] ?? "").slice(FLAG_PREFIX.length);
+	const value = args[index + VALUE_ARGUMENTS];
+	if (value === undefined || value.startsWith(FLAG_PREFIX)) {
+		throw new UsageError(`missing value for --${key}`);
+	}
+	opts[key] = value;
+	return index + VALUE_ARGUMENTS;
+}
+
 export {
 	formatCommandSource,
 	formatConfigSummary,

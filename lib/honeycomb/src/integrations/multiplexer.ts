@@ -1,5 +1,8 @@
 import { sessionNameForWorktreePath } from "../domain/worktree.ts";
 
+/** Field holding the worktree path in picker rows; read by fzf as `{1}`. */
+export const WORKTREE_PATH_FIELD = "{1}";
+
 /** Session a multiplexer should create and focus. */
 export interface MultiplexerOpenRequest {
 	/** Session identity; derive it with openRequestForWorktree so it matches the payload session. */
@@ -30,32 +33,22 @@ export interface Multiplexer {
 	previewCommand: () => string;
 }
 
-/** Field holding the worktree path in picker rows; read by fzf as `{1}`. */
-export const WORKTREE_PATH_FIELD = "{1}";
-
 /** Preview command for worktrees no session shows: recent history. */
-export const gitLogPreviewCommand = (): string => `git -C ${WORKTREE_PATH_FIELD} log --oneline -20`;
+export function gitLogPreviewCommand(): string {
+	return `git -C ${WORKTREE_PATH_FIELD} log --oneline -20`;
+}
 
 /** Session operations for environments without a terminal multiplexer. */
-export class NoMultiplexer implements Multiplexer {
-	readonly attached = false;
-
-	open(_request: MultiplexerOpenRequest): Promise<void> {
-		return Promise.resolve();
-	}
-
-	closeUnder(_path: string): Promise<void> {
-		return Promise.resolve();
-	}
-
-	previewCommand(): string {
-		return gitLogPreviewCommand();
-	}
+export function createNoMultiplexer(): Multiplexer {
+	return {
+		attached: false,
+		async closeUnder() {},
+		async open() {},
+		previewCommand: gitLogPreviewCommand,
+	};
 }
 
 /** Build an open request whose session name matches the payload session identity. */
-export const openRequestForWorktree = (path: string, title: string): MultiplexerOpenRequest => ({
-	name: sessionNameForWorktreePath(path),
-	path,
-	title,
-});
+export function openRequestForWorktree(path: string, title: string): MultiplexerOpenRequest {
+	return { name: sessionNameForWorktreePath(path), path, title };
+}

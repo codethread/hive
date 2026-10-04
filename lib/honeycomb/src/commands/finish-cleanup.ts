@@ -34,13 +34,30 @@ interface CleanupOptions {
 	source: Worktree;
 }
 
-const pushFinishedBranch = async (options: {
+export async function pushAndCleanup(
+	options: CleanupOptions & {
+		plan: FinishPolicyPlan;
+		targetBranch: string;
+	},
+): Promise<(() => Promise<void>) | undefined> {
+	await pushFinishedBranch({
+		cleanupActions: options.cleanupActions,
+		deps: options.deps,
+		plan: options.plan,
+		root: options.root,
+		targetBranch: options.targetBranch,
+	});
+	return cleanupSourceWorktree(options);
+}
+// --- Private functions ---
+
+async function pushFinishedBranch(options: {
 	cleanupActions: string[];
 	deps: Deps;
 	plan: FinishPolicyPlan;
 	root: string;
 	targetBranch: string;
-}): Promise<void> => {
+}): Promise<void> {
 	if (!options.plan.push) {
 		return;
 	}
@@ -55,9 +72,9 @@ const pushFinishedBranch = async (options: {
 		throw new PushRejectedError(`push rejected for ${options.targetBranch}`);
 	}
 	options.cleanupActions.push("push");
-};
+}
 
-const recycleFinishedSlot = async (options: {
+async function recycleFinishedSlot(options: {
 	deleteBranch: boolean;
 	files: WorkspaceFiles;
 	git: GitRunner;
@@ -66,7 +83,7 @@ const recycleFinishedSlot = async (options: {
 	source: Worktree;
 	sourceBranch: string;
 	worktreeLocation: WorktreeLocation;
-}): Promise<void> => {
+}): Promise<void> {
 	const state = await buildPoolState({
 		deps: { files: options.files, git: options.git },
 		location: options.worktreeLocation,
@@ -99,9 +116,9 @@ const recycleFinishedSlot = async (options: {
 	if (options.deleteBranch) {
 		await options.git.run(["-C", options.root, "branch", "-D", options.sourceBranch]);
 	}
-};
+}
 
-const cleanupFinishedWorktree = async (options: {
+async function cleanupFinishedWorktree(options: {
 	deleteBranch: boolean;
 	files: WorkspaceFiles;
 	git: GitRunner;
@@ -109,7 +126,7 @@ const cleanupFinishedWorktree = async (options: {
 	root: string;
 	source: Worktree;
 	worktreeLocation: WorktreeLocation;
-}): Promise<void> => {
+}): Promise<void> {
 	const { deleteBranch, files, git, project, root, source, worktreeLocation } = options;
 	if (!source.branch) {
 		throw new UsageError("finish cleanup requires a source branch");
@@ -132,18 +149,18 @@ const cleanupFinishedWorktree = async (options: {
 	if (deleteBranch) {
 		await git.run(["-C", root, "branch", "-D", source.branch]);
 	}
-};
+}
 
-const cleanupActionFor = (source: Worktree): string => {
+function cleanupActionFor(source: Worktree): string {
 	if (source.pool) {
 		return "recycle_worktree";
 	}
 	return "remove_worktree";
-};
+}
 
-const cleanupSourceWorktree = async (
+async function cleanupSourceWorktree(
 	options: CleanupOptions,
-): Promise<(() => Promise<void>) | undefined> => {
+): Promise<(() => Promise<void>) | undefined> {
 	if (!options.plan.removeWorktree) {
 		return undefined;
 	}
@@ -169,22 +186,4 @@ const cleanupSourceWorktree = async (
 		options.cleanupActions.push("delete_branch");
 	}
 	return afterOutput;
-};
-
-const pushAndCleanup = async (
-	options: CleanupOptions & {
-		plan: FinishPolicyPlan;
-		targetBranch: string;
-	},
-): Promise<(() => Promise<void>) | undefined> => {
-	await pushFinishedBranch({
-		cleanupActions: options.cleanupActions,
-		deps: options.deps,
-		plan: options.plan,
-		root: options.root,
-		targetBranch: options.targetBranch,
-	});
-	return cleanupSourceWorktree(options);
-};
-
-export { pushAndCleanup };
+}

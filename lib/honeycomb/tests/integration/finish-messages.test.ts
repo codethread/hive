@@ -10,27 +10,27 @@ import { readFile } from "node:fs/promises";
 const tmp = useTmpHome("honeycomb-finish-messages-test-");
 const { initRepoWithOrigin } = useOriginFixture();
 
-const prepareFinish = async (branch: string, policy = "") => {
+async function prepareFinish(branch: string, policy = "") {
 	const { remote, root } = await initRepoWithOrigin(tmp.dir);
 	writeConfig({ command: "echo ready", copyToml: policy, root, tmp: tmp.dir });
 	await dispatch("add", ["--cwd", root, "--branch", branch, "--json"], deps);
 	return { remote, root, worktreePath: `${root}__${branch.replaceAll("/", "--")}` };
-};
+}
 
-const commitMessageLines = async (root: string): Promise<string[]> => {
+async function commitMessageLines(root: string): Promise<string[]> {
 	const message = await gitText(root, "log", "-1", "--format=%B");
 	return message
 		.split("\n")
 		.map((line) => line.trim())
 		.filter((line) => line !== "");
-};
+}
 
-const assertSquashCommit = async (options: {
+async function assertSquashCommit(options: {
 	root: string;
 	beforeHead: string;
 	title: string;
 	body: string | undefined;
-}) => {
+}) {
 	const { root, beforeHead, title, body } = options;
 	const expected = [title];
 	if (body !== undefined) {
@@ -41,7 +41,7 @@ const assertSquashCommit = async (options: {
 	expect(await gitOut(root, "rev-list", "--count", `${beforeHead}..HEAD`)).toBe("1");
 	expect(await readFile(join(root, "one.txt"), "utf8")).toBe("one\n");
 	expect(await readFile(join(root, "two.txt"), "utf8")).toBe("two\n");
-};
+}
 
 test("squash composes the caller message with branch provenance and source history", async () => {
 	const { root, worktreePath } = await prepareFinish(

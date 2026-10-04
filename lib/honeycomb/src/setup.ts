@@ -27,6 +27,8 @@ import { existsSync, mkdtempSync, realpathSync, writeFileSync } from "node:fs";
 // oxlint-disable-next-line import/no-nodejs-modules -- Setup uses the user's home and temporary directory.
 import { homedir, tmpdir } from "node:os";
 
+const EMPTY_PATH_COUNT = 0;
+
 interface CopyPlan {
 	/** Absolute destination in the new checkout. */
 	destination: string;
@@ -49,7 +51,56 @@ interface CopySetup {
 	target: string;
 }
 
-const writePostCreateScript = (spec: PostCreateScriptSpec): string => {
+/** Create the filesystem service used by live worktree operations. */
+export function createLiveWorkspaceFiles(git: GitRunner): WorkspaceFiles {
+	return {
+		copy,
+		exists,
+		normalizePath,
+		prepareParent,
+		writePostCreateScript: writePostCreateScriptFile,
+	};
+
+	function normalizePath(path: string): string {
+		// oxlint-disable-next-line node/no-sync -- Canonical path matching is a synchronous injected service contract.
+		if (existsSync(path)) {
+			// oxlint-disable-next-line node/no-sync -- Preserve synchronous canonicalization for config and worktree selectors.
+			return realpathSync(path);
+		}
+		return path;
+	}
+
+	function exists(path: string): boolean {
+		// oxlint-disable-next-line node/no-sync -- WorkspaceFiles.exists is a synchronous observation contract.
+		return existsSync(path);
+	}
+
+	async function prepareParent(
+		root: string,
+		path: string,
+		location: WorktreeLocation,
+	): Promise<void> {
+		if (location === "nested") {
+			await writeExcludeFence(git, root, {
+				name: "wktree-location",
+				paths: [`/${NESTED_WORKTREE_DIR}/`, "/.wktree/"],
+			});
+			await mkdir(dirname(path), { recursive: true });
+		}
+	}
+
+	function copy(root: string, target: string, entries: CopyEntry[]): Promise<CopiedFile[]> {
+		return runCopySetup({ entries, git, root, target });
+	}
+
+	function writePostCreateScriptFile(spec: PostCreateScriptSpec): string {
+		return writePostCreateScript(spec);
+	}
+}
+
+// Private workspace planning and filesystem helpers.
+
+function writePostCreateScript(spec: PostCreateScriptSpec): string {
 	const session = sessionNameForWorktreePath(spec.created);
 	// oxlint-disable-next-line node/no-sync -- WorkspaceFiles returns the completed script path synchronously.
 	const sessionDir = mkdtempSync(join(tmpdir(), `${session}.wktree.`));
@@ -57,30 +108,27 @@ const writePostCreateScript = (spec: PostCreateScriptSpec): string => {
 	// oxlint-disable-next-line node/no-sync -- The synchronous script contract requires the executable to exist on return.
 	writeFileSync(scriptPath, generatePostCreateScript(spec), { mode: 0o755 });
 	return scriptPath;
-};
+}
 
-const pathExists = async (path: string): Promise<boolean> => {
+async function pathExists(path: string): Promise<boolean> {
 	try {
 		await access(path);
 		return true;
 	} catch {
 		return false;
 	}
-};
+}
 
-const lstatExists = async (path: string): Promise<boolean> => {
+async function lstatExists(path: string): Promise<boolean> {
 	try {
 		await lstat(path);
 		return true;
 	} catch {
 		return false;
 	}
-};
+}
 
-const copyType = (
-	stat: Awaited<ReturnType<typeof lstat>>,
-	entry: CopyEntry,
-): CopiedFile["type"] => {
+function copyType(stat: Awaited<ReturnType<typeof lstat>>, entry: CopyEntry): CopiedFile["type"] {
 	if (!stat.isFile() && !stat.isDirectory()) {
 		throw new ConfigError(`copy source is not a regular file or directory: ${entry.from}`);
 	}
@@ -88,12 +136,12 @@ const copyType = (
 		return "directory";
 	}
 	return "file";
-};
+}
 
-const copySource = async (
+async function copySource(
 	root: string,
 	entry: CopyEntry,
-): Promise<Pick<CopyPlan, "source" | "type">> => {
+): Promise<Pick<CopyPlan, "source" | "type">> {
 	const source = resolveCopySource(root, entry.from, homedir());
 	if (!(await pathExists(source))) {
 		throw new ConfigError(`copy source does not exist: ${entry.from}`);
@@ -103,13 +151,13 @@ const copySource = async (
 		return { source: await realpath(source), type: "symlink" };
 	}
 	return { source, type: copyType(stat, entry) };
-};
+}
 
-const assertAncestorUntracked = async (
+async function assertAncestorUntracked(
 	git: GitRunner,
 	target: string,
 	ancestor: string,
-): Promise<void> => {
+): Promise<void> {
 	const directory = await git.runRaw(["-C", target, "ls-tree", "-d", "HEAD", "--", ancestor]);
 	if (directory.stdout.trim() !== "") {
 		return;
@@ -118,13 +166,13 @@ const assertAncestorUntracked = async (
 	if (file.exitCode === EXIT_CODES.SUCCESS) {
 		throw new UnsafeOperationError(`copy destination has tracked git ancestor: ${ancestor}`);
 	}
-};
+}
 
-const assertDestinationUntracked = async (
+async function assertDestinationUntracked(
 	git: GitRunner,
 	target: string,
 	path: string,
-): Promise<void> => {
+): Promise<void> {
 	const tracked = await git.runRaw(["-C", target, "ls-files", "--", path]);
 	if (tracked.stdout.trim() !== "") {
 		throw new UnsafeOperationError(`copy destination is tracked by git: ${path}`);
@@ -137,9 +185,9 @@ const assertDestinationUntracked = async (
 		// oxlint-disable-next-line eslint/no-await-in-loop -- Check ancestors in order and stop at the first unsafe destination.
 		await assertAncestorUntracked(git, target, prefix.join("/"));
 	}
-};
+}
 
-const planCopyEntry = async (options: CopySetup, entry: CopyEntry): Promise<CopyPlan[]> => {
+async function planCopyEntry(options: CopySetup, entry: CopyEntry): Promise<CopyPlan[]> {
 	const source = await copySource(options.root, entry);
 	const plans: CopyPlan[] = [];
 	for (const to of entry.to) {
@@ -148,9 +196,9 @@ const planCopyEntry = async (options: CopySetup, entry: CopyEntry): Promise<Copy
 		plans.push({ ...source, destination: resolve(options.target, to), to });
 	}
 	return plans;
-};
+}
 
-const materializeCopy = async (plan: CopyPlan): Promise<void> => {
+async function materializeCopy(plan: CopyPlan): Promise<void> {
 	await mkdir(dirname(plan.destination), { recursive: true });
 	if (await lstatExists(plan.destination)) {
 		await rm(plan.destination, { force: true, recursive: true });
@@ -160,9 +208,9 @@ const materializeCopy = async (plan: CopyPlan): Promise<void> => {
 		return;
 	}
 	await cp(plan.source, plan.destination, { recursive: plan.type === "directory" });
-};
+}
 
-const removeExcludeFence = (current: string, name: string): string => {
+function removeExcludeFence(current: string, name: string): string {
 	const escapedName = name.replaceAll(/[.*+?^${}()|[\]\\]/gu, String.raw`\$&`);
 	const pattern = new RegExp(
 		`(?:^|\\n)# ${escapedName}-start\\n[\\s\\S]*?\\n# ${escapedName}-end\\n?`,
@@ -174,11 +222,9 @@ const removeExcludeFence = (current: string, name: string): string => {
 		}
 		return "";
 	});
-};
+}
 
-const EMPTY_PATH_COUNT = 0;
-
-const updateExcludeFence = (current: string, name: string, paths: string[]): string => {
+function updateExcludeFence(current: string, name: string, paths: string[]): string {
 	const withoutFence = removeExcludeFence(current, name);
 	const uniquePaths = [...new Set(paths)].toSorted();
 	if (uniquePaths.length === EMPTY_PATH_COUNT) {
@@ -189,36 +235,36 @@ const updateExcludeFence = (current: string, name: string, paths: string[]): str
 		separator = "\n";
 	}
 	return `${withoutFence}${separator}# ${name}-start\n${uniquePaths.join("\n")}\n# ${name}-end\n`;
-};
+}
 
-const readExclude = async (path: string): Promise<string> => {
+async function readExclude(path: string): Promise<string> {
 	if (await pathExists(path)) {
 		return readFile(path, "utf8");
 	}
 	return "";
-};
+}
 
-const resolveExclude = async (git: GitRunner, root: string): Promise<string> => {
+async function resolveExclude(git: GitRunner, root: string): Promise<string> {
 	const result = await git.run(["-C", root, "rev-parse", "--git-path", "info/exclude"]);
 	const path = resolve(root, result.stdout.trim());
 	if (await pathExists(path)) {
 		return realpath(path);
 	}
 	return path;
-};
+}
 
-const writeExcludeFence = async (
+async function writeExcludeFence(
 	git: GitRunner,
 	root: string,
 	fence: { name: string; paths: string[] },
-): Promise<void> => {
+): Promise<void> {
 	const path = await resolveExclude(git, root);
 	await mkdir(dirname(path), { recursive: true });
 	const current = await readExclude(path);
 	await writeFile(path, updateExcludeFence(current, fence.name, fence.paths));
-};
+}
 
-const runCopySetup = async (options: CopySetup): Promise<CopiedFile[]> => {
+async function runCopySetup(options: CopySetup): Promise<CopiedFile[]> {
 	const plans: CopyPlan[] = [];
 	for (const entry of options.entries) {
 		// oxlint-disable-next-line eslint/no-await-in-loop -- All preflight checks finish in configuration order before replacing assets.
@@ -234,33 +280,4 @@ const runCopySetup = async (options: CopySetup): Promise<CopiedFile[]> => {
 		paths: plans.map((plan) => plan.to),
 	});
 	return plans.map((plan) => ({ from: plan.source, to: plan.to, type: plan.type }));
-};
-
-export class LiveWorkspaceFiles implements WorkspaceFiles {
-	private readonly git: GitRunner;
-	constructor(git: GitRunner) {
-		this.git = git;
-	}
-	normalizePath = (path: string): string => {
-		// oxlint-disable-next-line node/no-sync -- Canonical path matching is a synchronous injected service contract.
-		if (existsSync(path)) {
-			// oxlint-disable-next-line node/no-sync -- Preserve synchronous canonicalization for config and worktree selectors.
-			return realpathSync(path);
-		}
-		return path;
-	};
-	// oxlint-disable-next-line node/no-sync -- WorkspaceFiles.exists is a synchronous observation contract.
-	exists = (path: string): boolean => existsSync(path);
-	prepareParent = async (root: string, path: string, location: WorktreeLocation): Promise<void> => {
-		if (location === "nested") {
-			await writeExcludeFence(this.git, root, {
-				name: "wktree-location",
-				paths: [`/${NESTED_WORKTREE_DIR}/`, "/.wktree/"],
-			});
-			await mkdir(dirname(path), { recursive: true });
-		}
-	};
-	copy = (root: string, target: string, entries: CopyEntry[]): Promise<CopiedFile[]> =>
-		runCopySetup({ entries, git: this.git, root, target });
-	writePostCreateScript = (spec: PostCreateScriptSpec): string => writePostCreateScript(spec);
 }

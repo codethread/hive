@@ -33,7 +33,7 @@ afterEach(async () => {
 	await rm(tmp, { force: true, recursive: true });
 });
 
-const initTrackedDescendant = async () => {
+async function initTrackedDescendant() {
 	const { root } = await initRepoWithOrigin(tmp);
 	await mkdir(join(root, "src-dir"));
 	await writeFile(join(root, "src-dir", "foo.txt"), "source\n");
@@ -54,7 +54,7 @@ const initTrackedDescendant = async () => {
 		repo: worktreePath,
 	});
 	return { worktreePath };
-};
+}
 
 test("tracked descendants under directory destinations block with unsafe JSON", async () => {
 	const { worktreePath } = await initTrackedDescendant();
@@ -66,7 +66,7 @@ test("tracked descendants under directory destinations block with unsafe JSON", 
 	expect(await readFile(join(worktreePath, "tracked-dir", "keep.txt"), "utf8")).toBe("tracked\n");
 });
 
-const initTrackedAncestor = async () => {
+async function initTrackedAncestor() {
 	const { root } = await initRepoWithOrigin(tmp);
 	await writeFile(join(root, ".env"), "source\n");
 	await writeFile(join(root, "tracked-file"), "tracked\n");
@@ -82,7 +82,7 @@ const initTrackedAncestor = async () => {
 		tmp,
 	});
 	return { root };
-};
+}
 
 test("tracked destination ancestors block with unsafe JSON", async () => {
 	const { root } = await initTrackedAncestor();
@@ -97,15 +97,15 @@ test("tracked destination ancestors block with unsafe JSON", async () => {
 	expect(JSON.parse(result.stdout ?? "{}")).toMatchObject({ kind: "blocked", reason: "unsafe" });
 });
 
-const commitTrackedSettings = async (root: string) => {
+async function commitTrackedSettings(root: string) {
 	await mkdir(join(root, ".claude"));
 	await writeFile(join(root, ".claude", "settings.json"), '{"tracked":true}\n');
 	await run(["git", "-C", root, "add", "source.txt", ".claude/settings.json"]);
 	await run(["git", "-C", root, "commit", "-m", "track claude settings"]);
 	await run(["git", "-C", root, "push", "origin", "main"]);
-};
+}
 
-const initTrackedDirectory = async () => {
+async function initTrackedDirectory() {
 	const { root } = await initRepoWithOrigin(tmp);
 	await writeFile(join(root, "source.txt"), "source\n");
 	await commitTrackedSettings(root);
@@ -123,7 +123,7 @@ const initTrackedDirectory = async () => {
 	});
 	const worktreePath = `${root}__feature--tracked-dir-ancestor`;
 	return { root, worktreePath };
-};
+}
 
 test("untracked file inside tracked directory destination is allowed", async () => {
 	const { root, worktreePath } = await initTrackedDirectory();
@@ -184,12 +184,12 @@ test.each([
 	expect(result.failure).toBeInstanceOf(ConfigError);
 });
 
-const sharedExcludePath = async (root: string) => {
+async function sharedExcludePath(root: string) {
 	const result = await run(["git", "-C", root, "rev-parse", "--git-path", "info/exclude"]);
 	return result.stdout.trim();
-};
+}
 
-const initSymlinkedExclude = async () => {
+async function initSymlinkedExclude() {
 	const { root } = await initRepoWithOrigin(tmp);
 	const excludePath = await sharedExcludePath(root);
 	const realExclude = join(tmp, "real-exclude");
@@ -200,7 +200,7 @@ const initSymlinkedExclude = async () => {
 	writeConfig({ command: "echo ready", copyToml: 'copy = [".env"]\n', root, tmp });
 	await dispatch("add", ["--cwd", root, "--branch", "feature/symlink-exclude", "--json"], deps);
 	return { excludePath, realExclude, root };
-};
+}
 
 test("follows symlinked shared exclude path", async () => {
 	const { root, realExclude, excludePath } = await initSymlinkedExclude();
@@ -212,7 +212,7 @@ test("follows symlinked shared exclude path", async () => {
 	expect(symlinkResult.exitCode).toBe(EXIT_CODES.SUCCESS);
 });
 
-const initExcludeFence = async () => {
+async function initExcludeFence() {
 	const { root } = await initRepoWithOrigin(tmp);
 	const excludePath = await sharedExcludePath(root);
 	await writeFile(resolve(root, excludePath), "*.log\n");
@@ -221,7 +221,7 @@ const initExcludeFence = async () => {
 	await dispatch("add", ["--cwd", root, "--branch", "feature/ignore-copy", "--json"], deps);
 	const worktreePath = `${root}__feature--ignore-copy`;
 	return { excludePath, root, worktreePath };
-};
+}
 
 test("exclude fence is idempotent, preserves unrelated lines, removes when copy is removed, and ignores copied files", async () => {
 	const { root, excludePath, worktreePath } = await initExcludeFence();

@@ -5,46 +5,33 @@ import { parseWorktreeList } from "../git/worktrees.ts";
 // oxlint-disable-next-line import/no-nodejs-modules -- resolve cwd at the filesystem boundary
 import { resolve } from "node:path";
 
-const findRemoveTarget = (options: {
-	cwd: string;
-	files: WorkspaceFiles;
-	selector: { branch: string | null; self: boolean };
-	worktrees: Worktree[];
-}): Worktree | undefined => {
-	const { cwd, files, selector, worktrees } = options;
-	if (selector.branch) {
-		return worktrees.find((worktree) => worktree.branch === selector.branch);
-	}
-	return resolveWorktreeContainingPath(worktrees, cwd, files);
-};
-
-export const listWorktrees = async (git: GitRunner, cwd: string): Promise<Worktree[]> => {
+export async function listWorktrees(git: GitRunner, cwd: string): Promise<Worktree[]> {
 	const result = await git.run(["-C", cwd, "worktree", "list", "--porcelain"]);
 	return parseWorktreeList(result.stdout);
-};
+}
 
-export const resolveCanonicalRoot = async (git: GitRunner, cwd: string): Promise<string> => {
+export async function resolveCanonicalRoot(git: GitRunner, cwd: string): Promise<string> {
 	const worktrees = await listWorktrees(git, cwd);
 	const canonical = worktrees.find((worktree) => worktree.canonical);
 	if (!canonical) {
 		throw new HoneycombError("couldn't determine canonical worktree");
 	}
 	return canonical.path;
-};
+}
 
-export const resolveWorktreeContainingPath = (
+export function resolveWorktreeContainingPath(
 	worktrees: Worktree[],
 	cwd: string,
 	files: WorkspaceFiles,
-): Worktree | undefined => {
+): Worktree | undefined {
 	const normalizedCwd = files.normalizePath(resolve(cwd));
 	const [mostSpecific] = worktrees
 		.filter((worktree) => pathContains(files.normalizePath(worktree.path), normalizedCwd))
 		.toSorted((left, right) => right.path.length - left.path.length);
 	return mostSpecific;
-};
+}
 
-export const resolveRemoveTarget = (options: {
+export function resolveRemoveTarget(options: {
 	/** Git's current worktree inventory. */
 	worktrees: Worktree[];
 	/** Protected canonical checkout. */
@@ -55,7 +42,7 @@ export const resolveRemoveTarget = (options: {
 	selector: { branch: string | null; self: boolean };
 	/** Filesystem canonicalization boundary. */
 	files: WorkspaceFiles;
-}): Worktree => {
+}): Worktree {
 	const { worktrees, canonicalRoot, cwd, selector, files } = options;
 	const target = findRemoveTarget({ cwd, files, selector, worktrees });
 	if (!target) {
@@ -68,7 +55,22 @@ export const resolveRemoveTarget = (options: {
 		throw new CanonicalRootError("refusing to remove canonical root");
 	}
 	return target;
-};
+}
 
-export const pathContains = (parent: string, child: string): boolean =>
-	child === parent || child.startsWith(`${parent}/`);
+export function pathContains(parent: string, child: string): boolean {
+	return child === parent || child.startsWith(`${parent}/`);
+}
+// --- Private functions ---
+
+function findRemoveTarget(options: {
+	cwd: string;
+	files: WorkspaceFiles;
+	selector: { branch: string | null; self: boolean };
+	worktrees: Worktree[];
+}): Worktree | undefined {
+	const { cwd, files, selector, worktrees } = options;
+	if (selector.branch) {
+		return worktrees.find((worktree) => worktree.branch === selector.branch);
+	}
+	return resolveWorktreeContainingPath(worktrees, cwd, files);
+}

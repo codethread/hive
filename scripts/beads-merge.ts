@@ -1,6 +1,12 @@
 import { errorDetail } from "./beads-jsonl.ts";
 import { mergeIssueJsonl } from "./beads-merge-core.ts";
 
+const DRIVER_ARGUMENT_COUNT = 3;
+const EXIT_CONFLICT = 1;
+const EXIT_INVALID = 2;
+const EXIT_SUCCESS = 0;
+const PROCESS_ARGUMENT_OFFSET = 2;
+
 type DriverPaths =
 	| {
 			/** Common-ancestor temporary file supplied by Git. */
@@ -17,13 +23,7 @@ type DriverPaths =
 			readonly kind: "invalid";
 	  };
 
-const DRIVER_ARGUMENT_COUNT = 3;
-const EXIT_CONFLICT = 1;
-const EXIT_INVALID = 2;
-const EXIT_SUCCESS = 0;
-const PROCESS_ARGUMENT_OFFSET = 2;
-
-const parseDriverPaths = (arguments_: readonly string[]): DriverPaths => {
+function parseDriverPaths(arguments_: readonly string[]): DriverPaths {
 	if (arguments_.length !== DRIVER_ARGUMENT_COUNT) {
 		return { kind: "invalid" };
 	}
@@ -32,9 +32,9 @@ const parseDriverPaths = (arguments_: readonly string[]): DriverPaths => {
 		return { kind: "invalid" };
 	}
 	return { ancestor, current, kind: "valid", other };
-};
+}
 
-const executeMerge = async (paths: Exclude<DriverPaths, { kind: "invalid" }>): Promise<number> => {
+async function executeMerge(paths: Exclude<DriverPaths, { kind: "invalid" }>): Promise<number> {
 	const [ancestor, current, other] = await Promise.all([
 		Bun.file(paths.ancestor).text(),
 		Bun.file(paths.current).text(),
@@ -51,9 +51,9 @@ const executeMerge = async (paths: Exclude<DriverPaths, { kind: "invalid" }>): P
 		return EXIT_CONFLICT;
 	}
 	return EXIT_SUCCESS;
-};
+}
 
-const run = async (arguments_: readonly string[]): Promise<number> => {
+async function run(arguments_: readonly string[]): Promise<number> {
 	const paths = parseDriverPaths(arguments_);
 	if (paths.kind === "invalid") {
 		console.error("usage: beads-merge.ts <ancestor> <current> <other>");
@@ -65,7 +65,7 @@ const run = async (arguments_: readonly string[]): Promise<number> => {
 		console.error(`beads merge failed: ${errorDetail(error)}`);
 		return EXIT_INVALID;
 	}
-};
+}
 
 if (import.meta.main) {
 	process.exitCode = await run(process.argv.slice(PROCESS_ARGUMENT_OFFSET));

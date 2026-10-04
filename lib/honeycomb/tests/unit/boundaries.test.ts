@@ -1,5 +1,5 @@
+import type { GitResult, GitRunOptions } from "../../src/services.ts";
 import { expect, test } from "bun:test";
-import type { GitRunner } from "../../src/services.ts";
 import { PreRemoteCheckError } from "../../src/errors.ts";
 import type { TreesConfig } from "../../src/domain/config.ts";
 import { buildPoolState } from "../../src/application/pool.ts";
@@ -8,7 +8,7 @@ import { parseWorktreeList } from "../../src/git/worktrees.ts";
 import { runPreRemoteCheck } from "../../src/application/hooks.ts";
 import { toListJson } from "../../src/protocol.ts";
 
-const run: GitRunner["runRaw"] = (args) => {
+function run(args: string[], _options?: GitRunOptions): Promise<GitResult> {
 	let stdout = "";
 	if (args.includes("symbolic-ref")) {
 		stdout = "refs/remotes/origin/main\n";
@@ -18,7 +18,7 @@ const run: GitRunner["runRaw"] = (args) => {
 		stdout = "../repo/.git/worktrees/feat1/wk-pool-initialized\n";
 	}
 	return Promise.resolve({ exitCode: 0, stderr: "", stdout });
-};
+}
 
 test("preflight uses the injected command runner and preserves failure diagnostics", async () => {
 	const config: TreesConfig = {

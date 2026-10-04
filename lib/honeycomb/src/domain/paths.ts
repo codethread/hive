@@ -7,7 +7,7 @@ const SEGMENT_WILDCARD = "*";
 const SEGMENT_WILDCARD_PATTERN = "[^/]*";
 const TILDE_PREFIX = "~/";
 
-const expandConfigPath = (path: string, context: ConfigPathContext): string => {
+export function expandConfigPath(path: string, context: ConfigPathContext): string {
 	if (path === "~") {
 		return context.home;
 	}
@@ -18,23 +18,28 @@ const expandConfigPath = (path: string, context: ConfigPathContext): string => {
 		return resolve(path);
 	}
 	return resolve(context.cwd, path);
-};
+}
 
-const expandConfigGlob = (glob: string, context: ConfigPathContext): string => {
+export function expandConfigGlob(glob: string, context: ConfigPathContext): string {
 	if (isAbsolute(glob)) {
 		return glob;
 	}
 	return expandConfigPath(glob, context);
-};
+}
 
-const globSegmentMatches = (pattern: string, value: string): boolean => {
+export function rootGlobMatches(glob: string, path: string): boolean {
+	return matchGlobSegments(glob.split("/"), path.split("/"));
+}
+// --- Private functions ---
+
+function globSegmentMatches(pattern: string, value: string): boolean {
 	const escaped = pattern
 		.replaceAll(GLOB_SPECIAL_CHARACTERS, String.raw`\$&`)
 		.replaceAll(SEGMENT_WILDCARD, SEGMENT_WILDCARD_PATTERN);
 	return new RegExp(`^${escaped}$`, "u").test(value);
-};
+}
 
-const matchGlobSegments = (pattern: string[], path: string[]): boolean => {
+function matchGlobSegments(pattern: string[], path: string[]): boolean {
 	const [head, ...tail] = pattern;
 	const [pathHead, ...pathTail] = path;
 	if (head === undefined) {
@@ -50,9 +55,4 @@ const matchGlobSegments = (pattern: string[], path: string[]): boolean => {
 		return false;
 	}
 	return globSegmentMatches(head, pathHead) && matchGlobSegments(tail, pathTail);
-};
-
-const rootGlobMatches = (glob: string, path: string): boolean =>
-	matchGlobSegments(glob.split("/"), path.split("/"));
-
-export { expandConfigGlob, expandConfigPath, rootGlobMatches };
+}

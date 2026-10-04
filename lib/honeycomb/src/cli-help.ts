@@ -1,4 +1,4 @@
-const HELP = {
+export const HELP = {
 	add: `
 Use when:
   Starting work on a branch. This is the preferred entry point over raw git
@@ -194,5 +194,3 @@ Notes:
   status, last commit details, and initialization state.
 `,
 };
-
-export { HELP };

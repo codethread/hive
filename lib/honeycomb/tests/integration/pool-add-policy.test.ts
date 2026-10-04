@@ -22,7 +22,7 @@ const TWO_SLOTS = 2;
 const tmp = useTmpHome("honeycomb-pool-add-policy-test-");
 const { initRepoWithOrigin } = useOriginFixture();
 
-const prepareDivergedPool = async () => {
+async function prepareDivergedPool() {
 	const { root, remote } = await initRepoWithOrigin(tmp.dir);
 	await createRemoteBranch(remote, "feature/diverged-pool");
 	await run(["git", "-C", root, "fetch", "origin"]);
@@ -31,16 +31,16 @@ const prepareDivergedPool = async () => {
 	await run(["git", "-C", root, "checkout", "main"]);
 	writeConfig({ command: "echo ready", poolSize: TWO_SLOTS, root, tmp: tmp.dir });
 	return root;
-};
+}
 
-const prepareBasePool = async () => {
+async function prepareBasePool() {
 	const { root, remote } = await initRepoWithOrigin(tmp.dir);
 	await createRemoteBranch(remote, "base/pool");
 	await run(["git", "-C", root, "fetch", "origin"]);
 	await run(["git", "-C", root, "branch", "feature/existing-base"]);
 	writeConfig({ command: "echo ready", poolSize: TWO_SLOTS, root, tmp: tmp.dir });
 	return root;
-};
+}
 
 test("pre_remote_check blocks pooled status before remote trunk detection", async () => {
 	const { root, remote } = await initRepoWithOrigin(tmp.dir);

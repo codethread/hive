@@ -3,14 +3,14 @@ import type { Deps } from "../services.ts";
 import type { PostCreateScriptSpec } from "../domain/worktree.ts";
 import type { TreesConfig } from "../domain/config.ts";
 
-export const runPreRemoteCheck = async (
+export async function runPreRemoteCheck(
 	deps: Pick<Deps, "config" | "hooks">,
 	options: {
 		config: TreesConfig;
 		root: string;
 		operation: string;
 	},
-): Promise<void> => {
+): Promise<void> {
 	const { config, root, operation } = options;
 	const { preRemoteCheck } = deps.config.explain(config, root);
 	if (!preRemoteCheck.value) {
@@ -21,16 +21,16 @@ export const runPreRemoteCheck = async (
 		return;
 	}
 	throw new PreRemoteCheckError(operation, preRemoteCheck.source, result.stderr.join("\n"));
-};
+}
 
-export const runBootstrap = async (
+export async function runBootstrap(
 	deps: Pick<Deps, "files" | "hooks" | "progress">,
 	spec: PostCreateScriptSpec,
-): Promise<void> => {
+): Promise<void> {
 	const scriptPath = deps.files.writePostCreateScript(spec);
 	await deps.hooks.runInline(scriptPath, {
 		cwd: spec.created,
 		env: {},
 		onLine: (stream, line) => deps.progress.stream(stream, line),
 	});
-};
+}

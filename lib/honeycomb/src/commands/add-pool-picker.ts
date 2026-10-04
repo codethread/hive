@@ -10,58 +10,11 @@ const MILLISECONDS_PER_DAY = 86_400_000;
 const MILLISECONDS_PER_HOUR = 3_600_000;
 type SlotRisk = Awaited<ReturnType<typeof describeSlotRisk>>;
 
-const formatRelativeAge = (iso: string | null, now: number): string => {
-	if (!iso) {
-		return "unknown";
-	}
-	const ageMs = now - Date.parse(iso);
-	const days = Math.floor(ageMs / MILLISECONDS_PER_DAY);
-	if (days > NO_ELAPSED_UNITS) {
-		return `${days}d ago`;
-	}
-	const hours = Math.floor(ageMs / MILLISECONDS_PER_HOUR);
-	if (hours > NO_ELAPSED_UNITS) {
-		return `${hours}h ago`;
-	}
-	return "now";
-};
-
-const slotFlags = (slot: Slot, risk: SlotRisk): string => {
-	const flags: string[] = [];
-	if (slot.dirty) {
-		flags.push("  [dirty]");
-	}
-	if (risk.ahead > NO_COMMITS) {
-		flags.push(`  [${risk.ahead} ahead]`);
-	}
-	if (risk.localOnly) {
-		flags.push("  [local-only]");
-	}
-	return flags.join("");
-};
-
-const buildPickerPreview = (): string =>
-	`slot={1}; counts=$(git -C "$slot" rev-list --left-right --count @{upstream}...HEAD 2>/dev/null); if [ $? -ne 0 ] || [ -z "$counts" ]; then echo '⚠ local-only branch'; else ahead=$(echo "$counts" | awk '{print $2}'); [ "$ahead" -gt 0 ] 2>/dev/null && echo "⚠ $ahead unpushed commits will be lost"; echo "upstream: $(echo "$counts" | awk '{print $1}') behind, $ahead ahead"; fi; git -C "$slot" log -5 --format='%h %s'; git -C "$slot" status --porcelain | head`;
-
-const buildPickerItems = async (deps: Deps, candidates: Slot[]): Promise<PickerItem[]> => {
-	const items: PickerItem[] = [];
-	for (const slot of candidates) {
-		// eslint-disable-next-line no-await-in-loop -- Preserve ordered Git observations and first-failure behavior for picker rows.
-		const risk = await describeSlotRisk(deps.git, slot);
-		items.push({
-			display: `${slot.path}\tfeat${slot.index}  ${slot.branch ?? "(detached)"}  ${formatRelativeAge(slot.lastCommitIso, deps.clock.now())}${slotFlags(slot, risk)}`,
-			key: String(slot.index),
-			preview: buildPickerPreview(),
-		});
-	}
-	return items;
-};
-
-const pickFullPoolSlot = async (options: {
+export async function pickFullPoolSlot(options: {
 	deps: Deps;
 	state: PoolState;
 	interactive: boolean;
-}): Promise<Slot> => {
+}): Promise<Slot> {
 	const { deps, state, interactive } = options;
 	const candidates = state.slots.filter(
 		(slot) => slot.exists && slot.initialized && !slot.placeholder,
@@ -75,23 +28,9 @@ const pickFullPoolSlot = async (options: {
 		interactive,
 	});
 	return candidates.find((slot) => String(slot.index) === selected.key) ?? firstCandidate;
-};
+}
 
-const recycleWarnings = (slot: Slot, risk: SlotRisk): string => {
-	const warnings: string[] = [];
-	if (slot.dirty) {
-		warnings.push("dirty changes will be lost");
-	}
-	if (risk.localOnly) {
-		warnings.push("local-only branch");
-	}
-	if (risk.ahead > NO_COMMITS) {
-		warnings.push(`⚠ ${risk.ahead} unpushed commits will be lost`);
-	}
-	return warnings.join("; ");
-};
-
-const buildRecycleConfirmPrompt = async (git: GitRunner, slot: Slot): Promise<string> => {
+export async function buildRecycleConfirmPrompt(git: GitRunner, slot: Slot): Promise<string> {
 	const risk = await describeSlotRisk(git, slot);
 	const warnings = recycleWarnings(slot, risk);
 	let suffix = "";
@@ -99,13 +38,13 @@ const buildRecycleConfirmPrompt = async (git: GitRunner, slot: Slot): Promise<st
 		suffix = `: ${warnings}`;
 	}
 	return `Recycle feat${slot.index} (${slot.branch ?? "detached"})${suffix}? [y/N] `;
-};
+}
 
-const toPoolFullPayload = async (
+export async function toPoolFullPayload(
 	git: GitRunner,
 	state: PoolState,
 	branch: string,
-): Promise<PoolFullPayload> => {
+): Promise<PoolFullPayload> {
 	const candidates = state.slots.filter(
 		(slot) => slot.exists && slot.initialized && !slot.placeholder,
 	);
@@ -129,6 +68,67 @@ const toPoolFullPayload = async (
 		kind: "pool_full",
 		root: state.root,
 	};
-};
+}
+// --- Private functions ---
 
-export { buildRecycleConfirmPrompt, pickFullPoolSlot, toPoolFullPayload };
+function formatRelativeAge(iso: string | null, now: number): string {
+	if (!iso) {
+		return "unknown";
+	}
+	const ageMs = now - Date.parse(iso);
+	const days = Math.floor(ageMs / MILLISECONDS_PER_DAY);
+	if (days > NO_ELAPSED_UNITS) {
+		return `${days}d ago`;
+	}
+	const hours = Math.floor(ageMs / MILLISECONDS_PER_HOUR);
+	if (hours > NO_ELAPSED_UNITS) {
+		return `${hours}h ago`;
+	}
+	return "now";
+}
+
+function slotFlags(slot: Slot, risk: SlotRisk): string {
+	const flags: string[] = [];
+	if (slot.dirty) {
+		flags.push("  [dirty]");
+	}
+	if (risk.ahead > NO_COMMITS) {
+		flags.push(`  [${risk.ahead} ahead]`);
+	}
+	if (risk.localOnly) {
+		flags.push("  [local-only]");
+	}
+	return flags.join("");
+}
+
+function buildPickerPreview(): string {
+	return `slot={1}; counts=$(git -C "$slot" rev-list --left-right --count @{upstream}...HEAD 2>/dev/null); if [ $? -ne 0 ] || [ -z "$counts" ]; then echo '⚠ local-only branch'; else ahead=$(echo "$counts" | awk '{print $2}'); [ "$ahead" -gt 0 ] 2>/dev/null && echo "⚠ $ahead unpushed commits will be lost"; echo "upstream: $(echo "$counts" | awk '{print $1}') behind, $ahead ahead"; fi; git -C "$slot" log -5 --format='%h %s'; git -C "$slot" status --porcelain | head`;
+}
+
+async function buildPickerItems(deps: Deps, candidates: Slot[]): Promise<PickerItem[]> {
+	const items: PickerItem[] = [];
+	for (const slot of candidates) {
+		// eslint-disable-next-line no-await-in-loop -- Preserve ordered Git observations and first-failure behavior for picker rows.
+		const risk = await describeSlotRisk(deps.git, slot);
+		items.push({
+			display: `${slot.path}\tfeat${slot.index}  ${slot.branch ?? "(detached)"}  ${formatRelativeAge(slot.lastCommitIso, deps.clock.now())}${slotFlags(slot, risk)}`,
+			key: String(slot.index),
+			preview: buildPickerPreview(),
+		});
+	}
+	return items;
+}
+
+function recycleWarnings(slot: Slot, risk: SlotRisk): string {
+	const warnings: string[] = [];
+	if (slot.dirty) {
+		warnings.push("dirty changes will be lost");
+	}
+	if (risk.localOnly) {
+		warnings.push("local-only branch");
+	}
+	if (risk.ahead > NO_COMMITS) {
+		warnings.push(`⚠ ${risk.ahead} unpushed commits will be lost`);
+	}
+	return warnings.join("; ");
+}

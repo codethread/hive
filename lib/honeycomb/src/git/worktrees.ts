@@ -18,7 +18,53 @@ interface RecordFields {
 	flags: Set<string>;
 }
 
-const splitRecordLines = (record: string): RecordFields => {
+export function parseWorktreeList(porcelainOutput: string): Worktree[] {
+	const records = porcelainOutput
+		.trim()
+		.split(PORCELAIN_RECORD_SEPARATOR)
+		.map((record) => record.trim())
+		.filter(Boolean);
+
+	return records.map((record, index) => parseRecord(record, index === CANONICAL_WORKTREE_INDEX));
+}
+
+export function parseTrunkFromSymbolicRef(stdout: string): string | null {
+	const ref = stdout.trim();
+	if (ref === "") {
+		// oxlint-disable-next-line unicorn/no-null -- Absent Git metadata is an explicit-null public parser contract.
+		return null;
+	}
+	if (!ref.startsWith(ORIGIN_REF_PREFIX)) {
+		return ref;
+	}
+	return ref.slice(ORIGIN_REF_PREFIX.length);
+}
+
+export function parseTrunkFromRemoteShow(stdout: string): string | null {
+	for (const line of stdout.split("\n")) {
+		const branch = HEAD_BRANCH_PATTERN.exec(line)?.groups?.branch;
+		if (branch !== undefined) {
+			if (branch === UNKNOWN_HEAD) {
+				// oxlint-disable-next-line unicorn/no-null -- Absent Git metadata is an explicit-null public parser contract.
+				return null;
+			}
+			return branch;
+		}
+	}
+	// oxlint-disable-next-line unicorn/no-null -- Absent Git metadata is an explicit-null public parser contract.
+	return null;
+}
+
+export function branchExistsInList(listOutput: string, branch: string): boolean {
+	return listOutput
+		.split("\n")
+		.map((line) => line.trim().replace(BRANCH_LIST_MARKER, ""))
+		.some((line) => line === branch);
+}
+
+// --- Private helpers ---
+
+function splitRecordLines(record: string): RecordFields {
 	const attributes = new Map<string, string>();
 	const flags = new Set<string>();
 	for (const line of record.split("\n")) {
@@ -30,19 +76,18 @@ const splitRecordLines = (record: string): RecordFields => {
 		}
 	}
 	return { attributes, flags };
-};
+}
 
 // Git porcelain omits absent fields while Worktree JSON encodes that absence as explicit null; these null literals are the external contract, not a sentinel.
-
-const localBranchName = (branchRef: string | null): string | null => {
+function localBranchName(branchRef: string | null): string | null {
 	if (branchRef === null || !branchRef.startsWith(REF_HEADS_PREFIX)) {
 		// oxlint-disable-next-line unicorn/no-null -- Absent Git metadata is an explicit-null public parser contract.
 		return null;
 	}
 	return branchRef.slice(REF_HEADS_PREFIX.length);
-};
+}
 
-const poolIdentity = (path: string, branchRef: string | null): Worktree["pool"] => {
+function poolIdentity(path: string, branchRef: string | null): Worktree["pool"] {
 	const slot = POOL_SLOT_PATTERN.exec(path)?.groups?.slot;
 	if (slot === undefined) {
 		// oxlint-disable-next-line unicorn/no-null -- Absent Git metadata is an explicit-null public parser contract.
@@ -52,9 +97,9 @@ const poolIdentity = (path: string, branchRef: string | null): Worktree["pool"] 
 		index: Number(slot),
 		placeholder: branchRef === `refs/heads/wk-pool/feat${slot}`,
 	};
-};
+}
 
-const parseRecord = (record: string, canonical: boolean): Worktree => {
+function parseRecord(record: string, canonical: boolean): Worktree {
 	const { attributes, flags } = splitRecordLines(record);
 	// oxlint-disable-next-line unicorn/no-null -- Absent Git metadata is an explicit-null public parser contract.
 	const path = attributes.get("worktree") ?? null;
@@ -82,54 +127,4 @@ const parseRecord = (record: string, canonical: boolean): Worktree => {
 		prunable: flags.has("prunable") || prunableReason !== null,
 		prunableReason,
 	};
-};
-
-const parseWorktreeList = (porcelainOutput: string): Worktree[] => {
-	const records = porcelainOutput
-		.trim()
-		.split(PORCELAIN_RECORD_SEPARATOR)
-		.map((record) => record.trim())
-		.filter(Boolean);
-
-	return records.map((record, index) => parseRecord(record, index === CANONICAL_WORKTREE_INDEX));
-};
-
-const parseTrunkFromSymbolicRef = (stdout: string): string | null => {
-	const ref = stdout.trim();
-	if (ref === "") {
-		// oxlint-disable-next-line unicorn/no-null -- Absent Git metadata is an explicit-null public parser contract.
-		return null;
-	}
-	if (!ref.startsWith(ORIGIN_REF_PREFIX)) {
-		return ref;
-	}
-	return ref.slice(ORIGIN_REF_PREFIX.length);
-};
-
-const parseTrunkFromRemoteShow = (stdout: string): string | null => {
-	for (const line of stdout.split("\n")) {
-		const branch = HEAD_BRANCH_PATTERN.exec(line)?.groups?.branch;
-		if (branch !== undefined) {
-			if (branch === UNKNOWN_HEAD) {
-				// oxlint-disable-next-line unicorn/no-null -- Absent Git metadata is an explicit-null public parser contract.
-				return null;
-			}
-			return branch;
-		}
-	}
-	// oxlint-disable-next-line unicorn/no-null -- Absent Git metadata is an explicit-null public parser contract.
-	return null;
-};
-
-const branchExistsInList = (listOutput: string, branch: string): boolean =>
-	listOutput
-		.split("\n")
-		.map((line) => line.trim().replace(BRANCH_LIST_MARKER, ""))
-		.some((line) => line === branch);
-
-export {
-	branchExistsInList,
-	parseTrunkFromRemoteShow,
-	parseTrunkFromSymbolicRef,
-	parseWorktreeList,
-};
+}

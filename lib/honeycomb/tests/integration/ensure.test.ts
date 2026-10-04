@@ -39,7 +39,7 @@ afterEach(async () => {
 	await rm(tmp, { force: true, recursive: true });
 });
 
-const poolMarker = async (slotPath: string) => {
+async function poolMarker(slotPath: string) {
 	const result = await run([
 		"git",
 		"-C",
@@ -49,16 +49,16 @@ const poolMarker = async (slotPath: string) => {
 		"wk-pool-initialized",
 	]);
 	return resolve(slotPath, result.stdout.trim());
-};
+}
 
-const assertHookOrder = (events: string[]) => {
+function assertHookOrder(events: string[]) {
 	const [firstEvent] = events;
 	expect(firstEvent).toBe("[wk-pool] initializing feat1…");
 	expect(events.some((event) => event.includes("__feat1"))).toBe(true);
 	expect(events.indexOf("[wk-pool] initializing feat1…")).toBeLessThan(
 		events.indexOf("[wk-pool] initializing feat2…"),
 	);
-};
+}
 
 test("materialises slots sequentially and streams hook output", async () => {
 	const { root } = await initRepoWithOrigin(tmp);
@@ -123,12 +123,12 @@ test("hook failure rolls back only in-flight slot and rerun recovers", async () 
 	expect(await pathExists(join(`${root}__feat3`, "sentinel"))).toBe(true);
 });
 
-const initHalfSlot = async () => {
+async function initHalfSlot() {
 	const { root } = await initRepoWithOrigin(tmp);
 	writeConfig({ command: "echo rerun >> hook.log", poolSize: SINGLE_SLOT, root, tmp });
 	await createPoolSlot({ branch: "wk-pool/feat1", index: SLOT.first, initialized: false, root });
 	return root;
-};
+}
 
 test("half-init reruns hook and preserves existing slot on failure", async () => {
 	const root = await initHalfSlot();
@@ -198,7 +198,7 @@ test("list json captures pool initialization output in the payload", async () =>
 	expect(payload.setup_output).toContainEqual({ line: "setup-output", stream: "stdout" });
 });
 
-const assertListEnsuresPool = async () => {
+async function assertListEnsuresPool() {
 	const { root } = await initRepoWithOrigin(tmp);
 	await writeFile(join(root, ".env"), "ensured-copy\n");
 	writeConfig({
@@ -214,7 +214,7 @@ const assertListEnsuresPool = async () => {
 	expect(await pathExists(join(`${root}__feat1`, "ensured"))).toBe(true);
 	expect(await readFile(join(`${root}__feat1`, ".env"), "utf8")).toBe("ensured-copy\n");
 	return root;
-};
+}
 
 test("list and pooled remove trigger first-run ensure", async () => {
 	const root = await assertListEnsuresPool();

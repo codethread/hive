@@ -70,15 +70,32 @@ interface AddContext {
 }
 type Checkout = Awaited<ReturnType<typeof prepareCheckout>>;
 
-const optionalRef = (value: string | boolean | undefined): string | null => {
+export async function addCommand(args: string[], deps: Deps): Promise<CommandResult> {
+	const request = parseAddRequest(args);
+	try {
+		const context = await prepareAdd(request, deps);
+		if (context.explanation.project?.poolSize) {
+			return addFromPool(context, context.explanation.project);
+		}
+		return await addStandalone(context);
+	} catch (error) {
+		throw withFailureContext(error, {
+			branch: request.branch,
+			slot_path: request.slotPath ?? undefined,
+		});
+	}
+}
+// --- Private functions ---
+
+function optionalRef(value: string | boolean | undefined): string | null {
 	if (typeof value === "string") {
 		return value;
 	}
 	// eslint-disable-next-line unicorn/no-null -- Branch/pool application APIs model an absent override with null.
 	return null;
-};
+}
 
-const parseAddRequest = (args: string[]): AddRequest => {
+function parseAddRequest(args: string[]): AddRequest {
 	const opts = parseOptions(args);
 	const cwd = requireOption(opts, "cwd");
 	const branch = requireOption(opts, "branch");
@@ -99,13 +116,13 @@ const parseAddRequest = (args: string[]): AddRequest => {
 		throw new ReservedPrefixError("branch names starting with wk-pool/ are reserved");
 	}
 	return request;
-};
+}
 
-const resolveRequestedBase = (
+function resolveRequestedBase(
 	request: AddRequest,
 	worktrees: Worktree[],
 	deps: Deps,
-): string | null => {
+): string | null {
 	if (!request.baseCurrent) {
 		return request.base;
 	}
@@ -114,9 +131,9 @@ const resolveRequestedBase = (
 		throw new UsageError("--base-current requires the worktree containing --cwd to be on a branch");
 	}
 	return current.branch;
-};
+}
 
-const inspectAddTarget = async (context: AddContext): Promise<string | null> => {
+async function inspectAddTarget(context: AddContext): Promise<string | null> {
 	const { deps, explanation, request, root } = context;
 	const worktrees = await listWorktrees(deps.git, root);
 	const existing = worktrees.find((worktree) => worktree.branch === request.branch);
@@ -130,9 +147,9 @@ const inspectAddTarget = async (context: AddContext): Promise<string | null> => 
 		throw new UsageError("--slot is only valid for pooled projects");
 	}
 	return base;
-};
+}
 
-const prepareAdd = async (request: AddRequest, deps: Deps): Promise<AddContext> => {
+async function prepareAdd(request: AddRequest, deps: Deps): Promise<AddContext> {
 	const root = await resolveCanonicalRoot(deps.git, request.cwd);
 	const config = deps.config.read();
 	const explanation = deps.config.explain(config, root);
@@ -140,9 +157,9 @@ const prepareAdd = async (request: AddRequest, deps: Deps): Promise<AddContext> 
 	context.base = await inspectAddTarget(context);
 	await runPreRemoteCheck(deps, { config, operation: "honeycomb add", root });
 	return context;
-};
+}
 
-const prepareCheckout = async (context: AddContext) => {
+async function prepareCheckout(context: AddContext) {
 	const { base, config, deps, explanation, request, root } = context;
 	const worktreePath = worktreePathForName(
 		root,
@@ -166,9 +183,9 @@ const prepareCheckout = async (context: AddContext) => {
 		root,
 	});
 	return { ...context, base: startBase, branchState, originalBranchHead, worktreePath };
-};
+}
 
-const populateCheckout = async (checkout: Checkout): Promise<void> => {
+async function populateCheckout(checkout: Checkout): Promise<void> {
 	const { deps, explanation, request, root, worktreePath } = checkout;
 	await mergeOriginIfPresent({
 		branch: request.branch,
@@ -188,9 +205,9 @@ const populateCheckout = async (checkout: Checkout): Promise<void> => {
 			root,
 		});
 	}
-};
+}
 
-const createCheckout = async (checkout: Checkout): Promise<void> => {
+async function createCheckout(checkout: Checkout): Promise<void> {
 	const { base, branchState, deps, explanation, originalBranchHead, request, root, worktreePath } =
 		checkout;
 	await deps.files.prepareParent(root, worktreePath, explanation.worktreeLocation);
@@ -216,12 +233,12 @@ const createCheckout = async (checkout: Checkout): Promise<void> => {
 		});
 		throw error;
 	}
-};
+}
 
-const finalizeAdd = (
+function finalizeAdd(
 	context: AddContext,
 	payload: ReadyAddPayload | PoolFullPayload,
-): CommandResult => {
+): CommandResult {
 	if (payload.kind === "pool_full") {
 		return finalizeStructuredResult(payload, context.request.output, EXIT_CODES.BLOCKED);
 	}
@@ -236,9 +253,9 @@ const finalizeAdd = (
 		payload,
 		summary: `honeycomb: added ${payload.branch} at ${payload.worktree_path}`,
 	});
-};
+}
 
-const addStandalone = async (context: AddContext): Promise<CommandResult> => {
+async function addStandalone(context: AddContext): Promise<CommandResult> {
 	const checkout = await prepareCheckout(context);
 	await createCheckout(checkout);
 	const { branchState, originalBranchHead, request, root, worktreePath } = checkout;
@@ -251,12 +268,12 @@ const addStandalone = async (context: AddContext): Promise<CommandResult> => {
 		worktreePath,
 	});
 	return finalizeAdd(context, payload);
-};
+}
 
-const addFromPool = async (
+async function addFromPool(
 	context: AddContext,
 	project: NonNullable<PolicyExplanation["project"]>,
-): Promise<CommandResult> => {
+): Promise<CommandResult> {
 	const { base, config, deps, explanation, request, root } = context;
 	const payload = await addPooledWorktree({
 		base,
@@ -273,22 +290,4 @@ const addFromPool = async (
 		worktreeLocation: explanation.worktreeLocation,
 	});
 	return finalizeAdd(context, payload);
-};
-
-const addCommand = async (args: string[], deps: Deps): Promise<CommandResult> => {
-	const request = parseAddRequest(args);
-	try {
-		const context = await prepareAdd(request, deps);
-		if (context.explanation.project?.poolSize) {
-			return addFromPool(context, context.explanation.project);
-		}
-		return await addStandalone(context);
-	} catch (error) {
-		throw withFailureContext(error, {
-			branch: request.branch,
-			slot_path: request.slotPath ?? undefined,
-		});
-	}
-};
-
-export { addCommand };
+}

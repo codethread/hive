@@ -8,7 +8,37 @@ import { createLiveDeps } from "./live-deps.ts";
 import { dispatch } from "./main.ts";
 import tab from "@bomb.sh/tab/commander";
 
-const createProgram = (json: boolean): Command => {
+const registrations = [
+	registerRoot,
+	registerList,
+	registerPath,
+	registerAdd,
+	registerRemove,
+	registerEnsure,
+	registerStatus,
+	registerCopy,
+	registerFinish,
+	registerPick,
+	registerShellInit,
+	registerConfig,
+];
+
+export async function main(
+	argv: string[] = Bun.argv,
+	deps: Deps = createLiveDeps(),
+): Promise<void> {
+	// Commander may reject arguments before dispatch can format them.
+	const json = argv.includes("--json");
+	const program = createProgram(json);
+	for (const register of registrations) {
+		register(program, deps);
+	}
+	configureCompletion(program);
+	await parseProgram(program, argv, json);
+}
+// --- Private functions ---
+
+function createProgram(json: boolean): Command {
 	const program = new Command();
 	program
 		.name("honeycomb")
@@ -38,9 +68,9 @@ const createProgram = (json: boolean): Command => {
 		.exitOverride();
 
 	return program;
-};
+}
 
-const registerRoot = (program: Command, deps: Deps): void => {
+function registerRoot(program: Command, deps: Deps): void {
 	program
 		.command("root")
 		.summary("Print canonical root")
@@ -49,9 +79,9 @@ const registerRoot = (program: Command, deps: Deps): void => {
 		)
 		.addHelpText("after", HELP.root)
 		.action((_opts, command) => runAction("root", optsToArgs(command.optsWithGlobals()), deps));
-};
+}
 
-const registerList = (program: Command, deps: Deps): void => {
+function registerList(program: Command, deps: Deps): void {
 	program
 		.command("list")
 		.summary("List worktrees")
@@ -61,9 +91,9 @@ const registerList = (program: Command, deps: Deps): void => {
 		.option("--json", "Output as JSON")
 		.addHelpText("after", HELP.list)
 		.action((_opts, command) => runAction("list", optsToArgs(command.optsWithGlobals()), deps));
-};
+}
 
-const registerPath = (program: Command, deps: Deps): void => {
+function registerPath(program: Command, deps: Deps): void {
 	program
 		.command("path")
 		.summary("Resolve branch path")
@@ -73,9 +103,9 @@ const registerPath = (program: Command, deps: Deps): void => {
 		.requiredOption("--branch <branch>", "Branch name")
 		.addHelpText("after", HELP.path)
 		.action((_opts, command) => runAction("path", optsToArgs(command.optsWithGlobals()), deps));
-};
+}
 
-const registerAdd = (program: Command, deps: Deps): void => {
+function registerAdd(program: Command, deps: Deps): void {
 	program
 		.command("add")
 		.summary("Create or allocate worktree")
@@ -90,9 +120,9 @@ const registerAdd = (program: Command, deps: Deps): void => {
 		.option("--force", "Force operation")
 		.addHelpText("after", HELP.add)
 		.action((_opts, command) => runAction("add", optsToArgs(command.optsWithGlobals()), deps));
-};
+}
 
-const registerRemove = (program: Command, deps: Deps): void => {
+function registerRemove(program: Command, deps: Deps): void {
 	program
 		.command("remove")
 		.summary("Remove worktree")
@@ -110,18 +140,18 @@ const registerRemove = (program: Command, deps: Deps): void => {
 		)
 		.addHelpText("after", HELP.remove)
 		.action((_opts, command) => runAction("remove", optsToArgs(command.optsWithGlobals()), deps));
-};
+}
 
-const registerEnsure = (program: Command, deps: Deps): void => {
+function registerEnsure(program: Command, deps: Deps): void {
 	program
 		.command("ensure")
 		.summary("Materialise pool slots")
 		.description("Create and initialize the configured fixed pool slots for a pooled repository.")
 		.addHelpText("after", HELP.ensure)
 		.action((_opts, command) => runAction("ensure", optsToArgs(command.optsWithGlobals()), deps));
-};
+}
 
-const registerStatus = (program: Command, deps: Deps): void => {
+function registerStatus(program: Command, deps: Deps): void {
 	program
 		.command("status")
 		.summary("Show pool status")
@@ -130,9 +160,9 @@ const registerStatus = (program: Command, deps: Deps): void => {
 		)
 		.addHelpText("after", HELP.status)
 		.action((_opts, command) => runAction("status", optsToArgs(command.optsWithGlobals()), deps));
-};
+}
 
-const registerCopy = (program: Command, deps: Deps): void => {
+function registerCopy(program: Command, deps: Deps): void {
 	program
 		.command("copy")
 		.summary("Re-run copy setup")
@@ -142,9 +172,9 @@ const registerCopy = (program: Command, deps: Deps): void => {
 		.option("--json", "Machine-readable output")
 		.addHelpText("after", HELP.copy)
 		.action((_opts, command) => runAction("copy", optsToArgs(command.optsWithGlobals()), deps));
-};
+}
 
-const registerFinish = (program: Command, deps: Deps): void => {
+function registerFinish(program: Command, deps: Deps): void {
 	program
 		.command("finish")
 		.summary("Integrate completed work")
@@ -159,9 +189,9 @@ const registerFinish = (program: Command, deps: Deps): void => {
 		)
 		.addHelpText("after", HELP.finish)
 		.action((_opts, command) => runAction("finish", optsToArgs(command.optsWithGlobals()), deps));
-};
+}
 
-const registerPick = (program: Command, deps: Deps): void => {
+function registerPick(program: Command, deps: Deps): void {
 	program
 		.command("pick")
 		.summary("Fuzzy-pick worktree")
@@ -171,18 +201,18 @@ const registerPick = (program: Command, deps: Deps): void => {
 		.option("--open", "Open the selection's multiplexer session instead of printing its path")
 		.addHelpText("after", HELP.pick)
 		.action((_opts, command) => runAction("pick", optsToArgs(command.optsWithGlobals()), deps));
-};
+}
 
-const registerShellInit = (program: Command, deps: Deps): void => {
+function registerShellInit(program: Command, deps: Deps): void {
 	program
 		.command("shell-init <shell>")
 		.summary("Print shell integration")
 		.description("Print a wk picker function for zsh or nu; does not require a repository.")
 		.addHelpText("after", HELP.shellInit)
 		.action((shell: string) => runAction("shell-init", [shell], deps));
-};
+}
 
-const registerConfig = (program: Command, deps: Deps): void => {
+function registerConfig(program: Command, deps: Deps): void {
 	program
 		.command("config")
 		.summary("Inspect configuration")
@@ -198,24 +228,9 @@ const registerConfig = (program: Command, deps: Deps): void => {
 		.action((_opts, command) =>
 			runAction("config", ["explain", ...optsToArgs(command.optsWithGlobals())], deps),
 		);
-};
+}
 
-const registrations = [
-	registerRoot,
-	registerList,
-	registerPath,
-	registerAdd,
-	registerRemove,
-	registerEnsure,
-	registerStatus,
-	registerCopy,
-	registerFinish,
-	registerPick,
-	registerShellInit,
-	registerConfig,
-];
-
-const configureCompletion = (program: Command): void => {
+function configureCompletion(program: Command): void {
 	const completion = tab(program, { completionCommandName: "completions" });
 	// The adapter collects local options only; Commander also accepts root options on subcommands.
 	for (const command of completion.commands.values()) {
@@ -225,9 +240,9 @@ const configureCompletion = (program: Command): void => {
 			}
 		}
 	}
-};
+}
 
-const handleParseError = async (error: unknown, json: boolean): Promise<void> => {
+async function handleParseError(error: unknown, json: boolean): Promise<void> {
 	if (!(error instanceof CommanderError)) {
 		throw error;
 	}
@@ -240,34 +255,34 @@ const handleParseError = async (error: unknown, json: boolean): Promise<void> =>
 	const usage = new UsageError(error.message.replace(/^error: /u, ""));
 	await writeResult(renderJsonResult(formatFailure(usage, { json })));
 	process.exit(EXIT_CODES.USAGE);
-};
+}
 
-const parseProgram = async (program: Command, argv: string[], json: boolean): Promise<void> => {
+async function parseProgram(program: Command, argv: string[], json: boolean): Promise<void> {
 	try {
 		await program.parseAsync(argv);
 	} catch (error) {
 		await handleParseError(error, json);
 	}
-};
+}
 
-const runAction = async (subcmd: string, args: string[], deps: Deps): Promise<void> => {
+async function runAction(subcmd: string, args: string[], deps: Deps): Promise<void> {
 	const result = await dispatch(subcmd, args, deps);
 	await writeResult(result);
 	await result.afterOutput?.();
 	process.exit(result.exitCode);
-};
+}
 
 // Await the writes: afterOutput may close the invoking session and end this process.
-const writeResult = async (result: CommandResult): Promise<void> => {
+async function writeResult(result: CommandResult): Promise<void> {
 	if (result.stdout) {
 		await Bun.write(Bun.stdout, result.stdout);
 	}
 	if (result.stderr) {
 		await Bun.write(Bun.stderr, result.stderr);
 	}
-};
+}
 
-const optsToArgs = (opts: Record<string, unknown>): string[] => {
+function optsToArgs(opts: Record<string, unknown>): string[] {
 	const args: string[] = [];
 	for (const [key, value] of Object.entries(opts)) {
 		const flag = key.replaceAll(/[A-Z]/gu, (char) => `-${char.toLowerCase()}`);
@@ -278,17 +293,4 @@ const optsToArgs = (opts: Record<string, unknown>): string[] => {
 		}
 	}
 	return args;
-};
-
-const main = async (argv: string[] = Bun.argv, deps: Deps = createLiveDeps()): Promise<void> => {
-	// Commander may reject arguments before dispatch can format them.
-	const json = argv.includes("--json");
-	const program = createProgram(json);
-	for (const register of registrations) {
-		register(program, deps);
-	}
-	configureCompletion(program);
-	await parseProgram(program, argv, json);
-};
-
-export { main };
+}

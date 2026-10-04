@@ -15,31 +15,99 @@ const MAX_SLOT_MATCHES = 1;
 const NO_COUNT = 0;
 const LOG_SEPARATOR = "\u001F";
 
-const placeholderBranchFor = (index: number): string => `wk-pool/feat${index}`;
+export function placeholderBranchFor(index: number): string {
+	return `wk-pool/feat${index}`;
+}
 
-const requirePoolSize = (cfg: ProjectConfig): number => {
+export async function buildPoolState(options: {
+	/** Pool configuration anchoring slot paths. */
+	project: ProjectConfig;
+	/** Git's current worktree inventory. */
+	worktrees: Worktree[];
+	/** Injected repository and filesystem observations. */
+	deps: { git: GitRunner; files: Pick<WorkspaceFiles, "normalizePath" | "exists"> };
+	/** Effective placement policy; defaults to the project's preference. */
+	location?: WorktreeLocation;
+}): Promise<PoolState> {
+	const { project: cfg, worktrees, deps, location = cfg.worktreeLocation ?? "sibling" } = options;
+	const slotCount = requirePoolSize(cfg);
+	const { git, files } = deps;
+	const root = files.normalizePath(cfg.root);
+	const trunk = await detectOriginDefaultBranch(git, root);
+	const slots = await Promise.all(
+		Array.from({ length: slotCount }, (_slotNumber, zeroBased) =>
+			buildPoolSlotState({
+				files,
+				git,
+				index: zeroBased + FIRST_SLOT_INDEX,
+				location,
+				root,
+				worktrees,
+			}),
+		),
+	);
+	return { hasPool: true, root, size: slotCount, slots, trunk };
+}
+
+export async function describeSlotRisk(
+	git: GitRunner,
+	slot: Slot,
+): Promise<{ ahead: number; behind: number; localOnly: boolean }> {
+	const upstream = await git.runRaw(["-C", slot.path, "rev-parse", "--abbrev-ref", "@{upstream}"]);
+	if (upstream.exitCode !== EXIT_CODES.SUCCESS || upstream.stdout.trim() === "") {
+		return { ahead: NO_COUNT, behind: NO_COUNT, localOnly: true };
+	}
+	const counts = await git.runRaw([
+		"-C",
+		slot.path,
+		"rev-list",
+		"--left-right",
+		"--count",
+		`${upstream.stdout.trim()}...HEAD`,
+	]);
+	const [behind, ahead] = counts.stdout.trim().split(/\s+/u).map(Number);
+	return { ahead: ahead || NO_COUNT, behind: behind || NO_COUNT, localOnly: false };
+}
+
+export async function ensurePlaceholderBranch(options: {
+	git: GitRunner;
+	root: string;
+	branch: string;
+	trunk: string;
+}): Promise<void> {
+	const { git, root, branch, trunk } = options;
+	const exists = await refExists(git, root, `refs/heads/${branch}`);
+	if (!exists) {
+		await git.run(["-C", root, "branch", branch, `origin/${trunk}`]);
+	}
+}
+// --- Private functions ---
+
+function requirePoolSize(cfg: ProjectConfig): number {
 	if (!cfg.poolSize) {
 		throw new ConfigError(`project ${cfg.name ?? cfg.root} is not pooled`);
 	}
 	return cfg.poolSize;
-};
+}
 
-const emptySlot = (index: number, path: string): Slot => ({
-	// oxlint-disable-next-line unicorn/no-null -- Absent Git observations are explicit nulls in pool status JSON.
-	branch: null,
-	dirty: false,
-	exists: false,
-	index,
-	initialized: false,
-	// oxlint-disable-next-line unicorn/no-null -- Absent Git observations are explicit nulls in pool status JSON.
-	lastCommitIso: null,
-	// oxlint-disable-next-line unicorn/no-null -- Absent Git observations are explicit nulls in pool status JSON.
-	lastCommitSubject: null,
-	path,
-	placeholder: false,
-});
+function emptySlot(index: number, path: string): Slot {
+	return {
+		// oxlint-disable-next-line unicorn/no-null -- Absent Git observations are explicit nulls in pool status JSON.
+		branch: null,
+		dirty: false,
+		exists: false,
+		index,
+		initialized: false,
+		// oxlint-disable-next-line unicorn/no-null -- Absent Git observations are explicit nulls in pool status JSON.
+		lastCommitIso: null,
+		// oxlint-disable-next-line unicorn/no-null -- Absent Git observations are explicit nulls in pool status JSON.
+		lastCommitSubject: null,
+		path,
+		placeholder: false,
+	};
+}
 
-const readLastCommit = (log: GitResult): { iso: string | null; subject: string | null } => {
+function readLastCommit(log: GitResult): { iso: string | null; subject: string | null } {
 	if (log.exitCode !== EXIT_CODES.SUCCESS || log.stdout.trim() === "") {
 		// oxlint-disable-next-line unicorn/no-null -- Absent Git observations are explicit nulls in pool status JSON.
 		return { iso: null, subject: null };
@@ -47,9 +115,9 @@ const readLastCommit = (log: GitResult): { iso: string | null; subject: string |
 	const [iso, subject] = log.stdout.trimEnd().split(LOG_SEPARATOR);
 	// oxlint-disable-next-line unicorn/no-null -- Absent Git observations are explicit nulls in pool status JSON.
 	return { iso: iso ?? null, subject: subject ?? null };
-};
+}
 
-const findSlotWorktree = (worktrees: Worktree[], index: number): Worktree | undefined => {
+function findSlotWorktree(worktrees: Worktree[], index: number): Worktree | undefined {
 	const matches = worktrees.filter(
 		(candidate) => !candidate.canonical && candidate.pool?.index === index,
 	);
@@ -60,15 +128,15 @@ const findSlotWorktree = (worktrees: Worktree[], index: number): Worktree | unde
 	}
 	const [match] = matches;
 	return match;
-};
+}
 
-const readSlotState = async (options: {
+async function readSlotState(options: {
 	files: Pick<WorkspaceFiles, "exists">;
 	git: GitRunner;
 	index: number;
 	slotPath: string;
 	worktree: Worktree;
-}): Promise<Slot> => {
+}): Promise<Slot> {
 	const { files, git, index, slotPath, worktree } = options;
 	const [status, log, marker] = await Promise.all([
 		git.runRaw(["-C", slotPath, "status", "--porcelain=v1"]),
@@ -89,16 +157,16 @@ const readSlotState = async (options: {
 		path: slotPath,
 		placeholder: worktree.branch === placeholderBranchFor(index),
 	};
-};
+}
 
-const buildPoolSlotState = async (options: {
+async function buildPoolSlotState(options: {
 	files: Pick<WorkspaceFiles, "exists">;
 	git: GitRunner;
 	index: number;
 	location: WorktreeLocation;
 	root: string;
 	worktrees: Worktree[];
-}): Promise<Slot> => {
+}): Promise<Slot> {
 	const { files, git, index, location, root, worktrees } = options;
 	const worktree = findSlotWorktree(worktrees, index);
 	const slotPath = worktree?.path ?? worktreePathForName(root, `feat${index}`, location);
@@ -107,69 +175,4 @@ const buildPoolSlotState = async (options: {
 	}
 	const state = await readSlotState({ files, git, index, slotPath, worktree });
 	return state;
-};
-
-export const buildPoolState = async (options: {
-	/** Pool configuration anchoring slot paths. */
-	project: ProjectConfig;
-	/** Git's current worktree inventory. */
-	worktrees: Worktree[];
-	/** Injected repository and filesystem observations. */
-	deps: { git: GitRunner; files: Pick<WorkspaceFiles, "normalizePath" | "exists"> };
-	/** Effective placement policy; defaults to the project's preference. */
-	location?: WorktreeLocation;
-}): Promise<PoolState> => {
-	const { project: cfg, worktrees, deps, location = cfg.worktreeLocation ?? "sibling" } = options;
-	const slotCount = requirePoolSize(cfg);
-	const { git, files } = deps;
-	const root = files.normalizePath(cfg.root);
-	const trunk = await detectOriginDefaultBranch(git, root);
-	const slots = await Promise.all(
-		Array.from({ length: slotCount }, (_slotNumber, zeroBased) =>
-			buildPoolSlotState({
-				files,
-				git,
-				index: zeroBased + FIRST_SLOT_INDEX,
-				location,
-				root,
-				worktrees,
-			}),
-		),
-	);
-	return { hasPool: true, root, size: slotCount, slots, trunk };
-};
-
-export const describeSlotRisk = async (
-	git: GitRunner,
-	slot: Slot,
-): Promise<{ ahead: number; behind: number; localOnly: boolean }> => {
-	const upstream = await git.runRaw(["-C", slot.path, "rev-parse", "--abbrev-ref", "@{upstream}"]);
-	if (upstream.exitCode !== EXIT_CODES.SUCCESS || upstream.stdout.trim() === "") {
-		return { ahead: NO_COUNT, behind: NO_COUNT, localOnly: true };
-	}
-	const counts = await git.runRaw([
-		"-C",
-		slot.path,
-		"rev-list",
-		"--left-right",
-		"--count",
-		`${upstream.stdout.trim()}...HEAD`,
-	]);
-	const [behind, ahead] = counts.stdout.trim().split(/\s+/u).map(Number);
-	return { ahead: ahead || NO_COUNT, behind: behind || NO_COUNT, localOnly: false };
-};
-
-export { placeholderBranchFor };
-
-export const ensurePlaceholderBranch = async (options: {
-	git: GitRunner;
-	root: string;
-	branch: string;
-	trunk: string;
-}): Promise<void> => {
-	const { git, root, branch, trunk } = options;
-	const exists = await refExists(git, root, `refs/heads/${branch}`);
-	if (!exists) {
-		await git.run(["-C", root, "branch", branch, `origin/${trunk}`]);
-	}
-};
+}

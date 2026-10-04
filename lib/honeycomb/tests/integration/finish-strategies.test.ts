@@ -20,14 +20,14 @@ const COMMIT_AND_PARENT = 2;
 const tmp = useTmpHome("honeycomb-finish-strategies-test-");
 const { initRepoWithOrigin } = useOriginFixture();
 
-const prepareFinish = async (branch: string, policy = "") => {
+async function prepareFinish(branch: string, policy = "") {
 	const { remote, root } = await initRepoWithOrigin(tmp.dir);
 	writeConfig({ command: "echo ready", copyToml: policy, root, tmp: tmp.dir });
 	await dispatch("add", ["--cwd", root, "--branch", branch, "--json"], deps);
 	return { remote, root, worktreePath: `${root}__${branch.replaceAll("/", "--")}` };
-};
+}
 
-const assertRebasedHistory = async (root: string, targetHead: string) => {
+async function assertRebasedHistory(root: string, targetHead: string) {
 	expect(await gitOut(root, "rev-parse", "HEAD")).toBe(
 		await gitOut(root, "rev-parse", "refs/heads/feature/rebase-finish"),
 	);
@@ -35,9 +35,9 @@ const assertRebasedHistory = async (root: string, targetHead: string) => {
 	expect(parents.split(" ")).toHaveLength(COMMIT_AND_PARENT);
 	expect(await gitOut(root, "rev-parse", "HEAD~1")).toBe(targetHead);
 	expect(await readFile(join(root, "source-rebased.txt"), "utf8")).toBe("source\n");
-};
+}
 
-const assertConflictPreserved = async ({
+async function assertConflictPreserved({
 	result,
 	root,
 	sourceHead,
@@ -49,7 +49,7 @@ const assertConflictPreserved = async ({
 	sourceHead: string;
 	targetHead: string;
 	worktreePath: string;
-}) => {
+}) {
 	expect(result.exitCode).toBe(EXIT_CODES.BLOCKED);
 	expect(JSON.parse(result.stdout ?? "{}")).toMatchObject({
 		kind: "blocked",
@@ -58,7 +58,7 @@ const assertConflictPreserved = async ({
 	expect(await gitOut(root, "rev-parse", "HEAD")).toBe(targetHead);
 	expect(await gitOut(root, "rev-parse", "refs/heads/feature/squash-conflict")).toBe(sourceHead);
 	expect(await pathExists(worktreePath)).toBe(true);
-};
+}
 
 test("merge_commit integrates source with an explicit merge commit", async () => {
 	const { root, worktreePath } = await prepareFinish(

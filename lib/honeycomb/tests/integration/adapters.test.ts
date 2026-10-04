@@ -4,8 +4,8 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { chmod, mkdtemp, rm, writeFile } from "node:fs/promises";
 // oxlint-disable-next-line import/no-nodejs-modules -- Integration fixtures exercise real filesystem and process boundaries.
 import { closeSync, openSync, writeSync } from "node:fs";
-import { LiveGitRunner } from "../../src/git/executor.ts";
-import { LiveHookRunner } from "../../src/hooks.ts";
+import { createLiveGitRunner } from "../../src/git/executor.ts";
+import { createLiveHookRunner } from "../../src/hooks.ts";
 // oxlint-disable-next-line import/no-nodejs-modules -- Integration fixtures exercise real filesystem and process boundaries.
 import { join } from "node:path";
 // oxlint-disable-next-line import/no-nodejs-modules -- Integration fixtures exercise real filesystem and process boundaries.
@@ -14,7 +14,7 @@ import { tmpdir } from "node:os";
 const HOOK_FAILURE_CODE = 7;
 const EXECUTABLE_MODE = 0o755;
 
-const createHandshake = async (tmp: string) => {
+async function createHandshake(tmp: string) {
 	const fifo = join(tmp, "response");
 	const mkfifo = Bun.spawn(["mkfifo", fifo], { stderr: "pipe", stdout: "pipe" });
 	expect(await mkfifo.exited).toBe(EXIT_CODES.SUCCESS);
@@ -26,9 +26,8 @@ const createHandshake = async (tmp: string) => {
 		'exec 3<> "$RESPONSE_FIFO"\necho first\nIFS= read -r -t 2 -u 3 response || exit 8\necho "$response"\n',
 	);
 	return { fifo, script };
-};
+}
 
-// oxlint-disable-next-line max-lines-per-function -- This test group scopes shared fixture hooks; each individual test stays below the limit.
 describe("LiveHookRunner", () => {
 	let tmp = "";
 
@@ -46,7 +45,7 @@ describe("LiveHookRunner", () => {
 		const response = openSync(fifo, "r+");
 		try {
 			const seen: string[] = [];
-			await new LiveHookRunner().runInline(script, {
+			await createLiveHookRunner().runInline(script, {
 				cwd: tmp,
 				env: { RESPONSE_FIFO: fifo },
 				onLine: (stream, line) => {
@@ -68,7 +67,7 @@ describe("LiveHookRunner", () => {
 		const script = join(tmp, "hook.sh");
 		await writeFile(script, "echo bad >&2\nexit 7\n");
 		await chmod(script, EXECUTABLE_MODE);
-		const runner = new LiveHookRunner();
+		const runner = createLiveHookRunner();
 
 		try {
 			await runner.runInline(script, { cwd: tmp, env: {}, onLine: () => {} });
@@ -81,9 +80,9 @@ describe("LiveHookRunner", () => {
 	});
 });
 
-describe("LiveGitRunner", () => {
+describe("createLiveGitRunner", () => {
 	test("runs git --version", async () => {
-		const git = new LiveGitRunner();
+		const git = createLiveGitRunner();
 		const result = await git.run(["--version"]);
 		expect(result.exitCode).toBe(EXIT_CODES.SUCCESS);
 		expect(result.stdout).toContain("git version");
@@ -99,12 +98,12 @@ describe("LiveGitRunner", () => {
 					"-e",
 					`
     import { mkdirSync, rmSync } from "node:fs";
-    import { LiveGitRunner } from ${JSON.stringify(executor)};
+    import { createLiveGitRunner } from ${JSON.stringify(executor)};
     const doomed = ${JSON.stringify(join(directory, "deleted-worktree"))};
     mkdirSync(doomed);
     process.chdir(doomed);
     rmSync(doomed, { recursive: true });
-    const result = await new LiveGitRunner().run(["--version"]);
+    const result = await createLiveGitRunner().run(["--version"]);
     process.stdout.write(result.stdout);
    `,
 				],
@@ -137,12 +136,12 @@ describe("LiveCommandRunner", () => {
 					"-e",
 					`
     import { mkdirSync, rmSync } from "node:fs";
-    import { LiveCommandRunner } from ${JSON.stringify(runner)};
+    import { createLiveCommandRunner } from ${JSON.stringify(runner)};
     const doomed = ${JSON.stringify(join(directory, "deleted-worktree"))};
     mkdirSync(doomed);
     process.chdir(doomed);
     rmSync(doomed, { recursive: true });
-    const result = await new LiveCommandRunner().run("pwd", []);
+    const result = await createLiveCommandRunner().run("pwd", []);
     process.stdout.write(result.stdout);
    `,
 				],

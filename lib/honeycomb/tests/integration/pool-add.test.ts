@@ -22,7 +22,7 @@ const FAIL_OUTSIDE_PLACEHOLDER = '[[ "$(git branch --show-current)" == wk-pool/*
 const tmp = useTmpHome("honeycomb-pool-add-test-");
 const { initRepoWithOrigin } = useOriginFixture();
 
-const prepareLegacyPool = async () => {
+async function prepareLegacyPool() {
 	const { root } = await initRepoWithOrigin(tmp.dir);
 	const configHome = join(tmp.dir, "config-mixed-pool");
 	await mkdir(configHome, { recursive: true });
@@ -34,9 +34,9 @@ const prepareLegacyPool = async () => {
 	await dispatch("add", ["--cwd", root, "--branch", "feature/legacy-pool", "--json"], testDeps());
 
 	return { configHome, root };
-};
+}
 
-const prepareMixedPool = async () => {
+async function prepareMixedPool() {
 	const { root, configHome } = await prepareLegacyPool();
 
 	await writeFile(
@@ -47,16 +47,16 @@ const prepareMixedPool = async () => {
 	await dispatch("ensure", ["--cwd", root], testDeps());
 
 	return { legacySlot: `${root}__feat1`, nestedSlot, root };
-};
+}
 
-const prepareRestoreTip = async () => {
+async function prepareRestoreTip() {
 	const { root, remote } = await initRepoWithOrigin(tmp.dir);
 	await createRemoteBranch(remote, "feature/pool-restore-tip");
 	await run(["git", "-C", root, "fetch", "origin"]);
 	await run(["git", "-C", root, "branch", "feature/pool-restore-tip", "main"]);
 	const originalHead = await gitOut(root, "rev-parse", "refs/heads/feature/pool-restore-tip");
 	return { originalHead, root };
-};
+}
 
 test("keeps legacy pool slots and creates only missing slots in the preferred location", async () => {
 	const { root, legacySlot, nestedSlot } = await prepareMixedPool();

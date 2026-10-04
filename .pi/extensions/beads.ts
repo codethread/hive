@@ -10,7 +10,7 @@ const claimedBeadsSchema = z.array(
 	z.object({ id: z.string().regex(/^[\w.-]+$/u), status: z.literal("in_progress") }),
 );
 
-const claimedBead = (event: ToolResultEvent): string | undefined => {
+export function claimedBead(event: ToolResultEvent): string | undefined {
 	const { command } = event.input;
 	if (event.toolName !== "bash" || event.isError || typeof command !== "string") {
 		return undefined;
@@ -30,9 +30,10 @@ const claimedBead = (event: ToolResultEvent): string | undefined => {
 		// Only br's JSON update response is evidence of a successful claim.
 		return undefined;
 	}
-};
+}
 
-const beadsExtension = (pi: ExtensionAPI): void => {
+// Pi discovers extensions through its required default factory export.
+export default function beadsExtension(pi: ExtensionAPI): void {
 	const command = async (executable: string, args: string[], cwd: string): Promise<string> => {
 		const { stdout, stderr, code } = await pi.exec(executable, args, { cwd });
 		if (code !== successExitCode) {
@@ -59,7 +60,4 @@ const beadsExtension = (pi: ExtensionAPI): void => {
 			ctx.ui.notify(String(error), "error");
 		}
 	});
-};
-
-// Pi discovers extensions through its required default factory export.
-export { beadsExtension as default, claimedBead };
+}

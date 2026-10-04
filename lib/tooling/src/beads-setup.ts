@@ -16,7 +16,22 @@ import { join } from "node:path";
 import { parseArgs } from "node:util";
 import { z } from "zod";
 
-type Selection =
+export const localSetupServices: SetupServices = {
+	command: runCommand,
+	exists: (path) => Bun.file(path).exists(),
+	readConfig: async (path) => {
+		const file = Bun.file(path);
+		if (await file.exists()) {
+			return file.text();
+		}
+		return "";
+	},
+	write: async (path, contents) => {
+		await Bun.write(path, contents);
+	},
+};
+
+export type Selection =
 	| {
 			/** Adopt the explicitly selected tracker endpoint. */
 			kind: "database";
@@ -30,7 +45,7 @@ type Selection =
 			root: string;
 	  };
 
-interface SetupServices {
+export interface SetupServices {
 	/** Read existing local configuration, or an empty document when absent. */
 	readConfig: (path: string) => Promise<string>;
 	/** Check that adoption targets an existing runtime store. */
@@ -41,34 +56,11 @@ interface SetupServices {
 	command: Command;
 }
 
-const selectEnvironment = async (
-	selection: Selection,
-	command: Command,
-): Promise<TrackerEnvironment> => {
-	if (selection.kind === "source") {
-		return await resolveEnvironment(selection.root, command);
-	}
-	return { BEADS_DB: parseDatabase(selection.database) };
-};
-
-const verifyDatabase = async (database: string, services: SetupServices): Promise<void> => {
-	if (!(await services.exists(database))) {
-		throw new Error(
-			`Tracker database does not exist: ${database}. Adopt or import it before setup.`,
-		);
-	}
-	const tracker = trackerRoot(database);
-	const branch = await services.command(["git", "branch", "--show-current"], tracker);
-	if (branch !== "tracker/state") {
-		throw new Error(`Expected tracker/state at ${tracker}; found ${branch}.`);
-	}
-};
-
-const setupBeads = async (
+export async function setupBeads(
 	cwd: string,
 	selection: Selection,
 	services: SetupServices,
-): Promise<string> => {
+): Promise<string> {
 	const environment = await selectEnvironment(selection, services.command);
 	await verifyDatabase(environment.BEADS_DB, services);
 	const misePath = join(cwd, "mise.local.toml");
@@ -85,22 +77,31 @@ const setupBeads = async (
 	await services.command(["mise", "trust", misePath], cwd);
 	await services.write(codexPath, configs.codex);
 	return environment.BEADS_DB;
-};
+}
+// --- Private functions ---
 
-const localSetupServices: SetupServices = {
-	command: runCommand,
-	exists: (path) => Bun.file(path).exists(),
-	readConfig: async (path) => {
-		const file = Bun.file(path);
-		if (await file.exists()) {
-			return file.text();
-		}
-		return "";
-	},
-	write: async (path, contents) => {
-		await Bun.write(path, contents);
-	},
-};
+async function selectEnvironment(
+	selection: Selection,
+	command: Command,
+): Promise<TrackerEnvironment> {
+	if (selection.kind === "source") {
+		return await resolveEnvironment(selection.root, command);
+	}
+	return { BEADS_DB: parseDatabase(selection.database) };
+}
+
+async function verifyDatabase(database: string, services: SetupServices): Promise<void> {
+	if (!(await services.exists(database))) {
+		throw new Error(
+			`Tracker database does not exist: ${database}. Adopt or import it before setup.`,
+		);
+	}
+	const tracker = trackerRoot(database);
+	const branch = await services.command(["git", "branch", "--show-current"], tracker);
+	if (branch !== "tracker/state") {
+		throw new Error(`Expected tracker/state at ${tracker}; found ${branch}.`);
+	}
+}
 
 if (import.meta.main) {
 	const { values } = parseArgs({
@@ -130,5 +131,3 @@ if (import.meta.main) {
 		console.log(`Configured BEADS_DB=${database}. Restart existing agents to load the selection.`);
 	}
 }
-
-export { localSetupServices, setupBeads, type SetupServices, type Selection };

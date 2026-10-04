@@ -18,7 +18,7 @@ const FZF_FAILURE = 2;
  * arguments, echoes the first input line, and exits with exitCode. The child
  * prints the selection, or the thrown error's name and message.
  */
-const runWithStub = async (bin: string, exitCode: number) => {
+async function runWithStub(bin: string, exitCode: number) {
 	await writeFile(
 		join(bin, "fzf"),
 		`#!/bin/sh\nprintf '%s\\n' "$@" > "${join(bin, "args")}"\nhead -n 1\nexit ${exitCode}\n`,
@@ -39,7 +39,7 @@ const runWithStub = async (bin: string, exitCode: number) => {
 	const output = await new Response(proc.stdout).text();
 	await proc.exited;
 	return output;
-};
+}
 
 describe("fzf", () => {
 	let bin = "";

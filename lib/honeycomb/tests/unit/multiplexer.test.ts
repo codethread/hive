@@ -1,51 +1,65 @@
 import type { CommandResult, CommandRunner, TmuxEnvironment } from "../../src/integrations/tmux.ts";
 import {
-	NoMultiplexer,
-	WORKTREE_PATH_FIELD,
-	gitLogPreviewCommand,
-	openRequestForWorktree,
-} from "../../src/integrations/multiplexer.ts";
-import {
 	TmuxError,
-	TmuxMultiplexer,
+	createTmuxMultiplexer,
 	parseSessionList,
 	selectMultiplexer,
 } from "../../src/integrations/tmux.ts";
+import {
+	WORKTREE_PATH_FIELD,
+	createNoMultiplexer,
+	gitLogPreviewCommand,
+	openRequestForWorktree,
+} from "../../src/integrations/multiplexer.ts";
 import { describe, expect, test } from "bun:test";
+import type { Multiplexer } from "../../src/integrations/multiplexer.ts";
 
 const TMUX = "/private/tmp/tmux-501/default,123,0";
 const TAB = "\t";
 const FAILURE_EXIT_CODE = 1;
+const INVOKING: TmuxEnvironment = { TMUX, TMUX_PANE: "%5" };
 
-const ok = (stdout = ""): CommandResult => ({ exitCode: 0, stderr: "", stdout });
-const fails = (stderr = "failed", exitCode = FAILURE_EXIT_CODE): CommandResult => ({
-	exitCode,
-	stderr,
-	stdout: "",
-});
+interface RecordingRunner extends CommandRunner {
+	/** Ordered tmux invocations received by the service under test. */
+	calls: RunnerCall[];
+}
 
-class RecordingRunner implements CommandRunner {
-	readonly calls: { command: string; args: string[] }[] = [];
-	private readonly results: CommandResult[];
+interface RunnerCall {
+	/** Executable invoked for this call. */
+	command: string;
+	/** Arguments passed to the executable. */
+	args: string[];
+}
 
-	constructor(results: CommandResult[] = []) {
-		this.results = results;
-	}
+function ok(stdout = ""): CommandResult {
+	return { exitCode: 0, stderr: "", stdout };
+}
 
-	run(command: string, args: string[]): Promise<CommandResult> {
-		this.calls.push({ args, command });
-		return Promise.resolve(this.results.shift() ?? ok());
+function fails(stderr = "failed", exitCode = FAILURE_EXIT_CODE): CommandResult {
+	return {
+		exitCode,
+		stderr,
+		stdout: "",
+	};
+}
+
+function createRecordingRunner(results: CommandResult[] = []): RecordingRunner {
+	const runner: RecordingRunner = { calls: [], run };
+	return runner;
+
+	function run(command: string, args: string[]): Promise<CommandResult> {
+		runner.calls.push({ args, command });
+		return Promise.resolve(results.shift() ?? ok());
 	}
 }
 
-const INVOKING: TmuxEnvironment = { TMUX, TMUX_PANE: "%5" };
-
-const tmux = (runner: CommandRunner, env: TmuxEnvironment = INVOKING): TmuxMultiplexer =>
-	new TmuxMultiplexer(runner, env);
+function tmux(runner: CommandRunner, env: TmuxEnvironment = INVOKING): Multiplexer {
+	return createTmuxMultiplexer(runner, env);
+}
 
 describe("TmuxMultiplexer.open session handling", () => {
 	test("creates a missing session and switches the invoking client", async () => {
-		const runner = new RecordingRunner([fails(), ok(), ok("/dev/ttys001\n"), ok()]);
+		const runner = createRecordingRunner([fails(), ok(), ok("/dev/ttys001\n"), ok()]);
 
 		await tmux(runner).open({
 			name: "repo__feature--foo",
@@ -80,7 +94,7 @@ describe("TmuxMultiplexer.open session handling", () => {
 	});
 
 	test("reuses an existing session", async () => {
-		const runner = new RecordingRunner([ok(), ok("/dev/ttys002"), ok()]);
+		const runner = createRecordingRunner([ok(), ok("/dev/ttys002"), ok()]);
 
 		await tmux(runner).open({ name: "repo__a", path: "/repo__a", title: "a" });
 
@@ -94,7 +108,7 @@ describe("TmuxMultiplexer.open session handling", () => {
 
 describe("TmuxMultiplexer.open client switching", () => {
 	test("switches without a client handle when the pane is unknown", async () => {
-		const runner = new RecordingRunner([ok(), ok()]);
+		const runner = createRecordingRunner([ok(), ok()]);
 
 		await tmux(runner, { TMUX }).open({ name: "repo__a", path: "/repo__a", title: "a" });
 
@@ -105,7 +119,7 @@ describe("TmuxMultiplexer.open client switching", () => {
 	});
 
 	test("switches without a client handle when client resolution fails", async () => {
-		const runner = new RecordingRunner([ok(), fails("no current client"), ok()]);
+		const runner = createRecordingRunner([ok(), fails("no current client"), ok()]);
 
 		await tmux(runner).open({ name: "repo__a", path: "/repo__a", title: "a" });
 
@@ -128,7 +142,7 @@ describe("TmuxMultiplexer.closeUnder", () => {
 			`repo__a--nested${TAB}/repo__a/nested`,
 			`repo__aX${TAB}/repo__aX`,
 		].join("\n");
-		const runner = new RecordingRunner([ok(listed), ok(), ok()]);
+		const runner = createRecordingRunner([ok(listed), ok(), ok()]);
 
 		await tmux(runner).closeUnder("/repo__a");
 
@@ -148,7 +162,7 @@ describe("TmuxMultiplexer.closeUnder", () => {
 		{ name: "no server", stderr: "no server running on /tmp/tmux-501/default" },
 		{ name: "no sessions", stderr: "no sessions" },
 	])("observes nothing when tmux reports $name", async ({ stderr }) => {
-		const runner = new RecordingRunner([fails(stderr)]);
+		const runner = createRecordingRunner([fails(stderr)]);
 
 		await tmux(runner).closeUnder("/repo__a");
 
@@ -158,13 +172,16 @@ describe("TmuxMultiplexer.closeUnder", () => {
 	});
 
 	test("surfaces unexpected list failures", async () => {
-		const runner = new RecordingRunner([fails("invalid option: --nope")]);
+		const runner = createRecordingRunner([fails("invalid option: --nope")]);
 
 		await expect(tmux(runner).closeUnder("/repo__a")).rejects.toBeInstanceOf(TmuxError);
 	});
 
 	test("surfaces kill failures", async () => {
-		const runner = new RecordingRunner([ok(`repo__a${TAB}/repo__a`), fails("can't find session")]);
+		const runner = createRecordingRunner([
+			ok(`repo__a${TAB}/repo__a`),
+			fails("can't find session"),
+		]);
 
 		await expect(tmux(runner).closeUnder("/repo__a")).rejects.toBeInstanceOf(TmuxError);
 	});
@@ -172,7 +189,7 @@ describe("TmuxMultiplexer.closeUnder", () => {
 
 describe("TmuxMultiplexer.previewCommand", () => {
 	test("captures a pane under the worktree or falls back to git log", () => {
-		const preview = tmux(new RecordingRunner()).previewCommand();
+		const preview = tmux(createRecordingRunner()).previewCommand();
 
 		expect(preview).toBe(
 			[
@@ -197,12 +214,12 @@ describe("parseSessionList", () => {
 
 describe("multiplexer selection", () => {
 	test("selects tmux inside tmux and the null implementation outside", () => {
-		expect(selectMultiplexer({ TMUX })).toBeInstanceOf(TmuxMultiplexer);
-		expect(selectMultiplexer({})).toBeInstanceOf(NoMultiplexer);
+		expect(selectMultiplexer({ TMUX }).attached).toBe(true);
+		expect(selectMultiplexer({}).attached).toBe(false);
 	});
 
 	test("NoMultiplexer is inert and previews git history", async () => {
-		const multiplexer = new NoMultiplexer();
+		const multiplexer = createNoMultiplexer();
 
 		await multiplexer.open({ name: "repo__a", path: "/repo__a", title: "a" });
 		await multiplexer.closeUnder("/repo__a");

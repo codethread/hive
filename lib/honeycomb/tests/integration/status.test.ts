@@ -67,7 +67,7 @@ test("reports absent slots for an empty pool", async () => {
 	]);
 });
 
-const initMixedPool = async () => {
+async function initMixedPool() {
 	const { root } = await initRepoWithOrigin(tmp);
 	writeConfig({ command: "echo ready", poolSize: FOUR_SLOTS, root, tmp });
 	await createPoolSlot({ branch: "wk-pool/feat1", index: SLOT.first, initialized: true, root });
@@ -76,21 +76,21 @@ const initMixedPool = async () => {
 	await writeFile(join(`${root}__feat3`, "dirty.txt"), "dirty\n");
 	await createPoolSlot({ branch: "wk-pool/feat4", index: SLOT.fourth, initialized: false, root });
 	return root;
-};
+}
 
-const assertPoolIdentity = (
+function assertPoolIdentity(
 	state: { root: string; trunk: string; hasPool: boolean },
 	root: string,
-) => {
+) {
 	expect(state.root).toBe(root);
 	expect(state.trunk).toBe("main");
 	expect(state.hasPool).toBe(true);
-};
+}
 
-const assertCommitMetadata = (slot: { lastCommitIso: string; lastCommitSubject: string }) => {
+function assertCommitMetadata(slot: { lastCommitIso: string; lastCommitSubject: string }) {
 	expect(slot.lastCommitIso).toContain("T");
 	expect(slot.lastCommitSubject).toBe("initial");
-};
+}
 
 test("status JSON reports free, taken, dirty, and half-initialized slots", async () => {
 	const root = await initMixedPool();
@@ -150,7 +150,7 @@ test("blocks when sibling and legacy nested worktrees claim the same pool slot",
 	});
 });
 
-const initIgnoredSlot = async () => {
+async function initIgnoredSlot() {
 	const { root } = await initRepoWithOrigin(tmp);
 	writeConfig({ command: "echo ready", poolSize: SINGLE_SLOT, root, tmp });
 	await createPoolSlot({ branch: "wk-pool/feat1", index: SLOT.first, initialized: true, root });
@@ -160,7 +160,7 @@ const initIgnoredSlot = async () => {
 	await mkdir(join(`${root}__feat1`, "node_modules"));
 	await writeFile(join(`${root}__feat1`, "node_modules", "ignored.txt"), "ignored\n");
 	return root;
-};
+}
 
 test("gitignored files do not mark a slot dirty and non-pooled status is empty", async () => {
 	const root = await initIgnoredSlot();

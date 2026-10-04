@@ -14,8 +14,10 @@ export interface CommandRunner {
 	run: (command: string, args: string[]) => Promise<CommandResult>;
 }
 
-export class LiveCommandRunner implements CommandRunner {
-	async run(command: string, args: string[]): Promise<CommandResult> {
+export function createLiveCommandRunner(): CommandRunner {
+	return { run };
+
+	async function run(command: string, args: string[]): Promise<CommandResult> {
 		// A stable neutral cwd keeps cleanup commands working after a worktree removes the process's original directory.
 		const proc = Bun.spawn([command, ...args], {
 			cwd: "/",

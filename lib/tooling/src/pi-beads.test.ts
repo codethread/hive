@@ -2,15 +2,17 @@ import { expect, test } from "bun:test";
 import type { ToolResultEvent } from "@earendil-works/pi-coding-agent";
 import { claimedBead } from "../../../.pi/extensions/beads.ts";
 
-const claimResult = (command: string, output: string, isError = false): ToolResultEvent => ({
-	content: [{ text: output, type: "text" }],
-	details: undefined,
-	input: { command },
-	isError,
-	toolCallId: "claim",
-	toolName: "bash",
-	type: "tool_result",
-});
+function claimResult(command: string, output: string, isError = false): ToolResultEvent {
+	return {
+		content: [{ text: output, type: "text" }],
+		details: undefined,
+		input: { command },
+		isError,
+		toolCallId: "claim",
+		toolName: "bash",
+		type: "tool_result",
+	};
+}
 const output = JSON.stringify([{ id: "hv-9d9", status: "in_progress", title: "Bead status" }]);
 
 test.each([

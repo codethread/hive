@@ -9,7 +9,7 @@ import { EXIT_CODES } from "../../src/index";
 import { tmpdir } from "node:os";
 
 /** Registers the shared temp-home environment for a test file; `dir` is set before each test. */
-const useTmpHome = (prefix: string) => {
+export function useTmpHome(prefix: string) {
 	const state = { dir: "" };
 	beforeEach(async () => {
 		state.dir = await mkdtemp(join(tmpdir(), prefix));
@@ -23,19 +23,19 @@ const useTmpHome = (prefix: string) => {
 		await rm(state.dir, { force: true, recursive: true });
 	});
 	return state;
-};
+}
 
-const gitOut = async (repo: string, ...args: string[]): Promise<string> => {
+export async function gitOut(repo: string, ...args: string[]): Promise<string> {
 	const result = await run(["git", "-C", repo, ...args]);
 	return result.stdout.trim();
-};
+}
 
-const gitSucceeds = async (repo: string, ...args: string[]): Promise<boolean> => {
+export async function gitSucceeds(repo: string, ...args: string[]): Promise<boolean> {
 	const result = await runRaw(["git", "-C", repo, ...args]);
 	return result.exitCode === EXIT_CODES.SUCCESS;
-};
+}
 
-const runCli = async (args: string[]) => {
+export async function runCli(args: string[]) {
 	const proc = Bun.spawn(["bun", resolve(import.meta.dirname, "../../bin/honeycomb.ts"), ...args], {
 		env: process.env,
 		stderr: "pipe",
@@ -47,11 +47,9 @@ const runCli = async (args: string[]) => {
 		proc.exited,
 	]);
 	return { exitCode, stderr, stdout };
-};
+}
 
-const gitText = async (repo: string, ...args: string[]): Promise<string> => {
+export async function gitText(repo: string, ...args: string[]): Promise<string> {
 	const result = await run(["git", "-C", repo, ...args]);
 	return result.stdout;
-};
-
-export { gitOut, gitText, gitSucceeds, runCli, useTmpHome };
+}

@@ -4,6 +4,21 @@ import { $ } from "bun";
 // eslint-disable-next-line import/no-nodejs-modules -- This is a Bun CLI script.
 import { parseArgs } from "node:util";
 
+const EXIT_SUCCESS = 0;
+const agents = new Map([
+	// ["opus", { args: ["--dangerously-skip-permissions", "--model", "opus"], cli: "claude" }],
+	["lead", { args: ["--model", "openai-codex/gpt-6-astra:xhigh"], cli: "pi" }],
+	["worker", { args: ["--model", "openai-codex/gpt-6.1-sol:xhigh"], cli: "pi" }],
+	// ["lead", { args: ["--model", "deepseek/deepseek-flash", "--thinking", "max"], cli: "pi" }],
+]);
+const { values } = parseArgs({
+	options: {
+		agent: { default: "worker", type: "string" },
+		help: { short: "h", type: "boolean" },
+		system: { default: false, type: "boolean" },
+	},
+});
+
 interface Bead {
 	/** Beads issue identifier. */
 	readonly id: string;
@@ -21,27 +36,15 @@ interface Pick {
 	/** Whether bv proved the pick claimable now. */
 	readonly actionable: boolean;
 	/** Proof from bv that the tracker it loaded is complete enough to claim from. */
-	readonly source_authority: { readonly claim_safe: boolean };
+	readonly source_authority: {
+		/** Whether bv considers the loaded tracker safe for claim decisions. */
+		readonly claim_safe: boolean;
+	};
 }
 
-const assertTrackerReady = async (): Promise<void> => {
+async function assertTrackerReady(): Promise<void> {
 	await $`bun run beads:sync`;
-};
-
-const EXIT_SUCCESS = 0;
-const agents = new Map([
-	// ["opus", { args: ["--dangerously-skip-permissions", "--model", "opus"], cli: "claude" }],
-	["lead", { args: ["--model", "openai-codex/gpt-6-astra:xhigh"], cli: "pi" }],
-	["worker", { args: ["--model", "openai-codex/gpt-6.1-sol:xhigh"], cli: "pi" }],
-	// ["lead", { args: ["--model", "deepseek/deepseek-flash", "--thinking", "max"], cli: "pi" }],
-]);
-const { values } = parseArgs({
-	options: {
-		agent: { default: "worker", type: "string" },
-		help: { short: "h", type: "boolean" },
-		system: { default: false, type: "boolean" },
-	},
-});
+}
 
 if (values.help) {
 	console.log("Usage: bun scripts/beads-loop.ts [--agent worker|lead] [--system]");

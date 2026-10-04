@@ -1,15 +1,15 @@
 import { EXIT_CODES, UsageError, dispatch } from "../../src/index";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import {
-	TestCdDirective,
-	TestMultiplexer,
-	TestPicker,
+	createTestCdDirective,
+	createTestMultiplexer,
+	createTestPicker,
 	initRepo,
 	restoreTestEnv,
 	run,
 	setTestEnv,
 	testDeps,
 } from "./support.ts";
-import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 /* oxlint-disable-next-line import/no-nodejs-modules -- pick fixtures create real repositories on disk */
 import { mkdtemp, realpath, rm } from "node:fs/promises";
 import { gitLogPreviewCommand } from "../../src/integrations/multiplexer.ts";
@@ -21,17 +21,17 @@ import { tmpdir } from "node:os";
 const NO_PREVIEW_CALLS = 0;
 const ONE_PREVIEW_CALL = 1;
 
-const pickDeps = (choice: string | null, attached = true) => {
-	const picker = new TestPicker(choice, true);
-	const multiplexer = new TestMultiplexer(attached);
-	const cdDirective = new TestCdDirective();
+function pickDeps(choice: string | null, attached = true) {
+	const picker = createTestPicker(choice, true);
+	const multiplexer = createTestMultiplexer(attached);
+	const cdDirective = createTestCdDirective();
 	return {
 		cdDirective,
 		deps: testDeps({ cdDirective, multiplexer, picker }),
 		multiplexer,
 		picker,
 	};
-};
+}
 
 let tmp = "";
 let root = "";

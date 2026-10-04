@@ -33,19 +33,19 @@ afterEach(async () => {
 	await rm(tmp, { force: true, recursive: true });
 });
 
-const initQueryRepo = async () => {
+async function initQueryRepo() {
 	const root = join(tmp, "repo");
 	await initRepo(root);
 	return realpath(root);
-};
+}
 
-const writeRawConfig = async (configHome: string, content: string) => {
+async function writeRawConfig(configHome: string, content: string) {
 	await mkdir(configHome, { recursive: true });
 	await writeFile(join(configHome, "honeycomb.toml"), content);
 	setTestEnv("XDG_CONFIG_HOME", configHome);
-};
+}
 
-const assertCanonicalList = async (root: string) => {
+async function assertCanonicalList(root: string) {
 	const listResult = await dispatch("list", ["--cwd", root], deps);
 	expect(listResult.stdout).toContain(`${root}  `);
 	expect(listResult.stdout).toContain("[main]");
@@ -66,7 +66,7 @@ const assertCanonicalList = async (root: string) => {
 		prunable: false,
 	});
 	expect(canonical.branchRef).toBeUndefined();
-};
+}
 
 test("root, list, json list, and non-pool path against a real repo", async () => {
 	const root = await initQueryRepo();
@@ -128,7 +128,7 @@ test("list fails fast on malformed config", async () => {
 	expect(failure).toBeInstanceOf(ConfigError);
 });
 
-const initLockedPool = async () => {
+async function initLockedPool() {
 	const configRoot = join(tmp, "repo");
 	const { root } = await initRepoWithOrigin(tmp);
 	await run(["git", "-C", root, "branch", "wk-pool/feat1"]);
@@ -140,7 +140,7 @@ const initLockedPool = async () => {
 		`[[project]]\nroot = "${configRoot}"\ncommand = "echo ready"\npool_size = 1\n`,
 	);
 	return root;
-};
+}
 
 test("list annotates pool slots and path refuses pooled repos before slot state exists", async () => {
 	const root = await initLockedPool();

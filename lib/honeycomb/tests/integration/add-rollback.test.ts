@@ -15,7 +15,7 @@ import { gitOut, gitSucceeds, useTmpHome } from "./lifecycle-helpers.ts";
 const tmp = useTmpHome("honeycomb-add-rollback-test-");
 const { initRepoWithOrigin } = useOriginFixture();
 
-const assertBlockedPrecheck = (result: Awaited<ReturnType<typeof dispatch>>) => {
+function assertBlockedPrecheck(result: Awaited<ReturnType<typeof dispatch>>) {
 	expect(result.exitCode).toBe(EXIT_CODES.BLOCKED);
 	expect(result.stderr).toBeUndefined();
 	expect(result.failure).toBeInstanceOf(PreRemoteCheckError);
@@ -25,7 +25,7 @@ const assertBlockedPrecheck = (result: Awaited<ReturnType<typeof dispatch>>) => 
 		ok: false,
 		reason: "pre_remote_check_failed",
 	});
-};
+}
 
 test("setup failure rolls back the new worktree and branch", async () => {
 	const { root } = await initRepoWithOrigin(tmp.dir);

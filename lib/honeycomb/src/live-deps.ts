@@ -1,25 +1,50 @@
-import type { Deps, PickerOptions, PickerService, ProgressReporter } from "./services.ts";
+import type { Deps, PickerItem, PickerOptions, ProgressReporter } from "./services.ts";
 // oxlint-disable-next-line import/no-nodejs-modules -- Direct terminal IO belongs in the live picker boundary.
 import { closeSync, openSync, readSync, writeFileSync } from "node:fs";
-import { FileCdDirective } from "./integrations/cd-directive.ts";
-import { LiveGitRunner } from "./git/executor.ts";
-import { LiveHookRunner } from "./hooks.ts";
-import { LiveWorkspaceFiles } from "./setup.ts";
 import { PickerCancelled } from "./errors.ts";
+import { createFileCdDirective } from "./integrations/cd-directive.ts";
 import { createLiveConfigService } from "./live-config-service.ts";
+import { createLiveGitRunner } from "./git/executor.ts";
+import { createLiveHookRunner } from "./hooks.ts";
+import { createLiveWorkspaceFiles } from "./setup.ts";
 import { fzf } from "./fzf.ts";
 import { selectMultiplexer } from "./integrations/tmux.ts";
 
 const ANSWER_BYTES = 1;
 
-const tmuxPopup = (options: PickerOptions): string | undefined => {
+/** Assemble live Git, filesystem, hook, picker, and terminal services. */
+export function createLiveDeps(): Deps {
+	const git = createLiveGitRunner();
+	const files = createLiveWorkspaceFiles(git);
+	return {
+		cdDirective: createFileCdDirective(process.env.HONEYCOMB_CD_FILE),
+		clock: { now: Date.now },
+		config: createLiveConfigService(files.normalizePath),
+		files,
+		git,
+		hooks: createLiveHookRunner(),
+		multiplexer: selectMultiplexer({
+			TMUX: process.env.TMUX,
+			TMUX_PANE: process.env.TMUX_PANE,
+		}),
+		picker: { confirm, pick },
+		progress: createProgressReporter(),
+	};
+}
+
+// Private terminal and picker helpers.
+function tmuxPopup(options: PickerOptions): string | undefined {
 	if (options.interactive) {
 		return "center,80%,70%";
 	}
 	return undefined;
-};
+}
 
-const pick: PickerService["pick"] = async (items, header, options = {}) => {
+async function pick(
+	items: PickerItem[],
+	header: string,
+	options: PickerOptions = {},
+): Promise<PickerItem> {
 	const [first] = items;
 	const byDisplay = new Map(items.map((item) => [item.display, item]));
 	const selection = await fzf(
@@ -38,10 +63,10 @@ const pick: PickerService["pick"] = async (items, header, options = {}) => {
 		throw new PickerCancelled();
 	}
 	return item;
-};
+}
 
 // oxlint-disable-next-line eslint/require-await -- Keep synchronous terminal interaction inside an async boundary so IO errors reject the returned promise.
-const confirm = async (prompt: string): Promise<boolean> => {
+async function confirm(prompt: string): Promise<boolean> {
 	// oxlint-disable-next-line node/no-sync -- The interactive single-byte prompt owns the terminal until answered.
 	const tty = openSync("/dev/tty", "r+");
 	try {
@@ -57,35 +82,18 @@ const confirm = async (prompt: string): Promise<boolean> => {
 		// oxlint-disable-next-line node/no-sync -- Release the terminal on both success and failure.
 		closeSync(tty);
 	}
-};
+}
 
-const createProgressReporter = (): ProgressReporter => ({
-	banner: (line) => {
-		process.stderr.write(`${line}\n`);
-	},
-	error: (msg) => {
-		process.stderr.write(`${msg}\n`);
-	},
-	stream: (stream, line) => {
-		process[stream].write(`${line}\n`);
-	},
-});
-
-export const createLiveDeps = (): Deps => {
-	const git = new LiveGitRunner();
-	const files = new LiveWorkspaceFiles(git);
+function createProgressReporter(): ProgressReporter {
 	return {
-		cdDirective: new FileCdDirective(process.env.HONEYCOMB_CD_FILE),
-		clock: { now: () => Date.now() },
-		config: createLiveConfigService(files.normalizePath),
-		files,
-		git,
-		hooks: new LiveHookRunner(),
-		multiplexer: selectMultiplexer({
-			TMUX: process.env.TMUX,
-			TMUX_PANE: process.env.TMUX_PANE,
-		}),
-		picker: { confirm, pick },
-		progress: createProgressReporter(),
+		banner(line) {
+			process.stderr.write(`${line}\n`);
+		},
+		error(msg) {
+			process.stderr.write(`${msg}\n`);
+		},
+		stream(stream, line) {
+			process[stream].write(`${line}\n`);
+		},
 	};
-};
+}

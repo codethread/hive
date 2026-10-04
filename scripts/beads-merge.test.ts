@@ -3,13 +3,16 @@ import { mergeIssueJsonl } from "./beads-merge-core.ts";
 
 const EMPTY_COUNT = 0;
 
-const issue = (id: string, title: string): string => JSON.stringify({ id, title });
-const jsonl = (...records: readonly string[]): string => {
+function issue(id: string, title: string): string {
+	return JSON.stringify({ id, title });
+}
+
+function jsonl(...records: readonly string[]): string {
 	if (records.length === EMPTY_COUNT) {
 		return "";
 	}
 	return `${records.join("\n")}\n`;
-};
+}
 
 test("merges independent issue additions in stable ID order", () => {
 	const current = jsonl(issue("hv-b", "B"));

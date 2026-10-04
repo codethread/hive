@@ -17,15 +17,6 @@ import { pickCommand } from "./commands/pick.ts";
 import { removeCommand } from "./commands/remove.ts";
 import { shellInitCommand } from "./commands/shell-init.ts";
 
-interface Invocation {
-	/** Command selected by the caller. */
-	subcommand: string | undefined;
-	/** Raw command arguments. */
-	args: string[];
-	/** Requested output format. */
-	output: OutputMode;
-}
-
 const handlers: Partial<
 	Record<string, (args: string[], deps: Deps) => Promise<CommandResult> | CommandResult>
 > = {
@@ -43,7 +34,34 @@ const handlers: Partial<
 	status: statusCommand,
 };
 
-const route = (request: Invocation, deps: Deps): CommandResult | Promise<CommandResult> => {
+interface Invocation {
+	/** Command selected by the caller. */
+	subcommand: string | undefined;
+	/** Raw command arguments. */
+	args: string[];
+	/** Requested output format. */
+	output: OutputMode;
+}
+
+/** Format every command failure and capture progress for machine-readable invocations. */
+export async function dispatch(
+	subcommand: string | undefined,
+	args: string[],
+	deps: Deps,
+): Promise<CommandResult> {
+	const output: OutputMode = { json: subcommand === "status" || args.includes("--json") };
+	const request = { args, output, subcommand };
+	if (!output.json) {
+		return routeFormatted(request, deps);
+	}
+	const collector = createJsonCollector(deps.progress);
+	const result = await routeFormatted(request, { ...deps, progress: collector.progress });
+	return collector.render(result);
+}
+
+// --- Private helpers ---
+
+function route(request: Invocation, deps: Deps): CommandResult | Promise<CommandResult> {
 	const { args, subcommand } = request;
 	if (subcommand && Object.hasOwn(handlers, subcommand)) {
 		const handler = handlers[subcommand];
@@ -55,30 +73,12 @@ const route = (request: Invocation, deps: Deps): CommandResult | Promise<Command
 		throw new UsageError(`unknown subcommand: ${subcommand}`);
 	}
 	throw new UsageError("missing subcommand");
-};
+}
 
-const routeFormatted = async (request: Invocation, deps: Deps): Promise<CommandResult> => {
+async function routeFormatted(request: Invocation, deps: Deps): Promise<CommandResult> {
 	try {
 		return await route(request, deps);
 	} catch (error) {
 		return formatFailure(error, request.output);
 	}
-};
-
-/** Format every command failure and capture progress for machine-readable invocations. */
-const dispatch = async (
-	subcommand: string | undefined,
-	args: string[],
-	deps: Deps,
-): Promise<CommandResult> => {
-	const output: OutputMode = { json: subcommand === "status" || args.includes("--json") };
-	const request = { args, output, subcommand };
-	if (!output.json) {
-		return routeFormatted(request, deps);
-	}
-	const collector = createJsonCollector(deps.progress);
-	const result = await routeFormatted(request, { ...deps, progress: collector.progress });
-	return collector.render(result);
-};
-
-export { dispatch };
+}

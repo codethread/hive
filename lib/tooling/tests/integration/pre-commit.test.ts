@@ -11,7 +11,7 @@ const executableMode = 0o755;
 const success = 0;
 const syncFailure = 7;
 
-const run = async (argv: string[], cwd: string, env: Record<string, string | undefined>) => {
+async function run(argv: string[], cwd: string, env: Record<string, string | undefined>) {
 	const child = Bun.spawn(argv, { cwd, env, stderr: "pipe", stdout: "pipe" });
 	const [stdout, stderr, exitCode] = await Promise.all([
 		new Response(child.stdout).text(),
@@ -19,27 +19,29 @@ const run = async (argv: string[], cwd: string, env: Record<string, string | und
 		child.exited,
 	]);
 	return { exitCode, stderr, stdout };
-};
+}
 
-const environment = (root: string, exit: number) => ({
-	...process.env,
-	GIT_AUTHOR_EMAIL: "test@example.test",
-	GIT_AUTHOR_NAME: "Test",
-	GIT_COMMITTER_EMAIL: "test@example.test",
-	GIT_COMMITTER_NAME: "Test",
-	GIT_CONFIG_GLOBAL: "/dev/null",
-	GIT_CONFIG_NOSYSTEM: "1",
-	HOOK_LOG: join(root, "commands"),
-	PATH: `${join(root, "bin")}:${process.env.PATH}`,
-	SYNC_EXIT: String(exit),
-});
+function environment(root: string, exit: number) {
+	return {
+		...process.env,
+		GIT_AUTHOR_EMAIL: "test@example.test",
+		GIT_AUTHOR_NAME: "Test",
+		GIT_COMMITTER_EMAIL: "test@example.test",
+		GIT_COMMITTER_NAME: "Test",
+		GIT_CONFIG_GLOBAL: "/dev/null",
+		GIT_CONFIG_NOSYSTEM: "1",
+		HOOK_LOG: join(root, "commands"),
+		PATH: `${join(root, "bin")}:${process.env.PATH}`,
+		SYNC_EXIT: String(exit),
+	};
+}
 
-const writeExecutable = async (path: string, content: string): Promise<void> => {
+async function writeExecutable(path: string, content: string): Promise<void> {
 	await Bun.write(path, `#!/bin/sh\n${content}`);
 	await chmod(path, executableMode);
-};
+}
 
-const prepare = async (root: string, branch: string, env: ReturnType<typeof environment>) => {
+async function prepare(root: string, branch: string, env: ReturnType<typeof environment>) {
 	await mkdir(join(root, "bin"));
 	await writeExecutable(join(root, "bin/bunx"), 'printf "lint\\n" >> "$HOOK_LOG"\n');
 	await writeExecutable(
@@ -64,7 +66,7 @@ fi
 	await Bun.write(join(root, "notes.md"), "First line  \nSecond line\n");
 	const staged = await run(["git", "add", "notes.md"], root, env);
 	expect(staged.exitCode).toBe(success);
-};
+}
 
 test.each([
 	{

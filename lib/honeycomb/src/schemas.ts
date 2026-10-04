@@ -6,8 +6,8 @@ import { z } from "zod";
 
 const MINIMUM_LIST_LENGTH = 1;
 
-const CopyModeSchema = z.enum(["copy", "symlink"]);
-const PoolSizeSchema = z.number().int().min(MINIMUM_LIST_LENGTH);
+export const CopyModeSchema = z.enum(["copy", "symlink"]);
+export const PoolSizeSchema = z.number().int().min(MINIMUM_LIST_LENGTH);
 
 const NonEmptyStringSchema = z.string().regex(/\S/u, "must be a non-empty string");
 // oxlint-disable-next-line no-control-regex -- Filesystem paths cannot contain a null byte; also emit this constraint for editors.
@@ -129,33 +129,56 @@ type ConfigOutput = z.output<typeof ConfigSchema>;
 type ProjectOutput = z.output<typeof ProjectSchema>;
 
 interface ProjectState {
+	/** Index in the source project's array. */
 	index: number;
+	/** Project values after the TOML schema has supplied defaults. */
 	project: ProjectOutput;
+	/** Expanded canonical root used for matching and duplicate checks. */
 	root: string;
 }
 
 interface ProjectIssue {
+	/** Human-readable configuration error. */
 	message: string;
+	/** TOML path to the invalid value. */
 	path: (number | string)[];
 }
 
-const expandProjects = (config: ConfigOutput, context: ConfigPathContext): ProjectState[] =>
-	config.project.map((project, index) => ({
+export type RawConfig = z.output<ReturnType<typeof createConfigSchema>>;
+
+/** One TOML schema; path context supplies environment-dependent cross-entry validation. */
+export function createConfigSchema(context: ConfigPathContext) {
+	return ConfigSchema.superRefine((config, refinement) => {
+		for (const issue of collectProjectIssues(config, context)) {
+			refinement.addIssue({ code: "custom", message: issue.message, path: issue.path });
+		}
+	}).describe(
+		"HONEYCOMB configuration. Policy inheritance, canonical path matching and normalized path safety are also checked at runtime.",
+	);
+}
+// --- Private functions ---
+
+function expandProjects(config: ConfigOutput, context: ConfigPathContext): ProjectState[] {
+	return config.project.map((project, index) => ({
 		index,
 		project,
 		root: expandConfigPath(project.root, context),
 	}));
+}
 
-const requiresCommand = (project: ProjectOutput): boolean =>
-	project.pool_size !== undefined ||
-	project.copy.length >= MINIMUM_LIST_LENGTH ||
-	project.copy_mode_default !== undefined;
+function requiresCommand(project: ProjectOutput): boolean {
+	return (
+		project.pool_size !== undefined ||
+		project.copy.length >= MINIMUM_LIST_LENGTH ||
+		project.copy_mode_default !== undefined
+	);
+}
 
-const validateProject = (
+function validateProject(
 	state: ProjectState,
 	config: ConfigOutput,
 	context: ConfigPathContext,
-): ProjectIssue[] => {
+): ProjectIssue[] {
 	if (!requiresCommand(state.project)) {
 		return [];
 	}
@@ -181,9 +204,9 @@ const validateProject = (
 			path: ["project", state.index, "command"],
 		},
 	];
-};
+}
 
-const collectProjectIssues = (config: ConfigOutput, context: ConfigPathContext): ProjectIssue[] => {
+function collectProjectIssues(config: ConfigOutput, context: ConfigPathContext): ProjectIssue[] {
 	const issues: ProjectIssue[] = [];
 	const roots = new Set<string>();
 	for (const state of expandProjects(config, context)) {
@@ -197,18 +220,4 @@ const collectProjectIssues = (config: ConfigOutput, context: ConfigPathContext):
 		issues.push(...validateProject(state, config, context));
 	}
 	return issues;
-};
-
-/** One TOML schema; path context supplies environment-dependent cross-entry validation. */
-const createConfigSchema = (context: ConfigPathContext) =>
-	ConfigSchema.superRefine((config, refinement) => {
-		for (const issue of collectProjectIssues(config, context)) {
-			refinement.addIssue({ code: "custom", message: issue.message, path: issue.path });
-		}
-	}).describe(
-		"HONEYCOMB configuration. Policy inheritance, canonical path matching and normalized path safety are also checked at runtime.",
-	);
-
-type RawConfig = z.output<ReturnType<typeof createConfigSchema>>;
-
-export { CopyModeSchema, createConfigSchema, PoolSizeSchema, type RawConfig };
+}

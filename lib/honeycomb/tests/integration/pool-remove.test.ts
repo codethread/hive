@@ -21,14 +21,14 @@ const SINGLE_SLOT = 1;
 const tmp = useTmpHome("honeycomb-recycle-test-");
 const { initRepoWithOrigin } = useOriginFixture();
 
-const setupPooledRoot = async (home: string, branch: string) => {
+async function setupPooledRoot(home: string, branch: string) {
 	const { remote, root } = await initRepoWithOrigin(home);
 	writeConfig({ command: "echo ready", poolSize: SINGLE_SLOT, root, tmp: home });
 	await dispatch("add", ["--cwd", root, "--branch", branch, "--json"], testDeps());
 	return { remote, root };
-};
+}
 
-const setupIgnoredPooledRoot = async (home: string, branch: string) => {
+async function setupIgnoredPooledRoot(home: string, branch: string) {
 	const { remote, root } = await initRepoWithOrigin(home);
 	await commitFile({
 		content: "node_modules/\n",
@@ -40,9 +40,9 @@ const setupIgnoredPooledRoot = async (home: string, branch: string) => {
 	writeConfig({ command: "echo ready", poolSize: SINGLE_SLOT, root, tmp: home });
 	await dispatch("add", ["--cwd", root, "--branch", branch, "--json"], testDeps());
 	return { remote, root };
-};
+}
 
-const dirtyPooledSlot = async (slot: string) => {
+async function dirtyPooledSlot(slot: string) {
 	await commitFile({
 		content: "tracked\n",
 		message: "local unmerged",
@@ -52,9 +52,9 @@ const dirtyPooledSlot = async (slot: string) => {
 	await writeFile(join(slot, "untracked.txt"), "untracked\n");
 	await mkdir(join(slot, "node_modules"));
 	await writeFile(join(slot, "node_modules", "keep.txt"), "keep\n");
-};
+}
 
-const setupUpstreamBlockedBranch = async (home: string) => {
+async function setupUpstreamBlockedBranch(home: string) {
 	const { remote, root } = await initRepoWithOrigin(home);
 	await createRemoteBranch(remote, "feature/upstream-blocked");
 	writeConfig({ command: "echo ready", poolSize: SINGLE_SLOT, root, tmp: home });
@@ -64,7 +64,7 @@ const setupUpstreamBlockedBranch = async (home: string) => {
 		testDeps(),
 	);
 	return { root };
-};
+}
 
 test("safe pooled remove resets slot to placeholder with removed false", async () => {
 	const { remote, root } = await initRepoWithOrigin(tmp.dir);

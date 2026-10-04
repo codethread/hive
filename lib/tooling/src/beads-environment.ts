@@ -24,15 +24,30 @@ const codexSchema = z.looseObject({
 	shell_environment_policy: codexPolicySchema.optional(),
 });
 
-const parseDatabase = (value: unknown): string => databaseSchema.parse(value);
 const environmentSchema = z.object({ BEADS_DB: databaseSchema });
-type TrackerEnvironment = z.infer<typeof environmentSchema>;
-const parseEnvironment = (value: unknown): TrackerEnvironment => environmentSchema.parse(value);
-const trackerRoot = (database: string): string => dirname(dirname(database));
-const parseConfig = (contents: string): unknown => parse(contents, { integersAsBigInt: true });
-const renderConfig = (config: object): string => stringify(config, { numbersAsFloat: true });
+const EXIT_SUCCESS = 0;
 
-const renderMiseConfig = (contents: string, environment: TrackerEnvironment): string => {
+/** Repository-maintenance subprocess boundary; failed commands retain their diagnostics. */
+export type Command = (argv: readonly string[], cwd: string) => Promise<string>;
+
+export interface TrackerEnvironment {
+	/** Absolute path to the selected tracker database. */
+	BEADS_DB: string;
+}
+
+export function parseDatabase(value: unknown): string {
+	return databaseSchema.parse(value);
+}
+
+export function parseEnvironment(value: unknown): TrackerEnvironment {
+	return environmentSchema.parse(value);
+}
+
+export function trackerRoot(database: string): string {
+	return dirname(dirname(database));
+}
+
+export function renderMiseConfig(contents: string, environment: TrackerEnvironment): string {
 	const config = miseSchema.parse(parseConfig(contents));
 	const env = config.env ?? {};
 	// Retire generated interception settings when an existing checkout reruns setup.
@@ -45,9 +60,9 @@ const renderMiseConfig = (contents: string, environment: TrackerEnvironment): st
 		}
 	}
 	return renderConfig({ ...config, env: { ...env, ...environment } });
-};
+}
 
-const renderCodexConfig = (contents: string, environment: TrackerEnvironment): string => {
+export function renderCodexConfig(contents: string, environment: TrackerEnvironment): string {
 	const config = codexSchema.parse(parseConfig(contents));
 	const policy = config.shell_environment_policy ?? {};
 	const set = policy.set ?? {};
@@ -62,13 +77,9 @@ const renderCodexConfig = (contents: string, environment: TrackerEnvironment): s
 		...config,
 		shell_environment_policy: { ...policy, set: { ...set, ...environment } },
 	});
-};
+}
 
-/** Repository-maintenance subprocess boundary; failed commands retain their diagnostics. */
-type Command = (argv: readonly string[], cwd: string) => Promise<string>;
-const EXIT_SUCCESS = 0;
-
-const runCommand: Command = async (argv, cwd) => {
+export async function runCommand(argv: readonly string[], cwd: string): Promise<string> {
 	const child = Bun.spawn([...argv], { cwd, stderr: "inherit", stdout: "pipe" });
 	const output = await new Response(child.stdout).text();
 	const exitCode = await child.exited;
@@ -76,21 +87,22 @@ const runCommand: Command = async (argv, cwd) => {
 		throw new Error(`${argv.join(" ")} failed (${exitCode})\n${output}`);
 	}
 	return output.trim();
-};
+}
 
-const resolveEnvironment = async (cwd: string, command: Command): Promise<TrackerEnvironment> => {
+export async function resolveEnvironment(
+	cwd: string,
+	command: Command,
+): Promise<TrackerEnvironment> {
 	const output = await command(["mise", "env", "--json"], cwd);
 	return parseEnvironment(JSON.parse(output));
-};
+}
 
-export {
-	parseDatabase,
-	parseEnvironment,
-	renderCodexConfig,
-	renderMiseConfig,
-	resolveEnvironment,
-	runCommand,
-	trackerRoot,
-	type Command,
-	type TrackerEnvironment,
-};
+// -----------------------------------------------------------------------------
+
+function parseConfig(contents: string): unknown {
+	return parse(contents, { integersAsBigInt: true });
+}
+
+function renderConfig(config: object): string {
+	return stringify(config, { numbersAsFloat: true });
+}

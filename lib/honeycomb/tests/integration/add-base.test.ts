@@ -18,7 +18,7 @@ import { mkdir } from "node:fs/promises";
 const tmp = useTmpHome("honeycomb-add-base-test-");
 const { initRepoWithOrigin } = useOriginFixture();
 
-const addFromLocalBase = async (root: string) => {
+async function addFromLocalBase(root: string) {
 	await run(["git", "-C", root, "checkout", "-b", "local/base"]);
 	await commitFile({
 		content: "local base\n",
@@ -32,7 +32,7 @@ const addFromLocalBase = async (root: string) => {
 		["--cwd", root, "--branch", "feature/from-local-base", "--base", "local/base", "--json"],
 		deps,
 	);
-};
+}
 
 test("uses --base for a new branch and warns when --base is ignored for existing branch", async () => {
 	const { root, remote } = await initRepoWithOrigin(tmp.dir);

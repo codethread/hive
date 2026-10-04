@@ -78,7 +78,28 @@ interface FinishTargetInfo {
 	targetRef: string;
 }
 
-const parseFinishRequest = (args: string[]): FinishRequest => {
+export async function finishCommand(args: string[], deps: Deps): Promise<CommandResult> {
+	const request = parseFinishRequest(args);
+	const state: FinishState = {
+		cleanupActions: [],
+		integrated: false,
+		sourceBranch: undefined,
+		worktreePath: undefined,
+	};
+	try {
+		return await executeFinish(request, deps, state);
+	} catch (error) {
+		throw withFailureContext(error, {
+			branch: state.sourceBranch,
+			cleanup_actions: state.cleanupActions,
+			integrated: state.integrated,
+			worktree_path: state.worktreePath,
+		});
+	}
+}
+// --- Private functions ---
+
+function parseFinishRequest(args: string[]): FinishRequest {
 	const opts = parseOptions(args);
 	const cwd = requireOption(opts, "cwd");
 	for (const key of Object.keys(opts)) {
@@ -99,15 +120,15 @@ const parseFinishRequest = (args: string[]): FinishRequest => {
 		output: parseOutputMode(opts),
 		title: opts.title,
 	};
-};
+}
 
-const resolveSourceWorktree = (options: {
+function resolveSourceWorktree(options: {
 	canonical: Worktree;
 	cwd: string;
 	deps: Deps;
 	state: FinishState;
 	worktrees: Worktree[];
-}): { source: Worktree; sourceBranch: string } => {
+}): { source: Worktree; sourceBranch: string } {
 	const source = resolveWorktreeContainingPath(options.worktrees, options.cwd, options.deps.files);
 	if (!source) {
 		throw new UsageError(`no worktree contains cwd: ${options.cwd}`);
@@ -124,13 +145,13 @@ const resolveSourceWorktree = (options: {
 	}
 	options.state.sourceBranch = source.branch;
 	return { source, sourceBranch: source.branch };
-};
+}
 
-const resolveFinishSource = async (
+async function resolveFinishSource(
 	request: FinishRequest,
 	deps: Deps,
 	state: FinishState,
-): Promise<FinishSourceInfo> => {
+): Promise<FinishSourceInfo> {
 	const config = deps.config.read();
 	const worktrees = await listWorktrees(deps.git, request.cwd);
 	const canonical = worktrees.find((worktree) => worktree.canonical);
@@ -146,9 +167,9 @@ const resolveFinishSource = async (
 	});
 	const explanation = deps.config.explain(config, canonical.path);
 	return { canonical, config, explanation, project: explanation.project, source, sourceBranch };
-};
+}
 
-const resolveFinishPolicy = (explanation: PolicyExplanation): FinishPolicyPlan => {
+function resolveFinishPolicy(explanation: PolicyExplanation): FinishPolicyPlan {
 	const { finishPolicy } = explanation;
 	if (!finishPolicy.enabled) {
 		throw new BlockedError("finish is disabled for this repository");
@@ -160,12 +181,12 @@ const resolveFinishPolicy = (explanation: PolicyExplanation): FinishPolicyPlan =
 		);
 	}
 	return finishPolicy;
-};
+}
 
-const prepareFinishTarget = async (
+async function prepareFinishTarget(
 	source: FinishSourceInfo,
 	deps: Deps,
-): Promise<FinishTargetInfo> => {
+): Promise<FinishTargetInfo> {
 	await runPreRemoteCheck(deps, {
 		config: source.config,
 		operation: "honeycomb finish",
@@ -190,9 +211,9 @@ const prepareFinishTarget = async (
 		});
 	}
 	return { plan, targetBranch, targetRef };
-};
+}
 
-const readyFinishResult = (options: {
+function readyFinishResult(options: {
 	afterOutput: (() => Promise<void>) | undefined;
 	cleanupActions: string[];
 	output: OutputMode;
@@ -201,7 +222,7 @@ const readyFinishResult = (options: {
 	sourcePath: string;
 	strategy: FinishStrategy;
 	targetBranch: string;
-}): CommandResult => {
+}): CommandResult {
 	const payload = {
 		cleanup_actions: options.cleanupActions,
 		kind: "ready",
@@ -217,13 +238,13 @@ const readyFinishResult = (options: {
 		payload,
 		summary: `honeycomb: finished ${payload.source_branch} into ${payload.target_branch}`,
 	});
-};
+}
 
-const executeFinish = async (
+async function executeFinish(
 	request: FinishRequest,
 	deps: Deps,
 	state: FinishState,
-): Promise<CommandResult> => {
+): Promise<CommandResult> {
 	const source = await resolveFinishSource(request, deps, state);
 	const integration = parseIntegrationPlan(
 		source.explanation.finishPolicy.strategy,
@@ -266,26 +287,4 @@ const executeFinish = async (
 		strategy: target.plan.strategy,
 		targetBranch: target.targetBranch,
 	});
-};
-
-const finishCommand = async (args: string[], deps: Deps): Promise<CommandResult> => {
-	const request = parseFinishRequest(args);
-	const state: FinishState = {
-		cleanupActions: [],
-		integrated: false,
-		sourceBranch: undefined,
-		worktreePath: undefined,
-	};
-	try {
-		return await executeFinish(request, deps, state);
-	} catch (error) {
-		throw withFailureContext(error, {
-			branch: state.sourceBranch,
-			cleanup_actions: state.cleanupActions,
-			integrated: state.integrated,
-			worktree_path: state.worktreePath,
-		});
-	}
-};
-
-export { finishCommand };
+}

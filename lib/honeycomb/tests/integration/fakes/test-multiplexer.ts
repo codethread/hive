@@ -4,33 +4,50 @@ import { gitLogPreviewCommand } from "../../../src/integrations/multiplexer.ts";
 const INITIAL_PREVIEW_CALLS = 0;
 
 /** Records session calls, optionally into a log shared with TestCdDirective to check ordering. */
-export class TestMultiplexer {
-	opened: MultiplexerOpenRequest[] = [];
-	closedPaths: string[] = [];
-	previewCalls = INITIAL_PREVIEW_CALLS;
+export interface TestMultiplexer {
+	/** Session requests opened during the test. */
+	opened: MultiplexerOpenRequest[];
+	/** Paths passed to closeUnder, in call order. */
+	closedPaths: string[];
+	/** Number of preview requests served. */
+	previewCalls: number;
+	/** Whether the test represents a process attached to tmux. */
 	readonly attached: boolean;
-	private readonly log: string[];
+	/** Record a session open request. */
+	open: (request: MultiplexerOpenRequest) => Promise<void>;
+	/** Record a request to close sessions under a path. */
+	closeUnder: (path: string) => Promise<void>;
+	/** Return the test preview appropriate for attachment state. */
+	previewCommand: () => string;
+}
 
-	constructor(attached = true, log: string[] = []) {
-		this.attached = attached;
-		this.log = log;
-	}
+export function createTestMultiplexer(attached = true, log: string[] = []): TestMultiplexer {
+	const multiplexer: TestMultiplexer = {
+		attached,
+		closeUnder,
+		closedPaths: [],
+		open,
+		opened: [],
+		previewCalls: INITIAL_PREVIEW_CALLS,
+		previewCommand,
+	};
+	return multiplexer;
 
-	open(request: MultiplexerOpenRequest): Promise<void> {
-		this.log.push(`open ${request.path}`);
-		this.opened.push(request);
+	function open(request: MultiplexerOpenRequest): Promise<void> {
+		log.push(`open ${request.path}`);
+		multiplexer.opened.push(request);
 		return Promise.resolve();
 	}
 
-	closeUnder(path: string): Promise<void> {
-		this.log.push(`close ${path}`);
-		this.closedPaths.push(path);
+	function closeUnder(path: string): Promise<void> {
+		log.push(`close ${path}`);
+		multiplexer.closedPaths.push(path);
 		return Promise.resolve();
 	}
 
-	previewCommand(): string {
-		this.previewCalls++;
-		if (this.attached) {
+	function previewCommand(): string {
+		multiplexer.previewCalls++;
+		if (multiplexer.attached) {
 			return "test-preview";
 		}
 		return gitLogPreviewCommand();

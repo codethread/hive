@@ -1,8 +1,9 @@
 import { EXIT_CODES, dispatch } from "../../src/index";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import {
-	TestCdDirective,
-	TestMultiplexer,
 	commitFile,
+	createTestCdDirective,
+	createTestMultiplexer,
 	pathExists,
 	restoreTestEnv,
 	setTestEnv,
@@ -10,7 +11,6 @@ import {
 	useOriginFixture,
 	writeConfig,
 } from "./support.ts";
-import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 /* oxlint-disable-next-line import/no-nodejs-modules -- interactive fixtures create real repositories on disk */
 import { mkdtemp, rm } from "node:fs/promises";
 import type { Deps } from "../../src/services.ts";
@@ -23,10 +23,10 @@ const POOL_SIZE = 1;
 
 const { initRepoWithOrigin } = useOriginFixture();
 
-const interactiveDeps = (attached = true) => {
+function interactiveDeps(attached = true) {
 	const log: string[] = [];
-	const multiplexer = new TestMultiplexer(attached, log);
-	const cdDirective = new TestCdDirective(log);
+	const multiplexer = createTestMultiplexer(attached, log);
+	const cdDirective = createTestCdDirective(log);
 	const warnings: string[] = [];
 	const deps = testDeps({
 		cdDirective,
@@ -38,13 +38,13 @@ const interactiveDeps = (attached = true) => {
 		},
 	});
 	return { cdDirective, deps, log, multiplexer, warnings };
-};
+}
 
-const run = async (subcommand: string, args: string[], deps: Deps) => {
+async function run(subcommand: string, args: string[], deps: Deps) {
 	const result = await dispatch(subcommand, args, deps);
 	await result.afterOutput?.();
 	return result;
-};
+}
 
 let tmp = "";
 let root = "";

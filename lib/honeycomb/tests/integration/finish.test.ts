@@ -19,12 +19,12 @@ const EXECUTABLE_MODE = 0o755;
 const tmp = useTmpHome("honeycomb-finish-test-");
 const { initRepoWithOrigin } = useOriginFixture();
 
-const prepareFinish = async (branch: string, policy = "") => {
+async function prepareFinish(branch: string, policy = "") {
 	const { remote, root } = await initRepoWithOrigin(tmp.dir);
 	writeConfig({ command: "echo ready", copyToml: policy, root, tmp: tmp.dir });
 	await dispatch("add", ["--cwd", root, "--branch", branch, "--json"], deps);
 	return { remote, root, worktreePath: `${root}__${branch.replaceAll("/", "--")}` };
-};
+}
 
 test("finish disabled blocks before integration with JSON payload", async () => {
 	const { root, worktreePath } = await prepareFinish(

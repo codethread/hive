@@ -10,13 +10,13 @@ import { EXIT_CODES } from "../errors.ts";
 import type { TreesConfig } from "../domain/config.ts";
 import { ensurePlaceholderBranch } from "../application/pool.ts";
 
-const prepareAddBranch = async (options: {
+export async function prepareAddBranch(options: {
 	base: string | null;
 	branch: string;
 	config: TreesConfig;
 	deps: Deps;
 	root: string;
-}) => {
+}) {
 	const { base, branch, config, deps, root } = options;
 	await deps.git.run(["-C", root, "fetch", "origin"]);
 	const branchState = await detectBranchState(deps.git, root, branch);
@@ -28,24 +28,14 @@ const prepareAddBranch = async (options: {
 		root,
 	});
 	return { base: base ?? defaultBase, branchState };
-};
+}
 
-const warnIgnoredBase = (
-	state: BranchState,
-	base: string | null,
-	progress: ProgressReporter,
-): void => {
-	if (state !== "none" && base) {
-		progress.error("--base ignored: branch already exists");
-	}
-};
-
-const captureExistingBranchHead = async (options: {
+export async function captureExistingBranchHead(options: {
 	git: GitRunner;
 	root: string;
 	branch: string;
 	branchState: BranchState;
-}): Promise<string | null> => {
+}): Promise<string | null> {
 	const { git, root, branch, branchState } = options;
 	if (branchState !== "local" && branchState !== "local-remote") {
 		// eslint-disable-next-line unicorn/no-null -- AddPlan serializes absent rollback heads as explicit null.
@@ -53,15 +43,15 @@ const captureExistingBranchHead = async (options: {
 	}
 	const result = await git.run(["-C", root, "rev-parse", `refs/heads/${branch}`]);
 	return result.stdout.trim();
-};
+}
 
-const restoreBranchRef = async (options: {
+export async function restoreBranchRef(options: {
 	git: GitRunner;
 	root: string;
 	branch: string;
 	branchState: BranchState;
 	originalBranchHead: string | null;
-}): Promise<void> => {
+}): Promise<void> {
 	const { git, root, branch, branchState, originalBranchHead } = options;
 	if (branchState === "none" || branchState === "remote") {
 		await git.runRaw(["-C", root, "branch", "-D", branch]);
@@ -70,29 +60,29 @@ const restoreBranchRef = async (options: {
 	if (originalBranchHead) {
 		await git.runRaw(["-C", root, "branch", "-f", branch, originalBranchHead]);
 	}
-};
+}
 
-const rollbackNonPoolAdd = async (options: {
+export async function rollbackNonPoolAdd(options: {
 	git: GitRunner;
 	root: string;
 	worktreePath: string;
 	branch: string;
 	branchState: BranchState;
 	originalBranchHead: string | null;
-}): Promise<void> => {
+}): Promise<void> {
 	const { git, root, worktreePath, branch, branchState, originalBranchHead } = options;
 	await git.runRaw(["-C", root, "worktree", "remove", "--force", worktreePath]);
 	await restoreBranchRef({ branch, branchState, git, originalBranchHead, root });
-};
+}
 
-const rollbackPooledAllocation = async (options: {
+export async function rollbackPooledAllocation(options: {
 	git: GitRunner;
 	root: string;
 	slot: Slot;
 	branch: string;
 	branchState: BranchState;
 	originalBranchHead: string | null;
-}): Promise<void> => {
+}): Promise<void> {
 	const { git, root, slot, branch, branchState, originalBranchHead } = options;
 	const trunk = await detectOriginDefaultBranch(git, root);
 	const placeholderBranch = `wk-pool/feat${slot.index}`;
@@ -101,16 +91,9 @@ const rollbackPooledAllocation = async (options: {
 	await git.runRaw(["-C", slot.path, "reset", "--hard", placeholderBranch]);
 	await git.runRaw(["-C", slot.path, "clean", "-fd"]);
 	await restoreBranchRef({ branch, branchState, git, originalBranchHead, root });
-};
+}
 
-const resolveStartPoint = (git: GitRunner, root: string, base: string | null): Promise<string> => {
-	if (base) {
-		return resolveBaseRef(git, root, base);
-	}
-	return Promise.resolve("HEAD");
-};
-
-const addNonPoolWorktree = async (options: {
+export async function addNonPoolWorktree(options: {
 	git: GitRunner;
 	root: string;
 	path: string;
@@ -118,7 +101,7 @@ const addNonPoolWorktree = async (options: {
 	state: BranchState;
 	base: string | null;
 	progress: ProgressReporter;
-}): Promise<void> => {
+}): Promise<void> {
 	const { git, root, path, branch, state, base, progress } = options;
 	warnIgnoredBase(state, base, progress);
 	if (state === "local" || state === "local-remote") {
@@ -141,16 +124,16 @@ const addNonPoolWorktree = async (options: {
 	}
 	const startPoint = await resolveStartPoint(git, root, base);
 	await git.run(["-C", root, "worktree", "add", "--no-track", "-b", branch, path, startPoint]);
-};
+}
 
-const checkoutBranchInSlot = async (options: {
+export async function checkoutBranchInSlot(options: {
 	git: GitRunner;
 	slotPath: string;
 	branch: string;
 	state: BranchState;
 	base: string | null;
 	progress: ProgressReporter;
-}): Promise<void> => {
+}): Promise<void> {
 	const { git, slotPath, branch, state, base, progress } = options;
 	warnIgnoredBase(state, base, progress);
 	if (state === "local" || state === "local-remote") {
@@ -163,14 +146,14 @@ const checkoutBranchInSlot = async (options: {
 	}
 	const startPoint = await resolveStartPoint(git, slotPath, base);
 	await git.run(["-C", slotPath, "checkout", "--no-track", "-B", branch, startPoint]);
-};
+}
 
-const mergeOriginIfPresent = async (options: {
+export async function mergeOriginIfPresent(options: {
 	git: GitRunner;
 	worktreePath: string;
 	branch: string;
 	progress: ProgressReporter;
-}): Promise<void> => {
+}): Promise<void> {
 	const { git, worktreePath, branch, progress } = options;
 	const remote = await git.runRaw([
 		"-C",
@@ -186,15 +169,22 @@ const mergeOriginIfPresent = async (options: {
 	if (merge.exitCode !== EXIT_CODES.SUCCESS) {
 		progress.error(`warning: couldn't fast-forward from origin/${branch}; preserving local work`);
 	}
-};
+}
+// --- Private functions ---
 
-export {
-	prepareAddBranch,
-	captureExistingBranchHead,
-	restoreBranchRef,
-	rollbackNonPoolAdd,
-	rollbackPooledAllocation,
-	addNonPoolWorktree,
-	checkoutBranchInSlot,
-	mergeOriginIfPresent,
-};
+function warnIgnoredBase(
+	state: BranchState,
+	base: string | null,
+	progress: ProgressReporter,
+): void {
+	if (state !== "none" && base) {
+		progress.error("--base ignored: branch already exists");
+	}
+}
+
+function resolveStartPoint(git: GitRunner, root: string, base: string | null): Promise<string> {
+	if (base) {
+		return resolveBaseRef(git, root, base);
+	}
+	return Promise.resolve("HEAD");
+}

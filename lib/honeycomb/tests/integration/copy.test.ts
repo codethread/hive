@@ -140,7 +140,7 @@ test("rerunning copy replaces an untracked destination with current source", asy
 	expect(await readFile(join(worktreePath, ".env"), "utf8")).toBe("second\n");
 });
 
-const initTrackedDestination = async () => {
+async function initTrackedDestination() {
 	const { root } = await initRepoWithOrigin(tmp);
 	await commitFile({
 		content: "source\n",
@@ -155,7 +155,7 @@ const initTrackedDestination = async () => {
 	writeConfig({ command: "echo ready", copyToml: 'copy = ["tracked-copy.txt"]\n', root, tmp });
 	const worktreePath = `${root}__feature--tracked-copy`;
 	return { worktreePath };
-};
+}
 
 test("tracked destination blocks with unsafe JSON and leaves file intact", async () => {
 	const { worktreePath } = await initTrackedDestination();

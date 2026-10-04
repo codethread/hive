@@ -71,7 +71,7 @@ Yes/no confirmation does not use the picker; `confirm` reads one key from `/dev/
 
 **Contract** (the [`Multiplexer`](../lib/honeycomb/src/integrations/multiplexer.ts) interface):
 
-- `attached` — whether Honeycomb runs inside the multiplexer. For tmux, detected from `TMUX`; outside it, `NoMultiplexer` makes every operation a no-op.
+- `attached` — whether Honeycomb runs inside the multiplexer. For tmux, detected from `TMUX`; outside it, `createNoMultiplexer()` supplies no-op session operations.
 - `open({ name, title, path })` — create a detached session named `name`, rooted at `path`, with a first window titled `title`, if none exists; then move the invoking client's focus to it. tmux resolves the client from `TMUX_PANE` so focus moves in the terminal that ran the command.
 - `closeUnder(path)` — close every session whose root is `path` or beneath it. "No server" or "no sessions" means nothing to close, not an error.
 - `previewCommand()` — shell text for the picker preview: show the live contents of a pane whose working directory is in the worktree, falling back to `git log`.

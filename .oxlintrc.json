@@ -19,10 +19,14 @@
 	},
 	"rules": {
 		"func-style": ["error", "declaration", { "allowArrowFunctions": true }],
+		"import/exports-last": "off",
 		"import/group-exports": "off",
 		"import/no-named-export": "off",
 		"import/prefer-default-export": "off",
+		"max-lines": "off",
+		"max-lines-per-function": "off",
 		"one-var": "off",
+		"unicorn/consistent-function-scoping": "off",
 		"no-duplicate-imports": ["error", { "allowSeparateTypeImports": true }]
 	},
 	"overrides": [

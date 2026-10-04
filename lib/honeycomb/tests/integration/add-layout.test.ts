@@ -10,7 +10,7 @@ import { join } from "node:path";
 const tmp = useTmpHome("honeycomb-add-test-");
 const { initRepoWithOrigin } = useOriginFixture();
 
-const prepareNestedRoot = async () => {
+async function prepareNestedRoot() {
 	const { root } = await initRepoWithOrigin(tmp.dir);
 	const configHome = join(tmp.dir, "config-nested");
 	await mkdir(configHome, { recursive: true });
@@ -20,9 +20,9 @@ const prepareNestedRoot = async () => {
 	);
 	setTestEnv("XDG_CONFIG_HOME", configHome);
 	return root;
-};
+}
 
-const prepareLegacyWorktrees = async () => {
+async function prepareLegacyWorktrees() {
 	const { root } = await initRepoWithOrigin(tmp.dir);
 	const configHome = join(tmp.dir, "config-mixed-layout");
 	await mkdir(configHome, { recursive: true });
@@ -33,15 +33,15 @@ const prepareLegacyWorktrees = async () => {
 	await run(["git", "-C", root, "worktree", "add", "-b", "feature/manual", manualPath]);
 	const resolvedManualPath = await realpath(manualPath);
 	return { configHome, manualPath: resolvedManualPath, root };
-};
+}
 
-const prepareMixedLayout = async () => {
+async function prepareMixedLayout() {
 	const { configHome, manualPath, root } = await prepareLegacyWorktrees();
 	await writeFile(join(configHome, "honeycomb.toml"), 'worktree_location = "nested"\n');
 	const nestedPath = join(root, ".worktrees", "feature--new");
 	await dispatch("add", ["--cwd", root, "--branch", "feature/new", "--json"], deps);
 	return { legacyPath: `${root}__feature--legacy`, manualPath, nestedPath, root };
-};
+}
 
 test("creates nested worktrees under the canonical root without dirtying it", async () => {
 	const root = await prepareNestedRoot();

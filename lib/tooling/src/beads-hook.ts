@@ -10,7 +10,7 @@ const inputSchema = z.object({
 });
 const harnessArgumentIndex = 2;
 
-const runSessionStart = async (harness: z.infer<typeof harnessSchema>): Promise<void> => {
+export async function runSessionStart(harness: z.infer<typeof harnessSchema>): Promise<void> {
 	const { cwd } = inputSchema.parse(JSON.parse(await Bun.stdin.text()));
 	const root = await runCommand(["git", "rev-parse", "--show-toplevel"], cwd);
 	const environment = await resolveEnvironment(root, runCommand);
@@ -22,10 +22,8 @@ const runSessionStart = async (harness: z.infer<typeof harnessSchema>): Promise<
 		);
 	}
 	await runCommand(["bun", "run", "beads:sync"], root);
-};
+}
 
 if (import.meta.main) {
 	await runSessionStart(harnessSchema.parse(process.argv[harnessArgumentIndex]));
 }
-
-export { runSessionStart };

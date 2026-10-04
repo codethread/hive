@@ -32,9 +32,41 @@ interface LinePump {
 	buffer: string;
 }
 
-const noopLine: HookLine = () => {};
+/** Run a shell command and capture output lines while it executes. */
+export function runInlineBash(
+	script: string,
+	{ cwd, env, onLine = noopLine }: HookExecutionOptions,
+): Promise<HookResult> {
+	return runBash({ command: ["bash", "-c", script], cwd, env, onLine });
+}
 
-const pushChunkLines = (options: PumpOptions, state: LinePump, chunk: string): void => {
+/** Create the live hook boundary used by CLI commands. */
+export function createLiveHookRunner(): HookRunner {
+	return { runCommand, runInline };
+
+	function runCommand(
+		script: string,
+		cwd: string,
+		env: Record<string, string>,
+	): Promise<HookResult> {
+		return runInlineBash(script, { cwd, env });
+	}
+
+	async function runInline(
+		scriptPath: string,
+		{ cwd, env, onLine = noopLine }: HookExecutionOptions,
+	): Promise<void> {
+		const result = await runBash({ command: ["bash", scriptPath], cwd, env, onLine });
+		if (result.exitCode !== EXIT_CODES.SUCCESS) {
+			throw new HookError(result.exitCode, cwd);
+		}
+	}
+}
+
+// Private stream and process helpers.
+function noopLine(_stream: "stdout" | "stderr", _line: string): void {}
+
+function pushChunkLines(options: PumpOptions, state: LinePump, chunk: string): void {
 	const { name, onLine, sink } = options;
 	state.buffer += chunk;
 	const lines = state.buffer.split(LINE_BREAK);
@@ -43,16 +75,16 @@ const pushChunkLines = (options: PumpOptions, state: LinePump, chunk: string): v
 		sink.push(line);
 		onLine(name, line);
 	}
-};
+}
 
-const flushPump = (options: PumpOptions, state: LinePump): void => {
+function flushPump(options: PumpOptions, state: LinePump): void {
 	if (state.buffer !== "") {
 		options.sink.push(state.buffer);
 		options.onLine(options.name, state.buffer);
 	}
-};
+}
 
-const pumpLines = async (options: PumpOptions): Promise<void> => {
+async function pumpLines(options: PumpOptions): Promise<void> {
 	const decoder = new TextDecoderStream() as unknown as ReadableWritablePair<string, Uint8Array>;
 	const reader = options.stream.pipeThrough(decoder).getReader();
 	const state: LinePump = { buffer: "" };
@@ -66,9 +98,9 @@ const pumpLines = async (options: PumpOptions): Promise<void> => {
 		pushChunkLines(options, state, value);
 	}
 	flushPump(options, state);
-};
+}
 
-const runBash = async (request: BashRequest): Promise<HookResult> => {
+async function runBash(request: BashRequest): Promise<HookResult> {
 	const { command, cwd, env, onLine } = request;
 	const proc = Bun.spawn(command, {
 		cwd,
@@ -84,21 +116,4 @@ const runBash = async (request: BashRequest): Promise<HookResult> => {
 	]);
 	const exitCode = await proc.exited;
 	return { exitCode, stderr, stdout };
-};
-
-const runInlineBash = (
-	script: string,
-	{ cwd, env, onLine = noopLine }: HookExecutionOptions,
-): Promise<HookResult> => runBash({ command: ["bash", "-c", script], cwd, env, onLine });
-
-class LiveHookRunner implements HookRunner {
-	runCommand: HookRunner["runCommand"] = (script, cwd, env) => runInlineBash(script, { cwd, env });
-	runInline: HookRunner["runInline"] = async (scriptPath, { cwd, env, onLine = noopLine }) => {
-		const result = await runBash({ command: ["bash", scriptPath], cwd, env, onLine });
-		if (result.exitCode !== EXIT_CODES.SUCCESS) {
-			throw new HookError(result.exitCode, cwd);
-		}
-	};
 }
-
-export { LiveHookRunner, runInlineBash };

@@ -7,34 +7,55 @@ import { listWorktrees } from "./repository.ts";
 import { projectNameFor } from "../domain/config.ts";
 import { runBootstrap } from "./hooks.ts";
 
-const requireCommand = (project: ProjectConfig, command: string | null): string => {
+export async function initializeSlots(options: {
+	command: string | null;
+	deps: Deps;
+	location: WorktreeLocation;
+	project: ProjectConfig;
+	root: string;
+	state: PoolState;
+}): Promise<PoolState> {
+	const { command, deps, location, project, root, state: initialState } = options;
+	let state = initialState;
+	for (const slot of initialState.slots) {
+		const pending = !slot.exists || !slot.initialized;
+		if (pending) {
+			// oxlint-disable-next-line eslint/no-await-in-loop -- Git worktree mutations must run in order
+			state = await initializeSlot({ command, deps, location, project, root, slot, state });
+		}
+	}
+	return state;
+}
+// --- Private functions ---
+
+function requireCommand(project: ProjectConfig, command: string | null): string {
 	if (!command) {
 		throw new ConfigError(
 			`project ${project.name ?? project.root} requires command for pooled setup`,
 		);
 	}
 	return command;
-};
+}
 
-const addSlotWorktree = async (options: {
+async function addSlotWorktree(options: {
 	branch: string;
 	deps: Deps;
 	location: WorktreeLocation;
 	root: string;
 	slot: Slot;
-}): Promise<void> => {
+}): Promise<void> {
 	const { branch, deps, location, root, slot } = options;
 	await deps.files.prepareParent(root, slot.path, location);
 	await deps.git.run(["-C", root, "worktree", "add", slot.path, branch]);
-};
+}
 
-const bootstrapSlot = async (options: {
+async function bootstrapSlot(options: {
 	command: string;
 	deps: Deps;
 	project: ProjectConfig;
 	root: string;
 	slot: Slot;
-}): Promise<void> => {
+}): Promise<void> {
 	const { command, deps, project, root, slot } = options;
 	await deps.files.copy(root, slot.path, project.copy);
 	await runBootstrap(deps, {
@@ -44,9 +65,9 @@ const bootstrapSlot = async (options: {
 		projectName: projectNameFor(project, root),
 		root,
 	});
-};
+}
 
-const prepareSlot = async (options: {
+async function prepareSlot(options: {
 	branch: string;
 	command: string | null;
 	deps: Deps;
@@ -54,7 +75,7 @@ const prepareSlot = async (options: {
 	project: ProjectConfig;
 	root: string;
 	slot: Slot;
-}): Promise<void> => {
+}): Promise<void> {
 	const { branch, command, deps, location, project, root, slot } = options;
 	const createdWorktree = !slot.exists;
 	if (createdWorktree) {
@@ -69,9 +90,9 @@ const prepareSlot = async (options: {
 		}
 		throw error;
 	}
-};
+}
 
-const initializeSlot = async (options: {
+async function initializeSlot(options: {
 	command: string | null;
 	deps: Deps;
 	location: WorktreeLocation;
@@ -79,7 +100,7 @@ const initializeSlot = async (options: {
 	root: string;
 	slot: Slot;
 	state: PoolState;
-}): Promise<PoolState> => {
+}): Promise<PoolState> {
 	const { command, deps, location, project, root, slot, state } = options;
 	const branch = placeholderBranchFor(slot.index);
 	deps.progress.banner(`[wk-pool] initializing feat${slot.index}…`);
@@ -87,24 +108,4 @@ const initializeSlot = async (options: {
 	await prepareSlot({ branch, command, deps, location, project, root, slot });
 	const worktrees = await listWorktrees(deps.git, root);
 	return buildPoolState({ deps, location, project, worktrees });
-};
-
-export const initializeSlots = async (options: {
-	command: string | null;
-	deps: Deps;
-	location: WorktreeLocation;
-	project: ProjectConfig;
-	root: string;
-	state: PoolState;
-}): Promise<PoolState> => {
-	const { command, deps, location, project, root, state: initialState } = options;
-	let state = initialState;
-	for (const slot of initialState.slots) {
-		const pending = !slot.exists || !slot.initialized;
-		if (pending) {
-			// oxlint-disable-next-line eslint/no-await-in-loop -- Git worktree mutations must run in order
-			state = await initializeSlot({ command, deps, location, project, root, slot, state });
-		}
-	}
-	return state;
-};
+}
