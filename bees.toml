@@ -1,0 +1,32 @@
+owner = "ct"
+humans = ["ct"]
+ranking = "bv-pagerank"
+max_retries = 3
+retry_delay_ms = 250
+
+[limits]
+colony = 4
+kind = 2
+worktree = 2
+
+[kinds.worker]
+harness = "codex"
+model = "gpt-6-astra"
+effort = "low"
+prompt = "Work on the related task beads. Read their full instructions, claim only your work, verify outcomes, and close completed tasks."
+
+[formulas.codex]
+executable = "codex"
+argv = [
+	"exec",
+	"-m",
+	"{{model}}",
+	"-c",
+	'model_reasoning_effort="{{effort}}"',
+	"-c",
+	'shell_environment_policy.inherit="all"',
+	"--sandbox",
+	"workspace-write",
+	"--json",
+	"{{prompt}}",
+]
