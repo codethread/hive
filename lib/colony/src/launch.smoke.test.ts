@@ -1,7 +1,7 @@
+import { beadSchema, execute, parseBeesConfig, readSpawnRequest } from "@hive/shared";
 import { expect, test } from "bun:test";
 // eslint-disable-next-line import/no-nodejs-modules -- Disposable fixture directories.
 import { mkdir, mkdtemp, readdir, realpath, rm } from "node:fs/promises";
-import { execute } from "@hive/shared";
 // eslint-disable-next-line import/no-nodejs-modules -- Resolve fixture paths.
 import { join } from "node:path";
 // eslint-disable-next-line import/no-nodejs-modules -- OS temporary fixture root.
@@ -11,8 +11,7 @@ const FIRST = 0;
 const SUCCESS = 0;
 const ONE_ATTEMPT = 1;
 const WORKER_FAILURE = 7;
-// Serial native CLI cases share process capacity with the parallel integration suite.
-const SMOKE_TIMEOUT = 30_000;
+const SMOKE_TIMEOUT = 10_000;
 
 test(
 	"manual request launches a real worker with isolated endpoint and strict formulas",
@@ -92,11 +91,15 @@ test(
 			});
 			const updated = await br(["show", task.id]);
 			expect(updated[FIRST].notes).toContain("worker visited");
-			await Bun.write(join(repo, "bees.toml"), config.replace("{{model}}", "{{#broken"));
-			await expect(execute(args, outside, env)).rejects.toBeInstanceOf(Error);
-			await Bun.write(join(repo, "bees.toml"), config.replace("{{model}}", "{{missing}}"));
-			await expect(execute(args, outside, env)).rejects.toBeInstanceOf(Error);
-			await Bun.write(join(repo, "bees.toml"), config);
+			// Strict formula and label validation belong to the shared parsing boundary.
+			expect(() => parseBeesConfig(config.replace("{{model}}", "{{#broken"))).toThrow(Error);
+			expect(() => parseBeesConfig(config.replace("{{model}}", "{{missing}}"))).toThrow(Error);
+			const [storedSpawn] = await br(["show", spawn.id]);
+			const invalidSpawn = beadSchema.parse({
+				...storedSpawn,
+				labels: ["system", "bee:wrong", "agent:worker"],
+			});
+			expect(() => readSpawnRequest(invalidSpawn)).toThrow(Error);
 			expect(await readdir(join(root, "state"))).toHaveLength(ONE_ATTEMPT);
 			await rm(output);
 			const blocker = await br(["create", "--title", "Blocking fixture", "--owner", "ct"]);
@@ -112,10 +115,6 @@ test(
 				{
 					change: ["dep", "add", task.id, blocker.id],
 					reset: ["dep", "remove", task.id, blocker.id],
-				},
-				{
-					change: ["update", spawn.id, "--remove-label", "bee", "--add-label", "bee:wrong"],
-					reset: ["update", spawn.id, "--remove-label", "bee:wrong", "--add-label", "bee"],
 				},
 			];
 			/* eslint-disable no-await-in-loop -- These cases intentionally mutate and restore the same disposable request sequentially. */

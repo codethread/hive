@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test";
+import { initRepository, spawnRequest } from "./producer.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Own disposable Git/br fixture directories.
 import { mkdir, mkdtemp, realpath, rm } from "node:fs/promises";
 import { execute } from "@hive/shared";
@@ -11,7 +12,7 @@ const FIRST = 0;
 const TIMEOUT = 10_000;
 
 test(
-	"offline producer snapshots canonical defaults across linked worktrees and refuses reserved/duplicate work",
+	"offline producer snapshots canonical defaults across linked worktrees and refuses duplicates",
 	// eslint-disable-next-line max-statements -- One bounded real IO scenario keeps its disposable setup and teardown visible.
 	async () => {
 		const root = await mkdtemp(join(tmpdir(), "bee-producer-"));
@@ -59,7 +60,9 @@ test(
 				"--json",
 			];
 			await run(init);
-			await expect(run(init)).rejects.toBeInstanceOf(Error);
+			await expect(
+				initRepository({ model: "initial-model", owner: "ct", repo: linked }),
+			).rejects.toBeInstanceOf(Error);
 			await Bun.write(join(linked, "bees.toml"), "invalid worktree config is ignored");
 			const first = await br(["create", "--title", "First task", "--owner", "ct"]);
 			const second = await br(["create", "--title", "Second task", "--owner", "ct"]);
@@ -107,17 +110,15 @@ test(
 			});
 			const unchangedTasks = await br(["show", first.id]);
 			expect(unchangedTasks[FIRST].assignee).toBeUndefined();
-			await expect(run(submit)).rejects.toBeInstanceOf(Error);
-			const aliasRows = await br(["show", first.id.replace("smoke-", "")]);
-			expect(aliasRows[FIRST].id).toBe(first.id);
+			const options = { actor: "requester-identity", beadsDb: database, repo: linked };
+			await expect(spawnRequest("worker", [first.id, second.id], options)).rejects.toBeInstanceOf(
+				Error,
+			);
 			await expect(
-				run(
-					submit.map((token) => {
-						if ([first.id, second.id].includes(token)) {
-							return token.replace("smoke-", "");
-						}
-						return token;
-					}),
+				spawnRequest(
+					"worker",
+					[first.id.replace("smoke-", ""), second.id.replace("smoke-", "")],
+					options,
 				),
 			).rejects.toBeInstanceOf(Error);
 			const worker = join(root, "worker.ts");
@@ -151,6 +152,27 @@ test(
 			});
 			const unchangedRequests = await br(["show", created.id]);
 			expect(unchangedRequests[FIRST].description).toBe(request.description);
+		} finally {
+			await rm(root, { force: true, recursive: true });
+		}
+	},
+	TIMEOUT,
+);
+
+test(
+	"offline producer refuses reserved work and admits blocked and closed tasks",
+	// eslint-disable-next-line max-statements -- Keep native admission transitions and disposable fixture ownership together.
+	async () => {
+		const repo = await mkdtemp(join(tmpdir(), "bee-admission-"));
+		const database = join(repo, ".beads", "beads.db");
+		const env = { ...process.env, BD_ACTOR: "smoke-seed", BEADS_DB: database };
+		const run = (args: string[]) => execute(args, repo, env);
+		const br = async (args: string[]) =>
+			JSON.parse(await run(["br", ...args, "--db", database, "--actor", "smoke-seed", "--json"]));
+		try {
+			await run(["git", "init", "-b", "main"]);
+			await run(["br", "init", "--prefix", "smoke"]);
+			await initRepository({ model: "default-model", owner: "ct", repo });
 			const reserved = await br([
 				"create",
 				"--title",
@@ -169,45 +191,25 @@ test(
 				"--deps",
 				`blocks:${reserved.id}`,
 			]);
-			const base = [
-				"--repo",
-				linked,
-				"--beads-db",
-				database,
-				"--actor",
-				"requester-identity",
-				"--json",
-			];
-			await expect(
-				run([process.execPath, bee, "spawn", "missing", blocked.id, ...base]),
-			).rejects.toBeInstanceOf(Error);
-			await expect(
-				run([process.execPath, bee, "spawn", "worker", reserved.id, ...base]),
-			).rejects.toBeInstanceOf(Error);
-			const queued = JSON.parse(
-				await run([process.execPath, bee, "spawn", "worker", blocked.id, ...base]),
-			).request;
-			expect(JSON.parse(queued.description).model).toBe("changed-model");
-			expect(JSON.parse(queued.description).cwd).toBeNull();
+			const options = { actor: "requester-identity", beadsDb: database, repo };
+			await expect(spawnRequest("missing", [blocked.id], options)).rejects.toBeInstanceOf(Error);
+			await expect(spawnRequest("worker", [reserved.id], options)).rejects.toBeInstanceOf(Error);
+			const configPath = join(repo, "bees.toml");
+			const config = await Bun.file(configPath).text();
+			await Bun.write(configPath, config.replace("default-model", "changed-model"));
+			const queued = await spawnRequest("worker", [blocked.id], options);
+			expect(JSON.parse(String(queued.request.description)).model).toBe("changed-model");
+			expect(JSON.parse(String(queued.request.description)).cwd).toBeNull();
 			await br(["close", reserved.id, "--reason", "human completed"]);
 			const next = await br(["create", "--title", "Remaining task", "--owner", "ct"]);
-			const mixed = JSON.parse(
-				await run([
-					process.execPath,
-					bee,
-					"spawn",
-					"worker",
-					reserved.id,
-					next.id,
-					...base,
-					"--identity",
-					"given-friendly-otter",
-				]),
-			).request;
-			expect(mixed.assignee).toBe("given-friendly-otter");
-			expect(mixed.status).toBe("open");
+			const mixed = await spawnRequest("worker", [reserved.id, next.id], {
+				...options,
+				identity: "given-friendly-otter",
+			});
+			expect(mixed.request.assignee).toBe("given-friendly-otter");
+			expect(mixed.request.status).toBe("open");
 		} finally {
-			await rm(root, { force: true, recursive: true });
+			await rm(repo, { force: true, recursive: true });
 		}
 	},
 	TIMEOUT,
