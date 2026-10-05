@@ -1,2 +1,8 @@
 [env]
 BEADS_DB = "{{ exec(command='git rev-parse --path-format=absolute --git-common-dir') | dirname }}/.worktrees/tracker--state/.beads/beads.db"
+
+[tasks.default]
+run = '''
+bun install
+bun run --filter '*' build
+'''
