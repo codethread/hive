@@ -181,83 +181,30 @@ test("copy failure preserves existing half-initialized pooled slots", async () =
 	expect(await pathExists(await poolMarker(`${root}__feat2`))).toBe(false);
 });
 
-test("list json captures pool initialization output in the payload", async () => {
+test("add initializes an absent pool and captures setup output in JSON", async () => {
 	const { root } = await initRepoWithOrigin(tmp);
 	writeConfig({ command: "echo setup-output", poolSize: SINGLE_SLOT, root, tmp });
 
-	const result = await dispatch("list", ["--cwd", root, "--json"], testDeps());
+	const result = await dispatch(
+		"add",
+		["--cwd", root, "--branch", "feature/first", "--json"],
+		testDeps(),
+	);
 
 	expect(result.stderr).toBeUndefined();
 	const payload = JSON.parse(result.stdout ?? "{}");
-	expect(payload).toMatchObject({ kind: "list", ok: true });
+	expect(result.exitCode).toBe(EXIT_CODES.SUCCESS);
+	expect(payload).toMatchObject({
+		branch: "feature/first",
+		kind: "ready",
+		ok: true,
+		worktree_path: `${root}__feat1`,
+	});
+	expect(await pathExists(await poolMarker(`${root}__feat1`))).toBe(true);
 	expect(payload.diagnostics).toMatchInlineSnapshot(`
 	  [
 	    "[wk-pool] initializing feat1…",
 	  ]
 	`);
 	expect(payload.setup_output).toContainEqual({ line: "setup-output", stream: "stdout" });
-});
-
-async function assertListEnsuresPool() {
-	const { root } = await initRepoWithOrigin(tmp);
-	await writeFile(join(root, ".env"), "ensured-copy\n");
-	writeConfig({
-		command: "echo setup-output; touch ensured",
-		copyToml: 'copy = [".env"]\n',
-		poolSize: SINGLE_SLOT,
-		root,
-		tmp,
-	});
-
-	const listResult = await dispatch("list", ["--cwd", root], testDeps());
-	expect(listResult.stdout).toContain("[pool:free]");
-	expect(await pathExists(join(`${root}__feat1`, "ensured"))).toBe(true);
-	expect(await readFile(join(`${root}__feat1`, ".env"), "utf8")).toBe("ensured-copy\n");
-	return root;
-}
-
-test("list and pooled remove trigger first-run ensure", async () => {
-	const root = await assertListEnsuresPool();
-
-	await rm(`${root}__feat1`, { force: true, recursive: true });
-	await run(["git", "-C", root, "worktree", "prune"]);
-	// The recreated slot is addressable by its placeholder branch: remove --self
-	// Resolves the worktree containing an existing --cwd path, and the slot
-	// Directory is gone until this remove call ensures the pool.
-	const blocked = await dispatch(
-		"remove",
-		["--cwd", root, "--branch", "wk-pool/feat1", "--json"],
-		testDeps(),
-	);
-	expect(blocked.exitCode).toBe(EXIT_CODES.UNSAFE);
-	expect(JSON.parse(blocked.stdout ?? "{}")).toMatchObject({
-		kind: "blocked",
-		reason: "dirty_slot",
-		worktree_path: `${root}__feat1`,
-	});
-	expect(await readFile(join(`${root}__feat1`, ".env"), "utf8")).toBe("ensured-copy\n");
-	const status = await run(["git", "-C", `${root}__feat1`, "status", "--porcelain", "--", ".env"]);
-	expect(status.stdout).toBe("");
-});
-
-test("pooled remove-triggered ensure copies into half-initialized slots", async () => {
-	const { root } = await initRepoWithOrigin(tmp);
-	await writeFile(join(root, ".env"), "half-remove-copy\n");
-	writeConfig({
-		command: "touch ensured",
-		copyToml: 'copy = [".env"]\n',
-		poolSize: SINGLE_SLOT,
-		root,
-		tmp,
-	});
-	await createPoolSlot({ branch: "wk-pool/feat1", index: SLOT.first, initialized: false, root });
-
-	const blocked = await dispatch(
-		"remove",
-		["--cwd", `${root}__feat1`, "--self", "--json"],
-		testDeps(),
-	);
-
-	expect(blocked.exitCode).toBe(EXIT_CODES.UNSAFE);
-	expect(await readFile(join(`${root}__feat1`, ".env"), "utf8")).toBe("half-remove-copy\n");
 });

@@ -5,7 +5,6 @@ import {
 	assertBranchIntegratedInto,
 	assertBranchSafelyDeletable,
 } from "../application/branches.ts";
-import { ensurePool, recycleSlot } from "../application/pool.ts";
 import {
 	finalizeReadyResult,
 	parseOptions,
@@ -17,6 +16,7 @@ import { listWorktrees, resolveRemoveTarget } from "../application/repository.ts
 import type { Deps } from "../services.ts";
 import type { Worktree } from "../domain/worktree.ts";
 import { planLeaveWorktree } from "../application/interactive.ts";
+import { recycleSlot } from "../application/pool.ts";
 import { runPreRemoteCheck } from "../application/hooks.ts";
 
 interface RemoveRequest {
@@ -47,7 +47,7 @@ interface RemoveContext {
 	project: ProjectConfig | undefined;
 	/** Configured worktree placement. */
 	worktreeLocation: WorktreeLocation;
-	/** Worktrees observed before pool preparation. */
+	/** Worktrees observed before removal. */
 	worktrees: Worktree[];
 }
 
@@ -67,13 +67,13 @@ export async function removeCommand(args: string[], deps: Deps): Promise<Command
 	let targetPath: string | undefined = undefined;
 	try {
 		const context = await resolveRemoveContext(request, deps);
-		const worktrees = await preparePoolRemoval(request, deps, context);
+		await runRemovalPreflight(request, deps, context);
 		const target = resolveRemoveTarget({
 			canonicalRoot: context.canonical.path,
 			cwd: request.cwd,
 			files: deps.files,
 			selector: { branch: request.branch, self: request.self },
-			worktrees,
+			worktrees: context.worktrees,
 		});
 		targetPath = target.path;
 		return await removeTarget({ context, deps, request, target });
@@ -142,24 +142,19 @@ async function resolveRemoveContext(request: RemoveRequest, deps: Deps): Promise
 	};
 }
 
-async function preparePoolRemoval(
+async function runRemovalPreflight(
 	request: RemoveRequest,
 	deps: Deps,
 	context: RemoveContext,
-): Promise<Worktree[]> {
+): Promise<void> {
 	const { canonical, config, project } = context;
 	if (!request.integratedInto && !project?.poolSize) {
-		return context.worktrees;
+		return;
 	}
 	await runPreRemoteCheck(deps, { config, operation: "honeycomb remove", root: canonical.path });
 	if (request.integratedInto) {
 		await deps.git.run(["-C", canonical.path, "fetch", "origin"]);
 	}
-	if (!project?.poolSize) {
-		return context.worktrees;
-	}
-	await ensurePool({ config, deps, initialWorktrees: context.worktrees, project });
-	return listWorktrees(deps.git, request.cwd);
 }
 
 function buildAfterOutput(operation: RemoveOperation): (() => Promise<void>) | undefined {

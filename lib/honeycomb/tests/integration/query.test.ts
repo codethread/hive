@@ -1,16 +1,20 @@
-import { BlockedError, ConfigError, EXIT_CODES, dispatch } from "../../src/index";
+import { BlockedError, EXIT_CODES, dispatch } from "../../src/index";
 import { afterEach, beforeEach, expect, test } from "bun:test";
 import {
+	createPoolSlot,
 	deps,
 	initRepo,
+	pathExists,
 	restoreTestEnv,
 	run,
 	setTestEnv,
+	testDeps,
 	useOriginFixture,
 	writeConfig,
 } from "./support.ts";
 // oxlint-disable-next-line import/no-nodejs-modules -- Integration fixtures exercise real filesystem and process boundaries.
 import { mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
+import type { CommandResult } from "../../src/protocol.ts";
 // oxlint-disable-next-line import/no-nodejs-modules -- Integration fixtures exercise real filesystem and process boundaries.
 import { join } from "node:path";
 // oxlint-disable-next-line import/no-nodejs-modules -- Integration fixtures exercise real filesystem and process boundaries.
@@ -117,16 +121,72 @@ test("config explain reports effective policy JSON", async () => {
 	});
 });
 
-test("list fails fast on malformed config", async () => {
+test("list remains available with malformed config", async () => {
 	const root = await initQueryRepo();
-	const configHome = join(tmp, "config");
-	await mkdir(configHome, { recursive: true });
-	await writeFile(join(configHome, "honeycomb.toml"), "[[project]]\nroot = ");
-	setTestEnv("XDG_CONFIG_HOME", configHome);
+	await writeRawConfig(join(tmp, "config"), "[[project]]\nroot = ");
 
-	const { failure } = await dispatch("list", ["--cwd", root], deps);
-	expect(failure).toBeInstanceOf(ConfigError);
+	await assertCanonicalList(root);
 });
+
+async function initIncompletePool() {
+	const root = await initQueryRepo();
+	writeConfig({
+		command: "exit 9",
+		copyToml: 'pre_remote_check = "exit 7"\ncopy = [".env.missing"]\n',
+		poolSize: 3,
+		root,
+		tmp,
+	});
+	await createPoolSlot({ branch: "feature/ready", index: 1, initialized: true, root });
+	await createPoolSlot({ branch: "wk-pool/feat2", index: 2, initialized: false, root });
+	return root;
+}
+
+function assertPoolInventory(result: CommandResult, root: string, json: boolean) {
+	expect(result.exitCode).toBe(EXIT_CODES.SUCCESS);
+	expect(result.stderr).toBeUndefined();
+	expect(result.stdout).toContain(`${root}__feat1`);
+	expect(result.stdout).toContain(`${root}__feat2`);
+	expect(result.stdout).not.toContain(`${root}__feat3`);
+	if (json) {
+		expect(JSON.parse(result.stdout ?? "{}")).toMatchObject({
+			diagnostics: [],
+			kind: "list",
+			ok: true,
+			setup_output: [],
+			worktrees: [
+				{ canonical: true, path: root },
+				{ branch: "feature/ready", pool: { index: 1, placeholder: false } },
+				{ branch: "wk-pool/feat2", pool: { index: 2, placeholder: true } },
+			],
+		});
+	}
+}
+
+test.each([
+	{ args: [], format: "text" },
+	{ args: ["--json"], format: "json" },
+])(
+	"$format list reads one inventory without preparing or scanning pool slots",
+	async ({ args, format }) => {
+		const root = await initIncompletePool();
+		const liveDeps = testDeps();
+		const calls: string[][] = [];
+		function observeGit(gitArgs: string[]) {
+			calls.push(gitArgs);
+			return liveDeps.git.run(gitArgs);
+		}
+
+		const result = await dispatch("list", ["--cwd", root, ...args], {
+			...liveDeps,
+			git: { run: observeGit, runRaw: observeGit },
+		});
+
+		assertPoolInventory(result, root, format === "json");
+		expect(calls).toEqual([["-C", root, "worktree", "list", "--porcelain"]]);
+		expect(await pathExists(`${root}__feat3`)).toBe(false);
+	},
+);
 
 async function initLockedPool() {
 	const configRoot = join(tmp, "repo");
@@ -142,7 +202,7 @@ async function initLockedPool() {
 	return root;
 }
 
-test("list annotates pool slots and path refuses pooled repos before slot state exists", async () => {
+test("list annotates locked pool slots and path refuses an unallocated branch", async () => {
 	const root = await initLockedPool();
 
 	const listResult = await dispatch("list", ["--cwd", root], deps);

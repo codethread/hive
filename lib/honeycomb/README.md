@@ -65,7 +65,9 @@ Set `worktree_location = "nested"` to create new worktrees under the canonical r
 <canonical-root>/.worktrees/<branch-name-with-/encoded-as-->
 ```
 
-Pooled repositories reuse fixed slots. These are `<canonical-root>__featN` in sibling mode and `<canonical-root>/.worktrees/featN` in nested mode.
+Pooled repositories reuse fixed slots. These are `<canonical-root>__featN` in sibling mode and `<canonical-root>/.worktrees/featN` in nested mode. `add` initializes missing or half-initialized slots before allocation; use `ensure` to pre-warm or repair the pool explicitly.
+
+`list` only reads Git's registered worktree inventory. It does not load config, scan checkout contents, contact remotes, or run setup, so missing slots stay absent and existing slots remain listable even when setup is broken. `status` inspects pool readiness without repairing it. Pooled `remove` recycles its existing target without initializing any slots.
 
 The setting is a preference for newly created worktrees and missing pool slots. Existing sibling, `.wktree`, and manually located worktrees remain discoverable through Git metadata, so changing the preference does not require migration.
 

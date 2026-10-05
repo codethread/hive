@@ -2,7 +2,7 @@
 
 **Status:** Implemented
 
-**Last Updated:** 2026-09-30
+**Last Updated:** 2026-10-05
 
 ## 1. Overview
 
@@ -49,6 +49,8 @@
   - **Rationale:** Commands are often run from inside another worktree; defaulting to the current HEAD would silently create accidental stacked branches.
 - **Decision:** Pools are explicit per-project optimizations, never expanded implicitly.
   - **Rationale:** Pools trade branch-named paths for bounded reusable environments; silent growth would defeat the bound and surprise high-cost-repo owners.
+- **Decision:** Only `add` and explicit `ensure` initialize pools. `list` reads Git's worktree inventory without loading config, inspecting checkout contents, or running hooks.
+  - **Rationale:** Ready-to-work guarantees belong to allocation, not discovery or cleanup. Listing must remain cheap and available when setup or remote access is broken; removing a checkout must not prepare unrelated slots.
 - **Decision:** Pool exhaustion is a recoverable, structured `pool_full` outcome.
   - **Rationale:** Machine consumers can branch on it programmatically and humans can pick a slot interactively, instead of hitting an opaque hard failure.
 - **Decision:** Bootstrap is part of ready-to-work semantics, runs inside the engine, and failures are loud.
@@ -116,7 +118,10 @@ A project with `pool_size` uses fixed reusable slots. Pooled mode changes comman
 
 - Existing slots are discovered from registered worktrees in either sibling or nested form; only missing slots use the effective location preference. Placeholder branch `wk-pool/featN`; initialized marker `wk-pool-initialized` in git metadata.
 - If both sibling and nested registered worktrees claim the same `featN` slot, pool operations block rather than choosing one silently.
-- `add`, `list`, and pooled `remove` initialize absent or half-initialized slots before allocating, listing, or recycling them. Allocation happens only after this ensure step succeeds; initialization failures are loud and no `pool_full` payload is returned for an initialization failure.
+- `add` initializes absent or half-initialized slots before allocation. Explicit `ensure` performs the same preparation for pre-warming or repair. Allocation happens only after this ensure step succeeds; initialization failures are loud and no `pool_full` payload is returned for an initialization failure.
+- `list` reports registered worktrees from one Git inventory read, including existing pool slots regardless of initialization state. It does not load config, inspect dirty state or commit history, run hooks, contact remotes, or create missing slots. Canonical and pool annotations come from Git's inventory.
+- `status` reports missing or half-initialized slots without repairing them; `path` resolves paths without initialization.
+- Pooled `remove` recycles only an existing target and never initializes slots. Missing targets are refused. A half-initialized target remains uninitialized after recycling; the normal dirty-state and branch-safety checks still apply.
 - Allocation prefers initialized placeholder slots first.
 - Safe recycling refuses dirty slots, branches without upstreams, and branches not merged to upstream when deleting the old branch. `remove --keep-branch` only requires a clean slot, then resets it to its placeholder while preserving the old branch. `remove --integrated-into <origin/ref>` applies its squash-aware proof before resetting the clean slot and deleting its old branch. Forced recycling may discard tracked/untracked work and delete the old branch.
 - Exhaustion returns `pool_full` with recyclable candidates (see §4).
@@ -189,7 +194,7 @@ An explicit `--base` or `--base-current` remains a user override for stacked or 
 
 ### Remote pre-check
 
-Repositories may resolve an optional `pre_remote_check` Bash snippet from matching rules and an exact project entry. `honeycomb` runs the resolved snippet from the canonical root before any remote-aware operation: fetch/push, origin default-branch detection, or freshness checks against `origin/*` refs in add, pooled ensure/list/path/status/remove flows, and finish.
+Repositories may resolve an optional `pre_remote_check` Bash snippet from matching rules and an exact project entry. `honeycomb` runs the resolved snippet from the canonical root before any remote-aware operation: fetch/push, origin default-branch detection, or freshness checks against `origin/*` refs in add, pooled ensure/path/status/remove flows, and finish. `list` is local inventory only and never runs this pre-check.
 
 - exit `0`: stay silent and continue;
 - non-zero exit: abort immediately, do not perform later remote checks/contact, and surface the script's stderr to the user.
@@ -228,7 +233,7 @@ Squash integration is explicit: `--title` is required and `--body` is optional. 
 | Command | Purpose |
 | --- | --- |
 | `honeycomb [--cwd <path>] root` | Print canonical worktree root. |
-| `honeycomb [--cwd <path>] list [--json]` | List worktrees and initialize configured pools. |
+| `honeycomb [--cwd <path>] list [--json]` | List registered worktrees without initializing pools or inspecting checkout contents. |
 | `honeycomb [--cwd <path>] path --branch <branch>` | Print the worktree path for a branch. |
 | `honeycomb [--cwd <path>] add --branch <branch> [--json] [--slot <path>] [--base <branch>] [--base-current] [--force]` | Create or allocate a worktree. |
 | `honeycomb [--cwd <path>] remove (--branch <branch> \| --self) [--json] [--force] [--keep-branch] [--integrated-into <origin/ref>]` | Remove a regular worktree or free a pooled worktree slot. `--self` targets the worktree containing `cwd`. `--integrated-into` proves clean squash-aware cleanup against a fetched target. |

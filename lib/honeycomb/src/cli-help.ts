@@ -37,8 +37,8 @@ Notes:
 	ensure: `
 Use when:
   Pre-warming an expensive repository's worktree pool before agents or humans
-  request work. add and list also ensure pools as needed, so this is mainly for
-  setup, repair, or making failures visible early.
+  request work. add also ensures pools as needed, so this is mainly for setup,
+  repair, or making failures visible early.
 
 Notes:
   Non-pooled repositories have no slots to materialize. Pool initialization runs
@@ -80,8 +80,10 @@ Use when:
   existing checkout instead of creating one.
 
 Notes:
-  In pooled repositories, list ensures configured slots exist before reporting
-  them. With --json, the payload's worktrees array holds one item per worktree.
+  Reads Git's worktree inventory without loading config, scanning checkout
+  contents, contacting remotes, or running setup. Missing pool slots are not
+  created; use add or ensure to initialize them. With --json, the payload's
+  worktrees array holds one item per registered worktree.
 
 Related:
   status shows pool-focused slot state. path resolves one branch to its expected
@@ -149,6 +151,7 @@ Use when:
   Cleaning up branch worktrees after work is done or abandoned. Use --branch for
   a named branch, or --self to remove the worktree containing the global --cwd
   path when a wrapper or agent wants to remove the checkout it is operating in.
+  Pooled removal recycles an existing slot without initializing it or other slots.
 
 Safety:
   The canonical root is protected. Without --force, removal refuses dirty or

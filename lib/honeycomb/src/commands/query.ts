@@ -54,8 +54,8 @@ interface EnsurePoolOptions {
 	project: ProjectConfig | undefined;
 	/** Canonical repository root. */
 	root: string;
-	/** Worktrees observed before pool preparation; undefined lets the pool list them itself. */
-	worktrees: Worktree[] | undefined;
+	/** Worktrees observed before pool preparation. */
+	worktrees: Worktree[];
 }
 
 export async function rootCommand(args: string[], deps: Deps): Promise<CommandResult> {
@@ -67,17 +67,6 @@ export async function rootCommand(args: string[], deps: Deps): Promise<CommandRe
 
 export async function listCommand(args: string[], deps: Deps): Promise<CommandResult> {
 	const request = parseQueryRequest(args);
-	const config = deps.config.read();
-	const canonicalRoot = await resolveCanonicalRoot(deps.git, request.cwd);
-	const { project } = deps.config.explain(config, canonicalRoot);
-	await ensurePoolIfConfigured({
-		config,
-		deps,
-		operation: "honeycomb list",
-		project,
-		root: canonicalRoot,
-		worktrees: undefined,
-	});
 	const worktrees = await listWorktrees(deps.git, request.cwd);
 	return renderList(worktrees, request.output);
 }
