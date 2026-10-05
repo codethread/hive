@@ -4,6 +4,29 @@ Hive keeps its live tracker in a permanent full checkout at `.worktrees/tracker-
 
 Native `br` reads and writes locally, with automatic JSONL import/export enabled. It does not fetch, commit or push. Local agents see the same database immediately; other clones receive updates through the tracker branch. Application code and the SQLite file are not part of tracker publication.
 
+## Bootstrap a clone
+
+Install Git, Bun, native `br`, and `mise`, then run the default setup task from the canonical checkout:
+
+```nu
+mise trust
+mise run
+```
+
+The default task installs dependencies, builds the workspace launchers, then runs the idempotent `bun run beads:bootstrap` step. Rerun `mise run` for setup after a pull; run `bun run beads:bootstrap` directly when only tracker setup is needed. Dependency installation alone does not create the tracker.
+
+`beads:bootstrap` invokes Honeycomb's CLI from this checkout through Bun; no installed Honeycomb launcher or global build is required. It uses a temporary, isolated Honeycomb configuration to create the permanent tracker as a nested, non-pooled worktree at `.worktrees/tracker--state`, on `tracker/state`, from `origin/tracker/state`. If `origin/tracker/state` is unavailable, Git's fetch fails; arrange for the accepted tracker branch and its existing `.beads/issues.jsonl` snapshot to be available, then retry. Bootstrap does not create a private tracker in a feature worktree.
+
+Bootstrap imports the tracker's existing `.beads/issues.jsonl` only when `.beads/beads.db` does not exist, then flushes to establish the local merge base. It installs the tracker checkout's tooling and reuses `beads:setup` to configure the canonical checkout, permanent tracker checkout, and invoking checkout to use the selected tracker.
+
+Bootstrap is deliberately local. Repeating it does not re-import an existing database and does not publish, merge, or push tracker state. An incompatible existing tracker checkout, an unhealthy database, unreconciled JSONL or missing tracker snapshot, or a selected nonstandard `BEADS_DB` endpoint fails visibly rather than being reset or migrated. For an existing custom endpoint, use `beads:setup` directly:
+
+```nu
+bun run beads:setup --db /absolute/path/to/tracker/.beads/beads.db
+```
+
+Use `--source <configured-checkout>` when adopting the environment from an already configured checkout. Bootstrap is for the canonical tracker layout; setup is the path for an explicitly selected custom endpoint.
+
 ## Synchronization checkpoints
 
 ```nu
@@ -40,7 +63,7 @@ Mise supplies the project environment. Direnv projects the selection after norma
 
 When updating from the former wrapper setup, rerun setup in existing configured checkouts, including the permanent tracker checkout, and restart shells and agents. Setup removes generated wrapper PATH and shell-adapter overrides. Keep the tracker checkout's tooling current with the relevant changes, without merging the entire code branch into `tracker/state`.
 
-For a fresh clone, create the permanent tracker checkout from the accepted tracker branch. Use native `br` with the selected `--db` to run `sync --import-only` followed by `sync --flush-only`, then configure the checkout. Import creates SQLite from JSONL; flush establishes the local three-way merge base. Do not initialize a private tracker in a feature worktree.
+For a fresh clone, follow [Bootstrap a clone](#bootstrap-a-clone). Do not initialize a private tracker in a feature worktree.
 
 ## Pi status bar
 

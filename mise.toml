@@ -5,4 +5,5 @@ BEADS_DB = "{{ exec(command='git rev-parse --path-format=absolute --git-common-d
 run = '''
 bun install
 bun run --filter '*' build
+bun run beads:bootstrap
 '''

@@ -16,6 +16,7 @@
 		"check": "bun run fmt:check && bun run lint && bun run typecheck",
 		"git:setup": "bun run ./scripts/setup-git.ts",
 		"agents:sync": "bun run --filter @hive/tooling agents:sync",
+		"beads:bootstrap": "bun run ./lib/tooling/src/beads-bootstrap.ts",
 		"beads:setup": "bun run ./lib/tooling/src/beads-setup.ts",
 		"beads:env": "bun run ./lib/tooling/src/beads-env.ts",
 		"beads:sync": "bun run ./lib/tooling/src/beads-publish.ts",
