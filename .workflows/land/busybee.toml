@@ -1,0 +1,3 @@
+description = "Land explicitly authorized, completed work through Honeycomb, verify main and publish tracker completion."
+version = "1"
+run = "./workflow.ts"

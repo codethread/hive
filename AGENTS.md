@@ -1,6 +1,6 @@
 # Hive
 
-Hive is a strict TypeScript monorepo providing coding agent tooling. It ships `bee` for native Beads spawn requests, `colony` for repository scheduling, the hosting daemon and execution supervision, `honeycomb` for Git worktrees, and `waggle` for repo-owned classifiers.
+Hive is a strict TypeScript monorepo providing coding agent tooling. It ships `bee` for native Beads spawn requests, `colony` for repository scheduling, the hosting daemon and execution supervision, `honeycomb` for Git worktrees, `waggle` for repo-owned classifiers, and `busybee` for Beads-backed workflows.
 
 Read [philosophy](./docs/PHILOSOPHY.md) before making any changes to the system
 
@@ -29,12 +29,13 @@ Use Bee for repository subagents. Run `bee --help`, then `bee kinds` before dele
 - `lib/honeycomb` — the Git worktree manager and shell picker integrations.
 - `lib/tooling` — repository maintenance commands.
 - `lib/waggle` — repo-owned JEV classifier discovery and execution.
+- `lib/busybee` — workflow discovery, execution and Beads task projection; repository definitions live in `.workflows/`.
 
 ## Architecture rules
 
-- Packages may only import from `shared`. `colony`, `honeycomb`, `tooling`, and `waggle` must not import each other.
+- Packages may only import from `shared`. `colony`, `honeycomb`, `tooling`, `waggle`, and `busybee` must not import each other.
 - Cross-package imports must use the `@hive/shared` package specifier; relative paths that traverse into another package are rejected.
-- `shared` must never import `colony`, `honeycomb`, `tooling`, or `waggle`.
+- `shared` must never import `colony`, `honeycomb`, `tooling`, `waggle`, or `busybee`.
 - `.oxlintrc.json` enforces these rules through per-package `no-restricted-imports` overrides.
 
 ## Architectural intent
@@ -75,6 +76,7 @@ Husky runs `lint-staged`, a repo-wide typecheck and tracker synchronization befo
 
 - Before changing request representation, scheduling authority or package placement, read [architecture](docs/architecture.md). It maps the library seams and sources of truth.
 - [Bee and Colony guide](lib/colony/README.md) documents public commands and real I/O verification.
+- Before changing workflow projection or completion, read the [Busy Bee specification](lib/busybee/SPEC.md) for the intended behavior and Beads integration decisions.
 
 ## Spawn state and attention
 

@@ -2,6 +2,8 @@
 
 Hive's product packages are independently replaceable tools. Bee submits and inspects requests through Beads. Colony owns repository scheduling, its hosting daemon and execution supervision. Honeycomb manages Git worktrees, and Waggle runs repository-owned semantic classifiers.
 
+[Busy Bee](../lib/busybee/README.md) projects XState workflows into native Beads tasks, independently of Colony execution.
+
 Product packages do not import one another. `@hive/shared` is the only permitted cross-package import, and it imports no product package. `.oxlintrc.json` enforces that direction. Runtime cooperation uses explicit command or protocol interfaces instead of reaching into another package's implementation.
 
 ## Package responsibilities and seams
@@ -12,6 +14,7 @@ Product packages do not import one another. `@hive/shared` is the only permitted
 | `lib/shared` | Contracts used by both CLI and runtime: recipes, formulas, spawn requests, repository endpoints and daemon messages; common native Beads I/O | Exports types, boundary parsers and small shared operations; owns no daemon, scheduler or CLI presentation |
 | `lib/honeycomb` | Worktree discovery and lifecycle, including canonical-root decisions | Public command interface; Bee and Colony obtain the canonical root through `honeycomb root` |
 | `lib/waggle` | Classifier discovery and execution | Independent `waggle` CLI; it does not decide runtime scheduling or mutate requests |
+| `lib/busybee` | Workflow navigation, task visits, schema discovery and per-run checkpoint serialization | Native `br` and Bee CLI interfaces; XState owns transitions and actor persistence; a related system bead stores the checkpoint |
 | `lib/tooling` | Repository maintenance commands | Development tooling, independent of the Bee execution path |
 
 Shared is used where two actual consumers need the same meaning. It is not a home for code merely because it could be reusable. Scheduling rules and terminal formatters stay in Colony. A change to the representation of a spawn request belongs in Shared because submission, offline inspection and runtime execution must agree.

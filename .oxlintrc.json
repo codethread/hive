@@ -38,8 +38,8 @@
 					{
 						"patterns": [
 							{
-								"regex": "^@hive/(colony|honeycomb|tooling|waggle)(/|$)|(^|\\.\\./)(colony|honeycomb|tooling|waggle)(/|$)|(^|/)lib/(colony|honeycomb|tooling|waggle)(/|$)",
-								"message": "shared sits at the base of the dependency graph and must not import colony, honeycomb, tooling, or waggle."
+								"regex": "^@hive/(colony|honeycomb|tooling|waggle|busybee)(/|$)|(^|\\.\\./)(colony|honeycomb|tooling|waggle|busybee)(/|$)|(^|/)lib/(colony|honeycomb|tooling|waggle|busybee)(/|$)",
+								"message": "shared sits at the base of the dependency graph and must not import colony, honeycomb, tooling, waggle, or busybee."
 							}
 						]
 					}
@@ -54,7 +54,7 @@
 					{
 						"patterns": [
 							{
-								"regex": "^@hive/(colony|honeycomb|tooling|waggle)(/|$)|(^|\\.\\./)(colony|honeycomb|shared|tooling|waggle)(/|$)|(^|/)lib/(colony|honeycomb|shared|tooling|waggle)(/|$)",
+								"regex": "^@hive/(colony|honeycomb|tooling|waggle|busybee)(/|$)|(^|\\.\\./)(colony|honeycomb|shared|tooling|waggle|busybee)(/|$)|(^|/)lib/(colony|honeycomb|shared|tooling|waggle|busybee)(/|$)",
 								"message": "packages may only import from @hive/shared via the package specifier; relative cross-package imports are forbidden."
 							}
 						]
@@ -70,7 +70,7 @@
 					{
 						"patterns": [
 							{
-								"regex": "^@hive/(colony|honeycomb|tooling|waggle)(/|$)|(^|\\.\\./)(colony|shared|honeycomb|tooling|waggle)(/|$)|(^|/)lib/(colony|shared|honeycomb|tooling|waggle)(/|$)",
+								"regex": "^@hive/(colony|honeycomb|tooling|waggle|busybee)(/|$)|(^|\\.\\./)(colony|shared|honeycomb|tooling|waggle|busybee)(/|$)|(^|/)lib/(colony|shared|honeycomb|tooling|waggle|busybee)(/|$)",
 								"message": "packages may only import from @hive/shared via the package specifier; relative cross-package imports are forbidden."
 							}
 						]
@@ -86,7 +86,7 @@
 					{
 						"patterns": [
 							{
-								"regex": "^@hive/(colony|honeycomb|tooling|waggle)(/|$)|(^|\\.\\./)(colony|shared|honeycomb|tooling|waggle)(/|$)|(^|/)lib/(colony|shared|honeycomb|tooling|waggle)(/|$)",
+								"regex": "^@hive/(colony|honeycomb|tooling|waggle|busybee)(/|$)|(^|\\.\\./)(colony|shared|honeycomb|tooling|waggle|busybee)(/|$)|(^|/)lib/(colony|shared|honeycomb|tooling|waggle|busybee)(/|$)",
 								"message": "packages may only import from @hive/shared via the package specifier; relative cross-package imports are forbidden."
 							}
 						]
@@ -102,7 +102,23 @@
 					{
 						"patterns": [
 							{
-								"regex": "^@hive/(colony|honeycomb|tooling|waggle)(/|$)|(^|\\.\\./)(colony|shared|honeycomb|tooling|waggle)(/|$)|(^|/)lib/(colony|shared|honeycomb|tooling|waggle)(/|$)",
+								"regex": "^@hive/(colony|honeycomb|tooling|waggle|busybee)(/|$)|(^|\\.\\./)(colony|shared|honeycomb|tooling|waggle|busybee)(/|$)|(^|/)lib/(colony|shared|honeycomb|tooling|waggle|busybee)(/|$)",
+								"message": "packages may only import from @hive/shared via the package specifier; relative cross-package imports are forbidden."
+							}
+						]
+					}
+				]
+			}
+		},
+		{
+			"files": ["lib/busybee/**/*.{js,ts,tsx}"],
+			"rules": {
+				"no-restricted-imports": [
+					"error",
+					{
+						"patterns": [
+							{
+								"regex": "^@hive/(colony|honeycomb|tooling|waggle|busybee)(/|$)|(^|\\.\\./)(colony|shared|honeycomb|tooling|waggle|busybee)(/|$)|(^|/)lib/(colony|shared|honeycomb|tooling|waggle|busybee)(/|$)",
 								"message": "packages may only import from @hive/shared via the package specifier; relative cross-package imports are forbidden."
 							}
 						]
