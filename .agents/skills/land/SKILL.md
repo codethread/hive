@@ -26,7 +26,8 @@ Land completed work: tidy it up, prove it, and merge it to `main`. Run this only
 ## 2. Prove it
 
 - Run the repository's checks (see AGENTS.md) and fix everything they report.
-- Read the complete diff once as an external reviewer would; use the `reviewer` subagent for a standards pass when warranted.
+- Read the complete diff once as an external reviewer would. Where the root architectural-review trigger applies, obtain `librarian` review of the final diff with the task bead, settled intent, user corrections and prior advice; reuse earlier evidence only if it still covers the final change. Resolve architectural findings or obtain the missing decision, and route useful outcomes to curation separately from review.
+- Use `reviewer` for the separate code style, test quality, documentation standards and verification pass when warranted. Recheck affected review evidence after fixes.
 - Review the commit list for noise, half-finished messages or fixups.
 
 ## 3. Commit what remains

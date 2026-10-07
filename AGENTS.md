@@ -33,6 +33,13 @@ Clean code and clean architecture practices apply throughout. Before building li
 - `shared` must never import `colony`, `honeycomb`, `tooling`, or `waggle`.
 - `.oxlintrc.json` enforces these rules through per-package `no-restricted-imports` overrides.
 
+## Architectural intent
+
+- **Consult:** use `librarian` when ownership, domain concepts, seams or abstraction choices remain unclear after reading the architecture; routine file placement does not need a consultation.
+- **Curate/discuss:** forward user corrections about ownership, placement, domain terminology, dependency direction or module responsibility to `librarian`. Include the original request, context and supplied rationale, not just your interpretation; explicitly scope any documentation/evidence edits. Direct questions about recurring agent confusion also belong here, without implying permission to change policy.
+- **Review:** before committing or handing off changes to those architectural concerns, use `librarian` in review mode on the final diff. Keep code style, test quality and general standards verification with `reviewer`.
+- Pass the task bead when one exists, affected paths/revisions, settled decisions and prior advice. Return implementation departures, structural review findings and user corrections to the librarian so outcomes can inform curation. Record useful advice and outcomes on the task bead; the librarian defines the evidence format and write safeguards.
+
 ## Runtime and commits
 
 - Strict TypeScript runs directly on Bun; there is no build step and no emit. `tsc --noEmit` is the gate.

@@ -5,7 +5,7 @@ const codexAgents = `${import.meta.dir}/../../../.codex/agents`;
 const piAgents = `${import.meta.dir}/../../../.pi/agents`;
 const minimumTextLength = 1;
 const piTools: Readonly<Record<string, string>> = {
-	librarian: "read, bash, subagent",
+	librarian: "read, bash, edit, write, subagent",
 	reviewer: "read, bash",
 };
 
