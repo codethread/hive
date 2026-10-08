@@ -6,6 +6,18 @@ import { z } from "zod";
 const FIRST = 0;
 const NONE = 0;
 const STATE_LABEL_COUNT = 2;
+const NONEMPTY = 1;
+const BEFORE = -1;
+const AFTER = 1;
+const EQUAL = 0;
+/** An explicit native resolution fact, separate from historical execution observations. */
+export const BEE_ACKNOWLEDGMENT_PREFIX = "Bee acknowledgment:";
+export const acknowledgmentSchema = z.strictObject({
+	/** Exact native closure timestamp to which acceptance applies. */
+	closedAt: z.string().min(NONEMPTY),
+	/** Operator explanation, captured once and retained on repeat calls. */
+	reason: z.string().trim().min(NONEMPTY),
+});
 /** Native labels used to discover spawn requests, independently of their validity. */
 export const SPAWN_REQUEST_LABELS = ["system", "bee"] as const;
 /** Native comments are timestamped evidence, never a live execution-status authority. */
@@ -58,7 +70,7 @@ export type SpawnDisposition =
 	| {
 			/** Terminal unsuccessful execution retains its historical outcome. */
 			outcome: "failed";
-			/** A replacement resolves the original failure without changing its outcome. */
+			/** Acknowledgment or replacement resolves attention without changing the outcome. */
 			resolution: "unresolved" | "resolved";
 	  };
 
@@ -76,7 +88,7 @@ export interface SpawnRequest {
 /** Failure attention is independent of the retained native outcome. */
 export type RequestResolution =
 	| {
-			/** No completion, cancellation or replacement resolves this request. */
+			/** No completion, cancellation, acknowledgment or replacement resolves this request. */
 			kind: "unresolved";
 	  }
 	| {
@@ -84,11 +96,24 @@ export type RequestResolution =
 			kind: "resolved";
 	  }
 	| {
+			/** An explicit native acknowledgment accepts this failed closure. */
+			kind: "acknowledged";
+	  }
+	| {
 			/** A successfully created replacement resolves the original failure. */
 			kind: "superseded";
 			/** Native incoming supersedes links identify replacement requests. */
 			replacementIds: string[];
 	  };
+
+export interface RequestAcknowledgment {
+	/** Native comment author credited with accepting the failure. */
+	actor: string;
+	/** Native comment timestamp, preserved at its recorded precision. */
+	acknowledgedAt: string;
+	/** Recorded explanation for accepting the failure. */
+	reason: string;
+}
 
 /** Encode the classification required for a spawn request of this kind. */
 export function spawnRequestLabels(kind: string): string[] {
@@ -141,7 +166,27 @@ export function latestStdoutActivity(bead: Bead): StdoutActivity | undefined {
 	return stdoutActivitySchema.parse(JSON.parse(comment.text.slice(COLONY_STDOUT_PREFIX.length)));
 }
 
-/** Read resolution from native closure and distinct supersession edges. */
+/** Read explicit acceptance for this failed closure, independently of later supersession. */
+export function requestAcknowledgment(bead: Bead): RequestAcknowledgment | undefined {
+	if (requestOutcome(bead) !== "failed") {
+		return undefined;
+	}
+	const comments = bead.comments
+		.filter(({ text }) => text.startsWith(BEE_ACKNOWLEDGMENT_PREFIX))
+		.toSorted(compareAcknowledgments);
+	for (const comment of comments) {
+		const record = acknowledgmentSchema.parse(
+			JSON.parse(comment.text.slice(BEE_ACKNOWLEDGMENT_PREFIX.length)),
+		);
+		if (record.closedAt === bead.closed_at) {
+			return { acknowledgedAt: comment.created_at, actor: comment.author, reason: record.reason };
+		}
+	}
+	return undefined;
+}
+
+/** Read resolution from native closure, acknowledgment and distinct supersession edges. */
+// eslint-disable-next-line max-statements -- Keep the independent native resolution facts and their precedence together.
 export function requestResolution(bead: Bead): RequestResolution {
 	const outcome = requestOutcome(bead);
 	if (outcome === "pending") {
@@ -155,6 +200,9 @@ export function requestResolution(bead: Bead): RequestResolution {
 	);
 	if (replacements.length > NONE) {
 		return { kind: "superseded", replacementIds: replacements.map(({ id }) => id) };
+	}
+	if (requestAcknowledgment(bead)) {
+		return { kind: "acknowledged" };
 	}
 	return { kind: "unresolved" };
 }
@@ -216,6 +264,19 @@ export function requestNeedsAttention(bead: Bead): boolean {
 }
 
 // --- Private functions ---
+/** Native comment IDs are local; these immutable fields preserve ordering across imports. */
+function compareAcknowledgments(left: BeadComment, right: BeadComment): number {
+	for (const key of ["created_at", "author", "text"] as const) {
+		if (left[key] < right[key]) {
+			return BEFORE;
+		}
+		if (left[key] > right[key]) {
+			return AFTER;
+		}
+	}
+	return EQUAL;
+}
+
 function isStateLabel(label: string): boolean {
 	return label.startsWith("bee-outcome:") || label.startsWith("bee-resolution:");
 }

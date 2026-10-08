@@ -1,5 +1,10 @@
+import type {
+	AcknowledgmentResult,
+	RequestListResult,
+	RequestResult,
+	RequestView,
+} from "./requests.ts";
 import type { KindOptions, KindsResult } from "./kinds.ts";
-import type { RequestListResult, RequestResult, RequestView } from "./requests.ts";
 import { Command } from "commander";
 import type { DroneReportResult } from "./drone.ts";
 import type { FinishResult } from "./launch.ts";
@@ -46,7 +51,15 @@ export interface StopOptions extends InspectionOptions {
 	/** Actor attributed to the native request closure. */
 	actor: string;
 }
+export interface AckOptions extends InspectionOptions {
+	/** Actor accepting the failure; explicit flag overrides BD_ACTOR. */
+	actor: string;
+	/** Explanation of why this failure no longer needs attention. */
+	reason: string;
+}
 export interface BeeDependencies {
+	/** Accept a failed request without changing its outcome or linked tasks. */
+	ack: (id: string, options: AckOptions) => Promise<AcknowledgmentResult>;
 	/** Discover configured kinds independently of the tracker and daemon. */
 	kinds: (name: string | undefined, options: KindOptions) => Promise<KindsResult>;
 	/** Submit one verdict for the injected drone review and exact inspected attempt. */
@@ -163,6 +176,21 @@ export async function runBeeCli(argv: string[], deps: BeeDependencies): Promise<
 		});
 	inspectionOptions(
 		program
+			.command("ack <spawn-id>")
+			.description("Acknowledge a failed request and resolve its attention")
+			.addHelpText("after", HELP.ack),
+	)
+		.requiredOption(
+			"--actor <identity>",
+			"Acknowledging actor; overrides BD_ACTOR",
+			process.env["BD_ACTOR"],
+		)
+		.requiredOption("--reason <text>", "Why this failure no longer needs attention")
+		.action(async (id: string, options: AckOptions) => {
+			writeResult(await deps.ack(id, options), argv.includes("--json"), deps.stdout);
+		});
+	inspectionOptions(
+		program
 			.command("stop <spawn-id>")
 			.description("Close a request; Colony reacts when awake")
 			.addHelpText("after", HELP.stop),
@@ -202,6 +230,7 @@ function inspectionOptions(command: Command): Command {
 // eslint-disable-next-line max-statements -- Render the three distinct public request results at one output boundary.
 function writeResult(
 	result:
+		| AcknowledgmentResult
 		| RequestResult
 		| RequestListResult
 		| SpawnResult
@@ -254,6 +283,20 @@ function writeResult(
 		}
 		return;
 	}
+	if (result.kind === "request_acknowledged") {
+		const { request } = result;
+		const lines = [
+			`Request ${request.id}: ${request.disposition.outcome}; resolution: ${request.resolution.kind}; labels: ${request.labelPublication}`,
+		];
+		if (request.acknowledgment !== null) {
+			lines.push(formatAcknowledgment(request.acknowledgment));
+		}
+		if (request.resolution.kind === "superseded") {
+			lines.push(`Replacement: ${request.resolution.replacementIds.join(", ")}`);
+		}
+		stdout(`${lines.join("\n")}\n`);
+		return;
+	}
 	stdout(`${formatRequest(result.request)}\n`);
 }
 // eslint-disable-next-line max-statements -- Keep the human request facts and explicitly stale observations in one formatter.
@@ -273,6 +316,9 @@ function formatRequest(request: RequestView): string {
 	lines.push(`Resolution: ${request.resolution.kind}; needs attention: ${request.needsAttention}`);
 	if (request.resolution.kind === "superseded") {
 		lines.push(`Replacement: ${request.resolution.replacementIds.join(", ")}`);
+	}
+	if (request.acknowledgment !== null) {
+		lines.push(formatAcknowledgment(request.acknowledgment));
 	}
 	if (request.supersedes.length > SUCCESS) {
 		lines.push(`Supersedes: ${request.supersedes.join(", ")}`);
@@ -302,4 +348,8 @@ function formatRequest(request: RequestView): string {
 		"Observations may be stale; daemon availability is not queried.",
 	);
 	return lines.join("\n");
+}
+
+function formatAcknowledgment(acknowledgment: NonNullable<RequestView["acknowledgment"]>): string {
+	return `Acknowledged by ${acknowledgment.actor} at ${acknowledgment.acknowledgedAt}: ${acknowledgment.reason}`;
 }
