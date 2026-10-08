@@ -11,7 +11,7 @@
 		"lint": "oxlint --deny-warnings",
 		"lint:fix": "oxlint --fix",
 		"typecheck": "tsc --noEmit -p tsconfig.json && bun run --filter '*' typecheck",
-		"test": "bun test --parallel --parallel-delay=0 --timeout=5000 --only-failures",
+		"test": "bun test --parallel=2 --parallel-delay=0 --timeout=5000 --only-failures",
 		"test:changed": "bun run test --changed",
 		"check": "bun run fmt:check && bun run lint && bun run typecheck",
 		"git:setup": "bun run ./scripts/setup-git.ts",
@@ -20,7 +20,8 @@
 		"beads:env": "bun run ./lib/tooling/src/beads-env.ts",
 		"beads:sync": "bun run ./lib/tooling/src/beads-publish.ts",
 		"prepare": "husky && bun run git:setup && bun run ./lib/tooling/src/beads-setup-auto.ts",
-		"waggle": "bun run ./lib/waggle/bin/waggle.ts"
+		"waggle": "bun run ./lib/waggle/bin/waggle.ts",
+		"busybee": "bun run ./lib/busybee/bin/busybee.ts"
 	},
 	"devDependencies": {
 		"@commitlint/cli": "^21.2.3",
@@ -32,6 +33,7 @@
 		"oxfmt": "^0.71.0",
 		"oxlint": "^1.86.0",
 		"typescript": "^7.0.2",
+		"xstate": "^5.33.2",
 		"zod": "^4.6.5"
 	},
 	"lint-staged": {

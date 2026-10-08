@@ -1,0 +1,19 @@
+{
+	"name": "@hive/busybee",
+	"version": "0.0.0",
+	"private": true,
+	"bin": {
+		"busybee": "./bin/busybee.ts"
+	},
+	"type": "module",
+	"exports": "./src/runtime.ts",
+	"scripts": {
+		"typecheck": "tsc --noEmit"
+	},
+	"dependencies": {
+		"@hive/shared": "workspace:*",
+		"commander": "^15.0.0",
+		"xstate": "^5.33.2",
+		"zod": "^4.6.5"
+	}
+}

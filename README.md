@@ -1,14 +1,21 @@
 # Hive
 
-Tools for running coding agents against Beads work, managing Git worktrees, and reviewing repository changes.
+Tools for running coding agents, managing Git worktrees and coordinating Beads work.
 
-- **Bee** submits captured spawn requests and inspects or closes them through Beads, even while the daemon is unavailable.
-- **Colony** owns repository scheduling, configuration, runtime inspection, the hosting daemon and execution supervision.
-- **Honeycomb** manages Git worktrees and shell picker integration.
-- **Waggle** discovers and runs repository-owned semantic classifiers.
+| Tool | Use |
+| --- | --- |
+| [Bee and Colony](./lib/colony/README.md) | Submit agent requests through Beads; schedule and supervise their execution |
+| [Honeycomb](./lib/honeycomb/README.md) | Manage Git worktrees and navigate them from the shell |
+| [Waggle](./lib/waggle/README.md) | Run repository-owned semantic classifiers |
+| [Busy Bee](./lib/busybee/README.md) | Run XState workflows as sequential, nested or concurrent Beads tasks |
 
-Start with the [Bee and Colony guide](./lib/colony/README.md) for installation, a disposable quickstart, configuration and verification. See [Honeycomb](./lib/honeycomb/README.md) for worktree commands and [Waggle](./lib/waggle/README.md) for classifiers.
+For a new clone:
 
-For a new clone, run `mise trust` and then `mise run`. The default task installs dependencies, builds the workspace launchers, and bootstraps Beads; rerunning it preserves the existing tracker. See the [Beads bootstrap guide](./docs/beads-integration.md#bootstrap-a-clone).
+```sh
+mise trust
+mise run
+```
 
-The [documentation index](./docs/README.md) links the [architecture and library boundaries](./docs/architecture.md), [domain vocabulary](./GLOSSARY.md), integration contracts and versioned harness evidence. The [philosophy](./docs/PHILOSOPHY.md) explains the project's scope.
+The default task installs dependencies, builds workspace launchers and bootstraps Beads. Rerunning it preserves the existing tracker. See [Beads setup](./docs/beads-integration.md#bootstrap-a-clone) for details, then follow the relevant tool guide above.
+
+The [documentation index](./docs/README.md) covers architecture, terminology and integration contracts. [Philosophy](./docs/PHILOSOPHY.md) explains the project's scope.

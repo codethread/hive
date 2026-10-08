@@ -14,6 +14,20 @@
         "oxfmt": "^0.71.0",
         "oxlint": "^1.86.0",
         "typescript": "^7.0.2",
+        "xstate": "^5.33.2",
+        "zod": "^4.6.5",
+      },
+    },
+    "lib/busybee": {
+      "name": "@hive/busybee",
+      "version": "0.0.0",
+      "bin": {
+        "busybee": "./bin/busybee.ts",
+      },
+      "dependencies": {
+        "@hive/shared": "workspace:*",
+        "commander": "^15.0.0",
+        "xstate": "^5.33.2",
         "zod": "^4.6.5",
       },
     },
@@ -231,6 +245,8 @@
     "@esbuild/win32-x64": ["@esbuild/win32-x64@0.28.2", "", { "os": "win32", "cpu": "x64" }, "sha512-5ebpxr3nWMzrL/rnUI755Jkuee0bHL/Gq0WTF9lvcpv73wAp5eu8MfBUgWK9bhWvZjj7yX8etf/8tI8Ney695g=="],
 
     "@google/genai": ["@google/genai@2.21.0", "", { "dependencies": { "google-auth-library": "^10.3.0", "p-retry": "^4.6.2", "protobufjs": "^7.5.4", "ws": "^8.18.0" }, "peerDependencies": { "@modelcontextprotocol/sdk": "^1.25.2" }, "optionalPeers": ["@modelcontextprotocol/sdk"] }, "sha512-+PDtco2/Z0ONdzCGekCoCT+O1VJS9xJQNN4XzQpXG/t3El/SWWMkCWlFRO1KmivOHPa4Q0VjUYu1HBKCZ/v33Q=="],
+
+    "@hive/busybee": ["@hive/busybee@workspace:lib/busybee"],
 
     "@hive/colony": ["@hive/colony@workspace:lib/colony"],
 
