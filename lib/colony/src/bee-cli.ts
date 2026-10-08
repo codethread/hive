@@ -1,11 +1,15 @@
+import type { KindOptions, KindsResult } from "./kinds.ts";
 import type { RequestListResult, RequestResult, RequestView } from "./requests.ts";
 import { Command } from "commander";
 import type { DroneReportResult } from "./drone.ts";
 import type { FinishResult } from "./launch.ts";
+import { HELP } from "./bee-help.ts";
 import type { SpawnResult } from "./producer.ts";
+import { kindsJsonSchema } from "./kinds.ts";
 import { reportFailure } from "./cli.ts";
 
 const SUCCESS = 0;
+const JSON_INDENT = 2;
 export interface SpawnOptions {
 	/** Repository discovery directory. */
 	repo: string;
@@ -43,6 +47,8 @@ export interface StopOptions extends InspectionOptions {
 	actor: string;
 }
 export interface BeeDependencies {
+	/** Discover configured kinds independently of the tracker and daemon. */
+	kinds: (name: string | undefined, options: KindOptions) => Promise<KindsResult>;
 	/** Submit one verdict for the injected drone review and exact inspected attempt. */
 	report: (id: string, verdict: string) => Promise<DroneReportResult>;
 	/** Submit an attempt-scoped self-report using injected provenance. */
@@ -66,21 +72,50 @@ export interface BeeDependencies {
 export async function runBeeCli(argv: string[], deps: BeeDependencies): Promise<number> {
 	const program = new Command()
 		.name("bee")
-		.description("Submit captured bee requests without a daemon")
-		.option("--json", "Emit errors as JSON too")
+		.description("Delegate work to configured bees and inspect their requests")
+		.addHelpText("after", HELP.overview)
+		.option("--json", "Emit one JSON result or error")
 		.configureOutput({ writeErr: () => {}, writeOut: deps.stdout })
 		.exitOverride();
+	program
+		.command("kinds [kind]")
+		.description("Discover available kinds and their selection guidance")
+		.option("--repo <directory>", "Repository discovery directory", ".")
+		.option(
+			"--as <kind>",
+			"Caller perspective; overrides BR_AGENT_NAME",
+			process.env["BR_AGENT_NAME"],
+		)
+		.option("--all", "Include hidden kinds and bypass caller visibility guidance", false)
+		.option("--schema", "Print the JSON response schema without reading configuration", false)
+		.option(
+			"-v, --verbose",
+			"Include full prompts, execution defaults and visibility settings",
+			false,
+		)
+		.addHelpText("after", HELP.kinds)
+		.action(async (name: string | undefined, options: KindOptions & { schema: boolean }) => {
+			if (options.schema) {
+				deps.stdout(
+					`${JSON.stringify({ kind: "bee_kinds_schema", ok: true, schema: kindsJsonSchema(options.verbose) })}\n`,
+				);
+				return;
+			}
+			writeResult(await deps.kinds(name, options), argv.includes("--json"), deps.stdout);
+		});
 	submissionOptions(
 		program
 			.command("spawn <kind> <tasks...>")
-			.description("Snapshot a kind recipe and relate task beads without claiming them"),
+			.description("Submit task beads using the selected kind")
+			.addHelpText("after", HELP.spawn),
 	).action(async (kind: string, tasks: string[], options: SpawnOptions) => {
 		writeResult(await deps.spawn(kind, tasks, options), argv.includes("--json"), deps.stdout);
 	});
 	submissionOptions(
 		program
 			.command("retry <spawn-id>")
-			.description("Replace an unsuccessful request using current defaults and unfinished tasks"),
+			.description("Replace an unsuccessful request using current defaults and unfinished tasks")
+			.addHelpText("after", HELP.retry),
 	)
 		.option("--kind <kind>", "Select another kind; defaults to the old request kind")
 		.action(async (id: string, options: RetryOptions) => {
@@ -89,6 +124,7 @@ export async function runBeeCli(argv: string[], deps: BeeDependencies): Promise<
 	program
 		.command("finish <outcome>")
 		.description("Report success or blocked work from this Colony execution")
+		.addHelpText("after", HELP.finish)
 		.option("--reason <text>", "Required durable blocker and next action for blocked")
 		.action(async (outcome: string, options: { reason?: string }) => {
 			writeResult(await deps.finish(outcome, options), argv.includes("--json"), deps.stdout);
@@ -96,27 +132,33 @@ export async function runBeeCli(argv: string[], deps: BeeDependencies): Promise<
 	program
 		.command("report <spawn-id> <verdict>")
 		.description("Report active or inactive from this Colony inactivity drone")
+		.addHelpText("after", HELP.report)
 		.action(async (id: string, verdict: string) => {
 			writeResult(await deps.report(id, verdict), argv.includes("--json"), deps.stdout);
 		});
 	inspectionOptions(
 		program
 			.command("status <spawn-id>")
-			.description("Inspect request facts and timestamped last observations"),
+			.description("Inspect request facts and timestamped last observations")
+			.addHelpText("after", HELP.status),
 	).action(async (id: string, options: InspectionOptions) => {
 		writeResult(await deps.status(id, options), argv.includes("--json"), deps.stdout);
 	});
 	inspectionOptions(
 		program
 			.command("list")
-			.description("List open requests and unresolved failures; observations may be stale"),
+			.description("List open requests and unresolved failures; observations may be stale")
+			.addHelpText("after", HELP.list),
 	)
 		.option("--all", "Include resolved historical requests", false)
 		.action(async (options: ListOptions) => {
 			writeResult(await deps.list(options), argv.includes("--json"), deps.stdout);
 		});
 	inspectionOptions(
-		program.command("stop <spawn-id>").description("Close a request; Colony reacts when awake"),
+		program
+			.command("stop <spawn-id>")
+			.description("Close a request; Colony reacts when awake")
+			.addHelpText("after", HELP.stop),
 	)
 		.requiredOption("--actor <identity>", "Identity closing this request", process.env["BD_ACTOR"])
 		.action(async (id: string, options: StopOptions) => {
@@ -126,7 +168,10 @@ export async function runBeeCli(argv: string[], deps: BeeDependencies): Promise<
 		await program.parseAsync(argv, { from: "user" });
 		return SUCCESS;
 	} catch (error) {
-		return reportFailure(error, argv.includes("--json"), { ...deps, command: "bee" });
+		return reportFailure(error, argv.includes("--json") || argv.includes("--schema"), {
+			...deps,
+			command: "bee",
+		});
 	}
 }
 
@@ -140,7 +185,7 @@ function submissionOptions(command: Command): Command {
 		.option("--effort <effort>", "Captured effort override")
 		.option("--harness <name>", "Captured runtime formula name")
 		.option("--cwd <directory>", "Execution directory, resolved from submission cwd")
-		.option("--prompt <text>", "Captured work instructions");
+		.option("--prompt <text>", "Replace the kind instructions for this request");
 }
 function inspectionOptions(command: Command): Command {
 	return command
@@ -149,12 +194,33 @@ function inspectionOptions(command: Command): Command {
 }
 // eslint-disable-next-line max-statements -- Render the three distinct public request results at one output boundary.
 function writeResult(
-	result: RequestResult | RequestListResult | SpawnResult | FinishResult | DroneReportResult,
+	result:
+		| RequestResult
+		| RequestListResult
+		| SpawnResult
+		| FinishResult
+		| DroneReportResult
+		| KindsResult,
 	json: boolean,
 	stdout: (text: string) => void,
 ): void {
 	if (json) {
 		stdout(`${JSON.stringify({ ok: true, ...result })}\n`);
+		return;
+	}
+	if (result.kind === "bee_kinds") {
+		const lines = result.kinds.map((kind) => {
+			const summary = `${kind.name}: ${kind.description}`;
+			if ("configuration" in kind) {
+				return `${summary}\n${JSON.stringify(kind.configuration, undefined, JSON_INDENT)}`;
+			}
+			return summary;
+		});
+		if (lines.length === SUCCESS) {
+			stdout("No visible bee kinds.\n");
+		} else {
+			stdout(`${lines.join("\n")}\n`);
+		}
 		return;
 	}
 	if (result.kind === "drone_verdict_submitted") {

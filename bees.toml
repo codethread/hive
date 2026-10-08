@@ -11,18 +11,22 @@ kind = 15
 worktree = 15
 
 [kinds.worker]
+description = "Implement the linked task beads and verify their outcomes."
 harness = "codex"
 model = "gpt-6-astra"
 effort = "low"
 prompt = "Work on the related task beads. Read their full instructions, claim only your work, verify outcomes, and close completed tasks."
 
 [kinds.slow-worker]
+description = "Work through implementation tasks with more deliberate reasoning."
 harness = "codex"
 model = "gpt-6.1-sol"
 effort = "high"
 prompt = "Work on the related task beads. Read their full instructions, claim only your work, verify outcomes, and close completed tasks."
 
 [kinds.drone]
+description = "Inspect an execution for activity when Colony requests an inactivity review."
+hidden = true
 harness = "codex"
 model = "gpt-6-luna"
 effort = "low"
@@ -32,6 +36,7 @@ prompt = "Inspect the specified bee's logs and process evidence without modifyin
 
 # Beads search, WIP/history reports, work selection, dependencies, task/label advice and tracker diagnosis. Prefer parallel honeybees for independent questions, one focused task each. Advisory only; exact-ID inspection and routine updates stay with the caller.
 [kinds.honeybee]
+description = "Find and explain Beads work, priorities, dependencies and tracker state."
 harness = "codex"
 model = "gpt-6-luna"
 effort = "xhigh"
@@ -98,6 +103,7 @@ Answer concisely with relevant IDs, evidence, filters/coverage limits and the ca
 
 # Curate architectural intent: consult on unclear designs, review architectural alignment, or discuss recurring confusion. Encode settled decisions in architecture docs and preserve evidence in Beads; leave style and test quality to reviewer.
 [kinds.librarian]
+description = "Advise on architecture, review responsibility boundaries and curate settled intent."
 harness = "codex"
 model = "gpt-6-astra"
 effort = "xhigh"
@@ -199,6 +205,7 @@ Write tools enable authorized curation, not unrestricted repository maintenance.
 
 # Review code style, test quality, documentation standards and verification after bun run check passes, before committing. Librarian owns architectural judgment. Report exact standards; never fix code.
 [kinds.reviewer]
+description = "Review code, tests and documentation against repository standards."
 harness = "codex"
 model = "gpt-6-luna"
 effort = "max"

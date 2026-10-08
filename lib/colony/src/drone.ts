@@ -495,7 +495,14 @@ function droneReceipt(
 		throw new Error(`No formula named ${defaults.harness} for inactivity drone ${kind}`);
 	}
 	const prompt = `${defaults.prompt}\n\nInspect only spawn ${target.spawnId}, execution attempt ${target.id}, review ${review.id}. Deadline: ${new Date(review.deadline).toISOString()}. Target logs and process ownership evidence: ${target.directory} (stdout.log, stderr.log, ownership.json, worker.json). Consider legitimate long-running waits; PID existence or stdout silence alone does not prove progress or inactivity. Report exactly one verdict with: bee report ${target.spawnId} active|inactive. Do not close tasks, claim work, signal processes, assign lifecycle states, launch another drone, or use bee finish. Colony owns all lifecycle decisions.`;
-	const recipe = { ...defaults, cwd: target.cwd, kind, prompt };
+	const recipe = {
+		cwd: target.cwd,
+		effort: defaults.effort,
+		harness: defaults.harness,
+		kind,
+		model: defaults.model,
+		prompt,
+	};
 	return {
 		...target,
 		attemptNumber: 1,

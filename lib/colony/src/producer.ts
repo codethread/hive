@@ -145,6 +145,7 @@ kind = 2
 worktree = 2
 
 [kinds.worker]
+description = "Implement the linked task beads and verify their outcomes."
 harness = "codex"
 model = ${JSON.stringify(options.model)}
 effort = "low"

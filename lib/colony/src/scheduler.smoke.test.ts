@@ -269,11 +269,13 @@ colony=${limits.colony}
 kind=${limits.kind}
 worktree=${limits.worktree}
 [kinds.worker]
+description = "Implement the linked task beads and verify their outcomes."
 harness="fixture"
 model="fixture"
 effort="low"
 prompt="fixture"
 [kinds.reviewer]
+description = "Review code, tests and documentation against repository standards."
 harness="fixture"
 model="fixture"
 effort="low"

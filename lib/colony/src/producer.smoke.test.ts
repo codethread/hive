@@ -60,10 +60,19 @@ test(
 				"--json",
 			];
 			await run(init);
+			const initial = await Bun.file(join(repo, "bees.toml")).text();
+			await Bun.write(
+				join(repo, "bees.toml"),
+				initial.replace("[kinds.worker]", '[kinds.worker]\nhidden = true\ndeny = ["#self"]'),
+			);
 			await expect(
 				initRepository({ model: "initial-model", owner: "ct", repo: linked }),
 			).rejects.toBeInstanceOf(Error);
 			await Bun.write(join(linked, "bees.toml"), "invalid worktree config is ignored");
+			const hidden = JSON.parse(
+				await run([process.execPath, bee, "kinds", "--repo", linked, "--as", "worker", "--json"]),
+			);
+			expect(hidden.kinds).toEqual([]);
 			const first = await br(["create", "--title", "First task", "--owner", "ct"]);
 			const second = await br(["create", "--title", "Second task", "--owner", "ct"]);
 			const submit = [
@@ -108,6 +117,14 @@ test(
 				[first.id, second.id].toSorted(),
 			);
 			const snapshot = JSON.parse(request.description);
+			expect(Object.keys(snapshot).toSorted()).toEqual([
+				"cwd",
+				"effort",
+				"harness",
+				"kind",
+				"model",
+				"prompt",
+			]);
 			expect(snapshot).toMatchObject({
 				cwd: await realpath(external),
 				effort: "high",
@@ -286,7 +303,7 @@ test(
 			const config = await Bun.file(configPath).text();
 			await Bun.write(
 				configPath,
-				`${config.replace("initial-model", "current-model")}\n[kinds.other]\nharness="pi"\nmodel="other-model"\neffort="medium"\nprompt="Other instructions"\n`,
+				`${config.replace("initial-model", "current-model")}\n[kinds.other]\ndescription = "Execute the configured other role."\nharness="pi"\nmodel="other-model"\neffort="medium"\nprompt="Other instructions"\n`,
 			);
 			const replacement = await retry(original.id);
 			const current = await inspect(replacement.id);

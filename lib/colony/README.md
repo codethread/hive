@@ -44,6 +44,42 @@ colony daemon stop --state "$STATE"
 
 Before sleeping or deleting disposable state, inspect until the request checkpoint has settled and its attempts have stopped. Sleep and daemon stop leave detached workers alive; closing the request while awake is the cancellation path. A task may finish before `bee stop`; stopping an already-closed request preserves its closure reason. The automated native probe below performs bounded cleanup and retains evidence.
 
+## Discover bee kinds
+
+Start with `bee --help` for the delegation runbook, then `bee kinds` for the configured names and descriptions. Discovery reads canonical `bees.toml` and needs neither a tracker nor a daemon. `bee list` instead lists submitted requests.
+
+```sh
+bee kinds
+bee kinds --as librarian
+bee kinds reviewer --verbose
+bee kinds --all --json
+bee kinds --schema --json | jq '.schema'
+```
+
+Every kind requires a nonempty `description` explaining when to choose it. Default output contains only names and descriptions; `--verbose` includes the full prompt and execution defaults. An explicit kind name inspects it directly. `--all` includes every kind, independently of verbosity.
+
+`--schema` returns JSON describing the success and failure response shapes without reading configuration. Combine it with `--verbose` to inspect the full-detail schema. Normal `--json` results stay concise; schemas and prompts are opt-in.
+
+Visibility is selection guidance, not runtime authorization. A hidden or omitted kind remains spawnable, allowing testing and flexible workflows. The caller comes from `--as`, then `BR_AGENT_NAME`; without either, discovery shows all non-hidden kinds. Unknown callers and selectors fail visibly. Kind names, rather than models, determine the policy.
+
+Optional `allow` and `deny` lists belong to the caller kind and are mutually exclusive. `allow` shows exactly its named kinds, overriding their `hidden` setting; `deny` subtracts from the non-hidden baseline. Empty `allow` shows none, while empty `deny` preserves that baseline. The sole special selector, `"#self"`, refers to the caller kind; self-hiding is explicit.
+
+These fragments omit the required execution fields (`harness`, `model`, `effort` and `prompt`):
+
+```toml
+[kinds.drone]
+description = "Inspect activity when Colony requests an inactivity review."
+hidden = true
+
+[kinds.librarian]
+description = "Advise on architecture and curate settled intent."
+allow = ["honeybee", "drone"] # Explicitly includes the hidden drone.
+
+[kinds.reviewer]
+description = "Review code, tests and documentation against repository standards."
+deny = ["#self"]
+```
+
 ## Create requests
 
 Initialize configuration once in a repository with an existing Beads tracker:
@@ -57,7 +93,7 @@ bun run lib/colony/bin/bee.ts spawn worker <task-id> \
 
 `init` creates `bees.toml` in the canonical worktree and refuses to overwrite an existing file. `spawn` works while Colony is unavailable or asleep. It captures the kind's effective recipe on a new spawn bead without claiming its task beads. Later edits to defaults do not change that captured recipe.
 
-Use `--model`, `--effort`, `--harness`, `--prompt` or `--cwd` to change the recipe for one request. Bee automatically mints a friendly name and records it as the assignee. The requester is the actor creating the bead, selected by `--actor` or `BD_ACTOR`; the human owner comes from configuration. Neither is the spawned agent's identity.
+Use `--model`, `--effort`, `--harness`, `--prompt` or `--cwd` to change the recipe for one request. `--prompt` replaces the kind instructions rather than appending; put ordinary task-specific guidance on the task bead. Bee automatically mints a friendly name and records it as the assignee. The requester is the actor creating the bead, selected by `--actor` or `BD_ACTOR`; the human owner comes from configuration. Neither is the spawned agent's identity.
 
 Repository discovery defaults to the current directory and can be selected with `--repo`. Tracker selection is explicit through `--beads-db` or `BEADS_DB`. Blocked tasks can be submitted and wait for eligibility. Unknown kinds, human reservations and overlapping open spawn requests fail. A named harness may be supplied by a later Colony formula update; Bee does not require it to exist in the current file's formula map.
 
@@ -104,12 +140,13 @@ An awake Colony publishes the first actual output on reconciliation, then change
 
 ## Review quiet bees with a drone
 
-In canonical `bees.toml`, set the top-level `inactivity_drone = "inspector"` and define `[kinds.inspector]` with your chosen `harness`, `model`, `effort` and `prompt`. Its harness needs a matching formula. No model is hardcoded. Omitting `inactivity_drone` disables reviews; fresh wake/reset loads changes. `colony config show --json` exposes the active kind as `active.inactivityDrone`, or `null` when disabled. For example, merge these settings into the existing configuration:
+In canonical `bees.toml`, set the top-level `inactivity_drone = "inspector"` and define `[kinds.inspector]` with a selection `description` and your chosen `harness`, `model`, `effort` and `prompt`. Its harness needs a matching formula. No model is hardcoded. Omitting `inactivity_drone` disables reviews; fresh wake/reset loads changes. `colony config show --json` exposes the active kind as `active.inactivityDrone`, or `null` when disabled. For example, merge these settings into the existing configuration:
 
 ```toml
 inactivity_drone = "inspector"
 
 [kinds.inspector]
+description = "Inspect a running execution for activity when Colony requests a review."
 harness = "example"
 model = "YOUR_MODEL"
 effort = "low"
@@ -258,6 +295,7 @@ worktree = 2
 reviewer = 1
 
 [kinds.worker]
+description = "Implement the linked task beads and verify their outcomes."
 harness = "example"
 model = "selected-model"
 effort = "low"

@@ -272,6 +272,7 @@ ranking="fifo"
 [limits]
 colony=0
 [kinds.worker]
+description = "Implement the linked task beads and verify their outcomes."
 harness="scripted"
 model="captured-model"
 effort="low"

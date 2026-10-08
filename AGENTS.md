@@ -20,9 +20,7 @@ Clean code and clean architecture practices apply throughout. Before building li
 
 ### Specialist delegation
 
-Repository specialists `honeybee`, `librarian` and `reviewer` are bee kinds in canonical `bees.toml`, not native subagent definitions. Use `bee spawn <kind> <delivery-task-id> --cwd <worktree>` with the selected tracker and your actor; Colony owns dispatch and task claims. Shared harness agents remain separate.
-
-For advice or review, create a dedicated delivery task with the question, target IDs/paths/revisions and required report. Include the examined implementation tasks as context, not as the spawn's related tasks: a reviewer must not claim or close the work it reviews. A report task is complete when the requested findings are recorded, even when the verdict is negative. Keep implementation, review and landing acceptance distinct. Simple questions answered directly do not need delivery tasks.
+Use Bee for repository subagents. Run `bee --help`, then `bee kinds` before delegating. Hive's `honeybee`, `librarian` and `reviewer` are configured bee kinds, not native subagent definitions. Follow the role routing below; shared harness agents remain separate.
 
 ## Packages
 
@@ -108,10 +106,9 @@ Outside Colony executions, every mutation needs your harness actor (`--actor pi|
 
 ### Colony executions
 
-- Preserve the injected `BEADS_DB`, `BD_ACTOR` and friendly task assignment. Colony has already claimed the linked tasks; verify them and run `bun run beads:sync` successfully before working instead of reclaiming as your harness. A coordinator submits delegated work without claiming it first.
-- Read the linked tasks and their full acceptance criteria. Reading your own spawn through `HIVE_SPAWN_ID` is authorized execution context, not permission to browse unrelated `system` beads. Use the supplied worktree; create another only when the task explicitly requires it.
-- Advisory roles leave examined code and target beads unchanged. They may append their report/evidence to, and close, their own linked delivery tasks. Librarian curation edits require explicit scope. A completed report is not permission to close the implementation or landing task.
-- Record outcomes on the delivery tasks, verify acceptance, close completed tasks and synchronize before reporting completion. Follow the [self-report contract](docs/agents/spawn-requests.md#report-your-own-execution-finished) for `bee finish success` or a blocked handoff. Leaving a linked task open for later review is unfinished execution, not a successful handoff.
+- Follow `bee finish --help` for execution identity, delivery and completion. Verify the supplied claims and run `bun run beads:sync` successfully before working; synchronize again after task updates and before finishing.
+- Reading your own spawn through `HIVE_SPAWN_ID` is authorized execution context, not permission to browse unrelated `system` beads. Use the supplied worktree; create another only when the task explicitly requires it.
+- Librarian curation edits require explicit scope. Keep implementation, review and landing acceptance distinct; a completed report is not permission to close the examined work.
 
 ### Labels and reservations
 

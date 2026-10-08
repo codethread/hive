@@ -126,6 +126,14 @@ test(
 				kind: "inspector",
 				model: "user-selected",
 			});
+			expect(Object.keys(active.review.receipt!.recipe).toSorted()).toEqual([
+				"cwd",
+				"effort",
+				"harness",
+				"kind",
+				"model",
+				"prompt",
+			]);
 			expect(active.review.receipt?.recipe.prompt).toContain(first.receipt.directory);
 			expect(active.review.receipt?.recipe.prompt).toContain("legitimate long-running waits");
 			expect(active.review.receipt?.taskIds).toEqual([]);
@@ -407,11 +415,13 @@ max_retries=1
 retry_delay_ms=0
 inactivity_drone="inspector"
 [kinds.worker]
+description = "Implement the linked task beads and verify their outcomes."
 harness="worker"
 model="fixture"
 effort="low"
 prompt="fixture"
 [kinds.inspector]
+description = "Execute the configured inspector role."
 harness="inspector"
 model="user-selected"
 effort="low"
