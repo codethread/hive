@@ -61,7 +61,7 @@ test(
 				`related:${task.id}`,
 			]);
 			const config = `owner = "ct"\nhumans = ["ct"]\n[kinds]\n[formulas.fixture]\nexecutable = ${JSON.stringify(process.execPath)}\nargv = [${JSON.stringify(worker)}, "{{prompt}}", "{{model}}"]\n`;
-			await Bun.write(join(repo, "bees.toml"), config);
+			await Bun.write(join(repo, ".hive", "bees.toml"), config);
 			const cli = new URL("../bin/colony.ts", import.meta.url).pathname;
 			const args = [
 				process.execPath,

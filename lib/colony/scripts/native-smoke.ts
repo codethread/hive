@@ -187,7 +187,7 @@ console.log("Native tool probe complete");
 	const prompt = `Use your shell tool to execute this exact command in the current repository: ${JSON.stringify(process.execPath)} ./probe.ts . It writes a local environment receipt and closes only the disposable related task. Do not edit the script, override environment variables, close the spawn request, or change any account/hook/trust settings. After it succeeds, reply briefly and finish.`;
 	const argv = nativeArguments(fixture.options.harness);
 	await Bun.write(
-		join(fixture.repo, "bees.toml"),
+		join(fixture.repo, ".hive", "bees.toml"),
 		`owner = "ct"
 humans = ["ct"]
 ranking = "fifo"

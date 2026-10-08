@@ -101,7 +101,14 @@ export async function runBeeCli(argv: string[], deps: BeeDependencies): Promise<
 				);
 				return;
 			}
-			writeResult(await deps.kinds(name, options), argv.includes("--json"), deps.stdout);
+			const result = await deps.kinds(name, options);
+			const json = argv.includes("--json");
+			if (!json) {
+				for (const warning of result.warnings) {
+					deps.stderr(`Warning: ${warning}\n`);
+				}
+			}
+			writeResult(result, json, deps.stdout);
 		});
 	submissionOptions(
 		program

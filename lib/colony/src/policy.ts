@@ -1,8 +1,7 @@
 import type { BeesConfig, PolicyChange, PolicyView, RepositoryEndpoint } from "@hive/shared";
-import { parseBeesConfig, validateFormula } from "@hive/shared";
-// eslint-disable-next-line import/no-nodejs-modules -- Canonical configuration is loaded only from its repository root.
-import { join } from "node:path";
+import { loadBeesConfig } from "./config.ts";
 import { match } from "ts-pattern";
+import { validateFormula } from "@hive/shared";
 
 export type PolicySnapshot = Pick<
 	BeesConfig,
@@ -17,7 +16,8 @@ export interface ActivePolicy {
 
 /** Reload canonical recipes and policy together without restoring historical overrides. */
 export async function loadPolicy(repository: RepositoryEndpoint): Promise<BeesConfig> {
-	return parseBeesConfig(await Bun.file(join(repository.root, "bees.toml")).text());
+	const { config } = await loadBeesConfig(repository.root);
+	return config;
 }
 /** Validate an explicit formula or complete limits replacement before mutating live state. */
 export function updatePolicy(config: BeesConfig, change: PolicyChange): BeesConfig {

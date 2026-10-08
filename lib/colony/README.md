@@ -1,10 +1,10 @@
 # Bee and Colony
 
-Colony launches agents from spawn requests stored in Beads. A spawn request is distinct from the task beads it asks an agent to work on. Each request carries a captured recipe and a friendly assignee; Colony applies the current named harness formula in the canonical worktree's `bees.toml`.
+Colony launches agents from spawn requests stored in Beads. A spawn request is distinct from the task beads it asks an agent to work on. Each request carries a captured recipe and a friendly assignee; Colony applies the current named harness formula in the canonical worktree's `.hive/bees.toml`.
 
 ## Install and try it
 
-Requirements: Bun, Bash (for installed wrappers), Git, `br`, `honeycomb`, and a native harness executable with working model access. Default ranking also needs `bv`; set `ranking = "fifo"` in `bees.toml` to run without BV. `colony init` writes a Codex formula, so its default quickstart needs native Codex on `PATH`. Other harnesses need a formula using their supported flags. See [harness evidence](../../docs/harness-capabilities.md) for verified versions and limits.
+Requirements: Bun, Bash (for installed wrappers), Git, `br`, `honeycomb`, and a native harness executable with working model access. Default ranking also needs `bv`; set `ranking = "fifo"` in `.hive/bees.toml` to run without BV. `colony init` writes a Codex formula, so its default quickstart needs native Codex on `PATH`. Other harnesses need a formula using their supported flags. See [harness evidence](../../docs/harness-capabilities.md) for verified versions and limits.
 
 From a Hive checkout you intend to retain:
 
@@ -46,7 +46,7 @@ Before sleeping or deleting disposable state, inspect until the request checkpoi
 
 ## Discover bee kinds
 
-Start with `bee --help` for the delegation runbook, then `bee kinds` for the configured names and descriptions. Discovery reads canonical `bees.toml` and needs neither a tracker nor a daemon. `bee list` instead lists submitted requests.
+Start with `bee --help` for the delegation runbook, then `bee kinds` for the configured names and descriptions. Discovery reads canonical configuration under `.hive/` and needs neither a tracker nor a daemon. `bee list` instead lists submitted requests.
 
 ```sh
 bee kinds
@@ -91,11 +91,40 @@ bun run lib/colony/bin/bee.ts spawn worker <task-id> \
   --repo /path/to/repository --beads-db "$BEADS_DB" --actor <requester> --json
 ```
 
-`init` creates `bees.toml` in the canonical worktree and refuses to overwrite an existing file. `spawn` works while Colony is unavailable or asleep. It captures the kind's effective recipe on a new spawn bead without claiming its task beads. Later edits to defaults do not change that captured recipe.
+`init` creates `.hive/bees.toml` in the canonical worktree and refuses to overwrite an existing file. `spawn` works while Colony is unavailable or asleep. It captures the kind's effective recipe on a new spawn bead without claiming its task beads. Later edits to defaults do not change that captured recipe.
 
 Use `--model`, `--effort`, `--harness`, `--prompt` or `--cwd` to change the recipe for one request. `--prompt` replaces the kind instructions rather than appending; put ordinary task-specific guidance on the task bead. Bee automatically mints a friendly name and records it as the assignee. The requester is the actor creating the bead, selected by `--actor` or `BD_ACTOR`; the human owner comes from configuration. Neither is the spawned agent's identity.
 
 Repository discovery defaults to the current directory and can be selected with `--repo`. Tracker selection is explicit through `--beads-db` or `BEADS_DB`. Blocked tasks can be submitted and wait for eligibility. Unknown kinds, human reservations and overlapping open spawn requests fail. A named harness may be supplied by a later Colony formula update; Bee does not require it to exist in the current file's formula map.
+
+## Kind files
+
+Configuration lives in the canonical worktree's `.hive/bees.toml`. Keep repository policy, formulas and any inline `[kinds.NAME]` definitions there. You can also place each kind in an immediate subfolder of `.hive/bees/`:
+
+```text
+.hive/
+  bees.toml
+  bees/
+    code-review/
+      bee.toml
+      prompt.md
+```
+
+The folder name is organizational; `name` in `bee.toml` declares the kind:
+
+```toml
+name = "reviewer"
+description = "Review code changes against repository standards."
+harness = "codex"
+model = "gpt-6-astra"
+effort = "high"
+```
+
+The sibling `prompt.md` supplies the prompt verbatim. It must exist and be nonempty; folder definitions accept neither inline `prompt` nor `prompt_file`. Every immediate kind directory must contain both files. Discovery is nonrecursive and includes real directories, not directory symlinks. The central file is required, but its `kinds` table and the entire `bees/` directory may be omitted.
+
+A central `[kinds.NAME]` definition replaces the **whole** matching folder definition, not individual fields. `bee kinds` reports these conflicts as warnings (in JSON, the `warnings` array). Duplicate folder definitions without a central winner fail. Malformed definitions and missing prompts fail even when a central definition shadows them.
+
+Spawn, retry, manual launch and Colony policy loading share this discovery path. Worktree-local configuration and root-level `bees.toml` are not read. Existing captured recipes remain unchanged when configuration or prompt files are edited.
 
 ## Retry an unsuccessful request
 
@@ -104,7 +133,7 @@ bun run lib/colony/bin/bee.ts retry <spawn-id> \
   --repo /path/to/repository --beads-db "$BEADS_DB" --actor <requester> --json
 ```
 
-`retry` accepts an unresolved request closed as `exhausted`, `claim_failed` or `blocked`. It carries only unfinished related tasks and the old kind choice into a new request. The entire recipe comes from **current canonical `bees.toml` defaults**, followed by explicit `--model`, `--effort`, `--harness`, `--prompt` and `--cwd` overrides. Use `--kind` to select another kind. No captured old recipe values are merged, including execution directory or prompt. The new request gets a new automatically generated friendly identity and its own fresh automatic retry budget under Colony policy.
+`retry` accepts an unresolved request closed as `exhausted`, `claim_failed` or `blocked`. It carries only unfinished related tasks and the old kind choice into a new request. The entire recipe comes from [current canonical kind defaults](#kind-files), including file-backed prompts, followed by explicit `--model`, `--effort`, `--harness`, `--prompt` and `--cwd` overrides. Use `--kind` to select another kind. No captured old recipe values are merged, including execution directory or prompt. The new request gets a new automatically generated friendly identity and its own fresh automatic retry budget under Colony policy.
 
 Human reservations and overlapping open requests still refuse admission. No unfinished tasks also refuses retry. Creation records a native `supersedes` relationship from replacement to original, separately from `related` task links. A failed submission leaves the original unresolved. The old closure reason, recipe, identity, observations and execution history remain unchanged.
 
@@ -126,7 +155,7 @@ bun run lib/colony/bin/bee.ts list --all --repo /path/to/repo --beads-db /path/t
 bun run lib/colony/bin/bee.ts stop <spawn-id> --repo /path/to/repo --beads-db /path/to/beads.db --actor operator
 ```
 
-These commands use only Beads and repository discovery. They need neither `bees.toml` nor a running daemon. `list` defaults to open requests and unresolved failures; `--all` also includes resolved history. `status` reports the captured recipe, friendly identity, linked task status and native readiness, request closure and the timestamp of the latest recorded Colony observation. Native task readiness is separate from Colony's capacity and claim decisions.
+These commands use only Beads and repository discovery. They need neither `.hive/bees.toml` nor a running daemon. `list` defaults to open requests and unresolved failures; `--all` also includes resolved history. `status` reports the captured recipe, friendly identity, linked task status and native readiness, request closure and the timestamp of the latest recorded Colony observation. Native task readiness is separate from Colony's capacity and claim decisions.
 
 For native listings, run `br query run bee-attention --db "$BEADS_DB" --json` after [installing the preset](../../docs/agents/spawn-requests.md#saved-presets). It includes closed unsuccessful requests that remain unresolved. Bee status also exposes the finite `disposition` and whether its native label publication is current.
 
@@ -140,7 +169,7 @@ An awake Colony publishes the first actual output on reconciliation, then change
 
 ## Review quiet bees with a drone
 
-In canonical `bees.toml`, set the top-level `inactivity_drone = "inspector"` and define `[kinds.inspector]` with a selection `description` and your chosen `harness`, `model`, `effort` and `prompt`. Its harness needs a matching formula. No model is hardcoded. Omitting `inactivity_drone` disables reviews; fresh wake/reset loads changes. `colony config show --json` exposes the active kind as `active.inactivityDrone`, or `null` when disabled. For example, merge these settings into the existing configuration:
+In canonical `.hive/bees.toml`, set the top-level `inactivity_drone = "inspector"` and define `[kinds.inspector]` with a selection `description` and your chosen `harness`, `model`, `effort` and `prompt`. Its harness needs a matching formula. No model is hardcoded. Omitting `inactivity_drone` disables reviews; fresh wake/reset loads changes. `colony config show --json` exposes the active kind as `active.inactivityDrone`, or `null` when disabled. For example, merge these settings into the existing configuration:
 
 ```toml
 inactivity_drone = "inspector"
@@ -179,7 +208,7 @@ bun run lib/colony/bin/colony.ts daemon stop --state /path/to/server-state --jso
 
 `wake` starts the selected server lazily when needed and registers the repository's canonical root together with its tracker. Repeated wake calls reuse the server. Each registered repository has its own loop and configuration. Workers receive that repository's selected tracker even when the daemon or worker runs elsewhere.
 
-`colony add` registers a repository asleep; `colony list` shows membership, intended activity and observed state. `add`, `wake`, `sleep` and `remove` all accept `--repo` and `--beads-db`. Adding existing membership preserves its activity. Durable awake colonies resume after daemon restart; sleeping ones remain asleep. Each fresh wake reloads canonical `bees.toml`.
+`colony add` registers a repository asleep; `colony list` shows membership, intended activity and observed state. `add`, `wake`, `sleep` and `remove` all accept `--repo` and `--beads-db`. Adding existing membership preserves its activity. Durable awake colonies resume after daemon restart; sleeping ones remain asleep. Each fresh wake reloads canonical `.hive/bees.toml`.
 
 `colony sleep` drains the current scheduling pass before acknowledging. It then performs no polling, dispatch or reconciliation, while detached workers continue. `colony remove` also drops registry membership and retains execution records; its result lists those attempts. Re-adding the same repository uses the same tracker authority while those records exist.
 
@@ -277,7 +306,7 @@ The request must be open, assigned to a friendly identity, and carry the [spawn 
 
 ## Harness formulas
 
-The canonical `bees.toml` maps harness names to executable and argument tokens:
+The canonical `.hive/bees.toml` maps harness names to executable and argument tokens:
 
 ```toml
 owner = "ct"
@@ -388,7 +417,7 @@ Only formulas and limits can change this way. Recipe defaults and captured reque
 
 `--actor` takes precedence over `BD_ACTOR` for updates and resets. Each accepted change has an immutable policy revision, and each daemon attempt records the revision it actually used beside its rendered invocation. Generic inspection lists formula names and revision metadata without printing executable arguments. Full snapshots and execution receipts remain in private server state.
 
-Overrides last until a fresh wake, daemon recovery wake or explicit reset reloads canonical `bees.toml`. History survives those resets. Canonical loads record their source without inventing a file author. Configuration commands do not start a daemon; update and reset require an awake colony.
+Overrides last until a fresh wake, daemon recovery wake or explicit reset reloads canonical `.hive/bees.toml`. History survives those resets. Canonical loads record their source without inventing a file author. Configuration commands do not start a daemon; update and reset require an awake colony.
 
 ## Verification
 

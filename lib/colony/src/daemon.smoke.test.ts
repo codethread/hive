@@ -109,10 +109,10 @@ test(
 						"--json",
 					]);
 					await writeWorker(repo, task.id);
-					const canonicalConfig = await Bun.file(join(repo, "bees.toml")).text();
+					const canonicalConfig = await Bun.file(join(repo, ".hive", "bees.toml")).text();
 					const config = canonicalConfig.replace('ranking = "bv-pagerank"', 'ranking = "fifo"');
 					await Bun.write(
-						join(repo, "bees.toml"),
+						join(repo, ".hive", "bees.toml"),
 						`${config}\n[formulas.fixture]\nexecutable=${JSON.stringify(process.execPath)}\nargv=[${JSON.stringify(join(repo, "worker.ts"))}]\n`,
 					);
 					const created = JSON.parse(
@@ -154,8 +154,8 @@ test(
 				reason: "operation_failed",
 			});
 			// A rejected wake can leave a successfully started daemon before any PID was returned.
-			const firstConfig = await Bun.file(join(first, "bees.toml")).text();
-			await Bun.write(join(first, "bees.toml"), "invalid canonical config");
+			const firstConfig = await Bun.file(join(first, ".hive", "bees.toml")).text();
+			await Bun.write(join(first, ".hive", "bees.toml"), "invalid canonical config");
 			await expect(
 				client(["wake", "--repo", first, "--beads-db", join(first, ".beads", "beads.db")]),
 			).rejects.toBeInstanceOf(Error);
@@ -166,7 +166,7 @@ test(
 					() => false,
 				),
 			).toBe(false);
-			await Bun.write(join(first, "bees.toml"), firstConfig);
+			await Bun.write(join(first, ".hive", "bees.toml"), firstConfig);
 			// The first public wake owns lazy startup; the second registers with that server.
 			/* eslint-disable no-await-in-loop -- Sequential wakes make server reuse explicit. */
 			for (const repo of repos) {

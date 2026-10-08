@@ -63,7 +63,7 @@ Colony owns the CLI and runtime in one package. Bee remains the request interfac
 | `lib/colony` | Bee request interface and Colony commands, daemon hosting independent repository colonies, dispatch, claims, retries, supervision and recovery |
 | `lib/shared` | Shared recipes, formulas, spawn-request representation, protocol and Beads I/O |
 | `lib/honeycomb` | Git worktree manager and canonical-root discovery |
-| Scent (planned) | Native session/child identity hooks and Pi extension; independent of `bees.toml` |
+| Scent (planned) | Native session/child identity hooks and Pi extension; independent of `.hive/bees.toml` |
 
 The following session-based identity bindings remain Scent design requirements. Current Bee names are minted at submission or supplied by the requester; execution attempts retain that name.
 
@@ -79,7 +79,7 @@ Friendly names are recorded as actors. Native sessions use their harness session
 
 ### Bee configuration and lifecycle
 
-Canonical `bees.toml` separates kind defaults from named harness formulas. Bee captures a recipe, friendly identity and related task links at submission. An awake colony applies current policy, acquires task claims, and starts an execution attempt. `colony wake` may lazily start the selected daemon; explicit repository, tracker and server targets remain independent.
+Canonical `.hive/bees.toml` separates kind defaults from named harness formulas. Bee captures a recipe, friendly identity and related task links at submission. An awake colony applies current policy, acquires task claims, and starts an execution attempt. `colony wake` may lazily start the selected daemon; explicit repository, tracker and server targets remain independent.
 
 Task completion determines success. Colony closes a satisfied request, reconciles external request closure, stops verified owned execution before releasing eligible claims, and retries unfinished work within configured limits. Sleeping drains the active dispatch pass, then pauses reconciliation while detached workers continue. Removal retains request and attempt history. These behaviors have real process/tracker smoke coverage; they do not establish native Scent hooks or arbitrary daemonized-descendant ownership.
 

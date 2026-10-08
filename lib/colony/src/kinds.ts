@@ -1,7 +1,6 @@
 import type { BeeKind, BeesConfig } from "@hive/shared";
-import { canonicalRoot, kindSchema, parseBeesConfig } from "@hive/shared";
-// eslint-disable-next-line import/no-nodejs-modules -- Load configuration from the canonical repository.
-import { join } from "node:path";
+import { canonicalRoot, kindSchema } from "@hive/shared";
+import { loadBeesConfig } from "./config.ts";
 import { z } from "zod";
 
 const summarySchema = z.strictObject({
@@ -17,6 +16,8 @@ const summaryResultSchema = z.strictObject({
 	kind: z.literal("bee_kinds"),
 	/** Visible kind names and descriptions. */
 	kinds: z.array(summarySchema),
+	/** Configuration conflicts resolved in favor of central definitions. */
+	warnings: z.array(z.string()),
 });
 const fullResultSchema = summaryResultSchema.extend({
 	/** Full configuration was explicitly requested. */
@@ -73,8 +74,8 @@ export async function listKinds(
 	options: KindOptions,
 ): Promise<KindsResult> {
 	const root = await canonicalRoot(options.repo);
-	const config = parseBeesConfig(await Bun.file(join(root, "bees.toml")).text());
-	return discoverKinds(config, name, options);
+	const { config, warnings } = await loadBeesConfig(root);
+	return { ...discoverKinds(config, name, options), warnings };
 }
 
 /** Select the visible catalog; explicit named inspection bypasses discovery filtering. */
@@ -105,12 +106,14 @@ export function discoverKinds(
 				description: configuration.description,
 				name: target,
 			})),
+			warnings: [],
 		};
 	}
 	return {
 		detail: "summary",
 		kind: "bee_kinds",
 		kinds: entries.map(([target, kind]) => ({ description: kind.description, name: target })),
+		warnings: [],
 	};
 }
 

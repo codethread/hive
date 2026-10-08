@@ -438,7 +438,7 @@ test(
 async function writeFixture(input: { bin: string; realBr: string; root: string }): Promise<void> {
 	const { bin, realBr, root } = input;
 	await Bun.write(
-		join(root, "repo", "bees.toml"),
+		join(root, "repo", ".hive", "bees.toml"),
 		`owner="ct"
 humans=["ct"]
 ranking="fifo"

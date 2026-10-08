@@ -124,10 +124,10 @@ test(
 						"--json",
 					]);
 					await writeWorker(repo);
-					const canonicalConfig = await Bun.file(join(repo, "bees.toml")).text();
+					const canonicalConfig = await Bun.file(join(repo, ".hive", "bees.toml")).text();
 					const config = canonicalConfig.replace('ranking = "bv-pagerank"', 'ranking = "fifo"');
 					await Bun.write(
-						join(repo, "bees.toml"),
+						join(repo, ".hive", "bees.toml"),
 						`${config}\n[formulas.fixture]\nexecutable=${JSON.stringify(process.execPath)}\nargv=[${JSON.stringify(join(repo, "worker.ts"))}, "original"]\n`,
 					);
 				}),
@@ -166,8 +166,11 @@ test(
 			const sleeping = await colony(target);
 			expect(sleeping?.attempts).toHaveLength(ONE);
 			expect(alive(worker.pid)).toBe(true);
-			const config = await Bun.file(join(target, "bees.toml")).text();
-			await Bun.write(join(target, "bees.toml"), config.replace('"original"', '"refreshed"'));
+			const config = await Bun.file(join(target, ".hive", "bees.toml")).text();
+			await Bun.write(
+				join(target, ".hive", "bees.toml"),
+				config.replace('"original"', '"refreshed"'),
+			);
 			await operation("wake", target);
 			await until("fresh formula used", () => started(target, pending.identity));
 			const refreshed = await Bun.file(join(target, `${pending.identity}.json`)).json();

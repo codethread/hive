@@ -18,8 +18,9 @@ import { adjectives, animals, colors, uniqueNamesGenerator } from "unique-names-
 // eslint-disable-next-line import/no-nodejs-modules -- Canonical config and submission cwd paths.
 import { join, resolve } from "node:path";
 // eslint-disable-next-line import/no-nodejs-modules -- Exclusive configuration creation and execution directory validation.
-import { open, realpath, stat } from "node:fs/promises";
+import { mkdir, open, realpath, stat } from "node:fs/promises";
 import type { InitOptions } from "./cli.ts";
+import { loadBeesConfig } from "./config.ts";
 import { z } from "zod";
 
 const NAME_WORDS = 3;
@@ -38,9 +39,11 @@ export interface SpawnResult {
 	request: { id: string; assignee: string; [key: string]: unknown };
 }
 export async function initRepository(options: InitOptions): Promise<InitializedResult> {
-	const path = join(await canonicalRoot(options.repo), "bees.toml");
+	const directory = join(await canonicalRoot(options.repo), ".hive");
+	const path = join(directory, "bees.toml");
 	const content = initialConfig(options);
 	parseBeesConfig(content);
+	await mkdir(directory, { recursive: true });
 	const file = await open(path, "wx");
 	try {
 		await file.writeFile(content);
@@ -99,7 +102,7 @@ async function createRequest(
 	options: SpawnOptions,
 ): Promise<SpawnResult> {
 	const { kind, requestedIds, supersedes } = input;
-	const config = parseBeesConfig(await Bun.file(join(endpoint.root, "bees.toml")).text());
+	const { config } = await loadBeesConfig(endpoint.root);
 	const ids = await admitTasks(endpoint, { actor: options.actor, ids: requestedIds }, config);
 	const recipe = await captureRecipe({ ids, kind, options }, config);
 	const identity = uniqueNamesGenerator({

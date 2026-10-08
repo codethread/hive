@@ -19,7 +19,7 @@ Shared is used where two actual consumers need the same meaning. It is not a hom
 ## Bee and Colony request flow
 
 ```text
-bee spawn -> canonical bees.toml + selected Beads database
+bee spawn -> canonical .hive configuration + selected Beads database
                  | capture recipe, identity, related tasks
                  v
              spawn bead <----------------------- bee status/list/stop
@@ -43,7 +43,7 @@ The [spawn-request model](../lib/shared/src/spawn-request.ts) owns the Beads rep
 
 Outcome and resolution labels project native closure and supersession for native Beads queries. The [spawn state contract](./agents/spawn-requests.md) defines their finite values, authority, saved presets and recovery when publication is interrupted. Scheduling continues to use native lifecycle facts and private checkpoints.
 
-Bee submission reads kind defaults from canonical `bees.toml` and captures a recipe. Bee inspection and closure need only the selected Beads endpoint, not configuration or a daemon. Closing the request does not directly signal a process: an awake colony reconciles the closure, while an asleep colony waits for wake. Last-recorded observations are deliberately separate from native request state and are never used as execution authority.
+Colony's [configuration loader](../lib/colony/src/config.ts) reads canonical `.hive/bees.toml` and `.hive/bees/*/bee.toml` with sibling prompts. Central definitions take precedence; discovery diagnostics are data for the CLI, not runtime logging. Shared owns shape and effective-configuration validation, while Colony owns filesystem discovery and precedence. Bee submission uses the resulting kind defaults and captures a recipe. Bee inspection and closure need only the selected Beads endpoint, not configuration or a daemon. Closing the request does not directly signal a process: an awake colony reconciles the closure, while an asleep colony waits for wake. Last-recorded observations are deliberately separate from native request state and are never used as execution authority.
 
 Colony control commands cross a different seam. The [client](../lib/colony/src/client.ts) selects a socket and state directory and speaks the [Shared protocol](../lib/shared/src/colony-protocol.ts). The [Colony server](../lib/colony/src/server.ts) owns registration, awake intent and policy changes. Only `add` and `wake` start an absent server. The CLI launches its internal [`runtime.ts`](../lib/colony/bin/runtime.ts) entrypoint as a separate process. Package consolidation preserves this process boundary and Unix-socket IPC. Detached supervisors start through [`worker.ts`](../lib/colony/bin/worker.ts) and outlive both CLI calls and daemon exits.
 
@@ -56,7 +56,7 @@ Inside Colony, [Colony's XState machine](../lib/colony/src/colony.ts) owns awake
 | Task state and assignment | Native Beads, changed by task actors and Colony's explicit claim/release operations | Whether work is complete or available to the request identity |
 | Spawn request and closure | Native Beads; Bee creates/closes requests, Colony consumes and settles them | The requested recipe, identity, work links and request outcome; closure alone does not prove a worker has stopped |
 | Last Colony observation | Native timestamped Beads comment published by Colony | What was last observed; it may be stale while asleep or unavailable |
-| Canonical defaults and policy | Canonical `bees.toml` | Defaults for new recipes and policy loaded on wake/reset; existing captured recipes do not change |
+| Canonical defaults and policy | Canonical `.hive/bees.toml` and `.hive/bees/` kind files | Defaults for new recipes and policy loaded on wake/reset; existing captured recipes do not change |
 | Registration, checkpoints and revision history | Colony's private SQLite store | Durable awake intent, attempts and recovery checkpoints; transient policy is reloaded from canonical configuration on recovery |
 | Attempt receipt and process artifacts | Colony and its detached supervisor | Captured invocation and ownership evidence for one attempt; process fingerprints must be verified before adoption or signalling |
 | Child stdout and stderr | Per-attempt local log files | Execution diagnostics; they are not copied into Beads |

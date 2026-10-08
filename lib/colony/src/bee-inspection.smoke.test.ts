@@ -124,8 +124,8 @@ test(
 			const blocker = await tracker(target, ["create", "--title", "Dependency", "--owner", "ct"]);
 			await tracker(target, ["dep", "add", queued.task, blocker.id]);
 			await cp(join(target, ".beads"), join(alternate, ".beads"), { recursive: true });
-			const canonical = await Bun.file(join(target, "bees.toml")).text();
-			await rm(join(target, "bees.toml"));
+			const canonical = await Bun.file(join(target, ".hive", "bees.toml")).text();
+			await rm(join(target, ".hive", "bees.toml"));
 			const offline = await inspect(queued.spawn);
 			expect(offline).toMatchObject({
 				kind: "request_status",
@@ -167,7 +167,7 @@ test(
 			await expect(stop(queued.task)).rejects.toBeInstanceOf(Error);
 			expect(await Bun.file(join(state, "colony.sqlite")).exists()).toBe(false);
 			expect(await Bun.file(socket).exists()).toBe(false);
-			await Bun.write(join(target, "bees.toml"), canonical);
+			await Bun.write(join(target, ".hive", "bees.toml"), canonical);
 			const awake = await request(target, "Awake work");
 			await operation("wake", target);
 			const current = await client(["list"]);
@@ -262,7 +262,7 @@ test(
 // --- Private functions ---
 async function writeFixture(repo: string): Promise<void> {
 	await Bun.write(
-		join(repo, "bees.toml"),
+		join(repo, ".hive", "bees.toml"),
 		`owner="ct"
 humans=["ct"]
 ranking="fifo"

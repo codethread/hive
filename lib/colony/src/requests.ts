@@ -114,7 +114,7 @@ export interface RequestListResult {
 	requests: RequestView[];
 }
 
-/** Inspection needs only the selected tracker, never bees.toml or a daemon. */
+/** Inspection needs only the selected tracker, never .hive/bees.toml or a daemon. */
 export async function inspectRequest(
 	id: string,
 	options: InspectionOptions,

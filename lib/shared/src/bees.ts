@@ -70,7 +70,7 @@ export const beesConfigSchema = z.strictObject({
 	/** Named kind used for one-shot reviews after fifteen minutes without stdout; null disables reviews. */
 	// eslint-disable-next-line unicorn/no-null -- No configured drone means inactivity review is disabled.
 	inactivity_drone: z.string().min(NONEMPTY).nullable().default(null),
-	kinds: z.record(z.string(), kindSchema),
+	kinds: z.record(z.string(), kindSchema).default({}),
 	limits: limitsSchema.prefault({}),
 	max_retries: z.number().int().min(MINIMUM_CAPACITY).default(DEFAULT_RETRIES),
 	owner: z.string().min(NONEMPTY),
@@ -90,9 +90,14 @@ export type Limits = z.infer<typeof limitsSchema>;
 export type PolicyChange = z.infer<typeof policyChangeSchema>;
 
 /** Parse every formula eagerly; Handlebars.compile itself defers syntax checking. */
-// eslint-disable-next-line max-statements -- Validate configuration references and formula syntax together at the boundary.
 export function parseBeesConfig(text: string): BeesConfig {
 	const config = beesConfigSchema.parse(Bun.TOML.parse(text));
+	validateBeesConfig(config);
+	return config;
+}
+/** Validate the complete effective configuration after kind sources have been combined. */
+// eslint-disable-next-line max-statements -- Validate effective kind references and formula syntax together.
+export function validateBeesConfig(config: BeesConfig): void {
 	for (const [name, kind] of Object.entries(config.kinds)) {
 		let selectors: string[] = [];
 		if ("allow" in kind) {
@@ -109,7 +114,6 @@ export function parseBeesConfig(text: string): BeesConfig {
 	for (const formula of Object.values(config.formulas)) {
 		validateFormula(formula);
 	}
-	return config;
 }
 /** Compile and render the supported recipe shapes before installing a formula. */
 export function validateFormula(formula: Formula): void {

@@ -117,7 +117,7 @@ export async function runCli(argv: string[], deps: ColonyDependencies): Promise<
 		});
 	program
 		.command("init")
-		.description("Create canonical bees.toml without overwriting it")
+		.description("Create canonical .hive/bees.toml without overwriting it")
 		.option("--repo <directory>", "Repository discovery directory", ".")
 		.requiredOption("--owner <identity>", "Human request owner")
 		.requiredOption("--model <model>", "Default Codex worker model")

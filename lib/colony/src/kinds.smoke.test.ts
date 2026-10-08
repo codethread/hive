@@ -59,7 +59,7 @@ test(
 					.properties.prompt.type,
 			).toBe("string");
 			await execute(["git", "init"], repo, env);
-			await Bun.write(join(repo, "bees.toml"), CONFIG);
+			await Bun.write(join(repo, ".hive", "bees.toml"), CONFIG);
 			expect(JSON.parse(await run(["--json"])).kinds).toEqual([
 				{ description: "Advise on work.", name: "helper" },
 			]);
@@ -84,7 +84,7 @@ test(
 			];
 			for (const contents of invalid) {
 				// eslint-disable-next-line no-await-in-loop -- Each configuration must be observed before replacement.
-				await Bun.write(join(repo, "bees.toml"), contents);
+				await Bun.write(join(repo, ".hive", "bees.toml"), contents);
 				// eslint-disable-next-line no-await-in-loop -- Sequential mutations share this owned fixture.
 				await expect(run(["--json"])).rejects.toBeInstanceOf(Error);
 			}

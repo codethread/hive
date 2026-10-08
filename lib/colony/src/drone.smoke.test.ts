@@ -63,7 +63,7 @@ test(
 			await run(["git", "init"]);
 			await br(["init", "--prefix", "smoke"]);
 			await writeFixture(repo);
-			const config = parseBeesConfig(await Bun.file(join(repo, "bees.toml")).text());
+			const config = parseBeesConfig(await Bun.file(join(repo, ".hive", "bees.toml")).text());
 			const runtime = { config, repository, store };
 			// eslint-disable-next-line max-statements -- Reserve and launch a real current attempt through existing lifecycle boundaries.
 			const startTarget = async (title: string) => {
@@ -407,7 +407,7 @@ test(
 // --- Private functions ---
 async function writeFixture(repo: string): Promise<void> {
 	await Bun.write(
-		join(repo, "bees.toml"),
+		join(repo, ".hive", "bees.toml"),
 		`owner="ct"
 humans=["ct"]
 ranking="fifo"

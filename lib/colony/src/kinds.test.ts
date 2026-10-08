@@ -102,6 +102,7 @@ test("explicit inspection reveals a hidden kind while full prompts remain opt-in
 		detail: "summary",
 		kind: "bee_kinds",
 		kinds: [{ description: base.description, name: "internal" }],
+		warnings: [],
 	});
 	const full = discoverKinds(config, "internal", { all: false, verbose: true });
 	expect(full).toEqual({
@@ -110,6 +111,7 @@ test("explicit inspection reveals a hidden kind while full prompts remain opt-in
 		kinds: [
 			{ configuration: { ...base, hidden: true }, description: base.description, name: "internal" },
 		],
+		warnings: [],
 	});
 });
 

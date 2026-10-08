@@ -352,7 +352,7 @@ function exists(path: string): Promise<boolean> {
 }
 async function fixture(repo: string): Promise<void> {
 	await Bun.write(
-		join(repo, "bees.toml"),
+		join(repo, ".hive", "bees.toml"),
 		`owner="ct"
 humans=["ct"]
 ranking="fifo"

@@ -3,7 +3,6 @@ import {
 	beadSchema,
 	beads,
 	formulaSchema,
-	parseBeesConfig,
 	readSpawnRequest,
 	recipeSchema,
 	renderFormula,
@@ -13,6 +12,7 @@ import {
 import { join, resolve as resolvePath } from "node:path";
 // eslint-disable-next-line import/no-nodejs-modules -- Own process log files and canonicalize launch cwd.
 import { link, mkdir, open, realpath, rename, unlink } from "node:fs/promises";
+import { loadBeesConfig } from "./config.ts";
 import { match } from "ts-pattern";
 import { runOwnedExecution } from "./processes.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Launch the existing detached supervisor for ordinary attempts and drones.
@@ -95,7 +95,7 @@ export type Preparation =
 type Outcome = { kind: "exited"; code: number } | { kind: "failed"; message: string };
 
 export async function launch(request: LaunchRequest): Promise<unknown> {
-	const config = parseBeesConfig(await Bun.file(join(request.root, "bees.toml")).text());
+	const { config } = await loadBeesConfig(request.root);
 	const prepared = await prepareLaunch(request, config.formulas, crypto.randomUUID());
 	const receipt = match(prepared)
 		.with({ kind: "prepared" }, (value) => value.receipt)

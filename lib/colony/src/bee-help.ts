@@ -21,6 +21,10 @@ to include full configuration. An explicit kind name inspects that kind directly
 --schema returns a JSON response schema without reading configuration; combine
 it with --verbose for the full-detail schema. Both include the failure shape.
 
+Kinds load from canonical .hive/bees.toml and .hive/bees/*/bee.toml with sibling
+prompt.md files. Central definitions win duplicates. Warnings go to stderr for
+people or the warnings array in JSON output.
+
 Visibility guides selection only: it never restricts spawning. Caller allow
 lists override hidden; deny lists subtract from non-hidden kinds. #self means
 the caller's kind. Without caller context, all non-hidden kinds are visible.
@@ -76,7 +80,7 @@ Example:
   bee retry <spawn-id> --actor <identity> --json
 `,
 	spawn: `
-Submit task beads to the selected kind using canonical bees.toml defaults.
+Submit task beads to the selected kind using canonical .hive configuration defaults.
 Put the task-specific question and required result on the task bead. --prompt
 REPLACES the kind's instructions; it does not append to them. Other overrides
 affect only this request. Use an existing suitable checkout for --cwd, following

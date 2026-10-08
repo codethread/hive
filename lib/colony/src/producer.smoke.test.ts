@@ -59,20 +59,37 @@ test(
 				"initial-model",
 				"--json",
 			];
-			await run(init);
-			const initial = await Bun.file(join(repo, "bees.toml")).text();
+			const initialized = JSON.parse(await run(init));
+			expect(initialized.path).toBe(join(await realpath(repo), ".hive", "bees.toml"));
+			const initial = await Bun.file(join(repo, ".hive", "bees.toml")).text();
 			await Bun.write(
-				join(repo, "bees.toml"),
+				join(repo, ".hive", "bees.toml"),
 				initial.replace("[kinds.worker]", '[kinds.worker]\nhidden = true\ndeny = ["#self"]'),
 			);
 			await expect(
 				initRepository({ model: "initial-model", owner: "ct", repo: linked }),
 			).rejects.toBeInstanceOf(Error);
-			await Bun.write(join(linked, "bees.toml"), "invalid worktree config is ignored");
+			await Bun.write(join(linked, ".hive", "bees.toml"), "invalid worktree config is ignored");
 			const hidden = JSON.parse(
 				await run([process.execPath, bee, "kinds", "--repo", linked, "--as", "worker", "--json"]),
 			);
 			expect(hidden.kinds).toEqual([]);
+			await Bun.write(
+				join(repo, ".hive", "bees", "arbitrary", "bee.toml"),
+				'name="reviewer"\ndescription="Review changes."\nharness="codex"\nmodel="folder-model"\neffort="high"\n',
+			);
+			await Bun.write(join(repo, ".hive", "bees", "arbitrary", "prompt.md"), "Review from file.\n");
+			const review = await br(["create", "--title", "Review task", "--owner", "ct"]);
+			const folderRequest = await spawnRequest("reviewer", [review.id], {
+				actor: "requester-identity",
+				beadsDb: database,
+				repo: linked,
+			});
+			expect(JSON.parse(String(folderRequest.request.description))).toMatchObject({
+				kind: "reviewer",
+				model: "folder-model",
+				prompt: `Review from file.\n\n\nRelated tasks: ${review.id}`,
+			});
 			const first = await br(["create", "--title", "First task", "--owner", "ct"]);
 			const second = await br(["create", "--title", "Second task", "--owner", "ct"]);
 			const submit = [
@@ -150,9 +167,9 @@ test(
 				worker,
 				`await Bun.write(${JSON.stringify(output)},JSON.stringify({argv:Bun.argv.slice(2),cwd:process.cwd(),db:process.env.BEADS_DB}));`,
 			);
-			const config = await Bun.file(join(repo, "bees.toml")).text();
+			const config = await Bun.file(join(repo, ".hive", "bees.toml")).text();
 			await Bun.write(
-				join(repo, "bees.toml"),
+				join(repo, ".hive", "bees.toml"),
 				`${config.replace("initial-model", "changed-model")}\n[formulas.fixture]\nexecutable=${JSON.stringify(process.execPath)}\nargv=[${JSON.stringify(worker)},"{{model}}","{{effort}}"]\n`,
 			);
 			await run([
@@ -217,7 +234,7 @@ test(
 			const options = { actor: "requester-identity", beadsDb: database, repo };
 			await expect(spawnRequest("missing", [blocked.id], options)).rejects.toBeInstanceOf(Error);
 			await expect(spawnRequest("worker", [reserved.id], options)).rejects.toBeInstanceOf(Error);
-			const configPath = join(repo, "bees.toml");
+			const configPath = join(repo, ".hive", "bees.toml");
 			const config = await Bun.file(configPath).text();
 			await Bun.write(configPath, config.replace("default-model", "changed-model"));
 			const queued = await spawnRequest("worker", [blocked.id], options);
@@ -299,12 +316,14 @@ test(
 			const overlapped = await inspect(original.id);
 			expect(overlapped.needsAttention).toBe(true);
 			await bee(["stop", duplicate.request.id, "--actor", "seed"]);
-			const configPath = join(repo, "bees.toml");
+			const configPath = join(repo, ".hive", "bees.toml");
 			const config = await Bun.file(configPath).text();
+			await Bun.write(configPath, config.replace("initial-model", "current-model"));
 			await Bun.write(
-				configPath,
-				`${config.replace("initial-model", "current-model")}\n[kinds.other]\ndescription = "Execute the configured other role."\nharness="pi"\nmodel="other-model"\neffort="medium"\nprompt="Other instructions"\n`,
+				join(repo, ".hive", "bees", "retry-kind", "bee.toml"),
+				'name="other"\ndescription="Execute other work."\nharness="pi"\nmodel="other-model"\neffort="medium"\n',
 			);
+			await Bun.write(join(repo, ".hive", "bees", "retry-kind", "prompt.md"), "Other instructions");
 			const replacement = await retry(original.id);
 			const current = await inspect(replacement.id);
 			expect(replacement).toMatchObject({ created_by: "smoke-seed" });

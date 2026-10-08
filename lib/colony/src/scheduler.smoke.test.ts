@@ -260,7 +260,7 @@ async function writeConfig(
 	limits: { colony: number; kind: number; worktree: number },
 ): Promise<void> {
 	await Bun.write(
-		join(repo, "bees.toml"),
+		join(repo, ".hive", "bees.toml"),
 		`owner="ct"
 humans=["ct"]
 ranking="fifo"

@@ -427,7 +427,7 @@ async function writeFixture(input: {
 }): Promise<void> {
 	const { bin, fault, realBr, repo, root, state } = input;
 	await Bun.write(
-		join(repo, "bees.toml"),
+		join(repo, ".hive", "bees.toml"),
 		`owner="ct"
 humans=["ct"]
 ranking="fifo"
@@ -482,7 +482,7 @@ process.exit(code);
 `,
 	);
 	await chmod(join(bin, "br"), EXECUTABLE_MODE);
-	const config = parseBeesConfig(await Bun.file(join(repo, "bees.toml")).text());
+	const config = parseBeesConfig(await Bun.file(join(repo, ".hive", "bees.toml")).text());
 	await Bun.write(
 		join(root, "pass.ts"),
 		`
