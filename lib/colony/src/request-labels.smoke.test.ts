@@ -90,6 +90,44 @@ test(
 			await writeFixture({ bin, fault, realBr, repo, root, state });
 			const unfinished = await task("Unfinished work");
 			const original = await failedRequest(unfinished);
+			const accepted = await failedRequest(await task("Accepted unfinished work"));
+			const beforeAck = await show(accepted);
+			await fail(accepted);
+			const ackFailure = await commandFailure(() =>
+				bee(["ack", accepted, "--reason", "Handled separately"]),
+			);
+			expect(ackFailure).toMatchObject({
+				ok: false,
+				reason: "request_labels_pending",
+				requestId: accepted,
+			});
+			const pendingAck = await bee(["status", accepted]);
+			expect(pendingAck.request).toMatchObject({
+				disposition: { outcome: "failed", resolution: "resolved" },
+				labelPublication: "pending",
+				needsAttention: false,
+				resolution: { kind: "acknowledged" },
+			});
+			expect(await labels(accepted)).toEqual(["bee-outcome:failed", "bee-resolution:unresolved"]);
+			const storedAck = await show(accepted);
+			const commentsAfterAck = storedAck.comments;
+			await clear();
+			const repeatedAck = await bee([
+				"ack",
+				accepted,
+				"--actor",
+				"second-actor",
+				"--reason",
+				"Repeat to repair",
+			]);
+			expect(repeatedAck.request.acknowledgment).toEqual(pendingAck.request.acknowledgment);
+			expect(await labels(accepted)).toEqual(["bee-outcome:failed", "bee-resolution:resolved"]);
+			const repairedAck = await show(accepted);
+			expect(repairedAck.comments).toEqual(commentsAfterAck);
+			expect(repairedAck.close_reason).toBe(beforeAck.close_reason);
+			expect(repairedAck.closed_at).toBe(beforeAck.closed_at);
+			await pass();
+			expect(await show(accepted)).toEqual(repairedAck);
 			await br(["update", original, "--add-label", "area:colony"]);
 			expect(await labels(original)).toEqual(["bee-outcome:failed", "bee-resolution:unresolved"]);
 			await fail(original, "create");

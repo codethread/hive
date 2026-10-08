@@ -143,8 +143,8 @@ export async function prepareLaunch(
 	const { recipe, identity, taskIds } = readSpawnRequest(spawn);
 	const tasks = await Promise.all(taskIds.map((id) => showBead(request, identity, id)));
 	const ready = z
-		.array(beadSchema)
-		.parse(await beads(request, identity, ["ready", "--limit", "0"]));
+		.array(beadSchema.pick({ id: true }))
+		.parse(await beads(request, identity, ["ready", "--brief", "--limit", "0"]));
 	const eligible = eligibility(tasks, ready, identity);
 	if (eligible.kind !== "eligible") {
 		return eligible;
@@ -362,7 +362,11 @@ export async function launchBucket(cwd: string): Promise<string> {
 }
 
 /** Shared native-ready and reservation decision used before launch and by explain. */
-export function eligibility(tasks: Bead[], ready: Bead[], identity: string): Eligibility {
+export function eligibility(
+	tasks: Bead[],
+	ready: Pick<Bead, "id">[],
+	identity: string,
+): Eligibility {
 	if (tasks.length === EMPTY) {
 		return { kind: "waiting", reason: "Spawn request has no related tasks" };
 	}

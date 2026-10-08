@@ -20,7 +20,7 @@ These are the only valid combinations after publication:
 | `open` | `bee-outcome:pending` | `bee-resolution:unresolved` | Waiting, claiming, executing, settling or awaiting another automatic attempt. Pending does not mean a worker is running. |
 | `closed` | `bee-outcome:succeeded` | `bee-resolution:resolved` | Native close reason `completed`: all related tasks completed, including completion without a launch. |
 | `closed` | `bee-outcome:failed` | `bee-resolution:unresolved` | Native close reason `exhausted`, `claim_failed` or `blocked`; no replacement resolves the failure. |
-| `closed` | `bee-outcome:failed` | `bee-resolution:resolved` | A successfully created replacement has a native `supersedes` edge to this failed request. Original failure evidence remains intact. |
+| `closed` | `bee-outcome:failed` | `bee-resolution:resolved` | A native acknowledgment accepts this failed closure, or a successfully created replacement has a native `supersedes` edge to this request. Original failure evidence remains intact. |
 | `closed` | `bee-outcome:cancelled` | `bee-resolution:resolved` | Deliberate closure: `cancelled`, Bee's `Stopped by Bee`, or another operator close reason (including no reason). |
 
 `pending/resolved`, `succeeded/unresolved` and `cancelled/unresolved` are invalid. Multiple or unknown values in either namespace are invalid projections. Native statuses other than `closed` are interpreted as pending for inspection; Colony's spawn lifecycle uses `open` and `closed`. Reopening a terminal spawn does not reset its attempt history: use `bee retry` for a new request.
@@ -31,9 +31,26 @@ These are the only valid combinations after publication:
 - Completion publishes succeeded/resolved. Retry exhaustion, partial claim acquisition failure or explicit blocked handoff publishes failed/unresolved. `bee stop` closes an open request and publishes cancelled/resolved.
 - `bee retry` first admits and creates a new request with `replacement --supersedes--> original`. Only that successful creation resolves the original. Reservation, duplicate, invalid recipe or native creation failure leaves the original unresolved.
 - A replacement failing becomes independently failed/unresolved. Its predecessor stays failed/resolved. Following `related` edges finds work; following `supersedes` finds replacement provenance.
-- Repeating `bee stop` on a closed request preserves its outcome and resolution. It does not acknowledge a failure. Explicit acknowledgment remains separate work in hv-45f.4; do not resolve failures by manually editing labels.
+- `bee ack` records explicit acceptance of a failed closure and publishes failed/resolved. It preserves the outcome, execution history and task states. Repeating it preserves the recorded acknowledgment and repairs pending labels. A superseded failure already has a resolution: `ack` repairs its labels without adding an acknowledgment.
+- Repeating `bee stop` on a closed request preserves its outcome and resolution. It does not acknowledge a failure; use `bee ack`, not manual label edits.
 
-`bee status <id> --json` exposes `disposition: {outcome, resolution}` with the table's values, `needsAttention`, and `labelPublication: "current" | "pending"`. Its existing `resolution` detail is `{kind: "unresolved"}`, `{kind: "resolved"}`, or `{kind: "superseded", replacementIds: [...]}`. `superseded` is provenance detail, not a third resolution-label value. Replacement status includes `supersedes` IDs. Exact old-ID inspection retains the original recipe, identity, closure, task links and observations.
+`bee status <id> --json` exposes `disposition: {outcome, resolution}` with the table's values, `needsAttention`, and `labelPublication: "current" | "pending"`. Its `resolution` detail is `{kind: "unresolved"}`, `{kind: "resolved"}`, `{kind: "acknowledged"}`, or `{kind: "superseded", replacementIds: [...]}`. Acknowledgment and supersession are provenance details, not additional resolution-label values. `acknowledgment` is `null` or `{actor, acknowledgedAt, reason}`; it remains visible when supersession takes precedence. Replacement status includes `supersedes` IDs. Exact old-ID inspection retains the original recipe, identity, closure, task links and observations.
+
+## Acknowledge an accepted failure
+
+```sh
+bee ack SPAWN_ID --actor codex --reason "Work completed separately" --json
+```
+
+The command accepts closed failed requests (`exhausted`, `claim_failed`, or `blocked`). It needs only the selected repository and Beads database; it does not query a daemon or require configuration. `--actor` overrides `BD_ACTOR`; a nonblank actor and `--reason` are required. The actor is the identity accepting the failure, independent of the request's friendly assignee and human owner. Success returns `kind: "request_acknowledged"`, repository selection and compact request resolution facts, including acknowledgment details; it omits recipes and task lists.
+
+Acknowledgment records acceptance, not task completion or proof of stopped execution. It does not change closure, claims, tasks, recipes or processes. It removes the failure from default `bee list` and the native `bee-attention` query once labels are published; `--all` and exact inspection preserve history. `bee retry` continues to accept only unresolved failures, so it refuses an acknowledged request. If replacement work is intended, retry before acknowledging.
+
+The authoritative record is a native comment prefixed `Bee acknowledgment:` with strict JSON `{closedAt, reason}`. `closedAt` matches the request's native closure timestamp exactly. Native comment author and creation time supply `actor` and `acknowledgedAt`; their timestamp precision is preserved. This explicit resolution fact is separate from Colony's historical execution observations. Shared derives resolution; the existing label publisher projects it for queries.
+
+Sequential repeats retain the original actor, time and reason, even if a later caller supplies different values. If competing acknowledgment records arrive through synchronization, select the earliest native creation time, breaking ties by raw author and comment-text ordering; local comment IDs are not stable across trackers. All comments remain as evidence. This deterministic selection does not promise globally serialized first-writer authority, and an earlier imported record can change the selected acknowledgment. Supersession takes precedence over acknowledgment without deleting it. Records for another closure do not resolve the current failure; reopening a terminal spawn remains unsupported.
+
+The native comment is written before label publication. If publication fails, `request_labels_pending` identifies the request and `bee status` can already show resolved with pending labels. Repeat `bee ack` after fixing the tracker failure to repair publication without another comment. Waking Colony alone does not repair this failed/unresolved label pair; the existing automatic repair scan covers closed requests still labeled pending.
 
 ## Report your own execution finished
 
@@ -98,7 +115,7 @@ br search 'TASK_ID_OR_TEXT' --label system --label bee --all --limit 0 --db "$BE
 br show SPAWN_ID --db "$BEADS_DB" --json
 ```
 
-For a selected tracker outside the project environment, replace `"$BEADS_DB"` with its absolute database path. Omit `--json` for human output. `bee list` remains available: its default includes open requests and unresolved failures; `bee list --all` includes resolved history.
+For a selected tracker outside the project environment, replace `"$BEADS_DB"` with its absolute database path. Omit `--json` for human output. `bee list` discovers candidates with `system` + `bee` + `bee-resolution:unresolved`, including closed records, then checks native closure, acknowledgment and supersession before loading matching requests' tasks. An acknowledgment or replacement whose labels are still unpublished is therefore excluded without fetching its tasks. `bee list --all` includes resolved history without the resolution-label filter. Use `--all` or exact `bee status` to inspect records with missing or incorrect resolution labels; default listing does not scan history to compensate for those projections.
 
 ## Saved presets
 

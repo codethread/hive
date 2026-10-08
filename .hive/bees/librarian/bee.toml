@@ -1,0 +1,5 @@
+name = "librarian"
+description = "Curate architectural intent: consult on unclear designs, review architectural alignment, or discuss recurring confusion. Encode settled decisions in architecture docs and preserve evidence in Beads; leave style and test quality to reviewer."
+harness = "codex"
+model = "gpt-6-astra"
+effort = "xhigh"

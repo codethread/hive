@@ -1,4 +1,18 @@
 export const HELP = {
+	ack: `
+Accept a terminal failure that no longer needs attention. The failed outcome,
+execution evidence and linked tasks stay unchanged. This uses only the selected
+Beads tracker; configuration and a running Colony are not required.
+
+--actor overrides BD_ACTOR; one must supply a nonempty identity. --reason records
+why the failure is accepted. Native Beads records the actor and acknowledgment
+time. Repeating ack preserves the original acknowledgment and repairs its query
+labels if publication was interrupted. Superseded requests already have a
+resolution; use bee status to inspect their replacement provenance.
+
+Example:
+  bee ack <spawn-id> --actor <identity> --reason "Work completed separately" --json
+`,
 	finish: `
 For the bee executing linked tasks, using the injected execution context.
 Preserve BEADS_DB and BD_ACTOR; use the supplied assignment and working directory.

@@ -1,8 +1,10 @@
 import {
+	BEE_ACKNOWLEDGMENT_PREFIX,
 	COLONY_STDOUT_PREFIX,
 	latestColonyObservation,
 	latestStdoutActivity,
 	projectedRequestLabels,
+	requestAcknowledgment,
 	requestDisposition,
 	requestLabelsCurrent,
 	requestNeedsAttention,
@@ -154,4 +156,74 @@ test("publication normalizes both namespaces and retains unrelated labels", () =
 	const published = { ...bead, labels };
 	expect(requestLabelsCurrent(published)).toBe(true);
 	expect(projectedRequestLabels(published)).toEqual(labels);
+});
+
+// eslint-disable-next-line max-statements -- One closure fixture checks acceptance, native attribution and competing provenance together.
+test("the first acknowledgment of this closure resolves attention with native attribution", () => {
+	const closedAt = "2026-10-04T10:00:00.123456Z";
+	const comment = { author: "operator", created_at: "2026-10-04T11:00:00Z", issue_id: original.id };
+	const first = {
+		...comment,
+		id: 2,
+		text: `${BEE_ACKNOWLEDGMENT_PREFIX} ${JSON.stringify({ closedAt, reason: "Handled elsewhere" })}`,
+	};
+	const bead = {
+		...original,
+		closed_at: closedAt,
+		comments: [
+			{
+				...comment,
+				author: "z-later-operator",
+				id: 3,
+				text: `${BEE_ACKNOWLEDGMENT_PREFIX} ${JSON.stringify({ closedAt, reason: "Later acknowledgment" })}`,
+			},
+			{
+				...comment,
+				id: 1,
+				text: `${BEE_ACKNOWLEDGMENT_PREFIX} ${JSON.stringify({ closedAt: "earlier closure", reason: "Old acknowledgment" })}`,
+			},
+			first,
+		],
+	};
+	expect(requestResolution(bead)).toEqual({ kind: "acknowledged" });
+	expect(requestAcknowledgment(bead)).toEqual({
+		acknowledgedAt: comment.created_at,
+		actor: comment.author,
+		reason: "Handled elsewhere",
+	});
+	expect(
+		requestAcknowledgment({
+			...bead,
+			comments: bead.comments.map((entry, index) => ({ ...entry, id: index })),
+		}),
+	).toEqual(requestAcknowledgment(bead));
+	expect(requestDisposition(bead)).toEqual({ outcome: "failed", resolution: "resolved" });
+	expect(requestNeedsAttention(bead)).toBe(false);
+	expect(projectedRequestLabels(bead)).toEqual(["bee-outcome:failed", "bee-resolution:resolved"]);
+	expect(requestNeedsAttention({ ...bead, closed_at: "another closure" })).toBe(true);
+	expect(requestResolution({ ...bead, status: "open" })).toEqual({ kind: "unresolved" });
+	expect(requestResolution({ ...bead, close_reason: "completed" })).toEqual({ kind: "resolved" });
+	expect(
+		requestResolution({
+			...bead,
+			dependents: [{ dependency_type: "supersedes", id: "replacement" }],
+		}),
+	).toEqual({ kind: "superseded", replacementIds: ["replacement"] });
+});
+
+test("malformed acknowledgment evidence fails visibly", () => {
+	const bead = {
+		...original,
+		closed_at: "closure",
+		comments: [
+			{
+				author: "operator",
+				created_at: "fixture",
+				id: 1,
+				issue_id: original.id,
+				text: `${BEE_ACKNOWLEDGMENT_PREFIX} {}`,
+			},
+		],
+	};
+	expect(() => requestResolution(bead)).toThrow(Error);
 });

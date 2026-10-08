@@ -35,7 +35,7 @@ Register each exact value and its **label steward** here. Stewardship is authori
 
 | Registered label | Specialist steward | Evidence contract |
 | --- | --- | --- |
-| `evidence:architecture` | `librarian` | Architectural evidence in the `librarian` kind's prompt in [.hive/bees.toml](../.hive/bees.toml) |
+| `evidence:architecture` | `librarian` | Architectural evidence in the `librarian` kind's prompt in [.hive/bees/librarian/prompt.md](../.hive/bees/librarian/prompt.md) |
 
 Only the registered specialist may add or remove its evidence label, and only within explicitly authorized curation scope. Task ownership, a specialist's read-only recommendation, or reading its instructions does not transfer stewardship. A coordinating agent delegates filing to the steward rather than applying the label itself. Other agents may retrieve the records and propose corrections; they preserve labels they do not steward. Ordinary label permissions above remain unchanged. These are agent-workflow rules, not CLI-enforced access control.
 

@@ -139,7 +139,19 @@ Human reservations and overlapping open requests still refuse admission. No unfi
 
 `status <old-id>` shows `resolution: {kind: "superseded", replacementIds: [...]}` and the replacement ID in human output. Replacement status exposes `supersedes` IDs. Completed and intentionally cancelled requests resolve automatically; `exhausted`, `claim_failed` and `blocked` requests with unresolved resolution have `needsAttention: true`. A replacement that fails needs attention independently of its resolved predecessor. `--all` retains resolved requests in discovery.
 
-For the complete outcome/resolution label values, valid combinations, native attention/history queries and publication recovery, read the [spawn state and query reference](../../docs/agents/spawn-requests.md). Explicit acknowledgment remains separate planned work (hv-45f.4).
+For the complete outcome/resolution label values, valid combinations, native attention/history queries and publication recovery, read the [spawn state and query reference](../../docs/agents/spawn-requests.md).
+
+## Acknowledge a failure
+
+```sh
+bee ack <spawn-id> --actor <identity> --reason "Work completed separately" --json
+```
+
+Use `ack` when a closed failed request no longer needs attention. It records the accepting actor, native acknowledgment time and reason, preserves the failed outcome and execution history, and leaves linked tasks and processes unchanged. `--actor` overrides `BD_ACTOR`; a nonblank identity and reason are required. Acknowledgment works offline against the selected tracker without configuration or a running daemon.
+
+Acknowledged failures leave default `bee list` and the native attention query; exact `bee status` and `bee list --all` retain them and show `acknowledgment: {actor, acknowledgedAt, reason}`. The compact acknowledgment result includes resolution facts without the recipe or task list. Repeating `ack` preserves the original record, even with a different actor/reason, and repairs interrupted label publication. Already-superseded failures return their replacement resolution without a new acknowledgment. `bee retry` accepts only unresolved failures, so choose retry before acknowledgment when replacement work is needed.
+
+See the [acknowledgment contract](../../docs/agents/spawn-requests.md#acknowledge-an-accepted-failure) for native authority, competing records and recovery. A label-publication failure requires a repeat command after correcting the tracker problem; waking Colony alone does not repair acknowledgment labels.
 
 ## Report completion from a bee
 
@@ -259,19 +271,19 @@ History excludes recipes, full prompts, checkpoint free text, raw command output
 
 Without `--json`, successful commands print readable results on stdout and diagnostics on stderr. With `--json`, each finite command emits one JSON object on stdout and leaves stderr empty. Successful payloads retain their fields at the top level with `ok: true` and a `kind`; failures have `ok: false`, `kind: "error"`, `reason` and `message`. Exit status is zero for success, one for operational failure and two for CLI usage errors.
 
-| Command result                            | `kind`                                              |
-| ----------------------------------------- | --------------------------------------------------- |
-| Bee submission                            | `spawn_created`                                     |
-| Bee self-report                           | `finish_submitted`                                  |
-| Bee inactivity verdict                    | `drone_verdict_submitted`                           |
-| Bee status, list, stop                    | `request_status`, `request_list`, `request_stopped` |
-| Daemon status or colony list              | `status`                                            |
-| Offline operation/failure history         | `events`                                            |
-| Repository runtime inspection             | `inspection`                                        |
-| Configuration operations                  | `config`                                            |
-| Init or manual launch                     | `initialized`, `launched`                           |
-| Wake, add, sleep, remove                  | `awake`, `registered`, `slept`, `removed`           |
-| Daemon stop or successful foreground exit | `stopped`, `daemon_completed`                       |
+| Command result | `kind` |
+| --- | --- |
+| Bee submission | `spawn_created` |
+| Bee self-report | `finish_submitted` |
+| Bee inactivity verdict | `drone_verdict_submitted` |
+| Bee status, list, stop, ack | `request_status`, `request_list`, `request_stopped`, `request_acknowledged` |
+| Daemon status or colony list | `status` |
+| Offline operation/failure history | `events` |
+| Repository runtime inspection | `inspection` |
+| Configuration operations | `config` |
+| Init or manual launch | `initialized`, `launched` |
+| Wake, add, sleep, remove | `awake`, `registered`, `slept`, `removed` |
+| Daemon stop or successful foreground exit | `stopped`, `daemon_completed` |
 
 Failure reasons are Commander usage codes, `daemon_unavailable`, a native subprocess exit code, or `operation_failed` for an otherwise unclassified error. Branch on `ok`, `kind` and `reason`, not message wording. Foreground `daemon serve --json` captures diagnostics and emits its one result only when the server exits; use a separate `daemon status` call to check readiness. Help remains ordinary command help.
 

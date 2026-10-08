@@ -152,7 +152,13 @@ description = "Implement the linked task beads and verify their outcomes."
 harness = "codex"
 model = ${JSON.stringify(options.model)}
 effort = "low"
-prompt = "Work on the related task beads. Read their full instructions, claim only your work, verify outcomes, and close completed tasks."
+prompt = '''
+Work on the related task beads.
+
+- Read their full instructions.
+- Claim only your work.
+- Verify outcomes and close completed tasks.
+'''
 
 [formulas.codex]
 executable = "codex"
@@ -186,6 +192,7 @@ async function captureRecipe(
 		prompt: `${options.prompt ?? defaults.prompt}\n\nRelated tasks: ${ids.join(", ")}`,
 	});
 }
+// eslint-disable-next-line max-statements -- Validate human reservations and task-scoped duplicate candidates before submission.
 async function admitTasks(
 	endpoint: RepositoryEndpoint,
 	{ ids, actor }: { ids: string[]; actor: string },
@@ -202,28 +209,30 @@ async function admitTasks(
 	if (reserved) {
 		throw new Error(`Task ${reserved.id} is reserved for a human`);
 	}
-	const listing = z
-		.object({ issues: z.array(beadSchema) })
-		.parse(
-			await beads(endpoint, actor, [
-				"list",
-				"--status",
-				"open",
-				...SPAWN_REQUEST_LABELS.flatMap((label) => ["--label", label]),
-				"--limit",
-				"0",
-			]),
-		);
-	const existing = await Promise.all(
-		listing.issues.map((candidate) => showBead(endpoint, actor, candidate.id)),
-	);
-	const duplicate = existing.find((request) =>
-		request.dependencies.some(
-			(dep) => dep.dependency_type === "related" && tasks.some((task) => task.id === dep.id),
+	// Incoming related edges identify possible requesters without hydrating unrelated requests.
+	const requestIds = new Set(
+		tasks.flatMap(({ dependents }) =>
+			dependents.filter(({ dependency_type }) => dependency_type === "related").map(({ id }) => id),
 		),
 	);
-	if (duplicate) {
-		throw new Error(`Open spawn ${duplicate.id} already requests one of these tasks`);
+	if (requestIds.size > NONE) {
+		const listing = z
+			.object({ issues: z.array(beadSchema) })
+			.parse(
+				await beads(endpoint, actor, [
+					"list",
+					"--status",
+					"open",
+					...SPAWN_REQUEST_LABELS.flatMap((label) => ["--label", label]),
+					...[...requestIds].flatMap((id) => ["--id", id]),
+					"--limit",
+					"0",
+				]),
+			);
+		const duplicate = listing.issues.at(NONE);
+		if (duplicate) {
+			throw new Error(`Open spawn ${duplicate.id} already requests one of these tasks`);
+		}
 	}
 	return tasks.map((task) => task.id);
 }
