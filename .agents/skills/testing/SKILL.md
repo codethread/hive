@@ -28,3 +28,16 @@ From the worktree root:
 Check runner-reported durations when adding or editing unit tests. New unit tests must run within 1ms; slower tests require explicit user authorisation, up to 5s.
 
 Test scripts use `--only-failures`, which hides passing tests and their timings. Omit the flag to see timings.
+
+### Addressing slow tests
+
+If a test is slow, ask:
+
+- "what is the value of this test"
+- "what isolated behaviour is under test here"
+
+Keep tests focussed and maximising value
+
+## Integration testing
+
+Seams between systems need testing to verify contract adherence, but this should only be validated once. After that most tests can rely on a mock or fixture built against the validated contracted.
