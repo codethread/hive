@@ -38,7 +38,7 @@ export function compareCandidates(left: CandidateOrder, right: CandidateOrder): 
 /** Existing occupants are never evicted when a configured maximum is lowered. */
 export function hasCapacity(
 	candidate: Occupant,
-	occupied: Occupant[],
+	occupied: readonly Occupant[],
 	limits: BeesConfig["limits"],
 ): boolean {
 	return capacityConstraints(candidate, occupied, limits).every(
@@ -46,10 +46,26 @@ export function hasCapacity(
 	);
 }
 
+/** Ranking can select admissions only when individually feasible requests cannot all fit. */
+export function hasContention(
+	candidates: readonly Occupant[],
+	occupied: readonly Occupant[],
+	limits: BeesConfig["limits"],
+): boolean {
+	const projected = [...occupied];
+	for (const candidate of candidates.filter((item) => hasCapacity(item, occupied, limits))) {
+		if (!hasCapacity(candidate, projected, limits)) {
+			return true;
+		}
+		projected.push(candidate);
+	}
+	return false;
+}
+
 /** The exact capacity constraints used by dispatch, with counts for read-only diagnostics. */
 export function capacityConstraints(
 	candidate: Occupant,
-	occupied: Occupant[],
+	occupied: readonly Occupant[],
 	limits: BeesConfig["limits"],
 ): CapacityConstraint[] {
 	return [

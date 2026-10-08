@@ -1,5 +1,5 @@
 // eslint-disable-next-line import/no-nodejs-modules -- Real private tracker, launch directories, and owned cleanup.
-import { access, mkdir, mkdtemp, readdir, realpath, rm } from "node:fs/promises";
+import { access, chmod, mkdir, mkdtemp, readdir, realpath, rm } from "node:fs/promises";
 import { colonyResponseSchema, execute } from "@hive/shared";
 import { expect, test } from "bun:test";
 import type { ColonyResponse } from "@hive/shared";
@@ -10,9 +10,12 @@ import { tmpdir } from "node:os";
 
 const SUCCESS = 0;
 const FIRST = 0;
+const NONE = 0;
+const ONE = 1;
+const EXECUTABLE_MODE = 0o755;
 const POLL_INTERVAL = 20;
 const DEADLINE = 10_000;
-const SMOKE_TIMEOUT = 90_000;
+const SMOKE_TIMEOUT = 180_000;
 const COLONY = new URL("../bin/colony.ts", import.meta.url).pathname;
 const BEE = new URL("../bin/bee.ts", import.meta.url).pathname;
 
@@ -26,9 +29,11 @@ test(
 		const state = join(root, "state");
 		const socket = join(root, "daemon.sock");
 		const bucketB = join(root, "bucket-b");
+		const rankProbe = await writeRankProbe(root);
 		const env = {
 			...process.env,
 			BD_ACTOR: "smoke-seed",
+			PATH: `${rankProbe}:${process.env.PATH}`,
 			BEADS_DB: join(repo, ".beads", "beads.db"),
 			XDG_STATE_HOME: join(root, "unused"),
 		};
@@ -84,6 +89,14 @@ test(
 				]),
 			);
 			return { identity: created.request.assignee as string, spawn: created.request.id as string };
+		};
+		const rankCalls = async () => {
+			const log = Bun.file(join(root, "rank-calls"));
+			if (!(await log.exists())) {
+				return NONE;
+			}
+			const contents = await log.text();
+			return contents.trim().split("\n").length;
 		};
 		const started = (name: string) => Bun.file(join(root, `${name}.json`)).exists();
 		const waitStarted = (name: string) => until(`worker ${name}`, () => started(name));
@@ -141,7 +154,7 @@ test(
 			workerAtA.cwd = workerDirectory;
 			await tracker(["init", "--prefix", "smoke"]);
 			await writeWorker(root);
-			await writeConfig(repo, root, { colony: 1, kind: 4, worktree: 4 });
+			await writeConfig(repo, root, { colony: 1, kind: 4, worktree: 4 }, "bv-pagerank");
 			const holding = await request([await task("holder")]);
 			await wake();
 			({ pid: daemonPid } = await status());
@@ -169,8 +182,9 @@ test(
 			await tracker(["close", blocker]);
 			await waitStarted(multi.identity);
 			await release(multi.identity);
+			expect(await rankCalls()).toBe(NONE);
 			await client(["sleep", "--repo", repo, "--beads-db", env.BEADS_DB]);
-			await writeConfig(repo, root, { colony: 3, kind: 2, worktree: 2 });
+			await writeConfig(repo, root, { colony: 3, kind: 2, worktree: 2 }, "bv-pagerank");
 			const workerAOne = await request([await task("worker a one")]);
 			const workerATwo = await request([await task("worker a two")]);
 			await wake();
@@ -191,7 +205,7 @@ test(
 			const capacities = await status();
 			expect(capacities.colonies[FIRST]?.policy).toMatchObject({
 				limits: { colony: 3, kind: 2, worktree: 2 },
-				ranking: "fifo",
+				ranking: "bv-pagerank",
 			});
 			const running = await Promise.all(
 				[workerAOne.identity, workerATwo.identity, reviewerB.identity].map((name) =>
@@ -217,7 +231,7 @@ test(
 					)
 					.map((receipt) => receipt.bucket),
 			).toEqual([bucketA, bucketA, bucketB]);
-			await writeConfig(repo, root, { colony: 1, kind: 2, worktree: 2 });
+			await writeConfig(repo, root, { colony: 1, kind: 2, worktree: 2 }, "bv-pagerank");
 			await wake();
 			await pass("lowered-cap");
 			expect(running.every((worker) => alive(worker.pid))).toBe(true);
@@ -231,11 +245,108 @@ test(
 			await pass("occupancy-one");
 			expect(await started(workerB.identity)).toBe(false);
 			expect(await started(reviewerA.identity)).toBe(false);
+			expect(await rankCalls()).toBe(NONE);
 			await release(reviewerB.identity);
 			await waitStarted(workerB.identity);
 			expect(await started(reviewerA.identity)).toBe(false);
 			await release(workerB.identity);
 			await waitStarted(reviewerA.identity);
+			await release(reviewerA.identity);
+			await pass("capacity-complete");
+			expect(await rankCalls()).toBe(ONE);
+			for (const scenario of [
+				{
+					name: "all-fit",
+					limits: { colony: 4, kind: 4, worktree: 4 },
+					kind: "worker",
+					cwd: bucketB,
+					ranking: "bv-pagerank",
+					contends: false,
+				},
+				{
+					name: "colony",
+					limits: { colony: 1, kind: 4, worktree: 4 },
+					kind: "reviewer",
+					cwd: bucketB,
+					ranking: "bv-pagerank",
+					contends: true,
+				},
+				{
+					name: "kind",
+					limits: { colony: 4, kind: 1, worktree: 4 },
+					kind: "worker",
+					cwd: bucketB,
+					ranking: "bv-pagerank",
+					contends: true,
+				},
+				{
+					name: "worktree",
+					limits: { colony: 4, kind: 4, worktree: 1 },
+					kind: "reviewer",
+					cwd: reviewerDirectory,
+					ranking: "bv-pagerank",
+					contends: true,
+				},
+				{
+					name: "fifo",
+					limits: { colony: 1, kind: 4, worktree: 4 },
+					kind: "worker",
+					cwd: bucketB,
+					ranking: "fifo",
+					contends: true,
+				},
+			]) {
+				/* eslint-disable no-await-in-loop -- Each admission scenario drains its real workers before the next policy. */
+				await client(["sleep", "--repo", repo, "--beads-db", env.BEADS_DB]);
+				await writeConfig(repo, root, scenario.limits, scenario.ranking);
+				const older = await request([await task(`${scenario.name} older`)]);
+				const preferred = await task(`${scenario.name} preferred`);
+				const dependent = await task(`${scenario.name} dependent`);
+				await tracker(["dep", "add", dependent, preferred]);
+				const newer = await request([preferred], { cwd: scenario.cwd, kind: scenario.kind });
+				const before = await rankCalls();
+				await wake();
+				let [winner, loser] = [newer, older];
+				if (scenario.ranking === "fifo") {
+					[winner, loser] = [older, newer];
+				}
+				await waitStarted(winner.identity);
+				if (scenario.contends) {
+					await pass(`${scenario.name} saturated`);
+					expect(await started(loser.identity)).toBe(false);
+				} else {
+					await waitStarted(loser.identity);
+				}
+				let expectedCalls = before;
+				if (scenario.contends && scenario.ranking === "bv-pagerank") {
+					expectedCalls += ONE;
+				}
+				expect(await rankCalls()).toBe(expectedCalls);
+				await release(winner.identity);
+				await waitStarted(loser.identity);
+				await release(loser.identity);
+				await pass(`${scenario.name} drained`);
+				/* eslint-enable no-await-in-loop */
+			}
+			await client(["sleep", "--repo", repo, "--beads-db", env.BEADS_DB]);
+			await writeConfig(repo, root, { colony: 2, kind: 4, worktree: 4 }, "bv-pagerank");
+			const urgent = await request([await task("urgent before ranking failure", "0")]);
+			const failureA = await request([await task("ranking failure a")]);
+			const failureB = await request([await task("ranking failure b")]);
+			await Bun.write(join(root, "rank-fail"), "fail");
+			const beforeFailure = await rankCalls();
+			await wake();
+			await until("ranking failure surfaced", async () => {
+				const current = await status();
+				return current.colonies[FIRST]?.state === "failed";
+			});
+			await waitStarted(urgent.identity);
+			expect(await rankCalls()).toBe(beforeFailure + ONE);
+			expect(await started(failureA.identity)).toBe(false);
+			expect(await started(failureB.identity)).toBe(false);
+			const retained = await Bun.file(join(root, `${urgent.identity}.json`)).json();
+			expect(alive(retained.pid)).toBe(true);
+			await release(urgent.identity);
 			passed = true;
 		} catch (error) {
 			throw new Error(`Scheduler smoke artifacts retained at ${root}`, { cause: error });
@@ -254,16 +365,18 @@ test(
 );
 
 // --- Private functions ---
+// eslint-disable-next-line max-params -- Fixture policy is explicit per admission scenario.
 async function writeConfig(
 	repo: string,
 	root: string,
 	limits: { colony: number; kind: number; worktree: number },
+	ranking = "fifo",
 ): Promise<void> {
 	await Bun.write(
 		join(repo, ".hive", "bees.toml"),
 		`owner="ct"
 humans=["ct"]
-ranking="fifo"
+ranking="${ranking}"
 [limits]
 colony=${limits.colony}
 kind=${limits.kind}
@@ -286,6 +399,24 @@ argv=[${JSON.stringify(join(root, "worker.ts"))}]
 `,
 	);
 }
+async function writeRankProbe(root: string): Promise<string> {
+	const directory = join(root, "bin");
+	await mkdir(directory);
+	const path = join(directory, "bv");
+	await Bun.write(
+		path,
+		`#!${process.execPath}
+import { appendFile } from "node:fs/promises";
+await appendFile(${JSON.stringify(join(root, "rank-calls"))}, "rank\\n");
+if (await Bun.file(${JSON.stringify(join(root, "rank-fail"))}).exists()) process.exit(1);
+const child = Bun.spawn([${JSON.stringify(Bun.which("bv"))}, ...process.argv.slice(2)], { stdout: "inherit", stderr: "inherit" });
+process.exit(await child.exited);
+`,
+	);
+	await chmod(path, EXECUTABLE_MODE);
+	return directory;
+}
+
 async function writeWorker(root: string): Promise<void> {
 	await Bun.write(
 		join(root, "worker.ts"),

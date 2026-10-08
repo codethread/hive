@@ -1,7 +1,7 @@
 import type { BeesConfig, RepositoryEndpoint } from "@hive/shared";
 import { SPAWN_REQUEST_LABELS, beadSchema, beads } from "@hive/shared";
 import { assertRequestAuthority, claimRequest, newRequest, reconcileRequests } from "./request.ts";
-import { compareCandidates, hasCapacity } from "./scheduler.ts";
+import { compareCandidates, hasCapacity, hasContention } from "./scheduler.ts";
 import { prepareLaunch, startSupervisor, writeReceipt } from "./launch.ts";
 import { publishObservation, publishStdoutActivity } from "./observations.ts";
 import { publishRequestLabels, reconcileClosedRequestLabels } from "./requests.ts";
@@ -57,10 +57,7 @@ export async function dispatch(
 			if (candidates.length === EMPTY) {
 				return;
 			}
-			evidence.step("dispatch.rank", input.repository.root);
-			const ranked = await rankCandidates(input, config, candidates);
-			evidence.step("dispatch.launch", input.repository.root);
-			await launchCandidates(input, config, ranked);
+			await dispatchPriorityGroups(input, config, candidates, evidence);
 		},
 	);
 }
@@ -148,44 +145,80 @@ async function prepareCandidates(
 	return candidates;
 }
 
-async function rankCandidates(
-	{ repository, state }: DispatchInput,
+// eslint-disable-next-line max-params, max-statements -- One dispatch pass shares its current reservations and operation evidence.
+async function dispatchPriorityGroups(
+	input: DispatchInput,
 	config: BeesConfig,
 	candidates: Candidate[],
-): Promise<Candidate[]> {
-	let scores: Record<string, number> = {};
-	if (config.ranking === "bv-pagerank") {
-		scores = await pageRanks(
-			repository,
-			state,
-			candidates.flatMap(({ scheduling }) => scheduling.taskIds),
+	evidence: OperationEvidence,
+): Promise<void> {
+	const inventory = await input.store.inventory(input.repository.root);
+	const occupied: Occupant[] = inventory
+		.filter(({ state }) => state === "starting" || state === "running")
+		.map(({ receipt }) => ({ bucket: receipt.bucket, kind: receipt.recipe.kind }));
+	const groups = Map.groupBy(candidates, ({ scheduling }) => scheduling.priority);
+	for (const [, group] of [...groups].toSorted(([left], [right]) => left - right)) {
+		const feasible = group.filter((candidate) =>
+			hasCapacity(candidateOccupant(candidate), occupied, config.limits),
 		);
+		let ordered = orderCandidates(group, () => EMPTY);
+		if (
+			config.ranking === "bv-pagerank" &&
+			hasContention(
+				feasible.map((candidate) => candidateOccupant(candidate)),
+				occupied,
+				config.limits,
+			)
+		) {
+			evidence.step("dispatch.rank", input.repository.root);
+			// eslint-disable-next-line no-await-in-loop -- Lower priorities see actual reservations, including failed claims.
+			ordered = await rankCandidates(input, feasible);
+			ordered.push(...group.filter((candidate) => !feasible.includes(candidate)));
+		}
+		evidence.step("dispatch.launch", input.repository.root);
+		// eslint-disable-next-line no-await-in-loop -- Finish higher-priority acquisition before testing the next group's contention.
+		await launchCandidates(input, config, ordered, occupied);
 	}
+}
+
+function candidateOccupant({ receipt }: Candidate): Occupant {
+	return { bucket: receipt.bucket, kind: receipt.recipe.kind };
+}
+
+async function rankCandidates(
+	{ repository, state }: DispatchInput,
+	candidates: Candidate[],
+): Promise<Candidate[]> {
+	const scores = await pageRanks(
+		repository,
+		state,
+		candidates.flatMap(({ scheduling }) => scheduling.taskIds),
+	);
+	return orderCandidates(candidates, ({ scheduling }) =>
+		Math.max(...scheduling.taskIds.map((id) => scores[id]!)),
+	);
+}
+
+function orderCandidates(
+	candidates: Candidate[],
+	score: (candidate: Candidate) => number,
+): Candidate[] {
 	return candidates
-		.map((candidate) => {
-			let score = 0;
-			if (config.ranking === "bv-pagerank") {
-				score = Math.max(...candidate.scheduling.taskIds.map((id) => scores[id]!));
-			}
-			return {
-				candidate,
-				order: { ...candidate.scheduling, id: candidate.receipt.spawnId, score },
-			};
-		})
+		.map((candidate) => ({
+			candidate,
+			order: { ...candidate.scheduling, id: candidate.receipt.spawnId, score: score(candidate) },
+		}))
 		.toSorted((left, right) => compareCandidates(left.order, right.order))
 		.map(({ candidate }) => candidate);
 }
 
-// eslint-disable-next-line max-statements -- Capacity, claims, durable reservation and verified supervisor permission form one ordered handoff.
+// eslint-disable-next-line max-statements, max-params -- Capacity, claims, durable reservation and verified supervisor permission form one ordered handoff.
 async function launchCandidates(
 	{ repository, state, store }: DispatchInput,
 	config: BeesConfig,
 	candidates: Candidate[],
+	occupied: Occupant[],
 ): Promise<void> {
-	const inventory = await store.inventory(repository.root);
-	const occupied: Occupant[] = inventory
-		.filter(({ state: attemptState }) => attemptState === "starting" || attemptState === "running")
-		.map(({ receipt }) => ({ bucket: receipt.bucket, kind: receipt.recipe.kind }));
 	for (const { receipt, record } of candidates) {
 		const occupant = { bucket: receipt.bucket, kind: receipt.recipe.kind };
 		if (hasCapacity(occupant, occupied, config.limits)) {
