@@ -8,7 +8,7 @@
 	"scripts": {
 		"fmt": "oxfmt",
 		"fmt:check": "oxfmt --check",
-		"lint": "oxlint --deny-warnings",
+		"lint": "oxlint --deny-warnings && oxlint --type-aware --deny-warnings lib/hive-ui",
 		"lint:fix": "oxlint --fix",
 		"typecheck": "tsc --noEmit -p tsconfig.json && bun run --filter '*' typecheck",
 		"test": "bun test --parallel --parallel-delay=0 --timeout=5000 --only-failures",
@@ -20,7 +20,9 @@
 		"beads:env": "bun run ./lib/tooling/src/beads-env.ts",
 		"beads:sync": "bun run ./lib/tooling/src/beads-publish.ts",
 		"prepare": "husky && bun run git:setup && bun run ./lib/tooling/src/beads-setup-auto.ts",
-		"waggle": "bun run ./lib/waggle/bin/waggle.ts"
+		"waggle": "bun run ./lib/waggle/bin/waggle.ts",
+		"ui": "bun run --cwd lib/hive-ui start",
+		"ui:dev": "bun run --cwd lib/hive-ui dev"
 	},
 	"devDependencies": {
 		"@commitlint/cli": "^21.2.3",
@@ -31,6 +33,7 @@
 		"lint-staged": "^17.6.0",
 		"oxfmt": "^0.71.0",
 		"oxlint": "^1.86.0",
+		"oxlint-tsgolint": "^7.0.2001",
 		"typescript": "^7.0.2",
 		"zod": "^4.6.5"
 	},

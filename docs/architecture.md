@@ -1,6 +1,6 @@
 # Architecture
 
-Hive's product packages are independently replaceable tools. Bee submits and inspects requests through Beads. Colony owns repository scheduling, its hosting daemon and execution supervision. Honeycomb manages Git worktrees, and Waggle runs repository-owned semantic classifiers.
+Hive's product packages are independently replaceable tools. Bee submits and inspects requests through Beads. Colony owns repository scheduling, its hosting daemon and execution supervision. Honeycomb manages Git worktrees, and Waggle runs repository-owned semantic classifiers. Hive UI presents read-only Beads work snapshots.
 
 Product packages do not import one another. `@hive/shared` is the only permitted cross-package import, and it imports no product package. `.oxlintrc.json` enforces that direction. Runtime cooperation uses explicit command or protocol interfaces instead of reaching into another package's implementation.
 
@@ -12,9 +12,12 @@ Product packages do not import one another. `@hive/shared` is the only permitted
 | `lib/shared` | Contracts used by both CLI and runtime: recipes, formulas, spawn requests, repository endpoints and daemon messages; common native Beads I/O | Exports types, boundary parsers and small shared operations; owns no daemon, scheduler or CLI presentation |
 | `lib/honeycomb` | Worktree discovery and lifecycle, including canonical-root decisions | Public command interface; Bee and Colony obtain the canonical root through `honeycomb root` |
 | `lib/waggle` | Classifier discovery and execution | Independent `waggle` CLI; it does not decide runtime scheduling or mutate requests |
+| `lib/hive-ui` | Read-only work-board HTTP projections, route-driven browser snapshots and presentation | Imports Shared native Beads I/O and spawn decoding; reads explicitly configured repository/database pairs |
 | `lib/tooling` | Repository maintenance commands | Development tooling, independent of the Bee execution path |
 
 Shared is used where two actual consumers need the same meaning. It is not a home for code merely because it could be reusable. Scheduling rules and terminal formatters stay in Colony. A change to the representation of a spawn request belongs in Shared because submission, offline inspection and runtime execution must agree.
+
+Hive UI owns its browser/API schemas and bounded read models. It neither imports Colony nor reads its private store; native Beads is its source. See the [UI design](design/hive-ui.md) for fetch ownership and the [UI guide](../lib/hive-ui/README.md) for startup.
 
 ## Bee and Colony request flow
 

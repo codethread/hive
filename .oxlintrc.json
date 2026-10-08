@@ -38,8 +38,8 @@
 					{
 						"patterns": [
 							{
-								"regex": "^@hive/(colony|honeycomb|tooling|waggle)(/|$)|(^|\\.\\./)(colony|honeycomb|tooling|waggle)(/|$)|(^|/)lib/(colony|honeycomb|tooling|waggle)(/|$)",
-								"message": "shared sits at the base of the dependency graph and must not import colony, honeycomb, tooling, or waggle."
+								"regex": "^@hive/(colony|honeycomb|tooling|waggle|hive-ui)(/|$)|(^|\\.\\./)(colony|honeycomb|tooling|waggle|hive-ui)(/|$)|(^|/)lib/(colony|honeycomb|tooling|waggle|hive-ui)(/|$)",
+								"message": "shared sits at the base of the dependency graph and must not import colony, honeycomb, tooling, waggle, or hive-ui."
 							}
 						]
 					}
@@ -54,7 +54,7 @@
 					{
 						"patterns": [
 							{
-								"regex": "^@hive/(colony|honeycomb|tooling|waggle)(/|$)|(^|\\.\\./)(colony|honeycomb|shared|tooling|waggle)(/|$)|(^|/)lib/(colony|honeycomb|shared|tooling|waggle)(/|$)",
+								"regex": "^@hive/(colony|honeycomb|tooling|waggle|hive-ui)(/|$)|(^|\\.\\./)(colony|honeycomb|shared|tooling|waggle|hive-ui)(/|$)|(^|/)lib/(colony|honeycomb|shared|tooling|waggle|hive-ui)(/|$)",
 								"message": "packages may only import from @hive/shared via the package specifier; relative cross-package imports are forbidden."
 							}
 						]
@@ -70,7 +70,7 @@
 					{
 						"patterns": [
 							{
-								"regex": "^@hive/(colony|honeycomb|tooling|waggle)(/|$)|(^|\\.\\./)(colony|shared|honeycomb|tooling|waggle)(/|$)|(^|/)lib/(colony|shared|honeycomb|tooling|waggle)(/|$)",
+								"regex": "^@hive/(colony|honeycomb|tooling|waggle|hive-ui)(/|$)|(^|\\.\\./)(colony|shared|honeycomb|tooling|waggle|hive-ui)(/|$)|(^|/)lib/(colony|shared|honeycomb|tooling|waggle|hive-ui)(/|$)",
 								"message": "packages may only import from @hive/shared via the package specifier; relative cross-package imports are forbidden."
 							}
 						]
@@ -86,7 +86,7 @@
 					{
 						"patterns": [
 							{
-								"regex": "^@hive/(colony|honeycomb|tooling|waggle)(/|$)|(^|\\.\\./)(colony|shared|honeycomb|tooling|waggle)(/|$)|(^|/)lib/(colony|shared|honeycomb|tooling|waggle)(/|$)",
+								"regex": "^@hive/(colony|honeycomb|tooling|waggle|hive-ui)(/|$)|(^|\\.\\./)(colony|shared|honeycomb|tooling|waggle|hive-ui)(/|$)|(^|/)lib/(colony|shared|honeycomb|tooling|waggle|hive-ui)(/|$)",
 								"message": "packages may only import from @hive/shared via the package specifier; relative cross-package imports are forbidden."
 							}
 						]
@@ -102,12 +102,72 @@
 					{
 						"patterns": [
 							{
-								"regex": "^@hive/(colony|honeycomb|tooling|waggle)(/|$)|(^|\\.\\./)(colony|shared|honeycomb|tooling|waggle)(/|$)|(^|/)lib/(colony|shared|honeycomb|tooling|waggle)(/|$)",
+								"regex": "^@hive/(colony|honeycomb|tooling|waggle|hive-ui)(/|$)|(^|\\.\\./)(colony|shared|honeycomb|tooling|waggle|hive-ui)(/|$)|(^|/)lib/(colony|shared|honeycomb|tooling|waggle|hive-ui)(/|$)",
 								"message": "packages may only import from @hive/shared via the package specifier; relative cross-package imports are forbidden."
 							}
 						]
 					}
 				]
+			}
+		},
+		{
+			"files": ["lib/hive-ui/**/*.{ts,tsx}"],
+			"rules": {
+				"no-restricted-imports": [
+					"error",
+					{
+						"patterns": [
+							{
+								"regex": "^@hive/(colony|honeycomb|tooling|waggle|hive-ui)(/|$)|(^|\\.\\./)(colony|shared|honeycomb|tooling|waggle|hive-ui)(/|$)|(^|/)lib/(colony|shared|honeycomb|tooling|waggle|hive-ui)(/|$)",
+								"message": "packages may only import from @hive/shared via the package specifier; relative cross-package imports are forbidden."
+							}
+						]
+					}
+				],
+				"react/react-in-jsx-scope": "off",
+				"react/rules-of-hooks": "error",
+				"react/exhaustive-deps": "error",
+				"unicorn/no-null": "off",
+				"no-magic-numbers": [
+					"error",
+					{
+						"ignore": [0, 1]
+					}
+				],
+				"react/jsx-max-depth": [
+					"error",
+					{
+						"max": 8
+					}
+				],
+				"typescript/prefer-readonly-parameter-types": "off",
+				"typescript/dot-notation": [
+					"error",
+					{
+						"allowIndexSignaturePropertyAccess": true
+					}
+				]
+			},
+			"plugins": ["react", "jsx-a11y"]
+		},
+		{
+			"files": ["lib/hive-ui/src/**/*.{ts,tsx}"],
+			"env": {
+				"browser": true
+			},
+			"rules": {
+				"no-restricted-imports": [
+					"error",
+					{
+						"patterns": [
+							{
+								"regex": "^@hive/|(^|/)server/|^bun:|^node:|(^|\\.\\./)(colony|shared|honeycomb|tooling|waggle|hive-ui)(/|$)|(^|/)lib/(colony|shared|honeycomb|tooling|waggle|hive-ui)(/|$)",
+								"message": "Browser code uses the HTTP contracts; server/native code stays behind the API."
+							}
+						]
+					}
+				],
+				"no-ternary": "off"
 			}
 		}
 	]
