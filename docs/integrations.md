@@ -109,7 +109,7 @@ Supporting another shell means adding one more template that honours the same `H
 These are the contributor uses of the tools. Bun and br also have the product runtime roles described above.
 
 - **Bun** runs TypeScript directly (no build step), installs dependencies, runs tests (`bun test`) and provides the `$` shell in scripts. Code uses `Bun.spawn` and Bun's test runner, so moving runtimes means replacing those calls, not just the launcher.
-- **br (Beads)** tracks work in the selected `BEADS_DB`, shared by local feature worktrees and normally stored in the permanent `.worktrees/tracker--state` checkout. Automatic import and export are enabled there; ordinary `br` calls stay local. `bun run beads:sync` receives compatible changes and publishes on `tracker/state`, separately from code integration. Session-start and pre-commit hooks sync; agents also explicitly sync after claims and closure/handoff. Git uses the custom merge driver above when published snapshots change on both sides. [`scripts/beads-loop.ts`](../scripts/beads-loop.ts) honors the selected endpoint and reads label-filtered `br ready --json` and `br show --json` output. [Beads integration](./beads-integration.md) explains setup, publication and colleague coordination.
+- **br (Beads)** tracks work in the selected `BEADS_DB`, shared by local feature worktrees and normally stored in the permanent `.worktrees/tracker--state` checkout. Automatic import and export are enabled there; ordinary `br` calls stay local. `bun run beads:sync` receives compatible changes and publishes on `tracker/state`, separately from code integration. Session-start and pre-commit hooks sync; agents also explicitly sync after claims and closure/handoff. Git uses the custom merge driver above when published snapshots change on both sides. [Beads integration](./beads-integration.md) explains setup, publication and colleague coordination.
 - **Node** is needed by the process-title regression in `lib/colony/src/processes.smoke.test.ts`, which reproduces native Pi's mutable process title. It is a test prerequisite, not an additional Bee/Colony runtime requirement.
 - **mise** supplies the checkout's project environment, including the portable `BEADS_DB` default in tracked [`mise.toml`](../mise.toml). An ignored `mise.local.toml` can override that default. `bun run beads:setup` records an explicit local selection and generates matching ignored Codex shell-environment configuration without replacing unrelated settings. Actor identity stays process-local and is not part of this shared project selection.
 - **Husky, lint-staged, commitlint, oxlint, oxfmt and TypeScript** are npm dev dependencies pinned in [`package.json`](../package.json) and configured in the repository root; they need no separate installation.
@@ -118,7 +118,7 @@ These are the contributor uses of the tools. Bun and br also have the product ru
 
 This section is for maintainers explicitly working on the automation-owned `system` workstream, not day-to-day agent task selection. Ordinary agents must avoid these beads. A normal implementation task does not become a system bead merely because an agent performs it or it changes automation code.
 
-When maintaining automation records, use the lowercase `system` label (`create --labels system` or `update --add-label system`), not a custom type or status. Label each system child explicitly too. Runner labels remain independent of this classification.
+When maintaining automation records, use the lowercase `system` label (`create --labels system` or `update --add-label system`), not a custom type or status. Label each system child explicitly too. A task's `system` marker does not select its bee kind.
 
 The project [viewer recipes](../.bv/recipes.yaml) provide `work` (exclude `system`) and `system` (require `system`) views. They affect `bv`, not `br` or worker execution, and are not automatically selected on startup. For read-only investigation, run from the repository root:
 
@@ -128,8 +128,4 @@ br list --label system --json
 br ready --label system --json
 ```
 
-The worker loop excludes system beads by default. Its `--system` option is for intentional automation execution, not inspection: it launches agents that may claim, modify, and close system beads. Use it only for an explicitly authorized automation run; dependency/readiness checks and `--agent worker|lead` routing still apply:
-
-```nu
-bun scripts/beads-loop.ts --system
-```
+For explicitly authorized maintenance work, submit the particular task IDs with `bee spawn <kind> <task-id>...` and an execution directory. This requests execution, not inspection: an awake Colony can claim the linked tasks and launch a bee. Native readiness and human reservations still apply. A `system` label does not itself authorize execution; see the [Bee and Colony guide](../lib/colony/README.md#create-requests).

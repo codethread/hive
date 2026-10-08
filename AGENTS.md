@@ -18,6 +18,12 @@ All work follows the explore → plan → build cycle:
 
 Clean code and clean architecture practices apply throughout. Before building library code ourselves, always consult online tooling: if there is no clear winner, suggest the candidate approaches, and favour precise, well-maintained tools over bloated tool sets.
 
+### Specialist delegation
+
+Repository specialists `honeybee`, `librarian` and `reviewer` are bee kinds in canonical `bees.toml`, not native subagent definitions. Use `bee spawn <kind> <delivery-task-id> --cwd <worktree>` with the selected tracker and your actor; Colony owns dispatch and task claims. Shared harness agents remain separate.
+
+For advice or review, create a dedicated delivery task with the question, target IDs/paths/revisions and required report. Include the examined implementation tasks as context, not as the spawn's related tasks: a reviewer must not claim or close the work it reviews. A report task is complete when the requested findings are recorded, even when the verdict is negative. Keep implementation, review and landing acceptance distinct. Simple questions answered directly do not need delivery tasks.
+
 ## Packages
 
 - `lib/shared` — utilities and models common to all packages. Not a grab bag: only add what consumers clearly need.
@@ -52,7 +58,6 @@ Clean code and clean architecture practices apply throughout. Before building li
 - `bun run fmt` / `bun run fmt:check`
 - `bun run lint` / `bun run lint:fix`
 - `bun run typecheck`
-- `bun run agents:sync` — regenerate `.pi/agents` from `.codex/agents`.
 
 ## Semantic review signals
 
@@ -94,12 +99,19 @@ Use repo-local Beads (`br`) from the checkout root to track implementation, not 
 
 ### Daily workflow
 
-Every mutation needs your harness actor (`--actor pi|claude|codex`, choosing your own, or process-local `BD_ACTOR`). Never use `ct`/`USER` as the agent actor or persist it in shared configuration. Set `--owner ct` on every creation and claim; ownership is not assignment.
+Outside Colony executions, every mutation needs your harness actor (`--actor pi|claude|codex`, choosing your own, or process-local `BD_ACTOR`). Colony bees use the supplied actor as described below. Never use `ct`/`USER` as the agent actor or persist it in shared configuration. Set `--owner ct` on every creation and claim; ownership is not assignment.
 
 1. **Identify:** inspect the supplied bead. Otherwise search for existing scope with `br search "<topic>" --exclude-label system --json`; reuse matches. Create missing work with `br create --title "…" --type task --priority 2 --owner ct --description "…" --acceptance-criteria "- [ ] …" --json`. Include the problem, scope, useful pointers and verifiable outcomes; choose the appropriate native type/priority.
 2. **Claim:** `br update <id> --claim --owner ct --json`, then `bun run beads:sync` before branching or working. Respect assignments and blockers; claim your scope, not a shared epic. A claim is provisional until synchronization succeeds; do not force it. Record scope/worktree context in notes because same-harness sessions share an actor.
 3. **Work:** split substantial work into scoped children (`create --parent <id>`), claiming/delegating each explicitly; a parent claim does not assign children. Parent links group work; `br dep add <issue> <depends-on>` records execution prerequisites. Keep the current approach in `update --design` and append progress/handoff evidence with `update --append-notes`. Pass the bead ID when delegating; avoid duplicate tracking.
 4. **Finish:** verify acceptance, record evidence, then `br close <id> --reason "Completed: <proof>" --json`. Keep unfinished work open with a next step. Parents require completed children; landing-scoped work stays open until integration. Run `bun run beads:sync` after closure, handoff or landing updates, including updates after the final code commit. Recording new work without implementing it also ends with sync.
+
+### Colony executions
+
+- Preserve the injected `BEADS_DB`, `BD_ACTOR` and friendly task assignment. Colony has already claimed the linked tasks; verify them and run `bun run beads:sync` successfully before working instead of reclaiming as your harness. A coordinator submits delegated work without claiming it first.
+- Read the linked tasks and their full acceptance criteria. Reading your own spawn through `HIVE_SPAWN_ID` is authorized execution context, not permission to browse unrelated `system` beads. Use the supplied worktree; create another only when the task explicitly requires it.
+- Advisory roles leave examined code and target beads unchanged. They may append their report/evidence to, and close, their own linked delivery tasks. Librarian curation edits require explicit scope. A completed report is not permission to close the implementation or landing task.
+- Record outcomes on the delivery tasks, verify acceptance, close completed tasks and synchronize before reporting completion. Follow the [self-report contract](docs/agents/spawn-requests.md#report-your-own-execution-finished) for `bee finish success` or a blocked handoff. Leaving a linked task open for later review is unfinished execution, not a successful handoff.
 
 ### Labels and reservations
 

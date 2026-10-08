@@ -16,9 +16,8 @@ Timestamped `Colony observation:` comments record minimal last-observed facts; l
 
 | Labels | Cardinality | Meaning and consumer |
 | --- | --- | --- |
-| `system` | Reserved marker | Automation-owned beads excluded from ordinary work by the `work` viewer recipe and default worker loop. Ordinary agents must not read, claim, modify, or execute these beads; access requires an explicit system-maintenance or debugging assignment. |
-| `hitl` | Marker | Human in the loop: the bead must be worked in tandem with the user, such as design work that needs their decisions. The worker loop always skips it; an agent works it only in a session with the user, confirming decisions as it goes. This is not a handoff: assigning `ct` hands work to the user, while `hitl` keeps an agent working with them. |
-| `agent:lead`, `agent:worker` | Zero or one | Select a runner in the [worker loop](../scripts/beads-loop.ts), not the owner, assignee, or author's harness. Multiple or unknown `agent:*` labels are rejected by the loop. Without one, the loop uses `--agent`, defaulting to `worker`. |
+| `system` | Reserved marker | Automation-owned beads excluded from ordinary work by the `work` viewer recipe. Ordinary agents must not read, claim, modify, or execute these beads; access requires an explicit Bee/Colony operation or system-maintenance/debugging assignment. |
+| `hitl` | Marker | Human in the loop: the bead must be worked in tandem with the user, such as design work that needs their decisions. Bee refuses these tasks for autonomous execution; an agent works them only in a session with the user, confirming decisions as it goes. This is not a handoff: assigning `ct` hands work to the user, while `hitl` keeps an agent working with them. |
 | `area:shared`, `area:colony`, `area:honeycomb`, `area:tooling` | Zero or more | Classify affected Hive packages for filtering; these labels do not select a runner, block work, or enforce policy. Use multiple only for genuinely cross-package work; omit for repository-wide work without a package scope. |
 | `evidence:architecture` | Evidence records only | Index structured architectural history for librarian retrieval and review. Only the registered specialist below may add or remove it; it is not a runner, approval, or work-status label. |
 
@@ -26,7 +25,7 @@ Use exact lowercase values. The area vocabulary follows Hive's package names; `a
 
 Keep issue type, status, priority, owner, assignee, dependencies, and acceptance criteria in their native fields. Do not add parallel labels such as `bug`, `blocked`, or `P1`. Labels do not grant permission to claim work or override workflow policy.
 
-For example, a Honeycomb picker bug is type `bug` with `area:honeycomb`; it needs no runner label unless routing was explicitly chosen. A repository-wide formatting task can have no labels at all. If a reserved system bead blocks ordinary work, report the blocker on the permitted bead and request a maintenance handoff without opening the reserved bead.
+For example, a Honeycomb picker bug is type `bug` with `area:honeycomb`. Choose its execution kind when submitting `bee spawn <kind> <task-id>`, not through an ordinary-task label. A repository-wide formatting task can have no labels at all. If a reserved system bead blocks ordinary work, report the blocker on the permitted bead and request a maintenance handoff without opening the reserved bead.
 
 ## Specialist evidence and label stewardship
 
@@ -36,7 +35,7 @@ Register each exact value and its **label steward** here. Stewardship is authori
 
 | Registered label | Specialist steward | Evidence contract |
 | --- | --- | --- |
-| `evidence:architecture` | `librarian` | [Architectural evidence](../.codex/agents/librarian.toml) |
+| `evidence:architecture` | `librarian` | Architectural evidence in the `librarian` kind's prompt in [bees.toml](../bees.toml) |
 
 Only the registered specialist may add or remove its evidence label, and only within explicitly authorized curation scope. Task ownership, a specialist's read-only recommendation, or reading its instructions does not transfer stewardship. A coordinating agent delegates filing to the steward rather than applying the label itself. Other agents may retrieve the records and propose corrections; they preserve labels they do not steward. Ordinary label permissions above remain unchanged. These are agent-workflow rules, not CLI-enforced access control.
 
@@ -46,16 +45,16 @@ Classify by subject, not by the contributing agent. One record may serve multipl
 
 `create --labels` sets the initial labels. For an existing permitted bead, inspect its current labels and use `update --add-label` / `--remove-label` for targeted changes. `update --labels` is an alias of `--set-labels` and replaces the entire set; do not use it for an incremental edit.
 
-When an ordinary task is explicitly switched from worker to lead, remove the old routing label and add the new one in the same update, preserving its area and other labels. For a Pi agent, replacing `hv-example` with the assigned bead ID:
+For an ordinary task, add a supported area label without replacing its other labels. For a Pi agent, replacing `hv-example` with the assigned bead ID:
 
 ```nu
-br update hv-example --remove-label agent:worker --add-label agent:lead --actor pi --json
+br update hv-example --add-label area:honeycomb --actor pi --json
 ```
 
 Use your own harness identity for attribution. Verify the returned labels with `br show <id> --json` for the permitted bead. Do not remove `system` to make a reserved bead appear in ordinary work.
 
 ## Extend the vocabulary deliberately
 
-Before introducing another namespace or value, obtain approval for the taxonomy change, identify the concrete query or consumer it serves, and document who may apply it. Evidence values also require a registered specialist steward and evidence contract. Routing changes must also update the consumer; a new `agent:*` string alone cannot create a runner. Generic `br` examples using `harness:*` or `effort:*` are not supported Hive routing conventions.
+Before introducing another namespace or value, obtain approval for the taxonomy change, identify the concrete query or consumer it serves, and document who may apply it. Evidence values also require a registered specialist steward and evidence contract. `agent:<kind>` is reserved for spawn classification; adding it to an ordinary task does not select a bee kind. Generic `br` examples using `harness:*` or `effort:*` are not supported Hive routing conventions.
 
 Keep new classifications orthogonal to the existing fields and labels. Do not bulk relabel historical beads merely to make them match a new convention without an explicit migration task.

@@ -121,7 +121,7 @@ Search covers IDs, titles, descriptions and comments. Use `br list --notes-conta
 
 For WIP reports, query in-progress work rather than `ready`; report assignment, blockers and the latest progress/handoff notes. For historical questions, include closed records, state the date window and use closure dates rather than last-updated dates. Verify available date filters against installed help; filter structured results when needed.
 
-For requested prioritization, follow [honeybee's command and escalation recipe](../.codex/agents/honeybee.toml): minimal next-pick output for one task, brief triage for comparisons, and scoped follow-up only for missing evidence. An empty next-pick result means no proven actionable recommendation, not necessarily an empty `br ready` set. Use `br ready` for canonical readiness confirmation when needed and `br show` for selected details. Viewer recommendations are not claims or authority to take work; respect assignments and `hitl` work. Return known answers without escalating into a broader investigation.
+For requested prioritization, follow the `honeybee` kind's command and escalation recipe in [bees.toml](../bees.toml): minimal next-pick output for one task, brief triage for comparisons, and scoped follow-up only for missing evidence. An empty next-pick result means no proven actionable recommendation, not necessarily an empty `br ready` set. Use `br ready` for canonical readiness confirmation when needed and `br show` for selected details. Viewer recommendations are not claims or authority to take work; respect assignments and `hitl` work. Return known answers without escalating into a broader investigation.
 
 Keep ordinary queries scoped with `--exclude-label system` on `search`, `list` and `ready`, and the `work` recipe on viewer triage. Broader graph or diagnostic surfaces may expose reserved beads; inspect their filtering contract before using them outside an explicit system-maintenance assignment.
 
@@ -162,10 +162,10 @@ Use graph surfaces deliberately:
 - Reclaiming stale work remains an explicit, auditable operator/agent decision.
 - `audit coordination` can persist normalized coordination evidence in `.beads/interactions.jsonl`.
 
-Labels are the default routing mechanism for automation. They live in a normalized table with indexes on `label` and `issue_id`; repeated `--label` filters use AND semantics and `--label-any` uses OR semantics.
+Labels classify work for queries; choose an execution kind explicitly with `bee spawn`, not an ordinary-task routing label. Labels live in a normalized table with indexes on `label` and `issue_id`; repeated `--label` filters use AND semantics and `--label-any` uses OR semantics.
 
 ```nu
-br ready --exclude-label system --label area:honeycomb --label agent:worker --brief --json
+br ready --exclude-label system --label area:honeycomb --brief --json
 ```
 
 ## Workflow policy

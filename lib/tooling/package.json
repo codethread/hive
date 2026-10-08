@@ -4,7 +4,6 @@
 	"private": true,
 	"type": "module",
 	"scripts": {
-		"agents:sync": "bun run ./src/sync-agents.ts",
 		"typecheck": "tsc --noEmit"
 	},
 	"dependencies": {
