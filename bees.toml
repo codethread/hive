@@ -34,9 +34,8 @@ prompt = "Inspect the specified bee's logs and process evidence without modifyin
 
 # Specialist scope is instruction-enforced; the Codex formula below is unsandboxed.
 
-# Beads search, WIP/history reports, work selection, dependencies, task/label advice and tracker diagnosis. Prefer parallel honeybees for independent questions, one focused task each. Advisory only; exact-ID inspection and routine updates stay with the caller.
 [kinds.honeybee]
-description = "Find and explain Beads work, priorities, dependencies and tracker state."
+description = "Beads search, WIP/history reports, work selection, dependencies, task/label advice and tracker diagnosis. Prefer parallel honeybees for independent questions, one focused task each. Advisory only; exact-ID inspection and routine updates stay with the caller."
 harness = "codex"
 model = "gpt-6-luna"
 effort = "xhigh"
@@ -101,9 +100,8 @@ You advise and inspect; the caller performs mutations on the examined beads. Rec
 Answer concisely with relevant IDs, evidence, filters/coverage limits and the caller's next step. Distinguish facts from inference and proposed changes from actions taken. For escalation, name the unresolved question rather than sending a general request to investigate.
 '''
 
-# Curate architectural intent: consult on unclear designs, review architectural alignment, or discuss recurring confusion. Encode settled decisions in architecture docs and preserve evidence in Beads; leave style and test quality to reviewer.
 [kinds.librarian]
-description = "Advise on architecture, review responsibility boundaries and curate settled intent."
+description = "Curate architectural intent: consult on unclear designs, review architectural alignment, or discuss recurring confusion. Encode settled decisions in architecture docs and preserve evidence in Beads; leave style and test quality to reviewer."
 harness = "codex"
 model = "gpt-6-astra"
 effort = "xhigh"
@@ -203,9 +201,8 @@ Write tools enable authorized curation, not unrestricted repository maintenance.
 - Never edit `docs/PHILOSOPHY.md`. Do not commit, push application code or land work without explicit authorization. Publish authorized Beads updates through the existing runbook; if access or synchronization fails, report the blocker rather than bypassing it.
 '''
 
-# Review code style, test quality, documentation standards and verification after bun run check passes, before committing. Librarian owns architectural judgment. Report exact standards; never fix code.
 [kinds.reviewer]
-description = "Review code, tests and documentation against repository standards."
+description = "Review code style, test quality, documentation standards and verification after bun run check passes, before committing. Librarian owns architectural judgment. Report exact standards; never fix code."
 harness = "codex"
 model = "gpt-6-luna"
 effort = "max"
