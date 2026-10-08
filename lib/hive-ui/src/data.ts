@@ -1,5 +1,5 @@
 /* eslint-disable unicorn/no-null -- Resource states retain an explicit last-known snapshot. */
-import type { BoardFilter, Navigation, RequestScope } from "../contracts.ts";
+import type { BoardFilter, BoardScope, Navigation } from "../contracts.ts";
 import {
 	apiErrorSchema,
 	boardKey,
@@ -46,7 +46,7 @@ export function loadBoard(colony: string, filter: BoardFilter, fresh = false): P
 export function loadDetail(
 	colony: string,
 	id: string,
-	options: { scope: RequestScope; fresh?: boolean },
+	options: { scope: BoardScope; fresh?: boolean },
 ): Promise<void> {
 	const search = new URLSearchParams({ scope: JSON.stringify(options.scope) });
 	return details.load(

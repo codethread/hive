@@ -2,7 +2,7 @@
 import { Command, CommanderError } from "commander";
 // eslint-disable-next-line import/no-nodejs-modules -- Resolve explicitly configured local repository endpoints.
 import { basename, resolve } from "node:path";
-import { boardFilterSchema, requestScopeSchema } from "../contracts.ts";
+import { boardFilterSchema, boardScopeSchema } from "../contracts.ts";
 import type { Colony } from "../contracts.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Explicit machine-mode diagnostics file boundary.
 import { appendFile } from "node:fs/promises";
@@ -207,7 +207,7 @@ async function api(
 		}
 		status = HTTP.badRequest;
 		const id = idSchema.parse(decodeURIComponent(route["id"] ?? ""));
-		const scope = requestScopeSchema.parse(JSON.parse(url.searchParams.get("scope") ?? "{}"));
+		const scope = boardScopeSchema.parse(JSON.parse(url.searchParams.get("scope") ?? "{}"));
 		status = HTTP.ok;
 		if (route["operation"] === "beads") {
 			return respond(await data.detail(context, id, scope));

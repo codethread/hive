@@ -7,8 +7,8 @@ import {
 	REQUEST_PAGE_SIZE,
 	boardFilterSchema,
 	boardKey,
+	boardScopeSchema,
 	navigationSchema,
-	requestScopeSchema,
 } from "../contracts.ts";
 import { Inspector } from "./inspector.tsx";
 import type { SubmitEvent } from "react";
@@ -98,6 +98,7 @@ export function WorkPage() {
 	const key = boardKey(colonyId, filter);
 	const resource = useStore(boards.store, (state) => state.entries[key] ?? EMPTY);
 	const board = snapshot(resource);
+	const inventory = board?.requestInventory;
 	const colony = useStore(colonies.store, (state) =>
 		snapshot(state.entries["colonies"] ?? EMPTY)?.colonies.find((entry) => entry.id === colonyId),
 	);
@@ -106,9 +107,8 @@ export function WorkPage() {
 			<FilterBar board={board} />
 			<div className="flex flex-wrap items-center justify-between gap-2 border-b border-line px-5 py-2 text-xs text-muted">
 				<span>
-					{board
-						? `${board.bees.length} ${search.requests} requests · ${board.cards.length} beads on this page`
-						: "No work snapshot"}
+					{board ? `${board.cards.length} beads on this page` : "No work snapshot"}
+					{inventory?.kind === "loaded" && ` · ${inventory.bees.length} ${search.view} requests`}
 				</span>
 				<div className="flex items-center gap-3">
 					{board && <span>Read {time(board.fetchedAt)} · manual refresh</span>}
@@ -121,7 +121,7 @@ export function WorkPage() {
 							if (search.bead !== undefined) {
 								void loadDetail(colonyId, search.bead, {
 									fresh: true,
-									scope: requestScopeSchema.parse(search),
+									scope: boardScopeSchema.parse(search),
 								});
 							}
 						}}
@@ -131,8 +131,8 @@ export function WorkPage() {
 				</div>
 			</div>
 			<ResourceNotice resource={resource} />
-			{board && search.requests === "completed" && (
-				<RequestPagination hasMore={board.requestHasMore} />
+			{inventory?.kind === "loaded" && search.view === "completed" && (
+				<RequestPagination hasMore={inventory.hasMore} />
 			)}
 			<div className={search.bead === undefined ? "work-layout" : "work-layout with-inspector"}>
 				<section aria-label="Bead board" className="min-w-0">
@@ -142,13 +142,17 @@ export function WorkPage() {
 				{search.bead !== undefined && <Inspector colonyId={colonyId} id={search.bead} />}
 			</div>
 			<footer className="flex flex-wrap justify-between gap-2 border-t border-line px-5 py-3 text-xs text-muted">
-				<span>Recorded observations may be stale. Process health is not checked.</span>
+				<span>
+					{search.view === "beads"
+						? "Read-only bead snapshot · refresh to read the latest changes."
+						: "Recorded observations may be stale. Process health is not checked."}
+				</span>
 				<details className="max-w-full">
 					<summary>Tracker & query</summary>
 					<div className="mt-3 space-y-2 break-all font-mono text-[11px]">
 						<p>{colony?.root}</p>
 						<p>{colony?.beadsDb}</p>
-						<p>Request inventory read: {board?.inventoryReadAt}</p>
+						{inventory?.kind === "loaded" && <p>Request inventory read: {inventory.readAt}</p>}
 						<pre className="whitespace-pre-wrap">
 							{board && board.query.length > 0
 								? board.query.map(shellQuote).join(" ")
@@ -175,26 +179,27 @@ function FilterBar({ board }: { board: Board | null }) {
 		<section aria-label="Work filters" className="border-b border-line bg-panel">
 			<div className="flex flex-wrap items-center gap-3 px-5 py-3">
 				<label className="flex items-center gap-2 text-sm text-muted">
-					Bee requests
+					View
 					<select
 						className="control"
-						value={search.requests}
+						value={search.view}
 						onChange={(event) => {
-							const requests = requestScopeSchema.shape.requests.parse(event.target.value);
+							const view = boardScopeSchema.shape.view.parse(event.target.value);
 							void navigate({
 								search: (current) =>
 									withoutSelection({
 										...current,
-										closed: requests === "completed",
+										closed: view === "completed",
 										page: 0,
 										requestPage: 0,
-										requests,
+										view,
 									}),
 							});
 						}}
 					>
-						<option value="open">Open</option>
-						<option value="completed">Completed</option>
+						<option value="beads">Beads</option>
+						<option value="open">Open bees</option>
+						<option value="completed">Completed bees</option>
 					</select>
 				</label>
 				<form key={search.query} className="flex flex-1 gap-2 sm:max-w-md" onSubmit={submit}>
@@ -344,11 +349,13 @@ function LabelFilter({ group, labels }: { group: "all" | "any" | "exclude"; labe
 
 function BoardColumns({ board }: { board: Board }) {
 	const search = useSearch({ from: "/colonies/$colonyId" });
+	const noRequests =
+		board.requestInventory.kind === "loaded" && board.requestInventory.bees.length === 0;
 	const statuses = [
 		...new Set([
-			...(search.requests === "open"
-				? STATUS_ORDER.filter((status) => status !== "deferred" && status !== "closed")
-				: []),
+			...(search.view === "completed"
+				? []
+				: STATUS_ORDER.filter((status) => status !== "deferred" && status !== "closed")),
 			...board.cards.map((card) => card.status),
 		]),
 	];
@@ -357,10 +364,10 @@ function BoardColumns({ board }: { board: Board }) {
 		return (
 			<div className="grid min-h-80 place-content-center gap-2 p-6 text-center">
 				<h2 className="font-medium">
-					{board.bees.length === 0 ? `No ${search.requests} bee requests` : "No matching beads"}
+					{noRequests ? `No ${search.view} bee requests` : "No matching beads"}
 				</h2>
 				<p className="text-sm text-muted">
-					{board.bees.length === 0
+					{noRequests
 						? "No requests in this view. Choose another request view or history page."
 						: "Try clearing the label filters or including closed beads."}
 				</p>
@@ -422,6 +429,11 @@ function BeadCard({ card }: { card: Card }) {
 				</div>
 			</div>
 			<div className="space-y-2 border-t border-line bg-panel px-3.5 py-2.5">
+				{search.view === "beads" && (
+					<p className="text-[11px] text-muted">
+						Assigned to {card.assignee ?? "nobody"} · updated {time(card.updatedAt)}
+					</p>
+				)}
 				{card.bees.map((bee) => (
 					<div key={bee.id} className="text-[11px]">
 						<div className="flex justify-between gap-2 text-muted">

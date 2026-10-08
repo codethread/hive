@@ -1,6 +1,6 @@
 # Hive UI
 
-A local, read-only work board for Beads linked to Bee requests. Cards lead with native task status, priority and labels; bee identity and timestamped observations sit underneath. Select a card for its description and comments, then expand requester provenance to load inferred ancestry.
+A local, read-only work board for ordinary Beads and work linked to Bee requests. Cards lead with native task status, priority and labels. Ordinary cards show native assignment and update time; Bee views add identity and timestamped observations. Select a card for its description and comments, or expand a Bee’s requester provenance to load inferred ancestry.
 
 From the repository root, install workspace dependencies with `bun install`, then run:
 
@@ -30,14 +30,15 @@ The switcher queries only the selected colony. Filters and card selection are re
 
 ## Reading the board
 
-- **Bee requests** switches between Open and Completed. Completed shows successful closed requests, newest first, in pages of 50. Use **Older requests** to fetch another page; task filters apply within the selected request page. Switching to Completed includes closed tasks automatically.
+- **View → Beads** shows ordinary beads, excluding both `bee` and `system` labels, whether or not they are linked to a Bee request. It reads only the current task page and selected details.
+- **Open bees** shows work linked to open requests. **Completed bees** shows work linked to successful closed requests, newest first, in pages of 50 requests. Use **Older requests** to fetch another page; task filters apply within the selected request page. Switching to Completed bees includes closed tasks automatically.
 - **All of**, **Any of** and **Exclude** map to native `br` label groups. Labels are exact and case-sensitive; commas are literal. Suggestions come from the current page. Enter any exact label manually.
-- Search submits native Beads text search. Deferred linked tasks are included. Closed linked tasks are hidden until **Closed beads** is checked. Task pages contain up to 60 cards.
+- Search submits native Beads text search. Deferred tasks are included. Closed tasks are hidden until **Closed beads** is checked. Task pages contain up to 60 cards.
 - **Refresh** reads the current board and selected detail again. Snapshots are cached briefly and do not poll. A failed refresh retains the previous data with an error.
 - Bee observations retain their original timestamps. They describe recorded state, not current process health. Related work does not imply a task claim; the inspector shows the native assignee separately.
 - Requester attribution is recorded; parent bees are inferred by matching friendly names. Missing, ambiguous and cyclic matches remain explicit. Provenance loads only when expanded.
 
-The MVP accepts up to 100 open requests per colony, 50 completed requests per history page and eight provenance steps. Exceeding the request limit produces a visible error instead of a silently incomplete board. Native request membership requires a bounded batch detail read; completed request history is queried only in the Completed view or for expanded provenance.
+The MVP accepts up to 100 open requests per colony, 50 completed requests per history page and eight provenance steps. Exceeding the request limit produces a visible error instead of a silently incomplete board. Native request membership requires a bounded batch detail read; completed request history is queried only in the Completed bees view or for expanded provenance.
 
 ## Development and diagnostics
 

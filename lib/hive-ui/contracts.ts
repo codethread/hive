@@ -3,13 +3,13 @@ import { z } from "zod";
 
 export const PAGE_SIZE = 60;
 export const REQUEST_PAGE_SIZE = 50;
-export const requestScopeSchema = z.object({
-	/** Zero-based page within completed request history; Open uses page zero. */
+export const boardScopeSchema = z.object({
+	/** Zero-based completed request history page; other views use page zero. */
 	requestPage: z.number().int().nonnegative().default(0),
-	/** Native open requests or successfully completed, closed requests. */
-	requests: z.enum(["open", "completed"]).default("open"),
+	/** Ordinary task beads, or task beads linked to open or completed Bee requests. */
+	view: z.enum(["beads", "open", "completed"]).default("open"),
 });
-export const boardFilterSchema = requestScopeSchema.extend({
+export const boardFilterSchema = boardScopeSchema.extend({
 	all: z.array(z.string().min(1)).default([]),
 	any: z.array(z.string().min(1)).default([]),
 	closed: z.boolean().default(false),
@@ -51,17 +51,31 @@ export const cardSchema = z.object({
 	title: z.string(),
 	updatedAt: z.string(),
 });
+export const requestInventorySchema = z.discriminatedUnion("kind", [
+	z.object({
+		/** Ordinary-bead reads do not query request membership. */
+		kind: z.literal("not_requested"),
+	}),
+	z.object({
+		/** Requests in the selected, bounded inventory page. */
+		bees: z.array(beeSchema),
+		/** Lookahead found another completed request page. */
+		hasMore: z.boolean(),
+		/** Native request inventory was read for this view. */
+		kind: z.literal("loaded"),
+		/** Original inventory read time, retained when the cached value is reused. */
+		readAt: z.string(),
+	}),
+]);
 export const boardSchema = z.object({
-	bees: z.array(beeSchema),
 	cards: z.array(cardSchema),
 	fetchedAt: z.string(),
 	hasMore: z.boolean(),
-	inventoryReadAt: z.string(),
 	labels: z.array(z.string()),
 	/** Exact argv preview; the server executes it without a shell. */
 	query: z.array(z.string()),
-	/** Lookahead found another completed request page beyond this inventory. */
-	requestHasMore: z.boolean(),
+	/** Request evidence is absent by design in the ordinary-beads view. */
+	requestInventory: requestInventorySchema,
 });
 export const detailSchema = z.object({
 	card: cardSchema,
@@ -87,7 +101,8 @@ export const provenanceSchema = z.object({
 });
 export const apiErrorSchema = z.object({ message: z.string() });
 
-export type RequestScope = z.infer<typeof requestScopeSchema>;
+export type BoardScope = z.infer<typeof boardScopeSchema>;
+export type RequestInventory = z.infer<typeof requestInventorySchema>;
 export type Colony = z.infer<typeof colonySchema>;
 export type BoardFilter = z.infer<typeof boardFilterSchema>;
 export type Navigation = z.infer<typeof navigationSchema>;
@@ -107,7 +122,7 @@ export function taskQuery(filter: BoardFilter, taskIds: string[]): string[] {
 		[taskIds, "--id"],
 		[filter.all, "--label"],
 		[filter.any, "--label-any"],
-		[["system", ...filter.exclude], "--exclude-label"],
+		[["system", "bee", ...filter.exclude], "--exclude-label"],
 	] as const) {
 		args.push(...values.flatMap((value) => [flag, value]));
 	}
@@ -130,6 +145,6 @@ export function boardKey(colony: string, filter: BoardFilter): string {
 	return JSON.stringify([colony, filter]);
 }
 
-export function detailKey(colony: string, id: string, scope: RequestScope): string {
-	return JSON.stringify([colony, scope.requests, scope.requestPage, id]);
+export function detailKey(colony: string, id: string, scope: BoardScope): string {
+	return JSON.stringify([colony, scope.view, scope.requestPage, id]);
 }

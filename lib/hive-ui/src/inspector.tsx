@@ -2,12 +2,12 @@ import type { Bee, Provenance } from "../contracts.ts";
 import { EMPTY, details, loadProvenance, provenance, snapshot } from "./data.ts";
 import { Label, ResourceNotice, outcomeName, time } from "./ui.tsx";
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
-import { detailKey, requestScopeSchema } from "../contracts.ts";
+import { boardScopeSchema, detailKey } from "../contracts.ts";
 import { useStore } from "zustand";
 
 export function Inspector({ colonyId, id }: { colonyId: string; id: string }) {
 	const search = useSearch({ from: "/colonies/$colonyId" });
-	const key = detailKey(colonyId, id, requestScopeSchema.parse(search));
+	const key = detailKey(colonyId, id, boardScopeSchema.parse(search));
 	const resource = useStore(details.store, (state) => state.entries[key] ?? EMPTY);
 	const detail = snapshot(resource);
 	const navigate = useNavigate({ from: "/colonies/$colonyId" });
@@ -48,14 +48,18 @@ export function Inspector({ colonyId, id }: { colonyId: string; id: string }) {
 					<p className="whitespace-pre-wrap text-sm leading-relaxed">
 						{detail.description || "No description recorded."}
 					</p>
-					<h3 className="section-title">Requested work</h3>
-					{detail.card.bees.map((bee) => (
-						<BeeContext key={bee.id} bee={bee} colonyId={colonyId} />
-					))}
-					{detail.card.bees.length === 0 && (
-						<p className="text-sm text-muted">
-							No request links this bead in the selected request page.
-						</p>
+					{search.view !== "beads" && (
+						<>
+							<h3 className="section-title">Requested work</h3>
+							{detail.card.bees.map((bee) => (
+								<BeeContext key={bee.id} bee={bee} colonyId={colonyId} />
+							))}
+							{detail.card.bees.length === 0 && (
+								<p className="text-sm text-muted">
+									No request links this bead in the selected request page.
+								</p>
+							)}
+						</>
 					)}
 					<details className="mt-6 border-t border-line pt-3">
 						<summary className="text-xs text-muted">Comments · {detail.comments.length}</summary>
