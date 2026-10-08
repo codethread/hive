@@ -10,10 +10,9 @@ import {
 	boardScopeSchema,
 	navigationSchema,
 } from "../contracts.ts";
+import { BoardToolbar } from "./filter-drawer.tsx";
 import { Inspector } from "./inspector.tsx";
-import type { SubmitEvent } from "react";
 import { useStore } from "zustand";
-import { z } from "zod";
 
 const STATUS_ORDER = ["in_progress", "open", "blocked", "deferred", "closed"];
 const STATUS_NAMES: Record<string, string> = {
@@ -104,7 +103,7 @@ export function WorkPage() {
 	);
 	return (
 		<main>
-			<FilterBar board={board} />
+			<BoardToolbar board={board} />
 			<div className="flex flex-wrap items-center justify-between gap-2 border-b border-line px-5 py-2 text-xs text-muted">
 				<span>
 					{board ? `${board.cards.length} beads on this page` : "No work snapshot"}
@@ -134,7 +133,7 @@ export function WorkPage() {
 			{inventory?.kind === "loaded" && search.view === "completed" && (
 				<RequestPagination hasMore={inventory.hasMore} />
 			)}
-			<div className={search.bead === undefined ? "work-layout" : "work-layout with-inspector"}>
+			<div className="work-layout">
 				<section aria-label="Bead board" className="min-w-0">
 					{board && <BoardColumns board={board} />}
 					{board && <Pagination hasMore={board.hasMore} />}
@@ -166,187 +165,6 @@ export function WorkPage() {
 }
 
 // --- Board and navigation controls ---
-function FilterBar({ board }: { board: Board | null }) {
-	const search = useSearch({ from: "/colonies/$colonyId" });
-	const navigate = useNavigate({ from: "/colonies/$colonyId" });
-	const count = search.all.length + search.any.length + search.exclude.length;
-	const submit = (event: SubmitEvent<HTMLFormElement>) => {
-		event.preventDefault();
-		const query = z.string().parse(new FormData(event.currentTarget).get("query"));
-		void navigate({ search: (current) => ({ ...current, page: 0, query }) });
-	};
-	return (
-		<section aria-label="Work filters" className="border-b border-line bg-panel">
-			<div className="flex flex-wrap items-center gap-3 px-5 py-3">
-				<label className="flex items-center gap-2 text-sm text-muted">
-					View
-					<select
-						className="control"
-						value={search.view}
-						onChange={(event) => {
-							const view = boardScopeSchema.shape.view.parse(event.target.value);
-							void navigate({
-								search: (current) =>
-									withoutSelection({
-										...current,
-										closed: view === "completed",
-										page: 0,
-										requestPage: 0,
-										view,
-									}),
-							});
-						}}
-					>
-						<option value="beads">Beads</option>
-						<option value="open">Open bees</option>
-						<option value="completed">Completed bees</option>
-					</select>
-				</label>
-				<form key={search.query} className="flex flex-1 gap-2 sm:max-w-md" onSubmit={submit}>
-					<label className="sr-only" htmlFor="search">
-						Search native bead text
-					</label>
-					<input
-						id="search"
-						name="query"
-						type="search"
-						defaultValue={search.query}
-						placeholder="Search bead text…"
-						className="control min-w-0 flex-1"
-					/>
-					<button className="button" type="submit">
-						Search
-					</button>
-				</form>
-				<label className="flex items-center gap-2 text-sm text-muted">
-					<input
-						type="checkbox"
-						checked={search.closed}
-						onChange={(event) => {
-							void navigate({
-								search: (current) => ({ ...current, closed: event.target.checked, page: 0 }),
-							});
-						}}
-					/>
-					Closed beads
-				</label>
-				{(count > 0 || search.query) && (
-					<button
-						className="button"
-						type="button"
-						onClick={() => {
-							void navigate({
-								search: (current) => ({
-									...current,
-									all: [],
-									any: [],
-									exclude: [],
-									page: 0,
-									query: "",
-								}),
-							});
-						}}
-					>
-						Clear filters
-					</button>
-				)}
-			</div>
-			<details className="border-t border-line px-5 py-3" open>
-				<summary className="text-xs text-muted">
-					Labels{count > 0 ? ` · ${count} selected` : ""}
-				</summary>
-				<div className="mt-3 grid gap-4 md:grid-cols-3">
-					{(["all", "any", "exclude"] as const).map((group) => (
-						<LabelFilter key={group} group={group} labels={board?.labels ?? []} />
-					))}
-				</div>
-				<p className="mt-3 text-[11px] text-muted">
-					Exact, case-sensitive labels · groups combine with AND · suggestions from this page only
-				</p>
-			</details>
-		</section>
-	);
-}
-
-function LabelFilter({ group, labels }: { group: "all" | "any" | "exclude"; labels: string[] }) {
-	const search = useSearch({ from: "/colonies/$colonyId" });
-	const navigate = useNavigate({ from: "/colonies/$colonyId" });
-	const name = { all: "All of", any: "Any of", exclude: "Exclude" }[group];
-	const flag = { all: "--label", any: "--label-any", exclude: "--exclude-label" }[group];
-	const hint = {
-		all: "Every label required",
-		any: "At least one label",
-		exclude: "Hide any matching bead",
-	}[group];
-	const add = (event: SubmitEvent<HTMLFormElement>) => {
-		event.preventDefault();
-		const label = z.string().parse(new FormData(event.currentTarget).get("label"));
-		if (label.length === 0) {
-			return;
-		}
-		void navigate({
-			search: (current) => ({
-				...current,
-				[group]: [...new Set([...current[group], label])],
-				page: 0,
-			}),
-		});
-		event.currentTarget.reset();
-	};
-	return (
-		<div>
-			<p className="mb-2 text-xs font-medium">
-				{name}
-				<span className="ml-2 font-mono text-[10px] text-muted">{flag}</span>
-			</p>
-			<div className="mb-2 flex min-h-6 flex-wrap gap-1">
-				{search[group].map((label) => (
-					<button
-						className="filter-chip"
-						type="button"
-						key={label}
-						aria-label={`Remove ${label} from ${name}`}
-						onClick={() => {
-							void navigate({
-								search: (current) => ({
-									...current,
-									[group]: current[group].filter((entry) => entry !== label),
-									page: 0,
-								}),
-							});
-						}}
-					>
-						{label}
-						<span aria-hidden="true"> ×</span>
-					</button>
-				))}
-				{search[group].length === 0 && <span className="text-xs text-muted">{hint}</span>}
-			</div>
-			<form className="flex gap-2" onSubmit={add}>
-				<label className="sr-only" htmlFor={`label-${group}`}>
-					{name} label
-				</label>
-				<input
-					className="control min-w-0 flex-1"
-					id={`label-${group}`}
-					name="label"
-					list={`suggestions-${group}`}
-					placeholder="Exact label…"
-					autoComplete="off"
-				/>
-				<datalist id={`suggestions-${group}`}>
-					{labels.map((label) => (
-						<option key={label} value={label} aria-label={label} />
-					))}
-				</datalist>
-				<button className="button" type="submit" aria-label={`Add ${name} label`}>
-					+
-				</button>
-			</form>
-		</div>
-	);
-}
-
 function BoardColumns({ board }: { board: Board }) {
 	const search = useSearch({ from: "/colonies/$colonyId" });
 	const noRequests =

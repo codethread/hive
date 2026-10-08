@@ -18,13 +18,26 @@ import {
 	readSpawnRequest,
 	requestOutcome,
 } from "@hive/shared";
-import { PAGE_SIZE, REQUEST_PAGE_SIZE, taskQuery } from "../contracts.ts";
+import { PAGE_SIZE, RELATION_LIMIT, REQUEST_PAGE_SIZE, taskQuery } from "../contracts.ts";
 import { z } from "zod";
 
 const MAX_REQUESTS = 100;
 const MAX_ANCESTORS = 8;
 const INVENTORY_TTL_MS = 10_000;
-const nativeSchema = beadSchema.extend({ created_by: z.string().optional(), title: z.string() });
+const nativeRelationSchema = z.object({
+	dependency_type: z.string(),
+	id: z.string(),
+	priority: z.number().int(),
+	status: z.string(),
+	title: z.string(),
+});
+const nativeSchema = beadSchema.extend({
+	acceptance_criteria: z.string().default(""),
+	created_by: z.string().optional(),
+	dependencies: z.array(nativeRelationSchema).default([]),
+	dependents: z.array(nativeRelationSchema).default([]),
+	title: z.string(),
+});
 const nativeListSchema = z.object({ issues: z.array(nativeSchema) });
 type NativeBead = z.infer<typeof nativeSchema>;
 type Inventory = Extract<RequestInventory, { kind: "loaded" }>;
@@ -94,6 +107,7 @@ export function createBoardData() {
 				({ bees } = current);
 			}
 			return {
+				acceptanceCriteria: bead.acceptance_criteria,
 				card: card(bead, bees),
 				comments: bead.comments.map((comment) => ({
 					at: comment.created_at,
@@ -101,6 +115,8 @@ export function createBoardData() {
 					id: comment.id,
 					text: comment.text,
 				})),
+				dependencies: relations(bead.dependencies),
+				dependents: relations(bead.dependents),
 				description: bead.description,
 				fetchedAt: new Date().toISOString(),
 			};
@@ -110,6 +126,19 @@ export function createBoardData() {
 }
 
 // --- Native I/O and projections ---
+function relations(edges: NativeBead["dependencies"]): Detail["dependencies"] {
+	return {
+		items: edges.slice(0, RELATION_LIMIT).map((edge) => ({
+			dependencyType: edge.dependency_type,
+			id: edge.id,
+			priority: edge.priority,
+			status: edge.status,
+			title: edge.title,
+		})),
+		total: edges.length,
+	};
+}
+
 async function readTasks(
 	context: ReadContext,
 	filter: BoardFilter,

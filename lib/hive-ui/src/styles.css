@@ -97,11 +97,18 @@ input[type="checkbox"] {
 	.work-layout {
 		@apply grid min-h-[50vh] grid-cols-1;
 	}
-	.work-layout.with-inspector {
-		@apply lg:grid-cols-[minmax(0,1fr)_340px];
-	}
 	.inspector {
-		@apply min-w-0 border-t border-line bg-panel p-5 lg:border-t-0 lg:border-l;
+		@apply fixed inset-0 m-auto h-[min(90dvh,1000px)] max-h-none w-[min(1100px,calc(100%-4rem))] max-w-none overflow-hidden rounded-xl border border-line bg-panel p-0 text-ink shadow-2xl;
+	}
+	.inspector[open] {
+		@apply flex flex-col;
+	}
+	.inspector::backdrop {
+		background: rgb(0 0 0 / 55%);
+		backdrop-filter: blur(3px);
+	}
+	.inspector-body {
+		@apply min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 pb-8 break-words sm:px-8;
 	}
 	.board-columns {
 		@apply grid auto-cols-[minmax(245px,1fr)] grid-flow-col gap-4 overflow-x-auto px-5 pb-5;
@@ -117,5 +124,30 @@ input[type="checkbox"] {
 	}
 	.status-closed {
 		@apply border-accent bg-accent;
+	}
+}
+
+body:has(.inspector[open], .filter-drawer[open]) {
+	overflow: hidden;
+}
+
+@media (max-width: 640px) {
+	.inspector {
+		width: 100%;
+		height: 100dvh;
+		border-radius: 0;
+		border-width: 0;
+	}
+}
+
+@layer components {
+	.filter-drawer {
+		@apply fixed inset-y-0 left-0 m-0 h-dvh max-h-none w-full max-w-[440px] border-0 border-r border-line bg-panel p-0 text-ink shadow-2xl;
+	}
+	.filter-drawer[open] {
+		@apply flex flex-col;
+	}
+	.filter-drawer::backdrop {
+		background: rgb(0 0 0 / 55%);
 	}
 }

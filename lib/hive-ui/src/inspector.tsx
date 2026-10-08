@@ -1,83 +1,206 @@
-import type { Bee, Provenance } from "../contracts.ts";
-import { EMPTY, details, loadProvenance, provenance, snapshot } from "./data.ts";
+import type { Bee, Detail, Provenance, Relation } from "../contracts.ts";
+import { EMPTY, details, loadDetail, loadProvenance, provenance, snapshot } from "./data.ts";
 import { Label, ResourceNotice, outcomeName, time } from "./ui.tsx";
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { boardScopeSchema, detailKey } from "../contracts.ts";
+import { useEffect, useLayoutEffect, useRef } from "react";
 import { useStore } from "zustand";
 
+// eslint-disable-next-line max-statements -- Keep the selected resource, modal lifecycle and URL navigation together.
 export function Inspector({ colonyId, id }: { colonyId: string; id: string }) {
 	const search = useSearch({ from: "/colonies/$colonyId" });
-	const key = detailKey(colonyId, id, boardScopeSchema.parse(search));
+	const scope = boardScopeSchema.parse(search);
+	const key = detailKey(colonyId, id, scope);
 	const resource = useStore(details.store, (state) => state.entries[key] ?? EMPTY);
 	const detail = snapshot(resource);
 	const navigate = useNavigate({ from: "/colonies/$colonyId" });
+	const dialogRef = useRef<HTMLDialogElement>(null);
+	const closeRef = useRef<HTMLButtonElement>(null);
+	useLayoutEffect(() => {
+		const dialog = dialogRef.current!;
+		dialog.showModal();
+		return () => {
+			// Close before React removes the dialog so the browser restores focus to its opener.
+			dialog.close();
+		};
+	}, []);
+	useEffect(() => {
+		closeRef.current!.focus();
+		// eslint-disable-next-line react/exhaustive-effect-dependencies -- Related-bead navigation resets keyboard focus when the previous link disappears.
+	}, [id]);
+	const close = () => {
+		void navigate({
+			search: (current) => {
+				const { bead: _bead, ...rest } = current;
+				return rest;
+			},
+		});
+	};
 	return (
-		<aside aria-label="Bead inspector" className="inspector">
-			<div className="flex items-center justify-between gap-3 border-b border-line pb-3">
-				<span className="font-mono text-xs text-muted">{id}</span>
-				<button
-					className="button"
-					type="button"
-					aria-label="Close bead inspector"
-					onClick={() => {
-						void navigate({
-							search: (current) => {
-								const { bead: _bead, ...rest } = current;
-								return rest;
-							},
-						});
-					}}
-				>
-					Close
-				</button>
-			</div>
-			<ResourceNotice resource={resource} />
-			{detail && (
-				<>
-					<h2 className="mt-4 text-lg leading-snug font-medium">{detail.card.title}</h2>
-					<div className="my-3 flex flex-wrap gap-1">
-						<Label>{detail.card.status}</Label>
-						<Label>P{detail.card.priority}</Label>
-						{detail.card.labels.map((label) => (
-							<Label key={label}>{label}</Label>
-						))}
-					</div>
-					<p className="mb-4 text-xs text-muted">
-						Assigned to {detail.card.assignee ?? "nobody"} · updated {time(detail.card.updatedAt)}
+		<dialog
+			ref={dialogRef}
+			aria-labelledby="inspector-title"
+			className="inspector"
+			onCancel={(event) => {
+				event.preventDefault();
+				close();
+			}}
+		>
+			<header className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-line px-6 py-4 sm:px-8">
+				<div className="min-w-0">
+					<p id="inspector-title" className="text-sm font-medium">
+						Bead inspector
 					</p>
-					<p className="whitespace-pre-wrap text-sm leading-relaxed">
-						{detail.description || "No description recorded."}
-					</p>
-					{search.view !== "beads" && (
-						<>
-							<h3 className="section-title">Requested work</h3>
-							{detail.card.bees.map((bee) => (
-								<BeeContext key={bee.id} bee={bee} colonyId={colonyId} />
+					<p className="mt-1 break-all font-mono text-xs text-muted">{id}</p>
+				</div>
+				<div className="flex gap-2">
+					<button
+						className="button"
+						type="button"
+						disabled={resource.kind === "loading"}
+						onClick={() => {
+							void loadDetail(colonyId, id, { fresh: true, scope });
+						}}
+					>
+						Refresh detail
+					</button>
+					<button
+						ref={closeRef}
+						className="button"
+						type="button"
+						aria-label="Close bead inspector"
+						onClick={close}
+					>
+						Close{" "}
+						<span aria-hidden="true" className="ml-1 text-muted">
+							Esc
+						</span>
+					</button>
+				</div>
+			</header>
+			<div key={id} className="inspector-body">
+				<ResourceNotice resource={resource} />
+				{detail && (
+					<>
+						<h2 className="mt-6 text-2xl leading-snug font-medium">{detail.card.title}</h2>
+						<div className="my-3 flex flex-wrap gap-1">
+							<Label>{detail.card.status}</Label>
+							<Label>P{detail.card.priority}</Label>
+							{detail.card.labels.map((label) => (
+								<Label key={label}>{label}</Label>
 							))}
-							{detail.card.bees.length === 0 && (
-								<p className="text-sm text-muted">
-									No request links this bead in the selected request page.
-								</p>
-							)}
-						</>
-					)}
-					<details className="mt-6 border-t border-line pt-3">
-						<summary className="text-xs text-muted">Comments · {detail.comments.length}</summary>
-						<ol className="mt-4 space-y-4">
-							{detail.comments.map((comment) => (
-								<li key={comment.id}>
-									<p className="text-[11px] text-muted">
-										{comment.author} · {time(comment.at)}
+						</div>
+						<p className="mb-6 text-xs text-muted">
+							Assigned to {detail.card.assignee ?? "nobody"} · updated {time(detail.card.updatedAt)}
+						</p>
+						<section aria-label="Description">
+							<h3 className="section-title">Description</h3>
+							<p className="whitespace-pre-wrap text-sm leading-relaxed">
+								{detail.description || "No description recorded."}
+							</p>
+						</section>
+						<section
+							aria-label="Acceptance criteria"
+							className="mt-6 rounded-lg border border-line bg-canvas px-5 pb-5"
+						>
+							<h3 className="section-title">Acceptance criteria</h3>
+							<p className="whitespace-pre-wrap text-sm leading-relaxed">
+								{detail.acceptanceCriteria || "No acceptance criteria recorded."}
+							</p>
+						</section>
+						<div className="grid gap-x-6 md:grid-cols-2">
+							<Relations direction="outgoing" relations={detail.dependencies} />
+							<Relations direction="incoming" relations={detail.dependents} />
+						</div>
+						{search.view !== "beads" && (
+							<>
+								<h3 className="section-title">Requested work</h3>
+								{detail.card.bees.map((bee) => (
+									<BeeContext key={bee.id} bee={bee} colonyId={colonyId} />
+								))}
+								{detail.card.bees.length === 0 && (
+									<p className="text-sm text-muted">
+										No request links this bead in the selected request page.
 									</p>
-									<p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed">{comment.text}</p>
-								</li>
-							))}
-						</ol>
-					</details>
-				</>
-			)}
-		</aside>
+								)}
+							</>
+						)}
+						<details className="mt-6 border-t border-line pt-3">
+							<summary className="text-xs text-muted">Comments · {detail.comments.length}</summary>
+							<ol className="mt-4 space-y-4">
+								{detail.comments.map((comment) => (
+									<li key={comment.id}>
+										<p className="text-[11px] text-muted">
+											{comment.author} · {time(comment.at)}
+										</p>
+										<p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed">
+											{comment.text}
+										</p>
+									</li>
+								))}
+							</ol>
+						</details>
+					</>
+				)}
+			</div>
+		</dialog>
 	);
+}
+
+// --- Selected-bead relationships and request context ---
+function Relations({
+	direction,
+	relations,
+}: {
+	direction: "outgoing" | "incoming";
+	relations: Detail["dependencies"];
+}) {
+	const title = direction === "outgoing" ? "Dependencies · outgoing" : "Dependents · incoming";
+	return (
+		<section aria-label={title} className="min-w-0">
+			<h3 className="section-title">
+				{title} · {relations.total}
+			</h3>
+			{relations.total === 0 && <p className="text-sm text-muted">None recorded.</p>}
+			<ul className="space-y-2">
+				{relations.items.map((relation) => (
+					<li key={`${relation.id}/${relation.dependencyType}`}>
+						<Link
+							from="/colonies/$colonyId"
+							to="."
+							search={(current) => ({ ...current, bead: relation.id })}
+							className="block rounded-lg border border-line bg-card p-3 hover:border-accent"
+						>
+							<p className="text-xs text-accent">
+								{relationName(relation, direction)} <span className="font-mono">{relation.id}</span>
+							</p>
+							<p className="mt-1 text-sm leading-snug">{relation.title}</p>
+							<div className="mt-2 flex flex-wrap gap-1">
+								<Label>{relation.status}</Label>
+								<Label>P{relation.priority}</Label>
+								<Label>{relation.dependencyType}</Label>
+							</div>
+						</Link>
+					</li>
+				))}
+			</ul>
+			{relations.total > relations.items.length && (
+				<p className="mt-3 text-xs text-alert">
+					Showing {relations.items.length} of {relations.total} relationships in this direction.
+				</p>
+			)}
+		</section>
+	);
+}
+
+function relationName(relation: Relation, direction: "outgoing" | "incoming"): string {
+	if (relation.dependencyType === "blocks") {
+		return direction === "outgoing" ? "Depends on" : "Blocks";
+	}
+	if (relation.dependencyType === "parent-child") {
+		return direction === "outgoing" ? "Parent" : "Child";
+	}
+	return direction === "outgoing" ? "Links to" : "Linked from";
 }
 
 function BeeContext({ bee, colonyId }: { bee: Bee; colonyId: string }) {

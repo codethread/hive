@@ -3,6 +3,7 @@ import { z } from "zod";
 
 export const PAGE_SIZE = 60;
 export const REQUEST_PAGE_SIZE = 50;
+export const RELATION_LIMIT = 50;
 export const boardScopeSchema = z.object({
 	/** Zero-based completed request history page; other views use page zero. */
 	requestPage: z.number().int().nonnegative().default(0),
@@ -77,10 +78,30 @@ export const boardSchema = z.object({
 	/** Request evidence is absent by design in the ordinary-beads view. */
 	requestInventory: requestInventorySchema,
 });
+export const relationSchema = z.object({
+	/** Exact native relation type, retained verbatim for display. */
+	dependencyType: z.string(),
+	id: z.string(),
+	priority: z.number().int(),
+	status: z.string(),
+	title: z.string(),
+});
+export const relationsSchema = z.object({
+	/** Summaries already present on the selected native show, capped per direction. */
+	items: z.array(relationSchema).max(RELATION_LIMIT),
+	/** Full number of native edges in this direction, including omitted summaries. */
+	total: z.number().int().nonnegative(),
+});
 export const detailSchema = z.object({
+	/** Verbatim native acceptance_criteria; empty when none were recorded. */
+	acceptanceCriteria: z.string(),
 	card: cardSchema,
 	/** Comments load only with the selected bead, never in board responses. */
 	comments: z.array(observationSchema.extend({ id: z.number().int() })),
+	/** Native outgoing edges: selected bead is the edge source. */
+	dependencies: relationsSchema,
+	/** Native incoming edges: selected bead is the edge target. */
+	dependents: relationsSchema,
 	description: z.string(),
 	fetchedAt: z.string(),
 });
@@ -110,6 +131,7 @@ export type Bee = z.infer<typeof beeSchema>;
 export type Card = z.infer<typeof cardSchema>;
 export type Board = z.infer<typeof boardSchema>;
 export type Detail = z.infer<typeof detailSchema>;
+export type Relation = z.infer<typeof relationSchema>;
 export type Provenance = z.infer<typeof provenanceSchema>;
 
 /** Exact native label semantics, including literal commas and case. */

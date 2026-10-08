@@ -46,12 +46,18 @@ The Bee views populate the board from linked task IDs. Open bees uses native ope
 | Configured colonies | Startup/navigation; no tracker read. |
 | Request inventory | Bee views only, selected colony and history page; Open fails visibly above 100 requests. Completed uses native closed + `bee-outcome:succeeded`, sorted by updated time descending, 50 plus one lookahead. Ten-second cache per endpoint/view/history page. |
 | Task board | Native list/search and filter groups; 60 cards per page, one lookahead row for Next. Beads reads tasks directly. Bee views additionally restrict to the selected request page’s task IDs and skip task reads when membership is empty. |
-| Bead detail | One selected ID; includes its description and comments. Beads performs no request inventory read; Bee views reuse their scoped inventory. |
+| Bead detail | One selected ID; includes its description, native acceptance criteria, comments and up to 50 relationship summaries per direction with full counts. Native `show` already supplies outgoing dependencies and incoming dependents; no related detail reads or graph traversal. Beads performs no request inventory read; Bee views reuse their scoped inventory. |
 | Provenance | Explicit inspector action; requester-assignee query includes closed history, at most three ambiguity candidates and eight ancestry steps. |
 
 Native `br list` does not supply related task edges, so each requested inventory page requires one batched `br show` to discover membership and recorded observations. This is a bounded cost on the selected colony, not a full-history hydration. Native results contain more fields than the browser needs; the server projects away recipes/prompts and board descriptions/comments. Measure before adding a new native projection API.
 
 All reads use Shared's native `br` boundary with auto-import/export disabled. Repeated label groups go straight to `--label`, `--label-any`, and `--exclude-label`; labels are case-sensitive and commas remain literal. `system` and `bee` are always excluded from task results. The label picker contains labels on the loaded page, clearly labelled as such; exact labels can also be entered manually. It never presents whole-tracker label counts as board counts.
+
+## Filters and saved views
+
+A compact board toolbar keeps View, Filters and a named-view selector visible. Search, closed-bead visibility and all/any/exclude labels live in a left modal drawer, leaving the board its full width. Both drawers use native modal dialogs for focus containment and Escape, with no new component-library dependency. Opening the filter drawer and managing saved views perform no data reads.
+
+The URL remains authoritative for active filters. A separate vanilla Zustand store owns named presets, persisted in browser local storage and partitioned by configured colony ID. Each preset contains only view, query, closed and label groups; applying it navigates with both pagers reset and no selected bead. Saving, updating/renaming and deleting are explicit local actions. The storage boundary validates with Zod; writes publish success only after storage succeeds, and malformed storage or write failures remain visible without overwriting unreadable data. Saved views do not synchronize between browsers.
 
 ## Attribution and uncertainty
 
