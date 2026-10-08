@@ -1,6 +1,6 @@
 /* eslint-disable sort-keys -- TanStack infers loader dependencies in declaration order: validateSearch, loaderDeps, loader. */
 import { Shell, Welcome, WorkPage } from "./work-page.tsx";
-import { boardFilterSchema, navigationSchema } from "../contracts.ts";
+import { boardFilterSchema, navigationSchema, requestScopeSchema } from "../contracts.ts";
 import { colonies, loadBoard, loadColonies, loadDetail, rememberView, snapshot } from "./data.ts";
 import { createRootRoute, createRoute, createRouter, redirect } from "@tanstack/react-router";
 
@@ -32,7 +32,9 @@ const boardRoute = createRoute({
 		rememberView(params.colonyId, deps);
 		await Promise.all([
 			loadBoard(params.colonyId, boardFilterSchema.parse(deps)),
-			...(deps.bead === undefined ? [] : [loadDetail(params.colonyId, deps.bead)]),
+			...(deps.bead === undefined
+				? []
+				: [loadDetail(params.colonyId, deps.bead, { scope: requestScopeSchema.parse(deps) })]),
 		]);
 	},
 	component: WorkPage,

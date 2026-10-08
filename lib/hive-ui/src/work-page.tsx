@@ -1,8 +1,15 @@
 import type { Board, Card, Navigation } from "../contracts.ts";
 import { EMPTY, boards, colonies, loadBoard, loadDetail, preferences, snapshot } from "./data.ts";
-import { Label, ResourceNotice, time } from "./ui.tsx";
+import { Label, ResourceNotice, outcomeName, time } from "./ui.tsx";
 import { Link, Outlet, useNavigate, useParams, useSearch } from "@tanstack/react-router";
-import { PAGE_SIZE, boardFilterSchema, boardKey, navigationSchema } from "../contracts.ts";
+import {
+	PAGE_SIZE,
+	REQUEST_PAGE_SIZE,
+	boardFilterSchema,
+	boardKey,
+	navigationSchema,
+	requestScopeSchema,
+} from "../contracts.ts";
 import { Inspector } from "./inspector.tsx";
 import type { SubmitEvent } from "react";
 import { useStore } from "zustand";
@@ -100,7 +107,7 @@ export function WorkPage() {
 			<div className="flex flex-wrap items-center justify-between gap-2 border-b border-line px-5 py-2 text-xs text-muted">
 				<span>
 					{board
-						? `${board.bees.length} open requests · ${board.cards.length} beads on this page`
+						? `${board.bees.length} ${search.requests} requests · ${board.cards.length} beads on this page`
 						: "No work snapshot"}
 				</span>
 				<div className="flex items-center gap-3">
@@ -112,7 +119,10 @@ export function WorkPage() {
 						onClick={() => {
 							void loadBoard(colonyId, filter, true);
 							if (search.bead !== undefined) {
-								void loadDetail(colonyId, search.bead, true);
+								void loadDetail(colonyId, search.bead, {
+									fresh: true,
+									scope: requestScopeSchema.parse(search),
+								});
 							}
 						}}
 					>
@@ -121,6 +131,9 @@ export function WorkPage() {
 				</div>
 			</div>
 			<ResourceNotice resource={resource} />
+			{board && search.requests === "completed" && (
+				<RequestPagination hasMore={board.requestHasMore} />
+			)}
 			<div className={search.bead === undefined ? "work-layout" : "work-layout with-inspector"}>
 				<section aria-label="Bead board" className="min-w-0">
 					{board && <BoardColumns board={board} />}
@@ -161,6 +174,29 @@ function FilterBar({ board }: { board: Board | null }) {
 	return (
 		<section aria-label="Work filters" className="border-b border-line bg-panel">
 			<div className="flex flex-wrap items-center gap-3 px-5 py-3">
+				<label className="flex items-center gap-2 text-sm text-muted">
+					Bee requests
+					<select
+						className="control"
+						value={search.requests}
+						onChange={(event) => {
+							const requests = requestScopeSchema.shape.requests.parse(event.target.value);
+							void navigate({
+								search: (current) =>
+									withoutSelection({
+										...current,
+										closed: requests === "completed",
+										page: 0,
+										requestPage: 0,
+										requests,
+									}),
+							});
+						}}
+					>
+						<option value="open">Open</option>
+						<option value="completed">Completed</option>
+					</select>
+				</label>
 				<form key={search.query} className="flex flex-1 gap-2 sm:max-w-md" onSubmit={submit}>
 					<label className="sr-only" htmlFor="search">
 						Search native bead text
@@ -195,7 +231,14 @@ function FilterBar({ board }: { board: Board | null }) {
 						type="button"
 						onClick={() => {
 							void navigate({
-								search: (current) => ({ ...current, ...boardFilterSchema.parse({}) }),
+								search: (current) => ({
+									...current,
+									all: [],
+									any: [],
+									exclude: [],
+									page: 0,
+									query: "",
+								}),
 							});
 						}}
 					>
@@ -300,9 +343,12 @@ function LabelFilter({ group, labels }: { group: "all" | "any" | "exclude"; labe
 }
 
 function BoardColumns({ board }: { board: Board }) {
+	const search = useSearch({ from: "/colonies/$colonyId" });
 	const statuses = [
 		...new Set([
-			...STATUS_ORDER.filter((status) => status !== "deferred" && status !== "closed"),
+			...(search.requests === "open"
+				? STATUS_ORDER.filter((status) => status !== "deferred" && status !== "closed")
+				: []),
 			...board.cards.map((card) => card.status),
 		]),
 	];
@@ -311,11 +357,11 @@ function BoardColumns({ board }: { board: Board }) {
 		return (
 			<div className="grid min-h-80 place-content-center gap-2 p-6 text-center">
 				<h2 className="font-medium">
-					{board.bees.length === 0 ? "No open bee requests" : "No matching beads"}
+					{board.bees.length === 0 ? `No ${search.requests} bee requests` : "No matching beads"}
 				</h2>
 				<p className="text-sm text-muted">
 					{board.bees.length === 0
-						? "Work appears when a bee is requested for this colony."
+						? "No requests in this view. Choose another request view or history page."
 						: "Try clearing the label filters or including closed beads."}
 				</p>
 			</div>
@@ -390,7 +436,9 @@ function BeadCard({ card }: { card: Card }) {
 									: "No recorded observation"
 							}
 						>
-							Recorded: {bee.observation?.text ?? "unknown"}
+							{bee.outcome === "pending"
+								? `Recorded: ${bee.observation?.text ?? "unknown"}`
+								: `${outcomeName(bee.outcome)}${bee.closedAt === null ? "" : ` · ${time(bee.closedAt)}`}`}
 						</p>
 					</div>
 				))}
@@ -432,6 +480,47 @@ function Pagination({ hasMore }: { hasMore: boolean }) {
 				Next
 			</button>
 		</div>
+	);
+}
+
+function RequestPagination({ hasMore }: { hasMore: boolean }) {
+	const search = useSearch({ from: "/colonies/$colonyId" });
+	const navigate = useNavigate({ from: "/colonies/$colonyId" });
+	const move = (requestPage: number): void => {
+		void navigate({ search: (current) => withoutSelection({ ...current, page: 0, requestPage }) });
+	};
+	return (
+		<nav
+			aria-label="Completed request history"
+			className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-5 py-3 text-xs text-muted"
+		>
+			<span>
+				Completed requests · page {search.requestPage + 1} · up to {REQUEST_PAGE_SIZE} requests,
+				newest first
+			</span>
+			<div className="flex gap-2">
+				<button
+					type="button"
+					className="button"
+					disabled={search.requestPage === 0}
+					onClick={() => {
+						move(search.requestPage - 1);
+					}}
+				>
+					Newer requests
+				</button>
+				<button
+					type="button"
+					className="button"
+					disabled={!hasMore}
+					onClick={() => {
+						move(search.requestPage + 1);
+					}}
+				>
+					Older requests
+				</button>
+			</div>
+		</nav>
 	);
 }
 

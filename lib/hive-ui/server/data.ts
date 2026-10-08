@@ -1,13 +1,23 @@
 /* eslint-disable unicorn/no-null -- API contracts represent absent recorded facts explicitly. */
-import type { Bee, Board, BoardFilter, Card, Colony, Detail, Provenance } from "../contracts.ts";
+import type {
+	Bee,
+	Board,
+	BoardFilter,
+	Card,
+	Colony,
+	Detail,
+	Provenance,
+	RequestScope,
+} from "../contracts.ts";
 import {
 	COLONY_OBSERVATION_PREFIX,
 	beadSchema,
 	beads,
 	latestColonyObservation,
 	readSpawnRequest,
+	requestOutcome,
 } from "@hive/shared";
-import { PAGE_SIZE, taskQuery } from "../contracts.ts";
+import { PAGE_SIZE, REQUEST_PAGE_SIZE, taskQuery } from "../contracts.ts";
 import { z } from "zod";
 
 const MAX_REQUESTS = 100;
@@ -17,8 +27,9 @@ const nativeSchema = beadSchema.extend({ created_by: z.string().optional(), titl
 const nativeListSchema = z.object({ issues: z.array(nativeSchema) });
 type NativeBead = z.infer<typeof nativeSchema>;
 interface Inventory {
-	/** Only open requests in this endpoint; never full spawn history. */
+	/** Bounded requests in the selected endpoint and request scope. */
 	bees: Bee[];
+	hasMore: boolean;
 	/** Source read time, unchanged when a cached inventory is reused. */
 	readAt: string;
 }
@@ -31,12 +42,16 @@ interface ReadContext {
 	requestId: string;
 }
 
-/** Owns native reads and a short-lived, endpoint-scoped open-request inventory. */
+/** Owns native reads and a short-lived, endpoint- and scope-keyed request inventory. */
 export function createBoardData() {
 	const inventories = new Map<string, Promise<Inventory>>();
 	// eslint-disable-next-line max-statements -- Coalesce endpoint reads while retaining the original source freshness.
-	const inventory = async (context: ReadContext, fresh: boolean): Promise<Inventory> => {
-		const key = context.colony.id;
+	const inventory = async (
+		context: ReadContext,
+		scope: RequestScope,
+		fresh: boolean,
+	): Promise<Inventory> => {
+		const key = JSON.stringify([context.colony.id, scope.requests, scope.requestPage]);
 		const existing = inventories.get(key);
 		if (existing && !fresh) {
 			const value = await existing;
@@ -44,7 +59,7 @@ export function createBoardData() {
 				return value;
 			}
 		}
-		const pending = readInventory(context);
+		const pending = readInventory(context, scope);
 		inventories.set(key, pending);
 		try {
 			return await pending;
@@ -55,7 +70,7 @@ export function createBoardData() {
 	};
 	return {
 		board: async (context: ReadContext, filter: BoardFilter, fresh: boolean): Promise<Board> => {
-			const current = await inventory(context, fresh);
+			const current = await inventory(context, filter, fresh);
 			const taskIds = [...new Set(current.bees.flatMap((request) => request.taskIds))];
 			const args = taskQuery(filter, taskIds);
 			// An empty --id group means all tasks to br, so empty membership needs no query.
@@ -69,10 +84,14 @@ export function createBoardData() {
 				inventoryReadAt: current.readAt,
 				labels: [...new Set(cards.flatMap((item) => item.labels))].toSorted(),
 				query,
+				requestHasMore: current.hasMore,
 			};
 		},
-		detail: async (context: ReadContext, id: string): Promise<Detail> => {
-			const [current, bead] = await Promise.all([inventory(context, false), show(context, id)]);
+		detail: async (context: ReadContext, id: string, scope: RequestScope): Promise<Detail> => {
+			const [current, bead] = await Promise.all([
+				inventory(context, scope, false),
+				show(context, id),
+			]);
 			return {
 				card: card(bead, current.bees),
 				comments: bead.comments.map((comment) => ({
@@ -154,31 +173,43 @@ async function show(context: ReadContext, id: string): Promise<NativeBead> {
 		.parse(await read(context, ["show", id]))[0]!;
 }
 
-async function readInventory(context: ReadContext): Promise<Inventory> {
-	const listing = nativeListSchema.parse(
-		await read(context, [
-			"list",
-			"--label",
-			"system",
-			"--label",
-			"bee",
+// eslint-disable-next-line max-statements -- One bounded inventory read owns scope, lookahead and native hydration.
+async function readInventory(context: ReadContext, scope: RequestScope): Promise<Inventory> {
+	let limit = MAX_REQUESTS;
+	const args = ["list", "--label", "system", "--label", "bee"];
+	if (scope.requests === "completed") {
+		limit = REQUEST_PAGE_SIZE;
+		args.push(
+			"--all",
 			"--status",
-			"open",
-			"--limit",
-			String(MAX_REQUESTS + 1),
-		]),
-	);
-	if (listing.issues.length > MAX_REQUESTS) {
+			"closed",
+			"--label",
+			"bee-outcome:succeeded",
+			"--sort",
+			"updated_at",
+			"--offset",
+			String(scope.requestPage * limit),
+		);
+	} else {
+		args.push("--status", "open");
+	}
+	args.push("--limit", String(limit + 1));
+	const listing = nativeListSchema.parse(await read(context, args));
+	if (scope.requests === "open" && listing.issues.length > limit) {
 		throw new Error(
 			`This MVP supports up to ${MAX_REQUESTS} open requests per colony. Narrow the tracker before loading the board.`,
 		);
 	}
-	const ids = listing.issues.map((issue) => issue.id);
+	const ids = listing.issues.slice(0, limit).map((issue) => issue.id);
 	let requests: NativeBead[] = [];
 	if (ids.length > 0) {
 		requests = z.array(nativeSchema).parse(await read(context, ["show", ...ids]));
 	}
-	return { bees: requests.map((request) => bee(request)), readAt: new Date().toISOString() };
+	return {
+		bees: requests.map((request) => bee(request)),
+		hasMore: listing.issues.length > limit,
+		readAt: new Date().toISOString(),
+	};
 }
 
 function bee(bead: NativeBead): Bee {
@@ -193,12 +224,14 @@ function bee(bead: NativeBead): Bee {
 		};
 	}
 	return {
+		closedAt: bead.closed_at ?? null,
 		harness: request.recipe.harness,
 		id: request.id,
 		identity: request.identity,
 		kind: request.recipe.kind,
 		model: request.recipe.model,
 		observation,
+		outcome: requestOutcome(bead),
 		requester: bead.created_by ?? null,
 		status: bead.status,
 		taskIds: request.taskIds,

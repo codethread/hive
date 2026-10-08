@@ -1,11 +1,14 @@
 import type { Bee, Provenance } from "../contracts.ts";
 import { EMPTY, details, loadProvenance, provenance, snapshot } from "./data.ts";
-import { Label, ResourceNotice, time } from "./ui.tsx";
-import { Link, useNavigate } from "@tanstack/react-router";
+import { Label, ResourceNotice, outcomeName, time } from "./ui.tsx";
+import { Link, useNavigate, useSearch } from "@tanstack/react-router";
+import { detailKey, requestScopeSchema } from "../contracts.ts";
 import { useStore } from "zustand";
 
 export function Inspector({ colonyId, id }: { colonyId: string; id: string }) {
-	const resource = useStore(details.store, (state) => state.entries[`${colonyId}/${id}`] ?? EMPTY);
+	const search = useSearch({ from: "/colonies/$colonyId" });
+	const key = detailKey(colonyId, id, requestScopeSchema.parse(search));
+	const resource = useStore(details.store, (state) => state.entries[key] ?? EMPTY);
 	const detail = snapshot(resource);
 	const navigate = useNavigate({ from: "/colonies/$colonyId" });
 	return (
@@ -51,7 +54,7 @@ export function Inspector({ colonyId, id }: { colonyId: string; id: string }) {
 					))}
 					{detail.card.bees.length === 0 && (
 						<p className="text-sm text-muted">
-							No open request links this bead in the current inventory.
+							No request links this bead in the selected request page.
 						</p>
 					)}
 					<details className="mt-6 border-t border-line pt-3">
@@ -84,7 +87,8 @@ function BeeContext({ bee, colonyId }: { bee: Bee; colonyId: string }) {
 				Requester <span className="font-mono">{bee.requester ?? "not recorded"}</span>
 			</p>
 			<p className="mt-1 font-mono text-[10px] text-muted">
-				{bee.id} · native {bee.status}
+				{bee.id} · {outcomeName(bee.outcome)}
+				{bee.closedAt !== null && ` · closed ${time(bee.closedAt)}`}
 			</p>
 			<div className="mt-3 border-t border-line pt-3 text-xs text-muted">
 				<p>Last recorded: {bee.observation?.text ?? "No observation"}</p>

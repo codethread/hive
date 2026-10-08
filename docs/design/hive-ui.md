@@ -37,17 +37,17 @@ The [usage guide](../../lib/hive-ui/README.md) covers startup and endpoint confi
 3. Components select only the current resource and presentation preferences. Form submission and selection navigate; refresh and provenance actions call stores.
 4. A failed refresh keeps the previous snapshot with a visible failure. A successful empty response is distinct from unavailable data. Source observation timestamps remain unchanged when the browser fetches again.
 
-The board population is the linked task beads of **open spawn requests**. This includes waiting and retrying requests; it does not mean their processes are alive. Related task links are requested work, not proof of a current claim. The native task assignee is shown separately in the inspector.
+The board population is the linked task beads of the selected **Open or Completed request view**. Open uses native open spawn requests; Completed queries successful closed requests newest first, 50 at a time with explicit history pagination. Entering Completed includes closed tasks. Request scope is URL-owned and keys inventory and detail snapshots so a historical inspector retains its completed bees. The Open view includes waiting and retrying requests; it does not mean their processes are alive. Related task links are requested work, not proof of a current claim. The native task assignee is shown separately in the inspector.
 
 | Read | Demand and bound |
 | --- | --- |
 | Configured colonies | Startup/navigation; no tracker read. |
-| Open request inventory | Selected colony only; native exact `system` + `bee` + `open` query; fail visibly above 100 requests. Ten-second per-endpoint cache. |
-| Task board | Native list/search restricted to inventory task IDs and filter groups; 60 cards per page, one lookahead row for Next. Empty membership never becomes an unfiltered query. |
+| Request inventory | Selected colony and request view only; Open fails visibly above 100 requests. Completed uses native closed + `bee-outcome:succeeded`, sorted by updated time descending, 50 plus one lookahead. Ten-second cache per endpoint/view/history page. |
+| Task board | Native list/search restricted to the selected request page’s task IDs and filter groups; 60 cards per page, one lookahead row for Next. Empty membership never becomes an unfiltered query. |
 | Bead detail | One selected ID; includes its description and comments. |
 | Provenance | Explicit inspector action; requester-assignee query includes closed history, at most three ambiguity candidates and eight ancestry steps. |
 
-Native `br list` does not supply related task edges, so open requests require one batched `br show` to discover membership and recorded observations. This is a bounded cost on the selected colony, not a full-history hydration. Native results contain more fields than the browser needs; the server projects away recipes/prompts and board descriptions/comments. Measure before adding a new native projection API.
+Native `br list` does not supply related task edges, so each requested inventory page requires one batched `br show` to discover membership and recorded observations. This is a bounded cost on the selected colony, not a full-history hydration. Native results contain more fields than the browser needs; the server projects away recipes/prompts and board descriptions/comments. Measure before adding a new native projection API.
 
 All reads use Shared's native `br` boundary with auto-import/export disabled. Repeated label groups go straight to `--label`, `--label-any`, and `--exclude-label`; labels are case-sensitive and commas remain literal. `system` is always excluded from task results. The label picker contains labels on the loaded page, clearly labelled as such; exact labels can also be entered manually. It never presents whole-tracker label counts as board counts.
 
@@ -55,7 +55,7 @@ All reads use Shared's native `br` boundary with auto-import/export disabled. Re
 
 Native `created_by` is recorded requester attribution. A matching friendly identity is only an inferred parent; ambiguity, unmatched names, cycles and the traversal limit are visible. No request contract or historical record is rewritten.
 
-Bee footers display the native observation text with its original timestamp. There is no invented process-health state, status inference from silence, or new timestamp attached to old evidence. Snapshots show read times and manual-refresh status. No automatic process probing or runtime repair occurs.
+Pending bee footers display the last recorded observation; its original timestamp remains in the tooltip and inspector. Completed footers show native outcome and closure time, while the inspector retains the historical observation separately. There is no invented process-health state, status inference from silence, or new timestamp attached to old evidence. Snapshots show read times and manual-refresh status. No automatic process probing or runtime repair occurs.
 
 ## Diagnostics and quality
 

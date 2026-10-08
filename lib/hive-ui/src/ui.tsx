@@ -1,3 +1,4 @@
+import type { Bee } from "../contracts.ts";
 import type { ReactNode } from "react";
 import type { Resource } from "./data.ts";
 
@@ -36,4 +37,10 @@ export function time(value: string): string {
 		month: "short",
 		second: "2-digit",
 	});
+}
+
+export function outcomeName(outcome: Bee["outcome"]): string {
+	return { cancelled: "Cancelled", failed: "Failed", pending: "Pending", succeeded: "Completed" }[
+		outcome
+	];
 }

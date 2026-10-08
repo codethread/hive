@@ -2,7 +2,14 @@
 import { z } from "zod";
 
 export const PAGE_SIZE = 60;
-export const boardFilterSchema = z.object({
+export const REQUEST_PAGE_SIZE = 50;
+export const requestScopeSchema = z.object({
+	/** Zero-based page within completed request history; Open uses page zero. */
+	requestPage: z.number().int().nonnegative().default(0),
+	/** Native open requests or successfully completed, closed requests. */
+	requests: z.enum(["open", "completed"]).default("open"),
+});
+export const boardFilterSchema = requestScopeSchema.extend({
 	all: z.array(z.string().min(1)).default([]),
 	any: z.array(z.string().min(1)).default([]),
 	closed: z.boolean().default(false),
@@ -20,12 +27,16 @@ export const colonySchema = z.object({
 export const coloniesSchema = z.object({ colonies: z.array(colonySchema) });
 export const observationSchema = z.object({ at: z.string(), author: z.string(), text: z.string() });
 export const beeSchema = z.object({
+	/** Native closure timestamp, absent while the request is open. */
+	closedAt: z.string().nullable(),
 	harness: z.string(),
 	id: z.string(),
 	identity: z.string(),
 	kind: z.string(),
 	model: z.string(),
 	observation: observationSchema.nullable(),
+	/** Outcome derived from native request status and close reason. */
+	outcome: z.enum(["pending", "succeeded", "failed", "cancelled"]),
 	requester: z.string().nullable(),
 	status: z.string(),
 	taskIds: z.array(z.string()),
@@ -49,6 +60,8 @@ export const boardSchema = z.object({
 	labels: z.array(z.string()),
 	/** Exact argv preview; the server executes it without a shell. */
 	query: z.array(z.string()),
+	/** Lookahead found another completed request page beyond this inventory. */
+	requestHasMore: z.boolean(),
 });
 export const detailSchema = z.object({
 	card: cardSchema,
@@ -74,6 +87,7 @@ export const provenanceSchema = z.object({
 });
 export const apiErrorSchema = z.object({ message: z.string() });
 
+export type RequestScope = z.infer<typeof requestScopeSchema>;
 export type Colony = z.infer<typeof colonySchema>;
 export type BoardFilter = z.infer<typeof boardFilterSchema>;
 export type Navigation = z.infer<typeof navigationSchema>;
@@ -114,4 +128,8 @@ export function taskQuery(filter: BoardFilter, taskIds: string[]): string[] {
 
 export function boardKey(colony: string, filter: BoardFilter): string {
 	return JSON.stringify([colony, filter]);
+}
+
+export function detailKey(colony: string, id: string, scope: RequestScope): string {
+	return JSON.stringify([colony, scope.requests, scope.requestPage, id]);
 }

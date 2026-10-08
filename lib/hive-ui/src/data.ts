@@ -1,10 +1,11 @@
 /* eslint-disable unicorn/no-null -- Resource states retain an explicit last-known snapshot. */
-import type { BoardFilter, Navigation } from "../contracts.ts";
+import type { BoardFilter, Navigation, RequestScope } from "../contracts.ts";
 import {
 	apiErrorSchema,
 	boardKey,
 	boardSchema,
 	coloniesSchema,
+	detailKey,
 	detailSchema,
 	provenanceSchema,
 } from "../contracts.ts";
@@ -42,11 +43,16 @@ export function loadBoard(colony: string, filter: BoardFilter, fresh = false): P
 	const search = new URLSearchParams({ filter: JSON.stringify(filter), fresh: String(fresh) });
 	return boards.load(boardKey(colony, filter), `/api/colonies/${colony}/board?${search}`, fresh);
 }
-export function loadDetail(colony: string, id: string, fresh = false): Promise<void> {
+export function loadDetail(
+	colony: string,
+	id: string,
+	options: { scope: RequestScope; fresh?: boolean },
+): Promise<void> {
+	const search = new URLSearchParams({ scope: JSON.stringify(options.scope) });
 	return details.load(
-		`${colony}/${id}`,
-		`/api/colonies/${colony}/beads/${encodeURIComponent(id)}`,
-		fresh,
+		detailKey(colony, id, options.scope),
+		`/api/colonies/${colony}/beads/${encodeURIComponent(id)}?${search}`,
+		options.fresh,
 	);
 }
 export function loadProvenance(colony: string, id: string): Promise<void> {
