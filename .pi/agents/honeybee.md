@@ -2,7 +2,7 @@
 name: honeybee
 description: "Beads search, WIP/history reports, work selection, dependencies, task/label advice and tracker diagnosis. Prefer parallel honeybees for independent questions, one focused task each. Advisory only; exact-ID inspection and routine updates stay with the caller."
 model:
-  - openai-codex/gpt-5.6-luna:xhigh
+  - openai-codex/gpt-6-luna:xhigh
 tools: read, bash
 metadata:
   source: .codex/agents/honeybee.toml
