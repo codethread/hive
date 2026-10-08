@@ -42,6 +42,12 @@ _To be built_ marks capabilities still planned beyond the Bee and Colony impleme
 
 **Colony observation**: A timestamped report of what a colony last observed about a spawn request or its execution. It is historical evidence, not proof of present daemon or process availability.
 
+**Post-run assessment**: An advisory inspection of a settled request and its execution attempts, distinct from the request outcome or a verdict about a running bee.
+
+**Welcoming hive**: The heuristic that a bee should receive a crisp assignment, reach appropriate guidance efficiently, complete its task and deliver a cohesive response. It examines avoidable token and context overhead in finding that path.
+
+**Nurse**: The colony-health advisor who synthesizes assessment evidence for the human. Recommendations do not authorize changes or new change tasks.
+
 ## Beads
 
 **Task bead**: A bead describing a unit of work, not a request to run a bee.

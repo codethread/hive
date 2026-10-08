@@ -59,10 +59,17 @@ Colony control commands cross a different seam. The [client](../lib/colony/src/c
 | Registration, checkpoints and revision history | Colony's private SQLite store | Durable awake intent, attempts and recovery checkpoints; transient policy is reloaded from canonical configuration on recovery |
 | Attempt receipt and process artifacts | Colony and its detached supervisor | Captured invocation and ownership evidence for one attempt; process fingerprints must be verified before adoption or signalling |
 | Child stdout and stderr | Per-attempt local log files | Execution diagnostics; they are not copied into Beads |
+| Post-run assessments | Colony-private inspection checkpoints and artifacts | Advisory evidence about a settled request, not task acceptance, request outcome or permission to change work |
 
 Repository discovery, tracker selection and execution directory are independent. The canonical root identifies repository-wide configuration and registration. The selected absolute Beads path identifies tracker authority. The recipe's optional execution directory controls the harness working directory and capacity bucket. Choosing one never implicitly replaces another.
 
 The supervisor owns only its process tree and local artifacts; it does not reconcile Beads or write the daemon database. Colony reserves an attempt before starting the supervisor and persists the verified supervisor handoff before granting execution permission. Recovery uses the same ownership checks before adoption, cleanup or replacement. Detailed commands, defaults and supported limitations are in the [Bee and Colony guide](../lib/colony/README.md).
+
+## Post-run advice
+
+Colony enrolls launched requests for configured post-run inspection at terminal settlement. The auxiliary queue reuses detached supervision and verified process ownership, but owns separate report authority and a bounded lifecycle. Assessment failure does not change the target request, release its claims or spend its retry budget. Auxiliary inspections are not task requests and cannot recursively enroll themselves.
+
+The nurse reads retained assessments through Colony's offline inspection interface and discusses patterns with ct. Both roles use the [welcoming-hive heuristic](agents/welcoming-hive.md). Their observations are not accepted practices or actionable work: ct authorizes change tasks, and filed specialist evidence remains subject to the existing label-stewardship and curation contract. The [operator guide](../lib/colony/README.md#inspect-finished-bees) covers selection and retrieval.
 
 ## Honeycomb's execution boundary
 

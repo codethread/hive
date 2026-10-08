@@ -206,6 +206,42 @@ Drones are auxiliary inspections of existing attempts, with no task claims or in
 
 `bee status` and native spawn comments retain review identity, deadline and diagnostics alongside ordinary execution observations. Review launch receipts, stdout, stderr, process ownership and `verdict.json` remain in the private state directory named by the review ID; the starting observation gives its path. See the [drone report authority contract](../../docs/agents/spawn-requests.md#report-an-inactivity-verdict) before automating verdict submission.
 
+## Inspect finished bees
+
+Set `post_run_drone = "post-run-drone"` in canonical `.hive/bees.toml` and define that kind using the [kind-file format](#kind-files). Omitting the setting disables new assessments. Fresh wake/reset loads configuration; an already-running daemon needs a restart to load newly installed runtime code.
+
+When a launched request settles, Colony queues one advisory assessment across its attempts, including failed and cancelled requests. It does not backfill old terminal requests or inspect zero-launch closures. Assessments have no task claims or independent spawn beads and cannot recursively schedule themselves. The queue runs one inspector per repository with one launch and a five-minute deadline; it is separate from ordinary task-dispatch capacity. There is no automatic assessment retry.
+
+The inspector receives task and execution evidence, private source pointers and a report contract. It submits with `bee assess --file PATH`, using injected assessment authority rather than an inactivity verdict. A failed, missing or late assessment stays visible as missing coverage; it cannot fail or retry the original work. Awake reconciliation resumes recorded inspections after daemon recovery; detached deadlines still apply while asleep. Disabling new assessments does not abandon an inspector already running.
+
+Inspect retained assessments without contacting or starting a daemon:
+
+```nu
+colony assessments --json
+colony assessments --limit 50 --json
+colony assessments --request SPAWN_ID --json
+colony assessments --schema --json
+```
+
+For Codex, accounting reads bounded stdout plus the unique native rollout matching its recorded thread ID, under `CODEX_HOME/sessions` (or Codex's default `~/.codex/sessions`). It reads no unrelated transcript. Rollout counters can survive self-report termination before a final stdout usage event. First-call input includes all initial context, not just orientation. Native rollout fields were verified with Codex 0.161.0; missing, ambiguous or unsupported telemetry and logs over 16 MiB remain explicit coverage limits.
+
+Task-snapshot read failures are retained as `source.unavailableTasks` with reasons, rather than blocking terminal request settlement or inventing empty task data. Persistence and process-ownership failures still surface as infrastructure errors.
+
+Default output contains the most recent 20 summaries. `--request` adds the selected report and source metadata. Use `--repo`, `--beads-db` and `--state` for an explicit repository/tracker/server selection. Inspection is read-only and does not create missing state. Raw transcripts remain private; neither report listing nor normal Beads work views receive copied logs or an extra task per assessment.
+
+### Ask the nurse
+
+Hive configures a cheap Codex Luna post-run drone and a hidden Codex Astra/xhigh `nurse`. Both use [welcoming hive](../../docs/agents/welcoming-hive.md): whether a crisp assignment leads through appropriate guidance to productive work and cohesive delivery, without excessive orientation overhead. Native measured usage is separate from estimated or unavailable onboarding attribution; repeated cumulative counters and cached input must not be double-counted.
+
+Ask for a nurse briefing through an explicit report task describing the question and period to examine:
+
+```nu
+bee kinds nurse --verbose
+bee spawn nurse REPORT_TASK_ID --cwd RETAINED_WORKTREE --actor REQUESTER --json
+```
+
+Read the delivered briefing on that task with `br show`. Hidden keeps the nurse out of ordinary discovery, not out of explicit named invocation. She synthesizes coverage, recurring friction and supported improvements for ct; she creates change tasks only with ct's approval. Automatic assessments stay in Colony's private state. Filing selected specialist evidence is a separate authorized operation under the [existing stewardship contract](../../docs/beads-labels.md#specialist-evidence-and-label-stewardship); no new evidence label is granted by this feature.
+
 ## Run a colony
 
 Wake a repository on an explicitly selected local server:

@@ -11,6 +11,7 @@ import { fileURLToPath } from "node:url";
 import { initRepository } from "../src/producer.ts";
 import { launchedResultSchema } from "../src/output.ts";
 import { match } from "ts-pattern";
+import { readAssessments } from "../src/assessments.ts";
 import { readHistory } from "../src/history.ts";
 import { resolveServerTarget } from "../src/server-target.ts";
 import { runCli } from "../src/cli.ts";
@@ -23,6 +24,12 @@ process.exitCode = await runCli(Bun.argv.slice(USER_ARGUMENTS_START), {
 		requestLazyServer(target(options), {
 			kind: "add",
 			repository: await resolveRepository(options.repo, options.beadsDb),
+		}),
+	assessments: async (options) =>
+		readAssessments(target(options).state, {
+			limit: options.limit,
+			repository: await resolveRepository(options.repo, options.beadsDb),
+			request: options.request,
 		}),
 	config: async (options) =>
 		requestServer(target(options), {

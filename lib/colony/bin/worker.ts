@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
 import { executeWorker, launchReceiptSchema } from "../src/launch.ts";
+import { assessmentContextSchema } from "../src/postrun.ts";
 import { awaitExecutionPermission } from "../src/processes.ts";
 import { droneContextSchema } from "../src/drone.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Read optional attempt-local drone context.
@@ -21,6 +22,15 @@ if (await file.exists()) {
 			HIVE_DRONE_REVIEW_ID: drone.reviewId,
 			HIVE_DRONE_TARGET_ATTEMPT_ID: drone.targetAttemptId,
 		},
+	});
+} else if (await Bun.file(join(receipt.directory, "assessment.json")).exists()) {
+	const assessment = assessmentContextSchema.parse(
+		await Bun.file(join(receipt.directory, "assessment.json")).json(),
+	);
+	await awaitExecutionPermission(receipt, assessment.deadline);
+	await executeWorker(receipt, state, {
+		deadline: assessment.deadline,
+		environment: { HIVE_ASSESSMENT_ID: assessment.id },
 	});
 } else {
 	await awaitExecutionPermission(receipt);

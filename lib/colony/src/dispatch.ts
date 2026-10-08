@@ -1,3 +1,4 @@
+/* eslint-disable import/max-dependencies -- Compose existing runtime boundaries with the independent advisory assessment lifecycle. */
 import type { BeesConfig, RepositoryEndpoint } from "@hive/shared";
 import { SPAWN_REQUEST_LABELS, beadSchema, beads } from "@hive/shared";
 import { assertRequestAuthority, claimRequest, newRequest, reconcileRequests } from "./request.ts";
@@ -15,6 +16,7 @@ import { join } from "node:path";
 import { match } from "ts-pattern";
 // eslint-disable-next-line import/max-dependencies -- Dispatch ranks admitted candidates after preparation.
 import { pageRanks } from "./ranking.ts";
+import { reconcileAssessments } from "./postrun.ts";
 // eslint-disable-next-line import/max-dependencies -- Dispatch completes the verified execution handoff.
 import { resumeExecution } from "./processes.ts";
 // eslint-disable-next-line import/max-dependencies -- Dispatch composes tracker, ranking, inventory and subprocess boundaries.
@@ -54,6 +56,7 @@ export async function dispatch(
 			evidence.reference(join(input.state, "daemon.log"));
 			evidence.step("dispatch.prepare", input.repository.root);
 			const candidates = await prepareCandidates(input, config, revisionId, evidence);
+			await reconcileAssessments({ ...input, config });
 			if (candidates.length === EMPTY) {
 				return;
 			}
