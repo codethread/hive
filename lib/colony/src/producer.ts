@@ -152,7 +152,13 @@ description = "Implement the linked task beads and verify their outcomes."
 harness = "codex"
 model = ${JSON.stringify(options.model)}
 effort = "low"
-prompt = "Work on the related task beads. Read their full instructions, claim only your work, verify outcomes, and close completed tasks."
+prompt = '''
+Work on the related task beads.
+
+- Read their full instructions.
+- Claim only your work.
+- Verify outcomes and close completed tasks.
+'''
 
 [formulas.codex]
 executable = "codex"
