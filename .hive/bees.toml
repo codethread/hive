@@ -49,7 +49,7 @@ Inspect the specified bee's logs and process evidence without modifying its work
 - Then report active or inactive using the supplied Bee command.
 '''
 
-# Specialist scope is instruction-enforced; the Codex formula below is unsandboxed.
+# Specialist scope is instruction-enforced; Codex is unsandboxed and Pi permits Bash.
 
 [formulas.codex]
 executable = "codex"
@@ -64,4 +64,26 @@ argv = [
 	"--json",
 	"{{prompt}}",
 	"--dangerously-bypass-approvals-and-sandbox",
+]
+
+[formulas.pi]
+# Bypass the PATH pi shim: print-mode requests there run through Pies, not native Pi.
+executable = "/Users/ct/.pi/agent/bin/pi"
+argv = [
+	"--no-extensions",
+	"--no-prompt-templates",
+	"--no-session",
+	"--offline",
+	"--approve",
+	"--model",
+	"{{model}}",
+	"--thinking",
+	"{{effort}}",
+	"--tools",
+	"read,bash",
+	"--mode",
+	"json",
+	"--print",
+	"--",
+	"{{prompt}}",
 ]
