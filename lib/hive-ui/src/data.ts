@@ -2,12 +2,16 @@
 import type { BoardFilter, BoardScope, Navigation } from "../contracts.ts";
 import {
 	apiErrorSchema,
+	boardFilterSchema,
 	boardKey,
 	boardSchema,
+	boardScopeSchema,
 	coloniesSchema,
 	detailKey,
 	detailSchema,
+	inventoryKey,
 	provenanceSchema,
+	requestInventorySchema,
 } from "../contracts.ts";
 import { createStore } from "zustand/vanilla";
 import type { z } from "zod";
@@ -32,6 +36,7 @@ interface Preferences {
 
 export const colonies = createResource(coloniesSchema);
 export const boards = createResource(boardSchema);
+export const inventories = createResource(requestInventorySchema);
 export const details = createResource(detailSchema);
 export const provenance = createResource(provenanceSchema);
 export const preferences = createStore<Preferences>(() => ({ theme: "moss", views: {} }));
@@ -40,8 +45,19 @@ export function loadColonies(): Promise<void> {
 	return colonies.load("colonies", "/api/colonies");
 }
 export function loadBoard(colony: string, filter: BoardFilter, fresh = false): Promise<void> {
-	const search = new URLSearchParams({ filter: JSON.stringify(filter), fresh: String(fresh) });
+	const search = new URLSearchParams({
+		filter: JSON.stringify(filter),
+		fresh: String(fresh && filter.view === "beads"),
+	});
 	return boards.load(boardKey(colony, filter), `/api/colonies/${colony}/board?${search}`, fresh);
+}
+export function loadInventory(colony: string, scope: BoardScope, fresh = false): Promise<void> {
+	const search = new URLSearchParams({ scope: JSON.stringify(scope), fresh: String(fresh) });
+	return inventories.load(
+		inventoryKey(colony, scope),
+		`/api/colonies/${colony}/inventory?${search}`,
+		fresh,
+	);
 }
 export function loadDetail(
 	colony: string,
@@ -55,11 +71,34 @@ export function loadDetail(
 		options.fresh,
 	);
 }
-export function loadProvenance(colony: string, id: string): Promise<void> {
+export function loadProvenance(colony: string, id: string, fresh = false): Promise<void> {
 	return provenance.load(
 		`${colony}/${id}`,
 		`/api/colonies/${colony}/provenance/${encodeURIComponent(id)}`,
+		fresh,
 	);
+}
+/** One route/refresh action owns precisely the visible resources. */
+export async function loadView(
+	colony: string,
+	navigation: Navigation,
+	fresh = false,
+): Promise<void> {
+	const scope = boardScopeSchema.parse(navigation);
+	if (scope.view !== "beads") {
+		await loadInventory(colony, scope, fresh);
+	}
+	await Promise.all([
+		...(scope.view === "beads" || navigation.request !== undefined
+			? [loadBoard(colony, boardFilterSchema.parse(navigation), fresh)]
+			: []),
+		...(navigation.bead === undefined
+			? []
+			: [loadDetail(colony, navigation.bead, { fresh, scope })]),
+		...(scope.view === "beads" || navigation.ancestry === undefined
+			? []
+			: [loadProvenance(colony, navigation.ancestry, fresh)]),
+	]);
 }
 export function rememberView(colony: string, navigation: Navigation): void {
 	preferences.setState((state) => ({ views: { ...state.views, [colony]: navigation } }));

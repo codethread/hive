@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "@xyflow/react/dist/style.css";
 
 @theme inline {
 	--color-canvas: var(--canvas);
@@ -110,6 +111,57 @@ input[type="checkbox"] {
 	.inspector-body {
 		@apply min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 pb-8 break-words sm:px-8;
 	}
+	.markdown-content :where(p, ul, ol, pre, blockquote, table) {
+		@apply my-3;
+	}
+	.markdown-content > :first-child {
+		@apply mt-0;
+	}
+	.markdown-content > :last-child {
+		@apply mb-0;
+	}
+	.markdown-content ul {
+		@apply list-disc pl-6;
+	}
+	.markdown-content ol {
+		@apply list-decimal pl-6;
+	}
+	.markdown-content li {
+		@apply my-1;
+	}
+	.markdown-content li > :where(ul, ol) {
+		@apply my-1;
+	}
+	.markdown-content .task-list-item {
+		@apply list-none;
+	}
+	.markdown-content .task-list-item > input {
+		@apply -ml-5 mr-2 align-middle;
+	}
+	.markdown-content a {
+		@apply text-accent underline underline-offset-2;
+	}
+	.markdown-content :where(h1, h2, h3, h4, h5, h6) {
+		@apply mt-4 mb-2 text-base font-semibold;
+	}
+	.markdown-content code {
+		@apply rounded bg-raised px-1 font-mono text-xs;
+	}
+	.markdown-content pre {
+		@apply overflow-x-auto rounded bg-raised p-3;
+	}
+	.markdown-content pre code {
+		@apply p-0;
+	}
+	.markdown-content blockquote {
+		@apply border-l-2 border-line pl-4 text-muted;
+	}
+	.markdown-content table {
+		@apply block max-w-full overflow-x-auto border-collapse;
+	}
+	.markdown-content :where(th, td) {
+		@apply border border-line px-3 py-2 text-left;
+	}
 	.board-columns {
 		@apply grid auto-cols-[minmax(245px,1fr)] grid-flow-col gap-4 overflow-x-auto px-5 pb-5;
 	}
@@ -150,4 +202,178 @@ body:has(.inspector[open], .filter-drawer[open]) {
 	.filter-drawer::backdrop {
 		background: rgb(0 0 0 / 55%);
 	}
+}
+
+/* Bee provenance graph: HTML cards over an automatically laid out canvas. */
+.bee-graph {
+	--xy-background-color: var(--canvas);
+	--xy-controls-button-background-color: var(--panel);
+	--xy-controls-button-background-color-hover: var(--raised);
+	--xy-controls-button-color: var(--ink);
+	--xy-controls-button-color-hover: var(--accent);
+	--xy-controls-button-border-color: var(--line);
+	color: var(--ink);
+}
+.bee-graph-toolbar {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 12px 16px;
+	border-bottom: 1px solid var(--line);
+	color: var(--muted);
+	font-size: 11px;
+}
+.bee-graph-legend,
+.bee-graph-legend span {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+.bee-graph-legend {
+	gap: 18px;
+}
+.bee-graph-legend i {
+	width: 22px;
+	border-top: 2px solid var(--muted);
+}
+.bee-graph-legend i.inferred {
+	border-top: 2px dashed var(--accent);
+}
+.bee-graph-canvas {
+	height: 62vh;
+	min-height: 384px;
+}
+.bee-graph-help {
+	padding: 9px 16px;
+	border-top: 1px solid var(--line);
+	font-size: 11px;
+	color: var(--muted);
+}
+.bee-graph-card {
+	width: 272px;
+	height: 136px;
+	border: 1px solid var(--line);
+	border-radius: 10px;
+	background: var(--card);
+	box-shadow: 0 3px 10px #00000012;
+}
+.bee-graph-card.context {
+	border-style: dashed;
+	background: var(--panel);
+}
+.bee-graph-card.chosen {
+	border-color: var(--accent);
+	box-shadow:
+		0 0 0 2px var(--accent),
+		0 5px 18px #00000020;
+}
+.bee-graph-card button {
+	display: flex;
+	flex-direction: column;
+	width: 100%;
+	height: 100%;
+	padding: 13px 15px;
+	text-align: left;
+	border-radius: inherit;
+}
+.bee-graph-card button:hover {
+	background: color-mix(in srgb, var(--accent) 5%, transparent);
+}
+.bee-graph-card-top,
+.bee-graph-card-bottom {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	gap: 8px;
+	width: 100%;
+	color: var(--muted);
+	font-size: 10px;
+}
+.bee-graph-card-top > span:first-child {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	text-transform: uppercase;
+	letter-spacing: 0.07em;
+}
+.bee-graph-outcome {
+	flex-shrink: 0;
+	padding: 2px 6px;
+	border-radius: 4px;
+	background: var(--raised);
+}
+.bee-graph-outcome.pending,
+.bee-graph-outcome.succeeded {
+	color: var(--accent);
+	background: var(--tint);
+}
+.bee-graph-outcome.failed {
+	color: var(--alert);
+}
+.bee-graph-card strong {
+	max-width: 100%;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	margin-top: 9px;
+	font-size: 15px;
+	font-weight: 600;
+	letter-spacing: -0.02em;
+}
+.bee-graph-request-id {
+	width: 100%;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	margin-top: 3px;
+	color: var(--muted);
+	font-family: monospace;
+	font-size: 10px;
+}
+.bee-graph-card-bottom {
+	margin-top: auto;
+}
+.bee-graph-card-bottom > span:last-child {
+	color: var(--accent);
+}
+.bee-graph-card.context .bee-graph-card-bottom > span:last-child {
+	color: var(--muted);
+}
+.bee-graph-actor {
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	width: 184px;
+	height: 58px;
+	padding: 8px 16px;
+	border: 1px solid var(--line);
+	border-radius: 30px;
+	background: var(--raised);
+	color: var(--muted);
+}
+.bee-graph-actor strong {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	color: var(--ink);
+	font-size: 12px;
+	font-weight: 500;
+}
+.bee-graph-actor > span {
+	margin-top: 3px;
+	font-size: 9px;
+}
+.bee-graph .react-flow__handle {
+	width: 5px;
+	height: 5px;
+	border: 0;
+	background: var(--muted);
+}
+.bee-graph .react-flow__controls {
+	overflow: hidden;
+	border: 1px solid var(--line);
+	border-radius: 7px;
+	box-shadow: 0 2px 6px #00000015;
 }

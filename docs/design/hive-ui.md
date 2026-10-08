@@ -1,6 +1,6 @@
 # Hive UI MVP
 
-Hive UI replaces the generated Python/HTML prototype with a small React application in `lib/hive-ui`. It reads real Beads data and keeps the settled bead-first design: native status columns, quiet bee attribution, an inspector, exact native label filters, Moss and Paper themes, and one selected colony at a time.
+Hive UI replaces the generated Python/HTML prototype with a small React application in `lib/hive-ui`. It reads real Beads data: ordinary tasks use native-status columns, while Bee requests use Outline and Graph provenance views. Both share an inspector, exact native label filters, Moss and Paper themes, and one selected colony at a time.
 
 This is an MVP for refinement. It does not claim work, edit labels, close beads, retry requests, start a daemon, or introduce a second tracker. The original `pi/active-bees-work-board-poc` branch remains a visual reference, not a code dependency.
 
@@ -17,6 +17,7 @@ Three Luna explorations are recorded on `hv-active-bees-work-board-x68q.2`, `.3`
 | Explicit fetch ownership | `src/components/workspace-resource-polls.tsx`, `src/hooks/use-graph.ts` | Route loaders and user actions own requests; renderers do not start effects or background queries. Manual refresh for the MVP. |
 | Data-call diagnostics | `shared/perf.ts`, `server/perf.ts`, `server/strand.ts`, `src/lib/api/transport.ts`, `docs/read-performance.md` | Structured client, HTTP and native-call samples share a request ID, durations and outcomes. No prompt or body logging. |
 | Semantic styling and web checks | `src/index.css`, `.oxlintrc.json`, `package.json` | Tailwind 4, Moss/Paper tokens, semantic HTML, React/hooks/accessibility lint rules and strict TypeScript. |
+| Automatically arranged graph cards | `src/components/graph-canvas.tsx`, `src/lib/graph.ts` | React Flow renders HTML cards and arrows; Dagre places fixed nodes left to right. |
 
 The current reference app differs from the user's recalled data flow: it uses TanStack Query for remote snapshots, Router for URL state and Zustand for interaction state/drafts. It has no route loaders, and its generic client transport casts most responses rather than parsing them with Zod. Hive deliberately follows the requested **route → Zustand → component** flow. It has one snapshot owner, without a parallel Query cache or loader-data copy. Introducing Query later should replace that ownership, not mirror it.
 
@@ -37,33 +38,47 @@ The [usage guide](../../lib/hive-ui/README.md) covers startup and endpoint confi
 3. Components select only the current resource and presentation preferences. Form submission and selection navigate; refresh and provenance actions call stores.
 4. A failed refresh keeps the previous snapshot with a visible failure. A successful empty response is distinct from unavailable data. Source observation timestamps remain unchanged when the browser fetches again.
 
-The URL-owned **View** selects ordinary **Beads**, **Open bees** or **Completed bees**. Beads directly queries task records excluding both `bee` and `system`, without discovering requests; tasks need no request link to appear. Its inventory is explicitly `not_requested`, rather than claiming that no requests exist or inventing an inventory read time. The inspector reads only the selected task and hides request attribution in this view.
+The URL-owned **View** selects ordinary **Beads**, **Open bees** or **Completed bees**. Beads directly queries task records excluding both `bee` and `system`, without discovering requests; tasks need no request link to appear. Internally its inventory is explicitly `not_requested`, rather than claiming that no requests exist or inventing an inventory read time. Board responses carry task summaries only; they do not duplicate inventory or Bee attribution. The inspector reads only the selected task and hides request attribution in this view.
 
-The Bee views populate the board from linked task IDs. Open bees uses native open spawn requests; Completed bees queries successful closed requests newest first, 50 at a time with explicit history pagination, and includes closed tasks. View and history page key inventory and detail snapshots so attribution cannot leak between scopes. Changing views resets both pagers and selection. Open bees includes waiting and retrying requests; it does not mean their processes are alive. Related task links are requested work, not proof of a current claim. The native task assignee is shown separately in the inspector.
+The Bee views show requests in an Outline or Graph, defaulting to Outline. Open bees uses native open spawn requests; Completed bees queries successful closed requests newest first, 50 at a time with explicit history pagination, and includes closed tasks. View and history page key inventory and detail snapshots so attribution cannot leak between scopes. Entering Bees loads only the selected request inventory. Selecting a request loads its linked task summaries, bounded to 60 per page; native task filters apply to that linked-work list, while a separate page-local search matches request IDs, identities, kinds, requesters and linked task IDs. Changing views resets both pagers, request/bead selection and expanded ancestry. Open bees includes waiting and retrying requests; it does not mean their processes are alive. Related task links are requested work, not proof of a current claim. The native task assignee is shown separately in the inspector.
 
 | Read | Demand and bound |
 | --- | --- |
 | Configured colonies | Startup/navigation; no tracker read. |
 | Request inventory | Bee views only, selected colony and history page; Open fails visibly above 100 requests. Completed uses native closed + `bee-outcome:succeeded`, sorted by updated time descending, 50 plus one lookahead. Ten-second cache per endpoint/view/history page. |
-| Task board | Native list/search and filter groups; 60 cards per page, one lookahead row for Next. Beads reads tasks directly. Bee views additionally restrict to the selected request page’s task IDs and skip task reads when membership is empty. |
+| Task board | Native list/search and filter groups; 60 cards per page, one lookahead row for Next. Beads reads tasks directly. Bees reads tasks only after request selection, restricts the query to that request’s task IDs and skips task reads when membership is empty. Historical context selection may require one exact request show. |
 | Bead detail | One selected ID; includes its description, native acceptance criteria, comments and up to 50 relationship summaries per direction with full counts. Native `show` already supplies outgoing dependencies and incoming dependents; no related detail reads or graph traversal. Beads performs no request inventory read; Bee views reuse their scoped inventory. |
-| Provenance | Explicit inspector action; requester-assignee query includes closed history, at most three ambiguity candidates and eight ancestry steps. |
+| Provenance | Explicit request or bead-inspector action; requester-assignee query includes closed history, at most three ambiguity candidates and eight ancestry steps. |
 
 Native `br list` does not supply related task edges, so each requested inventory page requires one batched `br show` to discover membership and recorded observations. This is a bounded cost on the selected colony, not a full-history hydration. Native results contain more fields than the browser needs; the server projects away recipes/prompts and board descriptions/comments. Measure before adding a new native projection API.
 
 All reads use Shared's native `br` boundary with auto-import/export disabled. Repeated label groups go straight to `--label`, `--label-any`, and `--exclude-label`; labels are case-sensitive and commas remain literal. `system` and `bee` are always excluded from task results. The label picker contains labels on the loaded page, clearly labelled as such; exact labels can also be entered manually. It never presents whole-tracker label counts as board counts.
 
+Acceptance criteria render through `react-markdown` with `remark-gfm`, preserving native source text while displaying semantic lists and disabled task checkboxes. The renderer is mounted on demand when selected detail has criteria; raw HTML remains escaped and the default safe URL transform is retained. This adds no data reads or changes to route/store ownership.
+
 ## Filters and saved views
 
 A compact board toolbar keeps View, Filters and a named-view selector visible. Search, closed-bead visibility and all/any/exclude labels live in a left modal drawer, leaving the board its full width. Both drawers use native modal dialogs for focus containment and Escape, with no new component-library dependency. Opening the filter drawer and managing saved views perform no data reads.
 
-The URL remains authoritative for active filters. A separate vanilla Zustand store owns named presets, persisted in browser local storage and partitioned by configured colony ID. Each preset contains only view, query, closed and label groups; applying it navigates with both pagers reset and no selected bead. Saving, updating/renaming and deleting are explicit local actions. The storage boundary validates with Zod; writes publish success only after storage succeeds, and malformed storage or write failures remain visible without overwriting unreadable data. Saved views do not synchronize between browsers.
+The URL remains authoritative for active filters. A separate vanilla Zustand store owns named presets, persisted in browser local storage and partitioned by configured colony ID. Each preset contains view, presentation, request search, bead query, closed and label groups; applying it navigates with both pagers reset and no selected bead. Saving, updating/renaming and deleting are explicit local actions. The storage boundary validates with Zod; writes publish success only after storage succeeds, and malformed storage or write failures remain visible without overwriting unreadable data. Saved views do not synchronize between browsers.
+
+## Bee outline and graph
+
+The Astra POC exploration is retained in `hv-active-bees-work-board-x68q.10`. Both renderers consume the same bounded request inventory plus one explicitly requested ancestry chain. Request selection is URL-owned and distinct from bead selection. Requests without matching linked work remain visible. Context requests do not inflate match counts. The outline walks inferred links with a visited set so rootless cycles cannot disappear; termination messages preserve ambiguity, cycles, missing requester and depth limits.
+
+Only the existing tracker-wide ancestry query can establish an inferred edge. A unique name in the current page is insufficient. Solid graph arrows show recorded requester-string attribution; dashed arrows show the explicitly queried name matches, which still are not recorded parent IDs. No complete descendant discovery or cross-colony traversal occurs.
+
+The graph uses [React Flow](https://reactflow.dev/learn) and [Dagre](https://github.com/dagrejs/dagre), following Millstrand’s HTML cards and automatic left-to-right layout. The original POC used Cytoscape with Dagre; its compact spacing, clear arrowheads and selected-request emphasis guide the presentation. Nodes are fixed: there is no dragging, connection editing or layout persistence. When explicitly loaded ancestry supplies an inferred parent edge, it replaces that child’s raw requester box; the recorded requester remains visible in the summary.
+
+A route/event action initializes the graph module through a small Zustand resource; a load failure leaves Outline available. Viewport interaction belongs to React Flow, not the domain stores. Selection is shared through Router; cards, the request selector and Outline support keyboard selection. Refresh preserves the viewport, with an explicit Fit control after initial layout. Development’s Bun HTML bundler currently serves a combined JavaScript bundle; deferred graph initialization does not promise a separate network chunk.
+
+Graph/Outline and page-local request search are excluded from data loader dependencies. They do not refresh native snapshots. The server exposes inventory separately from the task board so entering Bees does not hydrate unrelated task summaries, descriptions or comments. All reads retain the existing correlated client/HTTP/native logs.
 
 ## Attribution and uncertainty
 
 Native `created_by` is recorded requester attribution. A matching friendly identity is only an inferred parent; ambiguity, unmatched names, cycles and the traversal limit are visible. No request contract or historical record is rewritten.
 
-Ordinary-bead footers show native assignment and update time without inferring Bee associations. Pending bee footers display the last recorded observation; its original timestamp remains in the tooltip and inspector. Completed footers show native outcome and closure time, while the inspector retains the historical observation separately. There is no invented process-health state, status inference from silence, or new timestamp attached to old evidence. Snapshots show read times and manual-refresh status. No automatic process probing or runtime repair occurs.
+Ordinary-bead footers show native assignment and update time without inferring Bee associations. Bee summaries display native outcome and closure time separately from the last recorded observation and its original timestamp. There is no invented process-health state, status inference from silence, or new timestamp attached to old evidence. Snapshots show read times and manual-refresh status. No automatic process probing or runtime repair occurs.
 
 ## Diagnostics and quality
 

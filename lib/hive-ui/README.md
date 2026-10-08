@@ -1,6 +1,6 @@
 # Hive UI
 
-A local, read-only work board for ordinary Beads and work linked to Bee requests. Cards lead with native task status, priority and labels. Ordinary cards show native assignment and update time; Bee views add identity and timestamped observations. Select a card for its description, acceptance criteria, relationships and comments, or expand a Bee’s requester provenance to load inferred ancestry.
+A local, read-only work board for ordinary Beads and Bee requests. Beads use native-status kanban; Open and Completed bees offer Outline and Graph views with shared request selection. Cards lead with native task status, priority and labels. Ordinary cards show native assignment and update time; Bee views add identity and timestamped observations. Select a card for its description, Markdown acceptance criteria (including read-only task checkboxes), relationships and comments, or select a Bee and use Load ancestry to add inferred provenance and historical context. Bee page search matches loaded request IDs, identities, kinds, requesters and linked task IDs; native bead filters apply to the selected request’s linked work.
 
 From the repository root, install workspace dependencies with `bun install`, then run:
 
@@ -31,7 +31,7 @@ The switcher queries only the selected colony. Filters and card selection are re
 ## Reading the board
 
 - **View → Beads** shows ordinary beads, excluding both `bee` and `system` labels, whether or not they are linked to a Bee request. It reads only the current task page and selected details.
-- **Open bees** shows work linked to open requests. **Completed bees** shows work linked to successful closed requests, newest first, in pages of 50 requests. Use **Older requests** to fetch another page; task filters apply within the selected request page. Switching to Completed bees includes closed tasks automatically.
+- **Open bees** shows open requests. **Completed bees** shows successful closed requests, newest first, in pages of 50 requests. Switch between **Outline** and **Graph** without fetching again. Graph cards are positioned automatically and cannot be dragged; use zoom and Fit to explore. Select a request to read its linked work, then **Load ancestry** when needed. Use **Older requests** to fetch another page. Switching to Completed bees includes closed tasks automatically.
 - Open **Filters** for search, closed-bead visibility and label groups in the left drawer. **All of**, **Any of** and **Exclude** map to native `br` label groups. Labels are exact and case-sensitive; commas are literal. Suggestions come from the current page. Enter any exact label manually.
 - Search submits native Beads text search. Deferred tasks are included. Closed tasks are hidden until **Include closed beads** is checked. Task pages contain up to 60 cards.
 - **Saved view** switches between named filter sets. Inside **Filters**, save a new view, update its filters or name, or delete it. Views are stored in this browser per colony and survive reloads. Applying one resets task/history pages and bead selection; it never writes to Beads.

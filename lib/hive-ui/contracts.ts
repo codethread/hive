@@ -7,7 +7,7 @@ export const RELATION_LIMIT = 50;
 export const boardScopeSchema = z.object({
 	/** Zero-based completed request history page; other views use page zero. */
 	requestPage: z.number().int().nonnegative().default(0),
-	/** Ordinary task beads, or task beads linked to open or completed Bee requests. */
+	/** Ordinary task board, open Bee requests or completed Bee requests. */
 	view: z.enum(["beads", "open", "completed"]).default("open"),
 });
 export const boardFilterSchema = boardScopeSchema.extend({
@@ -17,8 +17,16 @@ export const boardFilterSchema = boardScopeSchema.extend({
 	exclude: z.array(z.string().min(1)).default([]),
 	page: z.number().int().nonnegative().default(0),
 	query: z.string().default(""),
+	/** Selected request narrows linked work; absent for ordinary beads. */
+	request: z.string().optional(),
 });
-export const navigationSchema = boardFilterSchema.extend({ bead: z.string().optional() });
+export const navigationSchema = boardFilterSchema.extend({
+	/** One explicitly expanded ancestry chain, never a whole-history scan. */
+	ancestry: z.string().optional(),
+	bead: z.string().optional(),
+	beeQuery: z.string().default(""),
+	presentation: z.enum(["outline", "graph"]).default("outline"),
+});
 export const colonySchema = z.object({
 	beadsDb: z.string(),
 	id: z.string(),
@@ -44,7 +52,6 @@ export const beeSchema = z.object({
 });
 export const cardSchema = z.object({
 	assignee: z.string().nullable(),
-	bees: z.array(beeSchema),
 	id: z.string(),
 	labels: z.array(z.string()),
 	priority: z.number().int(),
@@ -75,8 +82,6 @@ export const boardSchema = z.object({
 	labels: z.array(z.string()),
 	/** Exact argv preview; the server executes it without a shell. */
 	query: z.array(z.string()),
-	/** Request evidence is absent by design in the ordinary-beads view. */
-	requestInventory: requestInventorySchema,
 });
 export const relationSchema = z.object({
 	/** Exact native relation type, retained verbatim for display. */
@@ -95,7 +100,7 @@ export const relationsSchema = z.object({
 export const detailSchema = z.object({
 	/** Verbatim native acceptance_criteria; empty when none were recorded. */
 	acceptanceCriteria: z.string(),
-	card: cardSchema,
+	card: cardSchema.extend({ bees: z.array(beeSchema) }),
 	/** Comments load only with the selected bead, never in board responses. */
 	comments: z.array(observationSchema.extend({ id: z.number().int() })),
 	/** Native outgoing edges: selected bead is the edge source. */
@@ -169,4 +174,8 @@ export function boardKey(colony: string, filter: BoardFilter): string {
 
 export function detailKey(colony: string, id: string, scope: BoardScope): string {
 	return JSON.stringify([colony, scope.view, scope.requestPage, id]);
+}
+
+export function inventoryKey(colony: string, scope: BoardScope): string {
+	return JSON.stringify([colony, scope.view, scope.requestPage]);
 }

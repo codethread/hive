@@ -1,15 +1,16 @@
 import type { Board, Card, Navigation } from "../contracts.ts";
-import { EMPTY, boards, colonies, loadBoard, loadDetail, preferences, snapshot } from "./data.ts";
-import { Label, ResourceNotice, outcomeName, time } from "./ui.tsx";
+import { EMPTY, boards, colonies, inventories, loadView, preferences, snapshot } from "./data.ts";
+import { Label, ResourceNotice, time } from "./ui.tsx";
 import { Link, Outlet, useNavigate, useParams, useSearch } from "@tanstack/react-router";
 import {
 	PAGE_SIZE,
 	REQUEST_PAGE_SIZE,
 	boardFilterSchema,
 	boardKey,
-	boardScopeSchema,
+	inventoryKey,
 	navigationSchema,
 } from "../contracts.ts";
+import { BeeWorkspace } from "./bee-workspace.tsx";
 import { BoardToolbar } from "./filter-drawer.tsx";
 import { Inspector } from "./inspector.tsx";
 import { useStore } from "zustand";
@@ -90,6 +91,7 @@ export function Welcome() {
 	return <p className="p-6 text-muted">Choose a configured colony to read its work.</p>;
 }
 
+// eslint-disable-next-line max-statements -- Select the board and inventory resources together for one route.
 export function WorkPage() {
 	const { colonyId } = useParams({ from: "/colonies/$colonyId" });
 	const search = useSearch({ from: "/colonies/$colonyId" });
@@ -97,32 +99,39 @@ export function WorkPage() {
 	const key = boardKey(colonyId, filter);
 	const resource = useStore(boards.store, (state) => state.entries[key] ?? EMPTY);
 	const board = snapshot(resource);
-	const inventory = board?.requestInventory;
+	const inventoryResource = useStore(
+		inventories.store,
+		(state) => state.entries[inventoryKey(colonyId, search)] ?? EMPTY,
+	);
+	const inventory = search.view === "beads" ? undefined : snapshot(inventoryResource);
 	const colony = useStore(colonies.store, (state) =>
 		snapshot(state.entries["colonies"] ?? EMPTY)?.colonies.find((entry) => entry.id === colonyId),
 	);
+	let summary = "Bee provenance";
+	let readAt: string | null = null;
+	if (search.view === "beads") {
+		summary = board ? `${board.cards.length} beads on this page` : "No work snapshot";
+		readAt = board?.fetchedAt ?? null;
+	} else if (inventory?.kind === "loaded") {
+		({ readAt } = inventory);
+	}
+
 	return (
 		<main>
 			<BoardToolbar board={board} />
 			<div className="flex flex-wrap items-center justify-between gap-2 border-b border-line px-5 py-2 text-xs text-muted">
 				<span>
-					{board ? `${board.cards.length} beads on this page` : "No work snapshot"}
+					{summary}
 					{inventory?.kind === "loaded" && ` · ${inventory.bees.length} ${search.view} requests`}
 				</span>
 				<div className="flex items-center gap-3">
-					{board && <span>Read {time(board.fetchedAt)} · manual refresh</span>}
+					{readAt !== null && <span>Read {time(readAt)} · manual refresh</span>}
 					<button
 						className="button"
 						type="button"
-						disabled={resource.kind === "loading"}
+						disabled={resource.kind === "loading" || inventoryResource.kind === "loading"}
 						onClick={() => {
-							void loadBoard(colonyId, filter, true);
-							if (search.bead !== undefined) {
-								void loadDetail(colonyId, search.bead, {
-									fresh: true,
-									scope: boardScopeSchema.parse(search),
-								});
-							}
+							void loadView(colonyId, search, true);
 						}}
 					>
 						Refresh
@@ -130,14 +139,24 @@ export function WorkPage() {
 				</div>
 			</div>
 			<ResourceNotice resource={resource} />
+			{search.view !== "beads" && <ResourceNotice resource={inventoryResource} />}
 			{inventory?.kind === "loaded" && search.view === "completed" && (
 				<RequestPagination hasMore={inventory.hasMore} />
 			)}
 			<div className="work-layout">
-				<section aria-label="Bead board" className="min-w-0">
-					{board && <BoardColumns board={board} />}
-					{board && <Pagination hasMore={board.hasMore} />}
-				</section>
+				{search.view === "beads" ? (
+					<section aria-label="Bead board" className="min-w-0">
+						{board && <BoardColumns board={board} />}
+						{board && <Pagination hasMore={board.hasMore} />}
+					</section>
+				) : (
+					inventory?.kind === "loaded" && (
+						<div className="min-w-0">
+							<BeeWorkspace colonyId={colonyId} inventory={inventory} board={board} />
+							{search.request !== undefined && board && <Pagination hasMore={board.hasMore} />}
+						</div>
+					)
+				)}
 				{search.bead !== undefined && <Inspector colonyId={colonyId} id={search.bead} />}
 			</div>
 			<footer className="flex flex-wrap justify-between gap-2 border-t border-line px-5 py-3 text-xs text-muted">
@@ -166,14 +185,9 @@ export function WorkPage() {
 
 // --- Board and navigation controls ---
 function BoardColumns({ board }: { board: Board }) {
-	const search = useSearch({ from: "/colonies/$colonyId" });
-	const noRequests =
-		board.requestInventory.kind === "loaded" && board.requestInventory.bees.length === 0;
 	const statuses = [
 		...new Set([
-			...(search.view === "completed"
-				? []
-				: STATUS_ORDER.filter((status) => status !== "deferred" && status !== "closed")),
+			...STATUS_ORDER.filter((status) => status !== "deferred" && status !== "closed"),
 			...board.cards.map((card) => card.status),
 		]),
 	];
@@ -181,13 +195,9 @@ function BoardColumns({ board }: { board: Board }) {
 	if (board.cards.length === 0) {
 		return (
 			<div className="grid min-h-80 place-content-center gap-2 p-6 text-center">
-				<h2 className="font-medium">
-					{noRequests ? `No ${search.view} bee requests` : "No matching beads"}
-				</h2>
+				<h2 className="font-medium">No matching beads</h2>
 				<p className="text-sm text-muted">
-					{noRequests
-						? "No requests in this view. Choose another request view or history page."
-						: "Try clearing the label filters or including closed beads."}
+					Try clearing the label filters or including closed beads.
 				</p>
 			</div>
 		);
@@ -247,31 +257,9 @@ function BeadCard({ card }: { card: Card }) {
 				</div>
 			</div>
 			<div className="space-y-2 border-t border-line bg-panel px-3.5 py-2.5">
-				{search.view === "beads" && (
-					<p className="text-[11px] text-muted">
-						Assigned to {card.assignee ?? "nobody"} · updated {time(card.updatedAt)}
-					</p>
-				)}
-				{card.bees.map((bee) => (
-					<div key={bee.id} className="text-[11px]">
-						<div className="flex justify-between gap-2 text-muted">
-							<span className="truncate">{bee.identity}</span>
-							<span>{bee.kind}</span>
-						</div>
-						<p
-							className="mt-1 truncate text-muted"
-							title={
-								bee.observation
-									? `${bee.observation.text} · ${bee.observation.at}`
-									: "No recorded observation"
-							}
-						>
-							{bee.outcome === "pending"
-								? `Recorded: ${bee.observation?.text ?? "unknown"}`
-								: `${outcomeName(bee.outcome)}${bee.closedAt === null ? "" : ` · ${time(bee.closedAt)}`}`}
-						</p>
-					</div>
-				))}
+				<p className="text-[11px] text-muted">
+					Assigned to {card.assignee ?? "nobody"} · updated {time(card.updatedAt)}
+				</p>
 			</div>
 		</article>
 	);
@@ -317,7 +305,12 @@ function RequestPagination({ hasMore }: { hasMore: boolean }) {
 	const search = useSearch({ from: "/colonies/$colonyId" });
 	const navigate = useNavigate({ from: "/colonies/$colonyId" });
 	const move = (requestPage: number): void => {
-		void navigate({ search: (current) => withoutSelection({ ...current, page: 0, requestPage }) });
+		void navigate({
+			search: (current) => {
+				const { ancestry: _ancestry, request: _request, bead: _bead, ...rest } = current;
+				return { ...rest, page: 0, requestPage };
+			},
+		});
 	};
 	return (
 		<nav

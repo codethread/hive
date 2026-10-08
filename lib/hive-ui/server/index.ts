@@ -190,7 +190,7 @@ async function api(
 			return respond({ colonies });
 		}
 		const route =
-			/^\/api\/colonies\/(?<colony>[^/]+)\/(?<operation>board|beads|provenance)(?:\/(?<id>[^/]+))?$/u.exec(
+			/^\/api\/colonies\/(?<colony>[^/]+)\/(?<operation>board|beads|provenance|inventory)(?:\/(?<id>[^/]+))?$/u.exec(
 				url.pathname,
 			)?.groups;
 		const selected = colonies.find((entry) => entry.id === route?.["colony"]);
@@ -204,6 +204,14 @@ async function api(
 			const filter = boardFilterSchema.parse(JSON.parse(url.searchParams.get("filter") ?? "{}"));
 			status = HTTP.ok;
 			return respond(await data.board(context, filter, url.searchParams.get("fresh") === "true"));
+		}
+		if (route["operation"] === "inventory") {
+			status = HTTP.badRequest;
+			const scope = boardScopeSchema.parse(JSON.parse(url.searchParams.get("scope") ?? "{}"));
+			status = HTTP.ok;
+			return respond(
+				await data.inventory(context, scope, url.searchParams.get("fresh") === "true"),
+			);
 		}
 		status = HTTP.badRequest;
 		const id = idSchema.parse(decodeURIComponent(route["id"] ?? ""));

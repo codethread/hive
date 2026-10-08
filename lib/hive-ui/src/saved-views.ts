@@ -1,11 +1,17 @@
 import type { Navigation } from "../contracts.ts";
-import { boardFilterSchema } from "../contracts.ts";
 import { createStore } from "zustand/vanilla";
+import { navigationSchema } from "../contracts.ts";
 import { z } from "zod";
 
 const STORAGE_KEY = "hive-ui.saved-views";
 const MAX_NAME_LENGTH = 80;
-const filtersSchema = boardFilterSchema.omit({ page: true, requestPage: true });
+const filtersSchema = navigationSchema.omit({
+	ancestry: true,
+	bead: true,
+	page: true,
+	request: true,
+	requestPage: true,
+});
 const savedViewSchema = z.object({
 	/** Filter values only; pagination and bead selection are never saved. */
 	filters: filtersSchema,
@@ -38,8 +44,8 @@ interface SavedViewsState {
 export const savedViews = createStore<SavedViewsState>(() => ({ active: {}, ...readViews() }));
 
 export function filterSet(navigation: Navigation): FilterSet {
-	const { all, any, closed, exclude, query, view } = navigation;
-	return { all, any, closed, exclude, query, view };
+	const { all, any, beeQuery, closed, exclude, presentation, query, view } = navigation;
+	return { all, any, beeQuery, closed, exclude, presentation, query, view };
 }
 
 export function sameFilters(left: FilterSet, right: FilterSet): boolean {
@@ -123,6 +129,8 @@ function readCollection(): Record<string, SavedView[]> {
 function filterKey(filters: FilterSet): string {
 	return JSON.stringify([
 		filters.view,
+		filters.beeQuery,
+		filters.presentation,
 		filters.query,
 		filters.closed,
 		filters.all.toSorted(),

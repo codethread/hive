@@ -1,8 +1,10 @@
 /* eslint-disable sort-keys -- TanStack infers loader dependencies in declaration order: validateSearch, loaderDeps, loader. */
 import { Shell, Welcome, WorkPage } from "./work-page.tsx";
-import { boardFilterSchema, boardScopeSchema, navigationSchema } from "../contracts.ts";
-import { colonies, loadBoard, loadColonies, loadDetail, rememberView, snapshot } from "./data.ts";
+import { colonies, loadColonies, loadView, rememberView, snapshot } from "./data.ts";
 import { createRootRoute, createRoute, createRouter, redirect } from "@tanstack/react-router";
+import { loadGraph } from "./graph-loader.ts";
+
+import { navigationSchema } from "../contracts.ts";
 
 const rootRoute = createRootRoute({ component: Shell, loader: loadColonies });
 const indexRoute = createRoute({
@@ -27,16 +29,17 @@ const boardRoute = createRoute({
 	getParentRoute: () => rootRoute,
 	path: "/colonies/$colonyId",
 	validateSearch: (search) => navigationSchema.parse(search),
-	loaderDeps: ({ search }) => search,
-	loader: async ({ params, deps }) => {
-		rememberView(params.colonyId, deps);
-		await Promise.all([
-			loadBoard(params.colonyId, boardFilterSchema.parse(deps)),
-			...(deps.bead === undefined
-				? []
-				: [loadDetail(params.colonyId, deps.bead, { scope: boardScopeSchema.parse(deps) })]),
-		]);
+	beforeLoad: ({ params, search }) => {
+		rememberView(params.colonyId, search);
+		if (search.view !== "beads" && search.presentation === "graph") {
+			void loadGraph();
+		}
 	},
+	loaderDeps: ({ search }) => {
+		const { presentation: _presentation, beeQuery: _beeQuery, ...data } = search;
+		return data;
+	},
+	loader: ({ params, deps }) => loadView(params.colonyId, navigationSchema.parse(deps)),
 	component: WorkPage,
 });
 

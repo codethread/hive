@@ -82,19 +82,14 @@ export function createBoardData() {
 	return {
 		board: async (context: ReadContext, filter: BoardFilter, fresh: boolean): Promise<Board> => {
 			const current = await inventory(context, filter, fresh);
-			let bees: Bee[] = [];
-			if (current.kind === "loaded") {
-				({ bees } = current);
-			}
 			const { tasks, query } = await readTasks(context, filter, current);
-			const cards = tasks.slice(0, PAGE_SIZE).map((bead) => card(bead, bees));
+			const cards = tasks.slice(0, PAGE_SIZE).map((bead) => card(bead));
 			return {
 				cards,
 				fetchedAt: new Date().toISOString(),
 				hasMore: tasks.length > PAGE_SIZE,
 				labels: [...new Set(cards.flatMap((item) => item.labels))].toSorted(),
 				query,
-				requestInventory: current,
 			};
 		},
 		detail: async (context: ReadContext, id: string, scope: BoardScope): Promise<Detail> => {
@@ -108,7 +103,10 @@ export function createBoardData() {
 			}
 			return {
 				acceptanceCriteria: bead.acceptance_criteria,
-				card: card(bead, bees),
+				card: {
+					...card(bead),
+					bees: bees.filter((item) => item.taskIds.includes(bead.id)),
+				},
 				comments: bead.comments.map((comment) => ({
 					at: comment.created_at,
 					author: comment.author,
@@ -121,6 +119,7 @@ export function createBoardData() {
 				fetchedAt: new Date().toISOString(),
 			};
 		},
+		inventory,
 		provenance: readProvenance,
 	};
 }
@@ -139,6 +138,7 @@ function relations(edges: NativeBead["dependencies"]): Detail["dependencies"] {
 	};
 }
 
+// eslint-disable-next-line max-statements -- Keep request membership and the exact bounded native task query together.
 async function readTasks(
 	context: ReadContext,
 	filter: BoardFilter,
@@ -146,7 +146,13 @@ async function readTasks(
 ): Promise<{ tasks: NativeBead[]; query: string[] }> {
 	let taskIds: string[] = [];
 	if (inventory.kind === "loaded") {
-		taskIds = [...new Set(inventory.bees.flatMap((request) => request.taskIds))];
+		if (filter.request === undefined) {
+			return { query: [], tasks: [] };
+		}
+		const request =
+			inventory.bees.find((item) => item.id === filter.request) ??
+			bee(await show(context, filter.request));
+		({ taskIds } = request);
 		// An empty request membership must never become an unrestricted task query.
 		if (taskIds.length === 0) {
 			return { query: [], tasks: [] };
@@ -275,10 +281,9 @@ function bee(bead: NativeBead): Bee {
 	};
 }
 
-function card(bead: NativeBead, bees: Bee[]): Card {
+function card(bead: NativeBead): Card {
 	return {
 		assignee: bead.assignee ?? null,
-		bees: bees.filter((item) => item.taskIds.includes(bead.id)),
 		id: bead.id,
 		labels: bead.labels,
 		priority: bead.priority,

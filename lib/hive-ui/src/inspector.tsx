@@ -2,9 +2,14 @@ import type { Bee, Detail, Provenance, Relation } from "../contracts.ts";
 import { EMPTY, details, loadDetail, loadProvenance, provenance, snapshot } from "./data.ts";
 import { Label, ResourceNotice, outcomeName, time } from "./ui.tsx";
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
+import { Suspense, lazy, useEffect, useLayoutEffect, useRef } from "react";
 import { boardScopeSchema, detailKey } from "../contracts.ts";
-import { useEffect, useLayoutEffect, useRef } from "react";
 import { useStore } from "zustand";
+
+const MarkdownContent = lazy(async () => {
+	const module = await import("./markdown.tsx");
+	return { default: module.MarkdownContent };
+});
 
 // eslint-disable-next-line max-statements -- Keep the selected resource, modal lifecycle and URL navigation together.
 export function Inspector({ colonyId, id }: { colonyId: string; id: string }) {
@@ -104,9 +109,13 @@ export function Inspector({ colonyId, id }: { colonyId: string; id: string }) {
 							className="mt-6 rounded-lg border border-line bg-canvas px-5 pb-5"
 						>
 							<h3 className="section-title">Acceptance criteria</h3>
-							<p className="whitespace-pre-wrap text-sm leading-relaxed">
-								{detail.acceptanceCriteria || "No acceptance criteria recorded."}
-							</p>
+							{detail.acceptanceCriteria ? (
+								<Suspense fallback={<p className="text-sm text-muted">Formatting criteria…</p>}>
+									<MarkdownContent>{detail.acceptanceCriteria}</MarkdownContent>
+								</Suspense>
+							) : (
+								<p className="text-sm text-muted">No acceptance criteria recorded.</p>
+							)}
 						</section>
 						<div className="grid gap-x-6 md:grid-cols-2">
 							<Relations direction="outgoing" relations={detail.dependencies} />

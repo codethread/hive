@@ -29,7 +29,8 @@ export function BoardToolbar({ board }: { board: Board | null }) {
 		search.any.length +
 		search.exclude.length +
 		Number(search.closed) +
-		Number(search.query.length > 0);
+		Number(search.query.length > 0) +
+		Number(search.beeQuery.length > 0);
 	return (
 		<section aria-label="Board views" className="border-b border-line bg-panel">
 			<div className="flex flex-wrap items-center gap-3 px-5 py-3">
@@ -92,6 +93,12 @@ export function BoardToolbar({ board }: { board: Board | null }) {
 				</header>
 				<div className="min-h-0 space-y-6 overflow-y-auto overscroll-contain p-5">
 					<NativeFilters />
+					{search.view !== "beads" && (
+						<p className="text-xs text-muted">
+							Bead text, labels and closed-bead filters apply to the selected request’s linked work.
+							They do not hide requests.
+						</p>
+					)}
 					<section aria-label="Label filters" className="space-y-5 border-t border-line pt-5">
 						<h3 className="text-sm font-medium">Labels</h3>
 						{(["all", "any", "exclude"] as const).map((group) => (
@@ -128,7 +135,7 @@ function ViewSelector() {
 					const view = boardScopeSchema.shape.view.parse(event.target.value);
 					void navigate({
 						search: (current) => {
-							const { bead: _bead, ...rest } = current;
+							const { ancestry: _ancestry, bead: _bead, request: _request, ...rest } = current;
 							return { ...rest, closed: view === "completed", page: 0, requestPage: 0, view };
 						},
 					});
@@ -152,7 +159,35 @@ function NativeFilters() {
 	};
 	return (
 		<section aria-label="Bead filters" className="space-y-4">
-			<form key={search.query} className="space-y-2" onSubmit={submit}>
+			{search.view !== "beads" && (
+				<form
+					key={`requests:${search.beeQuery}`}
+					className="space-y-2"
+					onSubmit={(event) => {
+						event.preventDefault();
+						const beeQuery = z.string().parse(new FormData(event.currentTarget).get("beeQuery"));
+						void navigate({ search: (current) => ({ ...current, beeQuery }) });
+					}}
+				>
+					<label className="text-sm font-medium" htmlFor="bee-search">
+						Search requests on this page
+					</label>
+					<div className="flex gap-2">
+						<input
+							id="bee-search"
+							name="beeQuery"
+							type="search"
+							defaultValue={search.beeQuery}
+							placeholder="Identity, kind, requester or ID…"
+							className="control min-w-0 flex-1"
+						/>
+						<button className="button" type="submit">
+							Search bees
+						</button>
+					</div>
+				</form>
+			)}
+			<form key={`beads:${search.query}`} className="space-y-2" onSubmit={submit}>
 				<label className="text-sm font-medium" htmlFor="search">
 					Search bead text
 				</label>
@@ -191,6 +226,7 @@ function NativeFilters() {
 							...current,
 							all: [],
 							any: [],
+							beeQuery: "",
 							closed: current.view === "completed",
 							exclude: [],
 							page: 0,
