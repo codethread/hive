@@ -9,6 +9,7 @@ import type {
 } from "@hive/shared";
 import {
 	COLONY_OBSERVATION_PREFIX,
+	CommandError,
 	SPAWN_REQUEST_LABELS,
 	beadSchema,
 	beads,
@@ -225,6 +226,7 @@ export async function reconcileClosedRequestLabels(repository: RepositoryEndpoin
 }
 
 // --- Private functions ---
+// eslint-disable-next-line max-statements -- Keep the bounded conflict recovery and its latest failure context together.
 async function publishLabels(
 	repository: RepositoryEndpoint,
 	actor: string,
@@ -233,25 +235,49 @@ async function publishLabels(
 	if (requestLabelsCurrent(bead)) {
 		return bead;
 	}
-	// eslint-disable-next-line init-declarations -- A failed write/readback throws; no snapshot can stand in for successful publication.
-	let published: Bead;
+	let current = bead;
+	let canRepublish = true;
 	try {
-		await beads(repository, actor, [
-			"update",
-			bead.id,
-			"--if-unchanged",
-			bead.updated_at,
-			"--set-labels",
-			projectedRequestLabels(bead).join(","),
-		]);
-		published = await showBead(repository, actor, bead.id);
+		/* eslint-disable no-await-in-loop -- One rebased write is allowed; a second conflict only gets a convergence read. */
+		while (!requestLabelsCurrent(current)) {
+			try {
+				await beads(repository, actor, [
+					"update",
+					current.id,
+					"--if-unchanged",
+					current.updated_at,
+					"--set-labels",
+					projectedRequestLabels(current).join(","),
+				]);
+				break;
+			} catch (error) {
+				if (
+					!(error instanceof CommandError) ||
+					error.nativeError?.code !== "UPDATE_PRECONDITION_FAILED"
+				) {
+					throw error;
+				}
+				current = await showBead(repository, actor, current.id);
+				readSpawnRequest(current);
+				if (requestLabelsCurrent(current)) {
+					return current;
+				}
+				if (!canRepublish) {
+					throw error;
+				}
+				canRepublish = false;
+			}
+		}
+		/* eslint-enable no-await-in-loop */
+		current = await showBead(repository, actor, current.id);
+		readSpawnRequest(current);
+		if (!requestLabelsCurrent(current)) {
+			throw new Error("Native facts changed during publication");
+		}
+		return current;
 	} catch (error) {
-		throw publicationFailure(bead, error);
+		throw publicationFailure(current, error);
 	}
-	if (!requestLabelsCurrent(published)) {
-		throw publicationFailure(published, new Error("Native facts changed during publication"));
-	}
-	return published;
 }
 
 function publicationFailure(bead: Bead, cause: unknown): RequestPublicationError {

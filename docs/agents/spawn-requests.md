@@ -129,6 +129,8 @@ Native query-run options override saved filters. In particular, supplying `--lab
 
 Native `br` does not atomically combine closure or replacement creation with label publication. Bee/Colony writes the native fact first, then replaces both label groups in one native `--set-labels` transaction, retaining the other labels it read. It checks the native revision before writing and rereads facts afterward. A successful lifecycle operation has exactly the projected pair. A failed or interrupted publication can temporarily leave the previous pair: native queries may lag, while `bee status` reports the authoritative disposition and `labelPublication: "pending"`.
 
+A native `UPDATE_PRECONDITION_FAILED` triggers a fresh read. If another publisher already made the projection current, publication succeeds without another write. Otherwise Bee/Colony recomputes from the fresh facts and unrelated labels and permits one more guarded write. A second revision conflict gets one final read: current labels mean success; a still-pending projection fails visibly. Other errors are not retried. Incoming supersession can change without advancing the predecessor's revision, so successful writes still require fresh-fact readback; an inconsistent projection fails rather than being silently accepted.
+
 Publication failures return a nonzero exit and `reason: "request_labels_pending"`, with `requestId` and any already-created `replacementIds`. Fix the reported tracker failure; inspect the IDs before taking recovery action. A failure returned after replacement creation is **not** refusal of that replacement. Its native edge and request remain, and the original is already superseded in exact inspection.
 
 Recovery is bounded and preserves history:

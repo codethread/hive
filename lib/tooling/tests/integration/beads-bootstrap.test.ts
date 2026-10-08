@@ -1,10 +1,10 @@
 import { bootstrapBeads, localBootstrapServices } from "../../src/beads-bootstrap.ts";
+// eslint-disable-next-line import/no-nodejs-modules -- Fixture paths.
+import { dirname, join } from "node:path";
 import { expect, test } from "bun:test";
 // eslint-disable-next-line import/no-nodejs-modules -- Isolated native Git and Beads fixtures.
 import { mkdir, mkdtemp, realpath, rm } from "node:fs/promises";
 import type { Command } from "../../src/beads-environment.ts";
-// eslint-disable-next-line import/no-nodejs-modules -- Fixture paths.
-import { join } from "node:path";
 // eslint-disable-next-line import/no-nodejs-modules -- System temporary directory.
 import { tmpdir } from "node:os";
 
@@ -39,6 +39,8 @@ function fixtureCommand(tmp: string, calls: string[][]): Command {
 				GIT_CONFIG_NOSYSTEM: "1",
 				HOME: tmp,
 				HUSKY: "0",
+				// The fixture's fresh mise data has no shims; select the Bun already running this test.
+				MISE_BUN_VERSION: `path:${dirname(dirname(process.execPath))}`,
 				MISE_CACHE_DIR: join(tmp, "mise-cache"),
 				MISE_CONFIG_DIR: join(tmp, "mise-config"),
 				MISE_DATA_DIR: join(tmp, "mise-data"),
