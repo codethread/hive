@@ -234,6 +234,47 @@ One daemon owns a state directory at a time, including when callers choose diffe
 
 Recovery adopts verified surviving executions without launching duplicates. A dead execution follows the same completion, retry and claim-release rules as an ordinary exit. Closing a request while its colony sleeps leaves its worker and claims alone until wake; an awake colony stops the owned execution before releasing its unfinished claims. Removal retains these records, so re-add and wake can reconcile work that outlived membership. Missing or ambiguous ownership evidence fails visibly.
 
+## Health notifications
+
+The independent watchdog reads public daemon status every 30 seconds. It alerts through `cc-notify` when any registered colony fails, even while the daemon is running, or when the daemon has been unreachable for at least 60 seconds. Poll and delivery time can add to that delay. Asleep colonies are normal; the watcher never wakes, repairs or starts Colony.
+
+Each repository/tracker failure episode alerts once, even if its diagnostic changes. An explicitly observed awake or asleep state produces one failure-cleared notification. A missing registration does not prove recovery. Daemon reachability recovery is reported separately and does not clear retained colony failures. Changes observed together share one notification; initial healthy startup is silent.
+
+Run the watcher from one retained Hive checkout with dependencies installed (`bun install`). Install Bun, [Mise](https://mise.jdx.dev/daemons.html), [Pitchfork](https://pitchfork.jdx.dev/reference/configuration.html), and `cc-notify`; its local notification service must also be available. These executables must be discoverable in the Mise environment, including at login. The daemon command adds `~/.local/bin` to its own `PATH` so user-installed `cc-notify` works without shell initialization. The root `mise.toml` enables Mise's experimental daemon support and defines `colony-watchdog` with indefinite failure retries and boot startup. It has no shell-entry autostart, shell-leave autostop, or dependency that starts Colony.
+
+From the chosen checkout:
+
+```sh
+mise daemons ls --json                     # inspect without starting anything
+mise daemons start colony-watchdog
+mise daemons status colony-watchdog
+mise daemons logs colony-watchdog
+mise daemons stop colony-watchdog           # planned maintenance
+mise daemons start colony-watchdog          # resume monitoring
+```
+
+For login startup, register this checkout and enable Pitchfork's user-level boot integration:
+
+```sh
+mise daemons register
+pitchfork boot enable
+pitchfork boot status
+```
+
+Mise-generated registrations retain the project's Mise environment at boot. No custom launchd plist is needed. `pitchfork boot enable` configures the shared supervisor: other registered `boot_start` daemons can also start at login. Stopping the watchdog does not disable its next boot start. To disable its boot startup, override `boot_start = false` under `[daemons.colony-watchdog]` in this checkout's `mise.local.toml`, then run `mise daemons register` and `mise daemons stop colony-watchdog`. Keep the selected checkout until activation is moved; disable its boot registration before enabling another checkout so two watchers do not compete.
+
+Configuration was checked with Mise 2026.10.4 and Pitchfork 2.29.0. Pitchfork 2.29.0 supports daemon retries and boot registration, but lacks the supervisor launchd crash-restart support introduced in 2.30: a crashed supervisor itself may require manual restart. Boot/login operation and real notification delivery need verification on the installation host.
+
+The watcher uses the same state/socket defaults as `colony`. To select a different daemon, override `run` in `mise.local.toml`, or run the foreground entry directly:
+
+```sh
+bun run lib/colony/bin/watchdog.ts --state /path/to/server-state --socket /path/to/server.sock
+```
+
+An explicit socket requires explicit state. Status calls and notification commands have ten-second deadlines. Notification bodies go to `cc-notify "Colony health"` through stdin. Delivery failures, malformed responses and checkpoint errors fail visibly in the watcher logs; Pitchfork retries the process. Planned daemon shutdown looks like an outage while monitoring is enabled, so stop the watchdog first.
+
+Delivery bookkeeping lives in `<state>/watchdog/<sha256-of-absolute-socket>.json`, separate from Colony's database. It retains outage onset and successfully notified repository/tracker incidents across watcher restarts. A successful delivery precedes atomic checkpoint replacement. A crash between delivery and save can repeat a notification; exactly-once delivery is not guaranteed. Preserve this file during restarts to retain deduplication.
+
 ## Inspect runtime and retained history
 
 ```sh
