@@ -300,10 +300,10 @@ ${retainedContext(context)}`,
 		},
 		publish: {
 			meta: {
-				title: "Publish completed task state",
+				title: "Record completed task state",
 				commands: { next: "NEXT" },
 				task: ({ context }: { context: LandingContext }) => ({
-					instructions: `From a surviving configured code checkout retain beadsDb via BEADS_DB or native --db. Record landing evidence and close only completedTasks whose acceptance is proven; leave unfinished or unrelated tasks open. Do not close this workflow run or grouping beads: Busy Bee owns them. Native br export is local; run bun run beads:sync to publish post-commit updates. This publishes tracker state, never main or feature code. A refused flush, commit, reconciliation or push leaves this task open and landing incomplete. On record/claim conflict stop tracker work, retain evidence and follow documented human recovery; never force sync/push or overwrite a published claim. Verify the accepted tracker/state snapshot includes completed task evidence and canonical main is clean and synchronized. Record publication evidence before closure.
+					instructions: `From a surviving configured code checkout retain beadsDb via BEADS_DB or native --db. Record landing evidence and close only completedTasks whose acceptance is proven; leave unfinished or unrelated tasks open. Do not close this workflow run or grouping beads: Busy Bee owns them. Native br updates and automatic JSONL export stay local. Record completion evidence now; the final report step publishes once after Busy Bee closes its run. Verify completed task evidence in the selected tracker and canonical main is clean and synchronized. A refused task update leaves this task open.
 
 ${retainedContext(context)}`,
 				}),
@@ -317,7 +317,7 @@ ${retainedContext(context)}`,
 				title: "Report landing and publish final bookkeeping",
 				commands: { next: "NEXT" },
 				task: ({ context }: { context: LandingContext }) => ({
-					instructions: `Tell the user what landed, what was cleaned up, verification results, tracker publication evidence and anything unresolved. Distinguish simulated traversal from actual landing. Close this task and submit next only after that report. Busy Bee then closes its run; publish those final workflow bookkeeping updates with bun run beads:sync from the surviving checkout and retained endpoint. A refused final publication still leaves landing incomplete and must be reported. Done means main contains the intended change with passing checks, the accepted tracker snapshot includes completed tasks, canonical main is clean/synchronized and this work has no stray leftovers.
+					instructions: `Tell the user what landed, what was cleaned up, verification results and anything unresolved, noting that final tracker publication follows workflow closure. Distinguish simulated traversal from actual landing. Close this task and submit next only after that report. Busy Bee then closes its run; publish all completion and workflow bookkeeping updates once with bun run beads:sync from the surviving checkout and retained endpoint. Verify the accepted tracker/state snapshot includes completed task evidence and report publication success. A refused final publication still leaves landing incomplete and must be reported. On record/claim conflict stop tracker work, retain evidence and follow documented human recovery; never force sync/push or overwrite a published claim. Done means main contains the intended change with passing checks, the accepted tracker snapshot includes completed tasks, canonical main is clean/synchronized and this work has no stray leftovers.
 
 ${retainedContext(context)}`,
 				}),

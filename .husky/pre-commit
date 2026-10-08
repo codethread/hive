@@ -1,12 +1,2 @@
 bunx lint-staged || exit $?
 bun run typecheck || exit $?
-
-branch="$(git branch --show-current)" || exit $?
-if [ "$branch" != "tracker/state" ]; then
-	(
-		# Sync commits in another worktree; do not inherit this commit's Git/index context.
-		git_environment="$(git rev-parse --local-env-vars)" || exit $?
-		unset $git_environment
-		bun run beads:sync
-	) || exit $?
-fi

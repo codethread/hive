@@ -44,7 +44,7 @@ const titles = {
 	comments: "Verify and act on PR feedback",
 	finish: "Integrate the approved work",
 	verify: "Verify integration and clean up the worktree",
-	publish: "Publish completed task state",
+	publish: "Record completed task state",
 	report: "Report landing and publish final bookkeeping",
 };
 const events = {

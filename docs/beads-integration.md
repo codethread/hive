@@ -35,15 +35,16 @@ bun run beads:sync
 
 This command reconciles SQLite and JSONL, commits local tracker changes, fetches and merges compatible remote changes, reconciles the received snapshot and pushes `tracker/state`. It never force-pushes; conflicting records or claims stop synchronization. A shared lock serializes publication checkpoints.
 
-Synchronization runs at session start and before code commits, not on ordinary `br` commands or agent tool calls. The pre-commit hook runs after local quality checks and aborts the commit if synchronization fails, including network failures. Tracker commits skip the sync step to avoid recursion, but retain normal quality hooks. The pre-merge-commit hook uses the same checkpoint.
+Publication is an explicit agent workflow step. Session-start hooks only configure the environment; pre-commit and pre-merge-commit hooks retain lint-staged and typecheck without publishing the tracker. Commitlint remains on commit-msg.
 
-Explicitly synchronize:
+Synchronize at these boundaries:
 
-- **After claiming, before working:** the claim is provisional until publication succeeds. Respect already-published reservations; do not force a claim to win.
-- **After closure or handoff:** these updates may happen after the final code commit, or without any code commit.
-- **After landing updates:** publish completion separately from application code.
+- **Startup/resume:** once when beginning or resuming work, before selecting or claiming tasks (or verifying Colony-supplied claims). Moving that work into a new local worktree does not add another checkpoint.
+- **Final handoff/landing:** once after all task updates, including completion or closure after the final code commit. Recording work without implementing it also ends with publication.
 
-Progress updates remain local until a checkpoint. Every publication includes the shared database's snapshot, including colleagues' ongoing tasks; publishing does not close their work. Never merge `tracker/state` into a code branch.
+Claims, progress updates and local code commits stay local between these boundaries. This assumes a single active clone: all its worktrees and bees share the selected database. When coordinating across simultaneously active clones, explicitly publish claims before working and respect already-published reservations; treat claims as provisional until publication succeeds. Unpublished claims are invisible to other clones; startup/final publication alone cannot provide cross-clone exclusivity. Never force competing claims.
+
+Native `br` automatic JSONL import/export remains enabled independently of Git publication. Every publication includes the shared database's snapshot, including colleagues' ongoing tasks; publishing does not close their work. Never merge `tracker/state` into a code branch.
 
 ## Selecting storage
 
@@ -59,7 +60,7 @@ Setup preserves unrelated TOML settings and writes `BEADS_DB` to ignored `mise.l
 
 Setup also refreshes the Hive-owned native `bee-attention` saved query in the selected database. It is local configuration rather than issue JSONL. See the [spawn query contract](./agents/spawn-requests.md#saved-presets) for its exact filters, direct installation command and history queries.
 
-Mise supplies the project environment. Direnv projects the selection after normal local approval; Claude's SessionStart hook exports it; Pi's extension sets it at session start; Codex reads its generated shell-environment configuration. Review Codex's SessionStart hook through native hook review once per clone. A failed session-start sync is reported to the user; there is no ongoing tool-call gate.
+Mise supplies the project environment. Direnv projects the selection after normal local approval; Claude's SessionStart hook exports it; Pi's extension sets it at session start; Codex reads its generated shell-environment configuration. Codex needs no Beads SessionStart hook. Claude and Pi startup integrations do not synchronize. Agents own the explicit startup/resume checkpoint; a failed synchronization stops tracker work under the recovery procedure below.
 
 When updating from the former wrapper setup, rerun setup in existing configured checkouts, including the permanent tracker checkout, and restart shells and agents. Setup removes generated wrapper PATH and shell-adapter overrides. Keep the tracker checkout's tooling current with the relevant changes, without merging the entire code branch into `tracker/state`.
 
