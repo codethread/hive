@@ -166,15 +166,21 @@ test(
 			await operation("sleep");
 			const paused = await inspect();
 			expect(paused.attempts.filter((entry) => entry.spawnId === original)).toHaveLength(ONE);
+			const configPath = join(repo, ".hive", "bees.toml");
+			const config = await Bun.file(configPath).text();
+			await Bun.write(configPath, config.replace('model="fixture"', 'model="replacement-model"'));
 			const retried = await bee(["retry", original]);
 			const replacement = retried.request.id;
 			const view = await bee(["status", replacement]);
+			expect(view.request.recipe.model).toBe("replacement-model");
 			expect(view.request.tasks.map((entry: { id: string }) => entry.id)).toEqual([blocked]);
 			expect(view.request.supersedes).toEqual([original]);
 			const predecessor = await bee(["status", original]);
-			expect(predecessor.request.disposition).toEqual({
-				outcome: "failed",
-				resolution: "resolved",
+			expect(predecessor.request).toEqual({
+				...observed.request,
+				disposition: { outcome: "failed", resolution: "resolved" },
+				needsAttention: false,
+				resolution: { kind: "superseded", replacementIds: [replacement] },
 			});
 			// Native blocking is an external prerequisite, not a state retry silently erases.
 			await br(["update", blocked, "--status", "open"]);
