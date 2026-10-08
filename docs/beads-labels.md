@@ -1,6 +1,6 @@
 # Beads labels
 
-Use labels for classification and supported routing, not as a second issue schema. This is Hive's label vocabulary for ordinary task beads; `br` accepts other strings, but that does not give them behavior in Hive. Spawn requests have the separate representation described below; do not add those labels to ordinary task beads.
+Use labels for classification and supported routing, not as a second issue schema. This is Hive's label vocabulary for ordinary tasks and specialist evidence records; `br` accepts other strings, but that does not give them behavior or write authority in Hive. Spawn requests have the separate representation described below; do not add those labels to ordinary beads.
 
 ## Spawn request representation
 
@@ -12,7 +12,7 @@ Timestamped `Colony observation:` comments record minimal last-observed facts; l
 
 ## Taxonomy
 
-> [!info] For task beads, use only the labels below.
+> [!info] For ordinary tasks and evidence records, use only the labels below within their stated scope and authority.
 
 | Labels | Cardinality | Meaning and consumer |
 | --- | --- | --- |
@@ -20,12 +20,27 @@ Timestamped `Colony observation:` comments record minimal last-observed facts; l
 | `hitl` | Marker | Human in the loop: the bead must be worked in tandem with the user, such as design work that needs their decisions. The worker loop always skips it; an agent works it only in a session with the user, confirming decisions as it goes. This is not a handoff: assigning `ct` hands work to the user, while `hitl` keeps an agent working with them. |
 | `agent:lead`, `agent:worker` | Zero or one | Select a runner in the [worker loop](../scripts/beads-loop.ts), not the owner, assignee, or author's harness. Multiple or unknown `agent:*` labels are rejected by the loop. Without one, the loop uses `--agent`, defaulting to `worker`. |
 | `area:shared`, `area:colony`, `area:honeycomb`, `area:tooling` | Zero or more | Classify affected Hive packages for filtering; these labels do not select a runner, block work, or enforce policy. Use multiple only for genuinely cross-package work; omit for repository-wide work without a package scope. |
+| `evidence:architecture` | Evidence records only | Index structured architectural history for librarian retrieval and review. Only the registered specialist below may add or remove it; it is not a runner, approval, or work-status label. |
 
 Use exact lowercase values. The area vocabulary follows Hive's package names; `area:honeycomb` is already in use. `system` is reserved for automations and must not be used directly by agents without clear direction from the user.
 
 Keep issue type, status, priority, owner, assignee, dependencies, and acceptance criteria in their native fields. Do not add parallel labels such as `bug`, `blocked`, or `P1`. Labels do not grant permission to claim work or override workflow policy.
 
 For example, a Honeycomb picker bug is type `bug` with `area:honeycomb`; it needs no runner label unless routing was explicitly chosen. A repository-wide formatting task can have no labels at all. If a reserved system bead blocks ordinary work, report the blocker on the permitted bead and request a maintenance handoff without opening the reserved bead.
+
+## Specialist evidence and label stewardship
+
+`evidence:<specialty>` classifies structured, sourced history that informs a specialty's practices: observations, advice, decisions and observed outcomes, including uncertainty or unsuccessful advice. It belongs on a separate evidence record linked to relevant tasks, not on an implementation task merely because a specialist reviewed it. Current accepted practices belong in repository documentation; actionable investigations and improvements remain separate tasks. See the [filed-record lifecycle](./beads-meta.md#filed-specialist-evidence).
+
+Register each exact value and its **label steward** here. Stewardship is authority to classify evidence, distinct from the bead's native owner, assignee or mutation actor.
+
+| Registered label | Specialist steward | Evidence contract |
+| --- | --- | --- |
+| `evidence:architecture` | `librarian` | [Architectural evidence](../.codex/agents/librarian.toml) |
+
+Only the registered specialist may add or remove its evidence label, and only within explicitly authorized curation scope. Task ownership, a specialist's read-only recommendation, or reading its instructions does not transfer stewardship. A coordinating agent delegates filing to the steward rather than applying the label itself. Other agents may retrieve the records and propose corrections; they preserve labels they do not steward. Ordinary label permissions above remain unchanged. These are agent-workflow rules, not CLI-enforced access control.
+
+Classify by subject, not by the contributing agent. One record may serve multiple specialties, with each steward applying only its own registered label; reuse that record instead of duplicating histories. `evidence:testing` and `evidence:performance` are possible future values, not currently authorized labels. Register a value, steward and evidence contract before using it; topical relevance alone does not authorize inventing labels.
 
 ## Change labels without losing context
 
@@ -41,6 +56,6 @@ Use your own harness identity for attribution. Verify the returned labels with `
 
 ## Extend the vocabulary deliberately
 
-Before introducing another namespace or value, identify the concrete query or consumer it serves and update this taxonomy. Routing changes must also update the consumer; a new `agent:*` string alone cannot create a runner. Generic `br` examples using `harness:*` or `effort:*` are not supported Hive routing conventions.
+Before introducing another namespace or value, obtain approval for the taxonomy change, identify the concrete query or consumer it serves, and document who may apply it. Evidence values also require a registered specialist steward and evidence contract. Routing changes must also update the consumer; a new `agent:*` string alone cannot create a runner. Generic `br` examples using `harness:*` or `effort:*` are not supported Hive routing conventions.
 
 Keep new classifications orthogonal to the existing fields and labels. Do not bulk relabel historical beads merely to make them match a new convention without an explicit migration task.

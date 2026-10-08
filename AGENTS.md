@@ -38,7 +38,7 @@ Clean code and clean architecture practices apply throughout. Before building li
 - **Consult:** use `librarian` when ownership, domain concepts, seams or abstraction choices remain unclear after reading the architecture; routine file placement does not need a consultation.
 - **Curate/discuss:** forward user corrections about ownership, placement, domain terminology, dependency direction or module responsibility to `librarian`. Include the original request, context and supplied rationale, not just your interpretation; explicitly scope any documentation/evidence edits. Direct questions about recurring agent confusion also belong here, without implying permission to change policy.
 - **Review:** before committing or handing off changes to those architectural concerns, use `librarian` in review mode on the final diff. Keep code style, test quality and general standards verification with `reviewer`.
-- Pass the task bead when one exists, affected paths/revisions, settled decisions and prior advice. Return implementation departures, structural review findings and user corrections to the librarian so outcomes can inform curation. Record useful advice and outcomes on the task bead; the librarian defines the evidence format and write safeguards.
+- Pass the task bead when one exists, affected paths/revisions, settled decisions and prior advice. Return implementation departures, structural review findings and user corrections to the librarian so outcomes can inform curation. Keep the current approach in the task's design; delegate useful history to librarian in an explicitly scoped curate invocation for a linked evidence record. Consult/review alone authorizes no writes; librarian defines the evidence format and write safeguards.
 
 ## Runtime and commits
 
@@ -103,7 +103,7 @@ Every mutation needs your harness actor (`--actor pi|claude|codex`, choosing you
 
 ### Labels and reservations
 
-- Labels are optional. Before choosing or changing them, use [the task-label taxonomy](docs/beads-labels.md); ask honeybee if uncertain. Keep status, priority, ownership and readiness in native fields, not invented labels. Use `--add-label` / `--remove-label` for incremental edits; `--labels` replaces the set.
+- Labels are optional. Before choosing or changing them, use [the label taxonomy and stewardship registry](docs/beads-labels.md); ask honeybee if uncertain. Only registered specialists add or remove their own `evidence:*` labels within authorized curation; other agents delegate classification and preserve those labels. Keep status, priority, ownership and readiness in native fields, not invented labels. Use `--add-label` / `--remove-label` for incremental edits; `--labels` replaces the set.
 - `system` beads are automation-owned: exclude them from ordinary `search`, `list` and `ready` with `--exclude-label system`. Reading or changing them requires an explicit system-maintenance/debugging assignment. Viewer triage uses `bv --recipe work --robot-triage`, never bare `bv`.
 - `hitl` requires working alongside the user; autonomous agents skip it. Assignment to `ct` instead reserves human action: do not claim, clear or replace it without ct's instruction. Agent work remains assigned to an agent; assign `ct` only for a deliberate, documented handoff.
 

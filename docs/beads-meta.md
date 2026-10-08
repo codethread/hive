@@ -95,6 +95,14 @@ For longer descriptions, use `--description-file <path>` on `create` or `update`
 
 Checklists describe preparation and completion; they do not create dependency edges or enforce transitions by themselves. Record tracked blockers with `br dep add <issue> <depends-on>`. On handoff, append what changed, what remains, the blocker if any, and a concrete next action; update the design if the intended approach changed.
 
+### Filed specialist evidence
+
+A specialist evidence record is an archive, not executable work or authoritative practice guidance. Its label steward and content contract are registered in the [label taxonomy](./beads-labels.md#specialist-evidence-and-label-stewardship). Label authority and explicit write scope are both required; general task assignment does not confer either.
+
+Within authorized curation, create the record with native `--type docs --status closed --owner ct`, the acting harness's `--actor`, and the initial sourced entry in its description. This is a narrow exception to claiming executable work: the record starts filed and never enters the ready queue. `closed` means recorded, not that its question is resolved or its advice validated. Append subsequent dated evidence to notes without claiming or reopening the record. Ordinary documentation tasks still follow the normal work lifecycle; create a separate actionable task for any outstanding investigation or change.
+
+The specialist contract defines relationships and discovery. Verify the saved content, labels and links, then publish through the root synchronization runbook. Respect native policy failures; do not force creation or closure to file evidence.
+
 ### Inherited agent context
 
 Set `--agent-context` on `create` or `update` with inline JSON such as `'{"constraints":["Keep this feature CLI-only"]}'`, or `@path/to/context.json` / `@path/to/context.yaml` (YAML is normalized to JSON). These are instructions for the consuming agent, not executable policy or a replacement for repository/user instructions.

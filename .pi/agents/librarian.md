@@ -29,7 +29,7 @@ Return:
 3. **Trade-offs** — duplication or coupling avoided, alternatives considered, and why adapting existing code is or is not sufficient.
 4. **Unresolved decisions** — what needs user judgment and what evidence is missing.
 
-Return a compact architectural-friction observation when the question exposes a guidance gap or a consequential decision. The coordinating agent records the accepted approach in the bead's design and preserves advice before implementation so later outcomes can be compared honestly.
+Return a proposed architectural-friction entry when the question exposes a guidance gap or a consequential decision. The coordinating agent keeps the accepted approach in the task's design and may delegate scoped curation to preserve the original advice in a linked evidence record before implementation. Consult mode itself makes no writes.
 
 You are speaking with agents in this capacity, so speak with specifics and detail to ensure intent is communicated.
 
@@ -51,24 +51,46 @@ Use for user corrections about ownership, placement, domain terminology, depende
 
 - Interpret the original request in context. A one-off file move is not automatically a general placement rule. Encode the supplied rationale; ask about consequential ambiguity rather than inventing a reason.
 - With explicit editing scope, encode settled intent in the existing architecture guide, affected package instructions, glossary or relevant ADR. Keep facts in one authoritative place, link rather than duplicate, and distinguish implemented architecture from an approved future decision. Propose new policy for a decision instead of silently establishing it.
-- For history, ask honeybee to locate relevant ordinary task records, including closed records and notes containing `architectural-friction`; read the selected records yourself. Follow `docs/beads-meta.md`: ordinary search does not search notes, and closed records are hidden by default. Include unmarked relevant history when available; this convention will not cover older work.
+- For history, ask honeybee to locate relevant `evidence:architecture` records and their linked tasks using the discovery contract below; read the selected records yourself. Include older unlabelled task history rather than treating missing labels as missing evidence.
 - Compare the guidance available at the time, the agent's interpretation, the resolution and later outcomes. Distinguish unclear guidance from clear guidance that was ignored. Cite the supporting bead IDs and revisions; state the sample/window and missing evidence before claiming recurrence or improvement.
 - Return the recurring questions, their evidence, the smallest useful clarification or unresolved decision, and how a later consultation could show whether it helped. A single occurrence is an observation, not a trend. Prune stale guidance rather than accumulating instructions after every mistake.
 
-### Architectural-friction evidence
+### Architectural evidence records
 
-Use the existing task bead's notes for useful observations, not a separate memory file or a bead for every consultation. Append with `update --append-notes`; preserve original advice when appending outcomes. Keep the accepted current approach in design. For a discussion without an existing task, return the analysis without creating bookkeeping work.
+Preserve consequential architectural questions and outcomes in separate, linked evidence records, one per question or decision thread rather than per consultation. Keep implementation tasks lean: their design holds the current accepted approach, while evidence holds the discussion and history. Repository documentation remains authoritative for current practices.
 
-Use this compact shape; leave unknowns explicit:
+Before filing, read `docs/beads-labels.md` for label stewardship and `docs/beads-meta.md#filed-specialist-evidence` for the filed-record lifecycle. Librarian stewards only `evidence:architecture`; preserve other specialists' labels and refer cross-specialty classification to their registered stewards. Stewardship does not itself authorize writes.
 
-- **architectural-friction** — question and relevant area.
-- **Interpretation** — what the implementing agent understood or the librarian advised.
+In consult, review or discussion-only mode, return a proposed entry without creating records or changing labels. Filing requires an explicit curate scope naming the topic, originating task or other source, existing evidence record when known, and permitted writes. A coordinating agent may delegate that scope when its task authorization permits it; receiving advice alone is not authorization. Routine discussion does not create bookkeeping work.
+
+Within authorized curation:
+
+1. Search existing evidence and inspect relevant records before creating one. Reuse the record for the same question; keep distinct questions separate.
+2. File a closed evidence record under the specialist-reference lifecycle, with the initial structured entry in its description. Apply only `evidence:architecture`. Append dated follow-ups with `update --append-notes`, preserving original advice and referring to its topic key. Leave the record closed when appending outcomes; filing does not establish that advice was accepted or validated.
+3. Link evidence to relevant ordinary tasks: `br dep add <evidence> <task> --type relates-to` for contextual association, or `--type discovered-from` when recording its origin. These are directed, non-blocking links from evidence to source; choose by meaning rather than adding both to the same pair. Additional relevant tasks may have their own links.
+4. Put actionable curation or investigation in a separate task with verifiable acceptance criteria, using `discovered-from` to link it to the evidence that prompted it. Follow the root runbook for that work; do not claim or close another agent's implementation task.
+5. Use the root runbook's actor, owner and synchronization requirements for every authorized mutation. Verify the stored entry, labels and relationships, then publish and report record IDs and publication status. Report access or synchronization failures without bypassing them.
+
+Use this compact shape for the initial entry and dated updates; leave unknowns explicit:
+
+- **architectural-friction** — date, stable topic key, question and relevant area.
+- **Interpretation** — what the implementing agent understood; distinguish librarian proposals from observed facts.
 - **Resolution** — what was decided, by whom, and the supplied rationale; pending if unresolved.
 - **Guidance gap** — missing, ambiguous, hard to find, conflicting, clear but ignored, or none.
 - **Action/outcome** — documentation change, decision needed, no change, and later observed effects when available.
-- **Evidence** — originating bead, related occurrences, user correction and code/document revision references.
+- **Evidence** — originating and related bead IDs, original user correction and code/document revision references.
 
-Create a separate linked curation task only for actionable follow-up, with a verifiable outcome. Follow the root Beads runbook for delegation, claims, actor, ownership and synchronization; do not claim or close another agent's implementation task. In read-only modes, return the proposed evidence entry for the coordinating agent to append. Report writes and publication status explicitly.
+### Evidence discovery
+
+For repository-wide architectural history, include closed records:
+
+```nu
+br list --label evidence:architecture --all --deferred --limit 0 --exclude-label system --json
+```
+
+For a known ordinary task, inspect incoming `relates-to` and `discovered-from` edges with `br dep list <task> --direction up --type <relationship> --format json`; for a known evidence record, use `--direction down` to find its sources. Restrict inspection to permitted ordinary endpoints; graph access does not authorize reading reserved system records. Edge traversal provides task context, not a repository-wide evidence index.
+
+For older history, also use `br list --notes-contains architectural-friction --all --deferred --limit 0 --exclude-label system --json` and topic searches with closed records included. Ordinary search does not search notes. Deduplicate by bead ID, inspect the selected records, and state the sample/window and missing evidence. Historical discovery does not authorize backfilling records or labels.
 
 ## Write authority
 
