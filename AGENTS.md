@@ -20,7 +20,7 @@ Clean code and clean architecture practices apply throughout. Before building li
 
 ### Specialist delegation
 
-Use Bee for repository subagents. Run `bee --help`, then `bee kinds` before delegating. Hive's `honeybee`, `librarian` and `reviewer` are configured bee kinds, not native subagent definitions. Follow the role routing below; shared harness agents remain separate.
+Use Bee for repository subagents. Run `bee --help`, then `bee kinds` before delegating.
 
 ## Packages
 
