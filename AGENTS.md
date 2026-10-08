@@ -1,22 +1,16 @@
 # Hive
 
-Hive is a strict TypeScript monorepo providing coding agent tooling. It ships `bee` for native Beads spawn requests, `colony` for repository scheduling, the hosting daemon and execution supervision, `honeycomb` for Git worktrees, `waggle` for repo-owned classifiers, and `busybee` for Beads-backed workflows.
+Hive is a strict TypeScript monorepo for coding agent tools.
 
-Read [philosophy](./docs/PHILOSOPHY.md) before making any changes to the system
+Read [philosophy](./docs/PHILOSOPHY.md) before making changes.
 
 ## Worktrees
 
-This repo uses `honeycomb` for Git worktrees (see `honeycomb -h`). Create this repository's new worktrees inside `.worktrees/` using the `nested` location. Always work in a worktree unless given specific guidance to do otherwise.
+Work in a worktree unless explicitly instructed otherwise. Use `honeycomb` (see `honeycomb -h`); create new worktrees inside `.worktrees/` with the `nested` location.
 
 ## Workflow
 
-All work follows the explore → plan → build cycle:
-
-1. **Explore** — always scout the repo first for existing paradigms and conventions, helpers to reuse and modules to adapt.
-2. **Plan** — decide the approach before writing any code.
-3. **Build** — implement the plan.
-
-Clean code and clean architecture practices apply throughout. Before building library code ourselves, always consult online tooling: if there is no clear winner, suggest the candidate approaches, and favour precise, well-maintained tools over bloated tool sets.
+Explore existing conventions, helpers and modules; plan the approach; then build. Apply clean code and architecture practices. Before building library code, investigate existing tools online. Favour focused, maintained tools; present candidates when there is no clear winner.
 
 ### Specialist delegation
 
@@ -33,10 +27,7 @@ Use Bee for repository subagents. Run `bee --help`, then `bee kinds` before dele
 
 ## Architecture rules
 
-- Packages may only import from `shared`. `colony`, `honeycomb`, `tooling`, `waggle`, and `busybee` must not import each other.
-- Cross-package imports must use the `@hive/shared` package specifier; relative paths that traverse into another package are rejected.
-- `shared` must never import `colony`, `honeycomb`, `tooling`, `waggle`, or `busybee`.
-- `.oxlintrc.json` enforces these rules through per-package `no-restricted-imports` overrides.
+Product packages may import only `@hive/shared` across package boundaries; Shared imports no product package. Cross-package relative imports are prohibited. `.oxlintrc.json` enforces these rules.
 
 ## Architectural intent
 
@@ -74,13 +65,14 @@ Husky runs `lint-staged`, a repo-wide typecheck and tracker synchronization befo
 
 ## Where to look
 
-- Before changing request representation, scheduling authority or package placement, read [architecture](docs/architecture.md). It maps the library seams and sources of truth.
+- Before changing request representation, scheduling authority or package placement, read [architecture](docs/architecture.md). It maps package boundaries and sources of truth.
 - [Bee and Colony guide](lib/colony/README.md) documents public commands and real I/O verification.
 - Before changing workflow projection or completion, read the [Busy Bee specification](lib/busybee/SPEC.md) for the intended behavior and Beads integration decisions.
+- Before authoring or refactoring Busy Bee workflow definitions, read the [workflow style guide](docs/busybee-workflows.md) for explicit charts and visualizer visibility.
 
 ## Spawn state and attention
 
-Before querying spawn requests, interpreting failures or supersession, retrying work, or changing lifecycle publication, read the [spawn state and native query contract](docs/agents/spawn-requests.md). It enumerates every outcome/resolution value and valid combination, recovery semantics, and exact native queries and saved presets, including closed failures. Use this reference for automation-owned spawn beads; ordinary task selection still excludes `system`.
+Before querying spawn requests, interpreting failures or supersession, retrying work, or changing lifecycle publication, read the [spawn state contract](docs/agents/spawn-requests.md) for valid states, recovery and native queries, including closed failures. It covers automation-owned spawn beads; ordinary task selection excludes `system`.
 
 ## Domain docs
 

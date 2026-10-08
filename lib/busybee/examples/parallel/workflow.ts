@@ -18,40 +18,40 @@ export const machine = setup({}).createMachine({
 		done: { type: "final" },
 		handoff: {
 			meta: {
-				commands: { next: "REPORTED" },
-				instructions: "Summarize both completed branches.",
 				title: "Hand off change",
+				commands: { next: "REPORTED" },
+				task: () => ({ instructions: "Summarize both completed branches." }),
 			},
 			on: { REPORTED: "done" },
 		},
 		implementation: {
 			meta: {
-				instructions: "Complete both branches.",
 				title: "Implementation",
+				task: () => ({ instructions: "Complete both branches." }),
 			},
 			onDone: "handoff",
 			states: {
 				api: {
 					initial: "implement",
 					meta: {
-						instructions: "Implement and exercise the API.",
 						title: "API",
+						task: () => ({ instructions: "Implement and exercise the API." }),
 					},
 					states: {
 						done: { type: "final" },
 						implement: {
 							meta: {
-								commands: { next: "API.IMPLEMENTED" },
-								instructions: "Make the API change.",
 								title: "Implement API",
+								commands: { next: "API.IMPLEMENTED" },
+								task: () => ({ instructions: "Make the API change." }),
 							},
 							on: { "API.IMPLEMENTED": "verify" },
 						},
 						verify: {
 							meta: {
-								commands: { next: "API.VERIFIED" },
-								instructions: "Exercise the API contract.",
 								title: "Verify API",
+								commands: { next: "API.VERIFIED" },
+								task: () => ({ instructions: "Exercise the API contract." }),
 							},
 							on: { "API.VERIFIED": "done" },
 						},
@@ -60,24 +60,26 @@ export const machine = setup({}).createMachine({
 				docs: {
 					initial: "write",
 					meta: {
-						instructions: "Write and check the documentation.",
 						title: "Documentation",
+						task: () => ({ instructions: "Write and check the documentation." }),
 					},
 					states: {
 						check: {
 							meta: {
-								commands: { approved: "DOCS.APPROVED", revise: "DOCS.REVISE" },
-								instructions: "Try the documented command; choose revise if it fails.",
 								title: "Check docs",
+								commands: { approved: "DOCS.APPROVED", revise: "DOCS.REVISE" },
+								task: () => ({
+									instructions: "Try the documented command; choose revise if it fails.",
+								}),
 							},
 							on: { "DOCS.APPROVED": "done", "DOCS.REVISE": "write" },
 						},
 						done: { type: "final" },
 						write: {
 							meta: {
-								commands: { next: "DOCS.WRITTEN" },
-								instructions: "Update the usage guide.",
 								title: "Write docs",
+								commands: { next: "DOCS.WRITTEN" },
+								task: () => ({ instructions: "Update the usage guide." }),
 							},
 							on: { "DOCS.WRITTEN": "check" },
 						},
@@ -88,9 +90,9 @@ export const machine = setup({}).createMachine({
 		},
 		prepare: {
 			meta: {
-				commands: { next: "PREPARED" },
-				instructions: "Identify the change to implement.",
 				title: "Prepare change",
+				commands: { next: "PREPARED" },
+				task: () => ({ instructions: "Identify the change to implement." }),
 			},
 			on: { PREPARED: "implementation" },
 		},

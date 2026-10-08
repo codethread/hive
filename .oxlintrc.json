@@ -26,6 +26,7 @@
 		"max-lines": "off",
 		"max-lines-per-function": "off",
 		"one-var": "off",
+		"sort-keys": "off",
 		"unicorn/consistent-function-scoping": "off",
 		"no-duplicate-imports": ["error", { "allowSeparateTypeImports": true }]
 	},

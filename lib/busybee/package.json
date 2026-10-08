@@ -8,9 +8,7 @@
 	"type": "module",
 	"exports": "./src/runtime.ts",
 	"scripts": {
-		"typecheck": "tsc --noEmit",
-		"test:native": "bun tests/native-probe.ts",
-		"test:catalogue": "bun tests/catalogue-probe.ts"
+		"typecheck": "tsc --noEmit"
 	},
 	"dependencies": {
 		"@hive/shared": "workspace:*",

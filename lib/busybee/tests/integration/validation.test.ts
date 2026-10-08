@@ -1,12 +1,15 @@
 /* eslint-disable import/no-nodejs-modules -- Integration tests create isolated author modules with independent dependency copies. */
+import { afterAll, expect, test } from "bun:test";
 import { cp, mkdtemp, rm } from "node:fs/promises";
 import { dirname, join } from "node:path";
-import { expect, test } from "bun:test";
 import { createServices } from "../../src/native.ts";
 import { runCli } from "../../src/cli.ts";
 import { tmpdir } from "node:os";
 
 const root = await mkdtemp(join(tmpdir(), "busybee-validation-"));
+afterAll(async () => {
+	await rm(root, { force: true, recursive: true });
+});
 const imports = `import {createMachine,assign} from ${JSON.stringify(import.meta.resolve("xstate"))};\nimport {z} from ${JSON.stringify(import.meta.resolve("zod"))};\n`;
 const exports = `export const commandSchemas={next:z.object({})};\nexport function runBrief(){return {title:"Example",description:"Example"};}\n`;
 const cases = [

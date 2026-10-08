@@ -808,7 +808,7 @@ function entryCreation(input: EntryInput) {
 	const { task, ...metadata } = entry.meta;
 	const meta = resolvedTaskSchema.parse({
 		...metadata,
-		...contextSchema.parse(task?.({ context: entry.context }) ?? {}),
+		...contextSchema.parse(task({ context: entry.context })),
 	});
 	let parent = run.id;
 	if (entry.parent) {

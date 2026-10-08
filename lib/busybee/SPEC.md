@@ -1,39 +1,35 @@
 # Busy Bee specification
 
-Agreed intent for a general-purpose engine: code review, shopping and other domains supply charts and briefs, not different engine rules. [Busy Bee](./README.md) implements this contract; the [agent walkthrough](./POV.md) shows concrete calls.
+Busy Bee is a general-purpose workflow engine. Domains supply charts, schemas and task briefs; the engine owns their projection into Beads. See the [user guide](./README.md) for commands and the [authoring guide](../../docs/busybee-workflows.md) for the definition contract.
 
-## Decisions and reasons
+## Work and progression
 
-- **Sequence is progression; nesting is parenthood.** XState owns transitions and joins; final states mark completion rather than native work. Native Beads records the resulting hierarchy: stages at the same level are siblings; nested tasks belong to their nearest bead-bearing container. Dynamic work names its containing group. Following a task does not make the next task its child.
+**XState owns progression; Beads owns work.** Sequential stages are siblings. Nested tasks belong to their nearest bead-bearing container; dynamic actors name their containing group. Final states mark completion without creating work. This preserves the distinction between doing something next and doing it as part of another task.
 
-- **A bead represents one visit.** Create work at published frontiers and preserve its brief. Accepted worker completion retires that visit even if a loop returns to the same state; untouched parallel tasks retain theirs. This projection does not track every XState microstep: unsubmitted states that exit and re-enter within one macrostep may retain their visit.
+**Each bead represents a visit.** Only work at a published frontier is created. Its task callback renders the brief once, which remains fixed for that visit. An accepted worker result retires the visit even when a loop returns to the same state; untouched parallel tasks retain theirs. Projection observes published frontiers, not every XState microstep: unsubmitted states that leave and re-enter within one macrostep may retain their visit.
 
-- **Workers close; the workflow advances.** Native Beads normally blocks parent closure while children remain open and applies configured acceptance rules. Therefore `next` and `choice` require an already-closed worker task; they must not close it themselves. This delegates completion policy to Beads, including worker-created subtasks. The visit must still be active and its result valid. Automatic collection follows the same principle. [Native integration checks](./tests/native-probe.ts).
+**Workers close; Busy Bee advances.** A submission requires a still-active visit, a valid result and an already-closed worker bead. `next`, `choice` and automatic collection delegate closure policy to native Beads, including acceptance gates and worker-created subtasks. Closure records completion, not independent verification of the work; native policy can be overridden outside Busy Bee.
 
-- **Containers outlive their tasks.** A container groups work without its own worker outcome. The engine closes it when its stage finishes, and closes the outer workflow run on completion. Reject transitions that would create children beneath an existing closed bead, including the workflow root, before publishing effects; do not reopen that parent. This keeps completed work from unexpectedly becoming an active container.
+**Containers outlive their tasks.** Containers have no worker outcome. Busy Bee closes them when their stage finishes and closes the run on completion. Transitions that would create children beneath an existing closed bead, including the run, fail before publication. Completed work is never reopened to serve as a container.
 
-- **Discover contracts, rather than duplicate them.** Zod schemas drive input validation and read-only CLI discovery in readable and machine-readable forms. State context may impose additional constraints, which discovery explains. Task briefs describe the work rather than repeat JSON payload templates. Author outcome names and runner operations have separate identities, so no outcome names are reserved by the engine. [Input contract guide](./README.md#author-a-definition).
+## Contracts and authority
 
-- **Separate readable work from machine state.** Beads has no general-purpose issue metadata field suitable for a workflow checkpoint; its description, design and notes serve human-facing work. Store the checkpoint on a separate `system` bead, excluded from ordinary task selection. Connect it with a nonblocking `related` edge so the runner can discover state without creating a work prerequisite. Beads supports relationship metadata, but that is distinct from checkpoint storage. [Checkpoint representation](./README.md#checkpoint-and-failure-boundary).
+Zod schemas drive validation and CLI discovery; task briefs describe work instead of copying payload templates. Definitions can add context-dependent validation and explain those constraints in discovery. Author outcomes and runner operations have separate identities, so outcome names are unrestricted by runner command names.
 
-- **Serialize updates, not workers.** Use an atomic, per-invocation lock around fresh-state validation and publication. Agents perform work concurrently outside that short boundary. Contenders must share one live database; [tracker synchronization](../../docs/beads-integration.md) does not provide a distributed lock. [Lock and failure boundary](./README.md#checkpoint-and-failure-boundary).
+The caller's Git checkout supplies the workflow catalogue; native `br` selects the tracker. Execution directory and database storage remain independent. Named runs resolve their saved name in the current checkout, allowing continuation from an unchanged copy after worktree removal. Restore rejects fingerprint mismatches before importing the definition. Fingerprints do not establish dependency compatibility; see [resume limits](./README.md#resume-and-failures).
 
-- **Use the selected native tracker.** An explicit `--db` overrides `BEADS_DB` and native repository discovery. Delegate selection to `br`, including environment configured by mise. The execution directory defaults to the current directory and remains independent of tracker storage.
+Identity follows native Beads roles: the current actor receives mutation attribution; the human owner remains accountable; the run's assignee determines manual-task assignment. Grouping and checkpoint beads have no assignee. Automatic tasks are left for Colony to claim. [Ownership options](./README.md#ownership-and-assignment).
 
-- **Keep identity roles distinct.** Require the calling agent’s `--actor` or `BD_ACTOR` for mutations and a human `--owner` when starting. Assign the run and manual work to the initiating actor or explicit assignee. Later tasks inherit the run’s native owner/assignee; grouping and system checkpoint beads remain unassigned. Audit attribution follows the current caller, not ownership.
+## Checkpoint and failure boundary
 
-## Definition catalogue
+Readable run and task beads stay separate from machine state. A related bead labelled `system` and `busybee-checkpoint` stores the deep XState snapshot and visit history in its description, with the lock UUID and diagnostic PID in its notes. The `system` label excludes it from ordinary task selection; a nonblocking `related` edge makes it discoverable without adding a work prerequisite. Beads relationship metadata is not checkpoint storage.
 
-Definitions live at the caller checkout root in `.workflows/<name>/busybee.toml`. Required description and relative `run = "./workflow.ts"` (or another `.js`/`.ts` filename) identify the entry; optional version text is descriptive. `list` reads validated metadata without executing code. `run NAME` and `input-schema NAME` resolve that catalogue from Git's checkout root, including nested callers and explicit `--repo`. Explicit-path `start` and `input-schema --source` remain authoring tools.
+Each mutation uses native `br update --if-unchanged` to acquire a per-invocation lock, then reads fresh state, validates the submission batch, advances actors, publishes task/Bee effects and saves the checkpoint. Release is conditional on ownership. Agents work outside this short lock; contenders wait up to ten seconds and never steal it. All writers must share one live database: [tracker synchronization](../../docs/beads-integration.md) is not a distributed lock.
 
-Named runs resolve their name in the caller's current checkout and compare a fingerprint of the definition folder before importing. This permits continuation from an unchanged copy after deleting a worktree. The check includes local helpers but not external imports or installed packages. Resuming after definition changes is unsupported: it may work or fail, with no compatibility or migration promise. Version metadata is not a compatibility mechanism.
+Failures before a publication write is attempted release ownership. Once a write is attempted, uncertain failure retains ownership for inspection. Multi-write effects are not transactional: initialization can leave orphan records, and later failures can leave partial tasks or Bee requests. There is no automatic expiry, retry or recovery. A PID alone does not establish ownership; inspect native records and the owner before explicit recovery, and prefer a fresh run after uncertain effects.
 
-## Definition validation
+## Validation boundary
 
-`validate PATH` imports a trusted definition, parses supplied input (default `{}`), resolves the XState definition and computes a pure initial transition, rejecting error snapshots. It performs no native resolution or writes and starts no live actor. Success proves those limited checks, not all reachable paths or action implementations. Modules and callbacks must leave stdout and stderr to Busy Bee to preserve CLI output. Imports, context, assign and guards remain executable author code; this requirement does not sandbox other I/O. Strict TypeScript checks Busy Bee itself; native JSON enters through schemas and process execution through the Shared adapter.
+`validate` checks definition resolution, supplied input and the pure initial XState snapshot. It creates no beads and starts no live actor. It does not prove later paths, guards or action implementations. Workflow code remains trusted executable code, including imports and calculations performed during validation; see [definition validation](../../docs/busybee-workflows.md#validate-a-definition).
 
-## Limits
-
-Closure records completion; it does not independently verify the work and can be explicitly overridden outside the engine. Locking does not make external effects transactional. The current implementation retains uncertain failed ownership, without automatic expiry or partial-effect recovery.
-
-Keep this specification and its linked verification evidence aligned when a decision changes.
+The [native integration tests](./tests/integration/native.test.ts) exercise closure, hierarchy and concurrency; the [failure tests](./tests/integration/failure.test.ts) cover publication failures. [Package agent guidance](./AGENTS.md#verification) maps the remaining checks. Update the relevant evidence when changing these decisions.

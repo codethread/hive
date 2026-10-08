@@ -11,7 +11,7 @@
 		"lint": "oxlint --deny-warnings",
 		"lint:fix": "oxlint --fix",
 		"typecheck": "tsc --noEmit -p tsconfig.json && bun run --filter '*' typecheck",
-		"test": "bun test --parallel --parallel-delay=0 --timeout=5000 --only-failures",
+		"test": "bun test --parallel=2 --parallel-delay=0 --timeout=5000 --only-failures",
 		"test:changed": "bun run test --changed",
 		"check": "bun run fmt:check && bun run lint && bun run typecheck",
 		"git:setup": "bun run ./scripts/setup-git.ts",

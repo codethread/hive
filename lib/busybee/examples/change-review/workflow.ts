@@ -5,6 +5,7 @@ import { z } from "zod";
 const ONE = 1;
 const ZERO = 0;
 const text = z.string().trim().min(ONE);
+
 const executionSchema = z.discriminatedUnion("mode", [
 	z.object({ mode: z.literal("manual") }),
 	z.object({ kind: text, mode: z.literal("bee") }),
@@ -18,6 +19,7 @@ export const inputSchema = z.object({
 	request: text.describe("Requested outcome and scope"),
 	title: text.describe("Readable name of the change"),
 });
+
 const taskSchema = z.object({
 	checks: z.array(text).min(ONE).describe("Required inspections or executable checks"),
 	files: z.array(text).min(ONE).describe("Assigned repository-relative file paths"),
@@ -25,6 +27,7 @@ const taskSchema = z.object({
 	instructions: text.describe("Concrete review instructions derived from the actual change"),
 	title: text,
 });
+
 export const planSchema = z
 	.object({
 		choice: z.literal("planned"),
@@ -37,6 +40,7 @@ export const planSchema = z
 	.refine((plan) => new Set(plan.tasks.map((task) => task.id)).size === plan.tasks.length, {
 		message: "Review task IDs must be unique within a round",
 	});
+
 const findingSchema = z.object({
 	fix: text,
 	location: text,
@@ -67,6 +71,7 @@ export const resultSchema = z.discriminatedUnion("choice", [
 		),
 	}),
 ]);
+
 export const repairSchema = z.object({
 	choice: z.literal("repaired"),
 	summary: text.describe("Concrete summary and supporting rationale"),
@@ -79,6 +84,7 @@ export const repairSchema = z.object({
 type Change = z.infer<typeof inputSchema>;
 type Plan = z.infer<typeof planSchema>;
 type ReviewResult = z.infer<typeof resultSchema>;
+
 interface ReviewContext extends Change {
 	/** Planner-authored job for this actor. */
 	task: Plan["tasks"][number];
@@ -89,6 +95,7 @@ interface ReviewContext extends Change {
 	/** Containing XState node. */
 	group: string;
 }
+
 interface ReviewState {
 	/** Immutable requested change. */
 	change: Change;
@@ -109,10 +116,12 @@ interface ReviewState {
 	/** Spawned actors stopped when leaving the round. */
 	workers: ActorRefFrom<typeof reviewer>[];
 }
+
 interface ReviewEvent {
 	type: "approved" | "changes";
 	data: unknown;
 }
+
 type ChangeEvent =
 	| { type: "PLANNED"; data: unknown }
 	| { type: "REPAIRED"; data: unknown }
@@ -138,9 +147,23 @@ export const reviewer = setup({
 		done: { type: "final" },
 		review: {
 			meta: {
-				commands: { approved: "approved", changes: "changes" },
-				task: reviewBrief,
 				title: "Review change",
+				commands: { approved: "approved", changes: "changes" },
+				// Helpers format shared runtime data; the task's authored instructions stay visible here.
+				task: ({ context }: { context: ReviewContext }) => ({
+					title: context.task.title,
+					...assignment(context.execution),
+					files: context.task.files,
+					instructions: [
+						changeBrief(context),
+						`Round: ${context.round}\nAssigned revision: ${context.revision}\nReview task: ${context.task.id}`,
+						context.task.instructions,
+						`Assigned files:\n${context.task.files.map((file) => `- ${file}`).join("\n")}`,
+						`Required checks:\n${context.task.checks.map((check) => `- ${check}`).join("\n")}`,
+						"Read surrounding contracts as needed. Do not modify files: other reviewers share this checkout. Report evidence, including checks that failed. A completed review may request changes; closing this task does not mean approval.",
+						"Discover the approved and changes result contracts with the task discovery command below.",
+					].join("\n\n"),
+				}),
 			},
 			on: {
 				approved: { actions: "report", target: "done" },
@@ -218,87 +241,66 @@ export const machine = setup({
 		decide: { always: [{ guard: "hasFindings", target: "repair" }, { target: "done" }] },
 		done: { type: "final" },
 		plan: {
-			meta: { commands: { planned: "PLANNED" }, task: planningBrief, title: "Plan reviews" },
+			meta: {
+				title: "Plan reviews",
+				commands: { planned: "PLANNED" },
+				task: ({ context }: { context: ReviewState }) => ({
+					title: `Plan reviews: ${context.change.title} (round ${context.round})`,
+					...assignment(context.change.execution),
+					instructions: [
+						changeBrief(context.change),
+						"Inspect the actual cumulative diff against the base above, surrounding code, repository rules and tests. Include staged, unstaged and relevant untracked files; use git status --short --untracked-files=all as well as git diff. Do not edit the change.",
+						"Choose the review tasks this specific change needs. Each task must explain its concrete risk, assigned files, what to inspect or run, and evidence required for completion. Reviewers run concurrently and must not modify files. Cover the whole change; do not use a fixed docs/API/tests checklist or invent findings. Use a distinct task ID for each brief.",
+						"Record a revision fingerprint identifying the diff you inspected (for example a SHA-256 of the cumulative patch and relevant untracked contents). Keep the checkout unchanged during a review round.",
+						previousBrief(context.previous),
+						"Discover the planned result contract with the task discovery command below.",
+					].join("\n\n"),
+				}),
+			},
 			on: { PLANNED: { actions: "acceptPlan", target: "review" } },
 		},
 		repair: {
-			meta: { commands: { repaired: "REPAIRED" }, task: repairBrief, title: "Repair findings" },
+			meta: {
+				title: "Repair findings",
+				commands: { repaired: "REPAIRED" },
+				task: ({ context }: { context: ReviewState }) => ({
+					title: `Repair ${context.plan!.tasks.reduce((count, task) => count + context.results[task.id]!.findings.length, ZERO)} findings: ${context.change.title}`,
+					...assignment(context.change.execution),
+					instructions: [
+						changeBrief(context.change),
+						`Repair the findings from round ${context.round}, revision ${context.plan!.revision}. All reviewers have finished; this is the sole task that may edit the change.`,
+						...context.plan!.tasks.flatMap((task) =>
+							context.results[task.id]!.findings.map((finding) =>
+								[
+									`From ${task.title} (${task.id}) — ${finding.location}`,
+									`Problem: ${finding.problem}`,
+									`Requested fix: ${finding.fix}`,
+									`Verify: ${finding.verification}`,
+								].join("\n"),
+							),
+						),
+						"Make the smallest coherent fixes, add meaningful regression coverage where needed, and run the checks above. Do not mark repaired while a finding remains unresolved. Report actual command results, not planned verification. Do not commit, push or publish the change.",
+						"Discover the repaired result contract with the task discovery command below. The next planner inspects the new cumulative diff.",
+					].join("\n\n"),
+				}),
+			},
 			on: { REPAIRED: { actions: "recordRepair", target: "plan" } },
 		},
 		review: {
 			always: { guard: "allReported", target: "decide" },
 			entry: "spawnReviews",
 			exit: "stopReviews",
-			meta: { task: roundBrief, title: "Review round" },
+			meta: {
+				title: "Review round",
+				task: ({ context }: { context: ReviewState }) => ({
+					title: `Review round ${context.round}: ${context.change.title}`,
+					instructions: `${context.plan!.summary}\n\nRevision: ${context.plan!.revision}\nWait for all ${context.plan!.tasks.length} reviews. This grouping bead has no worker.`,
+				}),
+			},
 			on: { "REVIEW.RESULT": { actions: "collect" } },
 		},
 	},
 });
-
-// Task renderers run once when the runner creates a step visit, never on show/restore.
-function planningBrief({ context }: { context: ReviewState }) {
-	const { change, round, previous } = context;
-	return {
-		...assignment(change.execution),
-		instructions: [
-			changeBrief(change),
-			"Inspect the actual cumulative diff against the base above, surrounding code, repository rules and tests. Include staged, unstaged and relevant untracked files; use git status --short --untracked-files=all as well as git diff. Do not edit the change.",
-			"Choose the review tasks this specific change needs. Each task must explain its concrete risk, assigned files, what to inspect or run, and evidence required for completion. Reviewers run concurrently and must not modify files. Cover the whole change; do not use a fixed docs/API/tests checklist or invent findings. Use a distinct task ID for each brief.",
-			"Record a revision fingerprint identifying the diff you inspected (for example a SHA-256 of the cumulative patch and relevant untracked contents). Keep the checkout unchanged during a review round.",
-			previousBrief(previous),
-			"Discover the planned result contract with the task discovery command below.",
-		].join("\n\n"),
-		title: `Plan reviews: ${change.title} (round ${round})`,
-	};
-}
-
-function roundBrief({ context }: { context: ReviewState }) {
-	return {
-		instructions: `${context.plan!.summary}\n\nRevision: ${context.plan!.revision}\nWait for all ${context.plan!.tasks.length} reviews. This grouping bead has no worker.`,
-		title: `Review round ${context.round}: ${context.change.title}`,
-	};
-}
-
-function reviewBrief({ context }: { context: ReviewContext }) {
-	return {
-		...assignment(context.execution),
-		files: context.task.files,
-		instructions: [
-			changeBrief(context),
-			`Round: ${context.round}\nAssigned revision: ${context.revision}\nReview task: ${context.task.id}`,
-			context.task.instructions,
-			`Assigned files:\n${context.task.files.map((file) => `- ${file}`).join("\n")}`,
-			`Required checks:\n${context.task.checks.map((check) => `- ${check}`).join("\n")}`,
-			"Read surrounding contracts as needed. Do not modify files: other reviewers share this checkout. Report evidence, including checks that failed. A completed review may request changes; closing this task does not mean approval.",
-			"Discover the approved and changes result contracts with the task discovery command below.",
-		].join("\n\n"),
-		title: context.task.title,
-	};
-}
-
-function repairBrief({ context }: { context: ReviewState }) {
-	const findings = context.plan!.tasks.flatMap((task) =>
-		context.results[task.id]!.findings.map((finding) =>
-			[
-				`From ${task.title} (${task.id}) — ${finding.location}`,
-				`Problem: ${finding.problem}`,
-				`Requested fix: ${finding.fix}`,
-				`Verify: ${finding.verification}`,
-			].join("\n"),
-		),
-	);
-	return {
-		...assignment(context.change.execution),
-		instructions: [
-			changeBrief(context.change),
-			`Repair the findings from round ${context.round}, revision ${context.plan!.revision}. All reviewers have finished; this is the sole task that may edit the change.`,
-			...findings,
-			"Make the smallest coherent fixes, add meaningful regression coverage where needed, and run the checks above. Do not mark repaired while a finding remains unresolved. Report actual command results, not planned verification. Do not commit, push or publish the change.",
-			"Discover the repaired result contract with the task discovery command below. The next planner inspects the new cumulative diff.",
-		].join("\n\n"),
-		title: `Repair ${findings.length} findings: ${context.change.title}`,
-	};
-}
 
 function previousBrief(previous: ReviewState["previous"]): string {
 	if (!previous) {

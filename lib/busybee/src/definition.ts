@@ -30,21 +30,18 @@ export interface TaskEntry extends TaskContext {
 export interface Metadata {
 	/** Titled states project into native beads. */
 	title: string;
-	/** Static or rendered instructions. */
-	instructions?: string | undefined;
 	/** Named commands mapped to events. */
 	commands?: Record<string, string> | undefined;
 	/** Optional Bee execution kind. */
 	bee?: { kind: string } | null | undefined;
-	/** Render once on a published task visit. */
-	task?: ((input: TaskContext) => unknown) | undefined;
+	/** Render instructions and optional metadata overrides once per published task visit. */
+	task: (input: TaskContext) => unknown;
 }
 function callable(value: unknown): value is (...args: unknown[]) => unknown {
 	return typeof value === "function";
 }
 export const metadataSchema = resolvedTaskSchema.omit({ instructions: true }).extend({
-	instructions: z.string().optional(),
-	task: z.custom<NonNullable<Metadata["task"]>>(callable).optional(),
+	task: z.custom<Metadata["task"]>(callable),
 });
 // Public ActorLogic is structural across independent CLI and repository XState installations.
 const machineContract = z.object({

@@ -1,56 +1,57 @@
 ---
 name: land
-description: land the plan
+description: Finish and land agreed work when the user explicitly says "land it", including unfinished implementation or an existing PR.
 ---
 
 # Land
 
-Land completed work: tidy it up, prove it, and merge it to `main`. Run this only when the user explicitly asks to land ("land the plan", "land this", "land it"); never land on your own initiative.
+An explicit request to land is permission to finish the agreed scope and integrate it, not a claim that implementation is already complete. Never land on your own initiative. Discussing, editing or test-driving the landing workflow is not authorization to land the current branch.
 
-## Preconditions
+## Enter through triage
 
-- The user explicitly asked to land.
-- The plan's work is complete and committed.
-- Any librarian/reviewer consultations the plan required are done.
-- Coordinate code landing with other agents and resolve any outstanding tracker conflict before closing completed work.
+Inspect the request, scope beads, worktree diff and any PR before choosing the next work. Retain the canonical root, selected permanent `BEADS_DB`, target branch/PR and exact task scope outside the feature checkout. Respect published claims, unrelated edits and other agents' landing work.
 
-## 1. Tidy up
+Use the repository's [land definition](../../../.workflows/land/workflow.ts) when Busy Bee is available: inspect `busybee input-schema land`, start a named run, then follow `discover` and the active task's instructions. Supply `expectedCommits: []` when no commits exist yet; identify the target as a worktree branch or PR URL. Do not manufacture prerequisite evidence to start. When executing manually, follow the same decisions below.
 
-- Delete scratch and temp files: fixtures, throwaway scripts, debug logs, commented-out experiments, `*.tmp`.
-- Revert edits made only for testing or demonstration.
-- Inspect `git status` and the diff for files that should not be tracked: editor/OS junk, secrets or local config, build output, generated artifacts, large binaries, absolute local paths.
-- Confirm `.gitignore` covers anything the work generates; extend it when needed.
-- Remove dead code and unused imports left behind; keep the diff scoped to the plan.
-- Keep documentation truthful: AGENTS.md, docs/, skills and package AGENTS.md must match reality.
+```text
+Triage --> Implement --> Check --> Local review --> Commit
+   |           ^            |           |             |
+   |           +--- failures/findings --+             v
+   +-- current review evidence ----------------> Readiness
+   |                                            |      |
+   |                    PR comments --> verify/fix/reply|
+   |                                            |      v
+   +-- already integrated ------------------> Verify <- Integrate
+                                                 |
+                                        Cleanup, publish, report
+```
 
-## 2. Prove it
+| Observed state | Next work |
+| --- | --- |
+| Acceptance incomplete or known defect | Implement the remaining scope or fix; then checks and local review |
+| Work complete but checks missing/stale | Tidy this change and run required checks/tests |
+| Checks current but local review absent/stale | Review the complete diff against standards and task acceptance |
+| Checked and approved, but not yet committed | Commit the reviewed content without replaying review |
+| Committed, checked and approved at the current revision | Recheck PR/worktree readiness; skip redundant implementation/review |
+| Already integrated | Verify the actual integration and clean up; do not merge again |
 
-- Run the repository's checks (see AGENTS.md) and fix everything they report.
-- Read the complete diff once as an external reviewer would. Where the root architectural-review trigger applies, obtain `librarian` review of the final diff with the task bead, settled intent, user corrections and prior advice; reuse earlier evidence only if it still covers the final change. Resolve architectural findings or obtain the missing decision, and route useful outcomes to curation separately from review.
-- Use `reviewer` for the separate code style, test quality, documentation standards and verification pass when warranted. Recheck affected review evidence after fixes.
-- Review the commit list for noise, half-finished messages or fixups.
+A reusable review receipt identifies its bead, base and cumulative diff fingerprint. Read the bead: require reviewer/check evidence, approval and resolved findings matching the current change, including relevant dirty/untracked files. Closed means the review finished, not that it approved. Record new reviews on beads so later PR-based entry can reuse them. Code changes, hook edits and conflict resolutions require renewed checks/review; committing unchanged reviewed content does not.
 
-## 3. Commit what remains
+Where the root architectural-review trigger applies, obtain `librarian` review of the final diff with the task bead, settled intent, user corrections and prior advice; reuse earlier evidence only if it still covers the final change. Resolve architectural findings or obtain the missing decision, and route useful outcomes to curation separately from review. Use `reviewer` for the separate code style, test quality, documentation standards and verification pass when warranted. Recheck affected review evidence after fixes.
 
-- Commit leftovers as coherent conventional commits. Never bypass hooks.
+## Return paths and blockers
 
-## 4. Merge to main
+- Review findings and verified PR defects return to implementation with a concrete repair brief. Close a completed review with a changes outcome rather than leaving the review open while secretly implementing.
+- Verify PR comments against current code. Fix valid defects; reply with evidence to unsupported claims; explain already-fixed/outdated comments. Recheck readiness after every disposition. A rebuttal does not waive required approval or resolve somebody else's blocking thread.
+- Pending CI, review/queue progress, infrastructure failures and unresolved decisions keep the current task open with evidence and a next action. Do not churn tasks or poll by transitioning. Reassess scope/target through triage when assumptions change.
+- Before closing each workflow worker, write its result/evidence into native bead notes. Outcome payloads carry the next brief but do not substitute for review evidence on beads.
 
-- Retain the canonical root and selected `BEADS_DB` before finishing; finishing may remove the source worktree. The database belongs to the permanent `tracker/state` checkout, not canonical main. Preserve any older private database with unpublished state before cleanup.
-- This repository works in worktrees, so land through the worktree workflow rather than merging by hand; run `honeycomb -h` and follow its guidance.
-- If the tooling refuses or stops (dirty tree, conflicts, missing remote), resolve that state instead of falling back to a raw merge.
-- Verify the canonical `main` afterwards: the expected commits are present, checks are green, and feature cleanup succeeded. Keep the permanent tracker checkout and branch; never finish it or merge it into main.
+## Integrate and finish
 
-## 5. Publish tracker state
+Recheck explicit authorization, current reviewed content and applicable merge gates immediately before integration. Never bypass hooks, branch protections or tool refusals. Use Honeycomb's configured finish policy for worktree landing; use the repository's GitHub merge policy for a PR. A queue/auto-merge request is not a merge. New feedback returns to disposition; code/base changes return to verification/review.
 
-- Using the retained endpoint, record landing evidence and close only the completed tasks. Native `br` auto-exports locally but does not publish; explicitly synchronize these post-commit updates.
-- Run `bun run beads:sync` from a surviving configured code checkout. It receives compatible tracker changes, reconciles SQLite, commits the shared snapshot and pushes the tracker branch's upstream. Main and feature code are not part of this publication.
-- If synchronization reports a record or claim conflict, retain the local and remote evidence and resolve it before further tracker work. For manual recovery from a separate human terminal, pause tracker writers, use the native executable with the retained `--db` to preserve local work with an explicit flush and tracker-only commit before Git integration, then run unforced merge and successful `bun run beads:sync` before tracker work resumes. Keep unrelated records and yield to an already-published competing claim. Never force sync or push to select ownership.
-- Verify canonical main is clean and synchronized, and the tracker branch's accepted snapshot includes completion. Publication may include other agents' ongoing work; it does not close their tasks. A refused flush, commit, reconciliation or push leaves landing incomplete.
+Retain source and actual integration commits; squash/rebase landing needs content/PR correspondence rather than source-SHA ancestry. Verify clean synchronized canonical `main` and required checks. Use Honeycomb for any remaining worktree cleanup, with integration proof; preserve the permanent `tracker/state` checkout. If cleanup removes the source, continue from the surviving checkout with retained `BEADS_DB` and an unchanged named workflow definition. Check that definition is available before removal.
 
-## Done means
+Record landing evidence and close only tasks whose acceptance and integration are proven. Run `bun run beads:sync` from a surviving configured checkout after completion updates, including after Busy Bee closes its run. Tracker publication never substitutes for code integration. On synchronization conflict stop tracker work, retain evidence and follow repository recovery guidance; never force ownership or publication.
 
-- `main` contains the work and the checks pass on a clean checkout.
-- The accepted `tracker/state` snapshot includes the completed tasks; canonical main is clean and synchronized.
-- No temp, stray, generated or untracked leftovers remain.
-- The user is told what landed, what was cleaned up, and anything left unresolved.
+Report what landed, verification, cleanup and publication evidence. Done requires clean synchronized main containing the intended work, passing checks, accepted tracker completion and no leftovers from this work. Failed integration, cleanup or publication remains incomplete; preserve unrelated work. A post-merge defect needs an agreed forward fix or revert, not an automatic rewrite of main.
