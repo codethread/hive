@@ -81,6 +81,7 @@ From any path inside a repository worktree set:
 honeycomb root
 honeycomb add --branch feature/example
 honeycomb list
+honeycomb tree
 honeycomb path --branch feature/example
 honeycomb remove --branch feature/example
 # Remove a clean checkout while retaining its branch
@@ -107,6 +108,35 @@ Use this to see what config applies to the current repository:
 ```bash
 honeycomb config explain --json
 ```
+
+## Worktree ancestry tree
+
+```nu
+honeycomb tree
+honeycomb tree --json
+```
+
+`tree` renders registered worktrees using **current Git commit ancestry**, not recorded branch creation history:
+
+```text
+Worktrees (inferred from Git ancestry; not creation history)
+└── main [canonical] [? parent unclear: no ancestor worktree]
+    ├── feature/api
+    │   └── feature/ui = feature/ui-review [same HEAD]
+    └── feature/docs
+```
+
+Worktrees at the same commit share a node (`=` / `[same HEAD]`); this does not imply parentage between them. Each node nests under its nearest strict ancestor among the registered HEAD groups. Nodes with no registered ancestor or multiple incomparable nearest ancestors stay at the top level, marked `?`. Bare and unborn worktrees have no HEAD and remain separate, marked `[? no HEAD]`. Detached worktrees are labelled by their paths.
+
+The view follows locally available history, so merges, rebases, and shallow history can change the shape. Already-integrated branches may appear **above** `main`. Even an unmarked edge proves commit ancestry, not which branch a worktree was created from.
+
+Like `list`, `tree` never loads config or runs setup. It also reads local commit history, requires Git 2.45+ to prevent on-demand fetching, and never contacts remotes. Git errors fail the command rather than becoming uncertainty markers.
+
+JSON uses `kind: "tree"`, `basis: "git_ancestry"`, and a flat `nodes` array. Each node contains `id` (its full commit OID, or worktree path when no commit exists), `worktrees` (the same fields as `list --json`), and `parentage`:
+
+- `{ "kind": "inferred", "head": "<parent OID>" }`
+- `{ "kind": "ambiguous", "heads": ["<candidate OID>", "..."] }`
+- `{ "kind": "unknown", "reason": "no_ancestor" }` or `"no_head"`
 
 ## Config
 

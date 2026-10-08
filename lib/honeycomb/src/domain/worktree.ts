@@ -122,6 +122,66 @@ export interface CopiedFile {
 
 export type BranchState = "local" | "remote" | "local-remote" | "none";
 
+export type WorktreeParentage =
+	| {
+			/** One nearest strict ancestor among registered HEAD groups. */
+			kind: "inferred";
+			/** Parent group's commit OID. */
+			head: string;
+	  }
+	| {
+			/** Multiple incomparable nearest ancestors; do not choose one. */
+			kind: "ambiguous";
+			/** Candidate parent groups' commit OIDs. */
+			heads: string[];
+	  }
+	| {
+			/** No parent can be established from this inventory. */
+			kind: "unknown";
+			/** Missing commit or no registered ancestor of the commit. */
+			reason: "no_head" | "no_ancestor";
+	  };
+
+export interface WorktreeTreeNode {
+	/** Commit OID for a HEAD group, or checkout path when there is no commit. */
+	id: string;
+	/** Worktrees at this commit; missing-HEAD worktrees remain separate. */
+	worktrees: Worktree[];
+	/** Current commit ancestry, not recorded branch creation history. */
+	parentage: WorktreeParentage;
+}
+
+/** Git reports an all-zero HEAD for an unborn branch and no HEAD for a bare entry. */
+export function worktreeCommit(worktree: Worktree): string | undefined {
+	if (worktree.head && !/^0+$/u.test(worktree.head)) {
+		return worktree.head;
+	}
+	return undefined;
+}
+
+/** Reduce strict ancestor observations to a forest, keeping uncertain parents at its roots. */
+export function buildWorktreeTree(
+	worktrees: Worktree[],
+	ancestors: ReadonlyMap<string, ReadonlySet<string>>,
+): WorktreeTreeNode[] {
+	const groups = new Map<string, WorktreeTreeNode>();
+	for (const worktree of worktrees) {
+		const head = worktreeCommit(worktree);
+		const id = head ?? worktree.path;
+		const existing = groups.get(id);
+		if (existing) {
+			existing.worktrees.push(worktree);
+		} else {
+			groups.set(id, {
+				id,
+				parentage: inferWorktreeParentage(head, ancestors),
+				worktrees: [worktree],
+			});
+		}
+	}
+	return [...groups.values()];
+}
+
 export function sessionNameForWorktreePath(worktreePath: string): string {
 	const parent = dirname(worktreePath);
 	const parentName = basename(parent);
@@ -182,4 +242,27 @@ export function resolveCopySource(root: string, from: string, home: string): str
 		return from;
 	}
 	return resolve(root, from);
+}
+
+// --- Private functions ---
+
+function inferWorktreeParentage(
+	head: string | undefined,
+	ancestors: ReadonlyMap<string, ReadonlySet<string>>,
+): WorktreeParentage {
+	if (head === undefined) {
+		return { kind: "unknown", reason: "no_head" };
+	}
+	const candidates = [...(ancestors.get(head) ?? [])];
+	const nearest = candidates.filter(
+		(candidate) => !candidates.some((other) => ancestors.get(other)?.has(candidate)),
+	);
+	const [parent, second] = nearest;
+	if (parent === undefined) {
+		return { kind: "unknown", reason: "no_ancestor" };
+	}
+	if (second !== undefined) {
+		return { heads: nearest, kind: "ambiguous" };
+	}
+	return { head: parent, kind: "inferred" };
 }

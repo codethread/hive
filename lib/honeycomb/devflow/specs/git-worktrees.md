@@ -2,7 +2,7 @@
 
 **Status:** Implemented
 
-**Last Updated:** 2026-10-05
+**Last Updated:** 2026-10-07
 
 ## 1. Overview
 
@@ -234,6 +234,7 @@ Squash integration is explicit: `--title` is required and `--body` is optional. 
 | --- | --- |
 | `honeycomb [--cwd <path>] root` | Print canonical worktree root. |
 | `honeycomb [--cwd <path>] list [--json]` | List registered worktrees without initializing pools or inspecting checkout contents. |
+| `honeycomb [--cwd <path>] tree [--json]` | Render registered worktrees by inferred local commit ancestry, grouping equal HEADs and marking unresolved parents. |
 | `honeycomb [--cwd <path>] path --branch <branch>` | Print the worktree path for a branch. |
 | `honeycomb [--cwd <path>] add --branch <branch> [--json] [--slot <path>] [--base <branch>] [--base-current] [--force]` | Create or allocate a worktree. |
 | `honeycomb [--cwd <path>] remove (--branch <branch> \| --self) [--json] [--force] [--keep-branch] [--integrated-into <origin/ref>]` | Remove a regular worktree or free a pooled worktree slot. `--self` targets the worktree containing `cwd`. `--integrated-into` proves clean squash-aware cleanup against a fetched target. |
@@ -341,6 +342,8 @@ Failures to run use `kind: "error"` with a `reason` such as `usage`, `config`, `
 `pool_full` payloads include recyclable candidate slots with risk metadata (see the slot shape below): index, path, branch, dirty state, last-commit ISO timestamp and subject, placeholder/initialized flags.
 
 `list --json` emits `{ "kind": "list", "worktrees": [...] }`, each worktree item carrying: `path`, `head`, `branch`, `branch_ref`, `detached`, `bare`, `locked`, `lock_reason`, `prunable`, `prunable_reason`, `canonical`, `pool`, and `session` (`{ name, path }`).
+
+`tree --json` emits `{ "kind": "tree", "basis": "git_ancestry", "nodes": [...] }`. Each node has `id` (a commit OID, or checkout path for a bare/unborn entry), `worktrees` (list payload items), and `parentage`: `{ kind: "inferred", head }` for one nearest strict ancestor group, `{ kind: "ambiguous", heads }` for multiple incomparable candidates, or `{ kind: "unknown", reason: "no_ancestor" | "no_head" }`. Text nests only inferred nodes; unresolved nodes remain at the top level with `?`. Equal commits share one node, never a parent edge. This is current commit ancestry, not branch creation history. The command reads one inventory and compares its immutable OIDs without config, setup, or remote access; Git errors fail with `git_failed` rather than becoming unknown ancestry. See the [ancestry tree guide](../../README.md#worktree-ancestry-tree) for display semantics and Git requirements.
 
 `status` emits pool state with `kind: "status"`. With no configured pool it is `{ root, trunk: null, hasPool: false, size: 0, slots: [] }`; otherwise `hasPool: true`, `trunk`, and `size` are populated and `slots` is an array of: `index`, `path`, `exists`, `branch`, `placeholder`, `dirty`, `lastCommitIso`, `lastCommitSubject`, `initialized`.
 

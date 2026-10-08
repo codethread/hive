@@ -7,6 +7,7 @@ import {
 	pathCommand,
 	rootCommand,
 	statusCommand,
+	treeCommand,
 } from "./commands/query.ts";
 import { createJsonCollector, formatFailure } from "./protocol.ts";
 import type { Deps } from "./services.ts";
@@ -32,6 +33,7 @@ const handlers: Partial<
 	root: rootCommand,
 	"shell-init": shellInitCommand,
 	status: statusCommand,
+	tree: treeCommand,
 };
 
 interface Invocation {

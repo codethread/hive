@@ -1,9 +1,10 @@
-import type { AddPlan, RemovePlan, Worktree } from "./domain/worktree.ts";
+import type { AddPlan, RemovePlan, Worktree, WorktreeTreeNode } from "./domain/worktree.ts";
 import type { PolicyExplanation, ProjectConfig } from "./domain/config.ts";
 import { sessionNameForWorktreePath } from "./domain/worktree.ts";
 
 const SHORT_COMMIT_LENGTH = 7;
 const COMMIT_START = 0;
+const LAST_ITEM = -1;
 
 interface SessionInfo {
 	/** Stable tmux session name. */
@@ -123,6 +124,40 @@ export function formatWorktreeList(worktrees: Worktree[]): string {
 	return lines.map((line) => `${line}\n`).join("");
 }
 
+export function toTreePayload(nodes: WorktreeTreeNode[]) {
+	return {
+		basis: "git_ancestry",
+		kind: "tree",
+		nodes: nodes.map((node) => ({
+			id: node.id,
+			parentage: node.parentage,
+			worktrees: node.worktrees.map(toListJson),
+		})),
+	};
+}
+
+export function formatWorktreeTree(nodes: WorktreeTreeNode[]): string {
+	const lines = ["Worktrees (inferred from Git ancestry; not creation history)"];
+	const roots = nodes.filter((node) => node.parentage.kind !== "inferred");
+	const append = (siblings: WorktreeTreeNode[], prefix: string): void => {
+		for (const node of siblings) {
+			let connector = "├── ";
+			let indent = "│   ";
+			if (node === siblings.at(LAST_ITEM)) {
+				connector = "└── ";
+				indent = "    ";
+			}
+			lines.push(`${prefix}${connector}${formatTreeNode(node)}`);
+			const children = nodes.filter(
+				(child) => child.parentage.kind === "inferred" && child.parentage.head === node.id,
+			);
+			append(children, `${prefix}${indent}`);
+		}
+	};
+	append(roots, "");
+	return `${lines.join("\n")}\n`;
+}
+
 export function toConfigExplainPayload(explanation: PolicyExplanation) {
 	return {
 		add: { policy: explanation.addPolicy },
@@ -159,6 +194,44 @@ export function formatConfigSummary(payload: ReturnType<typeof toConfigExplainPa
 	return `root: ${payload.root}\nmatched_rules: ${matchedRules}\nproject: ${project}\ncommand.source: ${formatCommandSource(payload.command.source)}\npre_remote_check.source: ${formatCommandSource(payload.pre_remote_check.source)}\nworktree_location: ${payload.worktree_location}\nadd.policy: ${payload.add.policy}\nfinish.enabled: ${payload.finish.enabled}\nfinish.strategy: ${payload.finish.strategy}\nfinish.push: ${payload.finish.push}\nfinish.remove_worktree: ${payload.finish.remove_worktree}\nfinish.delete_branch: ${payload.finish.delete_branch}\n`;
 }
 // --- Private functions ---
+
+function formatTreeNode(node: WorktreeTreeNode): string {
+	const labels = node.worktrees.map((worktree) => formatTreeWorktree(worktree));
+	const [, second] = node.worktrees;
+	let label = labels.join(" = ");
+	if (second) {
+		label += " [same HEAD]";
+	}
+	return label + formatTreeParentage(node.parentage);
+}
+
+function formatTreeParentage(parentage: WorktreeTreeNode["parentage"]): string {
+	if (parentage.kind === "ambiguous") {
+		return " [? parent unclear: multiple nearest ancestors]";
+	}
+	if (parentage.kind === "unknown") {
+		if (parentage.reason === "no_head") {
+			return " [? no HEAD]";
+		}
+		return " [? parent unclear: no ancestor worktree]";
+	}
+	return "";
+}
+
+function formatTreeWorktree(worktree: Worktree): string {
+	const labels = [worktree.branch ?? worktree.path];
+	if (worktree.canonical) {
+		labels.push("[canonical]");
+	}
+	if (worktree.detached) {
+		labels.push("[detached]");
+	}
+	if (worktree.bare) {
+		labels.push("[bare]");
+	}
+	labels.push(formatPool(worktree.pool));
+	return labels.filter(Boolean).join(" ");
+}
 
 function toSessionInfo(worktreePath: string): SessionInfo {
 	return {

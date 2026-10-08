@@ -106,6 +106,7 @@ Interactive wrappers:
 Common flows:
   honeycomb add --branch <feature> --json
   honeycomb list --json
+  honeycomb tree
   honeycomb path --branch <feature>
   honeycomb remove --branch <feature> --json
   honeycomb remove --branch <feature> --integrated-into origin/main --json
@@ -195,5 +196,19 @@ Use when:
 Notes:
   Output is always JSON. Slot fields include branch, dirty state, placeholder
   status, last commit details, and initialization state.
+`,
+	tree: `
+Use when:
+  Visualizing current commit ancestry among registered worktrees, not which
+  branch each worktree was originally created from.
+
+Notes:
+  Equal HEADs share a node marked "same HEAD"; nesting uses the nearest strict
+  ancestor HEAD group. ? marks no known parent or multiple nearest ancestors;
+  these nodes stay at the top level. Older integrated branches may appear above
+  main. Bare and unborn worktrees have no HEAD and stay separate.
+  Reads local Git history only (Git 2.45+); no config, setup, or remote access.
+  Git errors fail the command rather than being treated as uncertain ancestry.
+  --json emits kind "tree" with nodes containing id, worktrees, and parentage.
 `,
 };

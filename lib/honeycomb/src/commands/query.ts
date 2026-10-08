@@ -14,14 +14,17 @@ import {
 	finalizeStructuredResult,
 	formatConfigSummary,
 	formatWorktreeList,
+	formatWorktreeTree,
 	parseOptions,
 	parseOutputMode,
 	requireOption,
 	toConfigExplainPayload,
 	toListJson,
+	toTreePayload,
 } from "../protocol.ts";
 import {
 	listWorktrees,
+	readWorktreeTree,
 	resolveCanonicalRoot,
 	resolveWorktreeContainingPath,
 } from "../application/repository.ts";
@@ -69,6 +72,15 @@ export async function listCommand(args: string[], deps: Deps): Promise<CommandRe
 	const request = parseQueryRequest(args);
 	const worktrees = await listWorktrees(deps.git, request.cwd);
 	return renderList(worktrees, request.output);
+}
+
+export async function treeCommand(args: string[], deps: Deps): Promise<CommandResult> {
+	const request = parseQueryRequest(args);
+	const nodes = await readWorktreeTree(deps.git, request.cwd);
+	if (request.output.json) {
+		return finalizeStructuredResult(toTreePayload(nodes), request.output);
+	}
+	return { exitCode: EXIT_CODES.SUCCESS, stdout: formatWorktreeTree(nodes) };
 }
 
 export async function pathCommand(args: string[], deps: Deps): Promise<CommandResult> {

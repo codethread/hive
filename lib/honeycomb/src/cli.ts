@@ -11,6 +11,7 @@ import tab from "@bomb.sh/tab/commander";
 const registrations = [
 	registerRoot,
 	registerList,
+	registerTree,
 	registerPath,
 	registerAdd,
 	registerRemove,
@@ -91,6 +92,16 @@ function registerList(program: Command, deps: Deps): void {
 		.option("--json", "Output as JSON")
 		.addHelpText("after", HELP.list)
 		.action((_opts, command) => runAction("list", optsToArgs(command.optsWithGlobals()), deps));
+}
+
+function registerTree(program: Command, deps: Deps): void {
+	program
+		.command("tree")
+		.summary("Show worktree ancestry")
+		.description("Render registered worktrees as a tree inferred from current Git commit ancestry.")
+		.option("--json", "Output as JSON")
+		.addHelpText("after", HELP.tree)
+		.action((_opts, command) => runAction("tree", optsToArgs(command.optsWithGlobals()), deps));
 }
 
 function registerPath(program: Command, deps: Deps): void {
