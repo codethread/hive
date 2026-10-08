@@ -267,6 +267,7 @@ async function writeFixture(repo: string): Promise<void> {
 humans=["ct"]
 ranking="fifo"
 [kinds.worker]
+description = "Implement the linked task beads and verify their outcomes."
 harness="fixture"
 model="fixture"
 effort="low"

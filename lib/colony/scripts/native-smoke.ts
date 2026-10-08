@@ -198,6 +198,7 @@ colony = 1
 kind = 1
 worktree = 1
 [kinds.worker]
+description = "Run the disposable native harness probe."
 harness = ${JSON.stringify(fixture.options.harness)}
 model = ${JSON.stringify(fixture.options.model)}
 effort = "low"

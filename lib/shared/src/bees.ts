@@ -22,7 +22,20 @@ export const formulaSchema = z.strictObject({
 	argv: z.array(z.string()),
 	executable: z.string().min(NONEMPTY),
 });
-export const kindSchema = recipeSchema.omit({ cwd: true, kind: true });
+const kindFields = {
+	...recipeSchema.omit({ cwd: true, kind: true }).shape,
+	/** Short selection guidance for the requesting agent. */
+	description: z.string().trim().min(NONEMPTY),
+	/** Omit from ordinary discovery unless the caller explicitly allows it. */
+	hidden: z.boolean().default(false),
+};
+const kindSelectors = z.array(z.string().min(NONEMPTY));
+/** Caller-owned discovery guidance, independent of execution recipes and admission. */
+export const kindSchema = z.union([
+	z.strictObject({ ...kindFields, allow: kindSelectors }),
+	z.strictObject({ ...kindFields, deny: kindSelectors }),
+	z.strictObject(kindFields),
+]);
 export const limitsSchema = z.strictObject({
 	/** Maximum live attempts in one registered repository. */
 	colony: z.number().int().min(MINIMUM_CAPACITY).default(DEFAULT_COLONY_MAXIMUM),
@@ -70,14 +83,29 @@ export const beesConfigSchema = z.strictObject({
 		.default(DEFAULT_RETRY_DELAY_MS),
 });
 export type Recipe = z.infer<typeof recipeSchema>;
+export type BeeKind = z.infer<typeof kindSchema>;
 export type Formula = z.infer<typeof formulaSchema>;
 export type BeesConfig = z.infer<typeof beesConfigSchema>;
 export type Limits = z.infer<typeof limitsSchema>;
 export type PolicyChange = z.infer<typeof policyChangeSchema>;
 
 /** Parse every formula eagerly; Handlebars.compile itself defers syntax checking. */
+// eslint-disable-next-line max-statements -- Validate configuration references and formula syntax together at the boundary.
 export function parseBeesConfig(text: string): BeesConfig {
 	const config = beesConfigSchema.parse(Bun.TOML.parse(text));
+	for (const [name, kind] of Object.entries(config.kinds)) {
+		let selectors: string[] = [];
+		if ("allow" in kind) {
+			selectors = kind.allow;
+		} else if ("deny" in kind) {
+			selectors = kind.deny;
+		}
+		for (const selector of selectors) {
+			if (selector !== "#self" && !Object.hasOwn(config.kinds, selector)) {
+				throw new Error(`Unknown kind selector ${selector} in ${name}`);
+			}
+		}
+	}
 	for (const formula of Object.values(config.formulas)) {
 		validateFormula(formula);
 	}

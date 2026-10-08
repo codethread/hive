@@ -263,6 +263,7 @@ ranking="fifo"
 max_retries=1
 retry_delay_ms=0
 [kinds.worker]
+description = "Implement the linked task beads and verify their outcomes."
 harness="fixture"
 model="fixture"
 effort="low"
