@@ -39,6 +39,6 @@
 			"oxlint --fix",
 			"oxfmt"
 		],
-		"*": "oxfmt --no-error-on-unmatched-pattern"
+		"!(*.jsonl)": "oxfmt --no-error-on-unmatched-pattern"
 	}
 }
