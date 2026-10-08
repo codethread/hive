@@ -320,9 +320,9 @@ async function trackerFacts(id: string, repository: RepositoryEndpoint): Promise
 	const request = readSpawnRequest(spawn);
 	const [tasks, ready] = await Promise.all([
 		Promise.all(request.taskIds.map((task) => showBead(repository, "colony", task))),
-		beads(repository, request.identity, ["ready", "--limit", "0"]),
+		beads(repository, request.identity, ["ready", "--brief", "--limit", "0"]),
 	]);
-	const readyBeads = z.array(beadSchema).parse(ready);
+	const readyBeads = z.array(beadSchema.pick({ id: true })).parse(ready);
 	const decision = eligibility(tasks, readyBeads, request.identity);
 	return {
 		closeReason: spawn.close_reason ?? null,

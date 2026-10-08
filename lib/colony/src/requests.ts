@@ -149,8 +149,13 @@ export async function inspectRequest(
 		request: await requestView(repository, request, ready),
 	};
 }
+// eslint-disable-next-line max-statements -- Keep candidate discovery, authoritative filtering and selected detail reads ordered together.
 export async function listRequests(options: ListOptions): Promise<RequestListResult> {
 	const repository = await resolveRepository(options.repo, options.beadsDb);
+	const labels: string[] = [...SPAWN_REQUEST_LABELS];
+	if (!options.all) {
+		labels.push("bee-resolution:unresolved");
+	}
 	const listing = z
 		.object({ issues: z.array(beadSchema) })
 		.parse(
@@ -158,23 +163,26 @@ export async function listRequests(options: ListOptions): Promise<RequestListRes
 				"list",
 				"--status",
 				"all",
-				...SPAWN_REQUEST_LABELS.flatMap((label) => ["--label", label]),
+				...labels.flatMap((label) => ["--label", label]),
 				"--limit",
 				"0",
 			]),
 		);
-	const ready = await readyTasks(repository);
-	const requests = await Promise.all(
-		listing.issues.map(async ({ id }) =>
-			requestView(repository, await showBead(repository, INSPECTION_ACTOR, id), ready),
-		),
+	const candidates = await Promise.all(
+		listing.issues.map(({ id }) => showBead(repository, INSPECTION_ACTOR, id)),
 	);
+	// Acknowledgment or supersession can resolve a candidate before its labels are published.
+	const requests = candidates.filter(
+		(request) => options.all || request.status !== "closed" || requestNeedsAttention(request),
+	);
+	if (requests.length < NONEMPTY) {
+		return { kind: "request_list", repository, requests: [] };
+	}
+	const ready = await readyTasks(repository);
 	return {
 		kind: "request_list",
 		repository,
-		requests: requests.filter(
-			(request) => options.all || request.status !== "closed" || request.needsAttention,
-		),
+		requests: await Promise.all(requests.map((request) => requestView(repository, request, ready))),
 	};
 }
 /** Closing a request records intent; an awake Colony performs owned execution cleanup. */
@@ -354,8 +362,8 @@ function publicationFailure(bead: Bead, cause: unknown): RequestPublicationError
 
 async function readyTasks(repository: RepositoryEndpoint): Promise<Set<string>> {
 	const ready = z
-		.array(beadSchema)
-		.parse(await beads(repository, INSPECTION_ACTOR, ["ready", "--limit", "0"]));
+		.array(beadSchema.pick({ id: true }))
+		.parse(await beads(repository, INSPECTION_ACTOR, ["ready", "--brief", "--limit", "0"]));
 	return new Set(ready.map(({ id }) => id));
 }
 async function requestView(

@@ -115,7 +115,7 @@ br search 'TASK_ID_OR_TEXT' --label system --label bee --all --limit 0 --db "$BE
 br show SPAWN_ID --db "$BEADS_DB" --json
 ```
 
-For a selected tracker outside the project environment, replace `"$BEADS_DB"` with its absolute database path. Omit `--json` for human output. `bee list` remains available: its default includes open requests and unresolved failures; `bee list --all` includes resolved history.
+For a selected tracker outside the project environment, replace `"$BEADS_DB"` with its absolute database path. Omit `--json` for human output. `bee list` discovers candidates with `system` + `bee` + `bee-resolution:unresolved`, including closed records, then checks native closure, acknowledgment and supersession before loading matching requests' tasks. An acknowledgment or replacement whose labels are still unpublished is therefore excluded without fetching its tasks. `bee list --all` includes resolved history without the resolution-label filter. Use `--all` or exact `bee status` to inspect records with missing or incorrect resolution labels; default listing does not scan history to compensate for those projections.
 
 ## Saved presets
 
