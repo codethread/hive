@@ -45,6 +45,10 @@ colony daemon stop --state "$STATE"
 
 Before sleeping or deleting disposable state, inspect until the request checkpoint has settled and its attempts have stopped. Sleep and daemon stop leave detached workers alive; closing the request while awake is the cancellation path. A task may finish before `bee stop`; stopping an already-closed request preserves its closure reason. The automated native probe below performs bounded cleanup and retains evidence.
 
+## Try the event listener spike
+
+The [event listener guide](EVENTS.md) provides a no-model demo, independent named listeners, typed `.on` handlers and replay semantics. It is a local Bun proof of concept; existing assessment automation remains in place.
+
 ## Discover bee kinds
 
 Start with `bee --help` for the delegation runbook, then `bee kinds` for the configured names and descriptions. Discovery reads canonical configuration under `.hive/` and needs neither a tracker nor a daemon. `bee list` instead lists submitted requests.

@@ -29,6 +29,7 @@
 		"@commitlint/cli": "^21.2.3",
 		"@commitlint/config-conventional": "^21.2.3",
 		"@earendil-works/pi-coding-agent": "1.0.0",
+		"@hive/shared": "workspace:*",
 		"@types/bun": "^1.4.2",
 		"husky": "^9.1.7",
 		"lint-staged": "^17.6.0",
