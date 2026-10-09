@@ -1,0 +1,6 @@
+name = "post-run-drone"
+description = "Inspect a settled request for welcoming-hive token and context overhead when Colony supplies an assessment."
+hidden = true
+harness = "codex"
+model = "gpt-6-luna"
+effort = "low"

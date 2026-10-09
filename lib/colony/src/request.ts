@@ -1,3 +1,4 @@
+/* eslint-disable import/max-dependencies -- Compose existing runtime boundaries with the independent advisory assessment lifecycle. */
 /* eslint-disable unicorn/no-null -- Durable JSON checkpoints explicitly preserve absent attempt, claim, deadline and outcome fields. */
 import type { AttemptInventory, Store } from "./store.ts";
 import type { Bead, BeesConfig, RepositoryEndpoint } from "@hive/shared";
@@ -14,6 +15,7 @@ import { cancelDroneReview, reviewInactivity } from "./drone.ts";
 import { observeExecution, resumeExecution, stopExecution } from "./processes.ts";
 import { publishObservation, publishStdoutActivity } from "./observations.ts";
 import type { OperationEvidence } from "./history.ts";
+import { prepareAssessment } from "./postrun.ts";
 import { publishRequestLabels } from "./requests.ts";
 import { readFinishReport } from "./launch.ts";
 // eslint-disable-next-line import/max-dependencies -- Request reconciliation composes claims, execution, drone review and operation evidence.
@@ -476,5 +478,5 @@ async function finishSettlement(
 		await publishRequestLabels(repository, record.context.identity, record.id);
 		evidence.completed("labels.published", record.id);
 	}
-	store.saveRequest(repository.root, next);
+	store.settleRequest(repository.root, next, await prepareAssessment(runtime, next));
 }

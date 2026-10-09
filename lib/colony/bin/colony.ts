@@ -2,20 +2,18 @@
 /* eslint-disable max-dependencies -- CLI composes daemon commands and independent read-only inspection boundaries. */
 import { CommandError, execute, policyChangeSchema, resolveRepository } from "@hive/shared";
 import type { ConfigOptions, ServerOptions } from "../src/cli.ts";
-// eslint-disable-next-line import/no-nodejs-modules -- Resolve CLI paths at the boundary.
-import { join, resolve } from "node:path";
 import { requestLazyServer, requestServer } from "../src/client.ts";
 import type { ConfigCommand } from "@hive/shared";
 import type { ServerTarget } from "../src/client.ts";
 import { explainRequest } from "../src/explain.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Decode executable URL paths.
 import { fileURLToPath } from "node:url";
-// eslint-disable-next-line import/no-nodejs-modules -- Resolve the default user state directory at the CLI boundary.
-import { homedir } from "node:os";
 import { initRepository } from "../src/producer.ts";
 import { launchedResultSchema } from "../src/output.ts";
 import { match } from "ts-pattern";
+import { readAssessments } from "../src/assessments.ts";
 import { readHistory } from "../src/history.ts";
+import { resolveServerTarget } from "../src/server-target.ts";
 import { runCli } from "../src/cli.ts";
 
 const USER_ARGUMENTS_START = 2;
@@ -26,6 +24,12 @@ process.exitCode = await runCli(Bun.argv.slice(USER_ARGUMENTS_START), {
 		requestLazyServer(target(options), {
 			kind: "add",
 			repository: await resolveRepository(options.repo, options.beadsDb),
+		}),
+	assessments: async (options) =>
+		readAssessments(target(options).state, {
+			limit: options.limit,
+			repository: await resolveRepository(options.repo, options.beadsDb),
+			request: options.request,
 		}),
 	config: async (options) =>
 		requestServer(target(options), {
@@ -108,16 +112,7 @@ process.exitCode = await runCli(Bun.argv.slice(USER_ARGUMENTS_START), {
 });
 
 function target(options: ServerOptions): ServerTarget {
-	if (options.socket !== undefined && options.state === undefined) {
-		throw new Error("--socket requires an explicit --state directory");
-	}
-	const userState = process.env["XDG_STATE_HOME"] ?? join(homedir(), ".local", "state");
-	const state = resolve(options.state ?? join(userState, "hive", "colony"));
-	return {
-		runtimeEntry: runtime,
-		socket: resolve(options.socket ?? join(state, "colony.sock")),
-		state,
-	};
+	return resolveServerTarget(options, runtime);
 }
 
 function configurationCommand(options: ConfigOptions): ConfigCommand | Promise<ConfigCommand> {

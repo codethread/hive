@@ -45,7 +45,11 @@ The [spawn-request model](../lib/shared/src/spawn-request.ts) owns the Beads rep
 
 Outcome and resolution labels project native closure, explicit acknowledgment comments and supersession for native Beads queries. The [spawn state contract](./agents/spawn-requests.md) defines their finite values, authority, saved presets and recovery when publication is interrupted. Scheduling continues to use native lifecycle facts and private checkpoints.
 
-Colony's [configuration loader](../lib/colony/src/config.ts) reads canonical `.hive/bees.toml` and `.hive/bees/*/bee.toml` with sibling prompts. Central definitions take precedence; discovery diagnostics are data for the CLI, not runtime logging. Shared owns shape and effective-configuration validation, while Colony owns filesystem discovery and precedence. Bee submission uses the resulting kind defaults and captures a recipe. Bee inspection and closure need only the selected Beads endpoint, not configuration or a daemon. Closing the request does not directly signal a process: an awake colony reconciles the closure, while an asleep colony waits for wake. Last-recorded observations are deliberately separate from native request state and are never used as execution authority.
+Colony's [configuration loader](../lib/colony/src/config.ts) reads canonical `.hive/bees.toml` and `.hive/bees/*/bee.toml` with optional sibling `system_prompt.md` and `prompt.md` files. Central definitions take precedence; discovery diagnostics are data for the CLI, not runtime logging. Shared owns shape and effective-configuration validation, while Colony owns filesystem discovery and precedence.
+
+Bee submission captures `system_prompt` (reusable kind role/protocol) and `prompt` (optional execution direction) as separate fields of the same recipe on one spawn bead. Both default to empty text and accept independent replacement overrides. Task beads own the assignment, context and acceptance criteria; native related edges supply their IDs. At launch, Colony adds those IDs and an instruction to read the tasks to the execution prompt, then renders the harness invocation. This materialisation leaves the stored recipe unchanged; the attempt receipt records both the captured recipe and actual invocation. Ordinary delegation uses kind defaults and task beads; override flags are deliberate exceptions, documented in the [request guide](../lib/colony/README.md#create-requests).
+
+Bee inspection and closure need only the selected Beads endpoint, not configuration or a daemon. Closing the request does not directly signal a process: an awake colony reconciles the closure, while an asleep colony waits for wake. Last-recorded observations are deliberately separate from native request state and are never used as execution authority.
 
 Colony control commands cross a different seam. The [client](../lib/colony/src/client.ts) selects a socket and state directory and speaks the [Shared protocol](../lib/shared/src/colony-protocol.ts). The [Colony server](../lib/colony/src/server.ts) owns registration, awake intent and policy changes. Only `add` and `wake` start an absent server. The CLI launches [`runtime.ts`](../lib/colony/bin/runtime.ts) as a separate process communicating over a Unix socket. Detached supervisors start through [`worker.ts`](../lib/colony/bin/worker.ts) and outlive CLI calls and daemon exits.
 
@@ -62,10 +66,17 @@ Colony control commands cross a different seam. The [client](../lib/colony/src/c
 | Registration, checkpoints and revision history | Colony's private SQLite store | Durable awake intent, attempts and recovery checkpoints; transient policy is reloaded from canonical configuration on recovery |
 | Attempt receipt and process artifacts | Colony and its detached supervisor | Captured invocation and ownership evidence for one attempt; process fingerprints must be verified before adoption or signalling |
 | Child stdout and stderr | Per-attempt local log files | Execution diagnostics; they are not copied into Beads |
+| Post-run assessments | Colony-private inspection checkpoints and artifacts | Advisory evidence about a settled request, not task acceptance, request outcome or permission to change work |
 
 Repository discovery, tracker selection and execution directory are independent. The canonical root identifies repository-wide configuration and registration. The selected absolute Beads path identifies tracker authority. The recipe's optional execution directory controls the harness working directory and capacity bucket. Choosing one never implicitly replaces another.
 
 The supervisor owns only its process tree and local artifacts; it does not reconcile Beads or write the daemon database. Colony reserves an attempt before starting the supervisor and persists the verified supervisor handoff before granting execution permission. Recovery uses the same ownership checks before adoption, cleanup or replacement. Detailed commands, defaults and supported limitations are in the [Bee and Colony guide](../lib/colony/README.md).
+
+## Post-run advice
+
+Colony enrolls launched requests for configured post-run inspection at terminal settlement. The auxiliary queue reuses detached supervision and verified process ownership, but owns separate report authority and a bounded lifecycle. Assessment failure does not change the target request, release its claims or spend its retry budget. Auxiliary inspections are not task requests and cannot recursively enroll themselves.
+
+The nurse reads retained assessments through Colony's offline inspection interface and discusses patterns with ct. Both roles use the [welcoming-hive heuristic](agents/welcoming-hive.md). Their observations are not accepted practices or actionable work: ct authorizes change tasks, and filed specialist evidence remains subject to the existing label-stewardship and curation contract. The [operator guide](../lib/colony/README.md#inspect-finished-bees) covers selection and retrieval.
 
 ## Honeycomb's execution boundary
 

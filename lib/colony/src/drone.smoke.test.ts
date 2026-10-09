@@ -133,9 +133,11 @@ test(
 				"kind",
 				"model",
 				"prompt",
+				"system_prompt",
 			]);
 			expect(active.review.receipt?.recipe.prompt).toContain(first.receipt.directory);
 			expect(active.review.receipt?.recipe.prompt).toContain("legitimate long-running waits");
+			expect(active.review.receipt?.recipe.system_prompt).toBe("Inspector role");
 			expect(active.review.receipt?.taskIds).toEqual([]);
 			expect(await store.inventory(repo)).toHaveLength(ONE);
 			expect(store.requests(repo)).toHaveLength(ONE);
@@ -425,6 +427,7 @@ description = "Execute the configured inspector role."
 harness="inspector"
 model="user-selected"
 effort="low"
+system_prompt="Inspector role"
 prompt="Inspect process evidence"
 [formulas.worker]
 executable=${JSON.stringify(process.execPath)}

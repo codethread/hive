@@ -502,6 +502,7 @@ function droneReceipt(
 		kind,
 		model: defaults.model,
 		prompt,
+		system_prompt: defaults.system_prompt,
 	};
 	return {
 		...target,

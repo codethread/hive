@@ -35,7 +35,7 @@ test(
 			const worker = join(root, "worker.ts");
 			await Bun.write(
 				worker,
-				`await Bun.write(${JSON.stringify(output)}, JSON.stringify({argv:Bun.argv.slice(2),cwd:process.cwd(),db:process.env.BEADS_DB,actor:process.env.BD_ACTOR,identity:process.env.HIVE_AGENT_NAME,kind:process.env.BR_AGENT_NAME})); const p=Bun.spawn(["br","update",Bun.argv[2],"--append-notes","worker visited","--json"],{stdout:"pipe",stderr:"pipe"}); if(await p.exited!==0) throw new Error(await new Response(p.stderr).text());`,
+				`await Bun.write(${JSON.stringify(output)}, JSON.stringify({argv:Bun.argv.slice(2),cwd:process.cwd(),db:process.env.BEADS_DB,actor:process.env.BD_ACTOR,identity:process.env.HIVE_AGENT_NAME,kind:process.env.BR_AGENT_NAME})); const p=Bun.spawn(["br","update",${JSON.stringify(task.id)},"--append-notes","worker visited","--json"],{stdout:"pipe",stderr:"pipe"}); if(await p.exited!==0) throw new Error(await new Response(p.stderr).text());`,
 			);
 			const recipe = {
 				cwd: await realpath(outside),
@@ -43,7 +43,8 @@ test(
 				harness: "fixture",
 				kind: "worker",
 				model: "literal <model>",
-				prompt: task.id,
+				prompt: "",
+				system_prompt: "",
 			};
 			const spawn = await br([
 				"create",
@@ -83,7 +84,7 @@ test(
 			expect(receipt.outcome).toEqual({ code: 0, kind: "exited" });
 			expect(await Bun.file(output).json()).toEqual({
 				actor: "amber-quiet-otter",
-				argv: [task.id, "literal <model>"],
+				argv: [expect.stringContaining(`Related tasks: ${task.id}`), "literal <model>"],
 				cwd: await realpath(outside),
 				db: database,
 				identity: "amber-quiet-otter",

@@ -1,0 +1,6 @@
+name = "scout"
+description = "Read-only code finder for one narrow lookup: files, symbols, direct callers and tests. Returns verified pointers for the requester to re-read, not analysis. Do not use for design, change assessment, correctness reasoning, plans or estimates. Split unrelated lookups across scouts."
+harness = "pi"
+model = "deepseek/deepseek-flash"
+effort = "max"
+allow = []

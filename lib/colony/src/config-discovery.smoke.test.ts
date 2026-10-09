@@ -26,7 +26,11 @@ test("filesystem discovery loads only immediate kind folders and fails loudly on
 			join(directory, "arbitrary", "bee.toml"),
 			'name="worker"\ndescription="Implement work."\nharness="codex"\nmodel="file-model"\neffort="low"\n',
 		);
-		await expect(loadBeesConfig(root)).rejects.toBeInstanceOf(Error);
+		const withoutPrompts = await loadBeesConfig(root);
+		expect(withoutPrompts.config.kinds["worker"]).toMatchObject({
+			prompt: "",
+			system_prompt: "",
+		});
 		await Bun.write(join(directory, "arbitrary", "prompt.md"), "File instructions\n");
 		await Bun.write(join(directory, "README.md"), "Not a definition");
 		await Bun.write(

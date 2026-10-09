@@ -1,0 +1,6 @@
+name = "nurse"
+description = "Advise ct on colony health using welcoming-hive assessments; propose changes for ct to approve."
+hidden = true
+harness = "codex"
+model = "gpt-6-astra"
+effort = "xhigh"

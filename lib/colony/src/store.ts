@@ -1,11 +1,14 @@
+/* eslint-disable import/max-dependencies -- Compose existing runtime boundaries with the independent advisory assessment lifecycle. */
 import type { AttemptStatus, ColonyStatus, PolicyRevision, RepositoryEndpoint } from "@hive/shared";
 import type { RequestEvent, RequestRecord } from "./request.ts";
 import { launchReceiptSchema, workerReceiptSchema } from "./launch.ts";
 import { requestRecordSchema, transitionRequest } from "./request.ts";
+import type { Assessment } from "./postrun.ts";
 import { Database } from "bun:sqlite";
 import type { DroneReview } from "./drone.ts";
 import type { LaunchReceipt } from "./launch.ts";
 import type { PolicySnapshot } from "./policy.ts";
+import { assessmentSchema } from "./postrun.ts";
 import { droneReviewSchema } from "./drone.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- SQLite and receipt paths belong to daemon state.
 import { join } from "node:path";
@@ -53,6 +56,7 @@ export function openStore(state: string) {
  CREATE TABLE IF NOT EXISTS requests (root TEXT NOT NULL, spawn_id TEXT NOT NULL, snapshot TEXT NOT NULL, PRIMARY KEY(root, spawn_id));
  CREATE TABLE IF NOT EXISTS policy_revisions (id TEXT PRIMARY KEY, root TEXT NOT NULL, metadata TEXT NOT NULL, snapshot TEXT NOT NULL);
  CREATE TABLE IF NOT EXISTS drone_reviews (id TEXT PRIMARY KEY, root TEXT NOT NULL, target_attempt_id TEXT NOT NULL, snapshot TEXT NOT NULL);
+ CREATE TABLE IF NOT EXISTS assessments (id TEXT PRIMARY KEY, root TEXT NOT NULL, beads_db TEXT NOT NULL, request_id TEXT NOT NULL, snapshot TEXT NOT NULL, UNIQUE(root, request_id));
  CREATE TABLE IF NOT EXISTS active_policies (root TEXT PRIMARY KEY, revision_id TEXT NOT NULL REFERENCES policy_revisions(id));`);
 	const assertRepository = (repository: RepositoryEndpoint): void => {
 		const rows = z.array(z.strictObject({ beadsDb: z.string() })).parse(
@@ -109,6 +113,19 @@ export function openStore(state: string) {
 			)
 			.run(root, record.id, JSON.stringify(record));
 	};
+	const saveAssessment = (root: string, assessment: Assessment): void => {
+		database
+			.query(
+				"INSERT INTO assessments (id, root, beads_db, request_id, snapshot) VALUES (?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET snapshot = excluded.snapshot",
+			)
+			.run(
+				assessment.id,
+				root,
+				assessment.beadsDb,
+				assessment.requestId,
+				JSON.stringify(assessment),
+			);
+	};
 	const advanceRequest = (
 		root: string,
 		record: RequestRecord,
@@ -131,6 +148,27 @@ export function openStore(state: string) {
 					.run(root, revision.id);
 			})(),
 		advanceRequest,
+		assessments: (root: string): Assessment[] =>
+			z
+				.array(z.object({ snapshot: z.string() }))
+				.parse(
+					database
+						.query("SELECT snapshot FROM assessments WHERE root = ? ORDER BY rowid")
+						.all(root),
+				)
+				.map(({ snapshot }) => assessmentSchema.parse(JSON.parse(snapshot))),
+		saveAssessment,
+		settleRequest: (
+			root: string,
+			record: RequestRecord,
+			assessment: Assessment | undefined,
+		): void =>
+			database.transaction(() => {
+				if (assessment) {
+					saveAssessment(root, assessment);
+				}
+				saveRequest(root, record);
+			})(),
 		assertRepository,
 		attempts: async (root: string): Promise<AttemptStatus[]> => {
 			const entries = await inventory(root);
@@ -253,6 +291,19 @@ export function readDroneAuthority(
 					.get(row.root, review.spawnId),
 			);
 		return { request: requestRecordSchema.parse(JSON.parse(requestRow.snapshot)), review };
+	} finally {
+		database.close();
+	}
+}
+
+/** Read immutable post-run authority without acquiring daemon write ownership. */
+export function readAssessmentAuthority(state: string, id: string): Assessment {
+	const database = new Database(join(state, "colony.sqlite"), { readonly: true });
+	try {
+		const row = z
+			.object({ snapshot: z.string() })
+			.parse(database.query("SELECT snapshot FROM assessments WHERE id = ?").get(id));
+		return assessmentSchema.parse(JSON.parse(row.snapshot));
 	} finally {
 		database.close();
 	}

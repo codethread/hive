@@ -14,7 +14,7 @@ Explore existing conventions, helpers and modules; plan the approach; then build
 
 ### Specialist delegation
 
-Use Bee for repository subagents. Run `bee --help`, then `bee kinds` before delegating.
+Use Bee for repository subagents. Run `bee --help`, then `bee kinds` before delegating. Put the assignment, context and acceptance on task beads; normally spawn with the kind's defaults and omit prompt overrides.
 
 ## Packages
 
@@ -61,7 +61,7 @@ State missing context rather than inventing contracts. Validate any concern agai
 
 Before committing or handing off, run full `bun run check` and tests appropriate to the complete change. Explain any skipped verification.
 
-Husky runs `lint-staged`, a repo-wide typecheck and tracker synchronization before commits and merges. Sync failures block the commit; `tracker/state` commits skip synchronization to avoid recursion. Commitlint runs on `commit-msg`; hooks do not run tests.
+Husky runs `lint-staged` and a repo-wide typecheck before commits and merges. Commitlint runs on `commit-msg`; hooks do not run tests or publish the tracker.
 
 ## Where to look
 
@@ -93,14 +93,16 @@ Use repo-local Beads (`br`) from the checkout root to track implementation, not 
 
 Outside Colony executions, every mutation needs your harness actor (`--actor pi|claude|codex`, choosing your own, or process-local `BD_ACTOR`). Colony bees use the supplied actor as described below. Never use `ct`/`USER` as the agent actor or persist it in shared configuration. Set `--owner ct` on every creation and claim; ownership is not assignment.
 
+Run `bun run beads:sync` once when beginning or resuming work, before selecting or claiming tasks. Session hooks configure the environment only; changing to a new local worktree during the same work does not require another startup sync.
+
 1. **Identify:** inspect the supplied bead. Otherwise search for existing scope with `br search "<topic>" --exclude-label system --json`; reuse matches. Create missing work with `br create --title "…" --type task --priority 2 --owner ct --description "…" --acceptance-criteria "- [ ] …" --json`. Include the problem, scope, useful pointers and verifiable outcomes; choose the appropriate native type/priority.
-2. **Claim:** `br update <id> --claim --owner ct --json`, then `bun run beads:sync` before branching or working. Respect assignments and blockers; claim your scope, not a shared epic. A claim is provisional until synchronization succeeds; do not force it. Record scope/worktree context in notes because same-harness sessions share an actor.
+2. **Claim:** `br update <id> --claim --owner ct --json`. Respect assignments and blockers; claim your scope, not a shared epic. Local worktrees share the selected database, so local claims need no separate publication. Record scope/worktree context in notes because same-harness sessions share an actor.
 3. **Work:** split substantial work into scoped children (`create --parent <id>`), claiming/delegating each explicitly; a parent claim does not assign children. Parent links group work; `br dep add <issue> <depends-on>` records execution prerequisites. Keep the current approach in `update --design` and append progress/handoff evidence with `update --append-notes`. Pass the bead ID when delegating; avoid duplicate tracking.
-4. **Finish:** verify acceptance, record evidence, then `br close <id> --reason "Completed: <proof>" --json`. Keep unfinished work open with a next step. Parents require completed children; landing-scoped work stays open until integration. Run `bun run beads:sync` after closure, handoff or landing updates, including updates after the final code commit. Recording new work without implementing it also ends with sync.
+4. **Finish:** verify acceptance, record evidence, then `br close <id> --reason "Completed: <proof>" --json`. Keep unfinished work open with a next step. Parents require completed children; landing-scoped work stays open until integration. Run `bun run beads:sync` once at final handoff or landing after all tracker updates, including closure and updates after the final code commit. Recording new work without implementing it also ends with sync; intermediate updates and local commits need no publication.
 
 ### Colony executions
 
-- Follow `bee finish --help` for execution identity, delivery and completion. Verify the supplied claims and run `bun run beads:sync` successfully before working; synchronize again after task updates and before finishing.
+- Follow `bee finish --help` for execution identity, delivery and completion. Run the startup sync once and verify the supplied claims before working. Publish final task updates once before finishing; intermediate updates and local commits stay local.
 - Reading your own spawn through `HIVE_SPAWN_ID` is authorized execution context, not permission to browse unrelated `system` beads. Use the supplied worktree; create another only when the task explicitly requires it.
 - Librarian curation edits require explicit scope. Keep implementation, review and landing acceptance distinct; a completed report is not permission to close the examined work.
 
@@ -112,6 +114,8 @@ Outside Colony executions, every mutation needs your harness actor (`--actor pi|
 
 ### Storage and publication
 
-Use the selected `BEADS_DB`; never create a private tracker or remove `.worktrees/tracker--state`. `br` writes locally; `bun run beads:sync` publishes.
+Use the selected `BEADS_DB`; never create a private tracker or remove `.worktrees/tracker--state`. `br` writes locally with automatic JSONL import/export; `bun run beads:sync` publishes the whole shared tracker.
+
+These checkpoints assume one active clone. When coordinating across active clones, explicitly publish claims before working and respect already-published reservations; claims remain provisional until publication succeeds. Unpublished claims are visible only within the local shared database; startup/final publication alone does not provide cross-clone exclusivity. Never force competing claims.
 
 On synchronization failure, stop tracker work and report it. Preserve unrelated changes and respect published claims; timestamps and force are not ownership decisions. For endpoint setup or human-led recovery, consult [Beads integration](docs/beads-integration.md). Never merge `tracker/state` into code branches or edit generated JSONL for routine updates. Tracker publication does not authorize committing or pushing application code.

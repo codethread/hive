@@ -32,6 +32,7 @@ const receipt: LaunchReceipt = {
 		kind: "inspector",
 		model: "configured",
 		prompt: "inspect",
+		system_prompt: "Inspector role",
 	},
 	spawnId: "spawn",
 	taskIds: [],

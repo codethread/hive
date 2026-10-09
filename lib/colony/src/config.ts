@@ -1,4 +1,4 @@
-import { beesConfigSchema, kindSchema, recipeSchema, validateBeesConfig } from "@hive/shared";
+import { beesConfigSchema, kindSchema, validateBeesConfig } from "@hive/shared";
 // eslint-disable-next-line import/no-nodejs-modules -- Configuration discovery stays at the filesystem boundary.
 import { readFile, readdir } from "node:fs/promises";
 import type { BeesConfig } from "@hive/shared";
@@ -11,7 +11,7 @@ const fileNameSchema = z.object({ name: z.string().min(NONEMPTY) }).catchall(z.u
 const liveFiles: ConfigFiles = { directories: kindDirectories, readText };
 
 export interface ConfigFiles {
-	/** Read a required UTF-8 configuration or prompt file. */
+	/** Read UTF-8 text; missing files reject with ENOENT. */
 	readText: (path: string) => Promise<string>;
 	/** List immediate kind folders; only an absent directory means an empty list. */
 	directories: (path: string) => Promise<string[]>;
@@ -41,7 +41,7 @@ export async function loadBeesConfig(
 	const definitions = await Promise.all(
 		folders.toSorted().map(async (folder) => {
 			const source = join(directory, folder, "bee.toml");
-			const definition = await readKind(source, join(directory, folder, "prompt.md"), files);
+			const definition = await readKind(source, join(directory, folder), files);
 			return { kind: definition.kind, name: definition.name, source };
 		}),
 	);
@@ -62,16 +62,31 @@ export async function loadBeesConfig(
 }
 
 // --- Private functions ---
-function readKind(path: string, promptPath: string, files: ConfigFiles) {
+function readKind(path: string, directory: string, files: ConfigFiles) {
 	return fromFile(path, async () => {
 		const { name, ...fields } = fileNameSchema.parse(Bun.TOML.parse(await files.readText(path)));
-		if (Object.hasOwn(fields, "prompt")) {
-			throw new Error("Folder definitions use sibling prompt.md, not an inline prompt");
+		if (Object.hasOwn(fields, "prompt") || Object.hasOwn(fields, "system_prompt")) {
+			throw new Error(
+				"Folder definitions use sibling prompt.md and system_prompt.md, not inline prompts",
+			);
 		}
-		const prompt = await fromFile(promptPath, async () =>
-			recipeSchema.shape.prompt.parse(await files.readText(promptPath)),
-		);
-		return { kind: kindSchema.parse({ ...fields, prompt }), name };
+		const [prompt, system_prompt] = await Promise.all([
+			readPrompt(join(directory, "prompt.md"), files),
+			readPrompt(join(directory, "system_prompt.md"), files),
+		]);
+		return { kind: kindSchema.parse({ ...fields, prompt, system_prompt }), name };
+	});
+}
+function readPrompt(path: string, files: ConfigFiles): Promise<string> {
+	return fromFile(path, async () => {
+		try {
+			return await files.readText(path);
+		} catch (error) {
+			if (error instanceof Error && "code" in error && error.code === "ENOENT") {
+				return "";
+			}
+			throw error;
+		}
 	});
 }
 async function fromFile<Value>(path: string, read: () => Promise<Value>): Promise<Value> {

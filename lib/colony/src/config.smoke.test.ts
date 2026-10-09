@@ -126,6 +126,8 @@ test(
 				formulas: ["scripted"],
 				// eslint-disable-next-line unicorn/no-null -- Missing canonical drone kind disables review.
 				inactivityDrone: null,
+				// eslint-disable-next-line unicorn/no-null -- No configured advisory inspector.
+				postRunDrone: null,
 				limits: { colony: 0 },
 				ranking: "fifo",
 			});

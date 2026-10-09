@@ -10,12 +10,15 @@ const base: BeeKind = {
 	hidden: false,
 	model: "model",
 	prompt: "Private execution instructions.",
+	system_prompt: "Private role instructions.",
 };
 const config: BeesConfig = {
 	formulas: {},
 	humans: ["ct"],
 	// eslint-disable-next-line unicorn/no-null -- This fixture disables inactivity review.
 	inactivity_drone: null,
+	// eslint-disable-next-line unicorn/no-null -- No configured advisory inspector.
+	post_run_drone: null,
 	kinds: { caller: base, helper: base, internal: { ...base, hidden: true } },
 	limits: { colony: 1, kind: 1, kinds: {}, worktree: 1 },
 	max_retries: 0,

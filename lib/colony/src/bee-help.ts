@@ -35,9 +35,10 @@ to include full configuration. An explicit kind name inspects that kind directly
 --schema returns a JSON response schema without reading configuration; combine
 it with --verbose for the full-detail schema. Both include the failure shape.
 
-Kinds load from canonical .hive/bees.toml and .hive/bees/*/bee.toml with sibling
-prompt.md files. Central definitions win duplicates. Warnings go to stderr for
-people or the warnings array in JSON output.
+Kinds load from canonical .hive/bees.toml and .hive/bees/*/bee.toml. Optional sibling
+system_prompt.md and prompt.md files supply role/protocol and execution direction
+respectively. Central definitions win duplicates. Warnings go to stderr for people
+or the warnings array in JSON output.
 
 Visibility guides selection only: it never restricts spawning. Caller allow
 lists override hidden; deny lists subtract from non-hidden kinds. #self means
@@ -61,10 +62,12 @@ request with bee status <spawn-id>; its help includes execution diagnostics.
 Agent workflow:
   Use Bee for subagent work: implementation, advice and review use the same flow.
   1. Run bee kinds to discover whom to delegate to and why.
-  2. Define the task beads with the question/work, context and required deliverable.
+  2. Define task beads with the assignment, context, deliverable and acceptance criteria.
   3. Submit: bee spawn <kind> <task-id>... --cwd <directory> --actor <identity> --json
   4. Inspect: bee status <spawn-id> --json
      Read the delivered report and evidence on the linked tasks with br show.
+  Normally omit --system-prompt and --prompt: the kind supplies its protocol and
+  linked task beads define the work. Colony tells the bee to read those tasks.
 
 Delegation:
   Submit unclaimed work; Colony owns dispatch and task claims. For advice/review,
@@ -87,22 +90,32 @@ decisions. Ordinary task completion uses bee finish instead.
 Create a replacement for a failed unresolved request after its blocker is fixed.
 Only unfinished tasks are included. Uses current kind defaults and explicit
 overrides, with a new identity; the original retains its history. --kind selects
-another kind. --prompt replaces that kind's instructions. This does not reopen
-or resume the previous execution.
+another kind. Normally omit --system-prompt and --prompt; their independent
+replacement semantics match bee spawn --help. Old recipe overrides are not
+carried forward. This does not reopen or resume the previous execution.
 
 Example:
   bee retry <spawn-id> --actor <identity> --json
 `,
 	spawn: `
 Submit task beads to the selected kind using canonical .hive configuration defaults.
-Put the task-specific question and required result on the task bead. --prompt
-REPLACES the kind's instructions; it does not append to them. Other overrides
-affect only this request. Use an existing suitable checkout for --cwd, following
-the repository's worktree policy.
+Run bee kinds to choose a kind. Put the assignment, context, required result and
+acceptance criteria on the task bead. Normally omit --system-prompt and --prompt:
+the kind already supplies its role/protocol, and Colony tells the bee to read the
+linked tasks. Use an existing suitable checkout for --cwd, following the
+repository's worktree policy.
 
 Examples:
+  bee spawn worker <task-id> --cwd <worktree> --actor <identity> --json
   bee spawn reviewer <report-task-id> --cwd <worktree> --actor <identity> --json
-  bee spawn worker <task-id> --model <model> --effort high --actor <identity>
+
+Deliberate overrides, for this request only:
+  --system-prompt replaces the reusable role/protocol; --prompt replaces optional
+  execution direction. Each replaces only its matching kind default, never appends;
+  an explicit empty string clears that field. Both are stored on the same spawn
+  bead. Neither replaces the task assignment or Colony's task-reading instruction.
+  The executing bee follows supplied instructions; ordinary callers leave these
+  flags unset. --model, --effort and --harness change execution attributes.
 
 Creation confirms submission, not execution. Requests can be created while
 Colony is unavailable/asleep and wait until it is awake. Blocked tasks wait for

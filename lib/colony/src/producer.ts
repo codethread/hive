@@ -104,7 +104,7 @@ async function createRequest(
 	const { kind, requestedIds, supersedes } = input;
 	const { config } = await loadBeesConfig(endpoint.root);
 	const ids = await admitTasks(endpoint, { actor: options.actor, ids: requestedIds }, config);
-	const recipe = await captureRecipe({ ids, kind, options }, config);
+	const recipe = await captureRecipe({ kind, options }, config);
 	const identity = uniqueNamesGenerator({
 		dictionaries: [colors, adjectives, animals],
 		length: NAME_WORDS,
@@ -152,7 +152,7 @@ description = "Implement the linked task beads and verify their outcomes."
 harness = "codex"
 model = ${JSON.stringify(options.model)}
 effort = "low"
-prompt = '''
+system_prompt = '''
 Work on the related task beads.
 
 - Read their full instructions.
@@ -162,15 +162,15 @@ Work on the related task beads.
 
 [formulas.codex]
 executable = "codex"
-argv = ["exec", "-m", "{{model}}", "-c", 'model_reasoning_effort="{{effort}}"', "-c", 'shell_environment_policy.inherit="all"', "--sandbox", "workspace-write", "--json", "{{prompt}}"]
+argv = ["exec", "-m", "{{model}}", "-c", 'model_reasoning_effort="{{effort}}"', "-c", 'shell_environment_policy.inherit="all"', "{{#if system_prompt}}-c{{/if}}", '{{#if system_prompt}}developer_instructions={{json system_prompt}}{{/if}}', "--sandbox", "workspace-write", "--json", "{{prompt}}"]
 `;
 }
 // eslint-disable-next-line max-statements -- Snapshot the recipe and execution directory together at submission.
 async function captureRecipe(
-	input: { kind: string; ids: string[]; options: SpawnOptions },
+	input: { kind: string; options: SpawnOptions },
 	config: BeesConfig,
 ): Promise<Recipe> {
-	const { kind, ids, options } = input;
+	const { kind, options } = input;
 	const defaults = config.kinds[kind];
 	if (!defaults) {
 		throw new Error(`Unknown bee kind ${kind}`);
@@ -189,7 +189,8 @@ async function captureRecipe(
 		harness: options.harness ?? defaults.harness,
 		kind,
 		model: options.model ?? defaults.model,
-		prompt: `${options.prompt ?? defaults.prompt}\n\nRelated tasks: ${ids.join(", ")}`,
+		prompt: options.prompt ?? defaults.prompt,
+		system_prompt: options.systemPrompt ?? defaults.system_prompt,
 	});
 }
 // eslint-disable-next-line max-statements -- Validate human reservations and task-scoped duplicate candidates before submission.

@@ -34,7 +34,7 @@ _To be built_ marks capabilities still planned beyond the Bee and Colony impleme
 
 **Requester**: The human or agent identity that requested a bee, recorded as provenance rather than ownership.
 
-**Recipe**: The effective instructions and execution attributes captured for a spawn request, including its bee kind, harness, model, effort and execution directory.
+**Recipe**: The effective role/protocol, optional execution direction and execution attributes captured together for one spawn request, including its bee kind, harness, model, effort and execution directory. Linked task beads supply the authoritative assignment and acceptance criteria.
 
 **Formula**: A named harness invocation template applied to a recipe when an execution attempt starts. Changing a formula does not change the captured recipe.
 
@@ -42,9 +42,15 @@ _To be built_ marks capabilities still planned beyond the Bee and Colony impleme
 
 **Colony observation**: A timestamped report of what a colony last observed about a spawn request or its execution. It is historical evidence, not proof of present daemon or process availability.
 
+**Post-run assessment**: An advisory inspection of a settled request and its execution attempts, distinct from the request outcome or a verdict about a running bee.
+
+**Welcoming hive**: The heuristic that a bee should receive a crisp assignment, reach appropriate guidance efficiently, complete its task and deliver a cohesive response. It examines avoidable token and context overhead in finding that path.
+
+**Nurse**: The colony-health advisor who synthesizes assessment evidence for the human. Recommendations do not authorize changes or new change tasks.
+
 ## Beads
 
-**Task bead**: A bead describing a unit of work, not a request to run a bee.
+**Task bead**: The authoritative assignment, context and acceptance criteria for a unit of work, distinct from a request to run a bee.
 
 **Spawn request**: A request for a bee to complete specified task beads, carrying a captured recipe and friendly identity. It can exist before any bee runs and span several execution attempts.
 

@@ -7,3 +7,11 @@ bun install
 bun run --filter '*' build
 bun run beads:bootstrap
 '''
+
+[settings]
+experimental = true
+
+[daemons.colony-watchdog]
+run = 'export PATH="$HOME/.local/bin:$PATH"; exec bun run lib/colony/bin/watchdog.ts'
+retry = true
+boot_start = true

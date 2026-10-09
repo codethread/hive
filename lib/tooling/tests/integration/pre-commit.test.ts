@@ -9,7 +9,7 @@ import { tmpdir } from "node:os";
 const hook = await Bun.file(new URL("../../../../.husky/pre-commit", import.meta.url)).text();
 const executableMode = 0o755;
 const success = 0;
-const syncFailure = 7;
+const qualityFailure = 7;
 
 async function run(argv: string[], cwd: string, env: Record<string, string | undefined>) {
 	const child = Bun.spawn(argv, { cwd, env, stderr: "pipe", stdout: "pipe" });
@@ -21,7 +21,7 @@ async function run(argv: string[], cwd: string, env: Record<string, string | und
 	return { exitCode, stderr, stdout };
 }
 
-function environment(root: string, exit: number) {
+function environment(root: string, lintExit: number, typecheckExit: number) {
 	return {
 		...process.env,
 		GIT_AUTHOR_EMAIL: "test@example.test",
@@ -32,7 +32,8 @@ function environment(root: string, exit: number) {
 		GIT_CONFIG_NOSYSTEM: "1",
 		HOOK_LOG: join(root, "commands"),
 		PATH: `${join(root, "bin")}:${process.env.PATH}`,
-		SYNC_EXIT: String(exit),
+		LINT_EXIT: String(lintExit),
+		TYPECHECK_EXIT: String(typecheckExit),
 	};
 }
 
@@ -43,21 +44,14 @@ async function writeExecutable(path: string, content: string): Promise<void> {
 
 async function prepare(root: string, branch: string, env: ReturnType<typeof environment>) {
 	await mkdir(join(root, "bin"));
-	await writeExecutable(join(root, "bin/bunx"), 'printf "lint\\n" >> "$HOOK_LOG"\n');
+	await writeExecutable(
+		join(root, "bin/bunx"),
+		'printf "lint\\n" >> "$HOOK_LOG"\nexit "$LINT_EXIT"\n',
+	);
 	await writeExecutable(
 		join(root, "bin/bun"),
-		`
-printf '%s\\n' "$*" >> "$HOOK_LOG"
-if [ "$*" = "run beads:sync" ]; then
-	# Git sets index context for the outer commit. It must not reach tracker sync.
-	for name in $(git rev-parse --local-env-vars); do
-		if printenv "$name" >/dev/null; then
-			echo "leaked Git environment: $name" >&2
-			exit 9
-		fi
-	done
-	exit "$SYNC_EXIT"
-fi
+		`printf '%s\\n' "$*" >> "$HOOK_LOG"
+exit "$TYPECHECK_EXIT"
 `,
 	);
 	const initialized = await run(["git", "init", `--initial-branch=${branch}`], root, env);
@@ -71,32 +65,32 @@ fi
 test.each([
 	{
 		branch: "main",
-		commands: ["lint", "run typecheck", "run beads:sync"],
-		committed: true,
-		exit: success,
+		commands: ["lint", "run typecheck"],
+		lintExit: success,
+		typecheckExit: success,
 	},
+	{ branch: "main", commands: ["lint"], lintExit: qualityFailure, typecheckExit: success },
 	{
 		branch: "main",
-		commands: ["lint", "run typecheck", "run beads:sync"],
-		committed: false,
-		exit: syncFailure,
+		commands: ["lint", "run typecheck"],
+		lintExit: success,
+		typecheckExit: qualityFailure,
 	},
 	{
 		branch: "tracker/state",
 		commands: ["lint", "run typecheck"],
-		committed: true,
-		exit: syncFailure,
+		lintExit: success,
+		typecheckExit: success,
 	},
 ])(
-	"commit Markdown hard breaks on $branch with sync exit $exit",
-	async ({ branch, commands, committed, exit }) => {
+	"commit quality gates on $branch with lint=$lintExit and typecheck=$typecheckExit",
+	async ({ branch, commands, lintExit, typecheckExit }) => {
 		const root = await mkdtemp(join(tmpdir(), "hive commit hook "));
-		const env = environment(root, exit);
+		const env = environment(root, lintExit, typecheckExit);
 		try {
 			await prepare(root, branch, env);
 			const result = await run(["git", "commit", "-m", "checkpoint"], root, env);
-			expect(result.stderr).not.toContain("leaked Git environment");
-			expect(result.exitCode === success).toBe(committed);
+			expect(result.exitCode === success).toBe(lintExit === success && typecheckExit === success);
 			const log = await Bun.file(env.HOOK_LOG).text();
 			expect(log.trim().split("\n")).toEqual([...commands]);
 		} finally {

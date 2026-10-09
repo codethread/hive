@@ -65,6 +65,8 @@ export const policyViewSchema = z.strictObject({
 	formulas: z.array(z.string()),
 	/** Selected inactivity reviewer kind, or null when reviews are disabled. */
 	inactivityDrone: z.string().nullable(),
+	/** Selected post-run advisor kind, or null when new enrollment is disabled. */
+	postRunDrone: z.string().nullable(),
 	limits: limitsSchema,
 	maxRetries: z.number().int().nonnegative(),
 	ranking: z.enum(["bv-pagerank", "fifo"]),

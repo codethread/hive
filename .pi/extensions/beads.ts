@@ -55,7 +55,6 @@ export default function beadsExtension(pi: ExtensionAPI): void {
 			const cwd = await command("git", ["rev-parse", "--show-toplevel"], ctx.cwd);
 			const output = await command("bun", ["run", "beads:env", "--json"], cwd);
 			Object.assign(process.env, environmentSchema.parse(JSON.parse(output)));
-			await command("bun", ["run", "beads:sync"], cwd);
 		} catch (error) {
 			ctx.ui.notify(String(error), "error");
 		}

@@ -5,6 +5,7 @@ import type {
 	RequestView,
 } from "./requests.ts";
 import type { KindOptions, KindsResult } from "./kinds.ts";
+import type { AssessmentSubmission } from "./postrun.ts";
 import { Command } from "commander";
 import type { DroneReportResult } from "./drone.ts";
 import type { FinishResult } from "./launch.ts";
@@ -30,8 +31,10 @@ export interface SpawnOptions {
 	harness?: string;
 	/** Execution directory; does not affect discovery or tracker. */
 	cwd?: string;
-	/** Override the kind's work instructions. */
+	/** Override optional direction for this execution. */
 	prompt?: string;
+	/** Override the kind's reusable role and protocol. */
+	systemPrompt?: string;
 }
 export interface RetryOptions extends SpawnOptions {
 	/** Select current defaults from another kind. */
@@ -58,6 +61,8 @@ export interface AckOptions extends InspectionOptions {
 	reason: string;
 }
 export interface BeeDependencies {
+	/** Submit one advisory assessment using injected execution authority. */
+	assess: (file: string) => Promise<AssessmentSubmission>;
 	/** Accept a failed request without changing its outcome or linked tasks. */
 	ack: (id: string, options: AckOptions) => Promise<AcknowledgmentResult>;
 	/** Discover configured kinds independently of the tracker and daemon. */
@@ -150,6 +155,13 @@ export async function runBeeCli(argv: string[], deps: BeeDependencies): Promise<
 			writeResult(await deps.finish(outcome, options), argv.includes("--json"), deps.stdout);
 		});
 	program
+		.command("assess")
+		.description("Submit a post-run advisory report under injected assessment authority")
+		.requiredOption("--file <path>", "JSON report; contract: colony assessments --schema")
+		.action(async (options: { file: string }) => {
+			writeResult(await deps.assess(options.file), argv.includes("--json"), deps.stdout);
+		});
+	program
 		.command("report <spawn-id> <verdict>")
 		.description("Report active or inactive from this Colony inactivity drone")
 		.addHelpText("after", HELP.report)
@@ -220,7 +232,8 @@ function submissionOptions(command: Command): Command {
 		.option("--effort <effort>", "Captured effort override")
 		.option("--harness <name>", "Captured runtime formula name")
 		.option("--cwd <directory>", "Execution directory, resolved from submission cwd")
-		.option("--prompt <text>", "Replace the kind instructions for this request");
+		.option("--prompt <text>", "Replace optional execution direction; normally use the task bead")
+		.option("--system-prompt <text>", "Replace the kind role/protocol; normally keep its default");
 }
 function inspectionOptions(command: Command): Command {
 	return command
@@ -235,6 +248,7 @@ function writeResult(
 		| RequestListResult
 		| SpawnResult
 		| FinishResult
+		| AssessmentSubmission
 		| DroneReportResult
 		| KindsResult,
 	json: boolean,
@@ -257,6 +271,10 @@ function writeResult(
 		} else {
 			stdout(`${lines.join("\n")}\n`);
 		}
+		return;
+	}
+	if (result.kind === "assessment_submitted") {
+		stdout(`Submitted assessment ${result.assessmentId}; Colony validates when awake.\n`);
 		return;
 	}
 	if (result.kind === "drone_verdict_submitted") {
