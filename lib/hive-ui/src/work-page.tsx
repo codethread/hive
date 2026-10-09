@@ -1,3 +1,4 @@
+/* eslint-disable import/max-dependencies -- The route composes the board shell, navigation, filters and detail panels. */
 import { BeeHistory, BoardTabs } from "./board-navigation.tsx";
 import type { Board, Card, Navigation } from "../contracts.ts";
 import { EMPTY, boards, colonies, inventories, loadView, preferences, snapshot } from "./data.ts";
@@ -14,6 +15,7 @@ import {
 } from "../contracts.ts";
 import { BeeWorkspace } from "./bee-workspace.tsx";
 import { FilterWorkspace } from "./filter-drawer.tsx";
+import { HeaderSearch } from "./board-search.tsx";
 import { Inspector } from "./inspector.tsx";
 import { useStore } from "zustand";
 
@@ -26,8 +28,8 @@ export function Shell() {
 	const { colonyId } = useParams({ strict: false });
 	const navigate = useNavigate();
 	return (
-		<div data-theme={theme} className="min-h-screen bg-canvas text-ink">
-			<header className="flex flex-wrap items-center justify-between gap-3 border-b border-line bg-panel px-5 py-3">
+		<div data-theme={theme} className="app-shell bg-canvas text-ink">
+			<header className="app-header">
 				<div className="flex items-center gap-3">
 					<Link to="/" className="text-lg font-semibold tracking-tight text-accent">
 						hive<span className="ml-1 text-muted">/</span>
@@ -58,6 +60,7 @@ export function Shell() {
 					<h1 className="text-sm font-medium">Work board</h1>
 				</div>
 				{colonyId !== undefined && <BoardTabs />}
+				{colonyId !== undefined && <HeaderSearch />}
 				<div className="flex items-center gap-4">
 					<span className="text-xs text-muted">Read-only</span>
 					<fieldset className="flex rounded-md border border-line p-0.5" aria-label="Theme">
@@ -113,7 +116,7 @@ export function WorkPage() {
 	}
 
 	return (
-		<main>
+		<main className="work-page">
 			<FilterWorkspace board={board}>
 				<div className="flex flex-wrap items-center justify-between gap-2 border-b border-line px-5 py-2 text-xs text-muted">
 					<div className="flex flex-wrap items-center gap-3">
@@ -204,9 +207,7 @@ function BoardColumns({ board }: { board: Board }) {
 		return (
 			<div className="grid min-h-80 place-content-center gap-2 p-6 text-center">
 				<h2 className="font-medium">No matching beads</h2>
-				<p className="text-sm text-muted">
-					Try removing a status or label filter, or including closed beads.
-				</p>
+				<p className="text-sm text-muted">Try removing a filter, or including closed beads.</p>
 			</div>
 		);
 	}

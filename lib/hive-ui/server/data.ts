@@ -196,7 +196,9 @@ async function filterInventory(
 ): Promise<RequestInventory> {
 	const hasPredicate =
 		filter.query.length > 0 ||
-		[filter.statuses, filter.all, filter.any, filter.exclude].some((values) => values.length > 0);
+		[filter.statuses, filter.priorities, filter.all, filter.any, filter.exclude].some(
+			(values) => values.length > 0,
+		);
 	if (inventory.kind === "not_requested" || !hasPredicate) {
 		return inventory;
 	}

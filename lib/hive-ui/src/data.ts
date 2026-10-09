@@ -29,6 +29,8 @@ interface ResourceState<Value> {
 	entries: Record<string, Resource<Value>>;
 }
 interface Preferences {
+	/** Sidebar width preference, independent of URL filters and native data reads. */
+	sidebarCollapsed: boolean;
 	/** Two settled visual themes; kept outside the component lifecycle. */
 	theme: "moss" | "paper";
 	/** Last navigation for each endpoint; Router remains current URL authority. */
@@ -40,7 +42,11 @@ export const boards = createResource(boardSchema);
 export const inventories = createResource(requestInventorySchema);
 export const details = createResource(detailSchema);
 export const provenance = createResource(provenanceSchema);
-export const preferences = createStore<Preferences>(() => ({ theme: "moss", views: {} }));
+export const preferences = createStore<Preferences>(() => ({
+	sidebarCollapsed: false,
+	theme: "moss",
+	views: {},
+}));
 
 export function loadColonies(): Promise<void> {
 	return colonies.load("colonies", "/api/colonies");

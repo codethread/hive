@@ -6,6 +6,7 @@ import { ancestryEnding, beeScene } from "./bee-scene.ts";
 import { graphRuntime, loadGraph } from "./graph-loader.ts";
 import { useCallback, useMemo } from "react";
 import type { BeeScene } from "./bee-scene.ts";
+import { BeeSearch } from "./board-search.tsx";
 import type { GraphProps } from "./graph-loader.ts";
 import { useStore } from "zustand";
 
@@ -67,6 +68,7 @@ export function BeeWorkspace({
 						</button>
 					))}
 				</fieldset>
+				<BeeSearch />
 				<span className="text-xs text-muted">
 					{scene.matches.length} matching requests · {scene.contextIds.size} context ·{" "}
 					{inventory.total} requests on this page

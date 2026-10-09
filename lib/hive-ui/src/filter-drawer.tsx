@@ -1,7 +1,7 @@
 import {
 	ActiveFilters,
 	LabelFilters,
-	SearchFilters,
+	PriorityFilters,
 	StatusFilters,
 	editFilters,
 } from "./filter-controls.tsx";
@@ -19,186 +19,172 @@ import { useId, useRef } from "react";
 import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
 import type { SavedView } from "./saved-views.ts";
 import { filterLayoutSchema } from "../contracts.ts";
+import { preferences } from "./data.ts";
 import { useStore } from "zustand";
 import { z } from "zod";
 
 const LAYOUTS = {
-	header: {
-		button: "Save / manage view",
-		name: "Header",
-		number: "01",
-		title: "Everything within reach",
-		description: "Search, status and label rules together above the board.",
-	},
-	drawer: {
-		button: "Filters & views",
-		name: "Left drawer",
-		number: "02",
-		title: "Room for the work",
-		description: "A quiet header. Open Filters to shape and save your view.",
-	},
-	hybrid: {
-		button: "Labels & saved views",
-		name: "Quick + drawer",
-		number: "03",
-		title: "Fast filters, deeper rules",
-		description: "Search and status up front. Labels and saved views in the drawer.",
-	},
-	sidebar: {
-		button: "Views & status",
-		name: "Views + header",
-		number: "04",
-		title: "A workspace for your views",
-		description: "Saved views and status on the left. Search and label rules across the top.",
-	},
+	header: "Header",
+	drawer: "Left drawer",
+	hybrid: "Quick + drawer",
+	sidebar: "Sidebar",
 };
 
+// eslint-disable-next-line max-statements -- Shared controls compose four presentations without duplicating filter state.
 export function FilterWorkspace({ board, children }: { board: Board | null; children: ReactNode }) {
 	const search = useSearch({ from: "/colonies/$colonyId" });
 	const navigate = useNavigate({ from: "/colonies/$colonyId" });
 	const { colonyId, saved, views, selected, modified } = useViewPresets(search);
+	const collapsed = useStore(preferences, (state) => state.sidebarCollapsed);
 	const dialog = useRef<HTMLDialogElement>(null);
-	const titleId = useId();
-	const layout = LAYOUTS[search.layout];
+	const id = useId();
 	const apply = (view: SavedView) => {
 		selectSavedView(colonyId, view.id);
-		void navigate({
-			search: (current) => editFilters(current, view.filters),
-		});
+		void navigate({ search: (current) => editFilters(current, view.filters) });
 	};
-	const savedForm = (
-		<SavedViewForm colonyId={colonyId} search={search} selected={selected} modified={modified} />
-	);
+	const savedForm = <SavedViewForm colonyId={colonyId} search={search} selected={selected} />;
 	const viewList = (
 		<SavedViewList views={views} selected={modified ? undefined : selected} apply={apply} />
 	);
+	const labelFilters = <LabelFilters labels={board?.labels ?? []} />;
 	return (
 		<div className={`filter-workspace layout-${search.layout}`}>
-			<section className="design-switcher" aria-label="Compare filter designs">
-				<div className="design-caption">
-					<span className="eyebrow">Filter study</span>
-					<span>Same work, four ways to focus</span>
-				</div>
-				<div className="design-options">
-					{filterLayoutSchema.options.map((value) => (
-						<button
-							type="button"
-							key={value}
-							aria-pressed={search.layout === value}
-							onClick={() => {
-								void navigate({ search: (current) => ({ ...current, layout: value }) });
-							}}
-						>
-							<span>{LAYOUTS[value].number}</span>
-							{LAYOUTS[value].name}
-						</button>
-					))}
-				</div>
-			</section>
+			<div className="layout-toolbar">
+				<label className="flex items-center gap-2 text-xs text-muted">
+					Layout
+					<select
+						className="control"
+						value={search.layout}
+						onChange={(event) => {
+							const layout = filterLayoutSchema.parse(event.target.value);
+							void navigate({ search: (current) => ({ ...current, layout }) });
+						}}
+					>
+						{filterLayoutSchema.options.map((layout) => (
+							<option key={layout} value={layout}>
+								{LAYOUTS[layout]}
+							</option>
+						))}
+					</select>
+				</label>
+				{search.layout !== "header" && (
+					<button
+						className={`button ${search.layout === "sidebar" ? "sidebar-toggle" : ""}`}
+						type="button"
+						aria-haspopup="dialog"
+						onClick={() => {
+							dialog.current!.showModal();
+						}}
+					>
+						Filters & views
+					</button>
+				)}
+			</div>
 			<div className="filter-workspace-body">
 				{search.layout === "sidebar" && (
-					<aside className="view-sidebar" aria-label="Views and status">
-						<div>
-							<p className="eyebrow">Your workspace</p>
-							<h2 className="mt-2 text-lg font-medium">Views</h2>
-							<p className="mt-1 text-xs text-muted">Saved for this colony</p>
+					<aside
+						className={`view-sidebar ${collapsed ? "is-collapsed" : ""}`}
+						aria-label="Filters and views"
+					>
+						<div className="sidebar-heading">
+							{!collapsed && <h2 className="text-sm font-medium">Filters</h2>}
+							<button
+								type="button"
+								className="sidebar-collapse"
+								aria-label={collapsed ? "Expand filters" : "Collapse filters"}
+								title={collapsed ? "Expand filters" : "Collapse filters"}
+								aria-expanded={!collapsed}
+								aria-controls={`${id}-sidebar`}
+								onClick={() => {
+									preferences.setState({ sidebarCollapsed: !collapsed });
+								}}
+							>
+								<svg
+									aria-hidden="true"
+									width="18"
+									height="18"
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									strokeWidth="1.5"
+								>
+									<rect x="3" y="4" width="18" height="16" rx="2" />
+									<path d="M9 4v16" />
+									<path d={collapsed ? "m13 9 3 3-3 3" : "m17 9-3 3 3 3"} />
+								</svg>
+							</button>
 						</div>
-						{viewList}
-						<StatusFilters />
-						{savedForm}
+						<div id={`${id}-sidebar`} className="sidebar-content" hidden={collapsed}>
+							{viewList}
+							<StatusFilters />
+							<PriorityFilters />
+							{labelFilters}
+							<details className="save-view-details">
+								<summary>Save view</summary>
+								{savedForm}
+							</details>
+						</div>
 					</aside>
 				)}
-				<div className="min-w-0 flex-1">
-					<section aria-label="Board views" className="filter-header">
-						<div className="filter-title-row">
-							<div>
-								<p className="eyebrow">
-									{layout.number} / {layout.name}
-								</p>
-								<h2>{layout.title}</h2>
-								<p>{layout.description}</p>
-							</div>
-						</div>
-						<div className="view-toolbar">
-							{search.layout !== "sidebar" && (
-								<label className="flex min-w-0 items-center gap-2 text-xs text-muted">
-									View
-									<select
-										className="control min-w-0 max-w-56"
-										value={modified ? "" : (selected?.id ?? "")}
-										onChange={(event) => {
-											apply(views.find((entry) => entry.id === event.target.value)!);
-										}}
-									>
-										<option value="" disabled>
-											{views.length === 0 ? "No saved views yet" : "Custom filters"}
-										</option>
-										{views.map((view) => (
-											<option key={view.id} value={view.id}>
-												{view.name}
+				<div className="board-pane">
+					<section aria-label="Board filters" className="filter-header">
+						{(search.layout !== "sidebar" || modified || saved.notice.kind === "error") && (
+							<div className="view-toolbar">
+								{search.layout !== "sidebar" && (
+									<label className="flex min-w-0 items-center gap-2 text-xs text-muted">
+										View
+										<select
+											className="control min-w-0 max-w-56"
+											value={modified ? "" : (selected?.id ?? "")}
+											onChange={(event) => {
+												apply(views.find((entry) => entry.id === event.target.value)!);
+											}}
+										>
+											<option value="" disabled>
+												{views.length === 0 ? "No saved views" : "Custom filters"}
 											</option>
-										))}
-									</select>
-								</label>
-							)}
-							{search.layout === "header" ? (
-								<details className="header-save">
-									<summary className="button">Save / manage view</summary>
-									{savedForm}
-								</details>
-							) : (
-								<button
-									className={`button ${search.layout === "sidebar" ? "sidebar-toggle" : ""}`}
-									type="button"
-									aria-haspopup="dialog"
-									onClick={() => {
-										dialog.current!.showModal();
-									}}
-								>
-									{layout.button}
-									<span aria-hidden="true" className="ml-2">
-										↗
-									</span>
-								</button>
-							)}
-							{modified && <span className="text-xs text-alert">{selected!.name} · modified</span>}
-							{saved.notice.kind === "error" && (
-								<p role="alert" className="text-xs text-alert">
-									{saved.notice.message}
-								</p>
-							)}
-						</div>
-						{search.layout !== "drawer" && (
-							<div className="filter-header-controls">
-								<SearchFilters />
-								{search.layout !== "sidebar" && <StatusFilters />}
+											{views.map((view) => (
+												<option key={view.id} value={view.id}>
+													{view.name}
+												</option>
+											))}
+										</select>
+									</label>
+								)}
+								{search.layout === "header" && (
+									<details className="header-save">
+										<summary className="button">Save view</summary>
+										{savedForm}
+									</details>
+								)}
+								{modified && (
+									<span className="text-xs text-alert">{selected!.name} · modified</span>
+								)}
+								{saved.notice.kind === "error" && (
+									<p role="alert" className="text-xs text-alert">
+										{saved.notice.message}
+									</p>
+								)}
 							</div>
 						)}
-						{(search.layout === "header" || search.layout === "sidebar") && (
-							<LabelFilters labels={board?.labels ?? []} />
+						{(search.layout === "header" || search.layout === "hybrid") && (
+							<div className="filter-header-controls">
+								<StatusFilters />
+								<PriorityFilters />
+							</div>
 						)}
+						{search.layout === "header" && labelFilters}
 						<ActiveFilters />
-						{search.view !== "beads" && (
-							<p className="pb-3 text-xs text-muted">
-								A bee matches when any linked task meets all bead filters. Loaded ancestry is shown
-								separately as context.
-							</p>
-						)}
 					</section>
 					{children}
 				</div>
 			</div>
 			{search.layout !== "header" && (
-				<dialog ref={dialog} className="filter-drawer" aria-labelledby={titleId}>
+				<dialog ref={dialog} className="filter-drawer" aria-labelledby={`${id}-title`}>
 					<header className="flex shrink-0 items-center justify-between gap-3 border-b border-line px-5 py-4">
-						<div>
-							<p className="eyebrow">
-								{layout.number} / {layout.name}
-							</p>
-							<h2 id={titleId} className="mt-1 font-medium">
-								{search.layout === "hybrid" ? "Labels & saved views" : "Filters & views"}
-							</h2>
-						</div>
+						<h2 id={`${id}-title`} className="font-medium">
+							Filters & views
+						</h2>
 						<button
 							className="button"
 							type="button"
@@ -210,13 +196,20 @@ export function FilterWorkspace({ board, children }: { board: Board | null; chil
 							Done <span className="ml-1 text-muted">Esc</span>
 						</button>
 					</header>
-					<div className="min-h-0 space-y-6 overflow-y-auto overscroll-contain p-5">
-						{search.layout === "drawer" && <SearchFilters />}
-						{search.layout !== "hybrid" && <StatusFilters />}
-						{search.layout !== "sidebar" && <LabelFilters labels={board?.labels ?? []} />}
-						<ActiveFilters />
+					<div className="min-h-0 space-y-5 overflow-y-auto overscroll-contain p-5">
 						{viewList}
-						{savedForm}
+						{search.layout !== "hybrid" && (
+							<>
+								<StatusFilters />
+								<PriorityFilters />
+							</>
+						)}
+						{labelFilters}
+						<ActiveFilters />
+						<details className="save-view-details">
+							<summary>Save view</summary>
+							{savedForm}
+						</details>
 					</div>
 				</dialog>
 			)}
@@ -236,11 +229,9 @@ function SavedViewList({
 }) {
 	return (
 		<section aria-label="Saved views" className="space-y-2">
-			<h3 className="filter-heading">Saved views</h3>
+			<h3 className="filter-heading">Views</h3>
 			{views.length === 0 ? (
-				<p className="text-xs leading-relaxed text-muted">
-					Create a view for work you return to. Try Blocked + AND hitl.
-				</p>
+				<p className="text-xs leading-relaxed text-muted">No saved views.</p>
 			) : (
 				<div className="saved-view-list">
 					{views.map((view) => (
@@ -265,12 +256,10 @@ function SavedViewForm({
 	colonyId,
 	search,
 	selected,
-	modified,
 }: {
 	colonyId: string;
 	search: Navigation;
 	selected: SavedView | undefined;
-	modified: boolean;
 }) {
 	const id = useId();
 	const notice = useStore(savedViews, (state) => state.notice);
@@ -285,18 +274,7 @@ function SavedViewForm({
 		});
 	};
 	return (
-		<section aria-label="Manage saved views" className="space-y-3 border-t border-line pt-5">
-			<h3 className="text-sm font-medium">Save this view</h3>
-			<p className="text-xs leading-relaxed text-muted">
-				Keep named bead filters for this colony in this browser. Use the same view in Beads or Bees;
-				applying it starts at the first page.
-			</p>
-			{selected && (
-				<p className="text-xs text-muted">
-					Editing “{selected.name}”{modified ? " · filters modified" : ""}. Change its name below to
-					rename it.
-				</p>
-			)}
+		<section aria-label="Manage saved views" className="space-y-3 pt-3">
 			<form
 				key={`${selected?.id ?? "new"}:${selected?.name ?? ""}`}
 				onSubmit={submit}
@@ -310,27 +288,40 @@ function SavedViewForm({
 					name="name"
 					className="control w-full"
 					defaultValue={selected?.name ?? ""}
-					placeholder="e.g. Blocked · needs me"
+					placeholder="View name"
 					required
 					maxLength={80}
 				/>
 				<div className="flex flex-wrap gap-2">
-					<button className="button" type="submit" name="action" value="new">
-						Save new view
+					<button
+						className="button"
+						type="submit"
+						name="action"
+						value="new"
+						aria-label="Save new view"
+					>
+						Save new
 					</button>
 					{selected && (
 						<>
-							<button className="button" type="submit" name="action" value="update">
-								Update saved view
+							<button
+								className="button"
+								type="submit"
+								name="action"
+								value="update"
+								aria-label="Update saved view"
+							>
+								Update
 							</button>
 							<button
 								className="button"
 								type="button"
+								aria-label="Delete saved view"
 								onClick={() => {
 									deleteView(colonyId, selected.id);
 								}}
 							>
-								Delete saved view
+								Delete
 							</button>
 						</>
 					)}

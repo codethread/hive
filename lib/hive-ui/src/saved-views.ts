@@ -123,6 +123,7 @@ function filterKey(filters: FilterSet): string {
 		filters.query,
 		filters.closed,
 		filters.statuses.toSorted(),
+		filters.priorities.toSorted((left, right) => left - right),
 		filters.all.toSorted(),
 		filters.any.toSorted(),
 		filters.exclude.toSorted(),

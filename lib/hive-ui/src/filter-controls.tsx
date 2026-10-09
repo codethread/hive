@@ -26,6 +26,7 @@ export const STATUS_NAMES = {
 	in_progress: "In progress",
 	open: "Open",
 };
+const PRIORITY_NAMES = ["Critical", "High", "Normal", "Low", "Backlog"];
 const LABEL_GROUPS = ["all", "any", "exclude"] as const;
 const GROUP_NAMES = { all: "AND", any: "OR", exclude: "Exclude" };
 const GROUP_HINTS = {
@@ -41,48 +42,37 @@ export function editFilters(current: Navigation, patch: Partial<Navigation>): Na
 	return { ...rest, ...patch, page: 0, requestPage: 0 };
 }
 
-export function SearchFilters() {
+export function PriorityFilters() {
 	const search = useSearch({ from: "/colonies/$colonyId" });
 	const navigate = useNavigate({ from: "/colonies/$colonyId" });
-	const id = useId();
 	return (
-		<div className="search-filters">
-			{(search.view === "beads" ? (["query"] as const) : (["query", "beeQuery"] as const)).map(
-				(field) => (
-					<form
-						key={`${field}:${search[field]}`}
-						className="min-w-0"
-						onSubmit={(event) => {
-							event.preventDefault();
-							const value = z.string().parse(new FormData(event.currentTarget).get("query"));
+		<fieldset aria-label="Priority">
+			<legend className="filter-heading">Priority</legend>
+			<div className="status-options">
+				{PRIORITY_NAMES.map((name, priority) => (
+					<button
+						key={name}
+						type="button"
+						className="status-option"
+						aria-label={`P${priority} · ${name}`}
+						title={name}
+						aria-pressed={search.priorities.includes(priority)}
+						onClick={() => {
 							void navigate({
 								search: (current) =>
-									field === "query"
-										? editFilters(current, { query: value })
-										: { ...current, beeQuery: value },
+									editFilters(current, {
+										priorities: current.priorities.includes(priority)
+											? current.priorities.filter((value) => value !== priority)
+											: [...current.priorities, priority],
+									}),
 							});
 						}}
 					>
-						<label className="filter-heading" htmlFor={`${id}-${field}`}>
-							{field === "query" ? "Bead text" : "Requests on this page"}
-						</label>
-						<div className="flex gap-2">
-							<input
-								id={`${id}-${field}`}
-								name="query"
-								type="search"
-								defaultValue={search[field]}
-								placeholder={field === "query" ? "Search beads…" : "Identity, kind, requester…"}
-								className="control min-w-0 flex-1"
-							/>
-							<button className="button" type="submit">
-								{field === "query" ? "Search" : "Search bees"}
-							</button>
-						</div>
-					</form>
-				),
-			)}
-		</div>
+						P{priority}
+					</button>
+				))}
+			</div>
+		</fieldset>
 	);
 }
 
@@ -91,9 +81,7 @@ export function StatusFilters() {
 	const navigate = useNavigate({ from: "/colonies/$colonyId" });
 	return (
 		<fieldset className="min-w-0">
-			<legend className="filter-heading">
-				Bead status <span className="font-normal text-muted">· match any selected</span>
-			</legend>
+			<legend className="filter-heading">Status</legend>
 			<div className="status-options">
 				{beadStatusSchema.options.map((status) => (
 					<button
@@ -117,7 +105,7 @@ export function StatusFilters() {
 					</button>
 				))}
 			</div>
-			{search.statuses.length === 0 ? (
+			{search.statuses.length === 0 && (
 				<label className="mt-3 flex items-center gap-2 text-xs text-muted">
 					<input
 						type="checkbox"
@@ -129,8 +117,6 @@ export function StatusFilters() {
 					/>
 					Include closed beads
 				</label>
-			) : (
-				<p className="mt-2 text-xs text-muted">Only selected statuses. Select again to remove.</p>
 			)}
 		</fieldset>
 	);
@@ -144,9 +130,6 @@ export function LabelFilters({ labels }: { labels: string[] }) {
 					<LabelFilter key={group} group={group} labels={labels} />
 				))}
 			</div>
-			<p className="text-[11px] leading-relaxed text-muted">
-				Exact labels. AND, OR and Exclude groups combine with AND. Suggestions are from this page.
-			</p>
 		</section>
 	);
 }
@@ -160,6 +143,11 @@ export function ActiveFilters() {
 			name: `Status: ${STATUS_NAMES[status]}`,
 			patch: { statuses: search.statuses.filter((value) => value !== status) },
 		})),
+		...search.priorities.map((priority) => ({
+			key: `priority:${priority}`,
+			name: `Priority: P${priority}`,
+			patch: { priorities: search.priorities.filter((value) => value !== priority) },
+		})),
 		...LABEL_GROUPS.flatMap((group) =>
 			search[group].map((label) => ({
 				key: `${group}:${label}`,
@@ -170,18 +158,18 @@ export function ActiveFilters() {
 		...(search.query
 			? [{ key: "query", name: `Text: ${search.query}`, patch: { query: "" } }]
 			: []),
-		...(search.beeQuery
+		...(search.view !== "beads" && search.beeQuery
 			? [{ key: "beeQuery", name: `Requests: ${search.beeQuery}`, patch: { beeQuery: "" } }]
 			: []),
 		...(search.closed && search.statuses.length === 0
 			? [{ key: "closed", name: "Including closed", patch: { closed: false } }]
 			: []),
 	];
+	if (chips.length === 0) {
+		return null;
+	}
 	return (
 		<div className="active-filters" aria-label="Active filters">
-			<span className="text-[11px] font-medium text-muted">
-				{chips.length === 0 ? "No bead filters" : "Showing"}
-			</span>
 			{chips.map((chip) => (
 				<button
 					key={chip.key}
@@ -201,28 +189,27 @@ export function ActiveFilters() {
 					<span aria-hidden="true"> ×</span>
 				</button>
 			))}
-			{chips.length > 0 && (
-				<button
-					className="clear-filters"
-					type="button"
-					onClick={() => {
-						void navigate({
-							search: (current) =>
-								editFilters(current, {
-									all: [],
-									any: [],
-									beeQuery: "",
-									closed: false,
-									exclude: [],
-									query: "",
-									statuses: [],
-								}),
-						});
-					}}
-				>
-					Clear all
-				</button>
-			)}
+			<button
+				className="clear-filters"
+				type="button"
+				onClick={() => {
+					void navigate({
+						search: (current) =>
+							editFilters(current, {
+								all: [],
+								any: [],
+								beeQuery: "",
+								closed: false,
+								exclude: [],
+								priorities: [],
+								query: "",
+								statuses: [],
+							}),
+					});
+				}}
+			>
+				Clear all
+			</button>
 		</div>
 	);
 }
@@ -312,8 +299,8 @@ function LabelFilter({ group, labels }: { group: LabelGroup; labels: string[] })
 	};
 	return (
 		<div className="label-group">
-			<label className="filter-heading" htmlFor={id}>
-				{GROUP_NAMES[group]} <span className="font-normal text-muted">· {GROUP_HINTS[group]}</span>
+			<label className="filter-heading" htmlFor={id} title={GROUP_HINTS[group]}>
+				{GROUP_NAMES[group]}
 			</label>
 			<form className="flex gap-2" onSubmit={add}>
 				<input
@@ -321,7 +308,7 @@ function LabelFilter({ group, labels }: { group: LabelGroup; labels: string[] })
 					id={id}
 					name="label"
 					list={`${id}-suggestions`}
-					placeholder="Exact label…"
+					placeholder="Add exact label…"
 					autoComplete="off"
 					required
 				/>

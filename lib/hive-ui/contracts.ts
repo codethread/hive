@@ -12,6 +12,8 @@ export const boardScopeSchema = z.object({
 });
 export const beadStatusSchema = z.enum(["open", "in_progress", "blocked", "deferred", "closed"]);
 export const filterLayoutSchema = z.enum(["header", "drawer", "hybrid", "sidebar"]);
+const BACKLOG_PRIORITY = 4;
+
 /** A view is a reusable predicate over ordinary task beads, independent of navigation. */
 export const beadFilterSchema = z.object({
 	/** Every exact label must occur on the same task; native --label arguments. */
@@ -22,9 +24,11 @@ export const beadFilterSchema = z.object({
 	closed: z.boolean().default(false),
 	/** Hide tasks carrying any of these exact labels; native --exclude-label arguments. */
 	exclude: z.array(z.string().min(1)).default([]),
+	/** Any selected native priorities (0 critical through 4 backlog), intersected with other rules. */
+	priorities: z.array(z.number().int().min(0).max(BACKLOG_PRIORITY)).default([]),
 	/** Text passed unchanged to native br search; empty selects br list. */
 	query: z.string().default(""),
-	/** Any selected native statuses, intersected with the text and label filters. */
+	/** Any selected native statuses, intersected with priority, text and label filters. */
 	statuses: z.array(beadStatusSchema).default([]),
 });
 export const inventoryFilterSchema = boardScopeSchema.extend(beadFilterSchema.shape);
@@ -174,6 +178,7 @@ export function taskQuery(filter: BeadFilter, taskIds: string[], page: TaskQuery
 	for (const [values, flag] of [
 		[taskIds, "--id"],
 		[filter.statuses, "--status"],
+		[filter.priorities.map(String), "--priority"],
 		[filter.all, "--label"],
 		[filter.any, "--label-any"],
 		[["system", "bee", ...filter.exclude], "--exclude-label"],
