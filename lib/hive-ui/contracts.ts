@@ -32,6 +32,7 @@ export const beadFilterSchema = z.object({
 });
 export const inventoryFilterSchema = boardScopeSchema.extend(beadFilterSchema.shape);
 export const boardFilterSchema = inventoryFilterSchema.extend({
+	/** Zero-based page of matching ordinary or selected-request task beads. */
 	page: z.number().int().nonnegative().default(0),
 	/** Selected request narrows linked work; absent for ordinary beads. */
 	request: z.string().optional(),
@@ -39,40 +40,73 @@ export const boardFilterSchema = inventoryFilterSchema.extend({
 export const navigationSchema = boardFilterSchema.extend({
 	/** One explicitly expanded ancestry chain, never a whole-history scan. */
 	ancestry: z.string().optional(),
+	/** Selected bead ID opens the detail inspector. */
 	bead: z.string().optional(),
+	/** Browser-only search over the loaded request page. */
 	beeQuery: z.string().default(""),
+	/** Presentation of the same loaded request and ancestry data. */
 	presentation: z.enum(["outline", "graph"]).default("outline"),
 });
 export const colonySchema = z.object({
+	/** Explicit native tracker database path resolved at server startup. */
 	beadsDb: z.string(),
+	/** Stable server-derived identifier for the configured root/database pair. */
 	id: z.string(),
+	/** Configured display name used by the colony switcher. */
 	name: z.string(),
+	/** Resolved repository root for native reads. */
 	root: z.string(),
 });
-export const coloniesSchema = z.object({ colonies: z.array(colonySchema) });
-export const observationSchema = z.object({ at: z.string(), author: z.string(), text: z.string() });
+export const coloniesSchema = z.object({
+	/** Startup-configured endpoints available to this local UI. */
+	colonies: z.array(colonySchema),
+});
+export const observationSchema = z.object({
+	/** Original native comment timestamp, not the time this UI read it. */
+	at: z.string(),
+	/** Recorded comment author, without an inference about current ownership. */
+	author: z.string(),
+	/** Native comment body; Colony observations omit their marker prefix. */
+	text: z.string(),
+});
 export const beeSchema = z.object({
 	/** Native closure timestamp, absent while the request is open. */
 	closedAt: z.string().nullable(),
+	/** Harness captured in the spawn request recipe. */
 	harness: z.string(),
+	/** Native spawn request bead ID. */
 	id: z.string(),
+	/** Friendly identity recorded on this request; not globally unique. */
 	identity: z.string(),
+	/** Bee kind captured in the request recipe. */
 	kind: z.string(),
+	/** Model captured in the request recipe. */
 	model: z.string(),
+	/** Latest recorded Colony observation, or null when none exists. */
 	observation: observationSchema.nullable(),
 	/** Outcome derived from native request status and close reason. */
 	outcome: z.enum(["pending", "succeeded", "failed", "cancelled"]),
+	/** Native created_by attribution, or null when unrecorded; not a parent ID. */
 	requester: z.string().nullable(),
+	/** Native request bead status, separate from execution observations. */
 	status: z.string(),
+	/** Related task bead IDs recording requested work, not current claims. */
 	taskIds: z.array(z.string()),
 });
 export const cardSchema = z.object({
+	/** Native task assignee, or null when unassigned. */
 	assignee: z.string().nullable(),
+	/** Native task bead ID used for selection and detail reads. */
 	id: z.string(),
+	/** Exact native labels retained for display and filter actions. */
 	labels: z.array(z.string()),
+	/** Native numeric task priority; lower values are more urgent. */
 	priority: z.number().int(),
+	/** Native task status used to group board columns. */
 	status: z.string(),
+	/** Native task title displayed as the card heading. */
 	title: z.string(),
+	/** Native last-update timestamp, retained without refreshing its meaning. */
 	updatedAt: z.string(),
 });
 export const requestInventorySchema = z.discriminatedUnion("kind", [
@@ -94,9 +128,13 @@ export const requestInventorySchema = z.discriminatedUnion("kind", [
 	}),
 ]);
 export const boardSchema = z.object({
+	/** Matching task summaries in the current bounded page. */
 	cards: z.array(cardSchema),
+	/** Server timestamp when this board read completed. */
 	fetchedAt: z.string(),
+	/** Native lookahead found another matching task page. */
 	hasMore: z.boolean(),
+	/** Unique labels from this page, offered as filter suggestions. */
 	labels: z.array(z.string()),
 	/** Exact argv preview; the server executes it without a shell. */
 	query: z.array(z.string()),
@@ -104,9 +142,13 @@ export const boardSchema = z.object({
 export const relationSchema = z.object({
 	/** Exact native relation type, retained verbatim for display. */
 	dependencyType: z.string(),
+	/** Native ID of the other bead connected by this edge. */
 	id: z.string(),
+	/** Other bead's native priority from the relation summary. */
 	priority: z.number().int(),
+	/** Other bead's native status from the relation summary. */
 	status: z.string(),
+	/** Other bead's native title from the relation summary. */
 	title: z.string(),
 });
 export const relationsSchema = z.object({
@@ -118,32 +160,64 @@ export const relationsSchema = z.object({
 export const detailSchema = z.object({
 	/** Verbatim native acceptance_criteria; empty when none were recorded. */
 	acceptanceCriteria: z.string(),
-	card: cardSchema.extend({ bees: z.array(beeSchema) }),
+	/** Selected bead summary with attribution from the current raw request page. */
+	card: cardSchema.extend({
+		/** Requests on the loaded page that link this task; empty in ordinary Beads. */
+		bees: z.array(beeSchema),
+	}),
 	/** Comments load only with the selected bead, never in board responses. */
-	comments: z.array(observationSchema.extend({ id: z.number().int() })),
+	comments: z.array(
+		observationSchema.extend({
+			/** Native comment ID used to distinguish entries on the selected bead. */
+			id: z.number().int(),
+		}),
+	),
 	/** Native outgoing edges: selected bead is the edge source. */
 	dependencies: relationsSchema,
 	/** Native incoming edges: selected bead is the edge target. */
 	dependents: relationsSchema,
+	/** Native bead description displayed as plain text in the inspector. */
 	description: z.string(),
+	/** Server timestamp when this selected-bead read completed. */
 	fetchedAt: z.string(),
 });
 export const provenanceSchema = z.object({
 	/** First entry is the selected request; subsequent entries are name matches. */
 	chain: z.array(beeSchema),
+	/** Observed reason the explicit, bounded ancestry traversal stopped. */
 	end: z.discriminatedUnion("kind", [
-		z.object({ kind: z.literal("unmatched"), requester: z.string().nullable() }),
 		z.object({
+			/** No matching request exists, or requester attribution was absent. */
+			kind: z.literal("unmatched"),
+			/** Unmatched recorded name, or null when no requester was recorded. */
+			requester: z.string().nullable(),
+		}),
+		z.object({
+			/** Up to three matching request IDs demonstrating name ambiguity. */
 			candidates: z.array(z.string()),
+			/** Multiple requests share the recorded requester name. */
 			kind: z.literal("ambiguous"),
+			/** Recorded requester name used for this ambiguous native lookup. */
 			requester: z.string(),
 		}),
-		z.object({ id: z.string(), kind: z.literal("cycle") }),
-		z.object({ kind: z.literal("limit") }),
+		z.object({
+			/** Request ID already visited in this ancestry chain. */
+			id: z.string(),
+			/** Traversal encountered a repeated request before adding it again. */
+			kind: z.literal("cycle"),
+		}),
+		z.object({
+			/** Traversal reached the server's maximum ancestry depth. */
+			kind: z.literal("limit"),
+		}),
 	]),
+	/** Server timestamp when this explicit ancestry read completed. */
 	fetchedAt: z.string(),
 });
-export const apiErrorSchema = z.object({ message: z.string() });
+export const apiErrorSchema = z.object({
+	/** Failure text returned by the local API for display beside retained data. */
+	message: z.string(),
+});
 
 export type BoardScope = z.infer<typeof boardScopeSchema>;
 export type BeadFilter = z.infer<typeof beadFilterSchema>;
