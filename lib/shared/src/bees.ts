@@ -21,9 +21,13 @@ export const recipeSchema = z.strictObject({
 	/** Reusable role and protocol instructions, independent of the execution prompt. */
 	system_prompt: z.string().default(""),
 });
-export const formulaSchema = z.strictObject({
+export const invocationSchema = z.strictObject({
 	argv: z.array(z.string()),
 	executable: z.string().min(NONEMPTY),
+});
+export const formulaSchema = invocationSchema.extend({
+	/** Argument templates prepended for Colony's headless executions. */
+	headless: z.array(z.string()).default([]),
 });
 const kindFields = {
 	...recipeSchema.omit({ cwd: true, kind: true }).shape,
@@ -91,6 +95,7 @@ export const beesConfigSchema = z.strictObject({
 export type Recipe = z.infer<typeof recipeSchema>;
 export type BeeKind = z.infer<typeof kindSchema>;
 export type Formula = z.infer<typeof formulaSchema>;
+export type Invocation = z.infer<typeof invocationSchema>;
 export type BeesConfig = z.infer<typeof beesConfigSchema>;
 export type Limits = z.infer<typeof limitsSchema>;
 export type PolicyChange = z.infer<typeof policyChangeSchema>;
@@ -143,19 +148,27 @@ export function validateFormula(formula: Formula): void {
 	};
 	for (const prompt of ["", "validation"]) {
 		for (const system_prompt of ["", "validation"]) {
-			renderFormula(formula, { ...recipe, prompt, system_prompt });
-			renderFormula(formula, { ...recipe, cwd: ".", prompt, system_prompt });
+			renderFormula(formula, { ...recipe, prompt, system_prompt }, "headless");
+			renderFormula(formula, { ...recipe, cwd: ".", prompt, system_prompt }, "headless");
 		}
 	}
 }
 /** Render tokens individually, omitting empty arguments; json quotes native config values. */
-export function renderFormula(formula: Formula, recipe: Recipe): Formula {
+export function renderFormula(
+	formula: Formula,
+	recipe: Recipe,
+	mode: "interactive" | "headless",
+): Invocation {
 	const render = (token: string) =>
 		Handlebars.compile(token, { noEscape: true, strict: true })(recipe, {
 			helpers: { json: formulaJson },
 		});
-	return formulaSchema.parse({
-		argv: formula.argv.map(render).filter((argument) => argument !== ""),
+	let { argv } = formula;
+	if (mode === "headless") {
+		argv = [...formula.headless, ...argv];
+	}
+	return invocationSchema.parse({
+		argv: argv.map((token) => render(token)).filter((argument) => argument !== ""),
 		executable: render(formula.executable),
 	});
 }

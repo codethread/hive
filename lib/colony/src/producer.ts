@@ -14,16 +14,15 @@ import {
 	showBead,
 	spawnRequestLabels,
 } from "@hive/shared";
-import { adjectives, animals, colors, uniqueNamesGenerator } from "unique-names-generator";
 // eslint-disable-next-line import/no-nodejs-modules -- Canonical config and submission cwd paths.
 import { join, resolve } from "node:path";
 // eslint-disable-next-line import/no-nodejs-modules -- Exclusive configuration creation and execution directory validation.
 import { mkdir, open, realpath, stat } from "node:fs/promises";
 import type { InitOptions } from "./cli.ts";
+import { createIdentity } from "./identity.ts";
 import { loadBeesConfig } from "./config.ts";
 import { z } from "zod";
 
-const NAME_WORDS = 3;
 const NONE = 0;
 
 export interface InitializedResult {
@@ -105,11 +104,7 @@ async function createRequest(
 	const { config } = await loadBeesConfig(endpoint.root);
 	const ids = await admitTasks(endpoint, { actor: options.actor, ids: requestedIds }, config);
 	const recipe = await captureRecipe({ kind, options }, config);
-	const identity = uniqueNamesGenerator({
-		dictionaries: [colors, adjectives, animals],
-		length: NAME_WORDS,
-		separator: "-",
-	});
+	const identity = createIdentity();
 	const dependencies = ids.map((id) => `related:${id}`);
 	if (supersedes !== undefined) {
 		dependencies.push(`supersedes:${supersedes}`);
@@ -162,7 +157,8 @@ Work on the related task beads.
 
 [formulas.codex]
 executable = "codex"
-argv = ["exec", "-m", "{{model}}", "-c", 'model_reasoning_effort="{{effort}}"', "-c", 'shell_environment_policy.inherit="all"', "{{#if system_prompt}}-c{{/if}}", '{{#if system_prompt}}developer_instructions={{json system_prompt}}{{/if}}', "--sandbox", "workspace-write", "--json", "{{prompt}}"]
+headless = ["exec", "--json", "--sandbox", "workspace-write"]
+argv = ["-m", "{{model}}", "-c", 'model_reasoning_effort="{{effort}}"', "-c", 'shell_environment_policy.inherit="all"', "{{#if system_prompt}}-c{{/if}}", '{{#if system_prompt}}developer_instructions={{json system_prompt}}{{/if}}', "--", "{{prompt}}"]
 `;
 }
 // eslint-disable-next-line max-statements -- Snapshot the recipe and execution directory together at submission.

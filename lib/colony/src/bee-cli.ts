@@ -10,6 +10,7 @@ import { Command } from "commander";
 import type { DroneReportResult } from "./drone.ts";
 import type { FinishResult } from "./launch.ts";
 import { HELP } from "./bee-help.ts";
+import type { RunOptions } from "./run.ts";
 import type { SpawnResult } from "./producer.ts";
 import { kindsJsonSchema } from "./kinds.ts";
 import { reportFailure } from "./cli.ts";
@@ -61,6 +62,8 @@ export interface AckOptions extends InspectionOptions {
 	reason: string;
 }
 export interface BeeDependencies {
+	/** Hand the current terminal to a user-invoked interactive harness. */
+	run: (kind: string, options: RunOptions) => Promise<void>;
 	/** Submit one advisory assessment using injected execution authority. */
 	assess: (file: string) => Promise<AssessmentSubmission>;
 	/** Accept a failed request without changing its outcome or linked tasks. */
@@ -95,6 +98,21 @@ export async function runBeeCli(argv: string[], deps: BeeDependencies): Promise<
 		.option("--json", "Emit one JSON result or error")
 		.configureOutput({ writeErr: () => {}, writeOut: deps.stdout })
 		.exitOverride();
+	program
+		.command("run <kind>")
+		.description("Open an interactive bee in this terminal (users only; agents must not run)")
+		.option("--model <model>", "Override the kind's model")
+		.option("--effort <effort>", "Override the kind's reasoning effort")
+		.option("--harness <name>", "Select a named harness formula")
+		.option("--prompt <text>", "Replace the initial user prompt")
+		.option("--system-prompt <text>", "Replace the role instructions")
+		.addHelpText("after", HELP.run)
+		.action(async (kind: string, options: RunOptions) => {
+			if (program.opts()["json"]) {
+				throw new Error("bee run does not support --json; the harness owns terminal output");
+			}
+			await deps.run(kind, options);
+		});
 	program
 		.command("kinds [kind]")
 		.description("Discover available kinds and their selection guidance")

@@ -59,6 +59,10 @@ This reads recorded facts, not live process or daemon health. Inspect a selected
 request with bee status <spawn-id>; its help includes execution diagnostics.
 `,
 	overview: `
+Interactive use:
+  Users: bee run <kind> opens a harness in the current terminal. Requires a TTY.
+  Agents must not invoke bee run; use bee spawn for delegation.
+
 Agent workflow:
   Use Bee for subagent work: implementation, advice and review use the same flow.
   1. Run bee kinds to discover whom to delegate to and why.
@@ -96,6 +100,20 @@ carried forward. This does not reopen or resume the previous execution.
 
 Example:
   bee retry <spawn-id> --actor <identity> --json
+`,
+	run: `
+For user-invoked, headed interaction. Agents must not invoke this command.
+Requires a TTY on stdin and stdout. Inherits the shell's directory and environment,
+sets a fresh bee identity, and opens the kind's native interactive harness.
+No task beads, spawn request or Colony daemon are involved. --json is unsupported.
+
+Uses canonical kind defaults and [formulas.<harness>], omitting headless arguments.
+Overrides apply only to this session; --prompt and --system-prompt replace their
+respective defaults.
+
+Examples:
+  bee run librarian
+  bee run librarian --effort high --prompt "Discuss the request lifecycle"
 `,
 	spawn: `
 Submit task beads to the selected kind using canonical .hive configuration defaults.

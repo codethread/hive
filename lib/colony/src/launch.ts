@@ -3,6 +3,7 @@ import {
 	beadSchema,
 	beads,
 	formulaSchema,
+	invocationSchema,
 	readSpawnRequest,
 	recipeSchema,
 	renderFormula,
@@ -12,6 +13,7 @@ import {
 import { join, resolve as resolvePath } from "node:path";
 // eslint-disable-next-line import/no-nodejs-modules -- Own process log files and canonicalize launch cwd.
 import { link, mkdir, open, realpath, rename, unlink } from "node:fs/promises";
+import { agentEnvironment } from "./identity.ts";
 import { loadBeesConfig } from "./config.ts";
 import { match } from "ts-pattern";
 import { runOwnedExecution } from "./processes.ts";
@@ -34,7 +36,7 @@ export const launchReceiptSchema = z.strictObject({
 	formula: formulaSchema,
 	id: z.string(),
 	identity: z.string(),
-	invocation: formulaSchema,
+	invocation: invocationSchema,
 	policyRevisionId: z.string().nullable(),
 	recipe: recipeSchema,
 	spawnId: z.string(),
@@ -159,7 +161,7 @@ export async function prepareLaunch(
 	]
 		.filter(Boolean)
 		.join("\n\n");
-	const invocation = renderFormula(formula, { ...recipe, prompt });
+	const invocation = renderFormula(formula, { ...recipe, prompt }, "headless");
 	let executionDirectory = request.root;
 	if (recipe.cwd !== null) {
 		executionDirectory = resolvePath(request.root, recipe.cwd);
@@ -219,12 +221,8 @@ export async function executeWorker(
 					cwd,
 					env: {
 						...process.env,
-						BD_ACTOR: identity,
+						...agentEnvironment(identity, recipe),
 						BEADS_DB: beadsDb,
-						BR_AGENT_NAME: recipe.kind,
-						BR_HARNESS: recipe.harness,
-						BR_MODEL: recipe.model,
-						HIVE_AGENT_NAME: identity,
 						HIVE_ATTEMPT_ID: receipt.id,
 						HIVE_ATTEMPT_NUMBER: String(receipt.attemptNumber),
 						HIVE_ATTEMPT_TOKEN: token,

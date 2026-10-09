@@ -303,7 +303,7 @@ test(
 					...config,
 					formulas: {
 						...config.formulas,
-						inspector: { argv: [], executable: join(root, "missing-harness") },
+						inspector: { argv: [], executable: join(root, "missing-harness"), headless: [] },
 					},
 				},
 			});

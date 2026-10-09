@@ -20,6 +20,10 @@ Hive UI owns its browser/API schemas and bounded read models. It neither imports
 
 ## Bee and Colony request flow
 
+Bee also provides a direct, user-invoked `bee run <kind>` path. Colony's [interactive launcher](../lib/colony/src/run.ts) loads canonical kind defaults, applies session overrides and renders the matching `formulas` entry in interactive mode through Shared's formula contract. Managed launches prepend the formula's optional `headless` argument templates; direct runs use only the shared `argv`. It mints attribution using the same [identity module](../lib/colony/src/identity.ts) as managed execution, then replaces its process with the native harness using the shell's directory and terminal. It has no task admission, spawn request, claim, attempt, receipt or daemon interaction. Only normal attribution and the inherited shell environment reach this session; Colony execution authority is absent. [Interactive usage](../lib/colony/README.md#talk-to-a-bee) documents the user-facing contract.
+
+Managed delegation follows the separate request flow below:
+
 ```text
 bee spawn -> canonical .hive configuration + selected Beads database
                  | capture recipe, identity, related tasks
