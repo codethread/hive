@@ -1,12 +1,12 @@
 /* eslint-disable unicorn/no-await-expression-member, unicorn/max-nested-calls -- Native smoke assertions inspect asynchronous evidence at the assertion site. */
 /* eslint-disable unicorn/no-null -- Fixtures exercise disabled policy and absent results explicitly. */
+import type { Assessment, AssessmentReport } from "./postrun.ts";
 import { CommandError, execute, parseBeesConfig, showBead } from "@hive/shared";
 import { afterAll, beforeAll, expect, test } from "bun:test";
 // eslint-disable-next-line import/no-nodejs-modules -- Disposable native tracker and process fixture.
 import { mkdir, mkdtemp, realpath, rm } from "node:fs/promises";
 import { observeExecution, stopExecution } from "./processes.ts";
 import { prepareAssessment, reconcileAssessments } from "./postrun.ts";
-import type { Assessment } from "./postrun.ts";
 import type { BeesConfig } from "@hive/shared";
 import { dispatch } from "./dispatch.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Fixture artifact paths.
@@ -26,7 +26,7 @@ const POLL_MS = 20;
 const SMOKE_MS = 90_000;
 const BEE = new URL("../bin/bee.ts", import.meta.url).pathname;
 const COLONY = new URL("../bin/colony.ts", import.meta.url).pathname;
-const report = {
+const report: AssessmentReport = {
 	findings: [
 		{
 			evidence: [{ detail: "Captured brief", source: "source.json:brief" }],
@@ -39,7 +39,9 @@ const report = {
 		kind: "unavailable",
 		reason: "Native events do not expose within-turn onboarding tokens",
 	},
-	summary: "Crisp scope; attribution unknown",
+	summary:
+		"The inspected bee received a crisp assignment with clear task acceptance and completed the requested work. " +
+		"The captured execution evidence preserves the delivered result while attribution for initial orientation remains unavailable; this uncertainty should remain visible in the full report.",
 	uncertainty: ["Fixture has no native token events"],
 };
 const originalTimezone = process.env.TZ;
@@ -235,6 +237,7 @@ test(
 					state,
 					"--request",
 					source.requestId,
+					"--source",
 					"--json",
 				]),
 			);
@@ -246,7 +249,43 @@ test(
 			);
 			const summaries = await readAssessments(state, { limit: ONE, repository });
 			expect(summaries.assessments).toHaveLength(ONE);
-			expect(summaries.assessments[FIRST]!.source).toBeNull();
+			expect(summaries.assessments[FIRST]).toMatchObject({
+				phase: "queued",
+				requestId: queuedNext.requestId,
+				summary: "queued",
+			});
+			const listing = await readAssessments(state, { limit: LIMIT, repository });
+			const listed = listing.assessments.find((item) => item.requestId === source.requestId)!;
+			expect(listed).toEqual({
+				id: active.item.id,
+				phase: "finished",
+				queuedAt: active.item.queuedAt,
+				requestId: source.requestId,
+				summary: report.summary,
+				coverage: { unavailableTasks: missingSnapshot!.source.unavailableTasks, omittedTasks: 0 },
+			});
+			const inspected = await readAssessments(state, {
+				limit: ONE,
+				repository,
+				request: source.requestId,
+			});
+			expect(inspected.assessments[FIRST]).toEqual({
+				...listed,
+				result: { kind: "completed", report },
+			});
+			expect(selected.assessments[FIRST].result).toEqual({ kind: "completed", report });
+			await rm(selected.assessments[FIRST].sourcePath);
+			const absentSource = await readAssessments(state, {
+				limit: ONE,
+				repository,
+				request: source.requestId,
+				source: true,
+			});
+			expect(absentSource.assessments[FIRST]).toEqual({
+				...inspected.assessments[FIRST]!,
+				source: null,
+				sourcePath: selected.assessments[FIRST].sourcePath,
+			});
 			expect(
 				(
 					await readAssessments(state, {
@@ -276,6 +315,12 @@ test(
 			});
 			expect(assessment(queuedNext.requestId)).toMatchObject({
 				phase: "finished",
+				result: { kind: "failed", reason: "timeout" },
+			});
+			const timedListing = await readAssessments(state, { limit: ONE, repository });
+			expect(timedListing.assessments[FIRST]).toMatchObject({
+				phase: "finished",
+				requestId: queuedNext.requestId,
 				result: { kind: "failed", reason: "timeout" },
 			});
 			expect(await observeExecution(timed.item.receipt)).toEqual({ kind: "stopped" });

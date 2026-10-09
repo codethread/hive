@@ -30,6 +30,7 @@ process.exitCode = await runCli(Bun.argv.slice(USER_ARGUMENTS_START), {
 			limit: options.limit,
 			repository: await resolveRepository(options.repo, options.beadsDb),
 			request: options.request,
+			source: options.source,
 		}),
 	config: async (options) =>
 		requestServer(target(options), {

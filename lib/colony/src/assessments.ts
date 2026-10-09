@@ -1,13 +1,13 @@
-/* eslint-disable unicorn/no-null -- SQL optional filters and unfinished reports explicitly retain absence. */
+/* eslint-disable unicorn/no-null -- SQL optional filters and explicitly requested missing source retain absence. */
 import { assessmentSchema, assessmentSourceSchema } from "./postrun.ts";
+import type { Assessment } from "./postrun.ts";
 import { Database } from "bun:sqlite";
 import type { RepositoryEndpoint } from "@hive/shared";
 // eslint-disable-next-line import/no-nodejs-modules -- Offline access selects the existing daemon store and private source bundle.
 import { join } from "node:path";
 import { z } from "zod";
 
-const SUMMARY_LENGTH = 240;
-const START = 0;
+const NONE = 0;
 const MIN_LIMIT = 1;
 const MAX_LIMIT = 100;
 const DEFAULT_LIMIT = 20;
@@ -20,12 +20,24 @@ export const assessmentLimitSchema = z.coerce
 export interface AssessmentFilter {
 	/** Canonical repository and selected tracker scope every query. */
 	repository: RepositoryEndpoint;
-	/** Exact source request; selecting it includes full validated report and source metadata. */
+	/** Exact source request; selecting it includes the full validated report. */
 	request?: string | undefined;
+	/** Explicitly include the private supporting bundle for a selected request. */
+	source?: boolean;
 	/** Bounded recent result count. */
 	limit: number;
 }
 export type AssessmentsResult = Awaited<ReturnType<typeof readAssessments>>;
+interface AssessmentDetails {
+	/** Selected complete report, or failure diagnostics visible in every view. */
+	result?: Extract<Assessment, { phase: "finished" }>["result"];
+	/** Explicitly requested source bundle; null means its artifact is missing. */
+	source?: z.infer<typeof assessmentSourceSchema> | null;
+	/** Expected location of the explicitly requested source artifact. */
+	sourcePath?: string;
+	/** Missing task coverage retained even without requesting the source bundle. */
+	coverage?: Pick<Assessment["source"], "unavailableTasks" | "omittedTasks">;
+}
 
 /** SELECT-only access: no migration, daemon wake, tracker refresh or database creation. */
 export async function readAssessments(state: string, filter: AssessmentFilter) {
@@ -50,9 +62,7 @@ export async function readAssessments(state: string, filter: AssessmentFilter) {
 			// eslint-disable-next-line max-statements -- Project private rows without exposing execution tokens or transcript data.
 			rows.map(async ({ snapshot }) => {
 				const assessment = assessmentSchema.parse(JSON.parse(snapshot));
-				let result = null;
-				let source = null;
-				let sourcePath = null;
+				const details: AssessmentDetails = {};
 				let summary = assessment.phase as string;
 				if (assessment.phase === "finished" || assessment.phase === "decided") {
 					const decision = assessment.result;
@@ -62,26 +72,35 @@ export async function readAssessments(state: string, filter: AssessmentFilter) {
 					} else {
 						({ summary } = decision.report);
 					}
-					if (filter.request) {
-						result = decision;
+					if (filter.request || decision.kind === "failed") {
+						details.result = decision;
 					}
 				}
-				if (assessment.phase !== "queued") {
-					sourcePath = join(assessment.receipt.directory, "source.json");
-					if (filter.request && (await Bun.file(sourcePath).exists())) {
-						source = assessmentSourceSchema.parse(await Bun.file(sourcePath).json());
+				if (filter.source && assessment.phase !== "queued") {
+					const sourcePath = join(assessment.receipt.directory, "source.json");
+					details.sourcePath = sourcePath;
+					details.source = null;
+					if (await Bun.file(sourcePath).exists()) {
+						details.source = assessmentSourceSchema.parse(await Bun.file(sourcePath).json());
 					}
 				}
-				return {
+				if (
+					assessment.source.unavailableTasks.length > NONE ||
+					assessment.source.omittedTasks > NONE
+				) {
+					details.coverage = {
+						unavailableTasks: assessment.source.unavailableTasks,
+						omittedTasks: assessment.source.omittedTasks,
+					};
+				}
+				const row = {
 					id: assessment.id,
 					phase: assessment.phase,
 					queuedAt: assessment.queuedAt,
 					requestId: assessment.requestId,
-					result,
-					source,
-					sourcePath,
-					summary: summary.slice(START, SUMMARY_LENGTH),
+					summary,
 				};
+				return Object.assign(row, details);
 			}),
 		);
 		return { assessments, kind: "assessments" as const, repository: filter.repository };

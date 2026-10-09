@@ -253,6 +253,7 @@ Inspect retained assessments without contacting or starting a daemon:
 colony assessments --json
 colony assessments --limit 50 --json
 colony assessments --request SPAWN_ID --json
+colony assessments --request SPAWN_ID --source --json
 colony assessments --schema --json
 ```
 
@@ -260,7 +261,7 @@ For Codex, accounting reads bounded stdout plus the unique native rollout matchi
 
 Task-snapshot read failures are retained as `source.unavailableTasks` with reasons, rather than blocking terminal request settlement or inventing empty task data. Persistence and process-ownership failures still surface as infrastructure errors.
 
-Default output contains the most recent 20 summaries. `--request` adds the selected report and source metadata. Use `--repo`, `--beads-db` and `--state` for an explicit repository/tracker/server selection. Inspection is read-only and does not create missing state. Raw transcripts remain private; neither report listing nor normal Beads work views receive copied logs or an extra task per assessment.
+Default output contains the most recent 20 complete summaries, with identity, lifecycle phase and queued timestamp. Failed assessments include their diagnostics; `coverage` appears when task snapshots are unavailable or omitted. `--request` adds the full selected report, including evidence and uncertainty. Add `--source` with `--request` to include the supporting bundle (captured instructions, task snapshots, attempts, usage and source path); a missing source artifact is returned as `source: null` with its expected path. Use `--repo`, `--beads-db` and `--state` for an explicit repository/tracker/server selection. Inspection is read-only and does not create missing state. Raw transcripts remain private; neither report listing nor normal Beads work views receive copied logs or an extra task per assessment.
 
 ### Ask the nurse
 

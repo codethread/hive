@@ -71,7 +71,7 @@ export type ConfigOptions = RepositoryOptions &
 export interface ColonyDependencies {
 	/** Read bounded private assessments without contacting the daemon. */
 	assessments: (
-		options: RepositoryOptions & { request?: string; limit: number },
+		options: RepositoryOptions & { request?: string; source: boolean; limit: number },
 	) => Promise<AssessmentsResult>;
 	/** Explain one request using read-only tracker and runtime evidence. */
 	explain: (id: string, options: RepositoryOptions) => Promise<Explanation>;
@@ -117,21 +117,32 @@ export async function runCli(argv: string[], deps: ColonyDependencies): Promise<
 	program
 		.command("assessments")
 		.description(
-			"Read private post-run advice offline; --request includes report and source pointers",
+			"Read private post-run summaries offline; --request adds the report, --source adds context",
 		)
 		.option("--repo <directory>", "Repository discovery directory", ".")
 		.option("--beads-db <path>", "Selected Beads database", process.env["BEADS_DB"])
 		.option("--state <directory>", "Daemon state directory")
-		.option("--request <spawn-id>", "Read this request’s full report and source metadata")
+		.option("--request <spawn-id>", "Read this request’s full report")
+		.option("--source", "Include supporting source context and path (requires --request)", false)
 		.option("--limit <count>", "Recent assessments (1–100)", "20")
 		.option("--schema", "Print report JSON schema without reading state", false)
 		.action(
-			async (options: RepositoryOptions & { request?: string; limit: string; schema: boolean }) => {
+			async (
+				options: RepositoryOptions & {
+					request?: string;
+					source: boolean;
+					limit: string;
+					schema: boolean;
+				},
+			) => {
 				if (options.schema) {
 					deps.stdout(
 						`${JSON.stringify({ kind: "assessment_schema", ok: true, schema: z.toJSONSchema(assessmentReportSchema) })}\n`,
 					);
 					return;
+				}
+				if (options.source && !options.request) {
+					program.error("--source requires --request", { code: "commander.missingArgument" });
 				}
 				const beadsDb = z.string().min(NONEMPTY).parse(options.beadsDb);
 				writeColonyResult(
