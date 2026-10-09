@@ -11,9 +11,12 @@ Hive's product packages are independently replaceable. They cooperate through co
 | `lib/honeycomb` | Worktree discovery and lifecycle, including canonical-root decisions | Public command interface; Bee and Colony obtain the canonical root through `honeycomb root` |
 | `lib/waggle` | Classifier discovery and execution | Independent `waggle` CLI; it does not decide runtime scheduling or mutate requests |
 | `lib/busybee` | Workflow navigation, task visits and per-run checkpoints | XState chooses transitions; native `br` stores work and checkpoints; optional Bee requests delegate execution to Colony |
+| `lib/hive-ui` | Read-only work-board HTTP projections, route-driven browser snapshots and presentation | Imports Shared native Beads I/O and spawn decoding; reads explicitly configured repository/database pairs |
 | `lib/tooling` | Repository maintenance commands | Development tooling, independent of the Bee execution path |
 
 Use Shared when actual consumers need the same contract. Spawn-request representation belongs there because submission, offline inspection and execution must agree; scheduling and terminal formatting stay in Colony. Busy Bee's workflow rules remain independent of Colony execution; its [specification](../lib/busybee/SPEC.md) defines progression and checkpoint authority.
+
+Hive UI owns its browser/API schemas and bounded read models. It neither imports Colony nor reads its private store; native Beads is its source. See the [UI design](design/hive-ui.md) for fetch ownership and the [UI guide](../lib/hive-ui/README.md) for startup.
 
 ## Bee and Colony request flow
 
