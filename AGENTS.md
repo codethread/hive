@@ -32,9 +32,9 @@ Product packages may import only `@hive/shared` across package boundaries; Share
 ## Architectural intent
 
 - **Consult:** use `librarian` when ownership, domain concepts, seams or abstraction choices remain unclear after reading the architecture; routine file placement does not need a consultation.
-- **Curate/discuss:** forward user corrections about ownership, placement, domain terminology, dependency direction or module responsibility to `librarian`. Include the original request, context and supplied rationale, not just your interpretation; explicitly scope any documentation/evidence edits. Direct questions about recurring agent confusion also belong here, without implying permission to change policy.
+- **Curate/discuss:** use `librarian` to synthesize difficult questions, recurring confusion and outcomes. Forward user corrections with the original request, context and supplied rationale. Evidence capture is part of the role; explicitly scope documentation changes and new policy decisions.
 - **Review:** before committing or handing off changes to those architectural concerns, use `librarian` in review mode on the final diff. Keep code style, test quality and general standards verification with `reviewer`.
-- Pass the task bead when one exists, affected paths/revisions, settled decisions and prior advice. Return implementation departures, structural review findings and user corrections to the librarian so outcomes can inform curation. Keep the current approach in the task's design; delegate useful history to librarian in an explicitly scoped curate invocation for a linked evidence record. Consult/review alone authorizes no writes; librarian defines the evidence format and write safeguards.
+- Pass the task bead when one exists, affected paths/revisions, settled decisions, prior advice and the evidence ID when known. Librarian records substantive exchanges under its [evidence contract](.hive/bees/librarian/system_prompt.md#architectural-evidence-records); no separate filing assignment is needed. Keep the accepted approach in the task's design and return corrections and final outcomes to the same evidence thread. Consult/review leave examined code, architecture documents and implementation tasks unchanged; routine evidence capture remains part of reporting.
 
 ## Runtime and commits
 
@@ -104,7 +104,7 @@ Run `bun run beads:sync` once when beginning or resuming work, before selecting 
 
 - Follow `bee finish --help` for execution identity, delivery and completion. Run the startup sync once and verify the supplied claims before working. Publish final task updates once before finishing; intermediate updates and local commits stay local.
 - Reading your own spawn through `HIVE_SPAWN_ID` is authorized execution context, not permission to browse unrelated `system` beads. Use the supplied worktree; create another only when the task explicitly requires it.
-- Librarian curation edits require explicit scope. Keep implementation, review and landing acceptance distinct; a completed report is not permission to close the examined work.
+- Librarian's role supplies routine evidence-capture scope; architecture-documentation edits need explicit scope. Keep implementation, review and landing acceptance distinct; a completed report is not permission to close the examined work.
 
 ### Labels and reservations
 
