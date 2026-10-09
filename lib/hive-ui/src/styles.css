@@ -433,13 +433,8 @@ body:has(.inspector[open], .filter-drawer[open]) {
 .filter-workspace {
 	flex-direction: column;
 }
-.layout-toolbar {
-	display: flex;
-	align-items: center;
-	flex-shrink: 0;
-	gap: 12px;
-	padding: 8px 20px;
-	border-bottom: 1px solid var(--line);
+.mobile-filter-toolbar {
+	display: none;
 }
 .filter-workspace-body {
 	display: flex;
@@ -453,29 +448,20 @@ body:has(.inspector[open], .filter-drawer[open]) {
 	overflow-y: auto;
 	overscroll-behavior: contain;
 }
-.filter-header {
+.filter-summary {
 	padding: 0 20px;
 	border-bottom: 1px solid var(--line);
 	background: var(--panel);
 }
-.filter-header:empty {
+.filter-summary:empty {
 	display: none;
 }
-.filter-header > section:last-child {
-	padding-bottom: 14px;
-}
-.view-toolbar {
+.view-notice {
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;
 	gap: 12px;
 	padding: 10px 0;
-}
-.filter-header-controls {
-	display: grid;
-	grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-	gap: 24px;
-	padding: 12px 0;
 }
 .filter-heading {
 	display: block;
@@ -506,7 +492,7 @@ body:has(.inspector[open], .filter-drawer[open]) {
 }
 .label-groups {
 	display: grid;
-	grid-template-columns: repeat(3, minmax(0, 1fr));
+	grid-template-columns: 1fr;
 	gap: 18px;
 }
 .label-group {
@@ -527,28 +513,9 @@ body:has(.inspector[open], .filter-drawer[open]) {
 	text-decoration: underline;
 	text-underline-offset: 3px;
 }
-.filter-drawer .label-groups {
-	grid-template-columns: 1fr;
-	gap: 18px;
-}
 .filter-drawer .active-filters {
 	border-top: 1px solid var(--line);
 	border-bottom: 1px solid var(--line);
-}
-.header-save {
-	position: relative;
-}
-.header-save > section {
-	position: absolute;
-	z-index: 10;
-	top: calc(100% + 8px);
-	left: 0;
-	width: min(360px, calc(100vw - 48px));
-	padding: 20px;
-	border: 1px solid var(--line);
-	border-radius: 8px;
-	background: var(--panel);
-	box-shadow: 0 12px 32px #0004;
 }
 .view-sidebar {
 	flex: 0 0 280px;
@@ -603,7 +570,6 @@ body:has(.inspector[open], .filter-drawer[open]) {
 	flex-shrink: 0;
 }
 .view-sidebar .label-groups {
-	grid-template-columns: 1fr;
 	gap: 14px;
 }
 .save-view-details {
@@ -630,9 +596,6 @@ body:has(.inspector[open], .filter-drawer[open]) {
 	color: var(--accent);
 	background: var(--tint);
 	border-color: var(--accent);
-}
-.sidebar-toggle {
-	display: none;
 }
 .bead-label {
 	display: inline-flex;
@@ -703,21 +666,13 @@ body:has(.inspector[open], .filter-drawer[open]) {
 	cursor: default;
 }
 @media (max-width: 1000px) {
-	.filter-header-controls {
-		grid-template-columns: 1fr;
-		gap: 18px;
-	}
-	.label-groups {
-		grid-template-columns: 1fr;
-	}
 	.view-sidebar {
 		flex-basis: 260px;
 	}
 }
 @media (max-width: 700px) {
 	.app-header,
-	.layout-toolbar,
-	.filter-header {
+	.filter-summary {
 		padding-left: 16px;
 		padding-right: 16px;
 	}
@@ -729,11 +684,10 @@ body:has(.inspector[open], .filter-drawer[open]) {
 	.view-sidebar {
 		display: none;
 	}
-	.sidebar-toggle {
-		display: inline-block;
-	}
-	.header-save > section {
-		left: auto;
-		right: 0;
+	.mobile-filter-toolbar {
+		display: flex;
+		flex-shrink: 0;
+		padding: 8px 16px;
+		border-bottom: 1px solid var(--line);
 	}
 }

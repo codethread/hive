@@ -11,7 +11,6 @@ export const boardScopeSchema = z.object({
 	view: z.enum(["beads", "open", "completed"]).default("open"),
 });
 export const beadStatusSchema = z.enum(["open", "in_progress", "blocked", "deferred", "closed"]);
-export const filterLayoutSchema = z.enum(["header", "drawer", "hybrid", "sidebar"]);
 const BACKLOG_PRIORITY = 4;
 
 /** A view is a reusable predicate over ordinary task beads, independent of navigation. */
@@ -38,8 +37,6 @@ export const boardFilterSchema = inventoryFilterSchema.extend({
 	request: z.string().optional(),
 });
 export const navigationSchema = boardFilterSchema.extend({
-	/** Presentation exploration only; changing layout performs no data read. */
-	layout: filterLayoutSchema.default("header"),
 	/** One explicitly expanded ancestry chain, never a whole-history scan. */
 	ancestry: z.string().optional(),
 	bead: z.string().optional(),

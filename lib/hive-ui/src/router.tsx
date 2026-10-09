@@ -36,7 +36,7 @@ const boardRoute = createRoute({
 		}
 	},
 	loaderDeps: ({ search }) => {
-		const { presentation: _presentation, beeQuery: _beeQuery, layout: _layout, ...data } = search;
+		const { presentation: _presentation, beeQuery: _beeQuery, ...data } = search;
 		return data;
 	},
 	loader: ({ params, deps }) => loadView(params.colonyId, navigationSchema.parse(deps)),

@@ -18,19 +18,10 @@ import {
 import { useId, useRef } from "react";
 import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
 import type { SavedView } from "./saved-views.ts";
-import { filterLayoutSchema } from "../contracts.ts";
 import { preferences } from "./data.ts";
 import { useStore } from "zustand";
 import { z } from "zod";
 
-const LAYOUTS = {
-	header: "Header",
-	drawer: "Left drawer",
-	hybrid: "Quick + drawer",
-	sidebar: "Sidebar",
-};
-
-// eslint-disable-next-line max-statements -- Shared controls compose four presentations without duplicating filter state.
 export function FilterWorkspace({ board, children }: { board: Board | null; children: ReactNode }) {
 	const search = useSearch({ from: "/colonies/$colonyId" });
 	const navigate = useNavigate({ from: "/colonies/$colonyId" });
@@ -38,125 +29,80 @@ export function FilterWorkspace({ board, children }: { board: Board | null; chil
 	const collapsed = useStore(preferences, (state) => state.sidebarCollapsed);
 	const dialog = useRef<HTMLDialogElement>(null);
 	const id = useId();
-	const apply = (view: SavedView) => {
-		selectSavedView(colonyId, view.id);
-		void navigate({ search: (current) => editFilters(current, view.filters) });
-	};
-	const savedForm = <SavedViewForm colonyId={colonyId} search={search} selected={selected} />;
-	const viewList = (
-		<SavedViewList views={views} selected={modified ? undefined : selected} apply={apply} />
+	const filters = (
+		<>
+			<SavedViewList
+				views={views}
+				selected={modified ? undefined : selected}
+				apply={(view) => {
+					selectSavedView(colonyId, view.id);
+					void navigate({ search: (current) => editFilters(current, view.filters) });
+				}}
+			/>
+			<StatusFilters />
+			<PriorityFilters />
+			<LabelFilters labels={board?.labels ?? []} />
+			<details className="save-view-details">
+				<summary>Save view</summary>
+				<SavedViewForm colonyId={colonyId} search={search} selected={selected} />
+			</details>
+		</>
 	);
-	const labelFilters = <LabelFilters labels={board?.labels ?? []} />;
 	return (
-		<div className={`filter-workspace layout-${search.layout}`}>
-			<div className="layout-toolbar">
-				<label className="flex items-center gap-2 text-xs text-muted">
-					Layout
-					<select
-						className="control"
-						value={search.layout}
-						onChange={(event) => {
-							const layout = filterLayoutSchema.parse(event.target.value);
-							void navigate({ search: (current) => ({ ...current, layout }) });
-						}}
-					>
-						{filterLayoutSchema.options.map((layout) => (
-							<option key={layout} value={layout}>
-								{LAYOUTS[layout]}
-							</option>
-						))}
-					</select>
-				</label>
-				{search.layout !== "header" && (
-					<button
-						className={`button ${search.layout === "sidebar" ? "sidebar-toggle" : ""}`}
-						type="button"
-						aria-haspopup="dialog"
-						onClick={() => {
-							dialog.current!.showModal();
-						}}
-					>
-						Filters & views
-					</button>
-				)}
+		<div className="filter-workspace">
+			<div className="mobile-filter-toolbar">
+				<button
+					className="button"
+					type="button"
+					aria-haspopup="dialog"
+					onClick={() => {
+						dialog.current!.showModal();
+					}}
+				>
+					Filters & views
+				</button>
 			</div>
 			<div className="filter-workspace-body">
-				{search.layout === "sidebar" && (
-					<aside
-						className={`view-sidebar ${collapsed ? "is-collapsed" : ""}`}
-						aria-label="Filters and views"
-					>
-						<div className="sidebar-heading">
-							{!collapsed && <h2 className="text-sm font-medium">Filters</h2>}
-							<button
-								type="button"
-								className="sidebar-collapse"
-								aria-label={collapsed ? "Expand filters" : "Collapse filters"}
-								title={collapsed ? "Expand filters" : "Collapse filters"}
-								aria-expanded={!collapsed}
-								aria-controls={`${id}-sidebar`}
-								onClick={() => {
-									preferences.setState({ sidebarCollapsed: !collapsed });
-								}}
+				<aside
+					className={`view-sidebar ${collapsed ? "is-collapsed" : ""}`}
+					aria-label="Filters and views"
+				>
+					<div className="sidebar-heading">
+						{!collapsed && <h2 className="text-sm font-medium">Filters</h2>}
+						<button
+							type="button"
+							className="sidebar-collapse"
+							aria-label={collapsed ? "Expand filters" : "Collapse filters"}
+							title={collapsed ? "Expand filters" : "Collapse filters"}
+							aria-expanded={!collapsed}
+							aria-controls={`${id}-sidebar`}
+							onClick={() => {
+								preferences.setState({ sidebarCollapsed: !collapsed });
+							}}
+						>
+							<svg
+								aria-hidden="true"
+								width="18"
+								height="18"
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								strokeWidth="1.5"
 							>
-								<svg
-									aria-hidden="true"
-									width="18"
-									height="18"
-									viewBox="0 0 24 24"
-									fill="none"
-									stroke="currentColor"
-									strokeWidth="1.5"
-								>
-									<rect x="3" y="4" width="18" height="16" rx="2" />
-									<path d="M9 4v16" />
-									<path d={collapsed ? "m13 9 3 3-3 3" : "m17 9-3 3 3 3"} />
-								</svg>
-							</button>
-						</div>
-						<div id={`${id}-sidebar`} className="sidebar-content" hidden={collapsed}>
-							{viewList}
-							<StatusFilters />
-							<PriorityFilters />
-							{labelFilters}
-							<details className="save-view-details">
-								<summary>Save view</summary>
-								{savedForm}
-							</details>
-						</div>
-					</aside>
-				)}
+								<rect x="3" y="4" width="18" height="16" rx="2" />
+								<path d="M9 4v16" />
+								<path d={collapsed ? "m13 9 3 3-3 3" : "m17 9-3 3 3 3"} />
+							</svg>
+						</button>
+					</div>
+					<div id={`${id}-sidebar`} className="sidebar-content" hidden={collapsed}>
+						{filters}
+					</div>
+				</aside>
 				<div className="board-pane">
-					<section aria-label="Board filters" className="filter-header">
-						{(search.layout !== "sidebar" || modified || saved.notice.kind === "error") && (
-							<div className="view-toolbar">
-								{search.layout !== "sidebar" && (
-									<label className="flex min-w-0 items-center gap-2 text-xs text-muted">
-										View
-										<select
-											className="control min-w-0 max-w-56"
-											value={modified ? "" : (selected?.id ?? "")}
-											onChange={(event) => {
-												apply(views.find((entry) => entry.id === event.target.value)!);
-											}}
-										>
-											<option value="" disabled>
-												{views.length === 0 ? "No saved views" : "Custom filters"}
-											</option>
-											{views.map((view) => (
-												<option key={view.id} value={view.id}>
-													{view.name}
-												</option>
-											))}
-										</select>
-									</label>
-								)}
-								{search.layout === "header" && (
-									<details className="header-save">
-										<summary className="button">Save view</summary>
-										{savedForm}
-									</details>
-								)}
+					<section aria-label="Board filters" className="filter-summary">
+						{(modified || saved.notice.kind === "error") && (
+							<div className="view-notice">
 								{modified && (
 									<span className="text-xs text-alert">{selected!.name} · modified</span>
 								)}
@@ -167,52 +113,32 @@ export function FilterWorkspace({ board, children }: { board: Board | null; chil
 								)}
 							</div>
 						)}
-						{(search.layout === "header" || search.layout === "hybrid") && (
-							<div className="filter-header-controls">
-								<StatusFilters />
-								<PriorityFilters />
-							</div>
-						)}
-						{search.layout === "header" && labelFilters}
 						<ActiveFilters />
 					</section>
 					{children}
 				</div>
 			</div>
-			{search.layout !== "header" && (
-				<dialog ref={dialog} className="filter-drawer" aria-labelledby={`${id}-title`}>
-					<header className="flex shrink-0 items-center justify-between gap-3 border-b border-line px-5 py-4">
-						<h2 id={`${id}-title`} className="font-medium">
-							Filters & views
-						</h2>
-						<button
-							className="button"
-							type="button"
-							aria-label="Close filters"
-							onClick={() => {
-								dialog.current!.close();
-							}}
-						>
-							Done <span className="ml-1 text-muted">Esc</span>
-						</button>
-					</header>
-					<div className="min-h-0 space-y-5 overflow-y-auto overscroll-contain p-5">
-						{viewList}
-						{search.layout !== "hybrid" && (
-							<>
-								<StatusFilters />
-								<PriorityFilters />
-							</>
-						)}
-						{labelFilters}
-						<ActiveFilters />
-						<details className="save-view-details">
-							<summary>Save view</summary>
-							{savedForm}
-						</details>
-					</div>
-				</dialog>
-			)}
+			<dialog ref={dialog} className="filter-drawer" aria-labelledby={`${id}-title`}>
+				<header className="flex shrink-0 items-center justify-between gap-3 border-b border-line px-5 py-4">
+					<h2 id={`${id}-title`} className="font-medium">
+						Filters & views
+					</h2>
+					<button
+						className="button"
+						type="button"
+						aria-label="Close filters"
+						onClick={() => {
+							dialog.current!.close();
+						}}
+					>
+						Done <span className="ml-1 text-muted">Esc</span>
+					</button>
+				</header>
+				<div className="min-h-0 space-y-5 overflow-y-auto overscroll-contain p-5">
+					{filters}
+					<ActiveFilters />
+				</div>
+			</dialog>
 		</div>
 	);
 }
