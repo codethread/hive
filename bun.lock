@@ -82,6 +82,17 @@
         "zod": "^4.4.3",
       },
     },
+    "lib/qlock": {
+      "name": "@hive/qlock",
+      "version": "0.0.0",
+      "bin": {
+        "qlock": "./bin/qlock.ts",
+      },
+      "dependencies": {
+        "commander": "^15.0.0",
+        "zod": "^4.6.5",
+      },
+    },
     "lib/shared": {
       "name": "@hive/shared",
       "version": "0.0.0",
@@ -291,6 +302,8 @@
     "@hive/hive-ui": ["@hive/hive-ui@workspace:lib/hive-ui"],
 
     "@hive/honeycomb": ["@hive/honeycomb@workspace:lib/honeycomb"],
+
+    "@hive/qlock": ["@hive/qlock@workspace:lib/qlock"],
 
     "@hive/shared": ["@hive/shared@workspace:lib/shared"],
 

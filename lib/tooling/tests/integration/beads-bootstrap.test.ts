@@ -164,7 +164,7 @@ test(
 );
 
 test(
-	"mise default installs, builds and bootstraps safely on repeated runs",
+	"mise default installs dependencies and binaries, builds and bootstraps on repeated runs",
 	// eslint-disable-next-line max-statements -- Exercise the checked-in task twice against one real disposable clone.
 	async () => {
 		const tmp = await temporaryRoot();
@@ -186,7 +186,10 @@ test(
 				join(root, "lib/fixture/package.json"),
 				JSON.stringify({
 					name: "fixture-workspace",
-					scripts: { build: "echo built >> builds.log" },
+					scripts: {
+						build: "echo built >> builds.log",
+						"install:bin": "echo installed >> installs.log",
+					},
 				}),
 			);
 			const accepted = await command(["git", "rev-parse", "tracker/state"], remote);
@@ -194,6 +197,9 @@ test(
 			const snapshot = await Bun.file(join(tracker, ".beads/issues.jsonl")).text();
 			await command(["mise", "run"], root);
 			expect(await Bun.file(join(root, "lib/fixture/builds.log")).text()).toBe("built\nbuilt\n");
+			expect(await Bun.file(join(root, "lib/fixture/installs.log")).text()).toBe(
+				"installed\ninstalled\n",
+			);
 			expect(await Bun.file(join(tracker, ".beads/issues.jsonl")).text()).toBe(snapshot);
 			const [imported] = JSON.parse(
 				await command(["br", "--db", database, "show", issue.id, "--json"], root),

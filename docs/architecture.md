@@ -13,6 +13,7 @@ Hive's product packages are independently replaceable. They cooperate through co
 | `lib/busybee` | Workflow navigation, task visits and per-run checkpoints | XState chooses transitions; native `br` stores work and checkpoints; optional Bee requests delegate execution to Colony |
 | `lib/hive-ui` | Read-only work-board HTTP projections, route-driven browser snapshots and presentation | Imports Shared native Beads I/O and spawn decoding; reads explicitly configured repository/database pairs |
 | `lib/tooling` | Repository maintenance commands | Development tooling, independent of the Bee execution path |
+| `lib/qlock` | Ticketed local command admission, private SQLite queue state and foreground child execution | TypeScript/Bun CLI with pure ticket policy and injected native I/O; only merge-target queues call `honeycomb root` for repository identity |
 
 Use Shared when actual consumers need the same contract. Spawn-request representation belongs there because submission, offline inspection and execution must agree; scheduling and terminal formatting stay in Colony. Busy Bee's workflow rules remain independent of Colony execution; its [specification](../lib/busybee/SPEC.md) defines progression and checkpoint authority.
 
