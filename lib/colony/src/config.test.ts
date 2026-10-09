@@ -18,7 +18,7 @@ test("folder names do not name kinds, and sibling prompts are captured verbatim"
 		fixture({
 			[CENTRAL]: POLICY,
 			"/repo/.hive/bees/arbitrary-folder/bee.toml": DEFINITION,
-			"/repo/.hive/bees/arbitrary-folder/prompt.md": "# Review\n\nKeep this text.\n",
+			"/repo/.hive/bees/arbitrary-folder/system_prompt.md": "# Review\n\nKeep this text.\n",
 		}),
 	);
 	expect(config.kinds).toEqual({
@@ -28,7 +28,8 @@ test("folder names do not name kinds, and sibling prompts are captured verbatim"
 			harness: "codex",
 			hidden: false,
 			model: "folder-model",
-			prompt: "# Review\n\nKeep this text.\n",
+			prompt: "",
+			system_prompt: "# Review\n\nKeep this text.\n",
 		},
 	});
 	expect(warnings).toEqual([]);
@@ -52,6 +53,7 @@ test("central definitions replace whole duplicate kinds and report every shadowe
 		hidden: false,
 		model: "central-model",
 		prompt: "Central instructions",
+		system_prompt: "",
 	});
 	expect(warnings).toEqual([
 		`${CENTRAL} overrides bee kind reviewer from /repo/.hive/bees/a/bee.toml`,
@@ -75,9 +77,8 @@ test("duplicate folder names for a kind fail without a central winner", async ()
 });
 
 test.each([
-	{ definition: DEFINITION, prompt: undefined },
-	{ definition: DEFINITION, prompt: "" },
 	{ definition: `${DEFINITION}prompt="Inline is forbidden"`, prompt: "External" },
+	{ definition: `${DEFINITION}system_prompt="Inline is forbidden"`, prompt: "External" },
 	{ definition: `${DEFINITION}prompt_file="other.md"`, prompt: "External" },
 	{ definition: `${DEFINITION}unknown=true`, prompt: "External" },
 	{ definition: "not valid TOML", prompt: "External" },
@@ -101,6 +102,30 @@ test("root bees.toml is not a fallback", async () => {
 	).rejects.toBeInstanceOf(Error);
 });
 
+test.each([
+	{ prompt: undefined, system_prompt: undefined },
+	{ prompt: "", system_prompt: "" },
+	{ prompt: "Run direction\n", system_prompt: undefined },
+	{ prompt: undefined, system_prompt: "Role protocol\n" },
+	{ prompt: "Run direction\n", system_prompt: "Role protocol\n" },
+])("kind prompt files are independently optional: %j", async ({ prompt, system_prompt }) => {
+	const contents: Record<string, string> = {
+		[CENTRAL]: POLICY,
+		"/repo/.hive/bees/review/bee.toml": DEFINITION,
+	};
+	if (prompt !== undefined) {
+		contents["/repo/.hive/bees/review/prompt.md"] = prompt;
+	}
+	if (system_prompt !== undefined) {
+		contents["/repo/.hive/bees/review/system_prompt.md"] = system_prompt;
+	}
+	const { config } = await loadBeesConfig("/repo", fixture(contents));
+	expect(config.kinds["reviewer"]).toMatchObject({
+		prompt: prompt ?? "",
+		system_prompt: system_prompt ?? "",
+	});
+});
+
 // --- Private functions ---
 function fixture(contents: Record<string, string>): ConfigFiles {
 	return {
@@ -114,7 +139,9 @@ function fixture(contents: Record<string, string>): ConfigFiles {
 		readText: (path) => {
 			const text = contents[path];
 			if (text === undefined) {
-				return Promise.reject(new Error(`Missing fixture ${path}`));
+				return Promise.reject(
+					Object.assign(new Error(`Missing fixture ${path}`), { code: "ENOENT" }),
+				);
 			}
 			return Promise.resolve(text);
 		},

@@ -16,7 +16,7 @@ description = "Implement the linked task beads and verify their outcomes."
 harness = "codex"
 model = "gpt-6-astra"
 effort = "low"
-prompt = '''
+system_prompt = '''
 Work on the related task beads.
 
 - Read their full instructions.
@@ -29,7 +29,7 @@ description = "Work through implementation tasks with more deliberate reasoning.
 harness = "codex"
 model = "gpt-6.1-sol"
 effort = "high"
-prompt = '''
+system_prompt = '''
 Work on the related task beads.
 
 - Read their full instructions.
@@ -43,7 +43,7 @@ hidden = true
 harness = "codex"
 model = "gpt-6-luna"
 effort = "low"
-prompt = '''
+system_prompt = '''
 Inspect the specified bee's logs and process evidence without modifying its work.
 
 - Distinguish useful work or legitimate waiting from inactivity.
@@ -62,6 +62,8 @@ argv = [
 	'model_reasoning_effort="{{effort}}"',
 	"-c",
 	'shell_environment_policy.inherit="all"',
+	"{{#if system_prompt}}-c{{/if}}",
+	'{{#if system_prompt}}developer_instructions={{json system_prompt}}{{/if}}',
 	"--json",
 	"{{prompt}}",
 	"--dangerously-bypass-approvals-and-sandbox",
@@ -84,6 +86,8 @@ argv = [
 	"read,bash",
 	"--mode",
 	"json",
+	"{{#if system_prompt}}--append-system-prompt{{/if}}",
+	"{{system_prompt}}",
 	"--print",
 	"--",
 	"{{prompt}}",

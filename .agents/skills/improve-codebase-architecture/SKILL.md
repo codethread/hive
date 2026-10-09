@@ -24,7 +24,7 @@ This command is _informed_ by the project's domain model and built on a shared d
 
 Read the project's domain glossary (`GLOSSARY.md`) and any ADRs in the area you're touching first.
 
-Then spawn a sub-agent to walk the codebase. Don't follow rigid heuristics; explore organically and note where you experience friction:
+Then use Bee's delegation flow from root `AGENTS.md`: choose a kind, create a report task with the selected scope and questions below, and spawn with kind defaults. Normally omit prompt overrides; the report task supplies the investigation brief. Ask the bee to explore organically and note where it experiences friction:
 
 - Where does understanding one concept require bouncing between many small modules?
 - Where are modules **shallow**, with an interface nearly as complex as the implementation?

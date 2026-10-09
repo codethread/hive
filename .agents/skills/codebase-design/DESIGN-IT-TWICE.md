@@ -18,9 +18,9 @@ Show this to the user, then immediately proceed to Step 2. The user reads and th
 
 ### 2. Spawn sub-agents
 
-Spawn 3+ sub-agents in parallel. Each must produce a **radically different** interface for the deepened module.
+Use Bee's delegation flow from root `AGENTS.md` to spawn 3+ sub-agents in parallel, each with its own report task. Each must produce a **radically different** interface for the deepened module.
 
-Prompt each sub-agent with a separate technical brief (file paths, coupling details, dependency category from [DEEPENING.md](DEEPENING.md), what sits behind the seam). The brief is independent of the user-facing problem-space explanation in Step 1. Give each agent a different design constraint:
+Put each technical brief on its report task (file paths, coupling details, dependency category from [DEEPENING.md](DEEPENING.md), what sits behind the seam). Use the chosen kind's defaults; normally omit prompt overrides. The brief is independent of the user-facing problem-space explanation in Step 1. Give each task a different design constraint:
 
 - Agent 1: "Minimize the interface: aim for 1–3 entry points max. Maximise leverage per entry point."
 - Agent 2: "Maximise flexibility: support many use cases and extension."

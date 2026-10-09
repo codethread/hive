@@ -10,6 +10,7 @@ const base: BeeKind = {
 	hidden: false,
 	model: "model",
 	prompt: "Private execution instructions.",
+	system_prompt: "Private role instructions.",
 };
 const config: BeesConfig = {
 	formulas: {},

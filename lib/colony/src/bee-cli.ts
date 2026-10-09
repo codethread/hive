@@ -31,8 +31,10 @@ export interface SpawnOptions {
 	harness?: string;
 	/** Execution directory; does not affect discovery or tracker. */
 	cwd?: string;
-	/** Override the kind's work instructions. */
+	/** Override optional direction for this execution. */
 	prompt?: string;
+	/** Override the kind's reusable role and protocol. */
+	systemPrompt?: string;
 }
 export interface RetryOptions extends SpawnOptions {
 	/** Select current defaults from another kind. */
@@ -230,7 +232,8 @@ function submissionOptions(command: Command): Command {
 		.option("--effort <effort>", "Captured effort override")
 		.option("--harness <name>", "Captured runtime formula name")
 		.option("--cwd <directory>", "Execution directory, resolved from submission cwd")
-		.option("--prompt <text>", "Replace the kind instructions for this request");
+		.option("--prompt <text>", "Replace optional execution direction; normally use the task bead")
+		.option("--system-prompt <text>", "Replace the kind role/protocol; normally keep its default");
 }
 function inspectionOptions(command: Command): Command {
 	return command

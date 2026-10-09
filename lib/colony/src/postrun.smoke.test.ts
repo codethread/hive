@@ -162,6 +162,10 @@ test(
 			expect(missingSnapshot?.source.unavailableTasks.map(({ id }) => id)).toEqual([source.taskId]);
 			expect(missingSnapshot?.source.unavailableTasks[FIRST]?.reason).toContain("ISSUE_NOT_FOUND");
 			const queued = assessment(source.requestId);
+			expect(queued.source).toMatchObject({
+				brief: "Complete the crisp task",
+				systemPrompt: "Worker role",
+			});
 			expect(queued.phase).toBe("queued");
 			expect(queued.source.attempts.map(({ id }) => id)).toEqual([first.id, second.id]);
 			expect(queued.source.tasks[FIRST]).toMatchObject({
@@ -177,6 +181,9 @@ test(
 			store = openStore(state);
 			await dispatch({ repository, state, store }, config, "fixture-revision");
 			const active = await inspector(source.requestId);
+			expect(active.item).toMatchObject({
+				receipt: { recipe: { system_prompt: "Assessment role" } },
+			});
 			expect(active.authority.cwd).toBe(repo);
 			expect(active.authority.HIVE_SPAWN_ID).toBe(active.item.id);
 			expect(store.retainedInventory(repo)).toHaveLength(TWO);
@@ -430,12 +437,14 @@ harness="worker"
 model="fixture"
 effort="low"
 prompt="Complete the crisp task"
+system_prompt="Worker role"
 [kinds.inspector]
 description="Fixture assessment"
 harness="inspector"
 model="fixture"
 effort="low"
 prompt="Read docs/agents/welcoming-hive.md"
+system_prompt="Assessment role"
 [formulas.worker]
 executable=${JSON.stringify(process.execPath)}
 argv=[${JSON.stringify(join(repo, "fixture.ts"))}]

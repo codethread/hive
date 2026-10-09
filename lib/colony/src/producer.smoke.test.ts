@@ -9,6 +9,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 
 const FIRST = 0;
+const LAST = -1;
 const TIMEOUT = 10_000;
 
 test(
@@ -78,7 +79,14 @@ test(
 				join(repo, ".hive", "bees", "arbitrary", "bee.toml"),
 				'name="reviewer"\ndescription="Review changes."\nharness="codex"\nmodel="folder-model"\neffort="high"\n',
 			);
-			await Bun.write(join(repo, ".hive", "bees", "arbitrary", "prompt.md"), "Review from file.\n");
+			await Bun.write(
+				join(repo, ".hive", "bees", "arbitrary", "system_prompt.md"),
+				"Review from file.\n",
+			);
+			await Bun.write(
+				join(repo, ".hive", "bees", "arbitrary", "prompt.md"),
+				"Default review direction.",
+			);
 			const review = await br(["create", "--title", "Review task", "--owner", "ct"]);
 			const folderRequest = await spawnRequest("reviewer", [review.id], {
 				actor: "requester-identity",
@@ -88,8 +96,50 @@ test(
 			expect(JSON.parse(String(folderRequest.request.description))).toMatchObject({
 				kind: "reviewer",
 				model: "folder-model",
-				prompt: `Review from file.\n\n\nRelated tasks: ${review.id}`,
+				prompt: "Default review direction.",
+				system_prompt: "Review from file.\n",
 			});
+			const roleTask = await br(["create", "--title", "Different review role", "--owner", "ct"]);
+			const roleOverride = JSON.parse(
+				await run([
+					process.execPath,
+					bee,
+					"spawn",
+					"reviewer",
+					roleTask.id,
+					"--repo",
+					linked,
+					"--actor",
+					"requester-identity",
+					"--system-prompt",
+					"Replacement role.\nKeep the direction.",
+					"--json",
+				]),
+			).request;
+			expect(JSON.parse(roleOverride.description)).toMatchObject({
+				prompt: "Default review direction.",
+				system_prompt: "Replacement role.\nKeep the direction.",
+			});
+			const clearedTask = await br(["create", "--title", "Clear prompt defaults", "--owner", "ct"]);
+			const cleared = JSON.parse(
+				await run([
+					process.execPath,
+					bee,
+					"spawn",
+					"reviewer",
+					clearedTask.id,
+					"--repo",
+					linked,
+					"--actor",
+					"requester-identity",
+					"--prompt",
+					"",
+					"--system-prompt",
+					"",
+					"--json",
+				]),
+			).request;
+			expect(JSON.parse(cleared.description)).toMatchObject({ prompt: "", system_prompt: "" });
 			const first = await br(["create", "--title", "First task", "--owner", "ct"]);
 			const second = await br(["create", "--title", "Second task", "--owner", "ct"]);
 			const submit = [
@@ -113,6 +163,8 @@ test(
 				"high",
 				"--harness",
 				"fixture",
+				"--prompt",
+				'Inspect quotes: "literal"\nThen verify the task.',
 				"--json",
 			];
 			const created = JSON.parse(await run(submit)).request;
@@ -141,12 +193,15 @@ test(
 				"kind",
 				"model",
 				"prompt",
+				"system_prompt",
 			]);
 			expect(snapshot).toMatchObject({
 				cwd: await realpath(external),
 				effort: "high",
 				harness: "fixture",
 				model: "captured-model",
+				prompt: 'Inspect quotes: "literal"\nThen verify the task.',
+				system_prompt: expect.stringContaining("Work on the related task beads."),
 			});
 			const unchangedTasks = await br(["show", first.id]);
 			expect(unchangedTasks[FIRST].assignee).toBeUndefined();
@@ -170,7 +225,7 @@ test(
 			const config = await Bun.file(join(repo, ".hive", "bees.toml")).text();
 			await Bun.write(
 				join(repo, ".hive", "bees.toml"),
-				`${config.replace("initial-model", "changed-model")}\n[formulas.fixture]\nexecutable=${JSON.stringify(process.execPath)}\nargv=[${JSON.stringify(worker)},"{{model}}","{{effort}}"]\n`,
+				`${config.replace("initial-model", "changed-model")}\n[formulas.fixture]\nexecutable=${JSON.stringify(process.execPath)}\nargv=[${JSON.stringify(worker)},"{{model}}","{{effort}}","{{system_prompt}}","{{prompt}}"]\n`,
 			);
 			await run([
 				process.execPath,
@@ -185,13 +240,48 @@ test(
 				join(root, "state"),
 				"--json",
 			]);
-			expect(await Bun.file(output).json()).toEqual({
-				argv: ["captured-model", "high"],
+			const launched = await Bun.file(output).json();
+			expect(launched).toEqual({
+				argv: [
+					"captured-model",
+					"high",
+					JSON.parse(request.description).system_prompt,
+					expect.stringContaining(snapshot.prompt),
+				],
 				cwd: await realpath(external),
 				db: database,
 			});
+			expect(launched.argv.at(LAST)).toContain(
+				"Read the full instructions and acceptance criteria",
+			);
+			expect(
+				launched.argv.at(LAST).split("Related tasks: ").at(LAST).split(", ").toSorted(),
+			).toEqual([first.id, second.id].toSorted());
 			const unchangedRequests = await br(["show", created.id]);
 			expect(unchangedRequests[FIRST].description).toBe(request.description);
+			await br(["close", created.id, "--reason", "exhausted"]);
+			const retried = JSON.parse(
+				await run([
+					process.execPath,
+					bee,
+					"retry",
+					created.id,
+					"--repo",
+					linked,
+					"--actor",
+					"requester-identity",
+					"--prompt",
+					"Retry direction",
+					"--system-prompt",
+					"Retry role",
+					"--json",
+				]),
+			).request;
+			expect(JSON.parse(retried.description)).toMatchObject({
+				prompt: "Retry direction",
+				system_prompt: "Retry role",
+				model: "changed-model",
+			});
 		} finally {
 			await rm(root, { force: true, recursive: true });
 		}

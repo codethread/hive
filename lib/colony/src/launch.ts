@@ -153,7 +153,13 @@ export async function prepareLaunch(
 	if (!formula) {
 		throw new Error(`No formula named ${recipe.harness}`);
 	}
-	const invocation = renderFormula(formula, recipe);
+	const prompt = [
+		recipe.prompt,
+		`Read the full instructions and acceptance criteria on the related task beads. They define the assignment and completion requirements.\n\nRelated tasks: ${taskIds.join(", ")}`,
+	]
+		.filter(Boolean)
+		.join("\n\n");
+	const invocation = renderFormula(formula, { ...recipe, prompt });
 	let executionDirectory = request.root;
 	if (recipe.cwd !== null) {
 		executionDirectory = resolvePath(request.root, recipe.cwd);

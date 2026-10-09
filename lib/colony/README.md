@@ -25,6 +25,7 @@ DB="$REPO/.beads/beads.db"
 STATE="$REPO/.colony-smoke-state"
 
 colony init --repo "$REPO" --owner operator --model YOUR_MODEL
+bee kinds --repo "$REPO"
 br create --db "$DB" --actor operator --owner operator \
   --title "Write a short smoke-result.txt and close this task" --json
 # Copy the returned task ID into TASK_ID.
@@ -56,7 +57,7 @@ bee kinds --all --json
 bee kinds --schema --json | jq '.schema'
 ```
 
-Every kind requires a nonempty `description` explaining when to choose it. Default output contains only names and descriptions; `--verbose` includes the full prompt and execution defaults. An explicit kind name inspects it directly. `--all` includes every kind, independently of verbosity.
+Every kind requires a nonempty `description` explaining when to choose it. Default output contains only names and descriptions; `--verbose` includes both prompt fields and execution defaults. An explicit kind name inspects it directly. `--all` includes every kind, independently of verbosity.
 
 `--schema` returns JSON describing the success and failure response shapes without reading configuration. Combine it with `--verbose` to inspect the full-detail schema. Normal `--json` results stay concise; schemas and prompts are opt-in.
 
@@ -64,7 +65,7 @@ Visibility is selection guidance, not runtime authorization. A hidden or omitted
 
 Optional `allow` and `deny` lists belong to the caller kind and are mutually exclusive. `allow` shows exactly its named kinds, overriding their `hidden` setting; `deny` subtracts from the non-hidden baseline. Empty `allow` shows none, while empty `deny` preserves that baseline. The sole special selector, `"#self"`, refers to the caller kind; self-hiding is explicit.
 
-These fragments omit the required execution fields (`harness`, `model`, `effort` and `prompt`):
+These fragments omit the required execution fields (`harness`, `model` and `effort`); both prompt fields are optional:
 
 ```toml
 [kinds.drone]
@@ -82,6 +83,8 @@ deny = ["#self"]
 
 ## Create requests
 
+Run `bee kinds` to choose a kind, put the assignment, context, deliverable and acceptance criteria on task beads, then spawn with the kind's defaults. Normally omit `--system-prompt` and `--prompt`: the kind already supplies its protocol. For advice or review, create a report task with the examined task IDs in its context; submit only the report task for the bee to claim and complete.
+
 Initialize configuration once in a repository with an existing Beads tracker:
 
 ```sh
@@ -93,7 +96,19 @@ bun run lib/colony/bin/bee.ts spawn worker <task-id> \
 
 `init` creates `.hive/bees.toml` in the canonical worktree and refuses to overwrite an existing file. `spawn` works while Colony is unavailable or asleep. It captures the kind's effective recipe on a new spawn bead without claiming its task beads. Later edits to defaults do not change that captured recipe.
 
-Use `--model`, `--effort`, `--harness`, `--prompt` or `--cwd` to change the recipe for one request. `--prompt` replaces the kind instructions rather than appending; put ordinary task-specific guidance on the task bead. Bee automatically mints a friendly name and records it as the assignee. The requester is the actor creating the bead, selected by `--actor` or `BD_ACTOR`; the human owner comes from configuration. Neither is the spawned agent's identity.
+The three instruction sources have distinct responsibilities:
+
+| Source               | Responsibility                                                         |
+| -------------------- | ---------------------------------------------------------------------- |
+| Kind `system_prompt` | Reusable role and protocol: how this kind carries out its work         |
+| Kind `prompt`        | Optional direction for an execution, usually empty                     |
+| Linked task beads    | Authoritative assignment, context, deliverable and acceptance criteria |
+
+Colony adds the linked task IDs and an instruction to read their full instructions and acceptance criteria when it launches the bee. This happens even when either prompt field is empty or overridden, without changing the captured recipe. The executing bee follows its supplied instructions and reads the linked tasks; it need not inspect raw spawn JSON to find its assignment.
+
+`--system-prompt` and `--prompt` are deliberate escape hatches for a request needing different role/protocol or execution direction. Each replaces only its matching kind default, rather than appending; an explicit empty string clears that field. Both fields are captured separately on the same spawn bead. Keep ordinary task instructions on the task bead. Use `--model`, `--effort`, `--harness` or `--cwd` when that request needs different execution attributes.
+
+Bee automatically mints a friendly name and records it as the assignee. The requester is the actor creating the bead, selected by `--actor` or `BD_ACTOR`; the human owner comes from configuration. Neither is the spawned agent's identity.
 
 Repository discovery defaults to the current directory and can be selected with `--repo`. Tracker selection is explicit through `--beads-db` or `BEADS_DB`. Blocked tasks can be submitted and wait for eligibility. Unknown kinds, human reservations and overlapping open spawn requests fail. A named harness may be supplied by a later Colony formula update; Bee does not require it to exist in the current file's formula map.
 
@@ -107,7 +122,8 @@ Configuration lives in the canonical worktree's `.hive/bees.toml`. Keep reposito
   bees/
     code-review/
       bee.toml
-      prompt.md
+      system_prompt.md  # optional reusable role/protocol
+      prompt.md         # optional execution direction
 ```
 
 The folder name is organizational; `name` in `bee.toml` declares the kind:
@@ -120,9 +136,9 @@ model = "gpt-6-astra"
 effort = "high"
 ```
 
-The sibling `prompt.md` supplies the prompt verbatim. It must exist and be nonempty; folder definitions accept neither inline `prompt` nor `prompt_file`. Every immediate kind directory must contain both files. Discovery is nonrecursive and includes real directories, not directory symlinks. The central file is required, but its `kinds` table and the entire `bees/` directory may be omitted.
+Every immediate kind directory requires `bee.toml`. Sibling `system_prompt.md` and `prompt.md` independently supply their fields verbatim; either may be absent or empty. Folder definitions use these files rather than inline `system_prompt` or `prompt` fields. Central `[kinds.NAME]` definitions may set either field inline or omit it. An omitted field becomes empty text. Discovery is nonrecursive and includes real directories, not directory symlinks. The central file is required, but its `kinds` table and the entire `bees/` directory may be omitted.
 
-A central `[kinds.NAME]` definition replaces the **whole** matching folder definition, not individual fields. `bee kinds` reports these conflicts as warnings (in JSON, the `warnings` array). Duplicate folder definitions without a central winner fail. Malformed definitions and missing prompts fail even when a central definition shadows them.
+A central `[kinds.NAME]` definition replaces the **whole** matching folder definition, not individual fields. `bee kinds` reports these conflicts as warnings (in JSON, the `warnings` array). Duplicate folder definitions without a central winner fail. Missing `bee.toml`, malformed definitions and errors reading existing prompt files fail even when a central definition shadows them.
 
 Spawn, retry, manual launch and Colony policy loading share this discovery path. Worktree-local configuration and root-level `bees.toml` are not read. Existing captured recipes remain unchanged when configuration or prompt files are edited.
 
@@ -133,7 +149,7 @@ bun run lib/colony/bin/bee.ts retry <spawn-id> \
   --repo /path/to/repository --beads-db "$BEADS_DB" --actor <requester> --json
 ```
 
-`retry` accepts an unresolved request closed as `exhausted`, `claim_failed` or `blocked`. It carries only unfinished related tasks and the old kind choice into a new request. The entire recipe comes from [current canonical kind defaults](#kind-files), including file-backed prompts, followed by explicit `--model`, `--effort`, `--harness`, `--prompt` and `--cwd` overrides. Use `--kind` to select another kind. No captured old recipe values are merged, including execution directory or prompt. The new request gets a new automatically generated friendly identity and its own fresh automatic retry budget under Colony policy.
+`retry` accepts an unresolved request closed as `exhausted`, `claim_failed` or `blocked`. It carries only unfinished related tasks and the old kind choice into a new request. The entire recipe comes from [current canonical kind defaults](#kind-files), including both prompt fields, followed by explicit overrides with the same semantics as [spawn](#create-requests). Normally keep those defaults; use `--kind` to select another kind. No captured old recipe values are merged, including execution directory or either prompt. The new request gets a new automatically generated friendly identity and its own fresh automatic retry budget under Colony policy.
 
 Human reservations and overlapping open requests still refuse admission. No unfinished tasks also refuses retry. Creation records a native `supersedes` relationship from replacement to original, separately from `related` task links. A failed submission leaves the original unresolved. The old closure reason, recipe, identity, observations and execution history remain unchanged.
 
@@ -181,7 +197,7 @@ An awake Colony publishes the first actual output on reconciliation, then change
 
 ## Review quiet bees with a drone
 
-In canonical `.hive/bees.toml`, set the top-level `inactivity_drone = "inspector"` and define `[kinds.inspector]` with a selection `description` and your chosen `harness`, `model`, `effort` and `prompt`. Its harness needs a matching formula. No model is hardcoded. Omitting `inactivity_drone` disables reviews; fresh wake/reset loads changes. `colony config show --json` exposes the active kind as `active.inactivityDrone`, or `null` when disabled. For example, merge these settings into the existing configuration:
+In canonical `.hive/bees.toml`, set the top-level `inactivity_drone = "inspector"` and define `[kinds.inspector]` with a selection `description`, your chosen `harness`, `model` and `effort`, and its role in `system_prompt`. Its harness needs a matching formula. No model is hardcoded. Omitting `inactivity_drone` disables reviews; fresh wake/reset loads changes. `colony config show --json` exposes the active kind as `active.inactivityDrone`, or `null` when disabled. For example, merge these settings into the existing configuration:
 
 ```toml
 inactivity_drone = "inspector"
@@ -191,7 +207,7 @@ description = "Inspect a running execution for activity when Colony requests a r
 harness = "example"
 model = "YOUR_MODEL"
 effort = "low"
-prompt = "Inspect the target's logs and process evidence, including legitimate waits."
+system_prompt = "Inspect the target's logs and process evidence, including legitimate waits."
 ```
 
 After **15 minutes without stdout**, an awake Colony launches one drone for an unreconciled running attempt with unfinished tasks. A never-written stdout log uses attempt creation as the quiet interval's starting point. Actual log activity, rather than the potentially delayed public timestamp, drives the trigger. The drone receives the exact target attempt, log/process-evidence directory, review ID and deadline, and runs in the target's recorded execution directory. Silence or PID existence alone does not prove inactivity or progress.
@@ -202,7 +218,7 @@ Each review gets **one launch attempt and at most five minutes of runtime**, wit
 
 A crash before execution permission makes the interrupted preparation `launch_failed`. Colony never resumes or repeats that launch. It stops any supervisor with a verifiable handoff; a handoff published later cannot start the harness and its permission waiter expires at the existing deadline.
 
-Drones are auxiliary inspections of existing attempts, with no task claims or independent task request; they do not consume task-dispatch capacity or enter the request scheduler. Each target has at most one outstanding review, and drones cannot trigger recursive inactivity reviews. Completing, cancelling or blocking the target stops its pending drone through the same ownership checks. Task closure alone still leaves a live target time to finish cleanup and self-report.
+Drones are auxiliary inspections of existing attempts, with no task claims or independent task request; they do not consume task-dispatch capacity or enter the request scheduler. Colony keeps the kind's `system_prompt` separate from its optional `prompt` plus generated target and reporting instructions. Each target has at most one outstanding review, and drones cannot trigger recursive inactivity reviews. Completing, cancelling or blocking the target stops its pending drone through the same ownership checks. Task closure alone still leaves a live target time to finish cleanup and self-report.
 
 `bee status` and native spawn comments retain review identity, deadline and diagnostics alongside ordinary execution observations. Review launch receipts, stdout, stderr, process ownership and `verdict.json` remain in the private state directory named by the review ID; the starting observation gives its path. See the [drone report authority contract](../../docs/agents/spawn-requests.md#report-an-inactivity-verdict) before automating verdict submission.
 
@@ -212,7 +228,7 @@ Set `post_run_drone = "post-run-drone"` in canonical `.hive/bees.toml` and defin
 
 When a launched request settles, Colony queues one advisory assessment across its attempts, including failed and cancelled requests. It does not backfill old terminal requests or inspect zero-launch closures. Assessments have no task claims or independent spawn beads and cannot recursively schedule themselves. The queue runs one inspector per repository with one launch and a five-minute deadline; it is separate from ordinary task-dispatch capacity. There is no automatic assessment retry.
 
-The inspector receives task and execution evidence, private source pointers and a report contract. It submits with `bee assess --file PATH`, using injected assessment authority rather than an inactivity verdict. A failed, missing or late assessment stays visible as missing coverage; it cannot fail or retry the original work. Awake reconciliation resumes recorded inspections after daemon recovery; detached deadlines still apply while asleep. Disabling new assessments does not abandon an inspector already running.
+The inspector receives its kind's role/protocol separately from optional execution direction and generated assessment instructions. Its evidence bundle separates the inspected bee's captured role (`source.systemPrompt`), optional execution direction (`source.brief`) and task snapshots read at settlement. An empty brief is valid; the task beads define the assignment, and settlement snapshots are not immutable copies of their launch-time text. The bundle also contains execution evidence, private source pointers and a report contract. The inspector submits with `bee assess --file PATH`, using injected assessment authority rather than an inactivity verdict. A failed, missing or late assessment stays visible as missing coverage; it cannot fail or retry the original work. Awake reconciliation resumes recorded inspections after daemon recovery; detached deadlines still apply while asleep. Disabling new assessments does not abandon an inspector already running.
 
 Inspect retained assessments without contacting or starting a daemon:
 
@@ -386,7 +402,8 @@ The request must be open, assigned to a friendly identity, and carry the [spawn 
 	"harness": "example",
 	"model": "selected-model",
 	"effort": "low",
-	"prompt": "Work on the related tasks.",
+	"system_prompt": "Implement the linked task beads and verify their outcomes.",
+	"prompt": "",
 	"cwd": null
 }
 ```
@@ -417,30 +434,32 @@ description = "Implement the linked task beads and verify their outcomes."
 harness = "example"
 model = "selected-model"
 effort = "low"
-prompt = "Work on the related tasks."
+system_prompt = "Implement the linked task beads and verify their outcomes."
 
 [formulas.example]
 executable = "/path/to/harness"
-argv = ["--model", "{{model}}", "--effort", "{{effort}}", "{{prompt}}"]
+argv = ["--model", "{{model}}", "--effort", "{{effort}}", "{{#if system_prompt}}--system-prompt{{/if}}", "{{system_prompt}}", "{{prompt}}"]
 ```
 
-Replace the example arguments with the selected harness's supported native flags. Tokens use ordinary Handlebars syntax with strict missing-value checking and no HTML escaping. Configuration loading validates templates by strict rendering against the complete recipe shape, including both canonical and explicit execution-directory cases. Arguments are passed directly to the executable; recipe text is never evaluated as a shell command. Unknown recipe/configuration fields and absent named formulas fail explicitly.
+Replace the illustrative arguments with the selected harness's supported native flags. Route `system_prompt` to its role-instruction input and `prompt` to its execution-message input. Tokens use ordinary Handlebars syntax with strict missing-value checking and no HTML escaping. Empty rendered argv tokens are omitted: condition both an optional flag and its value so an empty role leaves neither behind. The `json` helper JSON-quotes a value for native configuration arguments; ordinary argv string values remain raw.
 
-### Native profiles exercised by the probe
+Configuration loading validates templates with both prompt fields present and absent, and with canonical and explicit execution directories. Arguments are passed directly to the executable; recipe text is never evaluated as a shell command. Unknown recipe/configuration fields and absent named formulas fail explicitly.
 
-These formula sections match the [native probe's argument profiles](./scripts/native-smoke.ts) for Codex CLI 0.160.0 and native Pi 1.0.0. Replace an existing section with the same name rather than declaring it twice. Select the actual native Pi executable, not a wrapper that dispatches to another daemon.
+### Native formula examples
+
+These examples extend the [native probe's argument profiles](./scripts/native-smoke.ts) with separate role delivery. The probe's recorded Codex CLI 0.160.0 and native Pi 1.0.0 runs predate this split; they verify the execution boundary, not these updated formulas. Replace an existing section with the same name rather than declaring it twice. Select the actual native Pi executable, not a wrapper that dispatches to another daemon.
 
 ```toml
 [formulas.codex]
 executable = "codex"
-argv = ["exec", "--model", "{{model}}", "-c", 'model_reasoning_effort="{{effort}}"', "-c", 'shell_environment_policy.inherit="all"', "--sandbox", "workspace-write", "--json", "--ephemeral", "{{prompt}}"]
+argv = ["exec", "--model", "{{model}}", "-c", 'model_reasoning_effort="{{effort}}"', "-c", 'shell_environment_policy.inherit="all"', "{{#if system_prompt}}-c{{/if}}", '{{#if system_prompt}}developer_instructions={{json system_prompt}}{{/if}}', "--sandbox", "workspace-write", "--json", "--ephemeral", "{{prompt}}"]
 
 [formulas.pi-native]
 executable = "/absolute/path/to/native-pi"
-argv = ["--no-extensions", "--no-skills", "--no-prompt-templates", "--no-context-files", "--no-session", "--offline", "--model", "{{model}}", "--thinking", "{{effort}}", "--tools", "bash,read", "--mode", "json", "-p", "{{prompt}}"]
+argv = ["--no-extensions", "--no-skills", "--no-prompt-templates", "--no-context-files", "--no-session", "--offline", "--model", "{{model}}", "--thinking", "{{effort}}", "--tools", "bash,read", "--mode", "json", "{{#if system_prompt}}--append-system-prompt{{/if}}", "{{system_prompt}}", "-p", "{{prompt}}"]
 ```
 
-The Pi profile deliberately isolates extensions and context files and limits tools to the probe's Bash/read path. It does not demonstrate Scent or a general-purpose production prompt setup. Submit with the matching native model syntax, for example:
+Codex receives the role through a JSON-quoted `developer_instructions` configuration value, replacing any existing value for that field. Pi receives raw role text through `--append-system-prompt`. These are different native instruction mechanisms, not a promise of identical system-role precedence. The Pi profile deliberately isolates extensions and context files and limits tools to the probe's Bash/read path. It does not demonstrate Scent or a general-purpose production context setup. Submit with the matching native model syntax, for example:
 
 ```sh
 bee spawn worker "$TASK_ID" --repo "$REPO" --beads-db "$DB" --actor operator \
@@ -490,7 +509,13 @@ colony config reset --repo /path/to/repository --beads-db "$BEADS_DB" --state /p
 	"name": "example",
 	"formula": {
 		"executable": "/path/to/harness",
-		"argv": ["--model", "{{model}}", "{{prompt}}"]
+		"argv": [
+			"--model",
+			"{{model}}",
+			"{{#if system_prompt}}--system-prompt{{/if}}",
+			"{{system_prompt}}",
+			"{{prompt}}"
+		]
 	}
 }
 ```

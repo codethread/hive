@@ -14,7 +14,7 @@ Explore existing conventions, helpers and modules; plan the approach; then build
 
 ### Specialist delegation
 
-Use Bee for repository subagents. Run `bee --help`, then `bee kinds` before delegating.
+Use Bee for repository subagents. Run `bee --help`, then `bee kinds` before delegating. Put the assignment, context and acceptance on task beads; normally spawn with the kind's defaults and omit prompt overrides.
 
 ## Packages
 

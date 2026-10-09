@@ -34,7 +34,7 @@ _To be built_ marks capabilities still planned beyond the Bee and Colony impleme
 
 **Requester**: The human or agent identity that requested a bee, recorded as provenance rather than ownership.
 
-**Recipe**: The effective instructions and execution attributes captured for a spawn request, including its bee kind, harness, model, effort and execution directory.
+**Recipe**: The effective role/protocol, optional execution direction and execution attributes captured together for one spawn request, including its bee kind, harness, model, effort and execution directory. Linked task beads supply the authoritative assignment and acceptance criteria.
 
 **Formula**: A named harness invocation template applied to a recipe when an execution attempt starts. Changing a formula does not change the captured recipe.
 
@@ -50,7 +50,7 @@ _To be built_ marks capabilities still planned beyond the Bee and Colony impleme
 
 ## Beads
 
-**Task bead**: A bead describing a unit of work, not a request to run a bee.
+**Task bead**: The authoritative assignment, context and acceptance criteria for a unit of work, distinct from a request to run a bee.
 
 **Spawn request**: A request for a bee to complete specified task beads, carrying a captured recipe and friendly identity. It can exist before any bee runs and span several execution attempts.
 

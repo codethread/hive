@@ -6,7 +6,7 @@ A welcoming hive gives a bee a crisp assignment, directs it to the appropriate g
 
 ## Inspect the path into the task
 
-Use the supplied brief, task criteria, attempt evidence and delivered response. Identify where the bee first makes substantive task-specific progress; for a research task, relevant reading can itself be that progress. Assess the welcome provided by the system, not the bee's worth.
+Use the supplied role/protocol, optional execution direction, task criteria, attempt evidence and delivered response. In the source bundle, `systemPrompt` is the inspected bee's captured role and `brief` is its optional execution direction; an empty brief is valid. Task beads define the assignment. Their snapshots are read at settlement, so use attempt evidence to establish what instructions the bee actually saw. Identify where the bee first makes substantive task-specific progress; for a research task, relevant reading can itself be that progress. Assess the welcome provided by the system, not the bee's worth.
 
 Distinguish:
 
@@ -31,6 +31,6 @@ Compare like tasks with similar evidence coverage. Improvements in onboarding sh
 
 Use the supplied structured report contract. Give a concise account of the welcome, the observed path into useful work, and any unnecessary detour. Cite request/attempt IDs and source locations for findings. Separate observed facts, interpretation and a possible improvement; include missing context and uncertainty.
 
-Also say when the brief and guidance worked well. A cohesive report should let the nurse understand the finding without rereading every raw log. Avoid copying transcripts, secrets or irrelevant task content into assessments.
+Also say when the assignment and guidance worked well. A cohesive report should let the nurse understand the finding without rereading every raw log. Avoid copying transcripts, secrets or irrelevant task content into assessments.
 
 The drone records observations; the nurse synthesizes and advises. Neither creates change work or treats advice as accepted policy without ct's approval. Raw assessments remain Colony-private evidence; filing specialist evidence is a separate authorized operation under the existing label-stewardship contract.

@@ -16,7 +16,10 @@ export const recipeSchema = z.strictObject({
 	harness: z.string().min(NONEMPTY),
 	kind: z.string().min(NONEMPTY),
 	model: z.string().min(NONEMPTY),
-	prompt: z.string().min(NONEMPTY),
+	/** Optional direction for this execution; task beads own the assignment. */
+	prompt: z.string().default(""),
+	/** Reusable role and protocol instructions, independent of the execution prompt. */
+	system_prompt: z.string().default(""),
 });
 export const formulaSchema = z.strictObject({
 	argv: z.array(z.string()),
@@ -136,16 +139,33 @@ export function validateFormula(formula: Formula): void {
 		kind: "worker",
 		model: "validation",
 		prompt: "validation",
+		system_prompt: "validation",
 	};
-	renderFormula(formula, recipe);
-	renderFormula(formula, { ...recipe, cwd: "." });
+	for (const prompt of ["", "validation"]) {
+		for (const system_prompt of ["", "validation"]) {
+			renderFormula(formula, { ...recipe, prompt, system_prompt });
+			renderFormula(formula, { ...recipe, cwd: ".", prompt, system_prompt });
+		}
+	}
 }
-/** Render tokens individually; no shell interprets recipe values. */
+/** Render tokens individually, omitting empty arguments; json quotes native config values. */
 export function renderFormula(formula: Formula, recipe: Recipe): Formula {
 	const render = (token: string) =>
-		Handlebars.compile(token, { noEscape: true, strict: true })(recipe);
+		Handlebars.compile(token, { noEscape: true, strict: true })(recipe, {
+			helpers: { json: formulaJson },
+		});
 	return formulaSchema.parse({
-		argv: formula.argv.map(render),
+		argv: formula.argv.map(render).filter((argument) => argument !== ""),
 		executable: render(formula.executable),
 	});
+}
+
+// --- Private functions ---
+function formulaJson(value: unknown): string {
+	// Handlebars does not enforce strict lookup for helper arguments.
+	const json = JSON.stringify(value);
+	if (json === undefined) {
+		throw new Error("Formula json helper requires a defined value");
+	}
+	return json;
 }
