@@ -1,5 +1,6 @@
 import type { Board, Card, Navigation } from "../contracts.ts";
 import { EMPTY, boards, colonies, inventories, loadView, preferences, snapshot } from "./data.ts";
+import { FilterableLabel, STATUS_NAMES } from "./filter-controls.tsx";
 import { Label, ResourceNotice, time } from "./ui.tsx";
 import { Link, Outlet, useNavigate, useParams, useSearch } from "@tanstack/react-router";
 import {
@@ -11,18 +12,11 @@ import {
 	navigationSchema,
 } from "../contracts.ts";
 import { BeeWorkspace } from "./bee-workspace.tsx";
-import { BoardToolbar } from "./filter-drawer.tsx";
+import { FilterWorkspace } from "./filter-drawer.tsx";
 import { Inspector } from "./inspector.tsx";
 import { useStore } from "zustand";
 
 const STATUS_ORDER = ["in_progress", "open", "blocked", "deferred", "closed"];
-const STATUS_NAMES: Record<string, string> = {
-	blocked: "Blocked",
-	closed: "Closed",
-	deferred: "Deferred",
-	in_progress: "In progress",
-	open: "Open",
-};
 
 export function Shell() {
 	const theme = useStore(preferences, (state) => state.theme);
@@ -118,76 +112,80 @@ export function WorkPage() {
 
 	return (
 		<main>
-			<BoardToolbar board={board} />
-			<div className="flex flex-wrap items-center justify-between gap-2 border-b border-line px-5 py-2 text-xs text-muted">
-				<span>
-					{summary}
-					{inventory?.kind === "loaded" && ` · ${inventory.bees.length} ${search.view} requests`}
-				</span>
-				<div className="flex items-center gap-3">
-					{readAt !== null && <span>Read {time(readAt)} · manual refresh</span>}
-					<button
-						className="button"
-						type="button"
-						disabled={resource.kind === "loading" || inventoryResource.kind === "loading"}
-						onClick={() => {
-							void loadView(colonyId, search, true);
-						}}
-					>
-						Refresh
-					</button>
-				</div>
-			</div>
-			<ResourceNotice resource={resource} />
-			{search.view !== "beads" && <ResourceNotice resource={inventoryResource} />}
-			{inventory?.kind === "loaded" && search.view === "completed" && (
-				<RequestPagination hasMore={inventory.hasMore} />
-			)}
-			<div className="work-layout">
-				{search.view === "beads" ? (
-					<section aria-label="Bead board" className="min-w-0">
-						{board && <BoardColumns board={board} />}
-						{board && <Pagination hasMore={board.hasMore} />}
-					</section>
-				) : (
-					inventory?.kind === "loaded" && (
-						<div className="min-w-0">
-							<BeeWorkspace colonyId={colonyId} inventory={inventory} board={board} />
-							{search.request !== undefined && board && <Pagination hasMore={board.hasMore} />}
-						</div>
-					)
-				)}
-				{search.bead !== undefined && <Inspector colonyId={colonyId} id={search.bead} />}
-			</div>
-			<footer className="flex flex-wrap justify-between gap-2 border-t border-line px-5 py-3 text-xs text-muted">
-				<span>
-					{search.view === "beads"
-						? "Read-only bead snapshot · refresh to read the latest changes."
-						: "Recorded observations may be stale. Process health is not checked."}
-				</span>
-				<details className="max-w-full">
-					<summary>Tracker & query</summary>
-					<div className="mt-3 space-y-2 break-all font-mono text-[11px]">
-						<p>{colony?.root}</p>
-						<p>{colony?.beadsDb}</p>
-						{inventory?.kind === "loaded" && <p>Request inventory read: {inventory.readAt}</p>}
-						<pre className="whitespace-pre-wrap">
-							{board && board.query.length > 0
-								? board.query.map(shellQuote).join(" ")
-								: "No linked tasks; no task query executed."}
-						</pre>
+			<FilterWorkspace board={board}>
+				<div className="flex flex-wrap items-center justify-between gap-2 border-b border-line px-5 py-2 text-xs text-muted">
+					<span>
+						{summary}
+						{inventory?.kind === "loaded" && ` · ${inventory.bees.length} ${search.view} requests`}
+					</span>
+					<div className="flex items-center gap-3">
+						{readAt !== null && <span>Read {time(readAt)} · manual refresh</span>}
+						<button
+							className="button"
+							type="button"
+							disabled={resource.kind === "loading" || inventoryResource.kind === "loading"}
+							onClick={() => {
+								void loadView(colonyId, search, true);
+							}}
+						>
+							Refresh
+						</button>
 					</div>
-				</details>
-			</footer>
+				</div>
+				<ResourceNotice resource={resource} />
+				{search.view !== "beads" && <ResourceNotice resource={inventoryResource} />}
+				{inventory?.kind === "loaded" && search.view === "completed" && (
+					<RequestPagination hasMore={inventory.hasMore} />
+				)}
+				<div className="work-layout">
+					{search.view === "beads" ? (
+						<section aria-label="Bead board" className="min-w-0">
+							{board && <BoardColumns board={board} />}
+							{board && <Pagination hasMore={board.hasMore} />}
+						</section>
+					) : (
+						inventory?.kind === "loaded" && (
+							<div className="min-w-0">
+								<BeeWorkspace colonyId={colonyId} inventory={inventory} board={board} />
+								{search.request !== undefined && board && <Pagination hasMore={board.hasMore} />}
+							</div>
+						)
+					)}
+					{search.bead !== undefined && <Inspector colonyId={colonyId} id={search.bead} />}
+				</div>
+				<footer className="flex flex-wrap justify-between gap-2 border-t border-line px-5 py-3 text-xs text-muted">
+					<span>
+						{search.view === "beads"
+							? "Read-only bead snapshot · refresh to read the latest changes."
+							: "Recorded observations may be stale. Process health is not checked."}
+					</span>
+					<details className="max-w-full">
+						<summary>Tracker & query</summary>
+						<div className="mt-3 space-y-2 break-all font-mono text-[11px]">
+							<p>{colony?.root}</p>
+							<p>{colony?.beadsDb}</p>
+							{inventory?.kind === "loaded" && <p>Request inventory read: {inventory.readAt}</p>}
+							<pre className="whitespace-pre-wrap">
+								{board && board.query.length > 0
+									? board.query.map(shellQuote).join(" ")
+									: "No linked tasks; no task query executed."}
+							</pre>
+						</div>
+					</details>
+				</footer>
+			</FilterWorkspace>
 		</main>
 	);
 }
 
 // --- Board and navigation controls ---
 function BoardColumns({ board }: { board: Board }) {
+	const search = useSearch({ from: "/colonies/$colonyId" });
 	const statuses = [
 		...new Set([
-			...STATUS_ORDER.filter((status) => status !== "deferred" && status !== "closed"),
+			...(search.statuses.length > 0
+				? search.statuses
+				: STATUS_ORDER.filter((status) => status !== "deferred" && status !== "closed")),
 			...board.cards.map((card) => card.status),
 		]),
 	];
@@ -197,7 +195,7 @@ function BoardColumns({ board }: { board: Board }) {
 			<div className="grid min-h-80 place-content-center gap-2 p-6 text-center">
 				<h2 className="font-medium">No matching beads</h2>
 				<p className="text-sm text-muted">
-					Try clearing the label filters or including closed beads.
+					Try removing a status or label filter, or including closed beads.
 				</p>
 			</div>
 		);
@@ -211,7 +209,7 @@ function BoardColumns({ board }: { board: Board }) {
 						<header className="mb-3 flex items-center justify-between border-b border-line py-4 text-xs">
 							<h2 className="flex items-center gap-2">
 								<span className={`status-dot status-${status}`} />
-								{STATUS_NAMES[status] ?? status}
+								{statusName(status)}
 							</h2>
 							<span className="font-mono text-muted">{cards.length}</span>
 						</header>
@@ -252,7 +250,7 @@ function BeadCard({ card }: { card: Card }) {
 				</h3>
 				<div className="flex flex-wrap gap-1">
 					{card.labels.map((label) => (
-						<Label key={label}>{label}</Label>
+						<FilterableLabel key={label} label={label} />
 					))}
 				</div>
 			</div>
@@ -354,4 +352,8 @@ function withoutSelection(navigation: Navigation): Navigation {
 
 function shellQuote(value: string): string {
 	return `'${value.replaceAll("'", String.raw`'\''`)}'`;
+}
+
+function statusName(status: string): string {
+	return Object.entries(STATUS_NAMES).find(([key]) => key === status)?.[1] ?? status;
 }

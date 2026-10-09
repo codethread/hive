@@ -8,6 +8,7 @@ const MAX_NAME_LENGTH = 80;
 const filtersSchema = navigationSchema.omit({
 	ancestry: true,
 	bead: true,
+	layout: true,
 	page: true,
 	request: true,
 	requestPage: true,
@@ -44,8 +45,8 @@ interface SavedViewsState {
 export const savedViews = createStore<SavedViewsState>(() => ({ active: {}, ...readViews() }));
 
 export function filterSet(navigation: Navigation): FilterSet {
-	const { all, any, beeQuery, closed, exclude, presentation, query, view } = navigation;
-	return { all, any, beeQuery, closed, exclude, presentation, query, view };
+	const { all, any, beeQuery, closed, exclude, presentation, query, statuses, view } = navigation;
+	return { all, any, beeQuery, closed, exclude, presentation, query, statuses, view };
 }
 
 export function sameFilters(left: FilterSet, right: FilterSet): boolean {
@@ -133,6 +134,7 @@ function filterKey(filters: FilterSet): string {
 		filters.presentation,
 		filters.query,
 		filters.closed,
+		filters.statuses.toSorted(),
 		filters.all.toSorted(),
 		filters.any.toSorted(),
 		filters.exclude.toSorted(),

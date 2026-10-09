@@ -10,6 +10,8 @@ export const boardScopeSchema = z.object({
 	/** Ordinary task board, open Bee requests or completed Bee requests. */
 	view: z.enum(["beads", "open", "completed"]).default("open"),
 });
+export const beadStatusSchema = z.enum(["open", "in_progress", "blocked", "deferred", "closed"]);
+export const filterLayoutSchema = z.enum(["header", "drawer", "hybrid", "sidebar"]);
 export const boardFilterSchema = boardScopeSchema.extend({
 	all: z.array(z.string().min(1)).default([]),
 	any: z.array(z.string().min(1)).default([]),
@@ -17,10 +19,14 @@ export const boardFilterSchema = boardScopeSchema.extend({
 	exclude: z.array(z.string().min(1)).default([]),
 	page: z.number().int().nonnegative().default(0),
 	query: z.string().default(""),
+	/** Any selected native statuses, intersected with the text and label filters. */
+	statuses: z.array(beadStatusSchema).default([]),
 	/** Selected request narrows linked work; absent for ordinary beads. */
 	request: z.string().optional(),
 });
 export const navigationSchema = boardFilterSchema.extend({
+	/** Presentation exploration only; changing layout performs no data read. */
+	layout: filterLayoutSchema.default("header"),
 	/** One explicitly expanded ancestry chain, never a whole-history scan. */
 	ancestry: z.string().optional(),
 	bead: z.string().optional(),
@@ -147,13 +153,14 @@ export function taskQuery(filter: BoardFilter, taskIds: string[]): string[] {
 	}
 	for (const [values, flag] of [
 		[taskIds, "--id"],
+		[filter.statuses, "--status"],
 		[filter.all, "--label"],
 		[filter.any, "--label-any"],
 		[["system", "bee", ...filter.exclude], "--exclude-label"],
 	] as const) {
 		args.push(...values.flatMap((value) => [flag, value]));
 	}
-	if (filter.closed) {
+	if (filter.closed || filter.statuses.includes("closed")) {
 		args.push("--all");
 	}
 	args.push(

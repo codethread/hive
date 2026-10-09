@@ -4,6 +4,7 @@ import { Label, ResourceNotice, outcomeName, time } from "./ui.tsx";
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { Suspense, lazy, useEffect, useLayoutEffect, useRef } from "react";
 import { boardScopeSchema, detailKey } from "../contracts.ts";
+import { FilterableLabel } from "./filter-controls.tsx";
 import { useStore } from "zustand";
 
 const MarkdownContent = lazy(async () => {
@@ -92,7 +93,7 @@ export function Inspector({ colonyId, id }: { colonyId: string; id: string }) {
 							<Label>{detail.card.status}</Label>
 							<Label>P{detail.card.priority}</Label>
 							{detail.card.labels.map((label) => (
-								<Label key={label}>{label}</Label>
+								<FilterableLabel key={label} label={label} />
 							))}
 						</div>
 						<p className="mb-6 text-xs text-muted">
