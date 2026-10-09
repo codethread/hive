@@ -1,0 +1,2 @@
+description = "Print typed settlement events from one or several colonies."
+run = "./listener.ts"

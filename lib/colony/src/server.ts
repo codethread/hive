@@ -1,4 +1,5 @@
 /* eslint-disable unicorn/no-null -- Protocol and persisted revision metadata explicitly encode absent policy, actor and formula name. */
+/* eslint-disable import/max-dependencies -- Compose daemon lifecycle, private persistence and the independent public stream. */
 import type {
 	AttemptStatus,
 	BeesConfig,
@@ -7,6 +8,7 @@ import type {
 	PolicyRevision,
 	RepositoryEndpoint,
 } from "@hive/shared";
+import { ColonyEventStreamError, colonyEventSubscriptionSchema } from "@hive/shared/colony-events";
 // eslint-disable-next-line import/no-nodejs-modules -- Own daemon directory permissions and socket parent.
 import { chmod, mkdir } from "node:fs/promises";
 import { colonyRequestSchema, resolveRepository } from "@hive/shared";
@@ -23,6 +25,9 @@ import { openStore } from "./store.ts";
 import { waitFor } from "xstate";
 
 const SOCKET_MODE = 0o600;
+const NO_IDLE_TIMEOUT = 0;
+const BAD_SUBSCRIPTION = 400;
+const CURSOR_CONFLICT = 409;
 interface RunningColony {
 	/** Explicit repository authority. */
 	repository: RepositoryEndpoint;
@@ -78,7 +83,11 @@ export async function serve(options: ServerOptions): Promise<void> {
 	let pending: Promise<Response | void> = Promise.resolve();
 	let closing = false;
 	const server = Bun.serve({
-		fetch: (request) => {
+		fetch: (request, serving) => {
+			if (request.method === "POST" && new URL(request.url).pathname === "/events") {
+				serving.timeout(request, NO_IDLE_TIMEOUT);
+				return subscribeEvents(request, options.state, store, () => closing);
+			}
 			// eslint-disable-next-line max-statements, promise/prefer-await-to-then -- Serialize lifecycle commands behind registry restoration and prior drains.
 			const response = pending.then(async () => {
 				try {
@@ -269,6 +278,7 @@ export async function serve(options: ServerOptions): Promise<void> {
 							closing = true;
 							await Promise.all([...colonies.values()].map(({ actor }) => drain(actor)));
 							store.clearPolicies();
+							store.events.close();
 							// eslint-disable-next-line promise/no-nesting -- Close SQLite only after the current response and all accepted commands drain.
 							void server.stop().then(() => {
 								store.close();
@@ -327,6 +337,47 @@ export async function serve(options: ServerOptions): Promise<void> {
 }
 
 // --- Private functions ---
+/** Subscription setup and lifetime never occupy the serialized control-command queue. */
+// eslint-disable-next-line max-params, max-statements -- Validate explicit subscription authority before allocating one independent stream.
+async function subscribeEvents(
+	request: Request,
+	state: string,
+	store: ReturnType<typeof openStore>,
+	isClosing: () => boolean,
+): Promise<Response> {
+	try {
+		if (isClosing() || request.headers.get("x-colony-state") !== state) {
+			throw new Error("Daemon is stopping or the selected state does not match");
+		}
+		const subscription = colonyEventSubscriptionSchema.parse(await request.json());
+		for (const repository of subscription.colonies) {
+			if (!isAbsolute(repository.root) || !isAbsolute(repository.beadsDb)) {
+				throw new Error("Colony selectors require absolute canonical repository and tracker paths");
+			}
+			store.assertRepository(repository);
+		}
+		if (isClosing()) {
+			throw new Error("Daemon is stopping");
+		}
+		return store.events.stream(subscription, request.signal);
+	} catch (error) {
+		if (error instanceof ColonyEventStreamError) {
+			return Response.json(
+				{ kind: "error", code: error.code, message: error.message },
+				{ status: CURSOR_CONFLICT },
+			);
+		}
+		return Response.json(
+			{
+				kind: "error",
+				code: "invalid_subscription",
+				message: errorMessage(error),
+			},
+			{ status: BAD_SUBSCRIPTION },
+		);
+	}
+}
+
 async function drain(actor: ReturnType<typeof createColony>): Promise<void> {
 	actor.send({ type: "STOP" });
 	await waitFor(actor, (snapshot) => snapshot.status === "done" || snapshot.matches("failed"));
