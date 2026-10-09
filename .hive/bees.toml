@@ -54,8 +54,8 @@ Inspect the specified bee's logs and process evidence without modifying its work
 
 [formulas.codex]
 executable = "codex"
+headless = ["exec", "--json", "--dangerously-bypass-approvals-and-sandbox"]
 argv = [
-	"exec",
 	"-m",
 	"{{model}}",
 	"-c",
@@ -64,31 +64,32 @@ argv = [
 	'shell_environment_policy.inherit="all"',
 	"{{#if system_prompt}}-c{{/if}}",
 	'{{#if system_prompt}}developer_instructions={{json system_prompt}}{{/if}}',
-	"--json",
+	"--",
 	"{{prompt}}",
-	"--dangerously-bypass-approvals-and-sandbox",
 ]
 
 [formulas.pi]
 # Bypass the PATH pi shim: print-mode requests there run through Pies, not native Pi.
 executable = "/Users/ct/.pi/agent/bin/pi"
-argv = [
+headless = [
+	"--print",
+	"--mode",
+	"json",
 	"--no-extensions",
 	"--no-prompt-templates",
 	"--no-session",
 	"--offline",
 	"--approve",
+	"--tools",
+	"read,bash",
+]
+argv = [
 	"--model",
 	"{{model}}",
 	"--thinking",
 	"{{effort}}",
-	"--tools",
-	"read,bash",
-	"--mode",
-	"json",
 	"{{#if system_prompt}}--append-system-prompt{{/if}}",
 	"{{system_prompt}}",
-	"--print",
 	"--",
 	"{{prompt}}",
 ]

@@ -3,6 +3,7 @@ import { acknowledgeRequest, inspectRequest, listRequests, stopRequest } from ".
 import { retryRequest, spawnRequest } from "../src/producer.ts";
 import { listKinds } from "../src/kinds.ts";
 import { runBeeCli } from "../src/bee-cli.ts";
+import { runKind } from "../src/run.ts";
 import { submitAssessment } from "../src/postrun.ts";
 import { submitDroneVerdict } from "../src/drone.ts";
 import { submitFinish } from "../src/launch.ts";
@@ -16,6 +17,7 @@ process.exitCode = await runBeeCli(Bun.argv.slice(USER_ARGUMENTS_START), {
 	list: listRequests,
 	report: submitDroneVerdict,
 	retry: retryRequest,
+	run: runKind,
 	spawn: spawnRequest,
 	status: inspectRequest,
 	stderr: (text) => process.stderr.write(text),

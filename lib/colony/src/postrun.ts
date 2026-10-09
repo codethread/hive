@@ -345,7 +345,7 @@ async function launchAssessment(
 		formula,
 		id: queued.id,
 		identity: `assessment-${queued.id}`,
-		invocation: renderFormula(formula, recipe),
+		invocation: renderFormula(formula, recipe, "headless"),
 		policyRevisionId: null,
 		recipe,
 		spawnId: queued.id,

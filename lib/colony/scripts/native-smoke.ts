@@ -185,7 +185,7 @@ console.log("Native tool probe complete");
 `;
 	await Bun.write(join(fixture.repo, "probe.ts"), script);
 	const prompt = `Use your shell tool to execute this exact command in the current repository: ${JSON.stringify(process.execPath)} ./probe.ts . It writes a local environment receipt and closes only the disposable related task. Do not edit the script, override environment variables, close the spawn request, or change any account/hook/trust settings. After it succeeds, reply briefly and finish.`;
-	const argv = nativeArguments(fixture.options.harness);
+	const { argv, headless } = nativeArguments(fixture.options.harness);
 	await Bun.write(
 		join(fixture.repo, ".hive", "bees.toml"),
 		`owner = "ct"
@@ -205,50 +205,49 @@ effort = "low"
 prompt = ${JSON.stringify(prompt)}
 [formulas.${fixture.options.harness}]
 executable = ${JSON.stringify(resolve(fixture.options.executable))}
+headless = ${JSON.stringify(headless)}
 argv = ${JSON.stringify(argv)}
 `,
 	);
 	await save(fixture, "profile.json", {
 		argv,
+		headless,
 		executable: resolve(fixture.options.executable),
 		model: fixture.options.model,
 	});
 }
 
-function nativeArguments(harness: Options["harness"]): string[] {
+function nativeArguments(harness: Options["harness"]): { argv: string[]; headless: string[] } {
 	return match(harness)
-		.with("codex", () => [
-			"exec",
-			"--model",
-			"{{model}}",
-			"-c",
-			'model_reasoning_effort="{{effort}}"',
-			"-c",
-			'shell_environment_policy.inherit="all"',
-			"--sandbox",
-			"workspace-write",
-			"--json",
-			"--ephemeral",
-			"{{prompt}}",
-		])
-		.with("pi", () => [
-			"--no-extensions",
-			"--no-skills",
-			"--no-prompt-templates",
-			"--no-context-files",
-			"--no-session",
-			"--offline",
-			"--model",
-			"{{model}}",
-			"--thinking",
-			"{{effort}}",
-			"--tools",
-			"bash,read",
-			"--mode",
-			"json",
-			"-p",
-			"{{prompt}}",
-		])
+		.with("codex", () => ({
+			headless: ["exec", "--sandbox", "workspace-write", "--json", "--ephemeral"],
+			argv: [
+				"--model",
+				"{{model}}",
+				"-c",
+				'model_reasoning_effort="{{effort}}"',
+				"-c",
+				'shell_environment_policy.inherit="all"',
+				"--",
+				"{{prompt}}",
+			],
+		}))
+		.with("pi", () => ({
+			headless: [
+				"--print",
+				"--mode",
+				"json",
+				"--no-extensions",
+				"--no-skills",
+				"--no-prompt-templates",
+				"--no-context-files",
+				"--no-session",
+				"--offline",
+				"--tools",
+				"bash,read",
+			],
+			argv: ["--model", "{{model}}", "--thinking", "{{effort}}", "--", "{{prompt}}"],
+		}))
 		.exhaustive();
 }
 

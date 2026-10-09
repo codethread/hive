@@ -24,7 +24,7 @@ _To be built_ marks capabilities still planned beyond the Bee and Colony impleme
 
 ## Bees
 
-**Bee**: A running agent spawned by Colony. Also the name of the CLI used to submit and inspect spawn requests.
+**Bee**: An agent running as a configured bee kind, either interactively with a user or managed by Colony. Also the name of the CLI used to open those sessions and submit or inspect spawn requests.
 
 **Bee kind**: A named set of defaults describing how a bee runs, distinct from the identity of any bee using it.
 
@@ -36,7 +36,7 @@ _To be built_ marks capabilities still planned beyond the Bee and Colony impleme
 
 **Recipe**: The effective role/protocol, optional execution direction and execution attributes captured together for one spawn request, including its bee kind, harness, model, effort and execution directory. Linked task beads supply the authoritative assignment and acceptance criteria.
 
-**Formula**: A named harness invocation template applied to a recipe when an execution attempt starts. Changing a formula does not change the captured recipe.
+**Formula**: A named template for invoking a harness using a bee's effective instructions and execution attributes. Its `argv` applies to every invocation; optional `headless` arguments are prepended for managed execution. Changing a formula does not change a captured recipe.
 
 **Execution attempt**: One launch to fulfil a spawn request. An automatic retry starts another attempt using the same request and friendly identity.
 

@@ -20,7 +20,7 @@ const receipt: LaunchReceipt = {
 	createdAt: new Date(START).toISOString(),
 	cwd: "/repo",
 	directory: "/state/review",
-	formula: { argv: [], executable: "fixture" },
+	formula: { argv: [], executable: "fixture", headless: [] },
 	id: "00000000-0000-4000-8000-000000000001",
 	identity: "drone-fixture",
 	invocation: { argv: [], executable: "fixture" },

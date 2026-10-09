@@ -1,6 +1,6 @@
 # Bee and Colony
 
-Colony launches agents from spawn requests stored in Beads. A spawn request is distinct from the task beads it asks an agent to work on. Each request carries a captured recipe and a friendly assignee; Colony applies the current named harness formula in the canonical worktree's `.hive/bees.toml`.
+Bee opens configured agent roles directly with `bee run`, or submits task requests with `bee spawn` for Colony to manage. A spawn request is distinct from the task beads it asks an agent to work on. Each request carries a captured recipe and a friendly assignee; Colony applies the current named harness formula in the canonical worktree's `.hive/bees.toml`.
 
 ## Install and try it
 
@@ -80,6 +80,23 @@ allow = ["honeybee", "drone"] # Explicitly includes the hidden drone.
 description = "Review code, tests and documentation against repository standards."
 deny = ["#self"]
 ```
+
+## Talk to a bee
+
+From your terminal, open a kind's interactive harness with its existing role instructions:
+
+```sh
+bee run librarian
+bee run librarian --effort high --prompt "Discuss the request lifecycle"
+```
+
+This is user-invoked, headed interaction. Agents must not invoke `bee run`; use `bee spawn` for delegation. Terminal stdin and stdout are required, including when the user runs the command inside a multiplexer pane. There are no task arguments, tracker requirement, spawn beads or Colony lifecycle. The harness takes over the process and terminal; its exit status and signal behavior reach the shell directly.
+
+The current directory and shell environment are inherited. Bee mints a friendly identity and sets `BD_ACTOR`, `HIVE_AGENT_NAME`, `BR_AGENT_NAME`, `BR_HARNESS` and `BR_MODEL`. An existing `BEADS_DB` is inherited, but no tracker is read or written by the launcher. Colony attempt/report credentials are removed from the inherited environment. The session retains its supplied actor when using Beads.
+
+Kind defaults come from the canonical configuration. `--model`, `--effort`, `--harness`, `--prompt` and `--system-prompt` override only this session; either prompt can be cleared with an empty string. There is no directory or repository override, and `--json` is rejected because the harness owns terminal output.
+
+Each harness uses one [formula](#harness-formulas). `bee run` renders its shared `argv`; Colony prepends its optional `headless` arguments. `colony init` includes a Codex formula supporting both modes. Select the native executable if a local wrapper changes its behavior.
 
 ## Create requests
 
@@ -438,8 +455,11 @@ system_prompt = "Implement the linked task beads and verify their outcomes."
 
 [formulas.example]
 executable = "/path/to/harness"
+headless = ["--print"]
 argv = ["--model", "{{model}}", "--effort", "{{effort}}", "{{#if system_prompt}}--system-prompt{{/if}}", "{{system_prompt}}", "{{prompt}}"]
 ```
+
+`headless` defaults to an empty array and contains argument templates prepended only for managed workers, inactivity reviews and post-run inspections. `bee run` uses `argv` alone. The caller selects the mode explicitly; a missing TTY fails instead of switching modes. Both arrays use the same template rules.
 
 Replace the illustrative arguments with the selected harness's supported native flags. Route `system_prompt` to its role-instruction input and `prompt` to its execution-message input. Tokens use ordinary Handlebars syntax with strict missing-value checking and no HTML escaping. Empty rendered argv tokens are omitted: condition both an optional flag and its value so an empty role leaves neither behind. The `json` helper JSON-quotes a value for native configuration arguments; ordinary argv string values remain raw.
 
@@ -447,26 +467,28 @@ Configuration loading validates templates with both prompt fields present and ab
 
 ### Native formula examples
 
-These examples extend the [native probe's argument profiles](./scripts/native-smoke.ts) with separate role delivery. The probe's recorded Codex CLI 0.160.0 and native Pi 1.0.0 runs predate this split; they verify the execution boundary, not these updated formulas. Replace an existing section with the same name rather than declaring it twice. Select the actual native Pi executable, not a wrapper that dispatches to another daemon.
+The shared-argument layout and role delivery were verified with Codex CLI 0.161.0 and native Pi 1.0.0 in both interactive terminals and headless runs. Replace an existing section with the same name rather than declaring it twice. Select the actual native Pi executable, not a wrapper that dispatches to another daemon.
 
 ```toml
 [formulas.codex]
 executable = "codex"
-argv = ["exec", "--model", "{{model}}", "-c", 'model_reasoning_effort="{{effort}}"', "-c", 'shell_environment_policy.inherit="all"', "{{#if system_prompt}}-c{{/if}}", '{{#if system_prompt}}developer_instructions={{json system_prompt}}{{/if}}', "--sandbox", "workspace-write", "--json", "--ephemeral", "{{prompt}}"]
+headless = ["exec", "--json", "--sandbox", "workspace-write", "--ephemeral"]
+argv = ["--model", "{{model}}", "-c", 'model_reasoning_effort="{{effort}}"', "-c", 'shell_environment_policy.inherit="all"', "{{#if system_prompt}}-c{{/if}}", '{{#if system_prompt}}developer_instructions={{json system_prompt}}{{/if}}', "--", "{{prompt}}"]
 
 [formulas.pi-native]
 executable = "/absolute/path/to/native-pi"
-argv = ["--no-extensions", "--no-skills", "--no-prompt-templates", "--no-context-files", "--no-session", "--offline", "--model", "{{model}}", "--thinking", "{{effort}}", "--tools", "bash,read", "--mode", "json", "{{#if system_prompt}}--append-system-prompt{{/if}}", "{{system_prompt}}", "-p", "{{prompt}}"]
+headless = ["--print", "--mode", "json", "--no-extensions", "--no-skills", "--no-prompt-templates", "--no-context-files", "--no-session", "--offline", "--tools", "bash,read"]
+argv = ["--model", "{{model}}", "--thinking", "{{effort}}", "{{#if system_prompt}}--append-system-prompt{{/if}}", "{{system_prompt}}", "--", "{{prompt}}"]
 ```
 
-Codex receives the role through a JSON-quoted `developer_instructions` configuration value, replacing any existing value for that field. Pi receives raw role text through `--append-system-prompt`. These are different native instruction mechanisms, not a promise of identical system-role precedence. The Pi profile deliberately isolates extensions and context files and limits tools to the probe's Bash/read path. It does not demonstrate Scent or a general-purpose production context setup. Submit with the matching native model syntax, for example:
+Codex receives the role through a JSON-quoted `developer_instructions` configuration value, replacing any existing value for that field. Pi receives raw role text through `--append-system-prompt`. These are different native instruction mechanisms, not a promise of identical system-role precedence. The headless Pi profile deliberately isolates extensions and context files and limits tools to the probe's Bash/read path. It does not demonstrate Scent or a general-purpose production context setup. Submit with the matching native model syntax, for example:
 
 ```sh
 bee spawn worker "$TASK_ID" --repo "$REPO" --beads-db "$DB" --actor operator \
   --harness pi-native --model openai-codex/gpt-6-astra --effort low
 ```
 
-Codex's tested model was `gpt-6-astra` with low effort. Model availability and authentication belong to your account. See [dated native results](../../docs/harness-capabilities.md#current-native-probe-evidence) for precisely what passed.
+The interactive/headless role checks used `gpt-6-luna` for Codex and `openai-codex/gpt-6-astra` for Pi, both at low effort. Pi may require a provider-qualified model when multiple providers are authenticated. Model availability and authentication belong to your account. See [dated native results](../../docs/harness-capabilities.md#current-native-probe-evidence) for the separate managed tool-process checks.
 
 ## Scheduling
 
@@ -509,6 +531,7 @@ colony config reset --repo /path/to/repository --beads-db "$BEADS_DB" --state /p
 	"name": "example",
 	"formula": {
 		"executable": "/path/to/harness",
+		"headless": ["--print"],
 		"argv": [
 			"--model",
 			"{{model}}",

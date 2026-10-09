@@ -61,7 +61,7 @@ test(
 				"--deps",
 				`related:${task.id}`,
 			]);
-			const config = `owner = "ct"\nhumans = ["ct"]\n[kinds]\n[formulas.fixture]\nexecutable = ${JSON.stringify(process.execPath)}\nargv = [${JSON.stringify(worker)}, "{{prompt}}", "{{model}}"]\n`;
+			const config = `owner = "ct"\nhumans = ["ct"]\n[kinds]\n[formulas.fixture]\nexecutable = ${JSON.stringify(process.execPath)}\nheadless = [${JSON.stringify(worker)}]\nargv = ["headless-prefix-present", "{{prompt}}", "{{model}}"]\n`;
 			await Bun.write(join(repo, ".hive", "bees.toml"), config);
 			const cli = new URL("../bin/colony.ts", import.meta.url).pathname;
 			const args = [
@@ -84,7 +84,11 @@ test(
 			expect(receipt.outcome).toEqual({ code: 0, kind: "exited" });
 			expect(await Bun.file(output).json()).toEqual({
 				actor: "amber-quiet-otter",
-				argv: [expect.stringContaining(`Related tasks: ${task.id}`), "literal <model>"],
+				argv: [
+					"headless-prefix-present",
+					expect.stringContaining(`Related tasks: ${task.id}`),
+					"literal <model>",
+				],
 				cwd: await realpath(outside),
 				db: database,
 				identity: "amber-quiet-otter",

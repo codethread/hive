@@ -91,7 +91,7 @@ Use repo-local Beads (`br`) from the checkout root to track implementation, not 
 
 ### Daily workflow
 
-Outside Colony executions, every mutation needs your harness actor (`--actor pi|claude|codex`, choosing your own, or process-local `BD_ACTOR`). Colony bees use the supplied actor as described below. Never use `ct`/`USER` as the agent actor or persist it in shared configuration. Set `--owner ct` on every creation and claim; ownership is not assignment.
+Every mutation needs an actor. Keep the supplied `BD_ACTOR` in a `bee run` session or Colony execution. Otherwise use your harness actor (`--actor pi|claude|codex`, choosing your own, or process-local `BD_ACTOR`). Never use `ct`/`USER` as the agent actor or persist it in shared configuration. Set `--owner ct` on every creation and claim; ownership is not assignment.
 
 Run `bun run beads:sync` once when beginning or resuming work, before selecting or claiming tasks. Session hooks configure the environment only; changing to a new local worktree during the same work does not require another startup sync.
 

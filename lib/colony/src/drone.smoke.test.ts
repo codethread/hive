@@ -280,7 +280,7 @@ test(
 				...terminalConfig,
 				formulas: {
 					...config.formulas,
-					inspector: { argv: [], executable: join(root, "missing-harness") },
+					inspector: { argv: [], executable: join(root, "missing-harness"), headless: [] },
 				},
 			};
 			await reconcileRequests({ ...runtime, config: launchFailureConfig });

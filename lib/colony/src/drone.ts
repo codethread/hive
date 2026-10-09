@@ -512,7 +512,7 @@ function droneReceipt(
 		formula,
 		id: review.id,
 		identity: `drone-${review.id}`,
-		invocation: renderFormula(formula, recipe),
+		invocation: renderFormula(formula, recipe, "headless"),
 		// The target's earlier dispatch revision does not describe this current auxiliary invocation.
 		policyRevisionId: null,
 		recipe,
