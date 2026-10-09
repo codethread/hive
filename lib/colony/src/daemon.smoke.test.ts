@@ -1,3 +1,4 @@
+/* eslint-disable unicorn/no-null -- Persisted request fixtures explicitly encode absent attempt, pending claim and retry time. */
 // eslint-disable-next-line import/no-nodejs-modules -- Disposable real repository and tracker fixtures.
 import { access, cp, mkdir, mkdtemp, readdir, realpath, rm } from "node:fs/promises";
 import { colonyResponseSchema, execute } from "@hive/shared";
@@ -5,6 +6,8 @@ import { expect, test } from "bun:test";
 import type { ColonyResponse } from "@hive/shared";
 // eslint-disable-next-line import/no-nodejs-modules -- Resolve owned fixture paths.
 import { join } from "node:path";
+import { openStore } from "./store.ts";
+import { subscribeColonyEvents } from "@hive/shared/colony-events/client";
 // eslint-disable-next-line import/no-nodejs-modules -- Private OS temporary fixture root.
 import { tmpdir } from "node:os";
 
@@ -292,6 +295,30 @@ test(
 			XDG_STATE_HOME: join(root, "default"),
 		};
 		const args = ["--state", state, "--socket", socket, "--json"];
+		await mkdir(state);
+		const seed = openStore(state);
+		const repository = { root: join(root, "repository"), beadsDb: join(root, "beads.db") };
+		seed.settleRequest(
+			repository.root,
+			{
+				id: "settled-before-restart",
+				beadsDb: repository.beadsDb,
+				state: "terminal",
+				context: {
+					attemptId: null,
+					attempts: FIRST,
+					claims: [],
+					identity: "fixture-worker",
+					message: "private",
+					outcome: "completed",
+					pendingClaim: null,
+					retryAt: null,
+					taskIds: [],
+				},
+			},
+			undefined,
+		);
+		seed.close();
 		const server = Bun.spawn([process.execPath, COLONY, "daemon", "serve", ...args], {
 			cwd: root,
 			env,
@@ -324,10 +351,29 @@ test(
 			serverPid = status.pid;
 			expect(alive(serverPid)).toBe(true);
 			expect(server.exitCode).toBeNull();
+			const events = subscribeColonyEvents({
+				state,
+				socket,
+				subscription: {
+					colonies: [repository],
+					types: ["request.settled"],
+					start: { kind: "retained" },
+				},
+			});
+			const initial = await events.next();
+			expect(initial.value).toMatchObject({ kind: "checkpoint" });
+			const settlement = await events.next();
+			expect(settlement.value).toMatchObject({
+				kind: "event",
+				event: { repository, request: { id: "settled-before-restart", outcome: "completed" } },
+			});
+			// A live event connection must not occupy the control queue or prevent orderly shutdown.
+			const streamEnded = events.next();
 			const stopped = JSON.parse(
 				await execute([process.execPath, COLONY, "daemon", "stop", ...args], root, env),
 			);
 			expect(stopped).toEqual({ kind: "stopped", ok: true });
+			expect(await streamEnded).toMatchObject({ done: true });
 			await until("foreground exit", () => Promise.resolve(server.exitCode !== null));
 			expect(await server.exited).toBe(SUCCESS);
 			expect(alive(serverPid)).toBe(false);

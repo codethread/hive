@@ -12,6 +12,7 @@ import { assessmentSchema } from "./postrun.ts";
 import { droneReviewSchema } from "./drone.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- SQLite and receipt paths belong to daemon state.
 import { join } from "node:path";
+import { openEventJournal } from "./events.ts";
 import { openHistory } from "./history.ts";
 import { policyRevisionSchema } from "@hive/shared";
 // eslint-disable-next-line import/no-nodejs-modules -- Read atomic worker receipt replacements without a cached BunFile size.
@@ -32,6 +33,8 @@ const registrationRowSchema = z.strictObject({
 	intent: z.enum(["awake", "asleep"]),
 	root: z.string(),
 });
+const eventAttemptSchema = z.array(z.strictObject({ id: z.string(), directory: z.string() }));
+
 export interface AttemptInventory extends AttemptStatus {
 	/** Immutable launch authority, recipe and execution bucket. */
 	receipt: LaunchReceipt;
@@ -42,6 +45,7 @@ export interface Registration {
 	/** Activity restored when the daemon starts. */
 	intent: ColonyStatus["intent"];
 }
+
 export type Store = ReturnType<typeof openStore>;
 
 /** Concrete registry and immutable launch reservations; only the socket owner writes here. */
@@ -53,11 +57,13 @@ export function openStore(state: string) {
  CREATE TABLE IF NOT EXISTS attempts (
  id TEXT PRIMARY KEY, root TEXT NOT NULL, spawn_id TEXT NOT NULL, directory TEXT NOT NULL,
  token TEXT NOT NULL, snapshot TEXT NOT NULL, state TEXT NOT NULL, supervisor_pid INTEGER);
+ CREATE INDEX IF NOT EXISTS attempts_request ON attempts(root, spawn_id);
  CREATE TABLE IF NOT EXISTS requests (root TEXT NOT NULL, spawn_id TEXT NOT NULL, snapshot TEXT NOT NULL, PRIMARY KEY(root, spawn_id));
  CREATE TABLE IF NOT EXISTS policy_revisions (id TEXT PRIMARY KEY, root TEXT NOT NULL, metadata TEXT NOT NULL, snapshot TEXT NOT NULL);
  CREATE TABLE IF NOT EXISTS drone_reviews (id TEXT PRIMARY KEY, root TEXT NOT NULL, target_attempt_id TEXT NOT NULL, snapshot TEXT NOT NULL);
  CREATE TABLE IF NOT EXISTS assessments (id TEXT PRIMARY KEY, root TEXT NOT NULL, beads_db TEXT NOT NULL, request_id TEXT NOT NULL, snapshot TEXT NOT NULL, UNIQUE(root, request_id));
  CREATE TABLE IF NOT EXISTS active_policies (root TEXT PRIMARY KEY, revision_id TEXT NOT NULL REFERENCES policy_revisions(id));`);
+	const events = openEventJournal(database);
 	const assertRepository = (repository: RepositoryEndpoint): void => {
 		const rows = z.array(z.strictObject({ beadsDb: z.string() })).parse(
 			database
@@ -162,13 +168,41 @@ export function openStore(state: string) {
 			root: string,
 			record: RequestRecord,
 			assessment: Assessment | undefined,
-		): void =>
+		): void => {
 			database.transaction(() => {
 				if (assessment) {
 					saveAssessment(root, assessment);
 				}
 				saveRequest(root, record);
-			})(),
+				if (record.state === "terminal") {
+					events.append({
+						type: "request.settled",
+						repository: { root, beadsDb: record.beadsDb },
+						recordedAt: new Date().toISOString(),
+						request: {
+							id: record.id,
+							identity: record.context.identity,
+							outcome: record.context.outcome!,
+							taskIds: record.context.taskIds,
+							attempts: eventAttemptSchema
+								.parse(
+									database
+										.query(
+											"SELECT id, directory FROM attempts WHERE root = ? AND spawn_id = ? ORDER BY rowid",
+										)
+										.all(root, record.id),
+								)
+								.map(({ id, directory }) => ({
+									id,
+									receiptPath: join(directory, "receipt.json"),
+									stdoutPath: join(directory, "stdout.log"),
+								})),
+						},
+					});
+				}
+			})();
+			events.notify();
+		},
 		assertRepository,
 		attempts: async (root: string): Promise<AttemptStatus[]> => {
 			const entries = await inventory(root);
@@ -180,7 +214,11 @@ export function openStore(state: string) {
 		clearPolicy: (root: string) => {
 			database.query("DELETE FROM active_policies WHERE root = ?").run(root);
 		},
-		close: () => database.close(),
+		close: () => {
+			events.close();
+			database.close();
+		},
+		events,
 		history: openHistory(database, state),
 		inventory,
 		latestDroneReview: (root: string, targetAttemptId: string): DroneReview | undefined => {
