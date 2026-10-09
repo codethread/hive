@@ -17,6 +17,8 @@ import { readTokenEvidence, tokenEvidenceSchema } from "./postrun-evidence.ts";
 import type { LaunchReceipt } from "./launch.ts";
 import type { RequestRecord } from "./request.ts";
 import type { Store } from "./store.ts";
+// eslint-disable-next-line import/no-nodejs-modules -- Supply the host home at the native invocation boundary.
+import { homedir } from "node:os";
 import { readAssessmentAuthority } from "./store.ts";
 import { z } from "zod";
 
@@ -345,7 +347,7 @@ async function launchAssessment(
 		formula,
 		id: queued.id,
 		identity: `assessment-${queued.id}`,
-		invocation: renderFormula(formula, recipe, "headless"),
+		invocation: renderFormula(formula, recipe, "headless", homedir()),
 		policyRevisionId: null,
 		recipe,
 		spawnId: queued.id,

@@ -148,16 +148,23 @@ export function validateFormula(formula: Formula): void {
 	};
 	for (const prompt of ["", "validation"]) {
 		for (const system_prompt of ["", "validation"]) {
-			renderFormula(formula, { ...recipe, prompt, system_prompt }, "headless");
-			renderFormula(formula, { ...recipe, cwd: ".", prompt, system_prompt }, "headless");
+			renderFormula(formula, { ...recipe, prompt, system_prompt }, "headless", "/validation-home");
+			renderFormula(
+				formula,
+				{ ...recipe, cwd: ".", prompt, system_prompt },
+				"headless",
+				"/validation-home",
+			);
 		}
 	}
 }
 /** Render tokens individually, omitting empty arguments; json quotes native config values. */
+// eslint-disable-next-line max-params -- Formula, recipe, invocation mode and host home are independent rendering inputs.
 export function renderFormula(
 	formula: Formula,
 	recipe: Recipe,
 	mode: "interactive" | "headless",
+	home: string,
 ): Invocation {
 	const render = (token: string) =>
 		Handlebars.compile(token, { noEscape: true, strict: true })(recipe, {
@@ -167,9 +174,13 @@ export function renderFormula(
 	if (mode === "headless") {
 		argv = [...formula.headless, ...argv];
 	}
+	let executable = render(formula.executable);
+	if (executable.startsWith("~/")) {
+		executable = `${home}${executable.slice("~".length)}`;
+	}
 	return invocationSchema.parse({
 		argv: argv.map((token) => render(token)).filter((argument) => argument !== ""),
-		executable: render(formula.executable),
+		executable,
 	});
 }
 

@@ -2,6 +2,8 @@ import { agentEnvironment, createIdentity } from "./identity.ts";
 import { canonicalRoot, recipeSchema, renderFormula } from "@hive/shared";
 import type { Invocation } from "@hive/shared";
 import type { LoadedBeesConfig } from "./config.ts";
+// eslint-disable-next-line import/no-nodejs-modules -- Supply the host home at the native invocation boundary.
+import { homedir } from "node:os";
 import { loadBeesConfig } from "./config.ts";
 
 export interface RunOptions {
@@ -19,6 +21,8 @@ export interface RunOptions {
 export interface RunRuntime {
 	/** Working directory inherited from the invoking shell. */
 	cwd: string;
+	/** Home directory for native executable resolution. */
+	home: string;
 	/** Shell environment, with no tracker requirement. */
 	env: NodeJS.ProcessEnv;
 	/** Both stdin and stdout must refer to a terminal. */
@@ -59,7 +63,7 @@ export async function runKind(
 	if (!formula) {
 		throw new Error(`No formula named ${recipe.harness}`);
 	}
-	const invocation = renderFormula(formula, recipe, "interactive");
+	const invocation = renderFormula(formula, recipe, "interactive", runtime.home);
 	for (const warning of warnings) {
 		runtime.warn(warning);
 	}
@@ -81,6 +85,7 @@ export async function runKind(
 function liveRuntime(): RunRuntime {
 	return {
 		cwd: process.cwd(),
+		home: homedir(),
 		env: process.env,
 		terminal: Boolean(process.stdin.isTTY && process.stdout.isTTY),
 		loadConfig: async (cwd) => loadBeesConfig(await canonicalRoot(cwd)),

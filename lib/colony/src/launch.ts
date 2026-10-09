@@ -14,6 +14,8 @@ import { join, resolve as resolvePath } from "node:path";
 // eslint-disable-next-line import/no-nodejs-modules -- Own process log files and canonicalize launch cwd.
 import { link, mkdir, open, realpath, rename, unlink } from "node:fs/promises";
 import { agentEnvironment } from "./identity.ts";
+// eslint-disable-next-line import/no-nodejs-modules -- Supply the host home at the native invocation boundary.
+import { homedir } from "node:os";
 import { loadBeesConfig } from "./config.ts";
 import { match } from "ts-pattern";
 import { runOwnedExecution } from "./processes.ts";
@@ -170,7 +172,7 @@ Related tasks: ${taskIds.join(", ")}`,
 	]
 		.filter(Boolean)
 		.join("\n\n");
-	const invocation = renderFormula(formula, { ...recipe, prompt }, "headless");
+	const invocation = renderFormula(formula, { ...recipe, prompt }, "headless", homedir());
 	let executionDirectory = request.root;
 	if (recipe.cwd !== null) {
 		executionDirectory = resolvePath(request.root, recipe.cwd);

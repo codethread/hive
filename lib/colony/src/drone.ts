@@ -15,6 +15,8 @@ import { publishObservation, readStdoutActivity } from "./observations.ts";
 import type { LaunchReceipt } from "./launch.ts";
 import type { RequestRecord } from "./request.ts";
 import type { Store } from "./store.ts";
+// eslint-disable-next-line import/no-nodejs-modules -- Supply the host home at the native invocation boundary.
+import { homedir } from "node:os";
 import { readDroneAuthority } from "./store.ts";
 import { renderFormula } from "@hive/shared";
 import { z } from "zod";
@@ -512,7 +514,7 @@ function droneReceipt(
 		formula,
 		id: review.id,
 		identity: `drone-${review.id}`,
-		invocation: renderFormula(formula, recipe, "headless"),
+		invocation: renderFormula(formula, recipe, "headless", homedir()),
 		// The target's earlier dispatch revision does not describe this current auxiliary invocation.
 		policyRevisionId: null,
 		recipe,

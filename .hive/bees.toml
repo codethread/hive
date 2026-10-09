@@ -70,19 +70,8 @@ argv = [
 
 [formulas.pi]
 # Bypass the PATH pi shim: print-mode requests there run through Pies, not native Pi.
-executable = "/Users/ct/.pi/agent/bin/pi"
-headless = [
-	"--print",
-	"--mode",
-	"json",
-	"--no-extensions",
-	"--no-prompt-templates",
-	"--no-session",
-	"--offline",
-	"--approve",
-	"--tools",
-	"read,bash",
-]
+executable = "~/.pi/agent/bin/pi"
+headless = ["--print", "--mode", "json", "--approve"]
 argv = [
 	"--model",
 	"{{model}}",

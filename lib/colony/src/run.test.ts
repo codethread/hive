@@ -12,7 +12,7 @@ executable="interactive"
 argv=["{{model}}", "{{effort}}", "{{system_prompt}}", "{{prompt}}", "{{cwd}}"]
 [formulas.alternate]
 headless=["exec"]
-executable="other-interactive"
+executable="~/other-interactive"
 argv=["{{model}}", "{{effort}}", "{{system_prompt}}", "{{prompt}}"]
 [kinds.librarian]
 description="Discuss architecture."
@@ -79,7 +79,7 @@ test("interactive overrides independently replace kind defaults and need no trac
 	);
 	expect(launches.at(FIRST)).toMatchObject({
 		invocation: {
-			executable: "other-interactive",
+			executable: "/users/test home/other-interactive",
 			argv: ["other-model", "high", "Different role", "Discuss this design"],
 		},
 		env: { BR_HARNESS: "alternate", BR_MODEL: "other-model" },
@@ -114,6 +114,7 @@ function fixture() {
 	const launches: { invocation: Invocation; env: NodeJS.ProcessEnv }[] = [];
 	const runtime: RunRuntime = {
 		cwd: CURRENT_DIRECTORY,
+		home: "/users/test home",
 		env: inherited,
 		terminal: true,
 		loadConfig: () => Promise.resolve({ config, warnings: [] }),
