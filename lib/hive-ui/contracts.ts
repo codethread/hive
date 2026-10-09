@@ -12,15 +12,24 @@ export const boardScopeSchema = z.object({
 });
 export const beadStatusSchema = z.enum(["open", "in_progress", "blocked", "deferred", "closed"]);
 export const filterLayoutSchema = z.enum(["header", "drawer", "hybrid", "sidebar"]);
-export const boardFilterSchema = boardScopeSchema.extend({
+/** A view is a reusable predicate over ordinary task beads, independent of navigation. */
+export const beadFilterSchema = z.object({
+	/** Every exact label must occur on the same task; native --label arguments. */
 	all: z.array(z.string().min(1)).default([]),
+	/** At least one exact label must occur on a task; native --label-any arguments. */
 	any: z.array(z.string().min(1)).default([]),
+	/** Include closed tasks; an explicit Closed status also enables native --all. */
 	closed: z.boolean().default(false),
+	/** Hide tasks carrying any of these exact labels; native --exclude-label arguments. */
 	exclude: z.array(z.string().min(1)).default([]),
-	page: z.number().int().nonnegative().default(0),
+	/** Text passed unchanged to native br search; empty selects br list. */
 	query: z.string().default(""),
 	/** Any selected native statuses, intersected with the text and label filters. */
 	statuses: z.array(beadStatusSchema).default([]),
+});
+export const inventoryFilterSchema = boardScopeSchema.extend(beadFilterSchema.shape);
+export const boardFilterSchema = inventoryFilterSchema.extend({
+	page: z.number().int().nonnegative().default(0),
 	/** Selected request narrows linked work; absent for ordinary beads. */
 	request: z.string().optional(),
 });
@@ -73,6 +82,8 @@ export const requestInventorySchema = z.discriminatedUnion("kind", [
 	z.object({
 		/** Requests in the selected, bounded inventory page. */
 		bees: z.array(beeSchema),
+		/** Candidate requests on this history page before task filtering. */
+		total: z.number().int().nonnegative(),
 		/** Lookahead found another completed request page. */
 		hasMore: z.boolean(),
 		/** Native request inventory was read for this view. */
@@ -134,6 +145,8 @@ export const provenanceSchema = z.object({
 export const apiErrorSchema = z.object({ message: z.string() });
 
 export type BoardScope = z.infer<typeof boardScopeSchema>;
+export type BeadFilter = z.infer<typeof beadFilterSchema>;
+export type InventoryFilter = z.infer<typeof inventoryFilterSchema>;
 export type RequestInventory = z.infer<typeof requestInventorySchema>;
 export type Colony = z.infer<typeof colonySchema>;
 export type BoardFilter = z.infer<typeof boardFilterSchema>;
@@ -145,8 +158,15 @@ export type Detail = z.infer<typeof detailSchema>;
 export type Relation = z.infer<typeof relationSchema>;
 export type Provenance = z.infer<typeof provenanceSchema>;
 
+interface TaskQueryPage {
+	/** Maximum matching rows returned by this native query. */
+	limit: number;
+	/** Matching rows skipped before this page. */
+	offset: number;
+}
+
 /** Exact native label semantics, including literal commas and case. */
-export function taskQuery(filter: BoardFilter, taskIds: string[]): string[] {
+export function taskQuery(filter: BeadFilter, taskIds: string[], page: TaskQueryPage): string[] {
 	let args = ["list"];
 	if (filter.query) {
 		args = ["search", filter.query];
@@ -168,9 +188,9 @@ export function taskQuery(filter: BoardFilter, taskIds: string[]): string[] {
 		"--sort",
 		"priority",
 		"--limit",
-		String(PAGE_SIZE + 1),
+		String(page.limit),
 		"--offset",
-		String(filter.page * PAGE_SIZE),
+		String(page.offset),
 	);
 	return args;
 }
@@ -183,6 +203,6 @@ export function detailKey(colony: string, id: string, scope: BoardScope): string
 	return JSON.stringify([colony, scope.view, scope.requestPage, id]);
 }
 
-export function inventoryKey(colony: string, scope: BoardScope): string {
-	return JSON.stringify([colony, scope.view, scope.requestPage]);
+export function inventoryKey(colony: string, filter: InventoryFilter): string {
+	return JSON.stringify([colony, inventoryFilterSchema.parse(filter)]);
 }

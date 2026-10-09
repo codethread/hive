@@ -1,3 +1,4 @@
+import { BeeHistory, BoardTabs } from "./board-navigation.tsx";
 import type { Board, Card, Navigation } from "../contracts.ts";
 import { EMPTY, boards, colonies, inventories, loadView, preferences, snapshot } from "./data.ts";
 import { FilterableLabel, STATUS_NAMES } from "./filter-controls.tsx";
@@ -56,6 +57,7 @@ export function Shell() {
 					</select>
 					<h1 className="text-sm font-medium">Work board</h1>
 				</div>
+				{colonyId !== undefined && <BoardTabs />}
 				<div className="flex items-center gap-4">
 					<span className="text-xs text-muted">Read-only</span>
 					<fieldset className="flex rounded-md border border-line p-0.5" aria-label="Theme">
@@ -114,12 +116,20 @@ export function WorkPage() {
 		<main>
 			<FilterWorkspace board={board}>
 				<div className="flex flex-wrap items-center justify-between gap-2 border-b border-line px-5 py-2 text-xs text-muted">
-					<span>
-						{summary}
-						{inventory?.kind === "loaded" && ` · ${inventory.bees.length} ${search.view} requests`}
-					</span>
+					<div className="flex flex-wrap items-center gap-3">
+						{search.view !== "beads" && <BeeHistory />}
+						<span>
+							{summary}
+							{inventory?.kind === "loaded" &&
+								` · ${inventory.bees.length} matching ${search.view} requests`}
+						</span>
+					</div>
 					<div className="flex items-center gap-3">
-						{readAt !== null && <span>Read {time(readAt)} · manual refresh</span>}
+						{readAt !== null && (
+							<span>
+								{search.view === "beads" ? "Read" : "Requests read"} {time(readAt)} · manual refresh
+							</span>
+						)}
 						<button
 							className="button"
 							type="button"
@@ -168,7 +178,7 @@ export function WorkPage() {
 							<pre className="whitespace-pre-wrap">
 								{board && board.query.length > 0
 									? board.query.map(shellQuote).join(" ")
-									: "No linked tasks; no task query executed."}
+									: "No task board query for this selection."}
 							</pre>
 						</div>
 					</details>

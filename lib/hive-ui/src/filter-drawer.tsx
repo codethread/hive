@@ -1,7 +1,12 @@
-import { ActiveFilters, LabelFilters, SearchFilters, StatusFilters } from "./filter-controls.tsx";
+import {
+	ActiveFilters,
+	LabelFilters,
+	SearchFilters,
+	StatusFilters,
+	editFilters,
+} from "./filter-controls.tsx";
 import type { Board, Navigation } from "../contracts.ts";
 import type { ReactNode, SubmitEvent } from "react";
-import { boardScopeSchema, filterLayoutSchema } from "../contracts.ts";
 import {
 	deleteView,
 	filterSet,
@@ -13,6 +18,7 @@ import {
 import { useId, useRef } from "react";
 import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
 import type { SavedView } from "./saved-views.ts";
+import { filterLayoutSchema } from "../contracts.ts";
 import { useStore } from "zustand";
 import { z } from "zod";
 
@@ -56,7 +62,9 @@ export function FilterWorkspace({ board, children }: { board: Board | null; chil
 	const layout = LAYOUTS[search.layout];
 	const apply = (view: SavedView) => {
 		selectSavedView(colonyId, view.id);
-		void navigate({ search: { ...view.filters, layout: search.layout, page: 0, requestPage: 0 } });
+		void navigate({
+			search: (current) => editFilters(current, view.filters),
+		});
 	};
 	const savedForm = (
 		<SavedViewForm colonyId={colonyId} search={search} selected={selected} modified={modified} />
@@ -110,12 +118,11 @@ export function FilterWorkspace({ board, children }: { board: Board | null; chil
 								<h2>{layout.title}</h2>
 								<p>{layout.description}</p>
 							</div>
-							<ViewSelector />
 						</div>
 						<div className="view-toolbar">
 							{search.layout !== "sidebar" && (
 								<label className="flex min-w-0 items-center gap-2 text-xs text-muted">
-									Saved view
+									View
 									<select
 										className="control min-w-0 max-w-56"
 										value={modified ? "" : (selected?.id ?? "")}
@@ -173,7 +180,8 @@ export function FilterWorkspace({ board, children }: { board: Board | null; chil
 						<ActiveFilters />
 						{search.view !== "beads" && (
 							<p className="pb-3 text-xs text-muted">
-								Bead filters apply to the selected request’s linked work. Requests stay visible.
+								A bee matches when any linked task meets all bead filters. Loaded ancestry is shown
+								separately as context.
 							</p>
 						)}
 					</section>
@@ -216,34 +224,7 @@ export function FilterWorkspace({ board, children }: { board: Board | null; chil
 	);
 }
 
-// --- View navigation and explicit browser-local persistence ---
-function ViewSelector() {
-	const search = useSearch({ from: "/colonies/$colonyId" });
-	const navigate = useNavigate({ from: "/colonies/$colonyId" });
-	return (
-		<label className="flex shrink-0 items-center gap-2 text-xs text-muted">
-			View
-			<select
-				className="control"
-				value={search.view}
-				onChange={(event) => {
-					const view = boardScopeSchema.shape.view.parse(event.target.value);
-					void navigate({
-						search: (current) => {
-							const { ancestry: _ancestry, bead: _bead, request: _request, ...rest } = current;
-							return { ...rest, closed: view === "completed", page: 0, requestPage: 0, view };
-						},
-					});
-				}}
-			>
-				<option value="beads">Beads</option>
-				<option value="open">Open bees</option>
-				<option value="completed">Completed bees</option>
-			</select>
-		</label>
-	);
-}
-
+// --- Explicit browser-local filter persistence ---
 function SavedViewList({
 	views,
 	selected,
@@ -307,8 +288,8 @@ function SavedViewForm({
 		<section aria-label="Manage saved views" className="space-y-3 border-t border-line pt-5">
 			<h3 className="text-sm font-medium">Save this view</h3>
 			<p className="text-xs leading-relaxed text-muted">
-				Keep a named set of filters for this colony in this browser. Includes the Beads or Bees
-				view; opens at the first page.
+				Keep named bead filters for this colony in this browser. Use the same view in Beads or Bees;
+				applying it starts at the first page.
 			</p>
 			{selected && (
 				<p className="text-xs text-muted">

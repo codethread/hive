@@ -69,7 +69,7 @@ export function BeeWorkspace({
 				</fieldset>
 				<span className="text-xs text-muted">
 					{scene.matches.length} matching requests · {scene.contextIds.size} context ·{" "}
-					{inventory.bees.length} in this page
+					{inventory.total} requests on this page
 				</span>
 				<label className="flex min-w-0 items-center gap-2 text-sm text-muted">
 					Inspect request

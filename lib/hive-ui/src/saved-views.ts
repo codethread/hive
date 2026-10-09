@@ -1,21 +1,13 @@
 import type { Navigation } from "../contracts.ts";
+import { beadFilterSchema } from "../contracts.ts";
 import { createStore } from "zustand/vanilla";
-import { navigationSchema } from "../contracts.ts";
 import { z } from "zod";
 
 const STORAGE_KEY = "hive-ui.saved-views";
 const MAX_NAME_LENGTH = 80;
-const filtersSchema = navigationSchema.omit({
-	ancestry: true,
-	bead: true,
-	layout: true,
-	page: true,
-	request: true,
-	requestPage: true,
-});
 const savedViewSchema = z.object({
 	/** Filter values only; pagination and bead selection are never saved. */
-	filters: filtersSchema,
+	filters: beadFilterSchema,
 	/** Stable browser-generated identity for renaming and replacement. */
 	id: z.uuid(),
 	/** Human name, unique within its colony. */
@@ -23,7 +15,7 @@ const savedViewSchema = z.object({
 });
 const collectionSchema = z.record(z.string(), z.array(savedViewSchema));
 export type SavedView = z.infer<typeof savedViewSchema>;
-type FilterSet = z.infer<typeof filtersSchema>;
+type FilterSet = z.infer<typeof beadFilterSchema>;
 type Notice = { kind: "none" } | { kind: "error" | "saved"; message: string };
 interface SaveViewInput {
 	/** Current URL-owned filters, excluding page and selection. */
@@ -45,8 +37,7 @@ interface SavedViewsState {
 export const savedViews = createStore<SavedViewsState>(() => ({ active: {}, ...readViews() }));
 
 export function filterSet(navigation: Navigation): FilterSet {
-	const { all, any, beeQuery, closed, exclude, presentation, query, statuses, view } = navigation;
-	return { all, any, beeQuery, closed, exclude, presentation, query, statuses, view };
+	return beadFilterSchema.parse(navigation);
 }
 
 export function sameFilters(left: FilterSet, right: FilterSet): boolean {
@@ -129,9 +120,6 @@ function readCollection(): Record<string, SavedView[]> {
 
 function filterKey(filters: FilterSet): string {
 	return JSON.stringify([
-		filters.view,
-		filters.beeQuery,
-		filters.presentation,
 		filters.query,
 		filters.closed,
 		filters.statuses.toSorted(),

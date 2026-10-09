@@ -1,5 +1,6 @@
 /* eslint-disable unicorn/no-null -- API contracts represent absent recorded facts explicitly. */
 import type {
+	BeadFilter,
 	Bee,
 	Board,
 	BoardFilter,
@@ -7,6 +8,7 @@ import type {
 	Card,
 	Colony,
 	Detail,
+	InventoryFilter,
 	Provenance,
 	RequestInventory,
 } from "../contracts.ts";
@@ -22,6 +24,7 @@ import { PAGE_SIZE, RELATION_LIMIT, REQUEST_PAGE_SIZE, taskQuery } from "../cont
 import { z } from "zod";
 
 const MAX_REQUESTS = 100;
+const TASK_MATCH_BATCH = 100;
 const MAX_ANCESTORS = 8;
 const INVENTORY_TTL_MS = 10_000;
 const nativeRelationSchema = z.object({
@@ -119,7 +122,14 @@ export function createBoardData() {
 				fetchedAt: new Date().toISOString(),
 			};
 		},
-		inventory,
+		inventory: async (
+			context: ReadContext,
+			filter: InventoryFilter,
+			fresh: boolean,
+		): Promise<RequestInventory> => {
+			const current = await inventory(context, filter, fresh);
+			return filterInventory(context, filter, current);
+		},
 		provenance: readProvenance,
 	};
 }
@@ -158,7 +168,10 @@ async function readTasks(
 			return { query: [], tasks: [] };
 		}
 	}
-	const args = taskQuery(filter, taskIds);
+	const args = taskQuery(filter, taskIds, {
+		limit: PAGE_SIZE + 1,
+		offset: filter.page * PAGE_SIZE,
+	});
 	const tasks = nativeListSchema.parse(await read(context, args)).issues;
 	const query = [
 		"br",
@@ -172,6 +185,36 @@ async function readTasks(
 		"--json",
 	];
 	return { query, tasks };
+}
+
+/** Match native task predicates across the whole candidate membership, not the visible task page. */
+// eslint-disable-next-line max-statements -- Keep activation, bounded native matching and existential projection together.
+async function filterInventory(
+	context: ReadContext,
+	filter: BeadFilter,
+	inventory: RequestInventory,
+): Promise<RequestInventory> {
+	const hasPredicate =
+		filter.query.length > 0 ||
+		[filter.statuses, filter.all, filter.any, filter.exclude].some((values) => values.length > 0);
+	if (inventory.kind === "not_requested" || !hasPredicate) {
+		return inventory;
+	}
+	const taskIds = [...new Set(inventory.bees.flatMap((request) => request.taskIds))];
+	const matching = new Set<string>();
+	for (let offset = 0; offset < taskIds.length; offset += TASK_MATCH_BATCH) {
+		const batch = taskIds.slice(offset, offset + TASK_MATCH_BATCH);
+		const args = taskQuery(filter, batch, { limit: batch.length, offset: 0 });
+		// eslint-disable-next-line no-await-in-loop -- Bound native process concurrency and argv size while covering every linked task.
+		const { issues } = nativeListSchema.parse(await read(context, args));
+		for (const task of issues) {
+			matching.add(task.id);
+		}
+	}
+	return {
+		...inventory,
+		bees: inventory.bees.filter((request) => request.taskIds.some((id) => matching.has(id))),
+	};
 }
 
 // eslint-disable-next-line max-statements -- Native execution telemetry covers success, size and failure in one boundary.
@@ -249,6 +292,7 @@ async function readInventory(context: ReadContext, scope: BoardScope): Promise<I
 	}
 	return {
 		bees: requests.map((request) => bee(request)),
+		total: requests.length,
 		hasMore: listing.issues.length > limit,
 		kind: "loaded",
 		readAt: new Date().toISOString(),

@@ -1,5 +1,5 @@
 /* eslint-disable unicorn/no-null -- Resource states retain an explicit last-known snapshot. */
-import type { BoardFilter, BoardScope, Navigation } from "../contracts.ts";
+import type { BoardFilter, BoardScope, InventoryFilter, Navigation } from "../contracts.ts";
 import {
 	apiErrorSchema,
 	boardFilterSchema,
@@ -9,6 +9,7 @@ import {
 	coloniesSchema,
 	detailKey,
 	detailSchema,
+	inventoryFilterSchema,
 	inventoryKey,
 	provenanceSchema,
 	requestInventorySchema,
@@ -51,10 +52,14 @@ export function loadBoard(colony: string, filter: BoardFilter, fresh = false): P
 	});
 	return boards.load(boardKey(colony, filter), `/api/colonies/${colony}/board?${search}`, fresh);
 }
-export function loadInventory(colony: string, scope: BoardScope, fresh = false): Promise<void> {
-	const search = new URLSearchParams({ scope: JSON.stringify(scope), fresh: String(fresh) });
+export function loadInventory(
+	colony: string,
+	filter: InventoryFilter,
+	fresh = false,
+): Promise<void> {
+	const search = new URLSearchParams({ filter: JSON.stringify(filter), fresh: String(fresh) });
 	return inventories.load(
-		inventoryKey(colony, scope),
+		inventoryKey(colony, filter),
 		`/api/colonies/${colony}/inventory?${search}`,
 		fresh,
 	);
@@ -86,7 +91,7 @@ export async function loadView(
 ): Promise<void> {
 	const scope = boardScopeSchema.parse(navigation);
 	if (scope.view !== "beads") {
-		await loadInventory(colony, scope, fresh);
+		await loadInventory(colony, inventoryFilterSchema.parse(navigation), fresh);
 	}
 	await Promise.all([
 		...(scope.view === "beads" || navigation.request !== undefined

@@ -71,6 +71,15 @@ input[type="checkbox"] {
 }
 
 @layer components {
+	.board-tabs {
+		@apply flex gap-1 rounded-lg border border-line bg-canvas p-1;
+	}
+	.board-tab {
+		@apply rounded-md px-6 py-2 text-sm font-medium text-muted hover:bg-raised hover:text-ink;
+	}
+	.board-tab[aria-current="page"] {
+		@apply bg-tint text-accent;
+	}
 	.control {
 		@apply rounded-md border border-line bg-canvas px-2.5 py-2 text-xs text-ink;
 	}

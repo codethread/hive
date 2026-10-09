@@ -35,10 +35,10 @@ const GROUP_HINTS = {
 };
 type LabelGroup = (typeof LABEL_GROUPS)[number];
 
-/** Apply one user edit and return to the first task page without a stale inspector. */
+/** Bead filters change request membership too; start both pages without stale selections. */
 export function editFilters(current: Navigation, patch: Partial<Navigation>): Navigation {
-	const { bead: _bead, ...rest } = current;
-	return { ...rest, ...patch, page: 0 };
+	const { ancestry: _ancestry, bead: _bead, request: _request, ...rest } = current;
+	return { ...rest, ...patch, page: 0, requestPage: 0 };
 }
 
 export function SearchFilters() {
@@ -180,7 +180,7 @@ export function ActiveFilters() {
 	return (
 		<div className="active-filters" aria-label="Active filters">
 			<span className="text-[11px] font-medium text-muted">
-				{chips.length === 0 ? "No filters · all open work" : "Showing"}
+				{chips.length === 0 ? "No bead filters" : "Showing"}
 			</span>
 			{chips.map((chip) => (
 				<button

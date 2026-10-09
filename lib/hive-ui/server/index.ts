@@ -2,7 +2,7 @@
 import { Command, CommanderError } from "commander";
 // eslint-disable-next-line import/no-nodejs-modules -- Resolve explicitly configured local repository endpoints.
 import { basename, resolve } from "node:path";
-import { boardFilterSchema, boardScopeSchema } from "../contracts.ts";
+import { boardFilterSchema, boardScopeSchema, inventoryFilterSchema } from "../contracts.ts";
 import type { Colony } from "../contracts.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Explicit machine-mode diagnostics file boundary.
 import { appendFile } from "node:fs/promises";
@@ -207,10 +207,12 @@ async function api(
 		}
 		if (route["operation"] === "inventory") {
 			status = HTTP.badRequest;
-			const scope = boardScopeSchema.parse(JSON.parse(url.searchParams.get("scope") ?? "{}"));
+			const filter = inventoryFilterSchema.parse(
+				JSON.parse(url.searchParams.get("filter") ?? "{}"),
+			);
 			status = HTTP.ok;
 			return respond(
-				await data.inventory(context, scope, url.searchParams.get("fresh") === "true"),
+				await data.inventory(context, filter, url.searchParams.get("fresh") === "true"),
 			);
 		}
 		status = HTTP.badRequest;
