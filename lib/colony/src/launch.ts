@@ -157,7 +157,16 @@ export async function prepareLaunch(
 	}
 	const prompt = [
 		recipe.prompt,
-		`Read the full instructions and acceptance criteria on the related task beads. They define the assignment and completion requirements.\n\nRelated tasks: ${taskIds.join(", ")}`,
+		`Read the full instructions and acceptance criteria on the related task beads. They define the assignment and completion requirements.
+
+Before ending this Colony execution:
+1. Comment on each assigned task with your deliverable and verification evidence.
+2. Close only assigned tasks whose acceptance criteria are satisfied.
+3. When every assigned task is complete, call bee finish success.
+
+If blocked, complete all possible work, record the blocker and required next action on unfinished tasks, leave them unclosed, then call bee finish blocked --reason "<unfinished task, blocker and required next action>".
+
+Related tasks: ${taskIds.join(", ")}`,
 	]
 		.filter(Boolean)
 		.join("\n\n");

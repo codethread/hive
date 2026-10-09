@@ -36,7 +36,7 @@ The normal next-pick path is one `bv` query and one `br show`; an empty or unsaf
 
 ## Escalation ladder
 
-1. **Answered — return.** A matching result, an explicit empty result, a known blocker, or a documented reservation answers the corresponding question. Report it without opening unrelated beads, running broader triage, or loading reference docs to explain it further.
+1. **Answered — deliver.** A matching result, an explicit empty result, a known blocker, or a documented reservation answers the corresponding question. Stop investigating and report it. For Colony work, complete the launch message's delivery steps before ending; in a direct conversation, return the answer to the user.
 2. **Missing evidence — one focused follow-up.** State the missing fact, then use the narrow query or reference that can resolve it. Examples: `br ready` to check disputed readiness, a relevant `br show`, or focused help for an unknown flag. If that resolves the question, return.
 3. **Unresolved — hand off.** Conflicting evidence, incomplete source authority, permission/policy decisions, or a failed query after the focused follow-up need the caller. Return what is known, what remains unknown, and the exact decision or diagnostic action needed. Do deeper CLI/source investigation only when the caller explicitly requests it.
 

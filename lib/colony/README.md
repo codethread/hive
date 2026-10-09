@@ -121,7 +121,7 @@ The three instruction sources have distinct responsibilities:
 | Kind `prompt`        | Optional direction for an execution, usually empty                     |
 | Linked task beads    | Authoritative assignment, context, deliverable and acceptance criteria |
 
-Colony adds the linked task IDs and an instruction to read their full instructions and acceptance criteria when it launches the bee. This happens even when either prompt field is empty or overridden, without changing the captured recipe. The executing bee follows its supplied instructions and reads the linked tasks; it need not inspect raw spawn JSON to find its assignment.
+Colony adds the linked task IDs, an instruction to read their full instructions and acceptance criteria, and the common delivery steps when it launches the bee: comment on assigned tasks with the deliverable and verification evidence, close completed tasks, then call `bee finish success`. A blocked bee records the blocker and next action on unfinished tasks, leaves them unclosed, and calls `bee finish blocked --reason "…"`. These instructions are added even when either prompt field is empty or overridden, without changing the captured recipe. The executing bee need not inspect raw spawn JSON to find its assignment.
 
 `--system-prompt` and `--prompt` are deliberate escape hatches for a request needing different role/protocol or execution direction. Each replaces only its matching kind default, rather than appending; an explicit empty string clears that field. Both fields are captured separately on the same spawn bead. Keep ordinary task instructions on the task bead. Use `--model`, `--effort`, `--harness` or `--cwd` when that request needs different execution attributes.
 

@@ -254,6 +254,11 @@ test(
 			expect(launched.argv.at(LAST)).toContain(
 				"Read the full instructions and acceptance criteria",
 			);
+			expect(launched.argv.at(LAST)).toMatch(
+				/Comment on each assigned task[\s\S]*Close only assigned tasks[\s\S]*bee finish success/u,
+			);
+			expect(launched.argv.at(LAST)).toContain("bee finish blocked --reason");
+			expect(launched.argv.at(LAST)).not.toContain("beads:sync");
 			expect(
 				launched.argv.at(LAST).split("Related tasks: ").at(LAST).split(", ").toSorted(),
 			).toEqual([first.id, second.id].toSorted());
