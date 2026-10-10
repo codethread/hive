@@ -117,7 +117,7 @@ async function fixture(tmp: string, history: History = "present") {
 }
 
 test(
-	"fresh bootstrap imports shared history; reruns preserve local work without publishing",
+	"fresh bootstrap imports shared history; reruns preserve local work without publishing #test-1",
 	// eslint-disable-next-line max-statements -- Verify the native fresh-to-repeat lifecycle in one disposable clone.
 	async () => {
 		const tmp = await temporaryRoot();
@@ -164,7 +164,7 @@ test(
 );
 
 test(
-	"mise default installs dependencies and binaries, builds and bootstraps on repeated runs",
+	"mise default installs dependencies and binaries, builds and bootstraps on repeated runs #test-2",
 	// eslint-disable-next-line max-statements -- Exercise the checked-in task twice against one real disposable clone.
 	async () => {
 		const tmp = await temporaryRoot();
@@ -214,7 +214,7 @@ test(
 );
 
 test.each(["missing-snapshot", "missing-branch"] as const)(
-	"bootstrap refuses %s without initializing a private tracker",
+	"bootstrap refuses %s without initializing a private tracker #test-3",
 	async (history) => {
 		const tmp = await temporaryRoot();
 		try {
@@ -232,7 +232,7 @@ test.each(["missing-snapshot", "missing-branch"] as const)(
 );
 
 test(
-	"prepare hints at explicit bootstrap without creating a database",
+	"prepare hints at explicit bootstrap without creating a database #test-4",
 	async () => {
 		const tmp = await temporaryRoot();
 		try {
@@ -258,7 +258,7 @@ test(
 );
 
 test(
-	"bootstrap refuses a different selected endpoint before creating the tracker",
+	"bootstrap refuses a different selected endpoint before creating the tracker #test-5",
 	async () => {
 		const tmp = await temporaryRoot();
 		try {
@@ -278,7 +278,7 @@ test(
 );
 
 test(
-	"bootstrap does not let setup auto-import an unreconciled incoming snapshot",
+	"bootstrap does not let setup auto-import an unreconciled incoming snapshot #test-6",
 	// eslint-disable-next-line max-statements -- Exercise a changed snapshot against the existing native database.
 	async () => {
 		const tmp = await temporaryRoot();

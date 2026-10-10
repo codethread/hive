@@ -91,9 +91,15 @@ test("uses registry cutoffs rather than hardcoded timing values", () => {
 });
 
 test.each([
-	{ thresholdMs: { ...thresholdMs, XSLOW: "0.5" }, tests: {} },
-	{ thresholdMs, tests: { "#test-1": { threshold: "SLOW", justification: " " } } },
-])("rejects invalid allowance configuration: %j", (input) => {
+	{
+		name: "decreasing thresholds",
+		input: { thresholdMs: { ...thresholdMs, XSLOW: "0.5" }, tests: {} },
+	},
+	{
+		name: "empty justification",
+		input: { thresholdMs, tests: { "#test-1": { threshold: "SLOW", justification: " " } } },
+	},
+])("rejects invalid allowance configuration: $name", ({ input }) => {
 	expect(() => parseSlowTestAllowances(input)).toThrow(Error);
 });
 

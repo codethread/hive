@@ -4,5 +4,34 @@
 		"XSLOW": "5",
 		"DANGER": "1000"
 	},
-	"tests": {}
+	"tests": {
+		"#test-1": {
+			"threshold": "DANGER",
+			"justification": "User approved retaining this real Beads contract check and its timing allowance on 2026-10-10: fresh bootstrap imports shared history; reruns preserve local work without publishing."
+		},
+		"#test-2": {
+			"threshold": "DANGER",
+			"justification": "User approved retaining this real Beads contract check and its timing allowance on 2026-10-10: mise default installs dependencies and binaries, builds and bootstraps on repeated runs."
+		},
+		"#test-3": {
+			"threshold": "DANGER",
+			"justification": "User approved retaining this real Beads contract check and its timing allowance on 2026-10-10: bootstrap refuses %s without initializing a private tracker."
+		},
+		"#test-4": {
+			"threshold": "DANGER",
+			"justification": "User approved retaining this real Beads contract check and its timing allowance on 2026-10-10: prepare hints at explicit bootstrap without creating a database."
+		},
+		"#test-5": {
+			"threshold": "DANGER",
+			"justification": "User approved retaining this real Beads contract check and its timing allowance on 2026-10-10: bootstrap refuses a different selected endpoint before creating the tracker."
+		},
+		"#test-6": {
+			"threshold": "DANGER",
+			"justification": "User approved retaining this real Beads contract check and its timing allowance on 2026-10-10: bootstrap does not let setup auto-import an unreconciled incoming snapshot."
+		},
+		"#test-7": {
+			"threshold": "DANGER",
+			"justification": "User approved retaining this real Beads contract check and its timing allowance on 2026-10-10: setup installs a native AND attention preset that includes closed failures and preserves other presets."
+		}
+	}
 }

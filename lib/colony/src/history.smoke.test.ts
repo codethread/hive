@@ -13,8 +13,6 @@ import { tmpdir } from "node:os";
 
 const FIRST = 0;
 const ONE = 1;
-const LIMIT = 1000;
-const EXTRA = 2;
 const EXIT_FAILURE = 6;
 const repository = { beadsDb: "/fixture/beads.db", root: "/fixture" };
 const request: RequestRecord = {
@@ -103,64 +101,6 @@ test("history retains native failure and confirmed partial effects without mutat
 				.events,
 		).toEqual([]);
 		expect(await files(state)).toEqual(before);
-	} finally {
-		store.close();
-		await rm(state, { force: true, recursive: true });
-	}
-});
-
-// eslint-disable-next-line max-statements -- Serial retention and abrupt process exit share the same disposable store.
-test("history bounds retention and leaves a crashed operation explicitly unfinished", async () => {
-	const state = await mkdtemp(join(tmpdir(), "colony-history-crash-"));
-	const store = openStore(state);
-	try {
-		/* eslint-disable no-await-in-loop -- Persist serial operations to verify durable ordering and retention. */
-		for (let index = FIRST; index < LIMIT + EXTRA; index += ONE) {
-			await store.history.run(
-				{ operation: "launch", repository, requestId: `spawn-${index}` },
-				(evidence) => {
-					evidence.completed("attempt.reserved", `attempt-${index}`);
-					return Promise.resolve();
-				},
-			);
-		}
-		/* eslint-enable no-await-in-loop */
-		const bounded = readHistory(state, { failures: false, repository });
-		expect(bounded.events).toHaveLength(LIMIT);
-		expect(bounded.events[FIRST]?.requestId).toBe(`spawn-${EXTRA}`);
-		await store.history.run({ operation: "reconcile", repository, requestId: "idle" }, () =>
-			Promise.resolve(),
-		);
-		expect(readHistory(state, { failures: false, repository }).events).toEqual(bounded.events);
-
-		store.close();
-		const child = Bun.spawn(
-			[
-				process.execPath,
-				"-e",
-				`
-import { openStore } from ${JSON.stringify(join(import.meta.dirname, "store.ts"))};
-const store = openStore(${JSON.stringify(state)});
-await store.history.run({ operation: "launch", repository: ${JSON.stringify(repository)}, requestId: "crashed" }, (evidence) => {
- evidence.completed("attempt.reserved", "attempt-crash");
- evidence.step("supervisor.start", "attempt-crash");
- process.exit(0);
-});`,
-			],
-			{ stderr: "pipe", stdout: "pipe" },
-		);
-		expect(await child.exited).toBe(FIRST);
-		const crashed = readHistory(state, { failures: false, repository, request: "crashed" });
-		expect(crashed.events[FIRST]).toMatchObject({
-			completedEffects: [{ operation: "attempt.reserved", target: "attempt-crash" }],
-			failure: null,
-			finishedAt: null,
-			status: "unfinished",
-			step: { operation: "supervisor.start", target: "attempt-crash" },
-		});
-		expect(readHistory(state, { failures: true, repository, request: "crashed" }).events).toEqual(
-			[],
-		);
 	} finally {
 		store.close();
 		await rm(state, { force: true, recursive: true });

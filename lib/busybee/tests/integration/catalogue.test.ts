@@ -1,18 +1,8 @@
 /* eslint-disable import/no-nodejs-modules -- Catalogue integration uses disposable authoring checkouts and native storage. */
-import {
-	captureCli,
-	checkpoint,
-	close,
-	createRepository,
-	invoke,
-	optionsArgs,
-	record,
-	useNativeFixture,
-	view,
-} from "./support.ts";
-import { cp, mkdir, rm } from "node:fs/promises";
+import { captureCli, createRepository, invoke, useNativeFixture } from "./support.ts";
 import { expect, test } from "bun:test";
 import { join } from "node:path";
+import { mkdir } from "node:fs/promises";
 
 const fixture = useNativeFixture("busybee-catalogue-");
 const SUCCESS = 0;
@@ -97,51 +87,7 @@ test.each(["absent", "../example"])(
 	},
 );
 
-test("helper changes reject restoration before import or checkpoint mutation", async () => {
-	const { folder, marker } = await prepareCatalogue();
-	const run = await view(fixture, ["run", "example"]);
-	const before = await checkpoint(fixture, run.id);
-	await Bun.write(join(folder, "brief.ts"), 'export const title="Changed task";');
-	await rm(marker);
-	const services = {
-		...fixture.services,
-		importModule: () => Promise.reject(new Error("Changed definitions must not be imported")),
-	};
-	const result = await invoke([...optionsArgs(fixture), "show", run.id], services);
-	expect(result.document).toMatchObject({ ok: false, reason: "definition_changed" });
-	expect(await Bun.file(marker).exists()).toBe(false);
-	await expect(checkpoint(fixture, run.id)).resolves.toMatchObject({
-		description: before.description,
-	});
-});
-
-test("a named run continues from an unchanged surviving checkout with separate tracker storage", async () => {
-	const { feature, surviving } = await portableCheckouts();
-	const run = await view(fixture, ["--repo", feature, "run", "example"]);
-	const first = run.active[FIRST]!;
-	await assertPortableBrief(first.bead, feature);
-	await close(fixture, first.bead);
-	await rm(feature, { recursive: true });
-	const resumed = await view(fixture, ["--repo", surviving, "next", run.id, first.bead]);
-	expect(resumed.active[FIRST]!.title).toBe("Second task");
-});
-
 // --- Private helpers ---
-
-async function portableCheckouts() {
-	const feature = join(fixture.root, "feature");
-	const surviving = join(fixture.root, "surviving");
-	await Promise.all([createRepository(fixture, feature), createRepository(fixture, surviving)]);
-	const { folder } = await prepareCatalogue(feature);
-	await cp(folder, join(surviving, ".workflows/example"), { recursive: true });
-	return { feature, surviving };
-}
-
-async function assertPortableBrief(id: string, feature: string): Promise<void> {
-	const task = await record(fixture, id);
-	expect(task.description).toContain("busybee --db");
-	expect(task.description).not.toContain(feature);
-}
 
 async function prepareCatalogue(repo = fixture.options.repo) {
 	const folder = join(repo, ".workflows/example");

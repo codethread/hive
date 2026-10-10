@@ -1,17 +1,17 @@
 import { expect, test } from "bun:test";
 // eslint-disable-next-line import/no-nodejs-modules -- Own a disposable native Beads database.
 import { mkdtemp, rm } from "node:fs/promises";
-import { installAttentionQuery } from "./beads-setup.ts";
+import { installAttentionQuery } from "../../src/beads-setup.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Resolve private fixture paths.
 import { join } from "node:path";
-import { runCommand } from "./beads-environment.ts";
+import { runCommand } from "../../src/beads-environment.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Isolated native IO test root.
 import { tmpdir } from "node:os";
 
 const TIMEOUT = 15_000;
 
 test(
-	"setup installs a native AND attention preset that includes closed failures and preserves other presets",
+	"setup installs a native AND attention preset that includes closed failures and preserves other presets #test-7",
 	// eslint-disable-next-line max-statements -- Native filter semantics and preset replacement share one disposable tracker.
 	async () => {
 		const repo = await mkdtemp(join(tmpdir(), "bee-queries-"));

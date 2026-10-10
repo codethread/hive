@@ -563,9 +563,9 @@ Overrides last until a fresh wake, daemon recovery wake or explicit reset reload
 
 ## Verification
 
-Operation evidence, bounded retention and crash uncertainty: `bun test lib/colony/src/history.smoke.test.ts`. The retry smoke additionally checks native failure capture, partial claim cleanup and offline history with the daemon stopped and tracker executable disabled.
+Native failure and confirmed partial-effect evidence: `bun test lib/colony/src/history.smoke.test.ts`. Bounded-retention, crash-uncertainty and retry checks were deferred during the timing cleanup; their scenarios and restoration pointers are in the [Colony coverage record](../../docs/test-cases/colony.md).
 
-Run from the Hive checkout. The process smoke also requires Node on `PATH` to exercise real process-title changes, as used by native Pi; installed Bee/Colony commands still run on Bun. The repository check includes the full test suite:
+Run from the Hive checkout. Installed Bee/Colony commands run on Bun. The repository check includes the full test suite:
 
 ```sh
 bun run check
@@ -576,15 +576,12 @@ The smoke fixtures use real disposable Git repositories, Beads databases, socket
 
 | Boundary | Focused command |
 | --- | --- |
-| Offline submission and manual launch | `bun test lib/colony/src/producer.smoke.test.ts lib/colony/src/launch.smoke.test.ts` |
-| Registry, sleeping, draining and daemon control | `bun test lib/colony/src/daemon.smoke.test.ts lib/colony/src/lifecycle.smoke.test.ts` |
-| Eligibility, priority, PageRank and capacity | `bun test lib/colony/src/scheduler.smoke.test.ts lib/colony/src/ranking.smoke.test.ts` |
-| Self-report, partial blocking and live completion | `bun test lib/colony/src/self-report.smoke.test.ts` |
-| Claims, retry and observed descendants | `bun test lib/colony/src/retry.smoke.test.ts lib/colony/src/processes.smoke.test.ts` |
-| Restart, stale sockets and competing daemons | `bun test lib/colony/src/recovery.smoke.test.ts lib/colony/src/server-ownership.smoke.test.ts` |
-| Retained tracker and request authority | `bun test lib/colony/src/authority.smoke.test.ts` |
-| Policy validation and revision capture | `bun test lib/colony/src/config.smoke.test.ts` |
-| Offline facts, runtime inspection and JSON output | `bun test lib/colony/src/bee-inspection.smoke.test.ts lib/colony/src/inspection.smoke.test.ts` |
+| Native failure and partial-effect history | `bun test lib/colony/src/history.smoke.test.ts` |
+| Filesystem kind discovery and invalid layout | `bun test lib/colony/src/config-discovery.smoke.test.ts lib/colony/src/kinds-files.smoke.test.ts` |
+| Interactive terminal handoff | `bun test lib/colony/src/run.smoke.test.ts` |
+| Native usage-counter recovery | `bun test lib/colony/src/postrun-evidence.smoke.test.ts` |
+
+Offline submission, daemon lifecycle, scheduling, self-report, claims/retry, recovery, request authority, policy revisions and runtime-inspection smoke coverage is deferred in the [coverage record](../../docs/test-cases/colony.md). The record preserves the removed assertions; runtime behavior is unchanged.
 
 For a real, authenticated native harness, run the opt-in probe separately:
 

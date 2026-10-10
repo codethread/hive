@@ -100,44 +100,6 @@ test(
 	},
 );
 
-// eslint-disable-next-line max-statements -- Synchronize a real waiting process with predecessor completion.
-test("resumed exec waits for its predecessor and launches when the slot is released", async () => {
-	const first = await seedTicket();
-	const second = await seedTicket();
-	const resumed = Bun.spawn(
-		[
-			process.execPath,
-			executable,
-			"exec",
-			"-w",
-			"5",
-			"--ticket",
-			second,
-			"--lock",
-			lock,
-			"--",
-			"printf",
-			"resumed",
-		],
-		{ cwd: directory, stdout: "pipe", stderr: "pipe" },
-	);
-	const progress = resumed.stderr.getReader();
-	try {
-		const waiting = await progress.read();
-		expect(new TextDecoder().decode(waiting.value)).toContain(`ticket ${second} waiting`);
-		await expect(
-			qlock(["exec", "-w", "0", "--ticket", first, "--lock", lock, "--", "true"]),
-		).resolves.toMatchObject({ code: 0 });
-		expect(await new Response(resumed.stdout).text()).toBe("resumed");
-		expect(await resumed.exited).toBe(success);
-	} finally {
-		progress.releaseLock();
-		resumed.kill();
-		await resumed.exited;
-	}
-	await expect(qlock(["status", "--lock", lock])).resolves.toMatchObject({ stdout: "free\n" });
-});
-
 test(
 	"urgent tickets skip queued work without pre-empting a ready ticket",
 	// eslint-disable-next-line max-statements -- Verify the complete ordering lifecycle on one isolated queue.

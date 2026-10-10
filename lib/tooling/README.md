@@ -1,5 +1,11 @@
 # Repository tooling
 
+## Beads contract tests
+
+Run `bun test ./lib/tooling/tests/contract/` from the checkout root to verify the native Beads bootstrap and saved-query contracts. These checks use real Git, `br` and `mise` executables and retain their explicit timeouts.
+
+Contract tests verify behavior at a third-party boundary; integration tests verify cooperation between Hive components.
+
 ## Changed-test report
 
 From the checkout root, run `bun run test:changed`. Extra Bun test arguments are forwarded, for example `bun run test:changed --changed=main` or `bun run test:changed ./lib/shared/src/bees.test.ts`.

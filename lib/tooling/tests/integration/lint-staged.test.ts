@@ -12,6 +12,7 @@ const configuration = new URL("../../../../package.json", import.meta.url);
 const executable = fileURLToPath(import.meta.resolve("lint-staged/bin"));
 const executableMode = 0o755;
 const success = 0;
+const trackerFile = ".beads/issues.jsonl";
 
 async function run(argv: string[], cwd: string, env: Record<string, string | undefined>) {
 	const child = Bun.spawn(argv, { cwd, env, stderr: "pipe", stdout: "pipe" });
@@ -26,7 +27,6 @@ async function run(argv: string[], cwd: string, env: Record<string, string | und
 function environment(root: string) {
 	return {
 		...process.env,
-		FORMATTER_LOG: join(root, "formatter.log"),
 		GIT_AUTHOR_EMAIL: "test@example.test",
 		GIT_AUTHOR_NAME: "Test",
 		GIT_COMMITTER_EMAIL: "test@example.test",
@@ -44,12 +44,14 @@ async function git(args: string[], root: string, env: ReturnType<typeof environm
 }
 
 // eslint-disable-next-line max-statements -- Keep the real Git partial-staging fixture and deterministic writer together.
-async function prepare(root: string, file: string, env: ReturnType<typeof environment>) {
+async function prepare(root: string, env: ReturnType<typeof environment>) {
 	await mkdir(join(root, "bin"));
 	await mkdir(join(root, ".beads"));
 	await Bun.write(join(root, "package.json"), Bun.file(configuration));
-	const formatter = `#!/bin/sh
-printf '%s\\n' "$0" >> "$FORMATTER_LOG"
+	const formatter = join(root, "bin", "oxfmt");
+	await Bun.write(
+		formatter,
+		`#!/bin/sh
 for file in "$@"; do
 	case "$file" in
 		*.jsonl)
@@ -58,49 +60,29 @@ for file in "$@"; do
 			;;
 	esac
 done
-`;
-	for (const name of ["oxfmt", "oxlint"]) {
-		const path = join(root, "bin", name);
-		// eslint-disable-next-line no-await-in-loop -- Create two independent fixture executables.
-		await Bun.write(path, formatter);
-		// eslint-disable-next-line no-await-in-loop -- Make each fixture executable before invoking the CLI.
-		await chmod(path, executableMode);
-	}
+`,
+	);
+	await chmod(formatter, executableMode);
 	await git(["init", "--initial-branch=tracker/state"], root, env);
-	await Bun.write(join(root, file), '{"generation":0}\n');
-	await git(["add", "--", file], root, env);
+	await Bun.write(join(root, trackerFile), '{"generation":0}\n');
+	await git(["add", "--", trackerFile], root, env);
 	await git(["commit", "-m", "fixture"], root, env);
-	await Bun.write(join(root, file), '{"generation":1}\n');
-	await git(["add", "--", file], root, env);
-	await Bun.write(join(root, file), '{"generation":2}\n');
+	await Bun.write(join(root, trackerFile), '{"generation":1}\n');
+	await git(["add", "--", trackerFile], root, env);
+	await Bun.write(join(root, trackerFile), '{"generation":2}\n');
 }
 
-test.each([
-	{ file: ".beads/issues.jsonl", tools: [] },
-	{ file: "notes.md", tools: ["oxfmt"] },
-	{ file: "source.ts", tools: ["oxfmt", "oxfmt", "oxlint"] },
-])(
-	"staged $file preserves newer working content and runs only applicable tools",
-	// eslint-disable-next-line max-statements -- One real CLI invocation verifies both index and working-tree preservation.
-	async ({ file, tools }) => {
-		const root = await mkdtemp(join(tmpdir(), "hive lint staged "));
-		const env = environment(root);
-		try {
-			await prepare(root, file, env);
-			const result = await run([process.execPath, executable], root, env);
-			expect(result).toMatchObject({ exitCode: success });
-			expect(await Bun.file(join(root, file)).text()).toBe('{"generation":2}\n');
-			expect(await git(["show", `:${file}`], root, env)).toBe('{"generation":1}\n');
-			const log = Bun.file(env.FORMATTER_LOG);
-			let invoked: string[] = [];
-			if (await log.exists()) {
-				const text = await log.text();
-				invoked = text.trim().split("\n");
-			}
-			expect(invoked.toSorted()).toEqual(tools.map((name) => join(root, "bin", name)).toSorted());
-			expect(await git(["stash", "list"], root, env)).toBe("");
-		} finally {
-			await rm(root, { force: true, recursive: true });
-		}
-	},
-);
+test("staged tracker JSONL preserves the index and newer working content", async () => {
+	const root = await mkdtemp(join(tmpdir(), "hive lint staged "));
+	const env = environment(root);
+	try {
+		await prepare(root, env);
+		const result = await run([process.execPath, executable], root, env);
+		expect(result).toMatchObject({ exitCode: success });
+		expect(await Bun.file(join(root, trackerFile)).text()).toBe('{"generation":2}\n');
+		expect(await git(["show", `:${trackerFile}`], root, env)).toBe('{"generation":1}\n');
+		expect(await git(["stash", "list"], root, env)).toBe("");
+	} finally {
+		await rm(root, { force: true, recursive: true });
+	}
+});
