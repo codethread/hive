@@ -12,14 +12,20 @@ const SECONDS = 1000;
 // eslint-disable-next-line unicorn/no-null -- The public queue contract uses null for the ordinary FIFO lane.
 const ORDINARY = null;
 const HELP = `
-Examples:
-  qlock exec --lock /tmp/check.lock -w 180 -- bun run check
+Merge queue (instead of --lock):
   qlock exec --merge-target main -w 180 -- honeycomb finish --json
 `;
 const EXEC_HELP = `
-Timeout keeps your ticket; resume with the reported ID:
+Example: wait, timeout, resume
+  qlock exec --lock /tmp/check.lock -w 180 -- bun run check
+  # Queue wait timeout (-w, not command runtime): exit 75; stderr:
+  qlock: Ticket 42 still queued (#2/2); resume with --ticket 42 before --
+
+  # Run again with the reported ID (here 42), same queue and command
   qlock exec --lock /tmp/check.lock -w 180 --ticket 42 -- bun run check
-A ready ticket expires after 30s without execution.
+
+--ticket keeps your place; omit it to join again.
+No background execution. Ready tickets expire after 30s.
 `;
 
 interface TargetOptions {
@@ -78,7 +84,7 @@ function createProgram(
 		.name("qlock")
 		.description("Ticketed local command queues for agents and shells")
 		.enablePositionalOptions()
-		.addHelpText("after", HELP)
+		.addHelpText("after", EXEC_HELP + HELP)
 		.configureOutput({ writeOut: deps.stdout, writeErr: () => {} })
 		.exitOverride();
 
@@ -88,8 +94,10 @@ function createProgram(
 		.argument("<command>", "Executable to run", nonblank)
 		.argument("[args...]", "Arguments passed to the command")
 		.addHelpText("after", EXEC_HELP)
-		.requiredOption("-w, --wait <seconds>", "Whole seconds; -1 waits forever", (value) =>
-			integer(value, FOREVER, Math.floor(Number.MAX_SAFE_INTEGER / SECONDS)),
+		.requiredOption(
+			"-w, --wait <seconds>",
+			"Queue wait in whole seconds; -1 waits forever",
+			(value) => integer(value, FOREVER, Math.floor(Number.MAX_SAFE_INTEGER / SECONDS)),
 		)
 		.option(
 			"-E, --timeout-code <code>",

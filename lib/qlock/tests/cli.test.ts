@@ -255,6 +255,7 @@ test.each([
 );
 
 test.each([
+	{ argv: ["-h"], heading: "Usage: qlock [options]" },
 	{ argv: ["--help"], heading: "Usage: qlock [options]" },
 	{ argv: ["exec", "--help"], heading: "Usage: qlock exec [options] -- <command> [args...]" },
 	{ argv: ["help", "exec"], heading: "Usage: qlock exec [options] -- <command> [args...]" },
@@ -268,6 +269,23 @@ test.each([
 	expect(/^\s+--json\s/mu.test(help)).toBe(argv[0] === "status");
 	expect(harness.err).toEqual([]);
 	expect(harness.opened).toBe(0);
+});
+
+test.each([
+	{ argv: ["-h"] },
+	{ argv: ["--help"] },
+	{ argv: ["exec", "--help"] },
+	{ argv: ["help", "exec"] },
+])("help illustrates how to resume after a wait timeout: $argv", async ({ argv }) => {
+	const harness = fixture();
+	expect(await runCli(argv, harness.deps)).toBe(0);
+	const help = harness.out.join("");
+	expect(help).toContain("qlock exec --lock /tmp/check.lock -w 180 -- bun run check");
+	expect(help).toContain("Queue wait timeout (-w, not command runtime)");
+	expect(help).toContain("qlock: Ticket 42 still queued (#2/2); resume with --ticket 42 before --");
+	expect(help).toContain("qlock exec --lock /tmp/check.lock -w 180 --ticket 42 -- bun run check");
+	expect(help).toContain("--ticket keeps your place; omit it to join again");
+	expect(help).toContain("No background execution. Ready tickets expire after 30s");
 });
 
 test.each([
