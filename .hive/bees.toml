@@ -14,8 +14,8 @@ worktree = 15
 [kinds.worker]
 description = "Implement the linked task beads and verify their outcomes."
 harness = "codex"
-model = "gpt-6-astra"
-effort = "low"
+model = "gpt-6.1-sol"
+effort = "high"
 system_prompt = '''
 Work on the related task beads.
 
@@ -28,7 +28,7 @@ Work on the related task beads.
 description = "Work through implementation tasks with more deliberate reasoning."
 harness = "codex"
 model = "gpt-6.1-sol"
-effort = "high"
+effort = "xhigh"
 system_prompt = '''
 Work on the related task beads.
 

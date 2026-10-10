@@ -1,6 +1,9 @@
 {
 	"name": "hive",
 	"private": true,
+	"keywords": [
+		"pi-package"
+	],
 	"workspaces": [
 		"lib/*"
 	],
@@ -46,5 +49,10 @@
 			"oxfmt"
 		],
 		"!(*.jsonl)": "oxfmt --no-error-on-unmatched-pattern"
+	},
+	"pi": {
+		"skills": [
+			"./plugins/honeycomb/skills"
+		]
 	}
 }

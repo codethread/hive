@@ -1,21 +1,20 @@
 export const HELP = {
 	add: `
 Use when:
-  Starting work on a branch. This is the preferred entry point over raw git
-  worktree add because it applies repository policy, deterministic paths, pool
+  Starting work on a branch with repository policy, deterministic paths, pool
   allocation, copy setup, and the configured setup command.
 
 Notes:
-  Without --base, new branches start from the configured policy target. Use
-  --base only for intentional stacked/non-default work. --base-current uses the
-  branch checked out in the worktree containing --cwd instead, and is refused for
-  a detached HEAD or combined with --base. Setup failure rolls the add back and
-  exits 1 with reason setup_failed; with --json, setup output is in setup_output.
+  Without --base, new branches start from the configured policy target. --base
+  selects an explicit starting ref; --base-current uses the branch checked out
+  in the worktree containing --cwd. --base-current is refused for a detached
+  HEAD or combined with --base. Setup failure rolls the add back and exits 1
+  with reason setup_failed; with --json, setup output is in setup_output.
 
 Blocked outcomes:
-  Existing branches, stale or dirty canonical roots, pool exhaustion, and unsafe
-  slot states are reported explicitly. Machine consumers should branch on kind
-  such as ready, blocked, or pool_full, and on ok.
+  Existing checkouts, stale or dirty canonical roots, pool exhaustion, and unsafe
+  slot states are reported explicitly. JSON kind values include ready, blocked,
+  and pool_full. A pool_full result includes occupied candidates for inspection.
 `,
 	config: `
 Use subcommands to explain the configuration resolved for a repository.
@@ -72,12 +71,16 @@ Cleanup:
   Configured remove_worktree removes regular worktrees or frees pooled slots only
   after integration and configured push succeed. Configured delete_branch
   requires remove_worktree to be enabled in the same effective policy.
+
+Examples:
+  honeycomb finish
+  honeycomb finish --title "feat: add search"   # squash policy
+  honeycomb config explain --json
 `,
 	list: `
 Use when:
-  You need to discover existing worktrees, identify the canonical root, inspect
-  branch/path/session identity, or decide whether an agent should reuse an
-  existing checkout instead of creating one.
+  Discovering existing worktrees, identifying the canonical root, or inspecting
+  branch/path/session identity.
 
 Notes:
   Reads Git's worktree inventory without loading config, scanning checkout
@@ -90,39 +93,23 @@ Related:
   worktree path.
 `,
 	overview: `
-Agent workflow:
-  Pass --cwd <path> only when targeting a worktree set other than the current
-  directory. Prefer --json when available: stdout is then one JSON object, on
-  success and failure alike, and stderr stays silent. Branch on ok, kind, and
-  reason rather than message text. Setup output and warnings are captured in the
-  payload's setup_output and diagnostics.
+Examples:
+  honeycomb add --branch feature/example
+  honeycomb list
+  honeycomb finish --title "feat: add search"   # squash policy
 
-Interactive wrappers:
-  Human wrappers pass --interactive so add focuses the new worktree's multiplexer
-  session, and remove/finish move the caller to the canonical root and close the
-  removed worktree's sessions. Outside a multiplexer, the directory to change to is
-  written to the file named by HONEYCOMB_CD_FILE. Agents must not pass it.
-
-Common flows:
-  honeycomb add --branch <feature> --json
-  honeycomb list --json
-  honeycomb tree
-  honeycomb path --branch <feature>
-  honeycomb remove --branch <feature> --json
-  honeycomb remove --branch <feature> --integrated-into origin/main --json
-  honeycomb finish --json
-  honeycomb finish --title "<subject>" --json   # squash strategy
-  honeycomb config explain --json
-
-Pools:
-  Pooled repositories reuse fixed slots instead of creating branch-named sibling
-  directories. Run status and check hasPool to see whether remove/add use pooled
-  slot semantics. Use remove for cleanup in both pooled and non-pooled repositories.
+JSON output:
+  Commands supporting --json emit one stdout document on success or failure;
+  stderr stays silent. Results include ok and kind; error payloads also carry
+  reason and message. Setup output and warnings appear in setup_output and
+  diagnostics.
 
 Safety:
   Unforced destructive operations refuse dirty, ahead, local-only, canonical-root,
   or otherwise ambiguous states. Use --force only when discarding local work is
-  intentional.
+  intentional. finish can push and clean up according to configured policy.
+
+Use honeycomb <command> --help for command behaviour, flags, and examples.
 `,
 	path: `
 Use when:
@@ -136,8 +123,8 @@ Notes:
 `,
 	pick: `
 Use when:
-  A human wants to switch worktrees. pick needs a terminal; agents should use
-  list or path instead.
+  Selecting a worktree with fzf in a terminal. For noninteractive lookup, use
+  list or path.
 
 Notes:
   Rows list every worktree, with * marking the one containing --cwd, and preview
@@ -167,6 +154,11 @@ Safety:
 Related:
   finish can integrate a completed worktree and then clean it up as one
   conservative lifecycle operation.
+
+Examples:
+  honeycomb remove --branch feature/example
+  honeycomb remove --branch feature/example --keep-branch
+  honeycomb remove --branch feature/example --integrated-into origin/main
 `,
 	root: `
 Use when:
@@ -174,8 +166,7 @@ Use when:
   generation, default-branch policy, and root-protection checks.
 
 Notes:
-  The canonical root is never removed or recycled by honeycomb. Run this before
-  reasoning about generated sibling paths or effective project configuration.
+  The canonical root is never removed or recycled by honeycomb.
 `,
 	shellInit: `
 Setup:
@@ -186,16 +177,23 @@ Setup:
 Usage:
   wk picks a worktree and changes the current shell's directory.
   Arguments are passed to honeycomb --interactive pick, not other commands.
+
+Wrapper mode:
+  With --interactive, add focuses the new worktree's multiplexer session;
+  remove/finish move the caller to the canonical root and close the removed
+  worktree's sessions. Directory handoffs are written to the file named by
+  HONEYCOMB_CD_FILE for the invoking shell wrapper to apply.
 `,
 	status: `
 Use when:
-  Deciding whether a repository is pooled and whether any slots can be removed
-  for reuse. A size of 0 means regular non-pooled worktrees; size greater than 0
-  means remove uses pool semantics.
+  Inspecting whether a repository has a pool and the state of its fixed slots.
+  Pooled worktrees retain their directories when remove recycles them for reuse.
 
 Notes:
-  Output is always JSON. Slot fields include branch, dirty state, placeholder
-  status, last commit details, and initialization state.
+  Output is always JSON. hasPool and size describe pool configuration; slots
+  include branch, dirty state, placeholder status, last commit details, and
+  initialization state. Inspection does not initialize missing slots; add or
+  ensure prepares them.
 `,
 	tree: `
 Use when:

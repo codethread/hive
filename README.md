@@ -10,6 +10,8 @@ Tools for running coding agents, managing Git worktrees and coordinating Beads w
 | [Busy Bee](./lib/busybee/README.md) | Run XState workflows as sequential, nested or concurrent Beads tasks |
 | [qlock](./lib/qlock/README.md) | Serialize commands with ticketed local queues |
 
+[Hive plugins](./plugins/README.md) provide Git worktree and merge queue guidance for Claude Code, Codex and Pi.
+
 For a new clone:
 
 ```sh

@@ -1,0 +1,6 @@
+{
+	"name": "hive",
+	"owner": { "name": "codethread" },
+	"metadata": { "description": "Agent workflow plugins for Hive tools." },
+	"plugins": [{ "name": "honeycomb", "source": "./plugins/honeycomb" }]
+}

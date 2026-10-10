@@ -1,0 +1,6 @@
+{
+	"name": "honeycomb",
+	"version": "0.1.0",
+	"author": { "name": "codethread" },
+	"description": "Git worktree and merge queue guidance using Honeycomb and qlock."
+}
