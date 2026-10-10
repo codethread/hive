@@ -1,0 +1,17 @@
+#:schema lib/honeycomb/honeycomb.local.schema.json
+
+worktree_location = "nested"
+
+command = '''
+bun install && notif worktree wk "$WK_CREATED" ready
+'''
+
+[add]
+policy = "fresh_canonical"
+
+[finish]
+enabled = true
+strategy = "squash"
+push = true
+remove_worktree = true
+delete_branch = true
