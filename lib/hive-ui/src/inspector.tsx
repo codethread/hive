@@ -1,6 +1,6 @@
 import type { Bee, Detail, Provenance, Relation } from "../contracts.ts";
+import { BeeAssignment, Label, ResourceNotice, outcomeName, time } from "./ui.tsx";
 import { EMPTY, details, loadDetail, loadProvenance, provenance, snapshot } from "./data.ts";
-import { Label, ResourceNotice, outcomeName, time } from "./ui.tsx";
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { Suspense, lazy, useEffect, useLayoutEffect, useRef } from "react";
 import { boardScopeSchema, detailKey } from "../contracts.ts";
@@ -65,7 +65,7 @@ export function Inspector({ colonyId, id }: { colonyId: string; id: string }) {
 						type="button"
 						disabled={resource.kind === "loading"}
 						onClick={() => {
-							void loadDetail(colonyId, id, { fresh: true, scope });
+							void loadDetail(colonyId, id, { refreshAfter: Date.now(), scope });
 						}}
 					>
 						Refresh detail
@@ -89,7 +89,7 @@ export function Inspector({ colonyId, id }: { colonyId: string; id: string }) {
 				{detail && (
 					<>
 						<h2 className="mt-6 text-2xl leading-snug font-medium">{detail.card.title}</h2>
-						<div className="my-3 flex flex-wrap gap-1">
+						<div className="my-3 flex flex-wrap items-center gap-1">
 							<Label>{detail.card.status}</Label>
 							<Label>P{detail.card.priority}</Label>
 							{detail.card.labels.map((label) => (
@@ -97,7 +97,8 @@ export function Inspector({ colonyId, id }: { colonyId: string; id: string }) {
 							))}
 						</div>
 						<p className="mb-6 text-xs text-muted">
-							Assigned to {detail.card.assignee ?? "nobody"} · updated {time(detail.card.updatedAt)}
+							Assigned to <BeeAssignment card={detail.card} />
+							{detail.card.assignee ?? "nobody"} · updated {time(detail.card.updatedAt)}
 						</p>
 						<section aria-label="Description">
 							<h3 className="section-title">Description</h3>

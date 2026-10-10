@@ -1,4 +1,4 @@
-import type { Bee } from "../contracts.ts";
+import type { Bee, Card } from "../contracts.ts";
 import type { ReactNode } from "react";
 import type { Resource } from "./data.ts";
 
@@ -25,6 +25,22 @@ export function Label({ children }: { children: ReactNode }) {
 	return (
 		<span className="inline-flex rounded border border-line bg-raised px-1.5 py-0.5 font-mono text-[11px] text-muted">
 			{children}
+		</span>
+	);
+}
+
+export function BeeAssignment({ card }: { card: Card }) {
+	if (card.beeAssignments.length === 0) {
+		return null;
+	}
+	const requests = card.beeAssignments.map((bee) => `${bee.kind} (${bee.id})`).join(", ");
+	return (
+		<span
+			className="mr-1"
+			title={`Assigned to ${card.assignee} · ${requests}. Recorded assignment; process health is not checked.`}
+		>
+			<span aria-hidden="true">🐝</span>
+			<span className="sr-only">Bee assigned</span>
 		</span>
 	);
 }

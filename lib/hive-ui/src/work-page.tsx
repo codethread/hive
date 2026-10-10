@@ -1,9 +1,9 @@
 /* eslint-disable import/max-dependencies -- The route composes the board shell, navigation, filters and detail panels. */
+import { BeeAssignment, Label, ResourceNotice, time } from "./ui.tsx";
 import { BeeHistory, BoardTabs } from "./board-navigation.tsx";
 import type { Board, Card, Navigation } from "../contracts.ts";
 import { EMPTY, boards, colonies, inventories, loadView, preferences, snapshot } from "./data.ts";
 import { FilterableLabel, STATUS_NAMES } from "./filter-controls.tsx";
-import { Label, ResourceNotice, time } from "./ui.tsx";
 import { Link, Outlet, useNavigate, useParams, useSearch } from "@tanstack/react-router";
 import {
 	PAGE_SIZE,
@@ -265,11 +265,10 @@ function BeadCard({ card }: { card: Card }) {
 					))}
 				</div>
 			</div>
-			<div className="space-y-2 border-t border-line bg-panel px-3.5 py-2.5">
-				<p className="text-[11px] text-muted">
-					Assigned to {card.assignee ?? "nobody"} · updated {time(card.updatedAt)}
-				</p>
-			</div>
+			<p className="border-t border-line bg-panel px-3.5 py-2.5 text-[11px] text-muted">
+				Assigned to <BeeAssignment card={card} />
+				{card.assignee ?? "nobody"} · updated {time(card.updatedAt)}
+			</p>
 		</article>
 	);
 }

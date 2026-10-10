@@ -198,12 +198,18 @@ async function api(
 			status = HTTP.missing;
 			throw new Error("Unknown API route or colony.");
 		}
+		status = HTTP.badRequest;
+		const refreshAfter = z.coerce
+			.number()
+			.int()
+			.nonnegative()
+			.parse(url.searchParams.get("refreshAfter") ?? 0);
 		const context = { colony: selected, log, requestId };
 		if (route["operation"] === "board") {
 			status = HTTP.badRequest;
 			const filter = boardFilterSchema.parse(JSON.parse(url.searchParams.get("filter") ?? "{}"));
 			status = HTTP.ok;
-			return respond(await data.board(context, filter, url.searchParams.get("fresh") === "true"));
+			return respond(await data.board(context, filter, refreshAfter));
 		}
 		if (route["operation"] === "inventory") {
 			status = HTTP.badRequest;
@@ -211,16 +217,14 @@ async function api(
 				JSON.parse(url.searchParams.get("filter") ?? "{}"),
 			);
 			status = HTTP.ok;
-			return respond(
-				await data.inventory(context, filter, url.searchParams.get("fresh") === "true"),
-			);
+			return respond(await data.inventory(context, filter, refreshAfter));
 		}
 		status = HTTP.badRequest;
 		const id = idSchema.parse(decodeURIComponent(route["id"] ?? ""));
 		const scope = boardScopeSchema.parse(JSON.parse(url.searchParams.get("scope") ?? "{}"));
 		status = HTTP.ok;
 		if (route["operation"] === "beads") {
-			return respond(await data.detail(context, id, scope));
+			return respond(await data.detail(context, id, { scope, refreshAfter }));
 		}
 		return respond(await data.provenance(context, id));
 	} catch (error) {

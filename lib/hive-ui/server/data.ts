@@ -44,6 +44,12 @@ const nativeSchema = beadSchema.extend({
 const nativeListSchema = z.object({ issues: z.array(nativeSchema) });
 type NativeBead = z.infer<typeof nativeSchema>;
 type Inventory = Extract<RequestInventory, { kind: "loaded" }>;
+interface InventorySnapshot {
+	/** Native lookup start, used to satisfy a refresh cutoff independently of response completion. */
+	startedAt: number;
+	/** Bounded request inventory retaining its source read time. */
+	value: Inventory;
+}
 interface ReadContext {
 	/** Server-selected diagnostics sink; machine mode uses a file. */
 	log: (sample: object) => Promise<void>;
@@ -55,51 +61,87 @@ interface ReadContext {
 
 /** Owns native reads and a short-lived, endpoint- and scope-keyed request inventory. */
 export function createBoardData() {
-	const inventories = new Map<string, Promise<Inventory>>();
+	// A refresh cutoff is shared by its inventory, board and detail requests. Zero uses the normal TTL.
+	const inventories = new Map<string, InventorySnapshot>();
+	const pendingInventories = new Map<string, Promise<Inventory>>();
 	// eslint-disable-next-line max-statements -- Coalesce endpoint reads while retaining the original source freshness.
 	const inventory = async (
 		context: ReadContext,
 		scope: BoardScope,
-		fresh: boolean,
+		refreshAfter: number,
 	): Promise<RequestInventory> => {
 		if (scope.view === "beads") {
 			return { kind: "not_requested" };
 		}
 		const key = JSON.stringify([context.colony.id, scope.view, scope.requestPage]);
-		const existing = inventories.get(key);
-		if (existing && !fresh) {
-			const value = await existing;
-			if (Date.now() - Date.parse(value.readAt) < INVENTORY_TTL_MS) {
-				return value;
-			}
+		const active = pendingInventories.get(key);
+		if (active) {
+			await active;
+			return inventory(context, scope, refreshAfter);
 		}
+		const existing = inventories.get(key);
+		if (
+			existing &&
+			existing.startedAt >= refreshAfter &&
+			Date.now() - Date.parse(existing.value.readAt) < INVENTORY_TTL_MS
+		) {
+			return existing.value;
+		}
+		const startedAt = Date.now();
 		const pending = readInventory(context, scope);
-		inventories.set(key, pending);
+		pendingInventories.set(key, pending);
 		try {
-			return await pending;
+			const value = await pending;
+			inventories.set(key, { startedAt, value });
+			return value;
 		} catch (error) {
 			inventories.delete(key);
 			throw error;
+		} finally {
+			pendingInventories.delete(key);
 		}
 	};
+	const cards = async (
+		context: ReadContext,
+		tasks: NativeBead[],
+		refreshAfter: number,
+	): Promise<Card[]> => {
+		let assignments: Bee[] = [];
+		if (tasks.some((task) => task.status === "in_progress" && (task.assignee ?? "") !== "")) {
+			const open = await inventory(context, { requestPage: 0, view: "open" }, refreshAfter);
+			if (open.kind === "loaded") {
+				assignments = open.bees;
+			}
+		}
+		return tasks.map((task) => card(task, assignments));
+	};
 	return {
-		board: async (context: ReadContext, filter: BoardFilter, fresh: boolean): Promise<Board> => {
-			const current = await inventory(context, filter, fresh);
+		board: async (
+			context: ReadContext,
+			filter: BoardFilter,
+			refreshAfter: number,
+		): Promise<Board> => {
+			const current = await inventory(context, filter, refreshAfter);
 			const { tasks, query } = await readTasks(context, filter, current);
-			const cards = tasks.slice(0, PAGE_SIZE).map((bead) => card(bead));
+			const summaries = await cards(context, tasks.slice(0, PAGE_SIZE), refreshAfter);
 			return {
-				cards,
+				cards: summaries,
 				fetchedAt: new Date().toISOString(),
 				hasMore: tasks.length > PAGE_SIZE,
-				labels: [...new Set(cards.flatMap((item) => item.labels))].toSorted(),
+				labels: [...new Set(summaries.flatMap((item) => item.labels))].toSorted(),
 				query,
 			};
 		},
-		detail: async (context: ReadContext, id: string, scope: BoardScope): Promise<Detail> => {
+		detail: async (
+			context: ReadContext,
+			id: string,
+			{ scope, refreshAfter }: { scope: BoardScope; refreshAfter: number },
+		): Promise<Detail> => {
 			const [current, bead] = await Promise.all([
-				inventory(context, scope, false),
+				inventory(context, scope, refreshAfter),
 				show(context, id),
 			]);
+			const [summary] = await cards(context, [bead], refreshAfter);
 			let bees: Bee[] = [];
 			if (current.kind === "loaded") {
 				({ bees } = current);
@@ -107,7 +149,7 @@ export function createBoardData() {
 			return {
 				acceptanceCriteria: bead.acceptance_criteria,
 				card: {
-					...card(bead),
+					...summary!,
 					bees: bees.filter((item) => item.taskIds.includes(bead.id)),
 				},
 				comments: bead.comments.map((comment) => ({
@@ -125,9 +167,9 @@ export function createBoardData() {
 		inventory: async (
 			context: ReadContext,
 			filter: InventoryFilter,
-			fresh: boolean,
+			refreshAfter: number,
 		): Promise<RequestInventory> => {
-			const current = await inventory(context, filter, fresh);
+			const current = await inventory(context, filter, refreshAfter);
 			return filterInventory(context, filter, current);
 		},
 		provenance: readProvenance,
@@ -327,9 +369,18 @@ function bee(bead: NativeBead): Bee {
 	};
 }
 
-function card(bead: NativeBead): Card {
+function card(bead: NativeBead, requests: Bee[]): Card {
 	return {
 		assignee: bead.assignee ?? null,
+		beeAssignments: requests
+			.filter(
+				(request) =>
+					bead.status === "in_progress" &&
+					request.outcome === "pending" &&
+					request.identity === bead.assignee &&
+					request.taskIds.includes(bead.id),
+			)
+			.map(({ id, kind }) => ({ id, kind })),
 		id: bead.id,
 		labels: bead.labels,
 		priority: bead.priority,

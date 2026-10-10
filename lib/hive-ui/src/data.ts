@@ -51,35 +51,45 @@ export const preferences = createStore<Preferences>(() => ({
 export function loadColonies(): Promise<void> {
 	return colonies.load("colonies", "/api/colonies");
 }
-export function loadBoard(colony: string, filter: BoardFilter, fresh = false): Promise<void> {
+export function loadBoard(colony: string, filter: BoardFilter, refreshAfter = 0): Promise<void> {
 	const search = new URLSearchParams({
 		filter: JSON.stringify(filter),
-		fresh: String(fresh && filter.view === "beads"),
+		refreshAfter: String(refreshAfter),
 	});
-	return boards.load(boardKey(colony, filter), `/api/colonies/${colony}/board?${search}`, fresh);
+	return boards.load(
+		boardKey(colony, filter),
+		`/api/colonies/${colony}/board?${search}`,
+		refreshAfter > 0,
+	);
 }
 export function loadInventory(
 	colony: string,
 	filter: InventoryFilter,
-	fresh = false,
+	refreshAfter = 0,
 ): Promise<void> {
-	const search = new URLSearchParams({ filter: JSON.stringify(filter), fresh: String(fresh) });
+	const search = new URLSearchParams({
+		filter: JSON.stringify(filter),
+		refreshAfter: String(refreshAfter),
+	});
 	return inventories.load(
 		inventoryKey(colony, filter),
 		`/api/colonies/${colony}/inventory?${search}`,
-		fresh,
+		refreshAfter > 0,
 	);
 }
 export function loadDetail(
 	colony: string,
 	id: string,
-	options: { scope: BoardScope; fresh?: boolean },
+	options: { scope: BoardScope; refreshAfter?: number },
 ): Promise<void> {
-	const search = new URLSearchParams({ scope: JSON.stringify(options.scope) });
+	const search = new URLSearchParams({
+		refreshAfter: String(options.refreshAfter ?? 0),
+		scope: JSON.stringify(options.scope),
+	});
 	return details.load(
 		detailKey(colony, id, options.scope),
 		`/api/colonies/${colony}/beads/${encodeURIComponent(id)}?${search}`,
-		options.fresh,
+		(options.refreshAfter ?? 0) > 0,
 	);
 }
 export function loadProvenance(colony: string, id: string, fresh = false): Promise<void> {
@@ -96,16 +106,22 @@ export async function loadView(
 	fresh = false,
 ): Promise<void> {
 	const scope = boardScopeSchema.parse(navigation);
+	const refreshAfter = fresh ? Date.now() : 0;
 	if (scope.view !== "beads") {
-		await loadInventory(colony, inventoryFilterSchema.parse(navigation), fresh);
+		await loadInventory(colony, inventoryFilterSchema.parse(navigation), refreshAfter);
 	}
 	await Promise.all([
 		...(scope.view === "beads" || navigation.request !== undefined
-			? [loadBoard(colony, boardFilterSchema.parse(navigation), fresh)]
+			? [loadBoard(colony, boardFilterSchema.parse(navigation), refreshAfter)]
 			: []),
 		...(navigation.bead === undefined
 			? []
-			: [loadDetail(colony, navigation.bead, { fresh, scope })]),
+			: [
+					loadDetail(colony, navigation.bead, {
+						refreshAfter,
+						scope,
+					}),
+				]),
 		...(scope.view === "beads" || navigation.ancestry === undefined
 			? []
 			: [loadProvenance(colony, navigation.ancestry, fresh)]),

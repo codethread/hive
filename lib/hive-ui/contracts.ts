@@ -96,6 +96,8 @@ export const beeSchema = z.object({
 export const cardSchema = z.object({
 	/** Native task assignee, or null when unassigned. */
 	assignee: z.string().nullable(),
+	/** Open linked requests whose identity matches this in-progress task's native assignee. */
+	beeAssignments: z.array(beeSchema.pick({ id: true, kind: true })),
 	/** Native task bead ID used for selection and detail reads. */
 	id: z.string(),
 	/** Exact native labels retained for display and filter actions. */
@@ -111,7 +113,7 @@ export const cardSchema = z.object({
 });
 export const requestInventorySchema = z.discriminatedUnion("kind", [
 	z.object({
-		/** Ordinary-bead reads do not query request membership. */
+		/** Ordinary-bead browsing does not request a Bee inventory; assignment enrichment is separate. */
 		kind: z.literal("not_requested"),
 	}),
 	z.object({
