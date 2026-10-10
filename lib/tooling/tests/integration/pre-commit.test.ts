@@ -34,6 +34,7 @@ function environment(root: string, lintExit: number, typecheckExit: number) {
 		PATH: `${join(root, "bin")}:${process.env.PATH}`,
 		LINT_EXIT: String(lintExit),
 		TYPECHECK_EXIT: String(typecheckExit),
+		BUN_EXECUTABLE: process.execPath,
 	};
 }
 
@@ -51,6 +52,9 @@ async function prepare(root: string, branch: string, env: ReturnType<typeof envi
 	await writeExecutable(
 		join(root, "bin/bun"),
 		`printf '%s\\n' "$*" >> "$HOOK_LOG"
+if [ "$2" = "scripts/beads-validate.ts" ]; then
+	exec "$BUN_EXECUTABLE" "$@"
+fi
 exit "$TYPECHECK_EXIT"
 `,
 	);
@@ -98,3 +102,89 @@ test.each([
 		}
 	},
 );
+
+test.each([
+	{
+		name: "valid snapshot",
+		branch: "tracker/state",
+		snapshot: '{"id":"hv-test"}\n',
+		mixed: false,
+		accepted: true,
+		commands: ["run scripts/beads-validate.ts"],
+	},
+	{
+		name: "malformed staged snapshot",
+		branch: "tracker/state",
+		snapshot: "{broken\n",
+		mixed: false,
+		accepted: false,
+		commands: ["run scripts/beads-validate.ts"],
+	},
+	{
+		name: "duplicate IDs",
+		branch: "tracker/state",
+		snapshot: '{"id":"hv-test"}\n{"id":"hv-test"}\n',
+		mixed: false,
+		accepted: false,
+		commands: ["run scripts/beads-validate.ts"],
+	},
+	{
+		name: "snapshot with code",
+		branch: "tracker/state",
+		snapshot: '{"id":"hv-test"}\n',
+		mixed: true,
+		accepted: false,
+		commands: ["lint", "run typecheck"],
+	},
+	{
+		name: "snapshot on code branch",
+		branch: "main",
+		snapshot: '{"id":"hv-test"}\n',
+		mixed: false,
+		accepted: false,
+		commands: ["lint", "run typecheck"],
+	},
+])("artifact gates for $name", async ({ branch, snapshot, mixed, accepted, commands }) => {
+	const root = await mkdtemp(join(tmpdir(), "hive snapshot hook "));
+	const env = environment(root, success, qualityFailure);
+	try {
+		await prepare(root, branch, env);
+		await stageSnapshot(root, env, { snapshot, mixed });
+		const result = await run(["git", "commit", "-m", "checkpoint"], root, env);
+		expect(result.exitCode === success).toBe(accepted);
+		const log = await Bun.file(env.HOOK_LOG).text();
+		expect(log.trim().split("\n")).toEqual([...commands]);
+	} finally {
+		await rm(root, { force: true, recursive: true });
+	}
+});
+
+async function stageSnapshot(
+	root: string,
+	env: ReturnType<typeof environment>,
+	{ snapshot, mixed }: { snapshot: string; mixed: boolean },
+): Promise<void> {
+	await installValidator(root);
+	if (!mixed) {
+		const unstaged = await run(["git", "rm", "--cached", "notes.md"], root, env);
+		expect(unstaged.exitCode).toBe(success);
+	}
+	await mkdir(join(root, ".beads"));
+	await Bun.write(join(root, ".beads/issues.jsonl"), snapshot);
+	const staged = await run(["git", "add", ".beads/issues.jsonl"], root, env);
+	expect(staged.exitCode).toBe(success);
+	// The live export must not replace validation of the staged commit artifact.
+	await Bun.write(join(root, ".beads/issues.jsonl"), '{"id":"hv-live"}\n');
+}
+
+async function installValidator(root: string): Promise<void> {
+	await mkdir(join(root, "scripts"));
+	await Promise.all(
+		["beads-validate.ts", "beads-jsonl.ts"].map((name) =>
+			Bun.write(
+				join(root, "scripts", name),
+				Bun.file(new URL(`../../../../scripts/${name}`, import.meta.url)),
+			),
+		),
+	);
+}

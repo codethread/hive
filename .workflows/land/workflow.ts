@@ -303,7 +303,7 @@ ${retainedContext(context)}`,
 				title: "Record completed task state",
 				commands: { next: "NEXT" },
 				task: ({ context }: { context: LandingContext }) => ({
-					instructions: `From a surviving configured code checkout retain beadsDb via BEADS_DB or native --db. Record landing evidence and close only completedTasks whose acceptance is proven; leave unfinished or unrelated tasks open. Do not close this workflow run or grouping beads: Busy Bee owns them. Native br updates and automatic JSONL export stay local. Record completion evidence now; the final report step publishes once after Busy Bee closes its run. Verify completed task evidence in the selected tracker and canonical main is clean and synchronized. A refused task update leaves this task open.
+					instructions: `From a surviving configured code checkout retain beadsDb via BEADS_DB or native --db. Record landing evidence and close only completedTasks whose acceptance is proven; leave unfinished or unrelated tasks open. Do not close this workflow run or grouping beads: Busy Bee owns them. Native br updates, automatic JSONL export and worker handoffs stay local. Record completion evidence now; the final report step publishes once after Busy Bee closes its run. Verify completed task evidence in the selected tracker and canonical main is clean and synchronized. A refused task update leaves this task open.
 
 ${retainedContext(context)}`,
 				}),

@@ -101,7 +101,7 @@ A specialist evidence record is an archive, not executable work or authoritative
 
 Within that scope, create the record with native `--type docs --status closed --owner ct`, the supplied actor (otherwise the harness actor), and the initial sourced entry in its description. This is a narrow exception to claiming executable work: the record starts filed and never enters the ready queue. `closed` means recorded, not that its question is resolved or its advice validated. Append subsequent dated evidence to notes without claiming or reopening the record. Unresolved questions and next evidence can remain in the archive; a concrete authorized investigation or change belongs in a separate actionable task under the normal work lifecycle.
 
-The specialist contract defines relationships and discovery. Verify the saved content, labels and links, then publish through the root synchronization runbook. Respect native policy failures; do not force creation or closure to file evidence.
+The specialist contract defines relationships and discovery. Verify the saved content, labels and links, then follow the root runbook’s explicit publication checkpoints. Respect native policy failures; do not force creation or closure to file evidence.
 
 ### Inherited agent context
 

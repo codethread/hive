@@ -39,14 +39,17 @@ The JSONL merge driver combines append-only comments using their issue, author, 
 
 Verified Git conflicts, native `SYNC_CONFLICT` failures and the native `sync --merge` conflict diagnostic produce a `cc-notify` alert with the host, repository, tracker and recovery action. Notification failure is reported alongside the original sync failure. Colony records the same context in its failed status; its existing [independent watchdog](../lib/colony/README.md#health-notifications) delivers that alert and deduplicates the incident.
 
-Publication is an explicit agent workflow step. Session-start hooks only configure the environment; pre-commit and pre-merge-commit hooks retain lint-staged and typecheck without publishing the tracker. Commitlint remains on commit-msg.
+Publication is an explicit remote-exchange step. Session-start hooks only configure the environment; Git hooks do not publish the tracker. Snapshot-only commits and merges on `tracker/state` validate the staged JSONL with the existing merge parser (valid issue records and unique IDs), without unrelated code checks. Other changes retain lint-staged and typecheck. Commitlint remains on commit-msg; native reconciliation, snapshot scope checks and conflict handling remain in the publisher.
 
 Synchronize at these boundaries:
 
-- **Startup/resume:** once when beginning or resuming work, before selecting or claiming tasks (or verifying Colony-supplied claims). Moving that work into a new local worktree does not add another checkpoint.
-- **Final handoff/landing:** once after all task updates, including completion or closure after the final code commit. Recording work without implementing it also ends with publication.
+- **Explicit pull/remote refresh:** the operator consuming remote work runs `bun run beads:sync`, including when returning to an independent or dormant clone before selecting shared work. A code pull and repeat bootstrap do not refresh the live tracker. Sync exchanges changes in both directions; it is not receive-only.
+- **Landing/merge:** the landing actor publishes once after integration and all final task/workflow updates, from a surviving configured checkout.
+- **Deliberate remote handoff/checkpoint:** the responsible actor publishes valuable tracker-only or unlanded work when handing it to another clone, switching/retiring hosts, or requesting a remote checkpoint. Ordinary local handoffs and recording new tasks stay local.
 
-Claims, progress updates and local code commits stay local between these boundaries. This assumes a single active clone: all its worktrees and bees share the selected database. When coordinating across simultaneously active clones, explicitly publish claims before working and respect already-published reservations; treat claims as provisional until publication succeeds. Unpublished claims are invisible to other clones; startup/final publication alone cannot provide cross-clone exclusivity. Never force competing claims.
+All worktrees and bees sharing the selected database see local claims and updates immediately. Routine startup/resume, child completion, progress and local commits need no publication. Independent clones may remain stale until explicit exchange; local-only work has no remote backup or bounded publication delay. Each clone must eventually exchange its updates for remote visibility.
+
+For deliberate cross-clone shared work, prefer agreed task allocation. Otherwise refresh, make the actual claims, successfully publish and verify the reservations before execution; batch reservations when useful. Publish release/handoff before another clone takes over. Claims remain provisional until publication succeeds. Separate clones have separate databases even on one host. Neither local locks nor Git exchange provide distributed leases or fencing; reused actor names can produce identical claims without proving exclusivity. Never force competing claims. Autonomous shared-queue dispatch across clones requires a separately agreed pre-execution coordination protocol.
 
 Native `br` automatic JSONL import/export remains enabled independently of Git publication. Every publication includes the shared database's snapshot, including colleagues' ongoing tasks; publishing does not close their work. Never merge `tracker/state` into a code branch.
 
@@ -64,7 +67,7 @@ Setup preserves unrelated TOML settings and writes `BEADS_DB` to ignored `mise.l
 
 Setup also refreshes the Hive-owned native `bee-attention` saved query in the selected database. It is local configuration rather than issue JSONL. See the [spawn query contract](./agents/spawn-requests.md#saved-presets) for its exact filters, direct installation command and history queries.
 
-Mise supplies the project environment. Direnv projects the selection after normal local approval; Claude's SessionStart hook exports it; Pi's extension sets it at session start; Codex reads its generated shell-environment configuration. Codex needs no Beads SessionStart hook. Claude and Pi startup integrations do not synchronize. Agents own the explicit startup/resume checkpoint; a failed synchronization stops tracker work under the recovery procedure below.
+Mise supplies the project environment. Direnv projects the selection after normal local approval; Claude's SessionStart hook exports it; Pi's extension sets it at session start; Codex reads its generated shell-environment configuration. Codex needs no Beads SessionStart hook. Claude and Pi startup integrations do not synchronize. Remote exchange follows the explicit checkpoints above; a failed synchronization stops tracker work under the recovery procedure below.
 
 When updating from the former wrapper setup, rerun setup in existing configured checkouts, including the permanent tracker checkout, and restart shells and agents. Setup removes generated wrapper PATH and shell-adapter overrides. Keep the tracker checkout's tooling current with the relevant changes, without merging the entire code branch into `tracker/state`.
 
@@ -90,4 +93,4 @@ Manual recovery takes place in a separate human terminal with tracker writers pa
 
 The tracker checkout is permanent: keep it out of worktree pools and ordinary finish/remove cleanup. Its database, history and pending work must survive feature checkout deletion. Preserve older private databases until their unpublished state is reconciled; selecting a new endpoint does not migrate them.
 
-The full checkout supplies the relative JSONL merge-driver script and Husky tooling. Maintain these deliberately; do not routinely merge main into the tracker branch because code branches carry no live tracker snapshot.
+The full checkout supplies the relative JSONL merge-driver script and Husky tooling. Maintain these deliberately with reviewed, narrowly scoped tooling commits that also exist on main; do not routinely merge main into the tracker branch because code branches carry no live tracker snapshot. Preserve pending JSONL and the database, and finish the maintenance commit before publication so the publisher sees only snapshot changes.

@@ -32,7 +32,7 @@ Hydrate only relevant permitted results with `br show`. For history, filter by `
    - `actionable` is `true` and `id` is present: run `br show <id> --json` for that one bead. An actionable response without an ID is incomplete evidence; report it and stop.
 3. Confirm the bead is still open, unassigned, outside `system`/`hitl`, and has no unresolved blockers. Return its ID/title, priority, scope, acceptance criteria and brief selection reason. If its current state contradicts the pick, report the discrepancy and stop rather than selecting another bead.
 
-The normal next-pick path is one `bv` query and one `br show`; an empty or unsafe result needs only the first query. The caller owns claiming and synchronization for any recommended work.
+The normal next-pick path is one `bv` query and one `br show`; an empty or unsafe result needs only the first query. The caller owns claiming and any explicit remote exchange for recommended work.
 
 ## Escalation ladder
 

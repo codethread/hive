@@ -17,7 +17,7 @@ Example:
 For the bee executing linked tasks, using the injected execution context.
 Preserve BEADS_DB and BD_ACTOR; use the supplied assignment and working directory.
 Read all linked acceptance criteria, record the deliverable, verify it, close
-completed tasks, and perform repository-required synchronization and cleanup.
+completed tasks, and perform cleanup and any explicit repository publication checkpoint.
 Advisory bees change only their report tasks, not the work they examine.
 
 Then report:

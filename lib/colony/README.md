@@ -190,7 +190,7 @@ See the [acknowledgment contract](../../docs/agents/spawn-requests.md#acknowledg
 
 ## Report completion from a bee
 
-Inside a Colony-launched execution, use `bee finish success` after closing tasks and completing cleanup and tracker synchronization. If work remains blocked, first complete everything possible, record the remaining findings and next actions, then use `bee finish blocked --reason "TASK_ID needs a credential; operator must supply it, then retry"`.
+Inside a Colony-launched execution, use `bee finish success` after closing tasks, completing cleanup and following the repository’s explicit tracker publication checkpoints. If work remains blocked, first complete everything possible, record the remaining findings and next actions, then use `bee finish blocked --reason "TASK_ID needs a credential; operator must supply it, then retry"`.
 
 Blocked handoff preserves native task states, records the reason on the spawn, and pauses automatic retries. `bee status` shows the reason and failed/unresolved attention. Once the blocker is resolved and native tasks are ready, `bee retry` creates a linked replacement for unfinished work. See the [self-report contract](../../docs/agents/spawn-requests.md#report-your-own-execution-finished) for completion ownership, injected provenance, durable submission and recovery.
 

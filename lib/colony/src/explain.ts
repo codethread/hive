@@ -437,7 +437,7 @@ function trackerConditions(tracker: TrackerFacts, add: AddDiagnostic, executing:
 		let nextTransition = "An awake pass must settle the request and publish its outcome.";
 		if (executing) {
 			nextTransition =
-				"The bee retains its live execution for cleanup and synchronization; a finish report or process exit allows Colony to settle it.";
+				"The bee retains its live execution for cleanup and reporting; a finish report or process exit allows Colony to settle it.";
 		}
 		add({
 			code: "tasks_finished",
