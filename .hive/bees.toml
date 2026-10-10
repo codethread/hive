@@ -68,6 +68,25 @@ argv = [
 	"{{prompt}}",
 ]
 
+# Scout uses native Codex at standard tier, overriding inherited fast-mode settings.
+[formulas.codex-standard]
+executable = "codex"
+headless = ["exec", "--json", "--dangerously-bypass-approvals-and-sandbox"]
+argv = [
+	"-m",
+	"{{model}}",
+	"-c",
+	'model_reasoning_effort="{{effort}}"',
+	"-c",
+	'service_tier="default"',
+	"-c",
+	'shell_environment_policy.inherit="all"',
+	"{{#if system_prompt}}-c{{/if}}",
+	'{{#if system_prompt}}developer_instructions={{json system_prompt}}{{/if}}',
+	"--",
+	"{{prompt}}",
+]
+
 [formulas.pi]
 # Bypass the PATH pi shim: print-mode requests there run through Pies, not native Pi.
 executable = "~/.pi/agent/bin/pi"
