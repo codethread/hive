@@ -4,22 +4,16 @@ Busy Bee runs XState workflows as native Beads tasks. Agents do the work, close 
 
 ## Install
 
-Requires Bun and native `br` on `PATH`. From a Hive checkout:
+Requires Bun for building and native `br` on `PATH`. From a Hive checkout:
 
 ```sh
 bun install
-bun run --silent busybee --help
-```
-
-To run `busybee` from other repositories, link the local package:
-
-```sh
-bun link --cwd lib/busybee
-export PATH="${BUN_INSTALL:-$HOME/.bun}/bin:$PATH"
+bun run --filter @hive/busybee build
+bun run --filter @hive/busybee install:bin
 busybee --help
 ```
 
-Keep the linked checkout and its dependencies available. Automatic workers also require `bee` and an awake Colony; see [automatic tasks](#automatic-tasks).
+The build writes the standalone executable `lib/busybee/dist/busybee`. Installation copies it to `~/.local/bin`; put that directory on `PATH`. Use `install:bin --directory /path/to/bin` for another destination. Workflow definitions remain checkout-owned and must provide their imports. Automatic workers also require `bee` and an awake Colony; see [automatic tasks](#automatic-tasks).
 
 ## Run a workflow
 

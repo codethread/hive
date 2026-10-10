@@ -13,6 +13,6 @@ bun run beads:bootstrap
 experimental = true
 
 [daemons.colony-watchdog]
-run = 'export PATH="$HOME/.local/bin:$PATH"; exec bun run lib/colony/bin/watchdog.ts'
+run = 'export PATH="$HOME/.local/bin:$PATH"; exec colony-watchdog'
 retry = true
 boot_start = true

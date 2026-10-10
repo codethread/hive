@@ -7,8 +7,7 @@ import type { WatchdogCheckpoint, WatchdogObservation } from "../src/watchdog.ts
 import { mkdir, rename } from "node:fs/promises";
 import { Command } from "commander";
 import type { ServerSelection } from "../src/server-target.ts";
-// eslint-disable-next-line import/no-nodejs-modules -- Decode executable URL paths.
-import { fileURLToPath } from "node:url";
+import { colonyEntry } from "../src/executables.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Watcher checkpoint location.
 import { join } from "node:path";
 import { resolveServerTarget } from "../src/server-target.ts";
@@ -21,10 +20,7 @@ const program = new Command()
 	.option("--state <directory>", "Colony state directory (same default as colony)")
 	.option("--socket <path>", "Colony socket; requires --state")
 	.parse();
-const target = resolveServerTarget(
-	program.opts<ServerSelection>(),
-	fileURLToPath(new URL("runtime.ts", import.meta.url)),
-);
+const target = resolveServerTarget(program.opts<ServerSelection>(), colonyEntry("runtime"));
 const directory = join(target.state, "watchdog");
 const socketKey = new Bun.CryptoHasher("sha256").update(target.socket).digest("hex");
 const checkpointPath = join(directory, `${socketKey}.json`);

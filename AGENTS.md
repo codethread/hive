@@ -38,7 +38,7 @@ Product packages may import only `@hive/shared` across package boundaries; Share
 
 ## Runtime and commits
 
-- Strict TypeScript runs directly on Bun; there is no build step and no emit. `tsc --noEmit` is the gate.
+- Development runs strict TypeScript directly on Bun. CLI compilation is separate from the `tsc --noEmit` typechecking gate.
 - Conventional Commits, enforced by commitlint on `commit-msg`.
 
 ## Commands

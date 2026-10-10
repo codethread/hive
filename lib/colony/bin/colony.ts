@@ -2,12 +2,11 @@
 /* eslint-disable max-dependencies -- CLI composes daemon commands and independent read-only inspection boundaries. */
 import { CommandError, execute, policyChangeSchema, resolveRepository } from "@hive/shared";
 import type { ConfigOptions, ServerOptions } from "../src/cli.ts";
+import { colonyEntry, entryCommand } from "../src/executables.ts";
 import { requestLazyServer, requestServer } from "../src/client.ts";
 import type { ConfigCommand } from "@hive/shared";
 import type { ServerTarget } from "../src/client.ts";
 import { explainRequest } from "../src/explain.ts";
-// eslint-disable-next-line import/no-nodejs-modules -- Decode executable URL paths.
-import { fileURLToPath } from "node:url";
 import { initRepository } from "../src/producer.ts";
 import { launchedResultSchema } from "../src/output.ts";
 import { match } from "ts-pattern";
@@ -18,7 +17,7 @@ import { runCli } from "../src/cli.ts";
 
 const USER_ARGUMENTS_START = 2;
 const SUCCESS = 0;
-const runtime = fileURLToPath(new URL("runtime.ts", import.meta.url));
+const runtime = colonyEntry("runtime");
 process.exitCode = await runCli(Bun.argv.slice(USER_ARGUMENTS_START), {
 	add: async (options) =>
 		requestLazyServer(target(options), {
@@ -54,7 +53,7 @@ process.exitCode = await runCli(Bun.argv.slice(USER_ARGUMENTS_START), {
 		}),
 	launch: async (id, options) => {
 		const output = await execute(
-			[process.execPath, runtime, "launch", id, options.repo, options.beadsDb, options.state],
+			[...entryCommand(runtime), "launch", id, options.repo, options.beadsDb, options.state],
 			process.cwd(),
 			process.env,
 		);
@@ -69,7 +68,7 @@ process.exitCode = await runCli(Bun.argv.slice(USER_ARGUMENTS_START), {
 	serve: async (options) => {
 		const selected = target(options);
 		const child = Bun.spawn(
-			[process.execPath, runtime, "serve", "--socket", selected.socket, "--state", selected.state],
+			[...entryCommand(runtime), "serve", "--socket", selected.socket, "--state", selected.state],
 			{
 				stderr: "pipe",
 				stdin: "inherit",

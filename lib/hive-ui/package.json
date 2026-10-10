@@ -6,7 +6,9 @@
 	"scripts": {
 		"dev": "bun --hot ./server/index.ts",
 		"start": "bun ./server/index.ts",
-		"typecheck": "tsc --noEmit"
+		"typecheck": "tsc --noEmit",
+		"build": "bun run ./scripts/build.ts",
+		"install:bin": "bun run ../tooling/src/install-artifacts.ts hive-ui"
 	},
 	"dependencies": {
 		"@dagrejs/dagre": "^3.1.1",

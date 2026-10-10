@@ -6,22 +6,17 @@ It is useful when you want predictable worktree paths, safe cleanup, JSON output
 
 ## Install from Hive
 
-Requirements: git and Bun. The optional `wk` picker requires fzf and zsh or Nushell.
+Requirements: Git; Bun for building. The optional `wk` picker requires fzf and zsh or Nushell.
 
-From the Hive root, install workspace dependencies and generate the `honeycomb` launcher:
+From the Hive root, install workspace dependencies, compile locally, then install the executable:
 
 ```nu
 bun install
 bun run --filter @hive/honeycomb build
+bun run --filter @hive/honeycomb install:bin
 ```
 
-The build writes:
-
-```text
-~/.local/bin/honeycomb
-```
-
-Make sure `~/.local/bin` is on your `PATH`.
+The build writes `lib/honeycomb/dist/honeycomb`. Installation copies that standalone executable to `~/.local/bin`; put that directory on `PATH`. Use `install:bin --directory /path/to/bin` to select another destination. Building alone does not change installed commands.
 
 After installing, use the built-in help for the full command reference:
 

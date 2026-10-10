@@ -2,15 +2,19 @@
 
 Waggle runs repo-owned JEV classifiers to direct review attention. This proof of concept supports named **choice** questions, not automatic approval, PR comments or merge gates.
 
-## Run from a checkout
+## Install and run
 
-Requires Bun. From the Hive checkout root:
+Requires Bun for building. From the Hive checkout root:
 
 ```nu
 bun install
-bun run --silent waggle list --json
-bun run --silent waggle describe abstraction-payoff --json
+bun run --filter @hive/waggle build
+bun run --filter @hive/waggle install:bin
+waggle list --json
+waggle describe abstraction-payoff --json
 ```
+
+The build writes the standalone executable `lib/waggle/dist/waggle`; installation copies it to `~/.local/bin`. Use `install:bin --directory /path/to/bin` for another destination. You can also run `waggle list --json` directly after installation.
 
 Definitions are the direct `*.toml` files in `./classifiers`, relative to the current directory. IDs come from filenames; `abstraction-payoff.toml` is `abstraction-payoff`. There is no parent-directory or Git-root discovery. Use `--classifiers <directory>` to select another directory explicitly.
 

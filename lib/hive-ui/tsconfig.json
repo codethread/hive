@@ -4,5 +4,5 @@
 		"lib": ["ESNext", "DOM", "DOM.Iterable"],
 		"jsx": "react-jsx"
 	},
-	"include": ["src", "server", "contracts.ts"]
+	"include": ["src", "server", "scripts", "contracts.ts"]
 }

@@ -13,9 +13,9 @@ mise trust
 mise run
 ```
 
-The default task installs dependencies, builds the workspace launchers, then runs the idempotent `bun run beads:bootstrap` step. Rerun `mise run` for setup after a pull; run `bun run beads:bootstrap` directly when only tracker setup is needed. Dependency installation alone does not create the tracker.
+The default task installs dependencies, builds project-local CLI executables, explicitly installs their artifacts, then runs the idempotent `bun run beads:bootstrap` step. Rerun `mise run` for setup after a pull; run `bun run beads:bootstrap` directly when only tracker setup is needed. Dependency installation alone does not create the tracker.
 
-`beads:bootstrap` invokes Honeycomb's CLI from this checkout through Bun; no installed Honeycomb launcher or global build is required. It uses a temporary, isolated Honeycomb configuration to create the permanent tracker as a nested, non-pooled worktree at `.worktrees/tracker--state`, on `tracker/state`, from `origin/tracker/state`. If `origin/tracker/state` is unavailable, Git's fetch fails; arrange for the accepted tracker branch and its existing `.beads/issues.jsonl` snapshot to be available, then retry. Bootstrap does not create a private tracker in a feature worktree.
+`beads:bootstrap` invokes Honeycomb's CLI from this checkout through Bun; no installed Honeycomb executable or global installation is required. It uses a temporary, isolated Honeycomb configuration to create the permanent tracker as a nested, non-pooled worktree at `.worktrees/tracker--state`, on `tracker/state`, from `origin/tracker/state`. If `origin/tracker/state` is unavailable, Git's fetch fails; arrange for the accepted tracker branch and its existing `.beads/issues.jsonl` snapshot to be available, then retry. Bootstrap does not create a private tracker in a feature worktree.
 
 Bootstrap imports the tracker's existing `.beads/issues.jsonl` only when `.beads/beads.db` does not exist, then flushes to establish the local merge base. It installs the tracker checkout's tooling and reuses `beads:setup` to configure the canonical checkout, permanent tracker checkout, and invoking checkout to use the selected tracker.
 

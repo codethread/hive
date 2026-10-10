@@ -7,9 +7,10 @@
 	},
 	"type": "module",
 	"scripts": {
-		"install:bin": "bun run ./scripts/install-bin.ts",
+		"install:bin": "bun run ../tooling/src/install-artifacts.ts qlock",
 		"typecheck": "tsc --noEmit",
-		"test": "bun test ./tests"
+		"test": "bun test ./tests",
+		"build": "bun build ./bin/qlock.ts --compile --outfile ./dist/qlock"
 	},
 	"dependencies": {
 		"commander": "^15.0.0",

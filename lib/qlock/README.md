@@ -4,7 +4,7 @@ Ticketed local command locking for agents and shells, implemented in TypeScript 
 
 ## Install
 
-From a retained Hive checkout, the default setup installs qlock alongside the other tools:
+From a Hive checkout, the default setup installs qlock alongside the other tools:
 
 ```nu
 mise trust
@@ -15,12 +15,14 @@ qlock --help
 Or install only qlock:
 
 ```nu
+bun install
+bun run --filter @hive/qlock build
 bun run --filter @hive/qlock install:bin
 ```
 
-The installer writes a launcher to `~/.local/bin/qlock`; put that directory on `PATH`. The launcher execs Bun against this checkout's TypeScript entry point, so retain the checkout and its installed dependencies. No compilation step is needed. Use `install:bin --directory /path/to/bin` for a separate destination. An existing symlink is replaced, not followed; its target is left unchanged.
+The build writes the standalone executable `lib/qlock/dist/qlock`. Installation copies it to `~/.local/bin/qlock`; put that directory on `PATH`. Use `install:bin --directory /path/to/bin` for a separate destination. An existing symlink is replaced without altering its target. Building alone leaves installed commands untouched.
 
-Runtime requirements: Bun on a Unix-like system. Merge queues also require Git and Honeycomb. Bash, `flock` and `shasum` are not runtime dependencies.
+Bun is required for building. The executable runs on the build host's Unix-like platform without a separate Bun installation. Merge queues also require Git and Honeycomb. Bash, `flock` and `shasum` are not runtime dependencies.
 
 ## Execute or resume
 

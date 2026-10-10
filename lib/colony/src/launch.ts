@@ -1,3 +1,4 @@
+/* eslint-disable max-dependencies -- Launch boundary composes receipt, identity, configuration and detached executable ownership. */
 import type { Bead, Formula, RepositoryEndpoint } from "@hive/shared";
 import {
 	beadSchema,
@@ -9,6 +10,7 @@ import {
 	renderFormula,
 	showBead,
 } from "@hive/shared";
+import { colonyEntry, entryCommand } from "./executables.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Supply the host home at the native invocation boundary.
 import { homedir, hostname } from "node:os";
 // eslint-disable-next-line import/no-nodejs-modules -- Resolve owned receipt and execution directories.
@@ -332,13 +334,10 @@ export async function startSupervisor(
 ): Promise<number> {
 	const log = await open(join(receipt.directory, "supervisor.log"), "a");
 	try {
+		const [executable, ...prefix] = entryCommand(colonyEntry("worker"));
 		const child = spawnSupervisor(
-			process.execPath,
-			[
-				resolvePath(import.meta.dirname, "../bin/worker.ts"),
-				join(receipt.directory, "receipt.json"),
-				state,
-			],
+			executable,
+			[...prefix, join(receipt.directory, "receipt.json"), state],
 			{
 				cwd: receipt.cwd,
 				detached: true,

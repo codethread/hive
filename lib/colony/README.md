@@ -4,18 +4,19 @@ Bee opens configured agent roles directly with `bee run`, or submits task reques
 
 ## Install and try it
 
-Requirements: Bun, Bash (for installed wrappers), Git, `br`, `honeycomb`, and a native harness executable with working model access. Default ranking also needs `bv`; set `ranking = "fifo"` in `.hive/bees.toml` to run without BV. `colony init` writes a Codex formula, so its default quickstart needs native Codex on `PATH`. Other harnesses need a formula using their supported flags. See [harness evidence](../../docs/harness-capabilities.md) for verified versions and limits.
+Requirements: Bun for building, Git, `br`, `honeycomb`, and a native harness executable with working model access. Default ranking also needs `bv`; set `ranking = "fifo"` in `.hive/bees.toml` to run without BV. `colony init` writes a Codex formula, so its default quickstart needs native Codex on `PATH`. Other harnesses need a formula using their supported flags. See [harness evidence](../../docs/harness-capabilities.md) for verified versions and limits.
 
-From a Hive checkout you intend to retain:
+From a Hive checkout:
 
 ```sh
 bun install
+bun run --filter @hive/colony build
 bun run --filter @hive/colony install:bin
 bee --help
 colony --help
 ```
 
-The installer writes `bee` and `colony` wrappers to `~/.local/bin`; put that directory on `PATH`. The wrappers point to this checkout and resolve Bun through `PATH`, so retain the checkout and its installed dependencies. Use `install:bin --directory /path/to/bin` for a separate destination. This installs commands only; it does not install or start a service.
+The build writes standalone `bee`, `colony`, `colony-runtime`, `colony-worker` and `colony-watchdog` executables under `lib/colony/dist`. The installer copies all five to `~/.local/bin`; put that directory on `PATH`. Keep the companions together: Colony launches its daemon and supervisors from that directory, and assessment prompts use the matching Bee and Colony. Use `install:bin --directory /path/to/bin` for a separate destination. Building alone leaves installed commands untouched. This installs commands only; it does not install or start a service.
 
 Start with a disposable Git repository that already has an initialized Beads tracker. Select that repository and database explicitly; do not use your working task tracker for an experiment. Choose a model available to your native Codex account:
 
@@ -312,7 +313,7 @@ The independent watchdog reads public daemon status every 30 seconds. It alerts 
 
 Each repository/tracker failure episode alerts once, even if its diagnostic changes. An explicitly observed awake or asleep state produces one failure-cleared notification. A missing registration does not prove recovery. Daemon reachability recovery is reported separately and does not clear retained colony failures. Changes observed together share one notification; initial healthy startup is silent.
 
-Run the watcher from one retained Hive checkout with dependencies installed (`bun install`). Install Bun, [Mise](https://mise.jdx.dev/daemons.html), [Pitchfork](https://pitchfork.jdx.dev/reference/configuration.html), and `cc-notify`; its local notification service must also be available. These executables must be discoverable in the Mise environment, including at login. The daemon command adds `~/.local/bin` to its own `PATH` so user-installed `cc-notify` works without shell initialization. The root `mise.toml` enables Mise's experimental daemon support and defines `colony-watchdog` with indefinite failure retries and boot startup. It has no shell-entry autostart, shell-leave autostop, or dependency that starts Colony.
+Build and install the Colony artifacts first. Run the Mise watcher from one retained Hive checkout. Install [Mise](https://mise.jdx.dev/daemons.html), [Pitchfork](https://pitchfork.jdx.dev/reference/configuration.html), and `cc-notify`; its local notification service must also be available. These executables must be discoverable in the Mise environment, including at login. The daemon command adds `~/.local/bin` to its own `PATH` so user-installed `cc-notify` works without shell initialization. The root `mise.toml` enables Mise's experimental daemon support and defines `colony-watchdog` with indefinite failure retries and boot startup. It has no shell-entry autostart, shell-leave autostop, or dependency that starts Colony.
 
 From the chosen checkout:
 
@@ -340,7 +341,7 @@ Configuration was checked with Mise 2026.10.4 and Pitchfork 2.29.0. Pitchfork 2.
 The watcher uses the same state/socket defaults as `colony`. To select a different daemon, override `run` in `mise.local.toml`, or run the foreground entry directly:
 
 ```sh
-bun run lib/colony/bin/watchdog.ts --state /path/to/server-state --socket /path/to/server.sock
+colony-watchdog --state /path/to/server-state --socket /path/to/server.sock
 ```
 
 An explicit socket requires explicit state. Status calls and notification commands have ten-second deadlines. Notification bodies go to `cc-notify "Colony health"` through stdin. Delivery failures, malformed responses and checkpoint errors fail visibly in the watcher logs; Pitchfork retries the process. Planned daemon shutdown looks like an outage while monitoring is enabled, so stop the watchdog first.

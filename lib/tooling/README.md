@@ -41,3 +41,22 @@ Failed runs replay Bun's native diagnostics and retain its failure exit code, in
 Put the ID anywhere in the test description, such as `test('manages pool slots #test-1', ...)`. IDs in enclosing `describe` titles also apply. The complete numeric ID is matched, so `#test-1` does not allow `#test-10`; file moves and other title changes do not affect the allowance.
 
 With the default cutoffs, `SLOW` suppresses timing lines through 5ms, `XSLOW` through 1000ms, and `DANGER` has no timing-report ceiling and suppresses the matching landing gate failure. Allowances never suppress failures or change test timeouts. Allocate the next unused incrementing ID and retain it when moving the test. Every registry edit requires explicit user approval of the exact change.
+
+## CLI artifacts
+
+From the Hive root, `bun run --filter '*' build` compiles host executables using [Bun's standalone compiler](https://bun.com/docs/bundler/executables). Builds write only package-local `dist/` artifacts. `tsc --noEmit` remains the independent typechecking gate.
+
+| Package   | Artifacts in its `dist/` directory                                    |
+| --------- | --------------------------------------------------------------------- |
+| Honeycomb | `honeycomb`                                                           |
+| Colony    | `bee`, `colony`, `colony-runtime`, `colony-worker`, `colony-watchdog` |
+| qlock     | `qlock`                                                               |
+| Waggle    | `waggle`                                                              |
+| Busy Bee  | `busybee`                                                             |
+| Hive UI   | `hive-ui` (embedded browser assets)                                   |
+
+Shared and Tooling expose no executable build contract. These are host builds, without cross-compilation or a release pipeline. Standalone executables embed Bun and static dependencies; they do not need the producing checkout at runtime. Native external tools remain required by each command. Busy Bee loads trusted workflow modules from the selected checkout, whose own dependencies must be installed. Its build explicitly enables Bun package and TypeScript configuration loading (`--compile-autoload-package-json --compile-autoload-tsconfig`): without package metadata, Bun 1.4.2 cannot resolve external workflow package imports; without TypeScript configuration, workflow path aliases fail. Both cases were verified against source execution. Waggle reads classifiers from the caller-selected directory. Neither catalog is baked into the executable.
+
+`bun run --filter '*' install:bin` installs the already-built artifacts through the shared Tooling installer. Its `--directory <path>` option defaults to `~/.local/bin`; a missing artifact fails installation. Each executable is copied into destination-local staging, made executable, and renamed over the destination, replacing symlinks without modifying their targets. Colony's five executables must remain together. Stop and restart an existing daemon deliberately after updating its installed runtime.
+
+`mise run` orders dependency installation, local builds, explicit installation and tracker bootstrap. `bun install` alone prepares a new worktree and never installs global commands.

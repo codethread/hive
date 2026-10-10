@@ -19,6 +19,15 @@ mise trust
 mise run
 ```
 
-The default task installs dependencies, builds workspace launchers, runs workspace binary installers (including Bee, Colony and qlock), and bootstraps Beads. Rerunning it preserves the existing tracker. See [Beads setup](./docs/beads-integration.md#bootstrap-a-clone) for details, then follow the relevant tool guide above.
+The default task installs dependencies, compiles project-local CLI executables, explicitly installs those artifacts to `~/.local/bin`, and bootstraps Beads. Rerunning it preserves the existing tracker. See [Beads setup](./docs/beads-integration.md#bootstrap-a-clone) for details, then follow the relevant tool guide above.
+
+In a new worktree of an already configured clone, `bun install` is sufficient. It does not build or install global commands. To build locally and then install deliberately:
+
+```sh
+bun run --filter '*' build
+bun run --filter '*' install:bin
+```
+
+Use `install:bin --directory /path/to/bin` to select another destination. See [CLI artifacts](./lib/tooling/README.md#cli-artifacts) for the layout and runtime requirements.
 
 The [documentation index](./docs/README.md) covers architecture, terminology and integration contracts. [Philosophy](./docs/PHILOSOPHY.md) explains the project's scope.

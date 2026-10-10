@@ -8,6 +8,16 @@ From the repository root, install workspace dependencies with `bun install`, the
 bun run ui --beads-db /absolute/path/to/.beads/beads.db
 ```
 
+To run a standalone server with embedded browser assets, compile and install it separately:
+
+```sh
+bun run --filter @hive/hive-ui build
+bun run --filter @hive/hive-ui install:bin
+hive-ui --beads-db /absolute/path/to/.beads/beads.db
+```
+
+The build writes `lib/hive-ui/dist/hive-ui`; installation copies it to `~/.local/bin`. Use `install:bin --directory /path/to/bin` for another destination. It needs native `br` and `honeycomb` at runtime, and does not start a service.
+
 `BEADS_DB` supplies the default database when set. `--repo` selects the repository discovery directory. The server binds to `127.0.0.1:4318`; use `--port 0` for a free port. Run `bun run ui --help` for all options. Native `br` and `honeycomb` must be on PATH.
 
 For multiple colonies, create a JSON file of explicit repository/database pairs:
@@ -48,7 +58,7 @@ The MVP accepts up to 100 open requests per colony, 50 completed requests per hi
 
 ## Development and diagnostics
 
-`bun run ui:dev` restarts the Bun server when source changes. Reload the browser after edits; React hot replacement is disabled because the current Bun/TanStack Router combination fails during route initialization with it enabled. Bun serves HTML/TSX and Tailwind directly, without a separate build command.
+`bun run ui:dev` restarts the Bun server when source changes. Reload the browser after edits; React hot replacement is disabled because the current Bun/TanStack Router combination fails during route initialization with it enabled. Development serves HTML/TSX and Tailwind directly. The standalone build embeds those assets, with Tailwind processed at build time.
 
 Every data call logs a JSON sample: browser calls in developer tools, HTTP and native calls on server stderr. Use `--log-file /absolute/path/to/ui.jsonl` to write server diagnostics to a file (appended across runs). For machine startup, run Bun directly from `lib/hive-ui`: `bun ./server/index.ts --beads-db /absolute/path/to/beads.db --json --log-file /absolute/path/to/ui.jsonl`. Stdout contains one startup result with the URL and log path; stderr remains silent. Samples include a shared request ID, duration, outcome/status and payload bytes. Native samples include the query arguments; recipes, prompts and response bodies are omitted. These logs make eager reads and slow queries visible without adding telemetry infrastructure.
 

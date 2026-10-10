@@ -53,7 +53,7 @@ async function main(): Promise<void> {
 		.option("--log-file <path>", "Write server/native diagnostics to this file instead of stderr")
 		.addHelpText(
 			"after",
-			"\nRun from lib/hive-ui with bun run start. No daemon is started. Each browser view selects exactly one configured endpoint.",
+			"\nRun hive-ui, or use bun run start from lib/hive-ui during development. No daemon is started. Each browser view selects exactly one configured endpoint.",
 		)
 		.configureOutput({ writeErr: () => {} })
 		.exitOverride();

@@ -1,7 +1,7 @@
 import { advanceQueue, enqueue } from "../../src/queue.ts";
 import { afterEach, beforeEach, expect, test } from "bun:test";
 // eslint-disable-next-line import/no-nodejs-modules -- Real isolated filesystem fixtures exercise the installed CLI.
-import { lstat, mkdir, mkdtemp, realpath, rm, symlink } from "node:fs/promises";
+import { mkdir, mkdtemp, realpath, rm } from "node:fs/promises";
 import { Database } from "bun:sqlite";
 import { openQueue } from "../../src/live.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Locate the executable and fixture paths.
@@ -10,7 +10,6 @@ import { resolve } from "node:path";
 import { tmpdir } from "node:os";
 
 const executable = resolve(import.meta.dirname, "../../bin/qlock.ts");
-const installer = resolve(import.meta.dirname, "../../scripts/install-bin.ts");
 const queued = 75;
 const gone = 3;
 const usage = 2;
@@ -246,34 +245,6 @@ test(
 		await expect(
 			qlock(["exec", "-w", "0", "--ticket", first, "--merge-target", "main", "--", "true"]),
 		).resolves.toMatchObject({ code: 0 });
-	},
-);
-
-test(
-	"installer replaces a symlink without modifying its target and can run twice",
-	// eslint-disable-next-line max-statements -- Verify installation, repetition and source preservation together.
-	async () => {
-		const bin = resolve(directory, "bin");
-		const original = resolve(directory, "dotfile");
-		await mkdir(bin);
-		await Bun.write(original, "original script\n");
-		await symlink(original, resolve(bin, "qlock"));
-		await expect(command([process.execPath, installer, "--directory", bin])).resolves.toMatchObject(
-			{
-				code: 0,
-			},
-		);
-		await expect(command([process.execPath, installer, "--directory", bin])).resolves.toMatchObject(
-			{
-				code: 0,
-			},
-		);
-		const help = await command([resolve(bin, "qlock"), "--help"]);
-		expect(help.stdout).toContain("Ticketed local command queues");
-		expect(await Bun.file(original).text()).toBe("original script\n");
-		const installed = await lstat(resolve(bin, "qlock"));
-		expect(installed.isSymbolicLink()).toBe(false);
-		expect(await Bun.file(resolve(bin, "qlock")).text()).toContain("exec bun run");
 	},
 );
 

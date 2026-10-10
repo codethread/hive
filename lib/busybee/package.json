@@ -8,7 +8,9 @@
 	"type": "module",
 	"exports": "./src/runtime.ts",
 	"scripts": {
-		"typecheck": "tsc --noEmit"
+		"typecheck": "tsc --noEmit",
+		"build": "bun build ./bin/busybee.ts --compile --compile-autoload-package-json --compile-autoload-tsconfig --outfile ./dist/busybee",
+		"install:bin": "bun run ../tooling/src/install-artifacts.ts busybee"
 	},
 	"dependencies": {
 		"@hive/shared": "workspace:*",

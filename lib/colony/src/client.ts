@@ -2,6 +2,7 @@ import type { ColonyRequest, ColonyResponse } from "@hive/shared";
 // eslint-disable-next-line import/no-nodejs-modules -- Daemon log and socket boundary.
 import { mkdir, open } from "node:fs/promises";
 import { colonyResponseSchema } from "@hive/shared";
+import { entryCommand } from "./executables.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Daemon log path.
 import { join } from "node:path";
 import { match } from "ts-pattern";
@@ -101,9 +102,10 @@ async function startServer(target: ServerTarget): Promise<void> {
 	await mkdir(target.state, { recursive: true });
 	const logPath = join(target.state, "daemon.log");
 	const log = await open(logPath, "a");
+	const [executable, ...prefix] = entryCommand(target.runtimeEntry);
 	const child = spawn(
-		process.execPath,
-		[target.runtimeEntry, "serve", "--socket", target.socket, "--state", target.state],
+		executable,
+		[...prefix, "serve", "--socket", target.socket, "--state", target.state],
 		{ detached: true, stdio: ["ignore", log.fd, log.fd] },
 	);
 	let spawnError: Error | undefined = undefined;
