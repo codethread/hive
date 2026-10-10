@@ -154,6 +154,25 @@
 					}
 				]
 			}
+		},
+		{
+			"files": [
+				"scripts/beads-jsonl.ts",
+				"scripts/beads-merge-core.ts",
+				"scripts/beads-merge.test.ts"
+			],
+			"rules": {
+				"func-style": [
+					"error",
+					"declaration",
+					{
+						"allowArrowFunctions": true
+					}
+				],
+				"import/exports-last": "off",
+				"max-lines": "off",
+				"sort-keys": "off"
+			}
 		}
 	]
 }
