@@ -16,6 +16,7 @@ const FIVE_MINUTES_MS = 300_000;
 const receipt: LaunchReceipt = {
 	attemptNumber: 1,
 	beadsDb: "/tracker.db",
+	host: "fixture-host",
 	bucket: "/repo",
 	createdAt: new Date(START).toISOString(),
 	cwd: "/repo",
@@ -56,6 +57,7 @@ const active: DroneReview = {
 };
 const request: RequestRecord = {
 	beadsDb: receipt.beadsDb,
+	host: "fixture-host",
 	context: {
 		attemptId: review.targetAttemptId,
 		attempts: 1,

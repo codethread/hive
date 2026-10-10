@@ -20,6 +20,8 @@ import { join, resolve } from "node:path";
 import { mkdir, open, realpath, stat } from "node:fs/promises";
 import type { InitOptions } from "./cli.ts";
 import { createIdentity } from "./identity.ts";
+// eslint-disable-next-line import/no-nodejs-modules -- Submission binds execution to the requesting machine.
+import { hostname } from "node:os";
 import { loadBeesConfig } from "./config.ts";
 import { z } from "zod";
 
@@ -120,7 +122,7 @@ async function createRequest(
 		"--labels",
 		spawnRequestLabels(kind).join(","),
 		"--description",
-		JSON.stringify(recipe),
+		JSON.stringify({ ...recipe, host: hostname() }),
 		"--deps",
 		dependencies.join(","),
 	]);

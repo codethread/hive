@@ -1,11 +1,11 @@
 import { beadSchema, execute, parseBeesConfig, readSpawnRequest } from "@hive/shared";
 import { expect, test } from "bun:test";
+// eslint-disable-next-line import/no-nodejs-modules -- OS temporary fixture root.
+import { hostname, tmpdir } from "node:os";
 // eslint-disable-next-line import/no-nodejs-modules -- Disposable fixture directories.
 import { mkdir, mkdtemp, readdir, realpath, rm } from "node:fs/promises";
 // eslint-disable-next-line import/no-nodejs-modules -- Resolve fixture paths.
 import { join } from "node:path";
-// eslint-disable-next-line import/no-nodejs-modules -- OS temporary fixture root.
-import { tmpdir } from "node:os";
 
 const FIRST = 0;
 const SUCCESS = 0;
@@ -57,7 +57,7 @@ test(
 				"--labels",
 				"system,bee,agent:worker",
 				"--description",
-				JSON.stringify(recipe),
+				JSON.stringify({ ...recipe, host: hostname() }),
 				"--deps",
 				`related:${task.id}`,
 			]);
@@ -109,6 +109,29 @@ test(
 			await rm(output);
 			const blocker = await br(["create", "--title", "Blocking fixture", "--owner", "ct"]);
 			const cases = [
+				{
+					change: [
+						"update",
+						spawn.id,
+						"--description",
+						JSON.stringify({ ...recipe, host: "foreign-host" }),
+					],
+					reset: [
+						"update",
+						spawn.id,
+						"--description",
+						JSON.stringify({ ...recipe, host: hostname() }),
+					],
+				},
+				{
+					change: ["update", spawn.id, "--description", JSON.stringify(recipe)],
+					reset: [
+						"update",
+						spawn.id,
+						"--description",
+						JSON.stringify({ ...recipe, host: hostname() }),
+					],
+				},
 				{
 					change: ["update", task.id, "--assignee", "ct"],
 					reset: ["update", task.id, "--assignee", ""],

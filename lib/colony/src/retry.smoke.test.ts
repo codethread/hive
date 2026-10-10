@@ -2,13 +2,13 @@
 import { access, chmod, mkdir, mkdtemp, readdir, realpath, rm } from "node:fs/promises";
 import { colonyResponseSchema, execute } from "@hive/shared";
 import { expect, test } from "bun:test";
+// eslint-disable-next-line import/no-nodejs-modules -- Private OS temporary fixture root.
+import { hostname, tmpdir } from "node:os";
 import type { ColonyResponse } from "@hive/shared";
 import { Database } from "bun:sqlite";
 // eslint-disable-next-line import/no-nodejs-modules -- Private fixture paths.
 import { join } from "node:path";
 import { readHistory } from "./history.ts";
-// eslint-disable-next-line import/no-nodejs-modules -- Private OS temporary fixture root.
-import { tmpdir } from "node:os";
 
 const SUCCESS = 0;
 const FIRST = 0;
@@ -150,6 +150,15 @@ test(
 			}
 			/* eslint-enable no-await-in-loop */
 			await terminal(exhausted.spawn, "exhausted");
+			const [bound] = await tracker(["show", exhausted.spawn]);
+			const captured = JSON.parse(bound.description);
+			expect(captured.host).toBe(hostname());
+			await tracker([
+				"update",
+				exhausted.spawn,
+				"--description",
+				JSON.stringify({ ...captured, host: "foreign-host" }),
+			]);
 			expect(new Set(records.map((record) => record.id)).size).toBe(ATTEMPTS);
 			const exhaustedTask = await tracker(["show", unfinished]);
 			expect(exhaustedTask[FIRST]).toMatchObject({ status: "open" });
@@ -186,6 +195,7 @@ test(
 					"--json",
 				]),
 			).request;
+			expect(JSON.parse(replacement.description).host).toBe(hostname());
 			/* eslint-disable no-await-in-loop -- Verify the replacement independently receives the full real attempt budget. */
 			for (let attempt = ONE; attempt <= ATTEMPTS; attempt += ONE) {
 				await release(replacement.assignee, attempt);
@@ -361,9 +371,14 @@ test(
 			if (failed.kind !== "status" || failed.colonies[FIRST]?.state !== "failed") {
 				throw new Error(JSON.stringify(failed));
 			}
-			expect(failed.colonies[FIRST]?.message).toMatchInlineSnapshot(
-				'"br update exited 6: SYNC_CONFLICT: Tracker publication needs reconciliation"',
+			expect(failed.colonies[FIRST]?.message).toContain(
+				"br update exited 6: SYNC_CONFLICT: Tracker publication needs reconciliation",
 			);
+			expect(failed.colonies[FIRST]?.message).toContain("Beads conflict stopped Colony dispatch.");
+			expect(failed.colonies[FIRST]?.message).toContain(`Repository: ${repo}`);
+			expect(failed.colonies[FIRST]?.message).toContain(`Tracker: ${database}`);
+			expect(failed.colonies[FIRST]?.message).toContain("Host:");
+			expect(failed.colonies[FIRST]?.message).toContain("Action:");
 			const interruptedRequest = await tracker(["show", interrupted.spawn]);
 			expect(interruptedRequest[FIRST].status).toBe("open");
 			expect(interruptedRequest[FIRST].close_reason).toBeUndefined();

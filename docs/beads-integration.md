@@ -35,6 +35,10 @@ bun run beads:sync
 
 This command reconciles SQLite and JSONL, commits local tracker changes, fetches and merges compatible remote changes, reconciles the received snapshot and pushes `tracker/state`. It never force-pushes; conflicting records or claims stop synchronization. A shared lock serializes publication checkpoints.
 
+The JSONL merge driver combines append-only comments using their issue, author, text and creation timestamp; comment IDs are local counters and may be reassigned during sync. It preserves repeated identical comments up to the greatest count seen on either side. A compatible comment addition can merge with a one-sided status or assignment change. Competing scalar changes, including assignments and closure timestamps, and deletion against an edited issue still require deliberate resolution.
+
+Verified Git conflicts, native `SYNC_CONFLICT` failures and the native `sync --merge` conflict diagnostic produce a `cc-notify` alert with the host, repository, tracker and recovery action. Notification failure is reported alongside the original sync failure. Colony records the same context in its failed status; its existing [independent watchdog](../lib/colony/README.md#health-notifications) delivers that alert and deduplicates the incident.
+
 Publication is an explicit agent workflow step. Session-start hooks only configure the environment; pre-commit and pre-merge-commit hooks retain lint-staged and typecheck without publishing the tracker. Commitlint remains on commit-msg.
 
 Synchronize at these boundaries:

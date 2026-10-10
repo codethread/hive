@@ -125,6 +125,8 @@ Colony adds the linked task IDs, an instruction to read their full instructions 
 
 `--system-prompt` and `--prompt` are deliberate escape hatches for a request needing different role/protocol or execution direction. Each replaces only its matching kind default, rather than appending; an explicit empty string clears that field. Both fields are captured separately on the same spawn bead. Keep ordinary task instructions on the task bead. Use `--model`, `--effort`, `--harness` or `--cwd` when that request needs different execution attributes.
 
+Bee automatically records the local hostname. Only Colony on that host can execute or automatically reconcile the request; `colony launch` also refuses foreign or unbound requests. Automatic retries keep this binding, while `bee retry` binds its new replacement to the host submitting it. `bee status` and `bee list` show the host, with `unbound` for historical requests lacking provenance. Close an old unbound queued request explicitly and submit a new one on the intended machine. No host flag is required or supported.
+
 Bee automatically mints a friendly name and records it as the assignee. The requester is the actor creating the bead, selected by `--actor` or `BD_ACTOR`; the human owner comes from configuration. Neither is the spawned agent's identity.
 
 Repository discovery defaults to the current directory and can be selected with `--repo`. Tracker selection is explicit through `--beads-db` or `BEADS_DB`. Blocked tasks can be submitted and wait for eligibility. Unknown kinds, human reservations and overlapping open spawn requests fail. A named harness may be supplied by a later Colony formula update; Bee does not require it to exist in the current file's formula map.

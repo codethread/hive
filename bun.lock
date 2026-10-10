@@ -105,6 +105,7 @@
       "name": "@hive/tooling",
       "version": "0.0.0",
       "dependencies": {
+        "@hive/shared": "workspace:*",
         "proper-lockfile": "^4.1.2",
         "smol-toml": "^1.9.0",
         "zod": "^4.6.5",

@@ -4,13 +4,15 @@ const ORDER_BEFORE = -1;
 const ORDER_EQUAL = 0;
 
 type JsonPrimitive = boolean | null | number | string;
-type JsonValue = JsonObject | JsonPrimitive | readonly JsonValue[];
+export type JsonValue = JsonObject | JsonPrimitive | readonly JsonValue[];
 
-interface JsonObject {
+export interface JsonObject {
 	readonly [key: string]: JsonValue;
 }
 
 export interface IssueRecord {
+	/** Parsed JSON fields, retained when compatible comments are combined. */
+	readonly data: JsonObject;
 	/** Key-order-independent representation used for comparisons. */
 	readonly canonical: string;
 	/** Canonical issue identifier used as the merge key. */
@@ -79,9 +81,7 @@ export function parseJsonl(contents: string, source: string): ParsedJsonl {
 	return { kind: "parsed", records };
 }
 
-// -----------------------------------------------------------------------------
-
-function canonicalize(value: JsonValue): string {
+export function canonicalize(value: JsonValue): string {
 	if (Array.isArray(value)) {
 		return `[${value.map((entry) => canonicalize(entry)).join(",")}]`;
 	}
@@ -97,6 +97,8 @@ function canonicalize(value: JsonValue): string {
 	}
 	return serialized;
 }
+
+// --- Private functions ---
 
 function isJsonObject(value: unknown): value is JsonObject {
 	return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -131,6 +133,6 @@ function parseLine(line: string, source: string, lineNumber: number): ParsedLine
 	}
 	return {
 		kind: "parsed",
-		record: { canonical: canonicalize(value), id: value.id, raw: line },
+		record: { canonical: canonicalize(value), data: value, id: value.id, raw: line },
 	};
 }

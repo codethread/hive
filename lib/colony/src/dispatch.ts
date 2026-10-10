@@ -1,6 +1,6 @@
 /* eslint-disable import/max-dependencies -- Compose existing runtime boundaries with the independent advisory assessment lifecycle. */
 import type { BeesConfig, RepositoryEndpoint } from "@hive/shared";
-import { SPAWN_REQUEST_LABELS, beadSchema, beads } from "@hive/shared";
+import { SPAWN_REQUEST_LABELS, beadSchema, beads, readSpawnRequest, showBead } from "@hive/shared";
 import { assertRequestAuthority, claimRequest, newRequest, reconcileRequests } from "./request.ts";
 import { compareCandidates, hasCapacity, hasContention } from "./scheduler.ts";
 import { prepareLaunch, startSupervisor, writeReceipt } from "./launch.ts";
@@ -11,6 +11,8 @@ import type { OperationEvidence } from "./history.ts";
 import type { Preparation } from "./launch.ts";
 import type { RequestRecord } from "./request.ts";
 import type { Store } from "./store.ts";
+// eslint-disable-next-line import/no-nodejs-modules -- A dispatch pass only owns requests submitted on this machine.
+import { hostname } from "node:os";
 // eslint-disable-next-line import/no-nodejs-modules -- Reference the existing daemon log in operation history.
 import { join } from "node:path";
 import { match } from "ts-pattern";
@@ -91,7 +93,7 @@ async function prepareCandidates(
 	);
 	const candidates: Candidate[] = [];
 	const records = new Map(store.requests(repository.root).map((record) => [record.id, record]));
-	for (const request of issues) {
+	for (const request of issues.filter((issue) => readSpawnRequest(issue).host === hostname())) {
 		// eslint-disable-next-line no-await-in-loop -- Retain each request's preparation boundary independently.
 		await store.history.run(
 			{
@@ -106,12 +108,16 @@ async function prepareCandidates(
 				if (!record) {
 					preparation.step("labels.publish", request.id);
 					record = newRequest(
-						await publishRequestLabels(repository, "colony", request.id),
+						await publishRequestLabels(repository, "colony", request.id, hostname()),
 						repository,
 					);
 					store.saveRequest(repository.root, record);
 					records.set(request.id, record);
 				}
+				assertRequestAuthority(
+					record,
+					readSpawnRequest(await showBead(repository, "colony", request.id)),
+				);
 				if (record.state === "waiting") {
 					const id = crypto.randomUUID();
 					preparation.step("launch.prepare", request.id);
@@ -137,7 +143,7 @@ async function prepareCandidates(
 							await reconcileRequests({ config, repository, store });
 						})
 						.with({ kind: "prepared" }, (candidate) => {
-							assertRequestAuthority(record, candidate.receipt.identity, candidate.receipt.taskIds);
+							assertRequestAuthority(record, candidate.receipt);
 							candidates.push({ ...candidate, record });
 						})
 						.exhaustive();
@@ -155,7 +161,13 @@ async function dispatchPriorityGroups(
 	candidates: Candidate[],
 	evidence: OperationEvidence,
 ): Promise<void> {
-	const inventory = await input.store.inventory(input.repository.root);
+	const localIds = new Set(
+		input.store
+			.requests(input.repository.root)
+			.filter(({ host }) => host === hostname())
+			.map(({ id }) => id),
+	);
+	const inventory = await input.store.inventory(input.repository.root, localIds);
 	const occupied: Occupant[] = inventory
 		.filter(({ state }) => state === "starting" || state === "running")
 		.map(({ receipt }) => ({ bucket: receipt.bucket, kind: receipt.recipe.kind }));

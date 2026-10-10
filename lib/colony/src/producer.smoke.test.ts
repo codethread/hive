@@ -1,12 +1,12 @@
 import { expect, test } from "bun:test";
+// eslint-disable-next-line import/no-nodejs-modules -- Isolated OS temporary fixture root.
+import { hostname, tmpdir } from "node:os";
 import { initRepository, spawnRequest } from "./producer.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Own disposable Git/br fixture directories.
 import { mkdir, mkdtemp, realpath, rm } from "node:fs/promises";
 import { execute } from "@hive/shared";
 // eslint-disable-next-line import/no-nodejs-modules -- Resolve fixture paths.
 import { join } from "node:path";
-// eslint-disable-next-line import/no-nodejs-modules -- Isolated OS temporary fixture root.
-import { tmpdir } from "node:os";
 
 const FIRST = 0;
 const LAST = -1;
@@ -190,6 +190,7 @@ test(
 				"cwd",
 				"effort",
 				"harness",
+				"host",
 				"kind",
 				"model",
 				"prompt",
@@ -199,6 +200,7 @@ test(
 				cwd: await realpath(external),
 				effort: "high",
 				harness: "fixture",
+				host: hostname(),
 				model: "captured-model",
 				prompt: 'Inspect quotes: "literal"\nThen verify the task.',
 				system_prompt: expect.stringContaining("Work on the related task beads."),

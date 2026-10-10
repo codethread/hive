@@ -10,6 +10,8 @@ import type { LaunchReceipt } from "./launch.ts";
 import type { PolicySnapshot } from "./policy.ts";
 import { assessmentSchema } from "./postrun.ts";
 import { droneReviewSchema } from "./drone.ts";
+// eslint-disable-next-line import/no-nodejs-modules -- Inventory must not observe or update foreign or unbound process artifacts.
+import { hostname } from "node:os";
 // eslint-disable-next-line import/no-nodejs-modules -- SQLite and receipt paths belong to daemon state.
 import { join } from "node:path";
 import { openHistory } from "./history.ts";
@@ -82,12 +84,17 @@ export function openStore(state: string) {
 					)
 					.all(root),
 			);
-	const inventory = (root: string): Promise<AttemptInventory[]> => {
-		const rows = attemptRows(root);
+	const inventory = (root: string, requestIds?: Set<string>): Promise<AttemptInventory[]> => {
+		const rows = attemptRows(root).filter(
+			(row) => requestIds === undefined || requestIds.has(row.spawnId),
+		);
 		return Promise.all(
 			// eslint-disable-next-line max-statements -- Refresh the owned receipt and process liveness together before updating inventory.
 			rows.map(async (row) => {
 				const launch = launchReceiptSchema.parse(JSON.parse(row.snapshot));
+				if (launch.host !== hostname()) {
+					return { id: row.id, receipt: launch, spawnId: row.spawnId, state: row.state };
+				}
 				const file = Bun.file(join(row.directory, "worker.json"));
 				if (await file.exists()) {
 					const workerText = await readFile(join(row.directory, "worker.json"), "utf8");

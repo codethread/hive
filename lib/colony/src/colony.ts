@@ -1,8 +1,11 @@
 import { assign, createActor, fromPromise, setup, stateIn } from "xstate";
+import { formatBeadsConflict, isBeadsConflict } from "@hive/shared";
 import type { AnyActorLogic } from "xstate";
 import type { BeesConfig } from "@hive/shared";
 import type { DispatchInput } from "./dispatch.ts";
 import { dispatch } from "./dispatch.ts";
+// eslint-disable-next-line import/no-nodejs-modules -- Identify the host where Colony stopped.
+import { hostname } from "node:os";
 import { match } from "ts-pattern";
 
 const POLL_MILLISECONDS = 1000;
@@ -43,6 +46,13 @@ export function createColony(input: DispatchInput, activity: ColonyActivity) {
 								let message = String(event.error);
 								if (event.error instanceof Error) {
 									({ message } = event.error);
+								}
+								if (isBeadsConflict(event.error)) {
+									message = formatBeadsConflict(event.error, {
+										...input.repository,
+										host: hostname(),
+										operation: "Colony dispatch",
+									});
 								}
 								console.error(`Colony ${input.repository.root} failed: ${message}`);
 								return message;

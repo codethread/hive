@@ -9,13 +9,13 @@ import {
 	renderFormula,
 	showBead,
 } from "@hive/shared";
+// eslint-disable-next-line import/no-nodejs-modules -- Supply the host home at the native invocation boundary.
+import { homedir, hostname } from "node:os";
 // eslint-disable-next-line import/no-nodejs-modules -- Resolve owned receipt and execution directories.
 import { join, resolve as resolvePath } from "node:path";
 // eslint-disable-next-line import/no-nodejs-modules -- Own process log files and canonicalize launch cwd.
 import { link, mkdir, open, realpath, rename, unlink } from "node:fs/promises";
 import { agentEnvironment } from "./identity.ts";
-// eslint-disable-next-line import/no-nodejs-modules -- Supply the host home at the native invocation boundary.
-import { homedir } from "node:os";
 import { loadBeesConfig } from "./config.ts";
 import { match } from "ts-pattern";
 import { runOwnedExecution } from "./processes.ts";
@@ -37,6 +37,9 @@ export const launchReceiptSchema = z.strictObject({
 	directory: z.string(),
 	formula: formulaSchema,
 	id: z.string(),
+	/** Requesting host captured for local inventory and durable reconciliation. */
+	// eslint-disable-next-line unicorn/no-null -- Historical receipts without provenance are unbound, never adopted.
+	host: z.string().trim().min(NONEMPTY).nullable().default(null),
 	identity: z.string(),
 	invocation: invocationSchema,
 	policyRevisionId: z.string().nullable(),
@@ -144,7 +147,10 @@ export async function prepareLaunch(
 	if (spawn.status !== "open") {
 		throw new Error(`Request ${spawn.id} is ${spawn.status}, expected open`);
 	}
-	const { recipe, identity, taskIds } = readSpawnRequest(spawn);
+	const { recipe, identity, taskIds, host } = readSpawnRequest(spawn);
+	if (host !== hostname()) {
+		throw new Error(`Request ${spawn.id} belongs to host ${host ?? "unbound"}, not ${hostname()}`);
+	}
 	const tasks = await Promise.all(taskIds.map((id) => showBead(request, identity, id)));
 	const ready = z
 		.array(beadSchema.pick({ id: true }))
@@ -189,6 +195,7 @@ Related tasks: ${taskIds.join(", ")}`,
 			directory: join(resolvePath(request.state), attemptId),
 			formula,
 			id: attemptId,
+			host,
 			identity,
 			invocation,
 			policyRevisionId,

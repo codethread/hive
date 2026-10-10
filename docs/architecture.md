@@ -46,6 +46,8 @@ Colony: awake colony -> prepare -> rank -> claim -> reserve attempt
                 minimal native Beads observations and closure
 ```
 
+Bee captures the requesting hostname with each spawn. Colony routes only requests bound to its local hostname before preparation, claims, reconciliation or automatic label publication. Durable request checkpoints and attempt receipts retain that host; replay validates it against native provenance. Missing host provenance remains unbound history rather than being inferred from local state.
+
 The [spawn-request model](../lib/shared/src/spawn-request.ts) owns the Beads representation: labels, captured recipe, friendly assignee and task links. Consumers decode it before making decisions. The [glossary](../GLOSSARY.md) distinguishes requests, running bees, attempts and historical observations.
 
 Outcome and resolution labels project native closure, explicit acknowledgment comments and supersession for native Beads queries. The [spawn state contract](./agents/spawn-requests.md) defines their finite values, authority, saved presets and recovery when publication is interrupted. Scheduling continues to use native lifecycle facts and private checkpoints.

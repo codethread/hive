@@ -1,12 +1,14 @@
+/* eslint-disable unicorn/no-null -- Native historical host inspection explicitly reports unbound records. */
 import { CommandError, beadSchema, execute, parseBeesConfig } from "@hive/shared";
 // eslint-disable-next-line import/no-nodejs-modules -- Own a disposable native tracker and executable failure boundary.
 import { chmod, mkdir, mkdtemp, realpath, rm } from "node:fs/promises";
 import { expect, test } from "bun:test";
+// eslint-disable-next-line import/no-nodejs-modules -- Isolated real IO fixture root.
+import { hostname, tmpdir } from "node:os";
+import { newRequest, transitionRequest } from "./request.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Resolve owned fixture paths.
 import { join } from "node:path";
 import { openStore } from "./store.ts";
-// eslint-disable-next-line import/no-nodejs-modules -- Isolated real IO fixture root.
-import { tmpdir } from "node:os";
 
 const TIMEOUT = 30_000;
 const FIRST = 0;
@@ -242,6 +244,60 @@ test(
 			await clear();
 			await bee(["stop", cancelled]);
 			expect(await labels(cancelled)).toEqual(["bee-outcome:cancelled", "bee-resolution:resolved"]);
+
+			// Foreign and unbound records must remain byte-for-byte unchanged through a real dispatch pass.
+			const routed = [];
+			/* eslint-disable no-await-in-loop -- Each native host scenario is created and inspected in the same disposable tracker. */
+			for (const host of ["foreign-host", undefined]) {
+				const work = await task(`Host routing ${host ?? "unbound"}`);
+				const id = await spawn(work);
+				const native = await show(id);
+				const { host: _omittedHost, ...recipe } = JSON.parse(native.description);
+				await br(["update", id, "--description", JSON.stringify({ ...recipe, host })]);
+				const queued = await show(id);
+				await pass();
+				expect(await show(id)).toEqual(queued);
+				const inspect = await bee(["status", id]);
+				expect(inspect.request.host).toBe(host ?? null);
+				expect(inspect.request.recipe).toEqual(recipe);
+				const store = openStore(state);
+				try {
+					expect(store.requests(repo).some((record) => record.id === id)).toBe(false);
+					// Retained foreign/unbound settlement cannot release claims or publish closure.
+					store.saveRequest(
+						repo,
+						transitionRequest(newRequest(queued, { root: repo, beadsDb: database }), {
+							message: "Interrupted settlement on another host",
+							outcome: "completed",
+							type: "SETTLE",
+						}),
+					);
+				} finally {
+					store.close();
+				}
+				await br(["update", work, "--assignee", native.assignee!, "--status", "in_progress"]);
+				const owned = await show(work);
+				await pass();
+				expect(await show(id)).toEqual(queued);
+				expect(await show(work)).toEqual(owned);
+				await br(["close", id, "--reason", "exhausted"]);
+				routed.push(await show(id));
+			}
+			/* eslint-enable no-await-in-loop */
+			await pass();
+			expect(await Promise.all(routed.map(({ id }) => show(id)))).toEqual(routed);
+			const predecessor = routed[FIRST]!;
+			const local = await spawn(await task("Local replacement of foreign history"));
+			await br(["dep", "add", local, predecessor.id, "--type", "supersedes"]);
+			const beforeRepair = await show(predecessor.id);
+			await pass();
+			expect(await show(predecessor.id)).toEqual(beforeRepair);
+			const localStore = openStore(state);
+			try {
+				expect(localStore.requests(repo).find(({ id }) => id === local)?.host).toBe(hostname());
+			} finally {
+				localStore.close();
+			}
 
 			const drifted = await spawn(unfinished);
 			await br(["close", drifted, "--reason", "exhausted"]);

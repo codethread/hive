@@ -30,6 +30,8 @@ import type {
 	SpawnDisposition,
 	StdoutActivity,
 } from "@hive/shared";
+// eslint-disable-next-line import/no-nodejs-modules -- Automatic publication belongs to the requesting machine.
+import { hostname } from "node:os";
 import { z } from "zod";
 
 const INSPECTION_ACTOR = "bee";
@@ -77,6 +79,8 @@ export interface RequestView {
 	id: string;
 	/** Friendly execution identity captured by the request. */
 	identity: string;
+	/** Captured requesting hostname, or null for unbound historical records. */
+	host: string | null;
 	/** Captured recipe, independent of current daemon policy. */
 	recipe: Recipe;
 	/** Native request status, never inferred from observation text. */
@@ -257,23 +261,26 @@ export async function acknowledgeRequest(
 }
 
 /** Publish predecessors before the replacement, so an interrupted creation remains recoverable. */
+// eslint-disable-next-line max-params -- Automatic publishers supply host authority; explicit Bee actions omit it.
 export async function publishRequestLabels(
 	repository: RepositoryEndpoint,
 	actor: string,
 	id: string,
+	host?: string,
 ): Promise<Bead> {
 	const spawn = await showBead(repository, actor, id);
-	readSpawnRequest(spawn);
+	assertPublicationHost(spawn, host);
 	for (const predecessor of spawn.dependencies.filter(
 		({ dependency_type }) => dependency_type === "supersedes",
 	)) {
 		// eslint-disable-next-line no-await-in-loop -- Finish each predecessor's projection before admitting its replacement.
 		const old = await showBead(repository, actor, predecessor.id);
-		readSpawnRequest(old);
-		// eslint-disable-next-line no-await-in-loop -- Native provenance already exists; repair its query projection without changing history.
-		await publishLabels(repository, actor, old);
+		if (host === undefined || readSpawnRequest(old).host === host) {
+			// eslint-disable-next-line no-await-in-loop -- Native provenance already exists; repair only predecessors belonging to this publisher.
+			await publishLabels(repository, { actor, host }, old);
+		}
 	}
-	return publishLabels(repository, actor, spawn);
+	return publishLabels(repository, { actor, host }, spawn);
 }
 
 /** Recover offline closure before registration, including a stopped replacement's provenance. */
@@ -292,9 +299,11 @@ export async function reconcileClosedRequestLabels(repository: RepositoryEndpoin
 				"0",
 			]),
 		);
-	for (const { id } of issues) {
+	for (const issue of issues.filter(
+		(candidate) => readSpawnRequest(candidate).host === hostname(),
+	)) {
 		// eslint-disable-next-line no-await-in-loop -- Bounded native publications complete before the next closed request is repaired.
-		await publishRequestLabels(repository, "colony", id);
+		await publishRequestLabels(repository, "colony", issue.id, hostname());
 	}
 }
 
@@ -302,7 +311,7 @@ export async function reconcileClosedRequestLabels(repository: RepositoryEndpoin
 // eslint-disable-next-line max-statements -- Keep the bounded conflict recovery and its latest failure context together.
 async function publishLabels(
 	repository: RepositoryEndpoint,
-	actor: string,
+	{ actor, host }: { actor: string; host: string | undefined },
 	bead: Bead,
 ): Promise<Bead> {
 	if (requestLabelsCurrent(bead)) {
@@ -331,7 +340,7 @@ async function publishLabels(
 					throw error;
 				}
 				current = await showBead(repository, actor, current.id);
-				readSpawnRequest(current);
+				assertPublicationHost(current, host);
 				if (requestLabelsCurrent(current)) {
 					return current;
 				}
@@ -343,7 +352,7 @@ async function publishLabels(
 		}
 		/* eslint-enable no-await-in-loop */
 		current = await showBead(repository, actor, current.id);
-		readSpawnRequest(current);
+		assertPublicationHost(current, host);
 		if (!requestLabelsCurrent(current)) {
 			throw new Error("Native facts changed during publication");
 		}
@@ -358,6 +367,13 @@ function publicationFailure(bead: Bead, cause: unknown): RequestPublicationError
 		.filter(({ dependency_type }) => dependency_type === "supersedes")
 		.map(({ id }) => id);
 	return new RequestPublicationError({ replacementIds, requestId: bead.id }, cause);
+}
+
+function assertPublicationHost(bead: Bead, host: string | undefined): void {
+	const request = readSpawnRequest(bead);
+	if (host !== undefined && request.host !== host) {
+		throw new Error(`Request ${request.id} is not bound to publishing host ${host}`);
+	}
 }
 
 async function readyTasks(repository: RepositoryEndpoint): Promise<Set<string>> {
@@ -404,6 +420,7 @@ async function requestView(
 		disposition: requestDisposition(bead),
 		id: request.id,
 		identity: request.identity,
+		host: request.host,
 		labelPublication,
 		lastObservation,
 		needsAttention: requestNeedsAttention(bead),

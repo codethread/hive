@@ -1,19 +1,23 @@
+/* eslint-disable unicorn/no-null -- Unbound history is explicit in decoder fixtures. */
 import {
 	BEE_ACKNOWLEDGMENT_PREFIX,
 	COLONY_STDOUT_PREFIX,
 	latestColonyObservation,
 	latestStdoutActivity,
 	projectedRequestLabels,
+	readSpawnRequest,
 	requestAcknowledgment,
 	requestDisposition,
 	requestLabelsCurrent,
 	requestNeedsAttention,
 	requestResolution,
+	spawnRequestLabels,
 } from "./spawn-request.ts";
 import { expect, test } from "bun:test";
 import { beadSchema } from "./bees-io.ts";
 
 const FIRST = 0;
+const INVALID_HOST_NUMBER = 1;
 const original = beadSchema.parse({
 	close_reason: "exhausted",
 	created_at: "fixture",
@@ -23,7 +27,7 @@ const original = beadSchema.parse({
 	updated_at: "fixture",
 });
 
-test("stdout inspection selects the latest attempt independently of lifecycle and native timestamps", () => {
+test("stdout inspection uses publication time independently of renumbered IDs and native timestamps", () => {
 	const activity = {
 		attemptId: "second-attempt",
 		attemptNumber: 2,
@@ -36,12 +40,12 @@ test("stdout inspection selects the latest attempt independently of lifecycle an
 	const bead = {
 		...original,
 		comments: [
-			{ ...comment, id: 2, text: `${COLONY_STDOUT_PREFIX} ${JSON.stringify(activity)}` },
+			{ ...comment, id: 1, text: `${COLONY_STDOUT_PREFIX} ${JSON.stringify(activity)}` },
 			lifecycle,
 			{
 				...comment,
-				id: 1,
-				text: `${COLONY_STDOUT_PREFIX} ${JSON.stringify({ ...activity, attemptId: "first-attempt", attemptNumber: 1, lastOutputAt: "2026-10-04T09:59:00.123Z" })}`,
+				id: 99,
+				text: `${COLONY_STDOUT_PREFIX} ${JSON.stringify({ ...activity, attemptId: "first-attempt", attemptNumber: 1, recordedAt: "2026-10-04T09:59:00.123Z", lastOutputAt: "2026-10-04T09:59:00.123Z" })}`,
 			},
 		],
 	};
@@ -49,6 +53,30 @@ test("stdout inspection selects the latest attempt independently of lifecycle an
 	expect(latestStdoutActivity(bead)).toEqual(activity);
 	expect(latestColonyObservation(bead)).toEqual(lifecycle);
 	expect(bead.comments[FIRST]?.created_at).toBe(comment.created_at);
+});
+
+test("lifecycle observations remain ordered after local IDs and input order change", () => {
+	const older = {
+		author: "colony",
+		created_at: "2026-10-04T10:00:00Z",
+		id: 11,
+		issue_id: original.id,
+		text: "Colony observation: running",
+	};
+	const newer = {
+		...older,
+		created_at: "2026-10-04T10:00:01Z",
+		id: 1,
+		text: "Colony observation: settled",
+	};
+	expect(latestColonyObservation({ ...original, comments: [newer, older] })).toEqual(newer);
+	expect(latestColonyObservation({ ...original, comments: [{ ...older, id: 99 }, newer] })).toEqual(
+		newer,
+	);
+	const tied = { ...older, id: 2, text: "Colony observation: stopped" };
+	const forward = latestColonyObservation({ ...original, comments: [older, tied] });
+	const reverse = latestColonyObservation({ ...original, comments: [tied, older] });
+	expect(forward).toEqual(reverse);
 });
 
 test.each([
@@ -227,3 +255,43 @@ test("malformed acknowledgment evidence fails visibly", () => {
 	};
 	expect(() => requestResolution(bead)).toThrow(Error);
 });
+
+const recipe = {
+	cwd: null,
+	effort: "low",
+	harness: "fixture",
+	kind: "worker",
+	model: "fixture",
+	prompt: "captured direction",
+	system_prompt: "captured role",
+};
+
+test.each([
+	{ host: "requesting-machine", expected: "requesting-machine" },
+	{ host: undefined, expected: null },
+])("request decoding retains host $expected independently of the recipe", ({ host, expected }) => {
+	const bead = {
+		...original,
+		assignee: "friendly-bee",
+		description: JSON.stringify({ ...recipe, host }),
+		labels: spawnRequestLabels(recipe.kind),
+	};
+	expect(readSpawnRequest(bead)).toMatchObject({
+		host: expected,
+		identity: "friendly-bee",
+		recipe,
+	});
+});
+
+test.each(["", " ", INVALID_HOST_NUMBER, null])(
+	"malformed requesting host %j fails at the native boundary",
+	(host) => {
+		const bead = {
+			...original,
+			assignee: "friendly-bee",
+			description: JSON.stringify({ ...recipe, host }),
+			labels: spawnRequestLabels(recipe.kind),
+		};
+		expect(() => readSpawnRequest(bead)).toThrow(Error);
+	},
+);

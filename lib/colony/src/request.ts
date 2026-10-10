@@ -1,7 +1,7 @@
 /* eslint-disable import/max-dependencies -- Compose existing runtime boundaries with the independent advisory assessment lifecycle. */
 /* eslint-disable unicorn/no-null -- Durable JSON checkpoints explicitly preserve absent attempt, claim, deadline and outcome fields. */
 import type { AttemptInventory, Store } from "./store.ts";
-import type { Bead, BeesConfig, RepositoryEndpoint } from "@hive/shared";
+import type { Bead, BeesConfig, RepositoryEndpoint, SpawnRequest } from "@hive/shared";
 import { acquireClaim, releaseClaims } from "./claims.ts";
 import { assign, createActor, setup } from "xstate";
 import {
@@ -15,6 +15,8 @@ import { cancelDroneReview, reviewInactivity } from "./drone.ts";
 import { observeExecution, resumeExecution, stopExecution } from "./processes.ts";
 import { publishObservation, publishStdoutActivity } from "./observations.ts";
 import type { OperationEvidence } from "./history.ts";
+// eslint-disable-next-line import/no-nodejs-modules -- Durable checkpoints retain authority only on their requesting host.
+import { hostname } from "node:os";
 import { prepareAssessment } from "./postrun.ts";
 import { publishRequestLabels } from "./requests.ts";
 import { readFinishReport } from "./launch.ts";
@@ -37,6 +39,8 @@ const contextSchema = z.strictObject({
 export const requestRecordSchema = z.strictObject({
 	/** Selected tracker authority retained independently of membership and attempts. */
 	beadsDb: z.string(),
+	/** Missing historical provenance stays unbound and cannot be reconciled. */
+	host: z.string().trim().min(ONE).nullable().default(null),
 	context: contextSchema,
 	id: z.string(),
 	state: requestStateSchema,
@@ -174,6 +178,7 @@ export function newRequest(spawn: Bead, repository: RepositoryEndpoint): Request
 	const request = readSpawnRequest(spawn);
 	return {
 		beadsDb: repository.beadsDb,
+		host: request.host,
 		context: {
 			attemptId: null,
 			attempts: ZERO,
@@ -203,23 +208,24 @@ export function transitionRequest(record: RequestRecord, event: RequestEvent): R
 /** External spawn edits cannot change the authority already used for claims and retries. */
 export function assertRequestAuthority(
 	record: RequestRecord,
-	identity: string | undefined,
-	taskIds: string[],
+	{ identity, taskIds, host }: Pick<SpawnRequest, "identity" | "taskIds" | "host">,
 ): void {
 	if (
+		host !== record.host ||
 		identity !== record.context.identity ||
 		taskIds.length !== record.context.taskIds.length ||
 		!taskIds.every((id) => record.context.taskIds.includes(id))
 	) {
-		throw new Error(`Request ${record.id} changed its captured identity or related tasks`);
+		throw new Error(`Request ${record.id} changed its captured host, identity or related tasks`);
 	}
 }
 
 /** Awake passes resume durable checkpoints before considering replacement launches. */
 export async function reconcileRequests(runtime: RequestRuntime): Promise<void> {
 	const { repository, store } = runtime;
-	const inventory = await store.inventory(repository.root);
-	for (const saved of store.requests(repository.root).filter(({ state }) => state !== "terminal")) {
+	for (const saved of store
+		.requests(repository.root)
+		.filter(({ state, host }) => state !== "terminal" && host === hostname())) {
 		// eslint-disable-next-line no-await-in-loop -- Finish each request's external effects before advancing another durable checkpoint.
 		await store.history.run(
 			{
@@ -228,7 +234,7 @@ export async function reconcileRequests(runtime: RequestRuntime): Promise<void> 
 				repository,
 				requestId: saved.id,
 			},
-			(evidence) => reconcileRequest(runtime, saved, inventory, evidence),
+			(evidence) => reconcileRequest(runtime, saved, evidence),
 		);
 	}
 }
@@ -258,6 +264,11 @@ async function acquireRequest(
 	evidence: OperationEvidence,
 ): Promise<RequestRecord | null> {
 	const { repository, store } = runtime;
+	const request = readSpawnRequest(await showBead(repository, saved.context.identity, saved.id));
+	assertRequestAuthority(saved, request);
+	if (request.host !== hostname()) {
+		throw new Error(`Request ${saved.id} is not bound to this host`);
+	}
 	let record = store.advanceRequest(repository.root, saved, { type: "READY" });
 	for (const id of record.context.taskIds) {
 		record = store.advanceRequest(repository.root, record, { id, type: "INTEND" });
@@ -297,11 +308,18 @@ async function acquireRequest(
 async function reconcileRequest(
 	runtime: RequestRuntime,
 	saved: RequestRecord,
-	inventory: AttemptInventory[],
 	evidence: OperationEvidence,
 ): Promise<void> {
 	const { repository, store } = runtime;
 	let record = saved;
+	evidence.step("tracker.show", record.id);
+	const spawn = await showBead(repository, record.context.identity, record.id);
+	const request = readSpawnRequest(spawn);
+	assertRequestAuthority(record, request);
+	const inventory = await store.inventory(repository.root, new Set([record.id]));
+	if (inventory.some(({ receipt }) => receipt.host !== record.host)) {
+		throw new Error(`Request ${record.id} has an attempt on a different or unbound host`);
+	}
 	if (record.state === "claiming") {
 		if (record.context.pendingClaim !== null) {
 			throw new Error(
@@ -314,10 +332,6 @@ async function reconcileRequest(
 			type: "SETTLE",
 		});
 	}
-	evidence.step("tracker.show", record.id);
-	const spawn = await showBead(repository, record.context.identity, record.id);
-	const request = readSpawnRequest(spawn);
-	assertRequestAuthority(record, request.identity, request.taskIds);
 	if (record.state !== "settling") {
 		if (spawn.status === "closed") {
 			record = store.advanceRequest(repository.root, record, {
@@ -475,7 +489,7 @@ async function finishSettlement(
 			evidence.completed("tracker.closed", record.id);
 		}
 		evidence.step("labels.publish", record.id);
-		await publishRequestLabels(repository, record.context.identity, record.id);
+		await publishRequestLabels(repository, record.context.identity, record.id, hostname());
 		evidence.completed("labels.published", record.id);
 	}
 	store.settleRequest(repository.root, next, await prepareAssessment(runtime, next));

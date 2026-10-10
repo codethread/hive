@@ -1,3 +1,4 @@
+/* eslint-disable import/max-dependencies -- One native lifecycle fixture composes tracker, processes and retained private checkpoint history. */
 /* eslint-disable unicorn/no-await-expression-member, unicorn/max-nested-calls -- Native smoke assertions inspect asynchronous evidence at the assertion site. */
 /* eslint-disable unicorn/no-null -- Fixtures exercise disabled policy and absent results explicitly. */
 import type { Assessment, AssessmentReport } from "./postrun.ts";
@@ -8,6 +9,7 @@ import { mkdir, mkdtemp, realpath, rm } from "node:fs/promises";
 import { observeExecution, stopExecution } from "./processes.ts";
 import { prepareAssessment, reconcileAssessments } from "./postrun.ts";
 import type { BeesConfig } from "@hive/shared";
+import { Database } from "bun:sqlite";
 import { dispatch } from "./dispatch.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Fixture artifact paths.
 import { join } from "node:path";
@@ -181,8 +183,57 @@ test(
 			expect(store.assessments(repo)).toHaveLength(ONE);
 			store.close();
 			store = openStore(state);
+			const foreignAssessments: Assessment[] = [];
+			/* eslint-disable no-await-in-loop -- Retained host scenarios use private fixture state, never real tracker recovery. */
+			for (const host of ["foreign-host", null]) {
+				const requestId = crypto.randomUUID();
+				const target = {
+					...second,
+					id: crypto.randomUUID(),
+					host,
+					spawnId: requestId,
+					directory: join(state, crypto.randomUUID()),
+				};
+				store.reserve(repo, target, { ...settledSource, id: requestId, host });
+				const historical: Assessment = { ...queued, id: crypto.randomUUID(), requestId };
+				store.saveAssessment(repo, historical);
+				const activeId = crypto.randomUUID();
+				const retainedActive: Assessment = {
+					...queued,
+					id: activeId,
+					requestId: activeId,
+					phase: "reserved",
+					launched: false,
+					deadline: Date.now() + SMOKE_MS,
+					startedAt: Date.now(),
+					receipt: { ...target, id: activeId, spawnId: activeId, directory: join(state, activeId) },
+				};
+				store.saveAssessment(repo, retainedActive);
+				foreignAssessments.push(historical, retainedActive);
+			}
+			/* eslint-enable no-await-in-loop */
 			await dispatch({ repository, state, store }, config, "fixture-revision");
 			const active = await inspector(source.requestId);
+			expect(
+				foreignAssessments.map(({ id }) => store.assessments(repo).find((item) => item.id === id)),
+			).toEqual(foreignAssessments);
+			expect(
+				await Promise.all(
+					foreignAssessments.map(({ id }) => Bun.file(join(state, id, "receipt.json")).exists()),
+				),
+			).toEqual(foreignAssessments.map(() => false));
+			// Remove only the synthetic historical rows so the existing queue-count assertions stay focused.
+			const fixtureDb = new Database(join(state, "colony.sqlite"));
+			try {
+				for (const historical of foreignAssessments) {
+					fixtureDb.query("DELETE FROM assessments WHERE id = ?").run(historical.id);
+					fixtureDb.query("DELETE FROM attempts WHERE spawn_id = ?").run(historical.requestId);
+					fixtureDb.query("DELETE FROM requests WHERE spawn_id = ?").run(historical.requestId);
+				}
+			} finally {
+				fixtureDb.close();
+			}
+
 			expect(active.item).toMatchObject({
 				receipt: { recipe: { system_prompt: "Assessment role" } },
 			});

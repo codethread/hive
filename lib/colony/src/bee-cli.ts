@@ -340,6 +340,7 @@ function formatRequest(request: RequestView): string {
 	const lines = [
 		`Request ${request.id}: ${request.status}`,
 		`Identity: ${request.identity}`,
+		`Host: ${request.host ?? "unbound"}`,
 		`Outcome: ${request.disposition.outcome}; resolution: ${request.disposition.resolution}; labels: ${request.labelPublication}`,
 		`Recipe: ${request.recipe.kind} / ${request.recipe.harness} / ${request.recipe.model} / ${request.recipe.effort}`,
 	];

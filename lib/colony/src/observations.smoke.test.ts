@@ -1,12 +1,13 @@
+/* eslint-disable unicorn/no-null -- Captured recipe uses canonical execution-directory default. */
 import { COLONY_STDOUT_PREFIX, execute, latestStdoutActivity, showBead } from "@hive/shared";
 // eslint-disable-next-line import/no-nodejs-modules -- Owned stdout artifacts and private tracker cleanup.
 import { appendFile, mkdir, mkdtemp, rm, utimes } from "node:fs/promises";
 import { expect, test } from "bun:test";
-import { publishStdoutActivity, readStdoutActivity } from "./observations.ts";
+// eslint-disable-next-line import/no-nodejs-modules -- OS temporary fixture root.
+import { hostname, tmpdir } from "node:os";
+import { publishObservation, publishStdoutActivity, readStdoutActivity } from "./observations.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Private fixture paths.
 import { join } from "node:path";
-// eslint-disable-next-line import/no-nodejs-modules -- OS temporary fixture root.
-import { tmpdir } from "node:os";
 
 const INITIAL = 1;
 const FIRST_OUTPUT = 2;
@@ -23,8 +24,32 @@ test(
 		const run = (args: string[]) => execute(args, root, env);
 		try {
 			await run(["br", "init", "--prefix", "smoke"]);
+			const recipe = {
+				cwd: null,
+				effort: "low",
+				harness: "fixture",
+				kind: "worker",
+				model: "fixture",
+				prompt: "",
+				system_prompt: "",
+			};
+			const description = JSON.stringify({ ...recipe, host: hostname() });
 			const spawn = JSON.parse(
-				await run(["br", "create", "--title", "Stdout fixture", "--owner", "ct", "--json"]),
+				await run([
+					"br",
+					"create",
+					"--title",
+					"Stdout fixture",
+					"--owner",
+					"ct",
+					"--assignee",
+					"fixture-bee",
+					"--labels",
+					"system,bee,agent:worker",
+					"--description",
+					description,
+					"--json",
+				]),
 			);
 			const receipt = {
 				attemptNumber: 1,
@@ -81,6 +106,24 @@ test(
 				// eslint-disable-next-line unicorn/no-null -- New attempt has no output even though the old log remains.
 				lastOutputAt: null,
 			});
+			/* eslint-disable no-await-in-loop -- Reuse the same isolated request for each nonlocal observation boundary. */
+			for (const host of ["foreign-host", undefined]) {
+				await run([
+					"br",
+					"update",
+					spawn.id,
+					"--description",
+					JSON.stringify({ ...recipe, host }),
+					"--json",
+				]);
+				const before = await inspect();
+				await expect(publishStdoutActivity(repository, next, true)).rejects.toBeInstanceOf(Error);
+				await expect(
+					publishObservation(repository, spawn.id, "must not publish"),
+				).rejects.toBeInstanceOf(Error);
+				expect(await inspect()).toEqual(before);
+			}
+			/* eslint-enable no-await-in-loop */
 		} finally {
 			await rm(root, { force: true, recursive: true });
 		}

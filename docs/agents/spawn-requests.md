@@ -4,6 +4,10 @@ This is the authoritative reference for agents inspecting spawn requests, findin
 
 ## Facts and authority
 
+`bee spawn` records the requesting machine's `hostname()` as `host` beside the captured recipe fields in the native description. Only that host's Colony may dispatch, claim, observe, settle or repair the request automatically; manual `colony launch` enforces the same binding before task or process effects. Automatic retries retain the host in durable checkpoints and receipts. A changed native host invalidates retained execution authority. `bee retry` creates a replacement bound to the machine submitting that replacement.
+
+`bee status` and `bee list` expose `host`; missing historical provenance appears as `null` in JSON and `unbound` in human output. Unbound and foreign requests remain inspectable but are never automatically adopted or changed, including closed-label repair and predecessor publication. Explicit Bee stop, acknowledgment and retry remain operator actions. There is no remote-dispatch flag or implicit local-host fallback. Close an old unbound queued request deliberately and submit a fresh request from the intended execution host.
+
 Native Beads status answers whether work is still requested. Colony creates requests `open` and closes them on settlement; it does not mark a spawn `in_progress` when its worker starts. Task status and assignment belong to the linked task beads. Closing a spawn records intent or settlement, not proof that its worker has stopped.
 
 Every produced spawn has exactly one `bee-outcome:*` label and one `bee-resolution:*` label. They are query projections of native closure and provenance, maintained by Bee and Colony. The [shared request model](../../lib/shared/src/spawn-request.ts) defines the mapping used by inspection and publication. Labels never drive scheduling, establish process ownership or replace the native facts.

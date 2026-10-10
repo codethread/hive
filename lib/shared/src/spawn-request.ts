@@ -79,6 +79,8 @@ export interface SpawnRequest {
 	id: string;
 	/** Friendly identity preserved across all attempts to fulfil the request. */
 	identity: string;
+	/** Requesting hostname; null identifies unbound history, never local execution authority. */
+	host: string | null;
 	/** Instructions and execution attributes captured when the request was submitted. */
 	recipe: Recipe;
 	/** Related task beads whose completion determines the request's success. */
@@ -127,7 +129,11 @@ export function spawnRequestLabels(kind: string): string[] {
 
 /** Interpret the Beads representation once, before request-specific decisions. */
 export function readSpawnRequest(bead: Bead): SpawnRequest {
-	const recipe = recipeSchema.parse(JSON.parse(bead.description));
+	const { host, ...capturedRecipe } = z
+		.object({ host: z.string().trim().min(NONEMPTY).optional() })
+		.passthrough()
+		.parse(JSON.parse(bead.description));
+	const recipe = recipeSchema.parse(capturedRecipe);
 	if (
 		![...SPAWN_REQUEST_LABELS, `agent:${recipe.kind}`].every((label) => bead.labels.includes(label))
 	) {
@@ -139,6 +145,8 @@ export function readSpawnRequest(bead: Bead): SpawnRequest {
 	return {
 		id: bead.id,
 		identity: bead.assignee,
+		// eslint-disable-next-line unicorn/no-null -- Missing provenance remains explicitly unbound for historical inspection.
+		host: host ?? null,
 		recipe,
 		taskIds: bead.dependencies
 			.filter(({ dependency_type }) => dependency_type === "related")
@@ -146,24 +154,23 @@ export function readSpawnRequest(bead: Bead): SpawnRequest {
 	};
 }
 
-/** Native comment IDs distinguish observations recorded within the same second. */
+/** Immutable timestamps survive imports; same-second ties are deterministic, not causal order. */
 export function latestColonyObservation(bead: Bead): BeadComment | undefined {
 	return bead.comments
 		.filter(({ text }) => text.startsWith(COLONY_OBSERVATION_PREFIX))
-		.toSorted((left, right) => right.id - left.id)
+		.toSorted((left, right) => compareComments(right, left))
 		.at(FIRST);
 }
 
-/** Comment order selects the current attempt, even when it has produced no stdout. */
+/** Publication time selects the current attempt, even when it has produced no stdout. */
 export function latestStdoutActivity(bead: Bead): StdoutActivity | undefined {
-	const comment = bead.comments
+	return bead.comments
 		.filter(({ text }) => text.startsWith(COLONY_STDOUT_PREFIX))
-		.toSorted((left, right) => right.id - left.id)
+		.map(({ text }) =>
+			stdoutActivitySchema.parse(JSON.parse(text.slice(COLONY_STDOUT_PREFIX.length))),
+		)
+		.toSorted(compareActivities)
 		.at(FIRST);
-	if (!comment) {
-		return undefined;
-	}
-	return stdoutActivitySchema.parse(JSON.parse(comment.text.slice(COLONY_STDOUT_PREFIX.length)));
 }
 
 /** Read explicit acceptance for this failed closure, independently of later supersession. */
@@ -173,7 +180,7 @@ export function requestAcknowledgment(bead: Bead): RequestAcknowledgment | undef
 	}
 	const comments = bead.comments
 		.filter(({ text }) => text.startsWith(BEE_ACKNOWLEDGMENT_PREFIX))
-		.toSorted(compareAcknowledgments);
+		.toSorted(compareComments);
 	for (const comment of comments) {
 		const record = acknowledgmentSchema.parse(
 			JSON.parse(comment.text.slice(BEE_ACKNOWLEDGMENT_PREFIX.length)),
@@ -264,8 +271,26 @@ export function requestNeedsAttention(bead: Bead): boolean {
 }
 
 // --- Private functions ---
+function compareActivities(left: StdoutActivity, right: StdoutActivity): number {
+	const time = compareText(right.recordedAt, left.recordedAt);
+	if (time !== EQUAL) {
+		return time;
+	}
+	return compareText(JSON.stringify(right), JSON.stringify(left));
+}
+
+function compareText(left: string, right: string): number {
+	if (left < right) {
+		return BEFORE;
+	}
+	if (left > right) {
+		return AFTER;
+	}
+	return EQUAL;
+}
+
 /** Native comment IDs are local; these immutable fields preserve ordering across imports. */
-function compareAcknowledgments(left: BeadComment, right: BeadComment): number {
+function compareComments(left: BeadComment, right: BeadComment): number {
 	for (const key of ["created_at", "author", "text"] as const) {
 		if (left[key] < right[key]) {
 			return BEFORE;

@@ -4,6 +4,8 @@ import type { BeesConfig, RepositoryEndpoint } from "@hive/shared";
 import { beads, renderFormula } from "@hive/shared";
 // eslint-disable-next-line import/no-nodejs-modules -- Canonical private artifact paths.
 import { dirname, join } from "node:path";
+// eslint-disable-next-line import/no-nodejs-modules -- Supply the host home at the native invocation boundary.
+import { homedir, hostname } from "node:os";
 import {
 	launchReceiptSchema,
 	startSupervisor,
@@ -17,8 +19,6 @@ import { readTokenEvidence, tokenEvidenceSchema } from "./postrun-evidence.ts";
 import type { LaunchReceipt } from "./launch.ts";
 import type { RequestRecord } from "./request.ts";
 import type { Store } from "./store.ts";
-// eslint-disable-next-line import/no-nodejs-modules -- Supply the host home at the native invocation boundary.
-import { homedir } from "node:os";
 import { readAssessmentAuthority } from "./store.ts";
 import { z } from "zod";
 
@@ -214,9 +214,17 @@ export async function prepareAssessment(
 // eslint-disable-next-line max-statements -- Keep ordered auxiliary checkpoints, authority and effects together.
 export async function reconcileAssessments(runtime: Runtime): Promise<void> {
 	const { repository, store, config } = runtime;
-	const outstanding = store
-		.assessments(repository.root)
-		.filter(({ phase }) => phase !== "finished");
+	const retained = store.retainedInventory(repository.root);
+	const outstanding = store.assessments(repository.root).filter((assessment) => {
+		if (assessment.phase === "finished") {
+			return false;
+		}
+		if (assessment.phase !== "queued") {
+			return assessment.receipt.host === hostname();
+		}
+		const targets = retained.filter(({ spawnId }) => spawnId === assessment.requestId);
+		return targets.length > FIRST && targets.every(({ receipt }) => receipt.host === hostname());
+	});
 	const active = outstanding.find(({ phase }) => phase !== "queued");
 	if (active) {
 		await reconcileAssessment(runtime, active);
@@ -227,9 +235,7 @@ export async function reconcileAssessments(runtime: Runtime): Promise<void> {
 		return;
 	}
 	// A terminal checkpoint alone does not prove that its owned process tree stopped.
-	const targets = store
-		.retainedInventory(repository.root)
-		.filter(({ spawnId }) => spawnId === queued.requestId);
+	const targets = retained.filter(({ spawnId }) => spawnId === queued.requestId);
 	for (const { receipt } of targets) {
 		// eslint-disable-next-line no-await-in-loop -- Verify every source attempt before launching one repository-wide inspector.
 		const observed = await observeExecution(receipt);

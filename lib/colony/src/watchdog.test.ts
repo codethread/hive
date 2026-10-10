@@ -1,9 +1,13 @@
 /* eslint-disable unicorn/no-null -- Checkpoints and public status use explicit nulls. */
+import { CommandError, formatBeadsConflict, isBeadsConflict } from "@hive/shared";
 import { advanceWatchdog, pollWatchdog, watchdogCheckpointSchema } from "./watchdog.ts";
 import { expect, test } from "bun:test";
 import type { ColonyStatus } from "@hive/shared";
+import { RequestPublicationError } from "./requests.ts";
 import type { WatchdogCheckpoint } from "./watchdog.ts";
 
+const FIRST = 0;
+const ONE = 1;
 const START = 1_000_000;
 const GRACE_MS = 60_000;
 const BEFORE = 1;
@@ -19,6 +23,45 @@ const failed: ColonyStatus = {
 	state: "failed",
 };
 const alerted: WatchdogCheckpoint = { failures: [repository], outage: null };
+
+test.each([false, true])(
+	"native Beads conflict reaches watchdog with publication wrapper %j",
+	// eslint-disable-next-line max-statements -- One watchdog episode proves classification, delivery and deduplication together.
+	async (wrapped) => {
+		let error: Error = new CommandError("br sync", {
+			code: 6,
+			stderr: "",
+			stdout: JSON.stringify({ error: { code: "SYNC_CONFLICT", message: "tracker conflict" } }),
+		});
+		if (wrapped) {
+			error = new RequestPublicationError({ requestId: "hv-request", replacementIds: [] }, error);
+		}
+		expect(isBeadsConflict(error)).toBe(true);
+		const message = formatBeadsConflict(error, {
+			...repository,
+			host: "test-host",
+			operation: "Colony dispatch",
+		});
+		const bodies: string[] = [];
+		const io = {
+			notify: (body: string) => {
+				bodies.push(body);
+				return Promise.resolve();
+			},
+			now: () => START,
+			observe: () =>
+				Promise.resolve({ colonies: [{ ...failed, message }], kind: "reachable" as const }),
+			save: () => Promise.resolve(),
+		};
+		const checkpoint = await pollWatchdog(empty, io);
+		await pollWatchdog(checkpoint, io);
+		expect(bodies).toHaveLength(ONE);
+		expect(bodies[FIRST]).toContain("Host: test-host");
+		expect(bodies[FIRST]).toContain("Tracker: /tracker.db");
+		expect(bodies[FIRST]).toContain("SYNC_CONFLICT: tracker conflict");
+		expect(bodies[FIRST]).toContain("Action:");
+	},
+);
 
 test.each(["awake", "asleep"] as const)("initial %s colony is silent", (state) => {
 	const result = advanceWatchdog(

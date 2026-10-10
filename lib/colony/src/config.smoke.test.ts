@@ -1,6 +1,6 @@
 // eslint-disable-next-line import/no-nodejs-modules -- Real private repository, config files and owned cleanup.
 import { access, mkdir, mkdtemp, readdir, realpath, rm } from "node:fs/promises";
-import { colonyResponseSchema, execute } from "@hive/shared";
+import { beadSchema, colonyResponseSchema, execute, readSpawnRequest } from "@hive/shared";
 import { expect, test } from "bun:test";
 import type { ColonyResponse } from "@hive/shared";
 import { Database } from "bun:sqlite";
@@ -232,7 +232,7 @@ test(
 					.parse(row);
 				expect(JSON.parse(joined.attempt)).toMatchObject({
 					policyRevisionId: applied.active?.revisionId,
-					recipe: JSON.parse(captured.description),
+					recipe: readSpawnRequest(beadSchema.parse(unchanged[FIRST])).recipe,
 				});
 				expect(JSON.parse(joined.policy)).toMatchObject({
 					formulas: { scripted: replacement.formula },

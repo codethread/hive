@@ -19,6 +19,7 @@ const EXIT_FAILURE = 6;
 const repository = { beadsDb: "/fixture/beads.db", root: "/fixture" };
 const request: RequestRecord = {
 	beadsDb: repository.beadsDb,
+	host: "fixture-host",
 	context: {
 		attemptId: null,
 		attempts: 0,

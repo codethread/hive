@@ -5,10 +5,13 @@ import {
 	beads,
 	latestColonyObservation,
 	latestStdoutActivity,
+	readSpawnRequest,
 	showBead,
 } from "@hive/shared";
 import type { RepositoryEndpoint, StdoutActivity } from "@hive/shared";
 import type { LaunchReceipt } from "./launch.ts";
+// eslint-disable-next-line import/no-nodejs-modules -- Colony cannot publish observations for another machine's requests.
+import { hostname } from "node:os";
 // eslint-disable-next-line import/no-nodejs-modules -- Inspect the current attempt's owned stdout artifact.
 import { join } from "node:path";
 // eslint-disable-next-line import/no-nodejs-modules -- File metadata preserves output time across sleep and daemon restart.
@@ -24,6 +27,7 @@ export async function publishObservation(
 	fact: string,
 ): Promise<void> {
 	const spawn = await showBead(repository, "colony", id);
+	assertObservationHost(readSpawnRequest(spawn).host, id);
 	const latest = latestColonyObservation(spawn);
 	const message = `${COLONY_OBSERVATION_PREFIX} ${fact}`;
 	if (latest?.text !== message) {
@@ -38,6 +42,7 @@ export async function publishStdoutActivity(
 	final = false,
 ): Promise<void> {
 	const spawn = await showBead(repository, "colony", receipt.spawnId);
+	assertObservationHost(readSpawnRequest(spawn).host, receipt.spawnId);
 	const activity: StdoutActivity = {
 		attemptId: receipt.id,
 		attemptNumber: receipt.attemptNumber,
@@ -88,5 +93,12 @@ export async function readStdoutActivity(directory: string): Promise<string | nu
 			return null;
 		}
 		throw error;
+	}
+}
+
+// --- Private functions ---
+function assertObservationHost(host: string | null, id: string): void {
+	if (host !== hostname()) {
+		throw new Error(`Request ${id} is not bound to observing host ${hostname()}`);
 	}
 }
