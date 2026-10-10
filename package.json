@@ -12,7 +12,7 @@
 		"lint:fix": "oxlint --fix",
 		"typecheck": "tsc --noEmit -p tsconfig.json && bun run --filter '*' typecheck",
 		"test": "bun test --parallel=2 --parallel-delay=0 --timeout=5000 --only-failures",
-		"test:changed": "bun run test --changed",
+		"test:changed": "bun run ./lib/tooling/src/test-changed.ts",
 		"check": "bun run fmt:check && bun run lint && bun run typecheck",
 		"git:setup": "bun run ./scripts/setup-git.ts",
 		"beads:bootstrap": "bun run ./lib/tooling/src/beads-bootstrap.ts",

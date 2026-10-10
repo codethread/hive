@@ -27,16 +27,15 @@ From the worktree root:
 
 Check runner-reported durations when adding or editing unit tests. New unit tests must run within 1ms; slower tests require explicit user authorisation, up to 5s.
 
-Test scripts use `--only-failures`, which hides passing tests and their timings. Omit the flag to see timings.
+`bun run test:changed` reports failures and unapproved slow tests using JUnit timings. Timing warnings do not change the test exit code; inspect the output. Every change to [`lib/tooling/slow-tests.json`](../../../lib/tooling/slow-tests.json) requires explicit user sign-off on the proposed edit. Follow the process below before proposing an allowance.
+
+`bun run test` uses `--only-failures`, which hides passing tests and their timings. Run `bun test <file>` directly to see individual timings.
 
 ### Addressing slow tests
 
-If a test is slow, ask:
-
-- "what is the value of this test"
-- "what isolated behaviour is under test here"
-
-Keep tests focussed and maximising value
+1. Re-read this skill's writing and integration guidance. Ask: "What is the value of this test?" and "What isolated behaviour is under test here?"
+2. First reduce runtime by refactoring the test, its setup or the code's dependency seams while preserving meaningful coverage. Keep tests focused on coherent behaviours; do not split a slow test into artificial pieces merely to get each piece below the threshold.
+3. Rerun and inspect the duration. If the test genuinely requires more time, discuss the measured cost, why it is necessary and the proposed allowance or timeout with the user. Obtain explicit approval before changing the allowance registry or increasing the timeout, then record the approved exception using the [allowance registry guide](../../../lib/tooling/README.md#allowed-slow-tests).
 
 ## Integration testing
 
