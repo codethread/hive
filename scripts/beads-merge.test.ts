@@ -2,14 +2,20 @@ import { expect, test } from "bun:test";
 import { mergeIssueJsonl } from "./beads-merge-core.ts";
 
 const EMPTY_COUNT = 0;
+const FIRST_ROW = 0;
+const REPEATED_COMMENTS = 2;
+const TOTAL_COMMENTS = 3;
 
-const issue = (id: string, title: string): string => JSON.stringify({ id, title });
-const jsonl = (...records: readonly string[]): string => {
+function issue(id: string, title: string): string {
+	return JSON.stringify({ id, title });
+}
+
+function jsonl(...records: readonly string[]): string {
 	if (records.length === EMPTY_COUNT) {
 		return "";
 	}
 	return `${records.join("\n")}\n`;
-};
+}
 
 test("merges independent issue additions in stable ID order", () => {
 	const current = jsonl(issue("hv-b", "B"));
@@ -71,6 +77,103 @@ test("keeps delete-versus-edit changes as a Git conflict", () => {
 	const ancestor = jsonl(issue("hv-a", "old"));
 	const other = jsonl(issue("hv-a", "new"));
 	expect(mergeIssueJsonl(ancestor, "", other).kind).toBe("conflicted");
+});
+
+// eslint-disable-next-line max-statements -- Keep the three-way fixture and preservation assertions in one scenario.
+test("combines append-only comments with status changes and ignores local ID renumbering", () => {
+	const original = { id: "hv-a", status: "open", updated_at: "2026-10-10T00:00:00Z" };
+	const comment = {
+		author: "colony",
+		created_at: "2026-10-10T00:00:01Z",
+		id: 1,
+		issue_id: "hv-a",
+		text: "waiting",
+	};
+	const ancestor = jsonl(JSON.stringify({ ...original, comments: [comment] }));
+	const left = jsonl(
+		JSON.stringify({
+			...original,
+			status: "in_progress",
+			assignee: "agent-a",
+			updated_at: "2026-10-10T01:00:02+01:00",
+			comments: [{ ...comment, id: 99 }],
+		}),
+	);
+	const right = jsonl(
+		JSON.stringify({
+			...original,
+			updated_at: "2026-10-10T00:00:03Z",
+			comments: [comment, { ...comment, text: "running", id: 2 }],
+		}),
+	);
+	const result = mergeIssueJsonl(ancestor, left, right);
+	expect(result.kind).toBe("merged");
+	if (result.kind !== "merged") {
+		throw new Error("expected compatible comment merge");
+	}
+	const row = JSON.parse(result.contents);
+	expect(row).toMatchObject({
+		status: "in_progress",
+		assignee: "agent-a",
+		updated_at: "2026-10-10T00:00:03Z",
+	});
+	expect(row.comments.map((entry: { text: string }) => entry.text).toSorted()).toEqual([
+		"running",
+		"waiting",
+	]);
+	expect(mergeIssueJsonl(ancestor, right, left)).toEqual(result);
+	expect(mergeIssueJsonl(result.contents, result.contents, result.contents)).toEqual(result);
+});
+
+// eslint-disable-next-line max-statements -- Check multiplicity and the file-wide counter namespace together.
+test("retains repeated comment identities and rekeys counters colliding across different issues", () => {
+	const comment = {
+		author: "agent",
+		created_at: "2026-10-10T00:00:00Z",
+		id: 1,
+		issue_id: "hv-a",
+		text: "same",
+	};
+	const left = jsonl(JSON.stringify({ id: "hv-a", comments: [comment, { ...comment, id: 2 }] }));
+	const right = jsonl(
+		JSON.stringify({ id: "hv-a", comments: [{ ...comment, id: 100 }] }),
+		JSON.stringify({ id: "hv-b", comments: [{ ...comment, issue_id: "hv-b", text: "different" }] }),
+	);
+	const result = mergeIssueJsonl("", left, right);
+	expect(result.kind).toBe("merged");
+	if (result.kind !== "merged") {
+		throw new Error("expected compatible comment merge");
+	}
+	const rows = result.contents
+		.trim()
+		.split("\n")
+		.map((line) => JSON.parse(line));
+	expect(rows[FIRST_ROW].comments).toHaveLength(REPEATED_COMMENTS);
+	const ids = rows.flatMap((row) => row.comments.map((entry: { id: number }) => entry.id));
+	expect(new Set(ids).size).toBe(TOTAL_COMMENTS);
+	expect(mergeIssueJsonl("", right, left)).toEqual(result);
+});
+
+test.each([
+	[{ assignee: "left" }, { assignee: "right" }],
+	[
+		{ status: "closed", closed_at: "2026-10-10T00:00:01Z" },
+		{ status: "closed", closed_at: "2026-10-10T00:00:02Z" },
+	],
+])("retains genuine assignment and closure disputes", (left, right) => {
+	const base = { id: "hv-a", status: "open" };
+	const ancestor = jsonl(JSON.stringify(base));
+	const current = jsonl(JSON.stringify({ ...base, ...left }));
+	const other = jsonl(JSON.stringify({ ...base, ...right }));
+	expect(mergeIssueJsonl(ancestor, current, other).kind).toBe("conflicted");
+});
+
+test("rejects malformed comment ownership instead of losing evidence", () => {
+	const row = JSON.stringify({
+		id: "hv-a",
+		comments: [{ author: "a", id: 1, issue_id: "hv-b", text: "wrong owner", created_at: "now" }],
+	});
+	expect(mergeIssueJsonl("", jsonl(row), "").kind).toBe("invalid");
 });
 
 test.each([
