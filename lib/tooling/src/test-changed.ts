@@ -21,11 +21,12 @@ async function main(args: string[]): Promise<number> {
 		// Reuse the repository test script's parallelism and timeout instead of maintaining a second set.
 		const child = Bun.spawn(
 			[
+				// Could optimise later and let agents choose set the --changed=target
 				process.execPath,
 				"run",
 				"--silent",
 				"test",
-				"--changed",
+				"--changed=main",
 				...args,
 				"--reporter=junit",
 				`--reporter-outfile=${report.name}`,
