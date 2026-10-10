@@ -142,23 +142,62 @@ JSON uses `kind: "tree"`, `basis: "git_ancestry"`, and a flat `nodes` array. Eac
 
 Config is optional. Without it, `honeycomb` still creates deterministic sibling worktrees.
 
-Config is read from:
+Global config is read from:
 
 ```text
 ${XDG_CONFIG_HOME:-~/.config}/honeycomb.toml
 ```
 
+Repository-local config is read from `honeycomb.toml` at the **canonical root** (the path printed by `honeycomb root`). Commit that file to share setup and policy with the repository. Every worktree uses the canonical file, including commands invoked from a feature worktree or its subdirectories. A same-named file in a feature worktree is ignored; changes take effect when the canonical file changes.
+
 Resolution order:
 
-1. built-in defaults and top-level `worktree_location`;
+1. built-in defaults, global `[defaults]` and top-level `worktree_location`;
 2. matching `[[rule]]` entries in file order;
-3. exact `[[project]]` entry for the canonical root.
+3. exact global `[[project]]` entry for the canonical root;
+4. repository-local `honeycomb.toml`.
 
-Later layers override earlier ones.
+Later layers override earlier ones. Omitted local fields inherit the resolved global values. Nested `[finish]` fields merge individually, including explicit `false` values. A local `copy` list replaces the inherited list; `copy = []` disables inherited copying.
+
+`honeycomb config explain --json` reports global `matched_rules` and `project`, the local file's path and explicit settings in `local_config` when present, effective `add`/`finish`/`worktree_location`, and effective name, pool size and copy settings in `setup`. Local command and hook sources use `local:<canonical-root>/honeycomb.toml`; inherited values retain their global sources. The text output also shows the local path and effective setup.
+
+### Repository-local configuration
+
+The local file accepts the same repository options as a global project entry: `name`, `command`, `pre_remote_check`, `worktree_location`, `pool_size`, `copy_mode_default`, `copy`, `[add]` and `[finish]`. Every option is optional. Put the options directly in the file:
+
+```toml
+command = "bun install"
+worktree_location = "nested"
+copy = [".env"]
+
+[add]
+policy = "origin_default"
+
+[finish]
+strategy = "squash"
+push = false
+```
+
+The local file rejects `defaults`, `rule`, `project`, `root`, `root_glob` and unknown fields. Malformed TOML and invalid options fail with an error identifying the local file. Either file can be absent; an empty local file inherits all global settings. The global file must still be valid on its own.
+
+Local pools, nonempty copy lists and explicitly set `copy_mode_default` require an effective bootstrap command, supplied locally or inherited from a matching global rule/project. For a local copy list, omitted entry modes use local `copy_mode_default`, then the inherited exact project's default, then `copy`; explicit entry modes win. When local `copy` is omitted, inherited entries keep their already-resolved modes, even if local `copy_mode_default` changes.
 
 ### Editor completion and validation
 
-Copy [`honeycomb.schema.json`](./honeycomb.schema.json) beside your `honeycomb.toml`, then place this directive at the top of the TOML file:
+Choose the schema for the file you are editing:
+
+| Config file | Editor schema |
+| --- | --- |
+| Global XDG config | [`honeycomb.schema.json`](./honeycomb.schema.json) |
+| Canonical-root repository config | [`honeycomb.local.schema.json`](./honeycomb.local.schema.json) |
+
+Copy the chosen schema beside your `honeycomb.toml`, then place the corresponding directive at the top of the TOML file. For repository-local config:
+
+```toml
+#:schema ./honeycomb.local.schema.json
+```
+
+For global config:
 
 ```toml
 #:schema ./honeycomb.schema.json
@@ -166,17 +205,17 @@ Copy [`honeycomb.schema.json`](./honeycomb.schema.json) beside your `honeycomb.t
 
 [Taplo](https://taplo.tamasfe.dev/configuration/directives.html), including editors using its TOML language server, resolves that path relative to the saved TOML file. Only comments or other directives may precede it. The schema supplies field completion, descriptions, allowed values, and validation of nested tables. Unknown fields are configuration errors.
 
-Once this file is available on Hive's `main` branch, a remotely fetched schema can use this header instead:
+Once the schemas are available on Hive's `main` branch, a remotely fetched repository-local schema can use this header instead:
 
 ```toml
-#:schema https://raw.githubusercontent.com/codethread/hive/main/lib/honeycomb/honeycomb.schema.json
+#:schema https://raw.githubusercontent.com/codethread/hive/main/lib/honeycomb/honeycomb.local.schema.json
 ```
 
-The remote URL requires access to that GitHub repository and follows `main`; replace `main` with a published commit SHA to pin the schema to your installed revision. The local-file directive works before publication and without network access.
+Use `honeycomb.schema.json` in that URL for global config. The remote URL requires access to that GitHub repository and follows `main`; replace `main` with a published commit SHA to pin the schema to your installed revision. The local-file directive works before publication and without network access.
 
-The artifact is [JSON Schema Draft 4](https://taplo.tamasfe.dev/configuration/developing-schemas.html), generated with [Zod's native JSON Schema conversion](https://zod.dev/json-schema) from the same complete TOML schema used by the CLI. It describes the input, so fields with defaults remain optional. Environment-dependent checks—expanded-root uniqueness, inherited bootstrap commands, and normalized copy destination containment—run in the Zod schema at load time; JSON Schema cannot express those filesystem and cross-entry rules. Effective finish-policy safety is checked when the command runs.
+Both artifacts are [JSON Schema Draft 4](https://taplo.tamasfe.dev/configuration/developing-schemas.html), generated with [Zod's native JSON Schema conversion](https://zod.dev/json-schema) from the same TOML schemas used by the CLI. They describe the input, so fields with defaults remain optional. Runtime loading also checks expanded-root uniqueness, inherited bootstrap requirements and normalized copy destination containment; JSON Schema cannot express those filesystem and cross-entry rules. Effective finish-policy safety is checked when the command runs.
 
-### Configuration reference
+### Global configuration reference
 
 ```toml
 worktree_location = "sibling" # "sibling" | "nested"; defaults to "sibling"
@@ -234,7 +273,7 @@ delete_branch = false
 
 Notes:
 
-- `worktree_location` may be set globally, on a rule, or on an exact project. It controls where new worktrees and missing pool slots are created; registered worktrees keep their actual Git-reported paths. `nested` adds `/.worktrees/` and the previous `/.wktree/` path to the repository's shared exclude file so the canonical checkout remains clean.
+- `worktree_location` may be set globally, on a rule, on an exact project, or locally. It controls where new worktrees and missing pool slots are created; registered worktrees keep their actual Git-reported paths. `nested` adds `/.worktrees/` and the previous `/.wktree/` path to the repository's shared exclude file so the canonical checkout remains clean.
 - `command` and `pre_remote_check` run under bash.
 - `command` receives `WK_ROOT` and `WK_CREATED`.
 - `origin_default` starts default-base work from `origin/<default>` without mutating the canonical root.

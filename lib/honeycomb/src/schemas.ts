@@ -62,14 +62,14 @@ const CopyEntrySchema = z.union([
 		from: PathSchema.describe(
 			"Source relative to the canonical root, absolute, or beginning with ~/.",
 		),
-		mode: CopyModeSchema.optional().describe("Override this project's copy_mode_default."),
+		mode: CopyModeSchema.optional().describe("Override the effective copy_mode_default."),
 		to: CopyDestinationsSchema,
 	}),
 ]);
 
 const SetupShape = {
 	command: NonEmptyStringSchema.optional().describe(
-		"Bootstrap command run under bash; inherits from rules.",
+		"Bootstrap command run under bash; omitted values inherit from earlier layers.",
 	),
 	pre_remote_check: NonEmptyStringSchema.optional().describe(
 		"Bash command run before remote operations.",
@@ -79,23 +79,34 @@ const SetupShape = {
 	),
 };
 
-const ProjectSchema = z.strictObject({
+const RepositoryOptionsShape = {
 	copy: z
 		.array(CopyEntrySchema)
-		.default([])
+		.optional()
 		.describe(
 			"Files to materialize before bootstrap; non-empty lists require an effective command.",
 		),
 	copy_mode_default: CopyModeSchema.optional().describe(
-		"Default copy mode (copy when omitted); setting it requires an effective command.",
+		"Default copy mode; falls back to copy. Explicitly setting it requires an effective command.",
 	),
 	name: z.string().optional().describe("Display name; defaults to the expanded root's basename."),
 	pool_size: PoolSizeSchema.optional().describe(
 		"Fixed pool size; requires an effective bootstrap command.",
 	),
-	root: PathSchema.describe("Canonical checkout path; leading ~/ and relative paths are expanded."),
 	...SetupShape,
 	...PolicyShape,
+};
+
+export const RepositoryConfigSchema = z
+	.strictObject(RepositoryOptionsShape)
+	.describe(
+		"Repository-local honeycomb.toml at the canonical root. Explicit fields override global settings; omitted fields inherit them.",
+	);
+
+const ProjectSchema = z.strictObject({
+	...RepositoryOptionsShape,
+	copy: RepositoryOptionsShape.copy.default([]),
+	root: PathSchema.describe("Canonical checkout path; leading ~/ and relative paths are expanded."),
 });
 
 const RuleSchema = z.strictObject({
@@ -145,6 +156,7 @@ interface ProjectIssue {
 }
 
 export type RawConfig = z.output<ReturnType<typeof createConfigSchema>>;
+export type RawRepositoryConfig = z.output<typeof RepositoryConfigSchema>;
 
 /** One TOML schema; path context supplies environment-dependent cross-entry validation. */
 export function createConfigSchema(context: ConfigPathContext) {

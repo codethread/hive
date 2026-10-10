@@ -85,7 +85,7 @@
 											"description": "Source relative to the canonical root, absolute, or beginning with ~/."
 										},
 										"mode": {
-											"description": "Override this project's copy_mode_default.",
+											"description": "Override the effective copy_mode_default.",
 											"type": "string",
 											"enum": ["copy", "symlink"]
 										},
@@ -123,7 +123,7 @@
 						}
 					},
 					"copy_mode_default": {
-						"description": "Default copy mode (copy when omitted); setting it requires an effective command.",
+						"description": "Default copy mode; falls back to copy. Explicitly setting it requires an effective command.",
 						"type": "string",
 						"enum": ["copy", "symlink"]
 					},
@@ -137,16 +137,8 @@
 						"minimum": 1,
 						"maximum": 9007199254740991
 					},
-					"root": {
-						"type": "string",
-						"allOf": [
-							{ "type": "string", "pattern": "\\S" },
-							{ "type": "string", "pattern": "^[^\\u0000]*$" }
-						],
-						"description": "Canonical checkout path; leading ~/ and relative paths are expanded."
-					},
 					"command": {
-						"description": "Bootstrap command run under bash; inherits from rules.",
+						"description": "Bootstrap command run under bash; omitted values inherit from earlier layers.",
 						"type": "string",
 						"pattern": "\\S"
 					},
@@ -200,6 +192,14 @@
 							}
 						},
 						"additionalProperties": false
+					},
+					"root": {
+						"type": "string",
+						"allOf": [
+							{ "type": "string", "pattern": "\\S" },
+							{ "type": "string", "pattern": "^[^\\u0000]*$" }
+						],
+						"description": "Canonical checkout path; leading ~/ and relative paths are expanded."
 					}
 				},
 				"required": ["root"],
@@ -223,7 +223,7 @@
 						"description": "Canonical-root glob: * matches within a segment, ** matches zero or more segments."
 					},
 					"command": {
-						"description": "Bootstrap command run under bash; inherits from rules.",
+						"description": "Bootstrap command run under bash; omitted values inherit from earlier layers.",
 						"type": "string",
 						"pattern": "\\S"
 					},

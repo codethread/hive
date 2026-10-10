@@ -173,13 +173,14 @@ When no copy destinations are configured, the fenced block is removed on the nex
 
 ### Policy configuration
 
-Policy and inherited bootstrap command configuration describes default behavior for repositories that may not need exact project entries. It is resolved from three layers:
+Policy and inherited bootstrap command configuration describes default behavior for repositories that may not need exact project entries. It is resolved from four layers:
 
-1. built-in defaults;
+1. built-in defaults and global `[defaults]`;
 2. matching `[[rule]]` entries, evaluated in file order with later matching fields winning;
-3. an exact `[[project]]` entry for the canonical root, whose fields win over rules.
+3. an exact global `[[project]]` entry for the canonical root, whose fields win over rules;
+4. `honeycomb.toml` at the canonical root, whose explicit fields override the resolved global settings.
 
-Rules match canonical root paths with an explicit `root_glob`. Glob matching is only for root selection; copy paths keep their stricter no-glob contract. Rules may provide an optional bootstrap `command` and optional `pre_remote_check`; matching rule values are evaluated in file order with later values winning. Exact project entries remain the place for pools and copy setup, and exact project `command`/`pre_remote_check` values override inherited rule values. Exact projects may also exist only to override policy or command defaults for an exceptional repository.
+Rules match canonical root paths with an explicit `root_glob`. Glob matching is only for root selection; copy paths keep their stricter no-glob contract. Rules may provide an optional bootstrap `command` and optional `pre_remote_check`; matching rule values are evaluated in file order with later values winning. Pools and copy setup may be configured by an exact global project or the repository-local file. Exact projects may also exist only to override policy or command defaults for an exceptional repository. Local options inherit when omitted; finish patches merge field-by-field and copy arrays replace the inherited list, including an explicit empty list. All worktrees use the canonical file rather than a caller-worktree file.
 
 ### Add freshness policy
 
@@ -194,7 +195,7 @@ An explicit `--base` or `--base-current` remains a user override for stacked or 
 
 ### Remote pre-check
 
-Repositories may resolve an optional `pre_remote_check` Bash snippet from matching rules and an exact project entry. `honeycomb` runs the resolved snippet from the canonical root before any remote-aware operation: fetch/push, origin default-branch detection, or freshness checks against `origin/*` refs in add, pooled ensure/path/status/remove flows, and finish. `list` is local inventory only and never runs this pre-check.
+Repositories may resolve an optional `pre_remote_check` Bash snippet from matching rules, an exact project entry and repository-local settings. `honeycomb` runs the resolved snippet from the canonical root before any remote-aware operation: fetch/push, origin default-branch detection, or freshness checks against `origin/*` refs in add, pooled ensure/path/status/remove flows, and finish. `list` is local inventory only and never runs this pre-check.
 
 - exit `0`: stay silent and continue;
 - non-zero exit: abort immediately, do not perform later remote checks/contact, and surface the script's stderr to the user.
@@ -241,7 +242,7 @@ Squash integration is explicit: `--title` is required and `--body` is optional. 
 | `honeycomb [--cwd <path>] ensure` | Materialize configured pool slots. |
 | `honeycomb [--cwd <path>] status` | Print pool status JSON. |
 | `honeycomb [--cwd <path>] copy [--json]` | Re-run configured copy setup for the non-canonical worktree containing `cwd`. |
-| `honeycomb [--cwd <path>] config explain [--json]` | Show the effective policy after defaults, matching rules, and exact project overrides. |
+| `honeycomb [--cwd <path>] config explain [--json]` | Show effective policy/setup and provenance after global layers and canonical-root local overrides. |
 | `honeycomb [--cwd <path>] finish [--title <subject>] [--body <text>] [--json]` | Integrate a completed worktree into the canonical root using effective finish policy. `--title` is required with the `squash` strategy; other strategies reject both message options. |
 | `honeycomb [--cwd <path>] pick [--open]` | Fuzzy-pick a worktree with fzf, marking the one containing `cwd`, and print its path. `--open` requires `--interactive`. Cancelling exits `130` without output. With `--interactive` inside tmux, the picker opens in a popup and previews each worktree's session; otherwise it runs inline and previews recent history. |
 
@@ -403,7 +404,7 @@ With no copy configuration, `copied` and `exclude_paths` are empty arrays.
 }
 ```
 
-With no exact project match, `project` is `null`. With no matching root-glob rules, `matched_rules` is empty.
+With no exact global project match, `project` is `null`. With no matching root-glob rules, `matched_rules` is empty. `setup` reports effective name, pool size, copy default and copy entries. When a canonical-root local file exists, `local_config` reports its path and explicit settings; locally supplied commands and hooks have `local:<path>` sources. Local-only setup does not manufacture a global project match.
 
 Successful `finish --json` emits the integrated source, target, strategy, and ordered cleanup actions that actually ran:
 
@@ -423,7 +424,7 @@ Pooled cleanup reports `"recycle_worktree"` instead of `"remove_worktree"`. If p
 
 ### Config
 
-Config is read from `honeycomb.toml` under XDG config home. Project entries define exact canonical roots for bootstrap, pools, copy setup, and exact policy overrides. Policy configuration also supports defaults and root-glob rules that can affect repositories without requiring bootstrap setup.
+Global config is read from `honeycomb.toml` under XDG config home. Project entries define exact canonical roots for bootstrap, pools, copy setup, and exact policy overrides. Policy configuration also supports defaults and root-glob rules that can affect repositories without requiring bootstrap setup. A repository-local `honeycomb.toml` at the canonical root supplies a final patch using the same applicable option shapes, with no `root`, `root_glob`, `defaults`, `rule` or `project` selectors. See the [configuration guide](../../README.md#repository-local-configuration) for local syntax, inheritance, validation and editor schemas.
 
 Top-level fields:
 

@@ -29,8 +29,8 @@ export interface GitRunOptions {
 }
 
 export interface ConfigService {
-	/** Load and validate configuration at the command boundary. */
-	read: () => TreesConfig;
+	/** Load global and canonical-root local configuration at the command boundary. */
+	read: (canonicalRoot: string) => TreesConfig;
 	/** Resolve policy after canonicalizing filesystem paths. */
 	explain: (config: TreesConfig, root: string) => PolicyExplanation;
 }

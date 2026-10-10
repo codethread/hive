@@ -85,9 +85,9 @@ export async function treeCommand(args: string[], deps: Deps): Promise<CommandRe
 
 export async function pathCommand(args: string[], deps: Deps): Promise<CommandResult> {
 	const request = parsePathRequest(args);
-	const config = deps.config.read();
 	const worktrees = await listWorktrees(deps.git, request.cwd);
 	const canonical = requireCanonical(worktrees);
+	const config = deps.config.read(canonical.path);
 	const existing = worktrees.find((worktree) => worktree.branch === request.branch);
 	if (existing) {
 		return { exitCode: EXIT_CODES.SUCCESS, stdout: `${existing.path}\n` };
@@ -108,7 +108,7 @@ export async function ensureCommand(args: string[], deps: Deps): Promise<Command
 	const request = parseQueryRequest(args);
 	const worktrees = await listWorktrees(deps.git, request.cwd);
 	const canonical = requireCanonical(worktrees);
-	const config = deps.config.read();
+	const config = deps.config.read(canonical.path);
 	const { project } = deps.config.explain(config, canonical.path);
 	await ensurePoolIfConfigured({
 		config,
@@ -125,7 +125,7 @@ export async function statusCommand(args: string[], deps: Deps): Promise<Command
 	const request = parseQueryRequest(args);
 	const worktrees = await listWorktrees(deps.git, request.cwd);
 	const canonical = requireCanonical(worktrees);
-	const config = deps.config.read();
+	const config = deps.config.read(canonical.path);
 	const explanation = deps.config.explain(config, canonical.path);
 	const payload = await statusPayload({
 		config,
@@ -139,9 +139,9 @@ export async function statusCommand(args: string[], deps: Deps): Promise<Command
 
 export async function copyCommand(args: string[], deps: Deps): Promise<CommandResult> {
 	const request = parseQueryRequest(args);
-	const config = deps.config.read();
 	const worktrees = await listWorktrees(deps.git, request.cwd);
 	const canonical = requireCanonical(worktrees);
+	const config = deps.config.read(canonical.path);
 	const target = resolveCopyTarget({ canonical, cwd: request.cwd, deps, worktrees });
 	const { project } = deps.config.explain(config, canonical.path);
 	const copied = await deps.files.copy(canonical.path, target.path, project?.copy ?? []);
@@ -166,7 +166,9 @@ export async function configCommand(args: string[], deps: Deps): Promise<Command
 	}
 	const request = parseQueryRequest(rest);
 	const canonicalRoot = await resolveCanonicalRoot(deps.git, request.cwd);
-	const payload = toConfigExplainPayload(deps.config.explain(deps.config.read(), canonicalRoot));
+	const payload = toConfigExplainPayload(
+		deps.config.explain(deps.config.read(canonicalRoot), canonicalRoot),
+	);
 	if (request.output.json) {
 		return finalizeStructuredResult(payload, request.output);
 	}

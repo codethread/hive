@@ -131,7 +131,7 @@ async function resolveRemoveContext(request: RemoveRequest, deps: Deps): Promise
 	if (!canonical) {
 		throw new HoneycombError("couldn't determine canonical worktree");
 	}
-	const config = deps.config.read();
+	const config = deps.config.read(canonical.path);
 	const explanation = deps.config.explain(config, canonical.path);
 	return {
 		canonical,

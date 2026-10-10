@@ -116,6 +116,13 @@ test("config explain reports effective policy JSON", async () => {
 		pre_remote_check: { source: null, value: null },
 		project: { name: "repo", root },
 		root,
+		setup: {
+			copy: [],
+			copy_mode_default: "copy",
+			name: "repo",
+			// oxlint-disable-next-line unicorn/no-null -- No configured pool has an explicit null size.
+			pool_size: null,
+		},
 		setup_output: [],
 		worktree_location: "sibling",
 	});

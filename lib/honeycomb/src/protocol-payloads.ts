@@ -1,5 +1,6 @@
 import type { AddPlan, RemovePlan, Worktree, WorktreeTreeNode } from "./domain/worktree.ts";
-import type { PolicyExplanation, ProjectConfig } from "./domain/config.ts";
+import type { PolicyExplanation, ProjectConfig, RepositoryConfig } from "./domain/config.ts";
+import { projectNameFor } from "./domain/config.ts";
 import { sessionNameForWorktreePath } from "./domain/worktree.ts";
 
 const SHORT_COMMIT_LENGTH = 7;
@@ -173,13 +174,21 @@ export function toConfigExplainPayload(explanation: PolicyExplanation) {
 			strategy: explanation.finishPolicy.strategy,
 		},
 		kind: "config_explain",
+		local_config: toLocalConfigPayload(explanation.local),
 		matched_rules: explanation.matchedRules.map((rule) => ({ root_glob: rule.rootGlob })),
 		pre_remote_check: {
 			source: explanation.preRemoteCheck.source,
 			value: explanation.preRemoteCheck.value,
 		},
-		project: toProjectPayload(explanation.project),
+		project: toProjectPayload(explanation.globalProject),
 		root: explanation.canonicalRoot,
+		setup: {
+			copy: explanation.project?.copy ?? [],
+			copy_mode_default: explanation.project?.copyModeDefault ?? "copy",
+			name: projectNameFor(explanation.project, explanation.canonicalRoot),
+			// oxlint-disable-next-line unicorn/no-null -- No configured pool is represented by null in config explain.
+			pool_size: explanation.project?.poolSize ?? null,
+		},
 		worktree_location: explanation.worktreeLocation,
 	};
 }
@@ -191,9 +200,37 @@ export function formatCommandSource(source: string | null): string {
 export function formatConfigSummary(payload: ReturnType<typeof toConfigExplainPayload>): string {
 	const matchedRules = payload.matched_rules.map((rule) => rule.root_glob).join(", ") || "(none)";
 	const project = formatProject(payload.project);
-	return `root: ${payload.root}\nmatched_rules: ${matchedRules}\nproject: ${project}\ncommand.source: ${formatCommandSource(payload.command.source)}\npre_remote_check.source: ${formatCommandSource(payload.pre_remote_check.source)}\nworktree_location: ${payload.worktree_location}\nadd.policy: ${payload.add.policy}\nfinish.enabled: ${payload.finish.enabled}\nfinish.strategy: ${payload.finish.strategy}\nfinish.push: ${payload.finish.push}\nfinish.remove_worktree: ${payload.finish.remove_worktree}\nfinish.delete_branch: ${payload.finish.delete_branch}\n`;
+	const local = payload.local_config?.path ?? "(none)";
+	return `root: ${payload.root}\nmatched_rules: ${matchedRules}\nproject: ${project}\nlocal_config: ${local}\ncommand.source: ${formatCommandSource(payload.command.source)}\npre_remote_check.source: ${formatCommandSource(payload.pre_remote_check.source)}\nworktree_location: ${payload.worktree_location}\nadd.policy: ${payload.add.policy}\nfinish.enabled: ${payload.finish.enabled}\nfinish.strategy: ${payload.finish.strategy}\nfinish.push: ${payload.finish.push}\nfinish.remove_worktree: ${payload.finish.remove_worktree}\nfinish.delete_branch: ${payload.finish.delete_branch}\nsetup: ${JSON.stringify(payload.setup)}\n`;
 }
 // --- Private functions ---
+
+function toLocalConfigPayload(local: RepositoryConfig | undefined) {
+	if (local === undefined) {
+		return;
+	}
+	const { options } = local;
+	return {
+		path: local.path,
+		settings: {
+			add: options.add,
+			command: options.command,
+			copy: options.copy,
+			copy_mode_default: options.copyModeDefault,
+			finish: options.finish && {
+				delete_branch: options.finish.deleteBranch,
+				enabled: options.finish.enabled,
+				push: options.finish.push,
+				remove_worktree: options.finish.removeWorktree,
+				strategy: options.finish.strategy,
+			},
+			name: options.name,
+			pool_size: options.poolSize,
+			pre_remote_check: options.preRemoteCheck,
+			worktree_location: options.worktreeLocation,
+		},
+	};
+}
 
 function formatTreeNode(node: WorktreeTreeNode): string {
 	const labels = node.worktrees.map((worktree) => formatTreeWorktree(worktree));

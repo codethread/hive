@@ -3,6 +3,7 @@ export { main } from "./cli.ts";
 export {
 	explainPolicy,
 	parseConfig,
+	parseRepositoryConfig,
 	resolveEffectiveCommand,
 	resolvePreRemoteCheck,
 } from "./config.ts";

@@ -151,7 +151,7 @@ async function inspectAddTarget(context: AddContext): Promise<string | null> {
 
 async function prepareAdd(request: AddRequest, deps: Deps): Promise<AddContext> {
 	const root = await resolveCanonicalRoot(deps.git, request.cwd);
-	const config = deps.config.read();
+	const config = deps.config.read(root);
 	const explanation = deps.config.explain(config, root);
 	const context = { base: request.base, config, deps, explanation, request, root };
 	context.base = await inspectAddTarget(context);

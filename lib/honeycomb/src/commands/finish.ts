@@ -152,12 +152,12 @@ async function resolveFinishSource(
 	deps: Deps,
 	state: FinishState,
 ): Promise<FinishSourceInfo> {
-	const config = deps.config.read();
 	const worktrees = await listWorktrees(deps.git, request.cwd);
 	const canonical = worktrees.find((worktree) => worktree.canonical);
 	if (!canonical) {
 		throw new HoneycombError("couldn't determine canonical worktree");
 	}
+	const config = deps.config.read(canonical.path);
 	const { source, sourceBranch } = resolveSourceWorktree({
 		canonical,
 		cwd: request.cwd,

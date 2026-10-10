@@ -1,28 +1,43 @@
 import type {
 	ConfigPathContext,
 	CopyEntry,
+	CopyMode,
 	FinishPolicy,
 	PolicyTables,
+	RepositoryOptions,
 	TreesConfig,
 	WorktreeLocation,
 } from "./domain/config.ts";
+import type { RawConfig, RawRepositoryConfig } from "./schemas.ts";
+import { RepositoryConfigSchema, createConfigSchema } from "./schemas.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Config file paths normalize against the real filesystem.
-import { basename, normalize } from "node:path";
-import { expandConfigGlob, expandConfigPath } from "./domain/config.ts";
+import { basename, normalize, resolve } from "node:path";
+import {
+	expandConfigGlob,
+	expandConfigPath,
+	findProjectForRoot,
+	resolveEffectiveCommand,
+} from "./domain/config.ts";
 import { ConfigError } from "./errors.ts";
-import type { RawConfig } from "./schemas.ts";
 import { TOML } from "bun";
-import { createConfigSchema } from "./schemas.ts";
 import { z } from "zod";
+
+const MINIMUM_COPY_ENTRIES = 1;
 
 type RuleRaw = RawConfig["rule"][number];
 type ProjectRaw = RawConfig["project"][number];
-type SetupRaw = RuleRaw | ProjectRaw;
 type FinishRaw = NonNullable<RawConfig["defaults"]["finish"]>;
 
+interface RepositoryConfigContext {
+	/** Canonical root whose local configuration is being parsed. */
+	canonicalRoot: string;
+	/** Injected path canonicalization used for matching inherited settings. */
+	normalizePath: ConfigPathContext["normalizePath"];
+}
+
 interface ProjectSetup {
-	/** Bootstrap command, or null to inherit from rules. */
-	command: string | null;
+	/** Bootstrap command override, when configured. */
+	command?: string;
 	/** Pre-remote hook override, when configured. */
 	preRemoteCheck?: string;
 	/** Worktree placement override, when configured. */
@@ -37,7 +52,45 @@ export function parseConfig(toml: string, context: ConfigPathContext): TreesConf
 	}
 	return projectConfig(result.data, context);
 }
+
+/** Parse the canonical-root file as a final patch over the loaded global configuration. */
+export function parseRepositoryConfig(
+	toml: string,
+	config: TreesConfig,
+	context: RepositoryConfigContext,
+): TreesConfig {
+	const path = resolve(context.canonicalRoot, "honeycomb.toml");
+	const result = RepositoryConfigSchema.safeParse(parseToml(toml, path));
+	if (!result.success) {
+		throw new ConfigError(`Invalid ${path}:\n${z.prettifyError(result.error)}`);
+	}
+	const raw = result.data;
+	const project = findProjectForRoot(config, context.canonicalRoot, context.normalizePath);
+	const options = projectRepositoryOptions(raw, project?.copyModeDefault ?? "copy");
+	const layered = { ...config, local: { options, path, root: context.canonicalRoot } };
+	validateRepositorySetup(raw, layered, context);
+	return layered;
+}
 // --- Private functions ---
+
+function validateRepositorySetup(
+	raw: RawRepositoryConfig,
+	config: TreesConfig,
+	context: RepositoryConfigContext,
+): void {
+	const requiresCommand =
+		raw.pool_size !== undefined ||
+		raw.copy_mode_default !== undefined ||
+		(raw.copy !== undefined && raw.copy.length >= MINIMUM_COPY_ENTRIES);
+	if (
+		requiresCommand &&
+		resolveEffectiveCommand(config, context.canonicalRoot, context.normalizePath).command === null
+	) {
+		throw new ConfigError(
+			`${resolve(context.canonicalRoot, "honeycomb.toml")} requires an effective command for pooled or copy setup`,
+		);
+	}
+}
 
 function errorMessage(cause: unknown): string {
 	if (cause instanceof Error) {
@@ -46,11 +99,11 @@ function errorMessage(cause: unknown): string {
 	return String(cause);
 }
 
-function parseToml(toml: string): unknown {
+function parseToml(toml: string, path = "honeycomb.toml"): unknown {
 	try {
 		return TOML.parse(toml);
 	} catch (error) {
-		throw new ConfigError(`Invalid TOML in honeycomb.toml: ${errorMessage(error)}`);
+		throw new ConfigError(`Invalid TOML in ${path}: ${errorMessage(error)}`);
 	}
 }
 
@@ -90,9 +143,11 @@ function finishPolicy(raw: FinishRaw): Partial<FinishPolicy> {
 	return policy;
 }
 
-function projectSetup(raw: SetupRaw): ProjectSetup {
-	// oxlint-disable-next-line unicorn/no-null -- ProjectConfig distinguishes an absent command from an inherited one.
-	const setup: ProjectSetup = { command: raw.command ?? null };
+function projectSetup(raw: RawRepositoryConfig): ProjectSetup {
+	const setup: ProjectSetup = {};
+	if (raw.command !== undefined) {
+		setup.command = raw.command;
+	}
 	if (raw.pre_remote_check !== undefined) {
 		setup.preRemoteCheck = raw.pre_remote_check;
 	}
@@ -109,9 +164,11 @@ function toDestinations(to: string | string[]): string[] {
 	return to;
 }
 
-function projectCopy(raw: ProjectRaw): CopyEntry[] {
-	const defaultMode = raw.copy_mode_default ?? "copy";
-	return raw.copy.map((entry) => {
+function projectCopy(
+	copy: NonNullable<RawRepositoryConfig["copy"]>,
+	defaultMode: CopyMode,
+): CopyEntry[] {
+	return copy.map((entry) => {
 		if (typeof entry === "string") {
 			const path = normalize(entry);
 			return { from: path, mode: defaultMode, to: [path] };
@@ -124,13 +181,35 @@ function projectCopy(raw: ProjectRaw): CopyEntry[] {
 	});
 }
 
+function projectRepositoryOptions(
+	raw: RawRepositoryConfig,
+	inheritedMode: CopyMode,
+): RepositoryOptions {
+	const options: RepositoryOptions = { ...projectSetup(raw), ...projectPolicies(raw) };
+	if (raw.name !== undefined) {
+		options.name = raw.name;
+	}
+	if (raw.pool_size !== undefined) {
+		options.poolSize = raw.pool_size;
+	}
+	if (raw.copy_mode_default !== undefined) {
+		options.copyModeDefault = raw.copy_mode_default;
+	}
+	if (raw.copy !== undefined) {
+		options.copy = projectCopy(raw.copy, raw.copy_mode_default ?? inheritedMode);
+	}
+	return options;
+}
+
 function buildProject(
 	project: ProjectRaw,
 	context: ConfigPathContext,
 ): TreesConfig["projects"][number] {
 	const root = expandConfigPath(project.root, context);
 	return {
-		copy: projectCopy(project),
+		// oxlint-disable-next-line unicorn/no-null -- An omitted exact-project command inherits from rules.
+		command: null,
+		copy: projectCopy(project.copy, project.copy_mode_default ?? "copy"),
 		copyModeDefault: project.copy_mode_default ?? "copy",
 		name: project.name ?? basename(root),
 		// oxlint-disable-next-line unicorn/no-null -- A project without fixed slots has no pool size.
@@ -143,6 +222,8 @@ function buildProject(
 
 function buildRule(rule: RuleRaw, context: ConfigPathContext): TreesConfig["rules"][number] {
 	return {
+		// oxlint-disable-next-line unicorn/no-null -- An omitted rule command contributes no override.
+		command: null,
 		rootGlob: expandConfigGlob(rule.root_glob, context),
 		...projectSetup(rule),
 		...projectPolicies(rule),

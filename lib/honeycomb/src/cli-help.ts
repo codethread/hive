@@ -50,8 +50,9 @@ Use when:
 
 Notes:
   Resolution starts with built-in defaults, applies matching root_glob rules in
-  file order, then exact project overrides. Use --json for the matched rules,
-  exact project, command source, add policy, and finish policy.
+  file order, then exact project overrides, then honeycomb.toml at the canonical
+  root. Omitted local fields inherit global values. Use --json for the matched
+  rules, global project, local file, command source, policies, and effective setup.
 `,
 	finish: `
 Use when:

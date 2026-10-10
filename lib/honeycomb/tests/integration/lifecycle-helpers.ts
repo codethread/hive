@@ -35,8 +35,9 @@ export async function gitSucceeds(repo: string, ...args: string[]): Promise<bool
 	return result.exitCode === EXIT_CODES.SUCCESS;
 }
 
-export async function runCli(args: string[]) {
+export async function runCli(args: string[], cwd = process.cwd()) {
 	const proc = Bun.spawn(["bun", resolve(import.meta.dirname, "../../bin/honeycomb.ts"), ...args], {
+		cwd,
 		env: process.env,
 		stderr: "pipe",
 		stdout: "pipe",

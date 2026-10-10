@@ -79,6 +79,8 @@ export interface PolicyRule extends PolicyTables {
 }
 
 export interface TreesConfig {
+	/** Final repository-local layer, when its canonical-root file exists. */
+	local?: RepositoryConfig;
 	/** Exact-root configuration entries. */
 	projects: ProjectConfig[];
 	/** Rules in precedence order, with later matches winning. */
@@ -87,6 +89,32 @@ export interface TreesConfig {
 	defaults: PolicyTables;
 	/** Global preference for newly created worktrees. */
 	worktreeLocation: WorktreeLocation;
+}
+
+export interface RepositoryOptions extends PolicyTables {
+	/** Repository display name override. */
+	name?: string;
+	/** Bootstrap command override. */
+	command?: string;
+	/** Pre-remote hook override. */
+	preRemoteCheck?: string;
+	/** Placement override for new worktrees. */
+	worktreeLocation?: WorktreeLocation;
+	/** Fixed pool size override. */
+	poolSize?: number;
+	/** Default mode for copy entries supplied by this file. */
+	copyModeDefault?: CopyMode;
+	/** Replacement copy list; an empty list disables inherited copying. */
+	copy?: CopyEntry[];
+}
+
+export interface RepositoryConfig {
+	/** Canonical root to which this layer belongs. */
+	root: string;
+	/** Local TOML path for source attribution. */
+	path: string;
+	/** Explicit settings only; omitted fields inherit the global configuration. */
+	options: RepositoryOptions;
 }
 
 export interface ConfigPathContext {
@@ -106,11 +134,15 @@ export interface ResolvedConfigString {
 }
 
 export interface PolicyExplanation {
+	/** Matching repository-local file and its explicit settings, when present. */
+	local: RepositoryConfig | undefined;
 	/** Canonicalized repository path used for rule matching. */
 	canonicalRoot: string;
 	/** Matching rules in precedence order. */
 	matchedRules: PolicyRule[];
-	/** Matching exact project, if configured. */
+	/** Matching global exact project, retained for source attribution. */
+	globalProject: ProjectConfig | undefined;
+	/** Effective repository setup after the local overlay, if configured. */
 	project: ProjectConfig | undefined;
 	/** Effective add policy after every layer is applied. */
 	addPolicy: AddPolicy;
@@ -195,7 +227,9 @@ export function explainPolicy(
 ): PolicyExplanation {
 	const root = normalizePath(canonicalRoot);
 	const matchedRules = config.rules.filter((rule) => rootGlobMatches(rule.rootGlob, root));
-	const project = findProjectForRoot(config, root, normalizePath);
+	const globalProject = findProjectForRoot(config, root, normalizePath);
+	const local = localForRoot(config, root, normalizePath);
+	const project = applyLocalToProject(globalProject, local);
 	const { add: defaultAdd, finish: defaultFinish } = config.defaults;
 	const layers = applyProjectToLayers(
 		applyRulesToLayers(
@@ -213,6 +247,8 @@ export function explainPolicy(
 		canonicalRoot: root,
 		command: resolveEffectiveCommand(config, root, normalizePath),
 		finishPolicy: layers.finishPolicy,
+		globalProject,
+		local,
 		matchedRules,
 		preRemoteCheck: resolvePreRemoteCheck(config, root, normalizePath),
 		project,
@@ -251,11 +287,48 @@ function resolveRuleField(
 function resolveEffectiveStringField(request: StringFieldRequest): ResolvedConfigString {
 	const { canonicalRoot, config, field, normalizePath } = request;
 	const root = normalizePath(canonicalRoot);
+	const local = localForRoot(config, root, normalizePath);
+	if (local?.options[field] !== undefined) {
+		return { source: `local:${local.path}`, value: local.options[field] };
+	}
 	const project = findProjectForRoot(config, root, normalizePath);
 	if (project?.[field]) {
 		return { source: `project:${project.root}`, value: project[field] };
 	}
 	return resolveRuleField(config.rules, field, root);
+}
+
+function localForRoot(
+	config: TreesConfig,
+	root: string,
+	normalizePath: NormalizePath,
+): RepositoryConfig | undefined {
+	if (config.local && normalizePath(config.local.root) === root) {
+		return config.local;
+	}
+	return undefined;
+}
+
+function applyLocalToProject(
+	project: ProjectConfig | undefined,
+	local: RepositoryConfig | undefined,
+): ProjectConfig | undefined {
+	if (local === undefined) {
+		return project;
+	}
+	return {
+		// oxlint-disable-next-line unicorn/no-null -- Unconfigured bootstrap and pools retain their explicit absent values.
+		command: null,
+		copy: [],
+		copyModeDefault: "copy",
+		name: basename(local.root),
+		// oxlint-disable-next-line unicorn/no-null -- A repository without a pool has no fixed slot count.
+		poolSize: null,
+		...project,
+		...local.options,
+		finish: { ...project?.finish, ...local.options.finish },
+		root: local.root,
+	};
 }
 
 function applyRulesToLayers(layers: PolicyLayers, rules: PolicyRule[]): PolicyLayers {
