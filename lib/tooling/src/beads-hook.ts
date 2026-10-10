@@ -21,7 +21,6 @@ const runSessionStart = async (harness: z.infer<typeof harnessSchema>): Promise<
 			`export BEADS_DB='${database}'\n`,
 		);
 	}
-	await runCommand(["bun", "run", "beads:sync"], root);
 };
 
 if (import.meta.main) {

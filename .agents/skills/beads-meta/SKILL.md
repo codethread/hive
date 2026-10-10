@@ -170,7 +170,7 @@ Do not bypass a refused transition by rewriting storage. Inspect the policy, `br
 
 ## Persistence and recovery
 
-Hive uses automatic import and export in the permanent `tracker/state` checkout. Honor its selected `BEADS_DB` from the project environment; feature worktrees do not own private trackers. Native `br` stays local. `bun run beads:sync` receives compatible remote tracker changes, reconciles SQLite and publishes JSONL, separately from code integration. Session-start and pre-commit hooks run that checkpoint; ordinary commands and tools do not. Run it explicitly after claiming before work begins, and after closure or handoff. New claims remain provisional until publication succeeds. Use native sync diagnostics when investigating a refusal:
+Hive uses automatic import and export in the permanent `tracker/state` checkout. Honor its selected `BEADS_DB` from the project environment; feature worktrees do not own private trackers. Native `br` stays local. `bun run beads:sync` receives compatible remote tracker changes, reconciles SQLite and publishes JSONL, separately from code integration. Follow the root runbook’s explicit remote refresh, post-landing and deliberate remote handoff checkpoints. Session-start hooks configure the environment and Git hooks validate commit artifacts. Local sessions and claims need no publication; coordinated cross-clone claims remain provisional until successful publication and reservation verification. Use native sync diagnostics when investigating a refusal:
 
 ```nu
 br sync --status --json

@@ -24,10 +24,6 @@ interface Pick {
 	readonly source_authority: { readonly claim_safe: boolean };
 }
 
-const assertTrackerReady = async (): Promise<void> => {
-	await $`bun run beads:sync`;
-};
-
 const EXIT_SUCCESS = 0;
 const agents = new Map([
 	// ["opus", { args: ["--dangerously-skip-permissions", "--model", "opus"], cli: "claude" }],
@@ -57,7 +53,6 @@ if (values.help) {
 	// Each agent must finish before querying the next ready bead.
 	/* eslint-disable no-await-in-loop */
 	while (true) {
-		await assertTrackerReady();
 		const pick: Pick =
 			await $`bv --recipe ${recipe} --robot-next --robot-not-ready-labels hitl`.json();
 		if (!pick.source_authority.claim_safe) {
@@ -83,10 +78,9 @@ if (values.help) {
 		}
 		console.log(`Working on ${bead.id}: ${bead.title} [${name}]`);
 		const prompt = `Work only on bead ${bead.id}. Follow the repository instructions.
-Receive and reconcile accepted remote tracker state before reading claims. Inspect this bead and its reserved scope, then claim it with your actor and owner ct.
-Immediately after claiming, run bun run beads:sync and wait for success before starting work. Stop if synchronization fails. Respect already-published competing reservations.
-Implement the task and run the required checks and tests. Close it only when all acceptance criteria are satisfied; criteria requiring landing remain open until the post-landing publication.
-If blocked or awaiting landing, record the next action on the bead and stop without closing it. Do not land without explicit user authorization. Tracker mutations auto-export locally; run bun run beads:sync after closure or handoff to publish on tracker/state. Code branches stay clean.
+Inspect this bead and its reserved scope, then claim it with your actor and owner ct. Local claims need no publication; follow the root runbook for explicit remote refresh and coordinated cross-clone reservations.
+Implement the task and run the required checks and tests. Close it only when all acceptance criteria are satisfied; criteria requiring landing remain open until integration is verified; publish completion after final task/workflow updates.
+If blocked or awaiting landing, record the next action on the bead and stop without closing it. Do not land without explicit user authorization. Tracker mutations auto-export locally. Publish once after landing and final updates or at a deliberate remote handoff/checkpoint; ordinary local completion stays local.
 Do not pick up another bead.`;
 		const child = Bun.spawn([runner.cli, ...runner.args, "-p", prompt], {
 			stderr: "inherit",
@@ -98,7 +92,6 @@ Do not pick up another bead.`;
 			process.exitCode = exitCode;
 			break;
 		}
-		await assertTrackerReady();
 		const [finished]: Bead[] = await $`br show ${bead.id} --json`.json();
 		if (finished?.status !== "closed") {
 			console.log(`Stopped: ${bead.id} still needs completion or landing; see its notes.`);
