@@ -9,7 +9,7 @@ const evidenceSchema = z.object({
 });
 const reviewedSchema = evidenceSchema.extend({
 	review: z.object({
-		bead: text.describe("Bead holding an approved local review, checks and resolved findings."),
+		bead: text.describe("Bead holding an approved local review and resolved findings."),
 		base: text.describe("Reviewed base commit."),
 		revision: text.describe(
 			"Reviewed cumulative diff fingerprint, including relevant uncommitted files; compare it with the current change.",
@@ -132,7 +132,7 @@ export const machine = setup({
 				task: ({ context }: { context: LandingContext }) => ({
 					instructions: `Verify the recorded request is an actual user instruction to finish and land this scope. An early "land it" authorizes remaining agreed implementation, not skipping gates or widening scope. Workflow creation, conversion, a PR URL and test traversal are not authorization; if absent, leave this task open and ask. Inspect task acceptance/notes, git status and the complete diff, branch/base and any PR via gh. Verify the target belongs to this repository, canonicalRoot survives cleanup and beadsDb is the selected permanent tracker endpoint. Respect claims and other agents' edits; resolve tracker conflicts before proceeding.
 
-Choose implement for unfinished acceptance, known defects or unresolved review findings; check for completed work without current passing checks; review when checks pass but local review evidence is missing or stale. Choose commit for current checked and approved content that still needs committing, supplying its review receipt. Choose reviewed only for clean committed work with current checks and an approved local-review receipt read from br show on the relevant bead. A closed review bead, an old approval or a GitHub approval alone is not that evidence: match base and cumulative diff, including staged/unstaged/relevant untracked files, and verify finding dispositions. With no adequate evidence, use check or review rather than guessing. Choose integrated only after proving this exact work already reached the intended main; verification and cleanup still remain. Record the assessment in this bead's notes before closure. Later uncertainty or changed scope can return here; external blockers leave the current task open, not a polling loop.
+Choose implement for unfinished acceptance, known defects or unresolved review findings; check for completed work without a current passing \`bun run check\`; review only when that gate passes but local review evidence is missing or stale. Choose commit for current checked and approved content that still needs committing, supplying its review receipt. Choose reviewed only for clean committed work with current checks and an approved local-review receipt read from br show on the relevant bead. A closed review bead, an old approval or a GitHub approval alone is not that evidence: match base and cumulative diff, including staged/unstaged/relevant untracked files, and verify finding dispositions. With no adequate evidence, use check or review rather than guessing. Choose integrated only after proving this exact work already reached the intended main; verification and cleanup still remain. Record the assessment in this bead's notes before closure. Later uncertainty or changed scope can return here; external blockers leave the current task open, not a polling loop.
 
 ${retainedContext(context)}`,
 				}),
@@ -168,7 +168,7 @@ ${retainedContext(context)}`,
 				title: "Tidy and check the complete change",
 				commands: { passed: "PASSED", changes: "CHANGES" },
 				task: ({ context }: { context: LandingContext }) => ({
-					instructions: `Remove only this work's scratch/debug/generated leftovers and dead code; inspect git status and the cumulative diff for secrets, local configuration and unintended files. Keep the diff scoped and documentation truthful. Run full repository checks and appropriate tests under current repository instructions. Record the exact base/revision, commands and results in bead notes. Choose passed only when checks pass; choose changes with a concrete repair brief for code failures. A known infrastructure failure keeps the task open with a next action rather than inventing a code fix. Any modifications invalidate prior review evidence.
+					instructions: `Remove only this work's scratch/debug/generated leftovers and dead code; inspect git status and the cumulative diff for secrets, local configuration and unintended files. Keep the diff scoped and documentation truthful. Run \`bun run check\` for the complete change; it includes the full test suite. Record the exact base/revision, commands and results in bead notes. Choose passed only when \`bun run check\` exits successfully for that revision; choose changes with a concrete repair brief for code failures. A known infrastructure failure keeps the task open with a next action rather than inventing a code fix. Any modifications invalidate prior review evidence.
 
 ${retainedContext(context)}`,
 				}),
@@ -184,7 +184,7 @@ ${retainedContext(context)}`,
 				title: "Review the current change locally",
 				commands: { approved: "APPROVED", changes: "CHANGES" },
 				task: ({ context }: { context: LandingContext }) => ({
-					instructions: `Run a local code review of the complete change against its task acceptance and repository standards, using the required reviewer consultation after checks pass. Include staged, unstaged and relevant untracked files, not just committed changes. Inspect previous findings and their fixes. Record base, cumulative diff fingerprint, reviewer identity, check results, findings and dispositions in this worker bead's notes (and link that evidence from the scope beads). A completed review may request changes: close this review with changes and a concrete repair brief so implementation can proceed. Choose approved only with no unresolved findings, supplying this bead and the exact reviewed base/revision as the receipt. Reviewers do not edit during the review. Do not treat task closure as approval.
+					instructions: `Run a local code review of the complete change against its task acceptance and repository standards, using the required reviewer consultation only after \`bun run check\` passes for this revision. The landing worker owns check execution and its evidence; the reviewer assesses code and test quality without rerunning checks or auditing test-run evidence. Include staged, unstaged and relevant untracked files, not just committed changes. Inspect previous findings and their fixes. Record base, cumulative diff fingerprint, reviewer identity, findings and dispositions in this worker bead's notes (and link that evidence from the scope beads). A completed review may request changes: close this review with changes and a concrete repair brief so implementation can proceed. Choose approved only with no unresolved findings, supplying this bead and the exact reviewed base/revision as the receipt. Reviewers do not edit during the review. Do not treat task closure as approval.
 
 ${retainedContext(context)}`,
 				}),
@@ -287,7 +287,7 @@ ${retainedContext(context)}`,
 				title: "Verify integration and clean up the worktree",
 				commands: { next: "NEXT" },
 				task: ({ context }: { context: LandingContext }) => ({
-					instructions: `From the surviving canonical checkout and retained tracker endpoint, fetch and verify clean synchronized main contains the intended change. Use recorded source commits, final commit evidence and the actual integration commit; squash/rebase landing requires content/PR correspondence, not ancestry of source SHAs. Run required checks on the integrated result. A defect after integration is not permission to rewrite main: keep this task open, record it and agree a forward fix or revert.
+					instructions: `From the surviving canonical checkout and retained tracker endpoint, fetch and verify clean synchronized main contains the intended change. Use recorded source commits, final commit evidence and the actual integration commit; squash/rebase landing requires content/PR correspondence, not ancestry of source SHAs. Run \`bun run check\` on the integrated result. A defect after integration is not permission to rewrite main: keep this task open, record it and agree a forward fix or revert.
 
 Verify Honeycomb feature cleanup; if it remains after PR merge or a finish policy retains it, use honeycomb remove with integration proof (including --integrated-into origin/main for squash merges) rather than finishing again or force-deleting. If already removed, verify that fact. Preserve the permanent tracker checkout/branch, unrelated worktrees and others' dirty files. Missing work, failed checks, dirty canonical state or incomplete intended cleanup blocks closure. Record commands, integration and cleanup evidence before next.
 

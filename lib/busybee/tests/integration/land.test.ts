@@ -187,6 +187,23 @@ test.each(paths)(
 	},
 );
 
+test("landing briefs keep the passing check gate with the worker before agent review", () => {
+	const input = landingInput("/selected/beads.db", "/surviving", worktreeTarget);
+	const [triage] = initialTransition(machine, input);
+	const [check] = transition(machine, triage, { data: outcome, type: "CHECK" });
+	expect(landingTask(check).instructions).toContain("Run `bun run check` for the complete change");
+	expect(landingTask(check).instructions).toContain(
+		"Choose passed only when `bun run check` exits successfully for that revision",
+	);
+	const [reviewing] = transition(machine, check, { data: outcome, type: "PASSED" });
+	expect(landingTask(reviewing).instructions).toContain(
+		"reviewer consultation only after `bun run check` passes for this revision",
+	);
+	expect(landingTask(reviewing).instructions).toContain(
+		"reviewer assesses code and test quality without rerunning checks or auditing test-run evidence",
+	);
+});
+
 // eslint-disable-next-line max-statements -- Register related native scenarios and their fixture-scoped story helpers together.
 describe("native land navigation and continuation", () => {
 	const fixture = useNativeFixture("busybee-land-");

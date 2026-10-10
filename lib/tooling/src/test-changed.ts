@@ -18,14 +18,14 @@ async function main(args: string[]): Promise<number> {
 	const directory = await mkdtemp(join(tmpdir(), "hive-test-changed-"));
 	const report = Bun.file(join(directory, "junit.xml"));
 	try {
-		// Reuse the repository test script's parallelism and timeout instead of maintaining a second set.
+		// Reuse the repository test:all script's parallelism and timeout instead of maintaining a second set.
 		const child = Bun.spawn(
 			[
 				// Could optimise later and let agents choose set the --changed=target
 				process.execPath,
 				"run",
 				"--silent",
-				"test",
+				"test:all",
 				"--changed=main",
 				...args,
 				"--reporter=junit",

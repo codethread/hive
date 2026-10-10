@@ -33,7 +33,7 @@ Product packages may import only `@hive/shared` across package boundaries; Share
 
 - **Consult:** use `librarian` when ownership, domain concepts, seams or abstraction choices remain unclear after reading the architecture; routine file placement does not need a consultation.
 - **Curate/discuss:** use `librarian` to synthesize difficult questions, recurring confusion and outcomes. Forward user corrections with the original request, context and supplied rationale. Evidence capture is part of the role; explicitly scope documentation changes and new policy decisions.
-- **Review:** before committing or handing off changes to those architectural concerns, use `librarian` in review mode on the final diff. Keep code style, test quality and general standards verification with `reviewer`.
+- **Review:** before committing or handing off changes to those architectural concerns, use `librarian` in review mode on the final diff. Keep code style, test quality and general standards review with `reviewer`.
 - Pass the task bead when one exists, affected paths/revisions, settled decisions, prior advice and the evidence ID when known. Librarian records substantive exchanges under its [evidence contract](.hive/bees/librarian/system_prompt.md#architectural-evidence-records); no separate filing assignment is needed. Keep the accepted approach in the task's design and return corrections and final outcomes to the same evidence thread. Consult/review leave examined code, architecture documents and implementation tasks unchanged; routine evidence capture remains part of reporting.
 
 ## Runtime and commits
@@ -44,7 +44,7 @@ Product packages may import only `@hive/shared` across package boundaries; Share
 ## Commands
 
 - `bun install`
-- `bun run check` — `fmt:check` + `lint` + `typecheck`; does not run tests.
+- `bun run check` — `fmt:check` + `lint` + `typecheck` + `test:all`.
 - `bun run fmt` / `bun run fmt:check`
 - `bun run lint` / `bun run lint:fix`
 - `bun run typecheck`
@@ -59,7 +59,7 @@ State missing context rather than inventing contracts. Validate any concern agai
 
 ## Validation
 
-Before committing or handing off, run full `bun run check` and tests appropriate to the complete change. Explain any skipped verification.
+Before requesting agent review, committing or handing off implementation changes, get `bun run check` passing for the complete change. Explain any skipped verification.
 
 Husky runs `lint-staged` and a repo-wide typecheck before commits and merges. Commitlint runs on `commit-msg`; hooks do not run tests or publish the tracker.
 

@@ -35,9 +35,11 @@ Triage --> Implement --> Check --> Local review --> Commit
 | Committed, checked and approved at the current revision | Recheck PR/worktree readiness; skip redundant implementation/review |
 | Already integrated | Verify the actual integration and clean up; do not merge again |
 
-A reusable review receipt identifies its bead, base and cumulative diff fingerprint. Read the bead: require reviewer/check evidence, approval and resolved findings matching the current change, including relevant dirty/untracked files. Closed means the review finished, not that it approved. Record new reviews on beads so later PR-based entry can reuse them. Code changes, hook edits and conflict resolutions require renewed checks/review; committing unchanged reviewed content does not.
+Before proceeding to agent review, get `bun run check` passing for the complete current change. Record its command, result and revision in the check task's notes; changed content requires a fresh passing check. The landing worker owns this gate, not the reviewer.
 
-Where the root architectural-review trigger applies, obtain `librarian` review of the final diff with the task bead, settled intent, user corrections and prior advice; reuse earlier evidence only if it still covers the final change. Resolve architectural findings or obtain the missing decision, and route useful outcomes to curation separately from review. Use `reviewer` for the separate code style, test quality, documentation standards and verification pass when warranted. Recheck affected review evidence after fixes.
+A reusable review receipt identifies its bead, base and cumulative diff fingerprint. Read the bead: require reviewer approval and resolved findings matching the current change, including relevant dirty/untracked files. Closed means the review finished, not that it approved. Record new reviews on beads so later PR-based entry can reuse them. Code changes, hook edits and conflict resolutions require renewed checks/review; committing unchanged reviewed content does not.
+
+Where the root architectural-review trigger applies, obtain `librarian` review of the final diff with the task bead, settled intent, user corrections and prior advice; reuse earlier evidence only if it still covers the final change. Resolve architectural findings or obtain the missing decision, and route useful outcomes to curation separately from review. Use `reviewer` for the separate code style, test quality and documentation standards pass when warranted. Recheck affected review evidence after fixes.
 
 ## Return paths and blockers
 

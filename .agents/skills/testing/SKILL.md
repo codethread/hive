@@ -1,19 +1,15 @@
 ---
 name: testing
-description: Select and run tests after code changes in hive, including changed-code iteration and pre-commit validation. Also use for test changes, fixtures, fakes, mocks and designing services for testability.
+description: Select focused and changed tests during Hive development. Also use for test changes, fixtures, fakes, mocks and designing services for testability.
 ---
 
 # Testing
 
 ## Running tests
 
-From the worktree root:
+From the worktree root, run focused files while iterating, for example `bun test ./lib/shared/src/bees.test.ts`.
 
-| Scope        | Example                                       |
-| ------------ | --------------------------------------------- |
-| One file     | `bun run test ./lib/shared/src/index.test.ts` |
-| Changed code | `bun run test:changed`                        |
-| Full suite   | `bun run test`                                |
+Run `bun run test:changed` at intervals, such as completing a subtask, to check affected tests and inspect timing warnings.
 
 ## Writing tests
 
@@ -28,8 +24,6 @@ From the worktree root:
 Check runner-reported durations when adding or editing unit tests. New unit tests must run within 1ms; slower tests require explicit user authorisation, up to 5s.
 
 `bun run test:changed` reports failures and unapproved slow tests using JUnit timings. Timing warnings do not change the test exit code; inspect the output. Every change to [`lib/tooling/slow-tests.json`](../../../lib/tooling/slow-tests.json) requires explicit user sign-off on the proposed edit. Follow the process below before proposing an allowance.
-
-`bun run test` uses `--only-failures`, which hides passing tests and their timings. Run `bun test <file>` directly to see individual timings.
 
 ### Addressing slow tests
 

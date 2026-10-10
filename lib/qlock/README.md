@@ -29,7 +29,7 @@ Runtime requirements: Bun on a Unix-like system. Merge queues also require Git a
 ```nu
 qlock exec --lock /tmp/project-check.lock -w 180 -- bun run check
 qlock status --lock /tmp/project-check.lock
-qlock exec --lock /tmp/project-check.lock -w 180 --urgent "user blocked on verification" -- bun run test
+qlock exec --lock /tmp/project-check.lock -w 180 --urgent "user blocked on verification" -- bun run check
 ```
 
 Select a queue with `--lock PATH` or `--merge-target BRANCH`, not both. Put the complete child invocation after `--`; everything after it belongs to the child, including `--help`, `--json` and further `--` arguments. Child stdin, stdout, stderr and exit status pass through. Queue progress and errors go to stderr.

@@ -13,9 +13,9 @@ Keep process execution and native JSON parsing in injected [native services](./s
 The integration tests are discovered by the normal full suite and selected by Bun's import graph for changed-code runs. From the checkout root:
 
 ```sh
+bun test ./lib/busybee/tests/integration/native.test.ts
 bun run test:changed
-bun run test ./lib/busybee/tests/integration/native.test.ts
-bun run test
+bun run check
 ```
 
 Use [the native fixture](./tests/integration/support.ts) for disposable repositories and databases; it removes them after each test. Exercise `runCli` in process for command scenarios, retaining the executable test for child-process output. Import tested examples and repository definitions directly alongside dynamic file loading so their changes select the dependent tests. The executable's guarded import provides the same dependency for its subprocess case.

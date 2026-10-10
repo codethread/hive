@@ -565,7 +565,7 @@ Overrides last until a fresh wake, daemon recovery wake or explicit reset reload
 
 Operation evidence, bounded retention and crash uncertainty: `bun test lib/colony/src/history.smoke.test.ts`. The retry smoke additionally checks native failure capture, partial claim cleanup and offline history with the daemon stopped and tracker executable disabled.
 
-Run from the Hive checkout. The process smoke also requires Node on `PATH` to exercise real process-title changes, as used by native Pi; installed Bee/Colony commands still run on Bun. The normal check does not run tests:
+Run from the Hive checkout. The process smoke also requires Node on `PATH` to exercise real process-title changes, as used by native Pi; installed Bee/Colony commands still run on Bun. The repository check includes the full test suite:
 
 ```sh
 bun run check

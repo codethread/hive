@@ -4,7 +4,7 @@
 
 From the checkout root, run `bun run test:changed`. Extra Bun test arguments are forwarded, for example `bun run test:changed --changed=main` or `bun run test:changed ./lib/shared/src/bees.test.ts`.
 
-The runner uses the repository's `test` script with `--changed` and a temporary JUnit report, parsed with Bun's built-in XML parser (Bun 1.4+). Successful runs print only unapproved slow tests, slowest first:
+The runner uses the repository's `test:all` script with `--changed=main` and a temporary JUnit report, parsed with Bun's built-in XML parser (Bun 1.4+). Successful runs print only unapproved slow tests, slowest first:
 
 ```text
 lib/example.test.ts:42 XSLOW 12.345ms suite > test description
