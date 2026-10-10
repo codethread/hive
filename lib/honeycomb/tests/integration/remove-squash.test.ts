@@ -2,6 +2,7 @@ import { EXIT_CODES, dispatch } from "../../src/index";
 import {
 	commitFile,
 	commitOnRemoteDefault,
+	createWorktree,
 	deps,
 	pathExists,
 	useOriginFixture,
@@ -20,7 +21,7 @@ const { initRepoWithOrigin } = useOriginFixture();
 test("removes a clean squash-integrated branch after fetching its claimed target", async () => {
 	const { remote, root } = await initRepoWithOrigin(tmp.dir);
 	writeConfig({ command: "echo ready", root, tmp: tmp.dir });
-	await dispatch("add", ["--cwd", root, "--branch", "feature/squash", "--json"], deps);
+	await createWorktree({ branch: "feature/squash", path: `${root}__feature--squash`, root });
 	await commitFile({
 		content: "work\n",
 		message: "feature work",
@@ -54,7 +55,11 @@ test("removes a clean squash-integrated branch after fetching its claimed target
 test("refuses squash-aware removal when the target lacks source content", async () => {
 	const { root } = await initRepoWithOrigin(tmp.dir);
 	writeConfig({ command: "echo ready", root, tmp: tmp.dir });
-	await dispatch("add", ["--cwd", root, "--branch", "feature/not-integrated", "--json"], deps);
+	await createWorktree({
+		branch: "feature/not-integrated",
+		path: `${root}__feature--not-integrated`,
+		root,
+	});
 	await commitFile({
 		content: "work\n",
 		message: "feature work",
@@ -89,7 +94,11 @@ test("refuses squash-aware removal when the target lacks source content", async 
 test("refuses squash-aware removal of a dirty worktree", async () => {
 	const { remote, root } = await initRepoWithOrigin(tmp.dir);
 	writeConfig({ command: "echo ready", root, tmp: tmp.dir });
-	await dispatch("add", ["--cwd", root, "--branch", "feature/dirty-squash", "--json"], deps);
+	await createWorktree({
+		branch: "feature/dirty-squash",
+		path: `${root}__feature--dirty-squash`,
+		root,
+	});
 	await commitFile({
 		content: "work\n",
 		message: "feature work",
@@ -130,7 +139,11 @@ test("refuses squash-aware removal of a dirty worktree", async () => {
 test("keep-branch removes a clean unmerged worktree and preserves its branch", async () => {
 	const { root } = await initRepoWithOrigin(tmp.dir);
 	writeConfig({ command: "echo ready", root, tmp: tmp.dir });
-	await dispatch("add", ["--cwd", root, "--branch", "feature/squash-merged", "--json"], deps);
+	await createWorktree({
+		branch: "feature/squash-merged",
+		path: `${root}__feature--squash-merged`,
+		root,
+	});
 	await commitFile({
 		content: "work\n",
 		message: "work",

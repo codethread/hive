@@ -35,7 +35,7 @@ Triage --> Implement --> Check --> Local review --> Commit
 | Committed, checked and approved at the current revision | Recheck PR/worktree readiness; skip redundant implementation/review |
 | Already integrated | Verify the actual integration and clean up; do not merge again |
 
-Before proceeding to agent review, get `bun run check` passing for the complete current change. Record its command, result and revision in the check task's notes; changed content requires a fresh passing check. The landing worker owns this gate, not the reviewer.
+Before proceeding to agent review, get `bun run check` passing for the complete current change. Its full suite prints the complete timing report and fails on unapproved `DANGER`; return these failures to meaningful test/setup refactoring using relevant skills. If the measured cost is necessary, keep landing open and propose the exact JSON allowance and justification for explicit user sign-off before editing the registry. Record the command, result and revision in the check task's notes; changed content requires a fresh passing check. The landing worker owns this gate, not the reviewer.
 
 A reusable review receipt identifies its bead, base and cumulative diff fingerprint. Read the bead: require reviewer approval and resolved findings matching the current change, including relevant dirty/untracked files. Closed means the review finished, not that it approved. Record new reviews on beads so later PR-based entry can reuse them. Code changes, hook edits and conflict resolutions require renewed checks/review; committing unchanged reviewed content does not.
 

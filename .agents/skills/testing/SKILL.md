@@ -23,7 +23,7 @@ Run `bun run test:changed` at intervals, such as completing a subtask, to check 
 
 Check runner-reported durations when adding or editing unit tests. New unit tests must run within 1ms; slower tests require explicit user authorisation, up to 5s.
 
-`bun run test:changed` reports failures and unapproved slow tests using JUnit timings. Timing warnings do not change the test exit code; inspect the output. Every change to [`lib/tooling/slow-tests.json`](../../../lib/tooling/slow-tests.json) requires explicit user sign-off on the proposed edit. Follow the process below before proposing an allowance.
+`bun run test:changed` reports failures and unapproved slow tests using JUnit timings. Its timing warnings are advisory; inspect the output. The full suite used by `bun run check` prints the complete timing report and fails on unapproved `DANGER`, blocking landing. Return these failures to the refactoring process below. Every change to [`lib/tooling/slow-tests.json`](../../../lib/tooling/slow-tests.json) requires explicit user sign-off on the exact proposed edit.
 
 ### Addressing slow tests
 

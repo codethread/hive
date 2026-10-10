@@ -1,5 +1,12 @@
 import { EXIT_CODES, dispatch } from "../../src/index";
-import { createTestPicker, run, testDeps, useOriginFixture, writeConfig } from "./support.ts";
+import {
+	createPoolSlot,
+	createTestPicker,
+	run,
+	testDeps,
+	useOriginFixture,
+	writeConfig,
+} from "./support.ts";
 import { expect, test } from "bun:test";
 import { gitOut, useTmpHome } from "./lifecycle-helpers.ts";
 import type { TestPicker } from "./support.ts";
@@ -14,7 +21,7 @@ const { initRepoWithOrigin } = useOriginFixture();
 async function occupySlot() {
 	const { root } = await initRepoWithOrigin(tmp.dir);
 	writeConfig({ command: "echo ready", poolSize: SINGLE_SLOT, root, tmp: tmp.dir });
-	await dispatch("add", ["--cwd", root, "--branch", "feature/one", "--json"], testDeps());
+	await createPoolSlot({ branch: "feature/one", index: SINGLE_SLOT, initialized: true, root });
 	return root;
 }
 

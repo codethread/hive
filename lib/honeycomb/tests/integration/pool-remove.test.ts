@@ -31,7 +31,7 @@ const { initRepoWithOrigin } = useOriginFixture();
 async function setupPooledRoot(home: string, branch: string) {
 	const { remote, root } = await initRepoWithOrigin(home);
 	writeConfig({ command: "echo ready", poolSize: SINGLE_SLOT, root, tmp: home });
-	await dispatch("add", ["--cwd", root, "--branch", branch, "--json"], testDeps());
+	await createPoolSlot({ branch, index: SINGLE_SLOT, initialized: true, root });
 	return { remote, root };
 }
 
@@ -45,7 +45,7 @@ async function setupIgnoredPooledRoot(home: string, branch: string) {
 	});
 	await run(["git", "-C", root, "push", "origin", "main"]);
 	writeConfig({ command: "echo ready", poolSize: SINGLE_SLOT, root, tmp: home });
-	await dispatch("add", ["--cwd", root, "--branch", branch, "--json"], testDeps());
+	await createPoolSlot({ branch, index: SINGLE_SLOT, initialized: true, root });
 	return { remote, root };
 }
 
@@ -61,15 +61,18 @@ async function dirtyPooledSlot(slot: string) {
 	await writeFile(join(slot, "node_modules", "keep.txt"), "keep\n");
 }
 
-async function setupUpstreamBlockedBranch(home: string) {
+async function setupRemotePooledRoot(home: string, branch: string) {
 	const { remote, root } = await initRepoWithOrigin(home);
-	await createRemoteBranch(remote, "feature/upstream-blocked");
+	await createRemoteBranch(remote, branch);
 	writeConfig({ command: "echo ready", poolSize: SINGLE_SLOT, root, tmp: home });
-	await dispatch(
-		"add",
-		["--cwd", root, "--branch", "feature/upstream-blocked", "--json"],
-		testDeps(),
-	);
+	await run(["git", "-C", root, "fetch", "origin"]);
+	await createPoolSlot({
+		branch,
+		index: SINGLE_SLOT,
+		initialized: true,
+		root,
+		startPoint: `origin/${branch}`,
+	});
 	return { root };
 }
 
@@ -133,10 +136,7 @@ test.each([
 });
 
 test("safe pooled remove resets slot to placeholder with removed false", async () => {
-	const { remote, root } = await initRepoWithOrigin(tmp.dir);
-	await createRemoteBranch(remote, "feature/safe");
-	writeConfig({ command: "echo ready", poolSize: SINGLE_SLOT, root, tmp: tmp.dir });
-	await dispatch("add", ["--cwd", root, "--branch", "feature/safe", "--json"], testDeps());
+	const { root } = await setupRemotePooledRoot(tmp.dir, "feature/safe");
 	await run([
 		"git",
 		"-C",
@@ -167,7 +167,7 @@ test("safe pooled remove resets slot to placeholder with removed false", async (
 test("recycles a clean squash-integrated slot and deletes its branch", async () => {
 	const { remote, root } = await initRepoWithOrigin(tmp.dir);
 	writeConfig({ command: "echo ready", poolSize: SINGLE_SLOT, root, tmp: tmp.dir });
-	await dispatch("add", ["--cwd", root, "--branch", "feature/squash", "--json"], testDeps());
+	await createPoolSlot({ branch: "feature/squash", index: SINGLE_SLOT, initialized: true, root });
 	await commitFile({
 		content: "work\n",
 		message: "feature work",
@@ -195,7 +195,12 @@ test("recycles a clean squash-integrated slot and deletes its branch", async () 
 test("keep-branch recycles a clean unmerged slot and preserves its branch", async () => {
 	const { root } = await initRepoWithOrigin(tmp.dir);
 	writeConfig({ command: "echo ready", poolSize: SINGLE_SLOT, root, tmp: tmp.dir });
-	await dispatch("add", ["--cwd", root, "--branch", "feature/squash-merged", "--json"], testDeps());
+	await createPoolSlot({
+		branch: "feature/squash-merged",
+		index: SINGLE_SLOT,
+		initialized: true,
+		root,
+	});
 	await commitFile({
 		content: "work\n",
 		message: "work",
@@ -247,7 +252,7 @@ test("forced pooled remove discards tracked and untracked dirt but preserves git
 });
 
 test("missing or unmerged upstream blocks safe pooled remove", async () => {
-	const { root } = await setupUpstreamBlockedBranch(tmp.dir);
+	const { root } = await setupRemotePooledRoot(tmp.dir, "feature/upstream-blocked");
 	const { failure: missingUpstream } = await dispatch(
 		"remove",
 		["--cwd", `${root}__feat1`, "--self"],

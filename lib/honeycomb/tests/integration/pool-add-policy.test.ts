@@ -2,6 +2,7 @@ import { BlockedError, EXIT_CODES, PreRemoteCheckError, dispatch } from "../../s
 import {
 	commitFile,
 	commitOnRemoteDefault,
+	createPoolSlot,
 	createRemoteBranch,
 	pathExists,
 	run,
@@ -39,6 +40,8 @@ async function prepareBasePool() {
 	await run(["git", "-C", root, "fetch", "origin"]);
 	await run(["git", "-C", root, "branch", "feature/existing-base"]);
 	writeConfig({ command: "echo ready", poolSize: TWO_SLOTS, root, tmp: tmp.dir });
+	await createPoolSlot({ branch: "wk-pool/feat1", index: SINGLE_SLOT, initialized: true, root });
+	await createPoolSlot({ branch: "wk-pool/feat2", index: TWO_SLOTS, initialized: true, root });
 	return root;
 }
 
@@ -113,6 +116,7 @@ test("fresh_canonical fast-forwards canonical root before pooled branch checkout
 		root,
 		tmp: tmp.dir,
 	});
+	await createPoolSlot({ branch: "wk-pool/feat1", index: SINGLE_SLOT, initialized: true, root });
 	await commitOnRemoteDefault({
 		content: "fresh pooled\n",
 		message: "pooled fresh update",
@@ -129,6 +133,7 @@ test("fresh_canonical fast-forwards canonical root before pooled branch checkout
 test("origin_default pooled add uses fetched origin default without mutating canonical root", async () => {
 	const { root, remote } = await initRepoWithOrigin(tmp.dir);
 	writeConfig({ command: "echo ready", poolSize: SINGLE_SLOT, root, tmp: tmp.dir });
+	await createPoolSlot({ branch: "wk-pool/feat1", index: SINGLE_SLOT, initialized: true, root });
 	await commitOnRemoteDefault({
 		content: "origin default\n",
 		message: "pooled origin default update",
@@ -158,6 +163,7 @@ test("fresh_canonical pooled explicit base bypasses canonical update requirement
 		root,
 		tmp: tmp.dir,
 	});
+	await createPoolSlot({ branch: "wk-pool/feat1", index: SINGLE_SLOT, initialized: true, root });
 	await writeFile(join(root, "dirty.txt"), "dirty\n");
 
 	const result = await dispatch(
@@ -191,7 +197,7 @@ test("fresh_canonical policy failure does not recycle an occupied pooled slot", 
 		root,
 		tmp: tmp.dir,
 	});
-	await dispatch("add", ["--cwd", root, "--branch", "feature/occupied", "--json"], testDeps());
+	await createPoolSlot({ branch: "feature/occupied", index: SINGLE_SLOT, initialized: true, root });
 	await commitOnRemoteDefault({
 		content: "remote\n",
 		message: "pooled recycle block update",

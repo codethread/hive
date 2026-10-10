@@ -1,33 +1,42 @@
 // eslint-disable-next-line import/no-nodejs-modules -- Own a private, short-lived JUnit report directory.
 import { mkdtemp, rm } from "node:fs/promises";
-import { parseSlowTestAllowances, reportSlowTests } from "./test-report.ts";
+import { parseSlowTestAllowances, reportTestRun } from "./test-report.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Resolve report paths at the CLI boundary.
 import { join } from "node:path";
 // eslint-disable-next-line import/no-nodejs-modules -- Locate the system temporary directory.
 import { tmpdir } from "node:os";
+import { z } from "zod";
 
 const successExitCode = 0;
 const failureExitCode = 1;
 const argumentOffset = 2;
+const modeSchema = z.enum(["all", "changed"]);
 
 // eslint-disable-next-line max-statements -- Keep child execution, diagnostic replay and report cleanup in one IO boundary.
 async function main(args: string[]): Promise<number> {
+	const [modeArg, ...testArgs] = args;
+	const mode = modeSchema.parse(modeArg);
+	const selectionArgs: string[] = [];
+	if (mode === "changed") {
+		selectionArgs.push("--changed=main");
+	}
 	const allowances = parseSlowTestAllowances(
 		await Bun.file(new URL("../slow-tests.json", import.meta.url)).json(),
 	);
-	const directory = await mkdtemp(join(tmpdir(), "hive-test-changed-"));
+	const directory = await mkdtemp(join(tmpdir(), "hive-test-report-"));
 	const report = Bun.file(join(directory, "junit.xml"));
 	try {
-		// Reuse the repository test:all script's parallelism and timeout instead of maintaining a second set.
+		// Both scripts share Bun's existing parallelism and timeout policy here.
 		const child = Bun.spawn(
 			[
-				// Could optimise later and let agents choose set the --changed=target
 				process.execPath,
-				"run",
-				"--silent",
-				"test:all",
-				"--changed=main",
-				...args,
+				"test",
+				"--parallel=2",
+				"--parallel-delay=0",
+				"--timeout=5000",
+				"--only-failures",
+				...selectionArgs,
+				...testArgs,
 				"--reporter=junit",
 				`--reporter-outfile=${report.name}`,
 			],
@@ -38,23 +47,32 @@ async function main(args: string[]): Promise<number> {
 			new Response(child.stdout).text(),
 			new Response(child.stderr).text(),
 		]);
-		if (exitCode !== successExitCode) {
+		if (mode === "all" || exitCode !== successExitCode) {
 			// JUnit omits some module/hook errors and test output. Keep native failure evidence intact.
 			console.error(
 				[stdout.trim(), stderr.trim()].filter(Boolean).join("\n") || `ERROR Bun exited ${exitCode}`,
 			);
 		}
+		let xml: string | undefined = undefined;
 		if (await report.exists()) {
-			for (const line of reportSlowTests(await report.text(), allowances)) {
-				console.log(line);
-			}
-		} else if (
-			exitCode === successExitCode &&
-			!/Ran 0 tests across 0 files\./u.test(stdout + stderr)
-		) {
-			throw new Error("Bun succeeded without a JUnit report or an empty changed-test run");
+			xml = await report.text();
 		}
-		return exitCode;
+		const feedback = reportTestRun(
+			{
+				mode,
+				exitCode,
+				xml,
+				output: stdout + stderr,
+			},
+			allowances,
+		);
+		for (const line of feedback.lines) {
+			console.log(line);
+		}
+		if (feedback.guidance) {
+			console.error(feedback.guidance);
+		}
+		return feedback.exitCode;
 	} finally {
 		await rm(directory, { recursive: true, force: true });
 	}
@@ -64,7 +82,7 @@ if (import.meta.main) {
 	try {
 		process.exitCode = await main(process.argv.slice(argumentOffset));
 	} catch (error) {
-		console.error(`ERROR test:changed: ${String(error)}`);
+		console.error(`ERROR test:${process.argv[argumentOffset]}: ${String(error)}`);
 		process.exitCode = failureExitCode;
 	}
 }

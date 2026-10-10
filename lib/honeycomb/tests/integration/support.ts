@@ -1,5 +1,5 @@
 /* oxlint-disable-next-line import/no-nodejs-modules -- integration suites create real git worktrees and fixture files on disk */
-import { access, cp, mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
+import { access, appendFile, cp, mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
 /* oxlint-disable-next-line import/no-nodejs-modules -- fixtures build paths inside their temporary roots */
 import { join, resolve } from "node:path";
 /* oxlint-disable-next-line import/no-nodejs-modules -- writeConfig stays synchronous, so it needs the sync fs entrypoint */
@@ -120,9 +120,11 @@ export function useOriginFixture() {
 	const initRepoWithOrigin = async (tmp: string) => {
 		const fixture = await ensureBaseOriginFixture();
 		const root = join(tmp, "repo");
-		await cp(fixture.root, root, { recursive: true });
 		const remote = join(tmp, "origin.git");
-		await cp(fixture.remote, remote, { recursive: true });
+		await Promise.all([
+			cp(fixture.root, root, { recursive: true }),
+			cp(fixture.remote, remote, { recursive: true }),
+		]);
 		const resolvedRoot = await realpath(root);
 		await run(["git", "-C", resolvedRoot, "remote", "set-url", "origin", remote]);
 		return { remote, root: resolvedRoot };
@@ -136,11 +138,12 @@ export async function createPoolSlot(options: {
 	index: number;
 	branch: string;
 	initialized: boolean;
+	startPoint?: string;
 }): Promise<void> {
-	const { root, index, branch, initialized } = options;
-	await run(["git", "-C", root, "branch", branch]);
+	const { index, initialized, ...worktree } = options;
+	const { root } = worktree;
 	const slotPath = `${root}__feat${index}`;
-	await run(["git", "-C", root, "worktree", "add", slotPath, branch]);
+	await createWorktree({ ...worktree, path: slotPath });
 	if (initialized) {
 		const result = await run([
 			"git",
@@ -154,18 +157,33 @@ export async function createPoolSlot(options: {
 	}
 }
 
+/** Prepare a real worktree without running the lifecycle operation under test. */
+export async function createWorktree(options: {
+	root: string;
+	branch: string;
+	path: string;
+	startPoint?: string;
+}): Promise<void> {
+	const { root, branch, path, startPoint } = options;
+	const args = ["git", "-C", root, "worktree", "add", "--no-track", "-b", branch, path];
+	if (startPoint) {
+		args.push(startPoint);
+	}
+	await run(args);
+}
+
 export async function createRemoteBranch(remote: string, branch: string): Promise<void> {
-	const clone = await mkdtemp(join(tmpdir(), "honeycomb-remote-clone-"));
+	const worktree = await mkdtemp(join(tmpdir(), "honeycomb-remote-branch-"));
 	try {
-		await run(["git", "clone", remote, clone]);
-		await configureGitUser(clone);
-		await run(["git", "-C", clone, "checkout", "-b", branch]);
-		await writeFile(join(clone, "remote.txt"), `${branch}\n`);
-		await run(["git", "-C", clone, "add", "remote.txt"]);
-		await run(["git", "-C", clone, "commit", "-m", `remote ${branch}`]);
-		await run(["git", "-C", clone, "push", "origin", branch]);
+		await createWorktree({ branch, path: worktree, root: remote });
+		await commitFile({
+			content: `${branch}\n`,
+			message: `remote ${branch}`,
+			path: "remote.txt",
+			repo: worktree,
+		});
 	} finally {
-		await rm(clone, { force: true, recursive: true });
+		await run(["git", "-C", remote, "worktree", "remove", "--force", worktree]);
 	}
 }
 
@@ -186,38 +204,34 @@ export async function commitOnRemoteDefault(change: {
 	path: string;
 	remote: string;
 }): Promise<void> {
-	const clone = await mkdtemp(join(tmpdir(), "honeycomb-remote-default-"));
+	const worktree = await mkdtemp(join(tmpdir(), "honeycomb-remote-default-"));
 	try {
-		await run(["git", "clone", change.remote, clone]);
-		await configureGitUser(clone);
-		await writeFile(join(clone, change.path), change.content);
-		await run(["git", "-C", clone, "add", change.path]);
-		await run(["git", "-C", clone, "commit", "-m", change.message]);
-		await run(["git", "-C", clone, "push", "origin", "HEAD:main"]);
+		await run(["git", "-C", change.remote, "worktree", "add", worktree, "main"]);
+		await commitFile({ ...change, repo: worktree });
 	} finally {
-		await rm(clone, { force: true, recursive: true });
+		await run(["git", "-C", change.remote, "worktree", "remove", "--force", worktree]);
 	}
 }
 
 export async function initRepo(root: string): Promise<void> {
 	await mkdir(root, { recursive: true });
-	await run(["git", "init", "-b", "main", root]);
-	await configureGitUser(root);
+	await run(["git", "init", "--template=", "-b", "main", root]);
+	await configureGitFixture(join(root, ".git"));
 	await writeFile(join(root, "README.md"), "hello\n");
 	await run(["git", "-C", root, "add", "README.md"]);
 	await run(["git", "-C", root, "commit", "-m", "initial"]);
 }
 
-export async function run(cmd: string[]) {
-	const result = await runRaw(cmd);
+export async function run(cmd: string[], input = "") {
+	const result = await runRaw(cmd, input);
 	if (result.exitCode !== EXIT_CODES.SUCCESS) {
 		throw new Error(`${cmd.join(" ")} failed\n${result.stdout}\n${result.stderr}`);
 	}
 	return result;
 }
 
-export async function runRaw(cmd: string[]) {
-	const proc = Bun.spawn(cmd, { stderr: "pipe", stdout: "pipe" });
+export async function runRaw(cmd: string[], input = "") {
+	const proc = Bun.spawn(cmd, { stdin: new Blob([input]), stderr: "pipe", stdout: "pipe" });
 	const [stdout, stderr, exitCode] = await Promise.all([
 		new Response(proc.stdout).text(),
 		new Response(proc.stderr).text(),
@@ -228,21 +242,32 @@ export async function runRaw(cmd: string[]) {
 
 // Private integration fixture and Git helpers.
 
-async function configureGitUser(repo: string): Promise<void> {
-	await run(["git", "-C", repo, "config", "user.email", "test@example.test"]);
-	await run(["git", "-C", repo, "config", "user.name", "Test User"]);
+async function configureGitFixture(gitDirectory: string): Promise<void> {
+	await Promise.all([
+		appendFile(
+			join(gitDirectory, "config"),
+			"\n[user]\n\temail = test@example.test\n\tname = Test User\n",
+		),
+		mkdir(join(gitDirectory, "hooks"), { recursive: true }),
+		mkdir(join(gitDirectory, "info"), { recursive: true }),
+	]);
+	// Retain hook installation and shared-exclude fixtures without copying Git sample templates.
+	await writeFile(join(gitDirectory, "info", "exclude"), "");
 }
 
 async function buildBaseOriginFixture(): Promise<OriginFixture> {
 	const tmp = await mkdtemp(join(tmpdir(), "honeycomb-origin-fixture-"));
-	await initRepo(join(tmp, "repo"));
-	const root = await realpath(join(tmp, "repo"));
 	const remote = join(tmp, "origin.git");
-	await run(["git", "init", "--bare", remote]);
-	await run(["git", "-C", root, "remote", "add", "origin", remote]);
-	await run(["git", "-C", root, "push", "-u", "origin", "main"]);
-	await run(["git", "-C", remote, "symbolic-ref", "HEAD", "refs/heads/main"]);
-	await run(["git", "-C", root, "remote", "set-head", "origin", "-a"]);
+	await run(["git", "init", "--template=", "--bare", "-b", "main", remote]);
+	await configureGitFixture(remote);
+	// Seed the initial history in one native Git operation, without a throwaway working checkout.
+	await run(
+		["git", "-C", remote, "fast-import", "--quiet"],
+		"commit refs/heads/main\ncommitter Test User <test@example.test> 1700000000 +0000\ndata 8\ninitial\n\nM 100644 inline README.md\ndata 6\nhello\n\n\ndone\n",
+	);
+	await run(["git", "clone", "--template=", remote, join(tmp, "repo")]);
+	const root = await realpath(join(tmp, "repo"));
+	await configureGitFixture(join(root, ".git"));
 	return { remote, root, tmp };
 }
 

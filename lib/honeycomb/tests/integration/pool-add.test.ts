@@ -1,5 +1,6 @@
 import { ConfigError, HookError, ReservedPrefixError, dispatch } from "../../src/index";
 import {
+	createPoolSlot,
 	createRemoteBranch,
 	pathExists,
 	run,
@@ -31,7 +32,12 @@ async function prepareLegacyPool() {
 		join(configHome, "honeycomb.toml"),
 		`[[project]]\nroot = "${root}"\ncommand = "echo ready"\npool_size = 1\n`,
 	);
-	await dispatch("add", ["--cwd", root, "--branch", "feature/legacy-pool", "--json"], testDeps());
+	await createPoolSlot({
+		branch: "feature/legacy-pool",
+		index: SINGLE_SLOT,
+		initialized: true,
+		root,
+	});
 
 	return { configHome, root };
 }

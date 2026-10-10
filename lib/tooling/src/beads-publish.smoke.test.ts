@@ -1,5 +1,5 @@
 // eslint-disable-next-line import/no-nodejs-modules -- Disposable executable boundary fixtures.
-import { chmod, mkdir, mkdtemp, realpath, rm } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, realpath, rm, symlink } from "node:fs/promises";
 import { expect, test } from "bun:test";
 // eslint-disable-next-line import/no-nodejs-modules -- Fixture paths.
 import { join } from "node:path";
@@ -29,41 +29,42 @@ test.each([
 			await mkdir(bin);
 			await mkdir(join(tracker, ".beads"), { recursive: true });
 			await Bun.write(database, "test database lock target");
+			let error = { code: "SYNC_CONFLICT", message: "original native sync conflict" };
+			if (conflict === "native merge") {
+				error = {
+					code: "CONFIG_ERROR",
+					message: "Configuration error: Merge conflicts detected:\n  - hv-a: BothModified\n",
+				};
+			}
 			await executable(
 				bin,
-				"mise",
-				`console.log(JSON.stringify({BEADS_DB:${JSON.stringify(database)}}));`,
-			);
-			await executable(
-				bin,
-				"git",
+				"fixture",
 				`
-const args = process.argv.slice(2).join(" ");
-const outputs = {
- "branch --show-current":"tracker/state",
- "config --get branch.tracker/state.remote":"origin",
- "config --get branch.tracker/state.merge":"refs/heads/tracker/state",
- "diff --name-only --diff-filter=U":${JSON.stringify(unmerged)}
-};
-process.stdout.write(outputs[args] ?? "");`,
+case "$0" in
+ */mise) printf '%s\\n' ${shellLiteral(JSON.stringify({ BEADS_DB: database }))} ;;
+ */git)
+  case "$*" in
+   "branch --show-current") printf '%s\\n' 'tracker/state' ;;
+   "config --get branch.tracker/state.remote") printf '%s\\n' 'origin' ;;
+   "config --get branch.tracker/state.merge") printf '%s\\n' 'refs/heads/tracker/state' ;;
+   "diff --name-only --diff-filter=U") printf '%s\\n' ${shellLiteral(unmerged)} ;;
+  esac ;;
+ */br)
+  case " $* " in
+   *" --json "*) ;;
+   *) printf '%s\\n' 'structured diagnostics required' >&2; exit 1 ;;
+  esac
+  printf '%s\\n' 'original native stderr' >&2
+  printf '%s\\n' ${shellLiteral(JSON.stringify({ error }))}
+  exit 6 ;;
+ */cc-notify)
+  { printf '%s\\n' "$*"; cat; } > ${shellLiteral(body)}
+  exit ${notifyExit} ;;
+esac`,
 			);
-			await executable(
-				bin,
-				"br",
-				`
-if (!process.argv.includes("--json")) throw new Error("structured diagnostics required");
-console.error("original native stderr");
-const nativeMerge = ${JSON.stringify(conflict === "native merge")};
-const error = nativeMerge ? {code:"CONFIG_ERROR",message:"Configuration error: Merge conflicts detected:\\n  - hv-a: BothModified\\n"} : {code:"SYNC_CONFLICT",message:"original native sync conflict"};
-console.log(JSON.stringify({error}));
-process.exit(6);`,
-			);
-			await executable(
-				bin,
-				"cc-notify",
-				`
-await Bun.write(${JSON.stringify(body)}, process.argv.slice(2).join(" ")+"\\n"+await Bun.stdin.text());
-process.exit(${notifyExit});`,
+			// Share one executable's first-launch cost while retaining each command's real process boundary.
+			await Promise.all(
+				["mise", "git", "br", "cc-notify"].map((name) => symlink("fixture", join(bin, name))),
 			);
 			const child = Bun.spawn([process.execPath, publisher], {
 				cwd: root,
@@ -103,6 +104,11 @@ process.exit(${notifyExit});`,
 
 async function executable(bin: string, name: string, source: string): Promise<void> {
 	const path = join(bin, name);
-	await Bun.write(path, `#!${process.execPath}\n${source}\n`);
+	// Keep real subprocess IO without starting another JS runtime for every fixture command.
+	await Bun.write(path, `#!/bin/sh\n${source}\n`);
 	await chmod(path, EXECUTABLE);
+}
+
+function shellLiteral(value: string): string {
+	return `'${value.replaceAll("'", String.raw`'\''`)}'`;
 }

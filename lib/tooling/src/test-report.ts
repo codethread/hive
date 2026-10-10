@@ -4,6 +4,8 @@ const severities = ["SLOW", "XSLOW", "DANGER"] as const;
 const millisecondsPerSecond = 1000;
 const durationPrecision = 3;
 const minimumTextLength = 1;
+const successExitCode = 0;
+const failureExitCode = 1;
 const nonemptyText = z.string().trim().min(minimumTextLength);
 const milliseconds = z
 	.union([z.number(), nonemptyText])
@@ -32,12 +34,62 @@ const testAttributes = z.object({
 
 type Allowances = z.infer<typeof allowanceSchema>;
 
+interface TestRun {
+	/** Full-suite runs enforce the DANGER gate; changed tests report timings for iteration. */
+	mode: "all" | "changed";
+	/** Native Bun exit status, retained when tests fail. */
+	exitCode: number;
+	/** JUnit contents, absent when Bun did not write a report. */
+	xml: string | undefined;
+	/** Native output used to recognize an empty changed-test selection. */
+	output: string;
+}
+
+interface TestRunFeedback {
+	/** Complete unsuppressed timing report, slowest first. */
+	lines: string[];
+	/** Native failure status or the full-suite timing gate status. */
+	exitCode: number;
+	/** Remediation printed after every timing line. */
+	guidance: string | undefined;
+}
+
 export function parseSlowTestAllowances(value: unknown): Allowances {
 	return allowanceSchema.parse(value);
 }
 
 /** Report passing tests above their allowed severity; failures stay in Bun's diagnostics. */
 export function reportSlowTests(xml: string, allowances: Allowances): string[] {
+	return collectSlowTests(xml, allowances).map(({ line }) => line);
+}
+
+export function reportTestRun(run: TestRun, allowances: Allowances): TestRunFeedback {
+	if (run.xml === undefined) {
+		if (
+			run.exitCode === successExitCode &&
+			!(run.mode === "changed" && /Ran 0 tests across 0 files\./u.test(run.output))
+		) {
+			throw new Error("Bun succeeded without a JUnit report or an empty changed-test run");
+		}
+		return { lines: [], exitCode: run.exitCode, guidance: undefined };
+	}
+	const timings = collectSlowTests(run.xml, allowances);
+	const blocked = run.mode === "all" && timings.some(({ severity }) => severity === "DANGER");
+	const lines = timings.map(({ line }) => line);
+	if (!blocked) {
+		return { lines, exitCode: run.exitCode, guidance: undefined };
+	}
+	return {
+		lines,
+		exitCode: run.exitCode || failureExitCode,
+		guidance:
+			"ERROR test:all: unapproved DANGER timings block landing. Refactor meaningful tests, setup or dependency seams using relevant skills, preserving coverage, then rerun bun run check. If the measured cost is necessary, propose the exact lib/tooling/slow-tests.json allowance and justification for explicit user sign-off before editing it. Landing remains blocked until the gate passes.",
+	};
+}
+
+// --- Private functions ---
+
+function collectSlowTests(xml: string, allowances: Allowances) {
 	const root = Bun.XML.parse(xml, { compact: false });
 	if (root.name !== "testsuites") {
 		throw new Error("Expected Bun JUnit testsuites report");
@@ -65,12 +117,13 @@ export function reportSlowTests(xml: string, allowances: Allowances): string[] {
 				return [];
 			}
 			return [
-				`${testCase.file}:${testCase.line} ${severity} ${durationMs.toFixed(durationPrecision)}ms ${description.replaceAll(/\s+/gu, " ")}`,
+				{
+					severity,
+					line: `${testCase.file}:${testCase.line} ${severity} ${durationMs.toFixed(durationPrecision)}ms ${description.replaceAll(/\s+/gu, " ")}`,
+				},
 			];
 		});
 }
-
-// --- Private functions ---
 
 function collectTestCases(node: Bun.XML.Node): Bun.XML.Node[] {
 	return elements(node).flatMap((child) => {

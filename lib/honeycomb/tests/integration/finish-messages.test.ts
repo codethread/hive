@@ -1,5 +1,5 @@
 import { EXIT_CODES, UsageError, dispatch } from "../../src/index";
-import { commitFile, deps, useOriginFixture, writeConfig } from "./support.ts";
+import { commitFile, createWorktree, deps, useOriginFixture, writeConfig } from "./support.ts";
 import { expect, test } from "bun:test";
 import { gitOut, gitText, useTmpHome } from "./lifecycle-helpers.ts";
 // oxlint-disable-next-line import/no-nodejs-modules -- Integration fixtures exercise real filesystem IO.
@@ -13,8 +13,9 @@ const { initRepoWithOrigin } = useOriginFixture();
 async function prepareFinish(branch: string, policy = "") {
 	const { remote, root } = await initRepoWithOrigin(tmp.dir);
 	writeConfig({ command: "echo ready", copyToml: policy, root, tmp: tmp.dir });
-	await dispatch("add", ["--cwd", root, "--branch", branch, "--json"], deps);
-	return { remote, root, worktreePath: `${root}__${branch.replaceAll("/", "--")}` };
+	const worktreePath = `${root}__${branch.replaceAll("/", "--")}`;
+	await createWorktree({ branch, path: worktreePath, root });
+	return { remote, root, worktreePath };
 }
 
 async function commitMessageLines(root: string): Promise<string[]> {

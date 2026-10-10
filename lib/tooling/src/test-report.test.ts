@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { parseSlowTestAllowances, reportSlowTests } from "./test-report.ts";
+import { parseSlowTestAllowances, reportSlowTests, reportTestRun } from "./test-report.ts";
 
 const thresholdMs = { SLOW: "1", XSLOW: "5", DANGER: "1000" };
 const allowances = parseSlowTestAllowances({
@@ -101,6 +101,73 @@ test.each([
 	},
 ])("rejects invalid allowance configuration: $name", ({ input }) => {
 	expect(() => parseSlowTestAllowances(input)).toThrow(Error);
+});
+
+test.each([
+	{ mode: "all", seconds: "2", name: "unapproved", nativeExit: 0, exitCode: 1, blocked: true },
+	{ mode: "changed", seconds: "2", name: "unapproved", nativeExit: 0, exitCode: 0, blocked: false },
+	{
+		mode: "all",
+		seconds: "2",
+		name: "approved #test-3",
+		nativeExit: 0,
+		exitCode: 0,
+		blocked: false,
+	},
+	{ mode: "all", seconds: "2", name: "exceeds #test-2", nativeExit: 0, exitCode: 1, blocked: true },
+	{
+		mode: "all",
+		seconds: "1",
+		name: "DANGER in title",
+		nativeExit: 0,
+		exitCode: 0,
+		blocked: false,
+	},
+	{ mode: "all", seconds: "2", name: "unapproved", nativeExit: 7, exitCode: 7, blocked: true },
+] as const)("$mode gate for $name at $seconds preserves exit $exitCode", (row) => {
+	const xml = report(row.seconds, row.name);
+	const feedback = reportTestRun(
+		{ mode: row.mode, xml, exitCode: row.nativeExit, output: "" },
+		allowances,
+	);
+	expect(feedback.lines).toEqual(reportSlowTests(xml, allowances));
+	expect(feedback.exitCode).toBe(row.exitCode);
+	expect(Boolean(feedback.guidance)).toBe(row.blocked);
+});
+
+test("full-suite feedback retains every timing before actionable DANGER guidance", () => {
+	const xml = `<testsuites><testsuite>
+		<testcase name="slow" classname="" file="a.test.ts" line="1" time="0.002" />
+		<testcase name="danger" classname="" file="b.test.ts" line="2" time="2" />
+		<testcase name="xslow" classname="" file="c.test.ts" line="3" time="0.1" />
+	</testsuite></testsuites>`;
+	const feedback = reportTestRun({ mode: "all", xml, exitCode: 0, output: "" }, allowances);
+	expect(feedback.lines).toEqual([
+		"b.test.ts:2 DANGER 2000.000ms danger",
+		"c.test.ts:3 XSLOW 100.000ms xslow",
+		"a.test.ts:1 SLOW 2.000ms slow",
+	]);
+	expect(feedback.guidance).toContain("Refactor meaningful tests");
+	expect(feedback.guidance).toContain("explicit user sign-off before editing");
+});
+
+test.each([
+	{ mode: "changed", exitCode: 0, output: "Ran 0 tests across 0 files." },
+	{ mode: "all", exitCode: 7, output: "native module failure" },
+] as const)("$mode missing report preserves native exit $exitCode", (run) => {
+	expect(reportTestRun({ ...run, xml: undefined }, allowances)).toEqual({
+		lines: [],
+		exitCode: run.exitCode,
+		guidance: undefined,
+	});
+});
+
+test.each([
+	{ mode: "all", xml: undefined, output: "Ran 0 tests across 0 files." },
+	{ mode: "changed", xml: undefined, output: "Ran 1 test across 1 file." },
+	{ mode: "all", xml: "<testsuites>", output: "" },
+] as const)("$mode rejects missing or malformed successful reports", (run) => {
+	expect(() => reportTestRun({ ...run, exitCode: 0 }, allowances)).toThrow(Error);
 });
 
 // --- Private functions ---
