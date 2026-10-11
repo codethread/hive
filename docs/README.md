@@ -34,7 +34,7 @@
 
 ## Development and automation
 
-- [Repository tasks](../mise.toml) — setup and command discovery; [Bun scripts](../package.json) retain executable recipes and workspace filtering.
+- [Repository commands](./repository-commands.md) — catalog discovery, test arguments and recipe ownership.
 - [Testing commands](../lib/tooling/README.md) — changed-test selection, timing reports and approved allowances. During iteration, use focused files or package test scripts; run changed tests at subtask boundaries.
 - [Development toolchain](./integrations.md#development-toolchain) — runtime, hooks, environment setup and explicit tracker publication responsibilities.
 - [Beads setup and recovery](./beads-integration.md) — bootstrap, environment hooks and synchronization failures.

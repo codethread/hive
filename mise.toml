@@ -2,12 +2,64 @@
 BEADS_DB = "{{ exec(command='git rev-parse --path-format=absolute --git-common-dir') | dirname }}/.worktrees/tracker--state/.beads/beads.db"
 
 [tasks.default]
+description = "Install dependencies, build and install CLI binaries, and bootstrap the tracker"
+hide = true
 run = '''
 bun install
 bun run --filter '*' build
 bun run --filter '*' install:bin
 bun run beads:bootstrap
 '''
+
+[tasks.fmt]
+description = "Format repository files"
+run = "bun run fmt"
+
+[tasks.lint]
+description = "Check repository lint rules"
+run = "bun run lint"
+
+[tasks.typecheck]
+description = "Check TypeScript across workspaces"
+run = "bun run typecheck"
+
+[tasks.test]
+description = "Run a focused test file"
+usage = '''
+arg "<file>" help="Test file path from the repository root, e.g. ./lib/shared/src/bees.test.ts"
+arg "[args]" var=#true double_dash="required" help="Extra Bun test arguments after --, including additional files or -t NAME"
+'''
+run = '''
+eval "set -- ${usage_args:-}"
+exec bun test "${usage_file?}" "$@"
+'''
+
+[tasks."test:package"]
+description = "Run test scripts in selected Bun workspaces"
+usage = '''
+arg "<package>" help="Bun workspace name or glob, e.g. @hive/shared or @hive/colony"
+arg "[args]" var=#true double_dash="required" help="Extra package test arguments after --, e.g. -t NAME"
+'''
+run = '''
+eval "set -- ${usage_args:-}"
+exec bun run --filter "${usage_package?}" test "$@"
+'''
+
+[tasks."test:changed"]
+description = "Run tests affected by changes from main and report timings"
+usage = 'arg "[args]" var=#true double_dash="required" help="Extra Bun test arguments after --, e.g. a test path or -t NAME"'
+run = '''
+eval "set -- ${usage_args:-}"
+exec bun run test:changed "$@"
+'''
+
+[tasks.check]
+description = "Run final comprehensive verification"
+run = "bun run check"
+
+[tasks."beads:sync"]
+description = "Receive and publish the shared tracker snapshot"
+run = "bun run beads:sync"
 
 [settings]
 experimental = true

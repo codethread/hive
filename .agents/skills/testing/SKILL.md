@@ -9,6 +9,8 @@ description: Select focused and changed tests during Hive development. Also use 
 
 From the worktree root, run focused files while iterating, for example `bun test ./lib/shared/src/bees.test.ts`.
 
+When the affected scope is a package, select its test script with Bun workspace filtering, for example `bun run --filter @hive/shared test`. Packages without a test script use focused files. Keep slow test selection scoped to the affected package.
+
 Run `bun run test:changed` at intervals, such as completing a subtask, to check affected tests and inspect timing warnings.
 
 ## Writing tests

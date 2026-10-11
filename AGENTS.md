@@ -6,6 +6,8 @@ Read [philosophy](./docs/PHILOSOPHY.md) before making changes.
 
 Use the [documentation index](./docs/README.md) for tool guides, workflow authoring and detailed reference.
 
+To discover repository tasks, run `mise tasks ls --local`.
+
 ## Worktrees
 
 Work in a worktree unless explicitly instructed otherwise. Use `honeycomb` (see `honeycomb -h`); create new worktrees inside `.worktrees/` with the `nested` location.
