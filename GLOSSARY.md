@@ -52,6 +52,12 @@ _To be built_ marks capabilities still planned beyond the Bee and Colony impleme
 
 **Task bead**: The authoritative assignment, context and acceptance criteria for a unit of work, distinct from a request to run a bee.
 
+**Blocked**: A bead whose recorded status is `blocked`, distinct from waiting on unresolved prerequisites or an unsuccessful spawn outcome.
+
+**Ready**: Eligibility for engine selection: a bead belongs to the configured ready status group (`open` by default), has no unresolved blocking prerequisites or effective future deferral, and is not excluded as a non-work record. Query filters select among eligible beads; readiness alone does not establish specification completeness.
+
+**Ready for dev**: A task sufficiently specified, with the applicable criteria and details, to begin development. It may still await unresolved blocking prerequisites and therefore be ready for dev without being ready.
+
 **Spawn request**: A request for a bee to complete specified task beads, carrying a captured recipe and friendly identity. It can exist before any bee runs and span several execution attempts.
 
 **Spawn bead**: The Beads record representing a spawn request, distinct from its task beads and execution attempts.
