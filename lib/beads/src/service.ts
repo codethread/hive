@@ -110,8 +110,6 @@ export interface CreateBead {
 	labels?: readonly string[] | undefined;
 	parent?: string | undefined;
 	deps?: readonly BeadDependency[] | undefined;
-	notes?: string | undefined;
-	design?: string | undefined;
 	acceptanceCriteria?: string | undefined;
 	defer?: string | undefined;
 	due?: string | undefined;
@@ -121,6 +119,8 @@ export interface BeadDependency {
 	type: string;
 }
 export interface UpdateBead extends Partial<Omit<CreateBead, "deps">> {
+	notes?: string | undefined;
+	design?: string | undefined;
 	claim?: boolean | undefined;
 	force?: boolean | undefined;
 	ifUnchanged?: string | undefined;

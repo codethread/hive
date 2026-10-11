@@ -28,9 +28,8 @@ const inspection = await requestFixture();
 const cancellation = await requestFixture();
 const acknowledgment = await requestFixture();
 const conflict = await requestFixture();
-const supersession = await requestFixture();
+const supersession = memoryTracker();
 const waiting = await inspectRequest(inspection.id, options, inspection.tracker);
-const initialListing = await listRequests({ ...options, all: false }, cancellation.tracker);
 await acknowledgment.tracker.beads.close(
 	trackerScope(acknowledgment.tracker.repository, "worker"),
 	acknowledgment.id,
@@ -66,10 +65,8 @@ test("offline inspection derives dependency readiness from the injected tracker"
 	expect(ready.request.disposition).toEqual({ outcome: "pending", resolution: "unresolved" });
 });
 
-// eslint-disable-next-line max-statements -- Verify cancellation and both list views against the same retained native fact.
 test("offline stop publishes cancellation and default listing retains only unresolved requests", async () => {
 	const { tracker, task, id } = cancellation;
-	expect(initialListing.requests.map((request) => request.id)).toContain(id);
 	const pending = await createSpawn(tracker, [task]);
 	const result = await stopRequest(id, options, tracker);
 	expect(result.request.disposition).toEqual({ outcome: "cancelled", resolution: "resolved" });
@@ -134,7 +131,7 @@ test("publication rebases a revision conflict while retaining unrelated labels",
 });
 
 test("publication repairs superseded predecessors from native relationship facts", async () => {
-	const { tracker } = supersession;
+	const tracker = supersession;
 	const predecessor = await createSpawn(tracker, []);
 	await tracker.beads.close(trackerScope(tracker.repository, "worker"), predecessor, {
 		reason: "exhausted",

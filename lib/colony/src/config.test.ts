@@ -77,24 +77,19 @@ test("duplicate folder names for a kind fail without a central winner", async ()
 });
 
 test.each([
-	{ definition: `${DEFINITION}prompt="Inline is forbidden"`, prompt: "External" },
-	{ definition: `${DEFINITION}system_prompt="Inline is forbidden"`, prompt: "External" },
-	{ definition: `${DEFINITION}prompt_file="other.md"`, prompt: "External" },
-	{ definition: `${DEFINITION}unknown=true`, prompt: "External" },
-	{ definition: "not valid TOML", prompt: "External" },
-])(
-	"invalid folder input fails even when centrally shadowed: %j",
-	async ({ definition, prompt }) => {
-		const contents: Record<string, string> = {
-			[CENTRAL]: POLICY + INLINE,
-			"/repo/.hive/bees/review/bee.toml": definition,
-		};
-		if (prompt !== undefined) {
-			contents["/repo/.hive/bees/review/prompt.md"] = prompt;
-		}
-		await expect(loadBeesConfig("/repo", fixture(contents))).rejects.toBeInstanceOf(Error);
-	},
-);
+	`${DEFINITION}prompt="Inline is forbidden"`,
+	`${DEFINITION}system_prompt="Inline is forbidden"`,
+	`${DEFINITION}prompt_file="other.md"`,
+	`${DEFINITION}unknown=true`,
+	"not valid TOML",
+])("invalid folder input fails even when centrally shadowed: %j", async (definition) => {
+	const contents: Record<string, string> = {
+		[CENTRAL]: POLICY + INLINE,
+		"/repo/.hive/bees/review/bee.toml": definition,
+		"/repo/.hive/bees/review/prompt.md": "External",
+	};
+	await expect(loadBeesConfig("/repo", fixture(contents))).rejects.toBeInstanceOf(Error);
+});
 
 test("root bees.toml is not a fallback", async () => {
 	await expect(

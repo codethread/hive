@@ -6,6 +6,7 @@ import { invoke } from "./support.ts";
 import { z } from "zod";
 
 const EMPTY = 0;
+const FAILURE = 1;
 
 test("an initial actor failure returns JSON without creating tasks", async () => {
 	const beads = createMemoryBeads({ db: "/busybee-failure/beads.db" });
@@ -45,6 +46,15 @@ test("an initial actor failure returns JSON without creating tasks", async () =>
 		["--actor", "test-agent", "--owner", "test-human", "start", "/busybee-failure/workflow.ts"],
 		services,
 	);
-	expect(result.document).toMatchObject({ ok: false, reason: "command_failed" });
+	expect(result.code).toBe(FAILURE);
+	expect(result.document).toMatchInlineSnapshot(`
+		{
+		  "kind": "start",
+		  "message": "Initial context failure",
+		  "ok": false,
+		  "reason": "command_failed",
+		  "target": "/busybee-failure/workflow.ts",
+		}
+	`);
 	expect(await beads.list(scope, selection)).toEqual(before);
 });

@@ -1,13 +1,7 @@
-import {
-	BeadsGitConflictError,
-	formatBeadsConflict,
-	isBeadsConflict,
-	notifyBeadsConflict,
-} from "./beads-conflict.ts";
+import { BeadsGitConflictError, isBeadsConflict, notifyBeadsConflict } from "./beads-conflict.ts";
 import { expect, test } from "bun:test";
 import { CommandError } from "@hive/beads";
 
-const FIRST = 0;
 const context = {
 	beadsDb: "/tracker/.beads/beads.db",
 	host: "test-host",
@@ -70,15 +64,14 @@ test("Git conflict alert contains host, repository, tracker, original diagnostic
 		},
 		report: () => {},
 	});
-	expect(bodies).toEqual([formatBeadsConflict(error, context)]);
-	expect(bodies[FIRST]).toMatchInlineSnapshot(`
-		"Beads conflict stopped sync.
-		Host: test-host
-		Repository: /repo
-		Tracker: /tracker/.beads/beads.db
-		BEADS CONFLICT: unresolved tracker merge: .beads/issues.jsonl
-		Action: stop tracker work, resolve the tracker conflict, then run bun run beads:sync before resuming."
-	`);
+	expect(bodies).toEqual([
+		`Beads conflict stopped sync.
+Host: test-host
+Repository: /repo
+Tracker: /tracker/.beads/beads.db
+BEADS CONFLICT: unresolved tracker merge: .beads/issues.jsonl
+Action: stop tracker work, resolve the tracker conflict, then run bun run beads:sync before resuming.`,
+	]);
 });
 
 test("notification failure is reported while leaving original conflict intact", async () => {

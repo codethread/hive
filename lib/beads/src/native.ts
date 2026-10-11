@@ -167,7 +167,11 @@ export function createNativeBeads(options: NativeBeadsOptions = {}): BeadsServic
 		where: (scope) => read(scope, ["where"], locationSchema),
 		comments: {
 			add: (scope, id, text) =>
-				read(scope, ["comments", "add", id, "--message", text], beadCommentSchema),
+				read(
+					scope,
+					["comments", "add", id, ...optionalValue("--message", text)],
+					beadCommentSchema,
+				),
 			list: (scope, id) => read(scope, ["comments", "list", id], z.array(beadCommentSchema)),
 		},
 		dep: {
@@ -246,8 +250,6 @@ function fieldArguments(input: Partial<CreateBead>): string[] {
 		...optionalValue("--owner", input.owner),
 		...optionalValue("--assignee", input.assignee),
 		...optionalValue("--parent", input.parent),
-		...optionalValue("--notes", input.notes),
-		...optionalValue("--design", input.design),
 		...optionalValue("--acceptance-criteria", input.acceptanceCriteria),
 		...optionalValue("--defer", input.defer),
 		...optionalValue("--due", input.due),
@@ -256,6 +258,8 @@ function fieldArguments(input: Partial<CreateBead>): string[] {
 function updateArguments(input: UpdateBead): string[] {
 	return [
 		...fieldArguments(input),
+		...optionalValue("--notes", input.notes),
+		...optionalValue("--design", input.design),
 		...optionalValue("--if-unchanged", input.ifUnchanged),
 		...optionalValue("--append-notes", input.appendNotes),
 		...booleanFlag("--claim", input.claim),
@@ -306,6 +310,9 @@ function optionalValue(flag: string, value: string | number | undefined): string
 	if (value === undefined) {
 		return [];
 	}
+	if (String(value).startsWith("-")) {
+		return [`${flag}=${value}`];
+	}
 	return [flag, String(value)];
 }
 function booleanFlag(flag: string, enabled: boolean | undefined): string[] {
@@ -315,13 +322,13 @@ function booleanFlag(flag: string, enabled: boolean | undefined): string[] {
 	return [];
 }
 function repeatedValues(flag: string, values: readonly (string | number)[] | undefined): string[] {
-	return values?.flatMap((value) => [flag, String(value)]) ?? [];
+	return values?.flatMap((value) => optionalValue(flag, value)) ?? [];
 }
 function joinedValue(flag: string, values: readonly string[] | undefined): string[] {
 	if (values === undefined) {
 		return [];
 	}
-	return [flag, values.join(",")];
+	return optionalValue(flag, values.join(","));
 }
 async function executeProcess(
 	argv: string[],

@@ -9,7 +9,7 @@ import {
 import { createMemoryBeads, createNativeBeads } from "../../src/index.ts";
 import { expect, test } from "bun:test";
 // eslint-disable-next-line import/no-nodejs-modules -- Disposable native contract fixture.
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, realpath, rm } from "node:fs/promises";
 // eslint-disable-next-line import/no-nodejs-modules -- Disposable native contract fixture.
 import { join } from "node:path";
 // eslint-disable-next-line import/no-nodejs-modules -- Disposable native contract fixture.
@@ -51,7 +51,8 @@ test(
 
 // --- Private functions ---
 async function compare(scenario: typeof revisionsAndClaims): Promise<void> {
-	const root = await mkdtemp(join(tmpdir(), "hive-beads-contract-"));
+	const temporary = await mkdtemp(join(tmpdir(), "hive-beads-contract-"));
+	const root = await realpath(temporary);
 	const db = join(root, ".beads", "beads.db");
 	const native = createNativeBeads();
 	try {
@@ -66,10 +67,8 @@ async function compare(scenario: typeof revisionsAndClaims): Promise<void> {
 		await Promise.all([new Response(fixture.stdout).text(), new Response(fixture.stderr).text()]);
 		expect(await fixture.exited).toBe(SUCCESS);
 		const memory = createMemoryBeads({ now: () => FIXTURE_NOW });
-		const [actual, expected] = await Promise.all([
-			scenario(contractSession(memory, root, db)),
-			scenario(contractSession(native, root, db)),
-		]);
+		const actual = await scenario(contractSession(memory, root, db));
+		const expected = await scenario(contractSession(native, root, db));
 		expect(actual).toEqual(expected);
 	} finally {
 		await rm(root, { recursive: true, force: true });

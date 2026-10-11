@@ -9,7 +9,6 @@ import { runViewSchema } from "../../src/runtime.ts";
 import { z } from "zod";
 
 const FIRST = 0;
-const ONE = 1;
 const SUCCESS = 0;
 
 // eslint-disable-next-line max-statements -- One successful start checks its observable CLI, projection and endpoint contract.
@@ -97,7 +96,6 @@ test("start publishes an initial worker and one JSON success document through th
 	expect(document).toMatchObject({ kind: "start", ok: true });
 	const started = runViewSchema.parse(document);
 	expect(started.status).toBe("active");
-	expect(started.active).toHaveLength(ONE);
 	expect(started.active).toMatchObject([
 		{ commands: ["next"], context: {}, instructions: "Complete work", path: [], title: "Worker" },
 	]);

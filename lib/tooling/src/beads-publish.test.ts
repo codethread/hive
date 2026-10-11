@@ -39,8 +39,9 @@ test.each([
 			report: () => {},
 		});
 		const failure = await result.catch((error: unknown) => error);
-		expect(failure instanceof BeadsGitConflictError).toBe(fixture.gitConflict);
-		if (!fixture.gitConflict) {
+		if (fixture.gitConflict) {
+			expect(failure).toBeInstanceOf(BeadsGitConflictError);
+		} else {
 			expect(failure).toBe(original);
 		}
 		expect(bodies).toHaveLength(fixture.alerts);

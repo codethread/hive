@@ -2,6 +2,8 @@
 
 Typed Beads operations for Hive's server packages. Inject `createNativeBeads()` in production and `createMemoryBeads()` in behavior tests. Both implement the [public service](src/service.ts); native arguments and JSON parsing stay inside the native adapter.
 
+**Design goal:** provide an injectable, typed dependency on Beads, not a facade that claims to make Hive independent of it. The interface deliberately follows consumed native Beads operations and semantics. Consumers must understand and respect Beads rules for claims, conditional updates, label replacement, readiness, relationships and closure. This package centralizes command translation and parsing and supplies a memory adapter for tests; it does not redefine those rules or hide Hive’s coupling to Beads.
+
 ```ts
 import { createMemoryBeads } from "@hive/beads";
 

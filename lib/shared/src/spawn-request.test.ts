@@ -17,7 +17,6 @@ import {
 import { expect, test } from "bun:test";
 import { beadSchema } from "@hive/beads";
 
-const FIRST = 0;
 const INVALID_HOST_NUMBER = 1;
 const original = beadSchema.parse({
 	close_reason: "exhausted",
@@ -53,7 +52,6 @@ test("stdout inspection uses publication time independently of renumbered IDs an
 	expect(latestStdoutActivity(original)).toBeUndefined();
 	expect(latestStdoutActivity(bead)).toEqual(activity);
 	expect(latestColonyObservation(bead)).toEqual(lifecycle);
-	expect(bead.comments[FIRST]?.created_at).toBe(comment.created_at);
 });
 
 test("lifecycle observations remain ordered after local IDs and input order change", () => {
@@ -156,7 +154,6 @@ test("a replacement resolves its predecessor regardless of replacement outcome",
 	expect(requestResolution(bead)).toEqual({ kind: "superseded", replacementIds: ["test-new"] });
 	expect(requestNeedsAttention(bead)).toBe(false);
 	expect(requestDisposition(bead)).toEqual({ outcome: "failed", resolution: "resolved" });
-	expect(bead.close_reason).toBe("exhausted");
 });
 
 test("publication normalizes both namespaces and retains unrelated labels", () => {

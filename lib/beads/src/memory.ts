@@ -33,6 +33,26 @@ const CYCLE = 5;
 const HALF = 2;
 const SEARCH_LIMIT = 50;
 const EPOCH = "2026-01-01T00:00:00.000Z";
+const NANOS_PER_SECOND = 1_000_000_000n;
+const ZERO_NANOS = 0n;
+const ONE_SECOND = 1n;
+const FRACTION_GROUP_SIZE = 3;
+const MILLIS_PER_SECOND = 1000;
+const NANOS_PRECISION = 9;
+const BLOCKING_TYPES = new Set(["blocks", "conditional-blocks", "waits-for"]);
+const MINUTE_MS = 60_000;
+const HOUR_MS = 3_600_000;
+const DAY_MS = 86_400_000;
+const WEEK_MS = 604_800_000;
+const MORNING_HOUR = 9;
+const EVENING_HOUR = 17;
+const NEXT_WEEK_DAYS = 7;
+const RELATIVE_UNITS = new Map([
+	["m", MINUTE_MS],
+	["h", HOUR_MS],
+	["d", DAY_MS],
+	["w", WEEK_MS],
+]);
 
 export interface MemoryBeadsOptions {
 	/** Default fixture database identity when an operation has no explicit db. */
@@ -72,6 +92,7 @@ interface Query extends SavedQuery {
 	selection: BeadSelection;
 }
 interface Store {
+	now: () => string;
 	issues: Map<string, Issue>;
 	comments: BeadComment[];
 	edges: Edge[];
@@ -93,6 +114,7 @@ export function createMemoryBeads(options: MemoryBeadsOptions = {}): BeadsServic
 		let selected = stores.get(db);
 		if (!selected) {
 			selected = {
+				now: options.now ?? (() => EPOCH),
 				issues: new Map(),
 				comments: [],
 				edges: [],
@@ -107,7 +129,7 @@ export function createMemoryBeads(options: MemoryBeadsOptions = {}): BeadsServic
 			store,
 			actor: scope.actor ?? options.actor ?? "memory",
 			tick: () => {
-				store.revision = Math.max(store.revision + ONE, Date.parse(options.now?.() ?? EPOCH));
+				store.revision = Math.max(store.revision + ONE, Date.parse(store.now()));
 				return new Date(store.revision).toISOString();
 			},
 		};
@@ -135,7 +157,7 @@ export function createMemoryBeads(options: MemoryBeadsOptions = {}): BeadsServic
 		where: (scope) =>
 			resolveMemory(() => {
 				const db = scope.db ?? options.db ?? "memory";
-				return { database_path: db, beads_dir: db.slice(ZERO, db.lastIndexOf("/")) };
+				return { database_path: db };
 			}),
 		comments: {
 			add: (scope, id, text) => resolveMemory(() => addComment(select(scope), id, text)),
@@ -159,9 +181,17 @@ export function createMemoryBeads(options: MemoryBeadsOptions = {}): BeadsServic
 				resolveMemory(() => {
 					const { store } = select(scope);
 					return {
-						queries: [...store.queries.values()].map(({ selection: _selection, ...query }) =>
-							structuredClone(query),
-						),
+						queries: [...store.queries.values()]
+							.toSorted((left, right) => {
+								if (left.name < right.name) {
+									return -ONE;
+								}
+								if (left.name > right.name) {
+									return ONE;
+								}
+								return ZERO;
+							})
+							.map(({ selection: _selection, ...query }) => structuredClone(query)),
 						count: store.queries.size,
 					};
 				}),
@@ -196,8 +226,9 @@ async function resolveMemory<Result>(operation: () => Result): Promise<Result> {
 function unsupportedSync(): Promise<never> {
 	return Promise.reject(new Error("Memory Beads cannot synchronize filesystem state"));
 }
-function createIssue(op: Operation, input: CreateBead): CreatedBead {
+function createIssue(op: Operation, unparsed: CreateBead): CreatedBead {
 	const { store, actor, tick } = op;
+	const input = parseDates(store, unparsed);
 	if (input.parent) {
 		getIssue(store, input.parent, "create");
 	}
@@ -220,7 +251,7 @@ function createIssue(op: Operation, input: CreateBead): CreatedBead {
 		created_by: actor,
 		created_at: timestamp,
 		updated_at: timestamp,
-		labels: [...new Set(input.labels)].toSorted(),
+		labels: replacementLabels(input.labels ?? [], "create"),
 		notes: "",
 		design: "",
 		acceptance_criteria: "",
@@ -234,16 +265,23 @@ function createIssue(op: Operation, input: CreateBead): CreatedBead {
 		store.edges.push({ source: id, target: input.parent, type: "parent-child" });
 	}
 	for (const dep of input.deps ?? []) {
-		store.edges.push({ source: id, target: dep.id, type: dep.type });
+		if (
+			!store.edges.some(
+				(edge) => edge.source === id && edge.target === dep.id && edge.type === dep.type,
+			)
+		) {
+			store.edges.push({ source: id, target: dep.id, type: dep.type });
+		}
 	}
 	return structuredClone(issue);
 }
 function updateIssues(
 	op: Operation,
 	ids: readonly string[],
-	input: UpdateBead,
+	unparsed: UpdateBead,
 ): BeadUpdateReceipt[] {
 	const { store, actor, tick } = op;
+	const input = parseDates(store, unparsed);
 	if (input.status === "closed" || input.status === "tombstone") {
 		validation(
 			"update",
@@ -257,10 +295,29 @@ function updateIssues(
 	const issues = ids.map((id) => getIssue(store, id, "update"));
 	if (input.parent) {
 		getIssue(store, input.parent, "update");
+		for (const id of ids) {
+			validateParent(store, id, input.parent);
+		}
+	}
+	if (input.appendNotes !== undefined && !input.appendNotes.trim()) {
+		validation("update", "append-notes", "text to append must not be empty");
+	}
+	if (input.ifUnchanged !== undefined && timestampInstant(input.ifUnchanged) === undefined) {
+		validation("update", "if-unchanged", "requires an RFC3339 timestamp");
+	}
+	for (const label of [...(input.addLabels ?? []), ...(input.removeLabels ?? [])]) {
+		validateLabel(label, "update");
+	}
+	let labels: string[] | undefined = undefined;
+	if (input.setLabels !== undefined || input.labels !== undefined) {
+		labels = replacementLabels([...(input.labels ?? []), ...(input.setLabels ?? [])], "update");
 	}
 	for (const issue of issues) {
 		validateOverwrite(issue, input);
-		if (input.ifUnchanged !== undefined && issue.updated_at !== input.ifUnchanged) {
+		if (
+			input.ifUnchanged !== undefined &&
+			timestampInstant(issue.updated_at) !== timestampInstant(input.ifUnchanged)
+		) {
 			fail(
 				"update",
 				CONFLICT,
@@ -289,7 +346,7 @@ function updateIssues(
 	return issues.map((issue) => {
 		const before = JSON.stringify(issue);
 		const edges = JSON.stringify(store.edges);
-		applyFields(issue, input);
+		const fieldsWritten = applyFields(issue, input);
 		if (input.status !== undefined && issue.status !== "closed") {
 			delete issue.closed_at;
 			delete issue.close_reason;
@@ -298,19 +355,25 @@ function updateIssues(
 			issue.assignee = actor;
 			issue.status = "in_progress";
 		}
-		if (input.setLabels !== undefined || input.labels !== undefined) {
-			issue.labels = [...(input.setLabels ?? []), ...(input.labels ?? [])];
+		const addedLabels = [...new Set([...issue.labels, ...(input.addLabels ?? [])])].toSorted();
+		const labelsWritten =
+			JSON.stringify(addedLabels) !== JSON.stringify(issue.labels) ||
+			input.removeLabels?.some((label) => addedLabels.includes(label));
+		issue.labels = addedLabels.filter((label) => !input.removeLabels?.includes(label)).toSorted();
+		if (labels !== undefined) {
+			issue.labels = [...labels];
 		}
-		issue.labels = [...new Set([...issue.labels, ...(input.addLabels ?? [])])]
-			.filter((label) => !input.removeLabels?.includes(label))
-			.toSorted();
-		if (input.appendNotes !== undefined && !issue.notes.endsWith(input.appendNotes)) {
+		if (input.appendNotes !== undefined && !notesEndWithBlock(issue.notes, input.appendNotes)) {
 			if (issue.notes && !issue.notes.endsWith("\n")) {
 				issue.notes += "\n";
 			}
 			issue.notes += input.appendNotes;
 		}
-		if (input.parent !== undefined) {
+		if (
+			input.parent !== undefined &&
+			(store.edges.find((edge) => edge.source === issue.id && edge.type === "parent-child")
+				?.target ?? "") !== input.parent
+		) {
 			store.edges = store.edges.filter(
 				(edge) => edge.source !== issue.id || edge.type !== "parent-child",
 			);
@@ -318,7 +381,13 @@ function updateIssues(
 				store.edges.push({ source: issue.id, target: input.parent, type: "parent-child" });
 			}
 		}
-		if (before !== JSON.stringify(issue) || edges !== JSON.stringify(store.edges)) {
+		if (
+			fieldsWritten ||
+			input.claim ||
+			labelsWritten ||
+			before !== JSON.stringify(issue) ||
+			edges !== JSON.stringify(store.edges)
+		) {
 			issue.updated_at = tick();
 		}
 		return {
@@ -340,7 +409,7 @@ function closeIssue(
 	const { store, tick } = op;
 	const issue = store.issues.get(id);
 	if (!issue) {
-		closeSkipped(id, "not found");
+		fail("close", NOT_FOUND, "ISSUE_NOT_FOUND", `Issue not found: ${id}`);
 	}
 	if (issue.status === "closed") {
 		closeSkipped(id, "already closed");
@@ -367,7 +436,7 @@ function closeIssue(
 	issue.status = "closed";
 	issue.closed_at = tick();
 	issue.updated_at = issue.closed_at;
-	issue.close_reason = input.reason ?? "";
+	issue.close_reason = input.reason ?? "done";
 	return [
 		{
 			id,
@@ -381,6 +450,9 @@ function closeIssue(
 function addComment(op: Operation, id: string, text: string): BeadComment {
 	const { store, actor, tick } = op;
 	const issue = getIssue(store, id, "comments");
+	if (!text.trim()) {
+		validation("comments", "text", "comment must not be empty");
+	}
 	const comment = {
 		id: store.comments.length + ONE,
 		issue_id: id,
@@ -401,13 +473,16 @@ function addDependency(
 	const { store, tick } = op;
 	const issue = getIssue(store, source, "dep");
 	getIssue(store, target, "dep");
+	if (source === target) {
+		fail("dep", CYCLE, "SELF_DEPENDENCY", "Cannot depend on self");
+	}
 	const existing = store.edges.some(
 		(edge) => edge.source === source && edge.target === target && edge.type === type,
 	);
 	if (existing) {
 		return dependencyReceipt(source, target, type, "already_exists");
 	}
-	if (type === "blocks" && dependencyPath(store, target, source)) {
+	if (BLOCKING_TYPES.has(type) && dependencyPath(store, target, source)) {
 		fail("dep", CYCLE, "CYCLE_DETECTED", `Dependency cycle detected: ${source} -> ${target}`);
 	}
 	store.edges.push({ source, target, type });
@@ -430,7 +505,7 @@ function removeDependency(
 			(type === undefined || edge.type === type),
 	);
 	if (matches.length > ONE) {
-		validation("dep", "type", "multiple dependency types require an explicit type");
+		validation("dep", "dep_type", "multiple dependency types require an explicit type");
 	}
 	const selectedType = type ?? matches[ZERO]?.type ?? "blocks";
 	if (matches.length === ZERO) {
@@ -446,7 +521,13 @@ function dependencyReceipt(
 	type: string,
 	action: DependencyReceipt["action"],
 ): DependencyReceipt {
-	return { status: "ok", issue_id: source, depends_on_id: target, type, action };
+	let status = "ok";
+	if (action === "already_exists") {
+		status = "exists";
+	} else if (action === "not_found") {
+		status = "not_found";
+	}
+	return { status, issue_id: source, depends_on_id: target, type, action };
 }
 function saveQuery(
 	op: Operation,
@@ -511,9 +592,7 @@ function searchIssues(store: Store, text: string, selection: BeadSelection): Bea
 				.filter((comment) => comment.issue_id === issue.id)
 				.map((comment) => comment.text),
 		].some((content) => content.toLowerCase().includes(term));
-	const candidates = filterIssues(store, selection).filter(
-		(issue) => matches(issue) && (selection.deferred || !isDeferred(store, issue)),
-	);
+	const candidates = filterIssues(store, selection).filter((issue) => matches(issue));
 	const issues = sortIssues(candidates, selection.sort ?? "priority", "search", selection.reverse);
 	const offset = selection.offset ?? ZERO;
 	const limit = selection.limit ?? SEARCH_LIMIT;
@@ -522,11 +601,8 @@ function searchIssues(store: Store, text: string, selection: BeadSelection): Bea
 		!selection.all &&
 		!selection.status?.some((status) => status === "all" || status === "closed")
 	) {
-		hiddenClosed = filterIssues(store, { ...selection, all: true }).filter(
-			(issue) =>
-				issue.status === "closed" &&
-				matches(issue) &&
-				(selection.deferred || !isDeferred(store, issue)),
+		hiddenClosed = filterIssues(store, { ...selection, status: ["closed"], all: true }).filter(
+			(issue) => issue.status === "closed" && matches(issue),
 		).length;
 	}
 	return {
@@ -601,7 +677,7 @@ function filterIssues(store: Store, selection: BeadSelection): Issue[] {
 		if (selection.priority?.length && !selection.priority.includes(issue.priority)) {
 			return false;
 		}
-		if (selection.assignee !== undefined && selection.assignee !== (issue.assignee ?? "")) {
+		if (selection.assignee !== undefined && selection.assignee !== issue.assignee) {
 			return false;
 		}
 		if (selection.unassigned && issue.assignee) {
@@ -695,7 +771,11 @@ function hydrate(store: Store, issue: Issue): BeadRecord {
 		comments: store.comments.filter((comment) => comment.issue_id === issue.id),
 	});
 }
-function applyFields(issue: Issue, input: Partial<CreateBead>): void {
+function applyFields(
+	issue: Issue,
+	input: Partial<CreateBead> & Pick<UpdateBead, "notes" | "design">,
+): boolean {
+	let written = false;
 	for (const [key, field] of [
 		["title", "title"],
 		["description", "description"],
@@ -711,6 +791,7 @@ function applyFields(issue: Issue, input: Partial<CreateBead>): void {
 	] as const) {
 		const next = input[key];
 		if (next !== undefined) {
+			written = true;
 			if (
 				next === "" &&
 				(field === "assignee" || field === "owner" || field === "defer_until" || field === "due_at")
@@ -722,8 +803,10 @@ function applyFields(issue: Issue, input: Partial<CreateBead>): void {
 		}
 	}
 	if (input.priority !== undefined) {
+		written = true;
 		issue.priority = input.priority;
 	}
+	return written;
 }
 function validateOverwrite(issue: Issue, input: UpdateBead): void {
 	if (input.force) {
@@ -745,10 +828,140 @@ function validateOverwrite(issue: Issue, input: UpdateBead): void {
 		}
 	}
 }
+function replacementLabels(labels: readonly string[], command: string): string[] {
+	const replacement = [
+		...new Set(
+			labels
+				.flatMap((label) => label.split(","))
+				.map((label) => label.trim())
+				.filter(Boolean),
+		),
+	].toSorted();
+	for (const label of replacement) {
+		validateLabel(label, command);
+	}
+	return replacement;
+}
+function parseDates<Input extends Partial<CreateBead>>(store: Store, input: Input): Input {
+	const fields = { ...input };
+	if (fields.defer !== undefined && fields.defer !== "") {
+		fields.defer = parseDate(store, fields.defer);
+	}
+	if (fields.due !== undefined && fields.due !== "") {
+		fields.due = parseDate(store, fields.due);
+	}
+	return fields;
+}
+function parseDate(store: Store, value: string): string {
+	const text = value.trim().replace(/(?<offset>[+-]\d\d:\d\d):00$/u, "$<offset>");
+	const instant = timestampInstant(text);
+	if (instant !== undefined) {
+		return formatInstant(instant);
+	}
+	const relative = /^(?<amount>[+-]\d+)(?<unit>[mhdw])$/u.exec(text);
+	if (relative) {
+		const date = new Date(
+			Date.parse(store.now()) +
+				Number(relative.groups!.amount) * RELATIVE_UNITS.get(relative.groups!.unit!)!,
+		);
+		if (!Number.isFinite(date.getTime())) {
+			validation("date", "date", "relative duration is out of supported range");
+		}
+		return date.toISOString();
+	}
+	if (/^\d{4}-\d\d-\d\d$/u.test(text)) {
+		const date = new Date(`${text}T09:00:00`);
+		if (Number.isFinite(date.getTime())) {
+			return date.toISOString();
+		}
+	}
+	const date = new Date(store.now());
+	let days = ZERO;
+	switch (text.toLowerCase()) {
+		case "today": {
+			days = ZERO;
+			break;
+		}
+		case "yesterday": {
+			days = -ONE;
+			break;
+		}
+		case "tomorrow": {
+			days = ONE;
+			break;
+		}
+		case "next-week":
+		case "nextweek": {
+			days = NEXT_WEEK_DAYS;
+			break;
+		}
+		default: {
+			return validation("date", "date", "invalid time format");
+		}
+	}
+	date.setDate(date.getDate() + days);
+	let hour = MORNING_HOUR;
+	if (text.toLowerCase() === "today") {
+		hour = EVENING_HOUR;
+	}
+	date.setHours(hour, ZERO, ZERO, ZERO);
+	return date.toISOString();
+}
+function timestampInstant(value: string): bigint | undefined {
+	const text = value.trim();
+	const match = /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.(?<fraction>\d+))?(?:Z|[+-]\d\d:\d\d)$/iu.exec(
+		text,
+	);
+	const millis = Date.parse(text);
+	if (!match || !Number.isFinite(millis)) {
+		return undefined;
+	}
+	const nanos = (match.groups?.fraction ?? "")
+		.padEnd(NANOS_PRECISION, "0")
+		.slice(ZERO, NANOS_PRECISION);
+	return BigInt(Math.floor(millis / MILLIS_PER_SECOND)) * NANOS_PER_SECOND + BigInt(nanos);
+}
+function formatInstant(instant: bigint): string {
+	let seconds = instant / NANOS_PER_SECOND;
+	let nanos = instant % NANOS_PER_SECOND;
+	if (nanos < ZERO_NANOS) {
+		seconds -= ONE_SECOND;
+		nanos += NANOS_PER_SECOND;
+	}
+	const whole = new Date(Number(seconds) * MILLIS_PER_SECOND).toISOString().split(".")[ZERO]!;
+	let fraction = nanos.toString().padStart(NANOS_PRECISION, "0");
+	while (fraction.endsWith("000")) {
+		fraction = fraction.slice(ZERO, -FRACTION_GROUP_SIZE);
+	}
+	if (fraction) {
+		return `${whole}.${fraction}Z`;
+	}
+	return `${whole}Z`;
+}
+function validateLabel(label: string, command: string): void {
+	if (!/^[A-Za-z0-9_:-]{1,50}$/u.test(label)) {
+		validation(command, "label", "invalid label characters or length");
+	}
+}
+function notesEndWithBlock(notes: string, block: string): boolean {
+	if (!notes.endsWith(block)) {
+		return false;
+	}
+	const head = notes.slice(ZERO, notes.length - block.length);
+	return !head || head.endsWith("\n");
+}
+function validateParent(store: Store, id: string, parent: string): void {
+	if (id === parent) {
+		fail("update", CYCLE, "SELF_DEPENDENCY", "Cannot depend on self");
+	}
+	if (dependencyPath(store, id, parent)) {
+		fail("update", CYCLE, "CYCLE_DETECTED", "Parent cycle detected");
+	}
+}
 function isDeferred(store: Store, issue: Issue): boolean {
 	return (
 		issue.status === "deferred" ||
-		Boolean(issue.defer_until && Date.parse(issue.defer_until) > store.revision)
+		Boolean(issue.defer_until && Date.parse(issue.defer_until) > Date.parse(store.now()))
 	);
 }
 function getIssue(store: Store, id: string, command: string): Issue {
@@ -771,7 +984,7 @@ function blockingIssues(store: Store, id: string): string[] {
 				if (edge.type === "parent-child") {
 					return visit(edge.target);
 				}
-				if (edge.type === "blocks" && store.issues.get(edge.target)!.status !== "closed") {
+				if (BLOCKING_TYPES.has(edge.type) && store.issues.get(edge.target)!.status !== "closed") {
 					return [edge.target];
 				}
 				return [];
@@ -784,7 +997,7 @@ function directBlockingIssues(store: Store, id: string): string[] {
 		.filter(
 			(edge) =>
 				edge.source === id &&
-				edge.type === "blocks" &&
+				BLOCKING_TYPES.has(edge.type) &&
 				store.issues.get(edge.target)!.status !== "closed",
 		)
 		.map((edge) => edge.target);
@@ -806,7 +1019,7 @@ function dependencyPath(store: Store, start: string, target: string): boolean {
 		}
 		visited.add(id);
 		return store.edges.some((edge) => {
-			if (edge.type === "blocks" && edge.source === id) {
+			if (BLOCKING_TYPES.has(edge.type) && edge.source === id) {
 				return visit(edge.target);
 			}
 			if (edge.type === "parent-child" && edge.target === id) {
