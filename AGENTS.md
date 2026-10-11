@@ -4,6 +4,8 @@ Hive is a strict TypeScript monorepo for coding agent tools.
 
 Read [philosophy](./docs/PHILOSOPHY.md) before making changes.
 
+Use the [documentation index](./docs/README.md) for tool guides, workflow authoring and detailed reference.
+
 ## Worktrees
 
 Work in a worktree unless explicitly instructed otherwise. Use `honeycomb` (see `honeycomb -h`); create new worktrees inside `.worktrees/` with the `nested` location.
@@ -14,7 +16,7 @@ Explore existing conventions, helpers and modules; plan the approach; then build
 
 ### Specialist delegation
 
-Use Bee for repository subagents. Run `bee --help`, then `bee kinds` before delegating. Put the assignment, context and acceptance on task beads; normally spawn with the kind's defaults and omit prompt overrides.
+Use Bee for repository subagents. Before delegating, follow the [specialist protocol](docs/agents/specialists.md) for discovery, task briefs and evidence.
 
 ## Packages
 
@@ -31,44 +33,29 @@ Product packages may import only `@hive/shared` across package boundaries; Share
 
 ## Architectural intent
 
-- **Consult:** use `librarian` when ownership, domain concepts, seams or abstraction choices remain unclear after reading the architecture; routine file placement does not need a consultation.
-- **Curate/discuss:** use `librarian` to synthesize difficult questions, recurring confusion and outcomes. Forward user corrections with the original request, context and supplied rationale. Evidence capture is part of the role; explicitly scope documentation changes and new policy decisions.
-- **Review:** before committing or handing off changes to those architectural concerns, use `librarian` in review mode on the final diff. Keep code style, test quality and general standards review with `reviewer`.
-- Pass the task bead when one exists, affected paths/revisions, settled decisions, prior advice and the evidence ID when known. Librarian records substantive exchanges under its [evidence contract](.hive/bees/librarian/system_prompt.md#architectural-evidence-records); no separate filing assignment is needed. Keep the accepted approach in the task's design and return corrections and final outcomes to the same evidence thread. Consult/review leave examined code, architecture documents and implementation tasks unchanged; routine evidence capture remains part of reporting.
+Use `librarian` when ownership, domain concepts, seams or abstractions remain unclear after reading the architecture; for user corrections or synthesis of difficult questions, recurring confusion and outcomes; and to review the final diff for those architectural changes before commit or handoff. Follow the [specialist protocol](docs/agents/specialists.md); routine file placement needs no consultation. `reviewer` owns code style, test quality and general standards review.
 
 ## Runtime and commits
 
 - Development runs strict TypeScript directly on Bun. CLI compilation is separate from the `tsc --noEmit` typechecking gate.
 - Conventional Commits, enforced by commitlint on `commit-msg`.
 
-## Commands
-
-- `bun install`
-- `bun run check` — `fmt:check` + `lint` + `typecheck` + `test:all`.
-- `bun run fmt` / `bun run fmt:check`
-- `bun run lint` / `bun run lint:fix`
-- `bun run typecheck`
-
 ## Semantic review signals
 
-When reviewing domain-state modelling, abstraction choices or failure semantics, use [Waggle](lib/waggle/README.md) as an optional review aid. From the checkout root, run `bun run --silent waggle list --json`, then `describe <id> --json` to learn when a classifier applies and what evidence it needs. Supply only authorized context via `run <id> --input <file-or-dash> --json`; definitions live in `classifiers/`.
-
-When selecting files for human review, use `review-attention` for I/O boundaries and persistence decisions; describe it before gathering its distinct inputs. Treat `show` as attention, not a defect, and investigate `needs_context` before excluding a file. `skip` is not approval.
-
-State missing context rather than inventing contracts. Validate any concern against the source before reporting it; `no_concern` is not approval. Waggle sends supplied evidence to Typesafe and is not a replacement for lint, tests or reviewer judgment.
+For domain-state, abstraction or failure-semantics review, [semantic review guidance](docs/agents/semantic-review.md) covers optional Waggle signals. When selecting files for human review, follow that guide's required `review-attention` procedure for I/O boundaries and persistence decisions.
 
 ## Validation
 
-Before requesting agent review, committing or handing off implementation changes, get `bun run check` passing for the complete change. Explain any skipped verification.
+During iteration, use focused files or package checks and `bun run test:changed` at subtask boundaries; see [testing commands](docs/README.md#development-and-automation).
+
+The [Land workflow](.workflows/land/workflow.ts) owns its comprehensive completion checks. Outside Land, before requesting agent review, committing or handing off implementation changes, get `bun run check` passing for the complete change. Explain any skipped verification.
 
 Husky validates staged JSONL for snapshot-only commits/merges on `tracker/state`; other changes run `lint-staged` and a repo-wide typecheck. Commitlint runs on `commit-msg`; hooks do not run tests or publish the tracker.
 
 ## Where to look
 
 - Before changing request representation, scheduling authority or package placement, read [architecture](docs/architecture.md). It maps package boundaries and sources of truth.
-- [Bee and Colony guide](lib/colony/README.md) documents public commands and real I/O verification.
-- Before changing workflow projection or completion, read the [Busy Bee specification](lib/busybee/SPEC.md) for the intended behavior and Beads integration decisions.
-- Before authoring or refactoring Busy Bee workflow definitions, read the [workflow style guide](docs/busybee-workflows.md) for explicit charts and visualizer visibility.
+- Before changing workflow projection/completion or authoring/refactoring definitions, follow the [workflow references](docs/README.md#workflows) for the required specification and style guide.
 
 ## Spawn state and attention
 
@@ -76,7 +63,7 @@ Before querying spawn requests, interpreting failures or supersession, retrying 
 
 ## Domain docs
 
-Single-context: root `GLOSSARY.md` and `docs/adr/`. Before exploring, follow `docs/agents/domain.md`.
+When terminology or design decisions matter to the task, follow [domain guidance](docs/agents/domain.md) for the shared glossary and relevant ADRs.
 
 ## Beads / br
 
@@ -108,7 +95,7 @@ Local worktrees and bees share the selected database. Ordinary startup/resume, c
 
 ### Labels and reservations
 
-- Labels are optional. Before choosing or changing them, use [the label taxonomy and stewardship registry](docs/beads-labels.md); ask honeybee if uncertain. Only registered specialists add or remove their own `evidence:*` labels within authorized curation; other agents delegate classification and preserve those labels. Keep status, priority, ownership and readiness in native fields, not invented labels. Use `--add-label` / `--remove-label` for incremental edits; `--labels` replaces the set.
+- Before choosing or changing labels, read the [label taxonomy and stewardship registry](docs/beads-labels.md); ask honeybee if uncertain. Labels are optional; keep status, priority, ownership and readiness in native fields. Only registered specialists mutate their own `evidence:*` labels within authorized curation; others delegate classification and preserve them. Use `--add-label` / `--remove-label` for incremental edits; `--labels` replaces the set.
 - `system` beads are automation-owned: exclude them from ordinary `search`, `list` and `ready` with `--exclude-label system`. Reading or changing them requires an explicit system-maintenance/debugging assignment. Viewer triage uses `bv --recipe work --robot-triage`, never bare `bv`.
 - `hitl` requires working alongside the user; autonomous agents skip it. Assignment to `ct` instead reserves human action: do not claim, clear or replace it without ct's instruction. Agent work remains assigned to an agent; assign `ct` only for a deliberate, documented handoff.
 
