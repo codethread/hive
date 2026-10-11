@@ -3,7 +3,7 @@ import { BeeAssignment, Label, ResourceNotice, time } from "./ui.tsx";
 import { BeeHistory, BoardTabs } from "./board-navigation.tsx";
 import type { Board, Card, Navigation } from "../contracts.ts";
 import { EMPTY, boards, colonies, inventories, loadView, preferences, snapshot } from "./data.ts";
-import { FilterableLabel, STATUS_NAMES } from "./filter-controls.tsx";
+import { FilterableLabel, statusName } from "./filter-controls.tsx";
 import { Link, Outlet, useNavigate, useParams, useSearch } from "@tanstack/react-router";
 import {
 	PAGE_SIZE,
@@ -202,7 +202,8 @@ function BoardColumns({ board }: { board: Board }) {
 			...board.cards.map((card) => card.status),
 		]),
 	];
-	statuses.sort((left, right) => STATUS_ORDER.indexOf(left) - STATUS_ORDER.indexOf(right));
+	const order = [...new Set([...STATUS_ORDER, ...statuses])];
+	statuses.sort((left, right) => order.indexOf(left) - order.indexOf(right));
 	if (board.cards.length === 0) {
 		return (
 			<div className="grid min-h-80 place-content-center gap-2 p-6 text-center">
@@ -362,8 +363,4 @@ function withoutSelection(navigation: Navigation): Navigation {
 
 function shellQuote(value: string): string {
 	return `'${value.replaceAll("'", String.raw`'\''`)}'`;
-}
-
-function statusName(status: string): string {
-	return Object.entries(STATUS_NAMES).find(([key]) => key === status)?.[1] ?? status;
 }

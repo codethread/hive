@@ -180,6 +180,9 @@ input[type="checkbox"] {
 	.status-in_progress {
 		@apply border-blue-300 bg-blue-300;
 	}
+	.status-in_review {
+		@apply border-amber-300 bg-amber-300;
+	}
 	.status-blocked {
 		@apply border-alert bg-alert;
 	}

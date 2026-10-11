@@ -10,7 +10,17 @@ export const boardScopeSchema = z.object({
 	/** Ordinary task board, open Bee requests or completed Bee requests. */
 	view: z.enum(["beads", "open", "completed"]).default("open"),
 });
-export const beadStatusSchema = z.enum(["open", "in_progress", "blocked", "deferred", "closed"]);
+export const DEFAULT_BEAD_STATUSES = [
+	"open",
+	"in_progress",
+	"blocked",
+	"deferred",
+	"draft",
+	"closed",
+	"tombstone",
+	"pinned",
+];
+export const beadStatusSchema = z.string().min(1);
 const BACKLOG_PRIORITY = 4;
 
 /** A view is a reusable predicate over ordinary task beads, independent of navigation. */
@@ -56,6 +66,8 @@ export const colonySchema = z.object({
 	name: z.string(),
 	/** Resolved repository root for native reads. */
 	root: z.string(),
+	/** Native defaults plus workflow statuses loaded from this endpoint's tracker policy. */
+	statuses: z.array(beadStatusSchema),
 });
 export const coloniesSchema = z.object({
 	/** Startup-configured endpoints available to this local UI. */

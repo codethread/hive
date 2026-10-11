@@ -40,6 +40,8 @@ The switcher queries only the selected colony. Filters and card selection are re
 
 ## Reading the board
 
+Status choices combine all eight native defaults with `workflow.statuses` from `policy.yaml` beside each colony's selected database. The server reads policy at startup; restart it after changing the policy. Custom statuses such as `in_review` appear as readable filter and column names and are retained in URLs and saved views. A missing policy uses native defaults; malformed YAML or status configuration stops startup with an error.
+
 - Use the main-header **Beads** and **Bees** tabs to choose what to browse. **Beads** shows ordinary beads, excluding both `bee` and `system` labels, whether or not they are linked to a Bee request. It reads the current task page and selected details, plus open request attribution when an in-progress bead has an assignee.
 - Within **Bees**, **Open** shows open requests and **Completed** shows successful closed requests, newest first, in pages of 50 candidate requests. Switch between **Outline** and **Graph** without fetching again. Graph cards are positioned automatically and cannot be dragged; use zoom and Fit to explore. Select a request to read its linked work, then **Load ancestry** when needed. Use **Older requests** to fetch another page. These navigation choices preserve the active bead filters; choose **Include closed beads** or the **Closed** status when needed.
 - The left sidebar holds **Views**, **Status**, **Priority** and label rules. Collapse it with its panel icon; its contents scroll independently of the board. On small screens, **Filters & views** opens the same controls in a drawer. Opening or collapsing filters retains the current view and selection without reading data.

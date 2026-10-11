@@ -71,6 +71,8 @@ When terminology or design decisions matter to the task, follow [domain guidance
 
 Use repo-local Beads (`br`) from the checkout root to track implementation, not harness todos or Markdown task files.
 
+Use `in_review` only for completed work awaiting the user's attention when the user requested review; agent-to-agent review remains `in_progress`, and `blocked` indicates an active blocker.
+
 ### Route the request
 
 - **Inspect an ID** ("check hv-…"): `br show <id> --json`; report without claiming or changing it. Questions do not need bookkeeping beads.

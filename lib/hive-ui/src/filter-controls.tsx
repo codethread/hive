@@ -12,20 +12,15 @@ import {
 	DropdownMenuLabel,
 	DropdownMenuTrigger,
 } from "@radix-ui/react-dropdown-menu";
-import { useNavigate, useSearch } from "@tanstack/react-router";
+import { EMPTY, colonies, snapshot } from "./data.ts";
+import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
+import { DEFAULT_BEAD_STATUSES } from "../contracts.ts";
 import type { Navigation } from "../contracts.ts";
 import type { SubmitEvent } from "react";
-import { beadStatusSchema } from "../contracts.ts";
 import { useId } from "react";
+import { useStore } from "zustand";
 import { z } from "zod";
 
-export const STATUS_NAMES = {
-	blocked: "Blocked",
-	closed: "Closed",
-	deferred: "Deferred",
-	in_progress: "In progress",
-	open: "Open",
-};
 const PRIORITY_NAMES = ["Critical", "High", "Normal", "Low", "Backlog"];
 const LABEL_GROUPS = ["all", "any", "exclude"] as const;
 const GROUP_NAMES = { all: "AND", any: "OR", exclude: "Exclude" };
@@ -79,11 +74,16 @@ export function PriorityFilters() {
 export function StatusFilters() {
 	const search = useSearch({ from: "/colonies/$colonyId" });
 	const navigate = useNavigate({ from: "/colonies/$colonyId" });
+	const { colonyId } = useParams({ from: "/colonies/$colonyId" });
+	const resource = useStore(colonies.store, (state) => state.entries["colonies"] ?? EMPTY);
+	const statuses =
+		snapshot(resource)?.colonies.find((colony) => colony.id === colonyId)?.statuses ??
+		DEFAULT_BEAD_STATUSES;
 	return (
 		<fieldset className="min-w-0">
 			<legend className="filter-heading">Status</legend>
 			<div className="status-options">
-				{beadStatusSchema.options.map((status) => (
+				{statuses.map((status) => (
 					<button
 						key={status}
 						type="button"
@@ -101,7 +101,7 @@ export function StatusFilters() {
 						}}
 					>
 						<span className={`status-dot status-${status}`} />
-						{STATUS_NAMES[status]}
+						{statusName(status)}
 					</button>
 				))}
 			</div>
@@ -140,7 +140,7 @@ export function ActiveFilters() {
 	const chips = [
 		...search.statuses.map((status) => ({
 			key: `status:${status}`,
-			name: `Status: ${STATUS_NAMES[status]}`,
+			name: `Status: ${statusName(status)}`,
 			patch: { statuses: search.statuses.filter((value) => value !== status) },
 		})),
 		...search.priorities.map((priority) => ({
@@ -281,6 +281,12 @@ export function FilterableLabel({ label }: { label: string }) {
 			</ContextMenuContent>
 		</ContextMenu>
 	);
+}
+
+/** Native custom statuses share the same readable naming as built-in statuses. */
+export function statusName(status: string): string {
+	const words = status.replaceAll("_", " ");
+	return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
 // --- Exact-label entry ---

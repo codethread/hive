@@ -8,6 +8,7 @@ import type { Colony } from "../contracts.ts";
 import { appendFile } from "node:fs/promises";
 import { createBoardData } from "./data.ts";
 import index from "../src/index.html";
+import { readStatuses } from "./statuses.ts";
 import { resolveRepository } from "@hive/shared";
 import { z } from "zod";
 
@@ -135,15 +136,15 @@ async function readColonies(options: z.infer<typeof optionsSchema>): Promise<Col
 		throw new Error("Select --beads-db (or BEADS_DB), or provide --colonies.");
 	}
 	const endpoint = await resolveRepository(options.repo, options.beadsDb);
-	return [colony(endpoint, basename(endpoint.root))];
+	return [await colony(endpoint, basename(endpoint.root))];
 }
 
-function colony(endpoint: { root: string; beadsDb: string }, name: string): Colony {
+async function colony(endpoint: { root: string; beadsDb: string }, name: string): Promise<Colony> {
 	const id = new Bun.CryptoHasher("sha256")
 		.update(JSON.stringify(endpoint))
 		.digest("hex")
 		.slice(0, ENDPOINT_ID_LENGTH);
-	return { ...endpoint, id, name };
+	return { ...endpoint, id, name, statuses: await readStatuses(endpoint.beadsDb) };
 }
 
 // eslint-disable-next-line max-statements -- Keep HTTP outcome and telemetry around every route, including failures.
