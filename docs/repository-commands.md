@@ -19,6 +19,16 @@ mise run test:changed -- ./lib/shared/src/bees.test.ts
 
 Focused files are useful during iteration; package scripts cover a wider affected scope. Changed tests use the shared timing reporter described in [Repository tooling](../lib/tooling/README.md#test-timing-report-and-landing-gate). The `check` entry runs final comprehensive verification; the [Land workflow](../.workflows/land/workflow.ts) owns its completion checks, and [AGENTS.md](../AGENTS.md#validation) covers the gate outside Land.
 
+`bun run test:all` and `bun run test:changed` exclude native Beads conformance tests from ordinary discovery. Consumer behavior tests use memory. Native contracts under `lib/beads/tests/contract/` run as a separate complete suite when any of these inputs changes:
+
+- `lib/beads/src/**` (native adapter, memory implementation, consumed types and schemas).
+- `lib/beads/tests/contract/**` (contract cases and their local fixtures).
+- `lib/beads/package.json`, root `package.json`, `bun.lock`, `bunfig.toml`, or `mise.toml` (package resolution, runtime/test settings and dependency configuration).
+
+Selection includes branch changes since the merge base with `main`, staged and unstaged changes, and untracked files. A forwarded `--changed=<ref>` uses that comparison reference instead; bare `--changed` compares with `HEAD`. Consumer source, shared barrels and documentation alone do not select native contracts. Keep contract helpers inside the contract directory and import adapter modules directly, so contract inputs remain independent of consumers. Changes to the installed `br` executable outside Git require an explicit contract run.
+
+Run `bun run test:contracts` to verify the entire native contract suite explicitly, even on a clean checkout. Automatic contracts run in full regardless of ordinary-suite file/name filters or Bun's dependency graph. The explicit command takes no filters; use `bun test ./lib/beads/tests/contract/ -t 'case'` for focused contract iteration. All runner suites retain two workers and the five-second per-test timeout. Ordinary changed runs report timing warnings; full and contract runs enforce the existing unapproved `DANGER` gate, retaining Bun diagnostics and JUnit timing reports independently for each suite.
+
 ## Recipe ownership
 
 [`package.json`](../package.json) owns reusable execution recipes and Bun lifecycle hooks. Package manifests retain workspace test, build and `install:bin` contracts. Mise provides a curated catalog over those recipes and the focused `bun test` command; it does not enumerate package aliases or product CLI subcommands.

@@ -1,25 +1,22 @@
 /* eslint-disable import/max-dependencies -- Compose existing runtime boundaries with the independent advisory assessment lifecycle. */
 /* eslint-disable unicorn/no-null -- Durable JSON checkpoints explicitly preserve absent attempt, claim, deadline and outcome fields. */
 import type { AttemptInventory, Store } from "./store.ts";
-import type { Bead, BeesConfig, RepositoryEndpoint, SpawnRequest } from "@hive/shared";
+import type { BeesConfig, RepositoryEndpoint, SpawnRequest } from "@hive/shared";
 import { acquireClaim, releaseClaims } from "./claims.ts";
 import { assign, createActor, setup } from "xstate";
-import {
-	beads,
-	readSpawnRequest,
-	requestOutcomeSchema,
-	requestStateSchema,
-	showBead,
-} from "@hive/shared";
 import { cancelDroneReview, reviewInactivity } from "./drone.ts";
 import { observeExecution, resumeExecution, stopExecution } from "./processes.ts";
 import { publishObservation, publishStdoutActivity } from "./observations.ts";
+import { readSpawnRequest, requestOutcomeSchema, requestStateSchema } from "@hive/shared";
+import type { Bead } from "@hive/beads";
 import type { OperationEvidence } from "./history.ts";
+import type { TrackerContext } from "./tracker.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Durable checkpoints retain authority only on their requesting host.
 import { hostname } from "node:os";
 import { prepareAssessment } from "./postrun.ts";
 import { publishRequestLabels } from "./requests.ts";
 import { readFinishReport } from "./launch.ts";
+import { trackerScope } from "./tracker.ts";
 // eslint-disable-next-line import/max-dependencies -- Request reconciliation composes claims, execution, drone review and operation evidence.
 import { z } from "zod";
 
@@ -45,9 +42,7 @@ export const requestRecordSchema = z.strictObject({
 	id: z.string(),
 	state: requestStateSchema,
 });
-interface RequestRuntime {
-	/** Canonical tracker authority for every claim and request effect. */
-	repository: RepositoryEndpoint;
+interface RequestRuntime extends TrackerContext {
 	/** Durable request and attempt checkpoints. */
 	store: Store;
 	/** Current canonical retry policy. */
@@ -263,8 +258,10 @@ async function acquireRequest(
 	saved: RequestRecord,
 	evidence: OperationEvidence,
 ): Promise<RequestRecord | null> {
-	const { repository, store } = runtime;
-	const request = readSpawnRequest(await showBead(repository, saved.context.identity, saved.id));
+	const { beads, repository, store } = runtime;
+	const request = readSpawnRequest(
+		await beads.show(trackerScope(repository, saved.context.identity), saved.id),
+	);
 	assertRequestAuthority(saved, request);
 	if (request.host !== hostname()) {
 		throw new Error(`Request ${saved.id} is not bound to this host`);
@@ -273,7 +270,7 @@ async function acquireRequest(
 	for (const id of record.context.taskIds) {
 		record = store.advanceRequest(repository.root, record, { id, type: "INTEND" });
 		// eslint-disable-next-line no-await-in-loop -- Persist each acquisition before the next task can be claimed.
-		const outcome = await acquireClaim(repository, record.context.identity, id, evidence);
+		const outcome = await acquireClaim(runtime, record.context.identity, id, evidence);
 		if (outcome === "conflict") {
 			record = store.advanceRequest(repository.root, record, {
 				message: `Task ${id} changed reservation during acquisition`,
@@ -310,10 +307,10 @@ async function reconcileRequest(
 	saved: RequestRecord,
 	evidence: OperationEvidence,
 ): Promise<void> {
-	const { repository, store } = runtime;
+	const { beads, repository, store } = runtime;
 	let record = saved;
 	evidence.step("tracker.show", record.id);
-	const spawn = await showBead(repository, record.context.identity, record.id);
+	const spawn = await beads.show(trackerScope(repository, record.context.identity), record.id);
 	const request = readSpawnRequest(spawn);
 	assertRequestAuthority(record, request);
 	const inventory = await store.inventory(repository.root, new Set([record.id]));
@@ -357,7 +354,9 @@ async function reconcileRequest(
 			) {
 				evidence.step("tracker.show-related", record.id);
 				const tasks = await Promise.all(
-					record.context.taskIds.map((id) => showBead(repository, record.context.identity, id)),
+					record.context.taskIds.map((id) =>
+						beads.show(trackerScope(repository, record.context.identity), id),
+					),
 				);
 				const unfinished = tasks.filter(({ status }) => status !== "closed");
 				let outcome: RequestContext["outcome"] = null;
@@ -380,7 +379,7 @@ async function reconcileRequest(
 				evidence.step("drone.review", attempt.id);
 				record = await reviewRunningAttempt(runtime, record, attempt);
 				evidence.step("stdout.publish", record.id);
-				await publishStdoutActivity(repository, attempt.receipt);
+				await publishStdoutActivity(runtime, attempt.receipt);
 				if (record.state === "executing") {
 					evidence.step("observation.publish", record.id);
 					await publishRunningObservation(runtime, record, attempt);
@@ -389,7 +388,9 @@ async function reconcileRequest(
 		} else {
 			evidence.step("tracker.show-related", record.id);
 			const tasks = await Promise.all(
-				record.context.taskIds.map((id) => showBead(repository, record.context.identity, id)),
+				record.context.taskIds.map((id) =>
+					beads.show(trackerScope(repository, record.context.identity), id),
+				),
 			);
 			if (tasks.length > ZERO && tasks.every(({ status }) => status === "closed")) {
 				record = store.advanceRequest(repository.root, record, {
@@ -410,7 +411,7 @@ async function reconcileRequest(
 			await stopExecution(attempt.receipt);
 			evidence.completed("execution.stopped", attempt.id);
 			evidence.step("stdout.publish", record.id);
-			await publishStdoutActivity(repository, attempt.receipt, true);
+			await publishStdoutActivity(runtime, attempt.receipt, true);
 			evidence.completed("stdout.published", record.id);
 		}
 		await finishSettlement(runtime, record, evidence);
@@ -423,9 +424,11 @@ async function reviewRunningAttempt(
 	record: RequestRecord,
 	attempt: AttemptInventory,
 ): Promise<RequestRecord> {
-	const { repository, store } = runtime;
+	const { beads, repository, store } = runtime;
 	const tasks = await Promise.all(
-		record.context.taskIds.map((id) => showBead(repository, record.context.identity, id)),
+		record.context.taskIds.map((id) =>
+			beads.show(trackerScope(repository, record.context.identity), id),
+		),
 	);
 	if (tasks.every(({ status }) => status === "closed")) {
 		await cancelDroneReview(runtime, attempt.id);
@@ -451,7 +454,7 @@ async function publishRunningObservation(
 			fact += `; ${review.decision.kind}; ${review.decision.detail}`;
 		}
 	}
-	await publishObservation(repository, record.id, fact);
+	await publishObservation(runtime, record.id, fact);
 }
 // eslint-disable-next-line max-statements -- Release claims and publish the settled fact before the final checkpoint.
 async function finishSettlement(
@@ -459,8 +462,8 @@ async function finishSettlement(
 	record: RequestRecord,
 	evidence: OperationEvidence,
 ): Promise<void> {
-	const { repository, store, config } = runtime;
-	await releaseClaims(repository, record, evidence);
+	const { beads, repository, store, config } = runtime;
+	await releaseClaims(runtime, record, evidence);
 	const released = store.advanceRequest(repository.root, record, { type: "RELEASED" });
 	const next = transitionRequest(released, {
 		delay: config.retry_delay_ms,
@@ -473,23 +476,20 @@ async function finishSettlement(
 		fact = `settled: ${next.context.outcome}; ${record.context.message}`;
 	}
 	evidence.step("observation.publish", record.id);
-	await publishObservation(repository, record.id, fact);
+	await publishObservation(runtime, record.id, fact);
 	evidence.completed("observation.published", record.id);
 	if (next.state === "terminal") {
 		evidence.step("tracker.show", record.id);
-		const spawn = await showBead(repository, record.context.identity, record.id);
+		const spawn = await beads.show(trackerScope(repository, record.context.identity), record.id);
 		if (spawn.status !== "closed") {
 			evidence.step("tracker.close", record.id);
-			await beads(repository, record.context.identity, [
-				"close",
-				record.id,
-				"--reason",
-				next.context.outcome!,
-			]);
+			await beads.close(trackerScope(repository, record.context.identity), record.id, {
+				reason: next.context.outcome!,
+			});
 			evidence.completed("tracker.closed", record.id);
 		}
 		evidence.step("labels.publish", record.id);
-		await publishRequestLabels(repository, record.context.identity, record.id, hostname());
+		await publishRequestLabels(runtime, record.context.identity, record.id, hostname());
 		evidence.completed("labels.published", record.id);
 	}
 	store.settleRequest(repository.root, next, await prepareAssessment(runtime, next));

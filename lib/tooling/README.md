@@ -2,7 +2,9 @@
 
 ## Beads contract tests
 
-Run `bun test ./lib/tooling/tests/contract/` from the checkout root to verify the native Beads bootstrap and saved-query contracts. These checks use real Git, `br` and `mise` executables and retain their explicit timeouts.
+Run `bun test ./lib/tooling/tests/contract/` from the checkout root to verify tracker bootstrap across real Git, filesystem, `br` and `mise` boundaries. These checks retain their existing explicit timeouts. Tooling setup and Hive UI behavior tests inject the in-memory Beads service.
+
+Native/in-memory Beads API conformance lives in [`lib/beads/tests/contract/`](../beads/tests/contract/). Run `bun run test:contracts` to execute that complete suite explicitly. Ordinary all/changed runs exclude these contracts, then select them separately when adapter, contract or native dependency inputs change; see [repository commands](../../docs/repository-commands.md#test-selection) for the selection policy.
 
 Contract tests verify behavior at a third-party boundary; integration tests verify cooperation between Hive components.
 
@@ -16,7 +18,7 @@ The full suite (`bun run test:all`, also used by `bun run check`) and changed te
 lib/example.test.ts:42 XSLOW 12.345ms suite > test description
 ```
 
-Severity is the highest cutoff strictly exceeded: `SLOW` above 1ms, `XSLOW` above 5ms, `DANGER` above 1000ms. Exactly 1ms is quiet. Changed-test timing warnings do not change Bun's exit code; a run with no selected changed tests is quiet.
+Severity is the highest cutoff strictly exceeded: `SLOW` above 1ms, `XSLOW` above 5ms, `DANGER` above 1000ms. Exactly 1ms is quiet. Ordinary changed-test timing warnings do not change Bun's exit code; a run with no selected changed tests is quiet. Selected Beads conformance contracts enforce the full timing gate, including when invoked through `test:changed`.
 
 The full suite prints Bun's diagnostics and the complete timing report, then fails if any unapproved `DANGER` remains. `SLOW` and `XSLOW` are advisory. This gate blocks landing even when all tests pass. Refactor meaningful tests, setup or dependency seams while preserving coverage, then rerun checks. When a measured cost is necessary, propose the exact allowance and justification for explicit user sign-off before editing the registry.
 

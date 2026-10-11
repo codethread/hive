@@ -1,3 +1,4 @@
+import type { BeadRecord, UpdateBead } from "@hive/beads";
 import {
 	BusyBeeError,
 	closeTask,
@@ -7,10 +8,9 @@ import {
 	readBead,
 	resolveEndpoint,
 	resolveMutation,
-	tracker,
 } from "./native.ts";
 import type { Definition, Metadata, WorkflowActor, WorkflowNode } from "./definition.ts";
-import type { MutationEndpoint, NativeBead, Options, Services } from "./native.ts";
+import type { MutationEndpoint, Options, Services } from "./native.ts";
 import {
 	actorContext,
 	actorFor,
@@ -312,10 +312,12 @@ async function createRun(
 		},
 		services,
 	);
-	await tracker(
-		endpoint,
-		["dep", "add", id, checkpoint, "--type", "related", "--actor", endpoint.actor],
-		services,
+	services.beforeWrite();
+	await services.beads.dep.add(
+		{ actor: endpoint.actor, cwd: endpoint.repo, db: endpoint.db },
+		id,
+		checkpoint,
+		"related",
 	);
 	return mutate({ id, operation: "initialize" }, endpoint, services);
 }
@@ -386,7 +388,7 @@ async function acquire(
 			!bead.notes &&
 			// eslint-disable-next-line no-await-in-loop -- Native CAS decides ownership before retrying.
 			(await conditionalUpdate(
-				{ args: ["--notes", JSON.stringify({ owner, pid: services.pid })], bead, endpoint },
+				{ input: { notes: JSON.stringify({ owner, pid: services.pid }) }, bead, endpoint },
 				services,
 			))
 		) {
@@ -408,7 +410,7 @@ async function owned(
 	locked: Lock,
 	endpoint: MutationEndpoint,
 	services: Services,
-): Promise<NativeBead> {
+): Promise<BeadRecord> {
 	const bead = await readBead(endpoint, locked.checkpoint, services);
 	if (lockSchema.parse(JSON.parse(bead.notes) as unknown).owner !== locked.owner) {
 		throw new BusyBeeError("ownership_lost", `Lost workflow lock ${locked.checkpoint}`);
@@ -417,12 +419,12 @@ async function owned(
 }
 
 async function updateOwned(
-	request: { locked: Lock; endpoint: MutationEndpoint; args: string[] },
+	request: { locked: Lock; endpoint: MutationEndpoint; input: UpdateBead },
 	services: Services,
 ): Promise<void> {
-	const { locked, endpoint, args } = request;
+	const { locked, endpoint, input } = request;
 	const bead = await owned(locked, endpoint, services);
-	if (!(await conditionalUpdate({ args, bead, endpoint }, services))) {
+	if (!(await conditionalUpdate({ input, bead, endpoint }, services))) {
 		throw new BusyBeeError(
 			"checkpoint_changed",
 			`Checkpoint ${locked.checkpoint} changed while owned by ${locked.owner}`,
@@ -461,7 +463,7 @@ async function mutateOwned(
 				},
 			},
 		);
-		await updateOwned({ args: ["--notes", ""], endpoint, locked: lock }, services);
+		await updateOwned({ input: { notes: "" }, endpoint, locked: lock }, services);
 		return view(prepared.locked.state, actor);
 	} catch (error) {
 		if (effects) {
@@ -471,7 +473,7 @@ async function mutateOwned(
 				{ cause: error, context: { checkpoint: lock.checkpoint, owner: lock.owner } },
 			);
 		}
-		await updateOwned({ args: ["--notes", ""], endpoint, locked: lock }, services);
+		await updateOwned({ input: { notes: "" }, endpoint, locked: lock }, services);
 		throw error;
 	} finally {
 		actor?.stop();
@@ -552,7 +554,7 @@ function selectedTask(entry: ActiveEntry, request: WorkRequest): boolean {
 
 function submissionPayload(
 	request: WorkRequest,
-	task: NativeBead,
+	task: BeadRecord,
 ): { choice: string; data: unknown } {
 	if (request.operation === "collect") {
 		const data = automaticResultSchema.parse(JSON.parse(task.notes) as unknown);
@@ -565,7 +567,7 @@ function submissionPayload(
 	return { choice: request.choice, data };
 }
 
-function validateSubmission(entry: ActiveEntry, task: NativeBead, input: Preparation): Submission {
+function validateSubmission(entry: ActiveEntry, task: BeadRecord, input: Preparation): Submission {
 	const { request, definition, endpoint } = input;
 	if (entry.request && request.operation !== "collect") {
 		throw new BusyBeeError("automatic_task", "Use collect for automatic tasks");
@@ -595,7 +597,7 @@ function commandSchema(definition: Definition, entry: ActiveEntry, choice: strin
 	return schema;
 }
 
-function assertCompleted(task: NativeBead, bead: string, endpoint: MutationEndpoint): void {
+function assertCompleted(task: BeadRecord, bead: string, endpoint: MutationEndpoint): void {
 	if (task.status !== "closed") {
 		throw new BusyBeeError(
 			"task_not_closed",
@@ -722,7 +724,7 @@ async function publish(
 	await closeDepartedGroups({ current, endpoint, run }, services);
 	run.active = await publishEntries({ current, endpoint, identity, run }, services);
 	run.snapshot = snapshotFor(actor);
-	await updateOwned({ args: ["--description", JSON.stringify(run)], endpoint, locked }, services);
+	await updateOwned({ input: { description: JSON.stringify(run) }, endpoint, locked }, services);
 	if (currentStatus(actor) === "done") {
 		await closeTask(endpoint, run.id, services);
 	}
@@ -743,7 +745,7 @@ async function closeDepartedGroups(
 }
 
 async function publishEntries(
-	input: { current: Entry[]; endpoint: MutationEndpoint; identity: NativeBead; run: Run },
+	input: { current: Entry[]; endpoint: MutationEndpoint; identity: BeadRecord; run: Run },
 	services: Services,
 ): Promise<ActiveEntry[]> {
 	const { current, endpoint, identity, run } = input;
@@ -775,7 +777,7 @@ interface EntryInput {
 	/** Checkpoint being advanced. */
 	run: Run;
 	/** Native root ownership and assignment. */
-	identity: NativeBead;
+	identity: BeadRecord;
 	/** Current tracker and audit caller. */
 	endpoint: MutationEndpoint;
 }
@@ -826,7 +828,7 @@ function entryCreation(input: EntryInput) {
 
 function nativeTaskOptions(
 	meta: ActiveEntry["meta"],
-	identity: NativeBead,
+	identity: BeadRecord,
 	brief: { description: string; parent: string; title: string },
 ) {
 	const creation: {

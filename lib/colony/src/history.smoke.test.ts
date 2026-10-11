@@ -2,7 +2,7 @@
 import { expect, test } from "bun:test";
 // eslint-disable-next-line import/no-nodejs-modules -- Exercise the real private SQLite boundary in disposable directories.
 import { mkdtemp, readdir, rm } from "node:fs/promises";
-import { CommandError } from "@hive/shared";
+import { CommandError } from "@hive/beads";
 import type { RequestRecord } from "./request.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Locate disposable database and module paths.
 import { join } from "node:path";

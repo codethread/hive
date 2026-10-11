@@ -19,6 +19,13 @@
         "zod": "^4.6.5",
       },
     },
+    "lib/beads": {
+      "name": "@hive/beads",
+      "version": "0.0.0",
+      "dependencies": {
+        "zod": "^4.6.5",
+      },
+    },
     "lib/busybee": {
       "name": "@hive/busybee",
       "version": "0.0.0",
@@ -26,6 +33,7 @@
         "busybee": "./bin/busybee.ts",
       },
       "dependencies": {
+        "@hive/beads": "workspace:*",
         "@hive/shared": "workspace:*",
         "commander": "^15.0.0",
         "xstate": "^5.33.2",
@@ -36,6 +44,7 @@
       "name": "@hive/colony",
       "version": "0.0.0",
       "dependencies": {
+        "@hive/beads": "workspace:*",
         "@hive/shared": "workspace:*",
         "commander": "^15.0.0",
         "ps-list": "^9.0.0",
@@ -50,6 +59,7 @@
       "version": "0.0.0",
       "dependencies": {
         "@dagrejs/dagre": "^3.1.1",
+        "@hive/beads": "workspace:*",
         "@hive/shared": "workspace:*",
         "@radix-ui/react-context-menu": "^2.3.8",
         "@radix-ui/react-dropdown-menu": "^2.1.25",
@@ -97,6 +107,7 @@
       "name": "@hive/shared",
       "version": "0.0.0",
       "dependencies": {
+        "@hive/beads": "workspace:*",
         "handlebars": "^4.7.9",
         "zod": "^4.6.5",
       },
@@ -105,6 +116,7 @@
       "name": "@hive/tooling",
       "version": "0.0.0",
       "dependencies": {
+        "@hive/beads": "workspace:*",
         "@hive/shared": "workspace:*",
         "proper-lockfile": "^4.1.2",
         "smol-toml": "^1.9.0",
@@ -295,6 +307,8 @@
     "@floating-ui/utils": ["@floating-ui/utils@0.2.12", "", {}, "sha512-HpCo8tmWzLVad5s2d19EhAz5zqrrQ6s69qd6moPMQvkOuSwDT1YgRfWSVuc4ennqrgv3OHppiOGMQ7oC13yIww=="],
 
     "@google/genai": ["@google/genai@2.21.0", "", { "dependencies": { "google-auth-library": "^10.3.0", "p-retry": "^4.6.2", "protobufjs": "^7.5.4", "ws": "^8.18.0" }, "peerDependencies": { "@modelcontextprotocol/sdk": "^1.25.2" }, "optionalPeers": ["@modelcontextprotocol/sdk"] }, "sha512-+PDtco2/Z0ONdzCGekCoCT+O1VJS9xJQNN4XzQpXG/t3El/SWWMkCWlFRO1KmivOHPa4Q0VjUYu1HBKCZ/v33Q=="],
+
+    "@hive/beads": ["@hive/beads@workspace:lib/beads"],
 
     "@hive/busybee": ["@hive/busybee@workspace:lib/busybee"],
 

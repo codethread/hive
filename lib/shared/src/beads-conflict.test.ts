@@ -5,7 +5,7 @@ import {
 	notifyBeadsConflict,
 } from "./beads-conflict.ts";
 import { expect, test } from "bun:test";
-import { CommandError } from "./bees-io.ts";
+import { CommandError } from "@hive/beads";
 
 const FIRST = 0;
 const context = {

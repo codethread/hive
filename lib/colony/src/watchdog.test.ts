@@ -1,8 +1,9 @@
 /* eslint-disable unicorn/no-null -- Checkpoints and public status use explicit nulls. */
-import { CommandError, formatBeadsConflict, isBeadsConflict } from "@hive/shared";
 import { advanceWatchdog, pollWatchdog, watchdogCheckpointSchema } from "./watchdog.ts";
 import { expect, test } from "bun:test";
+import { formatBeadsConflict, isBeadsConflict } from "@hive/shared";
 import type { ColonyStatus } from "@hive/shared";
+import { CommandError } from "@hive/beads";
 import { RequestPublicationError } from "./requests.ts";
 import type { WatchdogCheckpoint } from "./watchdog.ts";
 

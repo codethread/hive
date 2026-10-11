@@ -1,8 +1,6 @@
 /* eslint-disable unicorn/max-nested-calls -- Keep bounded artifact schemas visible at their boundary. */
 /* eslint-disable max-dependencies -- Post-run boundary composes evidence, authority and the matching installed execution commands. */
 /* eslint-disable unicorn/no-null -- Durable advisory checkpoints distinguish queued, running and finished data. */
-import type { BeesConfig, RepositoryEndpoint } from "@hive/shared";
-import { beads, renderFormula } from "@hive/shared";
 import { colonyEntry, entryCommand } from "./executables.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Canonical private artifact paths.
 import { dirname, join } from "node:path";
@@ -18,10 +16,14 @@ import {
 import { link, stat, unlink } from "node:fs/promises";
 import { observeExecution, resumeExecution, stopExecution } from "./processes.ts";
 import { readTokenEvidence, tokenEvidenceSchema } from "./postrun-evidence.ts";
+import type { BeesConfig } from "@hive/shared";
 import type { LaunchReceipt } from "./launch.ts";
 import type { RequestRecord } from "./request.ts";
 import type { Store } from "./store.ts";
+import type { TrackerContext } from "./tracker.ts";
 import { readAssessmentAuthority } from "./store.ts";
+import { renderFormula } from "@hive/shared";
+import { trackerScope } from "./tracker.ts";
 import { z } from "zod";
 
 const RUNTIME_MS = 300_000;
@@ -33,15 +35,6 @@ const NONEMPTY = 1;
 const FIRST = 0;
 const boundedText = z.string().min(NONEMPTY).max(TEXT_LIMIT);
 const citationSchema = z.strictObject({ source: boundedText, detail: boundedText });
-const nativeTaskSchema = z.tuple([
-	z.object({
-		title: z.string(),
-		status: z.string(),
-		description: z.string().default(""),
-		acceptance_criteria: z.string().default(""),
-		notes: z.string().default(""),
-	}),
-]);
 export const assessmentReportSchema = z.strictObject({
 	heuristic: z.literal("welcoming_hive"),
 	summary: boundedText,
@@ -142,9 +135,7 @@ const submittedSchema = z.strictObject({
 });
 export type Assessment = z.infer<typeof assessmentSchema>;
 export type AssessmentReport = z.infer<typeof assessmentReportSchema>;
-interface Runtime {
-	/** Canonical repository, tracker and private persistence owner. */
-	repository: RepositoryEndpoint;
+interface Runtime extends TrackerContext {
 	/** Existing daemon store; auxiliary executions do not reserve ordinary attempts. */
 	store: Store;
 	/** Enrollment/launch policy; existing executions retain their captured invocation. */
@@ -180,7 +171,7 @@ export async function prepareAssessment(
 	const snapshots = await Promise.all(
 		request.context.taskIds
 			.slice(FIRST, MAX_TASKS)
-			.map((id) => readTaskSnapshot(repository, request.context.identity, id)),
+			.map((id) => readTaskSnapshot(runtime, request.context.identity, id)),
 	);
 	return {
 		beadsDb: repository.beadsDb,
@@ -292,34 +283,28 @@ export async function submitAssessment(
 }
 
 // --- Private source and execution effects ---
-async function readTaskSnapshot(repository: RepositoryEndpoint, identity: string, id: string) {
-	let raw: unknown = null;
+async function readTaskSnapshot(
+	{ beads, repository }: TrackerContext,
+	identity: string,
+	id: string,
+) {
 	try {
-		raw = await beads(repository, identity, ["show", id]);
+		const task = await beads.show(trackerScope(repository, identity), id);
+		return {
+			kind: "available",
+			task: {
+				acceptance: task.acceptance_criteria.slice(FIRST, TEXT_LIMIT),
+				description: task.description.slice(FIRST, TEXT_LIMIT),
+				id,
+				notes: task.notes.slice(-TEXT_LIMIT),
+				status: task.status,
+				title: task.title.slice(FIRST, TEXT_LIMIT),
+			},
+		} as const;
 	} catch (error) {
 		// This optional external read yields explicit coverage failure, not a task verdict.
 		return { kind: "unavailable", id, reason: String(error).slice(FIRST, TEXT_LIMIT) } as const;
 	}
-	const parsed = nativeTaskSchema.safeParse(raw);
-	if (!parsed.success) {
-		return {
-			kind: "unavailable",
-			id,
-			reason: `Invalid native task snapshot: ${parsed.error.message}`.slice(FIRST, TEXT_LIMIT),
-		} as const;
-	}
-	const [task] = parsed.data;
-	return {
-		kind: "available",
-		task: {
-			acceptance: task.acceptance_criteria.slice(FIRST, TEXT_LIMIT),
-			description: task.description.slice(FIRST, TEXT_LIMIT),
-			id,
-			notes: task.notes.slice(-TEXT_LIMIT),
-			status: task.status,
-			title: task.title.slice(FIRST, TEXT_LIMIT),
-		},
-	} as const;
 }
 // eslint-disable-next-line max-statements -- Keep ordered auxiliary checkpoints, authority and effects together.
 async function launchAssessment(

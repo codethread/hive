@@ -1,8 +1,10 @@
-import { BeadsGitConflictError, CommandError, notifyBeadsConflict } from "@hive/shared";
+import { BeadsGitConflictError, notifyBeadsConflict } from "@hive/shared";
 import type { Command, TrackerEnvironment } from "./beads-environment.ts";
+import { CommandError, createNativeBeads } from "@hive/beads";
 // eslint-disable-next-line no-duplicate-imports -- Type-only imports are required separately.
 import { resolveEnvironment, runCommand, trackerRoot } from "./beads-environment.ts";
 import type { BeadsConflictNotificationIO } from "@hive/shared";
+import type { BeadsService } from "@hive/beads";
 // eslint-disable-next-line import/no-nodejs-modules -- Host identity in conflict diagnostics.
 import { hostname } from "node:os";
 // eslint-disable-next-line import/no-nodejs-modules -- Repository CLI filesystem paths.
@@ -26,14 +28,21 @@ interface Tracker {
 	root: string;
 }
 
+export interface PublicationServices {
+	/** Git subprocess boundary. */
+	command: Command;
+	/** Native sync boundary, separate from Git. */
+	beads: BeadsService;
+}
+
 export async function syncBeads(
 	environment: TrackerEnvironment,
-	command: Command,
+	services: PublicationServices,
 	notificationIO?: BeadsConflictNotificationIO,
 ): Promise<void> {
-	const tracker = await selectTracker(environment, command);
+	const tracker = await selectTracker(environment, services.command);
 	try {
-		await publishTracker(tracker, command);
+		await publishTracker(tracker, services);
 	} catch (error) {
 		await notifyBeadsConflict(
 			error,
@@ -70,13 +79,13 @@ export async function withTrackerLock<Result>(
 }
 // --- Private functions ---
 
-async function publishTracker(tracker: Tracker, command: Command): Promise<void> {
+async function publishTracker(tracker: Tracker, services: PublicationServices): Promise<void> {
 	// Retry only an observed concurrent remote publication, never a forced push.
 	/* eslint-disable no-await-in-loop */
 	for (let attempt = initialAttempt; attempt < publicationAttempts; attempt += nextAttempt) {
-		await checkpoint(tracker, command);
-		const accepted = await receive(tracker, command);
-		if (await pushSnapshot(tracker, accepted, command)) {
+		await checkpoint(tracker, services);
+		const accepted = await receive(tracker, services);
+		if (await pushSnapshot(tracker, accepted, services.command)) {
 			return;
 		}
 	}
@@ -118,8 +127,11 @@ async function assertCleanScope(tracker: Tracker, command: Command): Promise<voi
 	}
 }
 
-async function reconcileDatabase(tracker: Tracker, command: Command): Promise<void> {
-	await command(["br", "--db", tracker.database, "sync", "--merge", "--json"], tracker.root);
+async function reconcileDatabase(tracker: Tracker, services: PublicationServices): Promise<void> {
+	await services.beads.sync.merge({
+		cwd: tracker.root,
+		db: tracker.database,
+	});
 }
 
 async function commitSnapshot(tracker: Tracker, command: Command): Promise<void> {
@@ -130,20 +142,24 @@ async function commitSnapshot(tracker: Tracker, command: Command): Promise<void>
 	}
 }
 
-async function checkpoint(tracker: Tracker, command: Command): Promise<void> {
-	await assertCleanScope(tracker, command);
-	await reconcileDatabase(tracker, command);
-	await command(["br", "--db", tracker.database, "sync", "--flush-only", "--json"], tracker.root);
-	await commitSnapshot(tracker, command);
+async function checkpoint(tracker: Tracker, services: PublicationServices): Promise<void> {
+	await assertCleanScope(tracker, services.command);
+	await reconcileDatabase(tracker, services);
+	await services.beads.sync.flush({
+		cwd: tracker.root,
+		db: tracker.database,
+	});
+	await commitSnapshot(tracker, services.command);
 }
 
-async function receive(tracker: Tracker, command: Command): Promise<string> {
+async function receive(tracker: Tracker, services: PublicationServices): Promise<string> {
+	const { command } = services;
 	await command(["git", "fetch", tracker.remote], tracker.root);
 	const accepted = await command(["git", "rev-parse", "@{upstream}"], tracker.root);
 	const ancestor = await command(["git", "merge-base", "HEAD", accepted], tracker.root);
 	if (ancestor !== accepted) {
 		await mergeSnapshot(tracker, accepted, command);
-		await reconcileDatabase(tracker, command);
+		await reconcileDatabase(tracker, services);
 		await commitSnapshot(tracker, command);
 	}
 	return accepted;
@@ -187,12 +203,21 @@ async function pushSnapshot(
 
 if (import.meta.main) {
 	const environment = await resolveEnvironment(process.cwd(), runCommand);
-	await withTrackerLock(environment, () => syncBeads(environment, runPublicationCommand));
+	await withTrackerLock(environment, () =>
+		syncBeads(environment, {
+			beads: createNativeBeads({ execute: runPublicationCommand }),
+			command: runPublicationCommand,
+		}),
+	);
 }
 
 /** Retain stdout diagnostics from native --json operations and visible subprocess stderr. */
-async function runPublicationCommand(argv: readonly string[], cwd: string): Promise<string> {
-	const child = Bun.spawn([...argv], { cwd, stderr: "pipe", stdout: "pipe" });
+async function runPublicationCommand(
+	argv: readonly string[],
+	cwd: string,
+	env: NodeJS.ProcessEnv = process.env,
+): Promise<string> {
+	const child = Bun.spawn([...argv], { cwd, env, stderr: "pipe", stdout: "pipe" });
 	const [stdout, stderr, code] = await Promise.all([
 		new Response(child.stdout).text(),
 		new Response(child.stderr).text(),

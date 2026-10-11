@@ -1,38 +1,41 @@
 /* eslint-disable import/no-nodejs-modules -- Integration fixtures own disposable native repositories and filesystem setup. */
 import type { MutationEndpoint, Services } from "../../src/native.ts";
 import { afterEach, beforeEach, expect } from "bun:test";
-import { createServices, readBead, tracker } from "../../src/native.ts";
+import { createMemoryBeads, createNativeBeads } from "@hive/beads";
+import { createServices, readBead } from "../../src/native.ts";
 import { mkdir, mkdtemp, rm, symlink } from "node:fs/promises";
 import { execute } from "@hive/shared";
 import { join } from "node:path";
 import { runCli } from "../../src/cli.ts";
 import { runViewSchema } from "../../src/runtime.ts";
 import { tmpdir } from "node:os";
-import { z } from "zod";
 
 const SUCCESS = 0;
-const issue = z.object({ id: z.string() });
-const issueList = z.object({ issues: z.array(issue) });
 const imports = `import {createMachine,setup,assign} from ${JSON.stringify(import.meta.resolve("xstate"))};import {z} from ${JSON.stringify(import.meta.resolve("zod"))};`;
 
-export interface NativeFixture {
+export interface RepositoryFixture {
 	/** Disposable fixture root, including the execution repository. */
 	root: string;
-	/** Separate native tracker authority and mutation identity. */
+	/** Separate tracker authority and mutation identity. */
 	options: MutationEndpoint & { owner: string };
-	/** Live native I/O with fixture-local environment and execution directory. */
+	/** Real authoring I/O with memory tracking, or native tracking for discovery contracts. */
 	services: Services;
 	/** Environment passed only to owned subprocesses. */
 	env: NodeJS.ProcessEnv;
 }
 
-export function useNativeFixture(prefix: string): NativeFixture {
-	const fixture: NativeFixture = {
+export function useNativeFixture(prefix: string): RepositoryFixture {
+	return useRepositoryFixture(prefix, true);
+}
+
+export function useRepositoryFixture(prefix: string, native = false): RepositoryFixture {
+	const fixture: RepositoryFixture = {
 		env: {},
 		options: { actor: "test-agent", db: "", owner: "test-human", repo: "" },
 		root: "",
 		services: createServices(),
 	};
+	// eslint-disable-next-line max-statements -- Keep endpoint, environment and repository initialization in one setup hook.
 	beforeEach(async () => {
 		fixture.root = await mkdtemp(join(tmpdir(), prefix));
 		const repo = join(fixture.root, "repo");
@@ -44,10 +47,15 @@ export function useNativeFixture(prefix: string): NativeFixture {
 		fixture.services = {
 			...createServices(),
 			actor: undefined,
+			beads: createMemoryBeads({ db: fixture.options.db }),
 			cwd: repo,
 			execute: (argv, cwd) => execute(argv, cwd, fixture.env),
 		};
-		await initializeNativeRepository(fixture);
+		await createRepository(fixture, repo);
+		if (native) {
+			fixture.services.beads = createNativeBeads({ env: fixture.env });
+			await initializeNativeRepository(fixture);
+		}
 	});
 	afterEach(async () => {
 		await rm(fixture.root, { force: true, recursive: true });
@@ -55,7 +63,7 @@ export function useNativeFixture(prefix: string): NativeFixture {
 	return fixture;
 }
 
-export async function createRepository(fixture: NativeFixture, repo: string): Promise<void> {
+export async function createRepository(fixture: RepositoryFixture, repo: string): Promise<void> {
 	await mkdir(repo, { recursive: true });
 	await fixture.services.execute(["git", "init", "--quiet", repo], fixture.root);
 	await symlink(
@@ -65,7 +73,7 @@ export async function createRepository(fixture: NativeFixture, repo: string): Pr
 }
 
 export async function writeDefinition(
-	fixture: NativeFixture,
+	fixture: RepositoryFixture,
 	name: string,
 	body: string,
 ): Promise<string> {
@@ -77,7 +85,7 @@ export async function writeDefinition(
 	return source;
 }
 
-export function optionsArgs(fixture: NativeFixture): string[] {
+export function optionsArgs(fixture: RepositoryFixture): string[] {
 	const { actor, db, owner, repo } = fixture.options;
 	return ["--db", db, "--repo", repo, "--actor", actor, "--owner", owner];
 }
@@ -103,44 +111,39 @@ export async function invoke(argv: string[], services: Services) {
 	return { ...result, document };
 }
 
-export async function view(fixture: NativeFixture, command: string[], services = fixture.services) {
+export async function view(
+	fixture: RepositoryFixture,
+	command: string[],
+	services = fixture.services,
+) {
 	const result = await invoke([...optionsArgs(fixture), ...command], services);
 	expect(result.code, result.stdout).toBe(SUCCESS);
 	return runViewSchema.parse(result.document);
 }
 
-export function record(fixture: NativeFixture, id: string) {
+export function record(fixture: RepositoryFixture, id: string) {
 	return readBead(fixture.options, id, fixture.services);
 }
 
-export async function close(fixture: NativeFixture, id: string): Promise<void> {
-	await tracker(
-		fixture.options,
-		[
-			"close",
-			id,
-			"--actor",
-			fixture.options.actor,
-			"--reason",
-			"Completed: disposable integration fixture.",
-		],
-		fixture.services,
-	);
+export async function close(fixture: RepositoryFixture, id: string): Promise<void> {
+	const { actor, db, repo } = fixture.options;
+	await fixture.services.beads.close({ actor, cwd: repo, db }, id, {
+		reason: "Completed: disposable integration fixture.",
+	});
 }
 
-export async function checkpoint(fixture: NativeFixture, id: string) {
+export async function checkpoint(fixture: RepositoryFixture, id: string) {
 	const run = await record(fixture, id);
 	return record(fixture, run.dependencies.find((edge) => edge.dependency_type === "related")!.id);
 }
 
-export async function issueIds(fixture: NativeFixture): Promise<string[]> {
-	const result = issueList.parse(
-		await tracker(fixture.options, ["list", "--all", "--limit", "0"], fixture.services),
-	);
+export async function issueIds(fixture: RepositoryFixture): Promise<string[]> {
+	const { db, repo } = fixture.options;
+	const result = await fixture.services.beads.list({ cwd: repo, db }, { all: true, limit: 0 });
 	return result.issues.map((entry) => entry.id).toSorted();
 }
 
-export async function observations(fixture: NativeFixture, id: string) {
+export async function observations(fixture: RepositoryFixture, id: string) {
 	const state = await checkpoint(fixture, id);
 	return {
 		checkpoint: state.id,
@@ -151,7 +154,7 @@ export async function observations(fixture: NativeFixture, id: string) {
 }
 
 export async function assertUnchanged(
-	fixture: NativeFixture,
+	fixture: RepositoryFixture,
 	before: Awaited<ReturnType<typeof observations>>,
 ): Promise<void> {
 	const state = await record(fixture, before.checkpoint);
@@ -161,9 +164,8 @@ export async function assertUnchanged(
 
 // --- Private helpers ---
 
-async function initializeNativeRepository(fixture: NativeFixture): Promise<void> {
+async function initializeNativeRepository(fixture: RepositoryFixture): Promise<void> {
 	const { repo, db, actor } = fixture.options;
-	await createRepository(fixture, repo);
 	await fixture.services.execute(
 		["br", "init", "--db", db, "--prefix", "test", "--actor", actor],
 		repo,

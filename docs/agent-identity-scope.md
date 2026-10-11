@@ -61,7 +61,8 @@ Colony owns the CLI and runtime in one package. Bee remains the request interfac
 | Location | Current responsibility |
 | --- | --- |
 | `lib/colony` | Bee request interface and Colony commands, daemon hosting independent repository colonies, dispatch, claims, retries, supervision and recovery |
-| `lib/shared` | Shared recipes, formulas, spawn-request representation, protocol and Beads I/O |
+| `lib/beads` | Consumed native Beads contract and injected native/in-memory adapters |
+| `lib/shared` | Shared recipes, formulas, spawn-request representation and protocol |
 | `lib/honeycomb` | Git worktree manager and canonical-root discovery |
 | Scent (planned) | Native session/child identity hooks and Pi extension; independent of `.hive/bees.toml` |
 

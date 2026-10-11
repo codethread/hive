@@ -3,26 +3,21 @@ import type { AckOptions, InspectionOptions, ListOptions, StopOptions } from "./
 import {
 	BEE_ACKNOWLEDGMENT_PREFIX,
 	COLONY_OBSERVATION_PREFIX,
-	CommandError,
 	SPAWN_REQUEST_LABELS,
 	acknowledgmentSchema,
-	beadSchema,
-	beads,
 	latestColonyObservation,
 	latestStdoutActivity,
 	projectedRequestLabels,
 	readSpawnRequest,
+	readSpawnRequestSummary,
 	requestAcknowledgment,
 	requestDisposition,
 	requestLabelsCurrent,
 	requestNeedsAttention,
 	requestOutcome,
 	requestResolution,
-	resolveRepository,
-	showBead,
 } from "@hive/shared";
 import type {
-	Bead,
 	Recipe,
 	RepositoryEndpoint,
 	RequestAcknowledgment,
@@ -30,8 +25,12 @@ import type {
 	SpawnDisposition,
 	StdoutActivity,
 } from "@hive/shared";
+import type { TrackerCommands, TrackerContext } from "./tracker.ts";
+import type { Bead } from "@hive/beads";
+import { CommandError } from "@hive/beads";
 // eslint-disable-next-line import/no-nodejs-modules -- Automatic publication belongs to the requesting machine.
 import { hostname } from "node:os";
+import { trackerScope } from "./tracker.ts";
 import { z } from "zod";
 
 const INSPECTION_ACTOR = "bee";
@@ -141,39 +140,36 @@ export interface AcknowledgmentResult {
 export async function inspectRequest(
 	id: string,
 	options: InspectionOptions,
+	{ beads, resolveRepository }: TrackerCommands,
 ): Promise<RequestResult> {
 	const repository = await resolveRepository(options.repo, options.beadsDb);
 	const [request, ready] = await Promise.all([
-		showBead(repository, INSPECTION_ACTOR, id),
-		readyTasks(repository),
+		beads.show(trackerScope(repository, INSPECTION_ACTOR), id),
+		readyTasks({ beads, repository }),
 	]);
 	return {
 		kind: "request_status",
 		repository,
-		request: await requestView(repository, request, ready),
+		request: await requestView({ beads, repository }, request, ready),
 	};
 }
 // eslint-disable-next-line max-statements -- Keep candidate discovery, authoritative filtering and selected detail reads ordered together.
-export async function listRequests(options: ListOptions): Promise<RequestListResult> {
+export async function listRequests(
+	options: ListOptions,
+	{ beads, resolveRepository }: TrackerCommands,
+): Promise<RequestListResult> {
 	const repository = await resolveRepository(options.repo, options.beadsDb);
 	const labels: string[] = [...SPAWN_REQUEST_LABELS];
 	if (!options.all) {
 		labels.push("bee-resolution:unresolved");
 	}
-	const listing = z
-		.object({ issues: z.array(beadSchema) })
-		.parse(
-			await beads(repository, INSPECTION_ACTOR, [
-				"list",
-				"--status",
-				"all",
-				...labels.flatMap((label) => ["--label", label]),
-				"--limit",
-				"0",
-			]),
-		);
+	const listing = await beads.list(trackerScope(repository, INSPECTION_ACTOR), {
+		all: true,
+		labels,
+		limit: 0,
+	});
 	const candidates = await Promise.all(
-		listing.issues.map(({ id }) => showBead(repository, INSPECTION_ACTOR, id)),
+		listing.issues.map(({ id }) => beads.show(trackerScope(repository, INSPECTION_ACTOR), id)),
 	);
 	// Acknowledgment or supersession can resolve a candidate before its labels are published.
 	const requests = candidates.filter(
@@ -182,25 +178,31 @@ export async function listRequests(options: ListOptions): Promise<RequestListRes
 	if (requests.length < NONEMPTY) {
 		return { kind: "request_list", repository, requests: [] };
 	}
-	const ready = await readyTasks(repository);
+	const ready = await readyTasks({ beads, repository });
 	return {
 		kind: "request_list",
 		repository,
-		requests: await Promise.all(requests.map((request) => requestView(repository, request, ready))),
+		requests: await Promise.all(
+			requests.map((request) => requestView({ beads, repository }, request, ready)),
+		),
 	};
 }
 /** Closing a request records intent; an awake Colony performs owned execution cleanup. */
 // eslint-disable-next-line max-statements -- Preserve committed closure and its publication context through offline repair.
-export async function stopRequest(id: string, options: StopOptions): Promise<RequestResult> {
+export async function stopRequest(
+	id: string,
+	options: StopOptions,
+	{ beads, resolveRepository }: TrackerCommands,
+): Promise<RequestResult> {
 	const repository = await resolveRepository(options.repo, options.beadsDb);
 	const actor = z.string().min(NONEMPTY).parse(options.actor);
-	let request = await showBead(repository, actor, id);
+	let request: Bead = await beads.show(trackerScope(repository, actor), id);
 	readSpawnRequest(request);
 	if (request.status !== "closed") {
-		await beads(repository, actor, ["close", id, "--reason", "Stopped by Bee"]);
+		await beads.close(trackerScope(repository, actor), id, { reason: "Stopped by Bee" });
 	}
 	try {
-		request = await publishRequestLabels(repository, actor, id);
+		request = await publishRequestLabels({ beads, repository }, actor, id);
 	} catch (error) {
 		if (error instanceof RequestPublicationError) {
 			throw error;
@@ -210,7 +212,11 @@ export async function stopRequest(id: string, options: StopOptions): Promise<Req
 	return {
 		kind: "request_stopped",
 		repository,
-		request: await requestView(repository, request, await readyTasks(repository)),
+		request: await requestView(
+			{ beads, repository },
+			request,
+			await readyTasks({ beads, repository }),
+		),
 	};
 }
 
@@ -219,27 +225,26 @@ export async function stopRequest(id: string, options: StopOptions): Promise<Req
 export async function acknowledgeRequest(
 	id: string,
 	options: AckOptions,
+	{ beads, resolveRepository }: TrackerCommands,
 ): Promise<AcknowledgmentResult> {
 	const actor = z.string().trim().min(NONEMPTY).parse(options.actor);
 	const reason = z.string().trim().min(NONEMPTY).parse(options.reason);
 	const repository = await resolveRepository(options.repo, options.beadsDb);
-	let request = await showBead(repository, actor, id);
+	let request: Bead = await beads.show(trackerScope(repository, actor), id);
 	readSpawnRequest(request);
 	if (requestOutcome(request) !== "failed") {
 		throw new Error(`Request ${id} is not a closed failed request`);
 	}
 	if (requestResolution(request).kind === "unresolved") {
 		const record = acknowledgmentSchema.parse({ closedAt: request.closed_at, reason });
-		await beads(repository, actor, [
-			"comments",
-			"add",
+		await beads.comments.add(
+			trackerScope(repository, actor),
 			id,
-			"--message",
 			`${BEE_ACKNOWLEDGMENT_PREFIX} ${JSON.stringify(record)}`,
-		]);
+		);
 	}
 	try {
-		request = await publishRequestLabels(repository, actor, id);
+		request = await publishRequestLabels({ beads, repository }, actor, id);
 	} catch (error) {
 		if (error instanceof RequestPublicationError) {
 			throw error;
@@ -263,54 +268,48 @@ export async function acknowledgeRequest(
 /** Publish predecessors before the replacement, so an interrupted creation remains recoverable. */
 // eslint-disable-next-line max-params -- Automatic publishers supply host authority; explicit Bee actions omit it.
 export async function publishRequestLabels(
-	repository: RepositoryEndpoint,
+	{ beads, repository }: TrackerContext,
 	actor: string,
 	id: string,
 	host?: string,
 ): Promise<Bead> {
-	const spawn = await showBead(repository, actor, id);
+	const spawn = await beads.show(trackerScope(repository, actor), id);
 	assertPublicationHost(spawn, host);
 	for (const predecessor of spawn.dependencies.filter(
 		({ dependency_type }) => dependency_type === "supersedes",
 	)) {
 		// eslint-disable-next-line no-await-in-loop -- Finish each predecessor's projection before admitting its replacement.
-		const old = await showBead(repository, actor, predecessor.id);
+		const old = await beads.show(trackerScope(repository, actor), predecessor.id);
 		if (host === undefined || readSpawnRequest(old).host === host) {
 			// eslint-disable-next-line no-await-in-loop -- Native provenance already exists; repair only predecessors belonging to this publisher.
-			await publishLabels(repository, { actor, host }, old);
+			await publishLabels({ beads, repository }, { actor, host }, old);
 		}
 	}
-	return publishLabels(repository, { actor, host }, spawn);
+	return publishLabels({ beads, repository }, { actor, host }, spawn);
 }
 
 /** Recover offline closure before registration, including a stopped replacement's provenance. */
-export async function reconcileClosedRequestLabels(repository: RepositoryEndpoint): Promise<void> {
-	const { issues } = z
-		.object({ issues: z.array(beadSchema) })
-		.parse(
-			await beads(repository, "colony", [
-				"list",
-				"--status",
-				"closed",
-				...SPAWN_REQUEST_LABELS.flatMap((label) => ["--label", label]),
-				"--label",
-				"bee-outcome:pending",
-				"--limit",
-				"0",
-			]),
-		);
+export async function reconcileClosedRequestLabels({
+	beads,
+	repository,
+}: TrackerContext): Promise<void> {
+	const { issues } = await beads.list(trackerScope(repository, "colony"), {
+		status: ["closed"],
+		labels: [...SPAWN_REQUEST_LABELS, "bee-outcome:pending"],
+		limit: 0,
+	});
 	for (const issue of issues.filter(
-		(candidate) => readSpawnRequest(candidate).host === hostname(),
+		(candidate) => readSpawnRequestSummary(candidate).host === hostname(),
 	)) {
 		// eslint-disable-next-line no-await-in-loop -- Bounded native publications complete before the next closed request is repaired.
-		await publishRequestLabels(repository, "colony", issue.id, hostname());
+		await publishRequestLabels({ beads, repository }, "colony", issue.id, hostname());
 	}
 }
 
 // --- Private functions ---
 // eslint-disable-next-line max-statements -- Keep the bounded conflict recovery and its latest failure context together.
 async function publishLabels(
-	repository: RepositoryEndpoint,
+	{ beads, repository }: TrackerContext,
 	{ actor, host }: { actor: string; host: string | undefined },
 	bead: Bead,
 ): Promise<Bead> {
@@ -323,14 +322,10 @@ async function publishLabels(
 		/* eslint-disable no-await-in-loop -- One rebased write is allowed; a second conflict only gets a convergence read. */
 		while (!requestLabelsCurrent(current)) {
 			try {
-				await beads(repository, actor, [
-					"update",
-					current.id,
-					"--if-unchanged",
-					current.updated_at,
-					"--set-labels",
-					projectedRequestLabels(current).join(","),
-				]);
+				await beads.update(trackerScope(repository, actor), [current.id], {
+					ifUnchanged: current.updated_at,
+					setLabels: projectedRequestLabels(current),
+				});
 				break;
 			} catch (error) {
 				if (
@@ -339,7 +334,7 @@ async function publishLabels(
 				) {
 					throw error;
 				}
-				current = await showBead(repository, actor, current.id);
+				current = await beads.show(trackerScope(repository, actor), current.id);
 				assertPublicationHost(current, host);
 				if (requestLabelsCurrent(current)) {
 					return current;
@@ -351,7 +346,7 @@ async function publishLabels(
 			}
 		}
 		/* eslint-enable no-await-in-loop */
-		current = await showBead(repository, actor, current.id);
+		current = await beads.show(trackerScope(repository, actor), current.id);
 		assertPublicationHost(current, host);
 		if (!requestLabelsCurrent(current)) {
 			throw new Error("Native facts changed during publication");
@@ -376,21 +371,19 @@ function assertPublicationHost(bead: Bead, host: string | undefined): void {
 	}
 }
 
-async function readyTasks(repository: RepositoryEndpoint): Promise<Set<string>> {
-	const ready = z
-		.array(beadSchema.pick({ id: true }))
-		.parse(await beads(repository, INSPECTION_ACTOR, ["ready", "--brief", "--limit", "0"]));
+async function readyTasks({ beads, repository }: TrackerContext): Promise<Set<string>> {
+	const ready = await beads.ready(trackerScope(repository, INSPECTION_ACTOR), { limit: 0 });
 	return new Set(ready.map(({ id }) => id));
 }
 async function requestView(
-	repository: RepositoryEndpoint,
+	{ beads, repository }: TrackerContext,
 	bead: Bead,
 	ready: Set<string>,
 ): Promise<RequestView> {
 	const request = readSpawnRequest(bead);
 	const tasks = await Promise.all(
 		request.taskIds.map(async (id): Promise<TaskView> => {
-			const task = await showBead(repository, INSPECTION_ACTOR, id);
+			const task = await beads.show(trackerScope(repository, INSPECTION_ACTOR), id);
 			let readiness: TaskView["readiness"] = "blocked";
 			if (task.status === "closed") {
 				readiness = "closed";

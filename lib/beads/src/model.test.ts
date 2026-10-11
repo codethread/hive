@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { CommandError } from "./bees-io.ts";
+import { CommandError } from "./model.ts";
 
 test("native stdout diagnostic survives stderr warnings without logging unrelated context", () => {
 	const stdout = JSON.stringify({

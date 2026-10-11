@@ -15,7 +15,7 @@ Hive relies on external programs it does not ship. This document records, for ea
 | zsh, Nushell | Host the `wk` picker wrapper | Optional | [`commands/shell-init.ts`](../lib/honeycomb/src/commands/shell-init.ts) |
 | POSIX `sh` | Runs picker preview commands | With fzf | Preview builders in [`pick.ts`](../lib/honeycomb/src/commands/pick.ts), [`add.ts`](../lib/honeycomb/src/commands/add.ts) and the multiplexer |
 | Bun | Embedded CLI runtime, compiler, package manager, test runner and script shell | Separate installation for development and builds | None; see [Development toolchain](#development-toolchain) |
-| br (Beads) | Native tasks, spawn requests, claims and observations; repository work tracking | Bee/Colony runtime and development | [`bees-io.ts`](../lib/shared/src/bees-io.ts), [tracker integration](./beads-integration.md) |
+| br (Beads) | Native tasks, spawn requests, claims and observations; repository work tracking | Bee/Colony runtime and development | [`@hive/beads`](../lib/beads/), [tracker integration](./beads-integration.md) |
 | bv (Beads Viewer) | PageRank scheduling and read-only work selection | Default Colony ranking; optional with FIFO | [`ranking.ts`](../lib/colony/src/ranking.ts), [viewer recipes](../.bv/recipes.yaml) |
 
 Honeycomb reaches every runtime tool through a service in [`services.ts`](../lib/honeycomb/src/services.ts) (`GitRunner`, `HookRunner`, `PickerService`, `Multiplexer`, `CdDirective`), composed once in `createLiveDeps`. Commands and domain code never spawn processes directly, so a replacement is a new service implementation, not a change to lifecycle logic. Preview strings are the one leak: they are shell text the picker executes, and they reference picker and multiplexer syntax (see below).

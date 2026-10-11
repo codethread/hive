@@ -1,5 +1,7 @@
-import { BeadsGitConflictError, CommandError } from "@hive/shared";
+import type { BeadsScope, BeadsService } from "@hive/beads";
+import { CommandError, createMemoryBeads } from "@hive/beads";
 import { expect, test } from "bun:test";
+import { BeadsGitConflictError } from "@hive/shared";
 import type { Command } from "./beads-environment.ts";
 import { syncBeads } from "./beads-publish.ts";
 
@@ -23,27 +25,34 @@ test.each([
 	{ kind: "native", nativeCode: "SYNC_CONFLICT", alerts: 1, gitConflict: false },
 	{ kind: "other", nativeCode: "IO_ERROR", alerts: 0, gitConflict: false },
 	{ kind: "merge error", nativeCode: "IO_ERROR", alerts: 0, gitConflict: false },
-] as const)("publication stops and alerts only a verified conflict: $kind", async (fixture) => {
-	const { command, original, calls } = publicationFixture(fixture);
-	const bodies: string[] = [];
-	const result = syncBeads(environment, command, {
-		notify: (body) => {
-			bodies.push(body);
-			return Promise.resolve();
-		},
-		report: () => {},
-	});
-	const failure = await result.catch((error: unknown) => error);
-	expect(failure instanceof BeadsGitConflictError).toBe(fixture.gitConflict);
-	if (!fixture.gitConflict) {
-		expect(failure).toBe(original);
-	}
-	expect(bodies).toHaveLength(fixture.alerts);
-	expect(calls.some((call) => call.startsWith("git push"))).toBe(false);
-});
+] as const)(
+	"publication stops and alerts only a verified conflict: $kind",
+	// eslint-disable-next-line max-statements -- Verify notification policy and tracker attribution across each typed sync failure.
+	async (fixture) => {
+		const { services, original, calls, scopes } = publicationFixture(fixture);
+		const bodies: string[] = [];
+		const result = syncBeads(environment, services, {
+			notify: (body) => {
+				bodies.push(body);
+				return Promise.resolve();
+			},
+			report: () => {},
+		});
+		const failure = await result.catch((error: unknown) => error);
+		expect(failure instanceof BeadsGitConflictError).toBe(fixture.gitConflict);
+		if (!fixture.gitConflict) {
+			expect(failure).toBe(original);
+		}
+		expect(bodies).toHaveLength(fixture.alerts);
+		expect(calls.some((call) => call.startsWith("git push"))).toBe(false);
+		for (const scope of scopes) {
+			expect(scope).toEqual({ cwd: "/repo/.worktrees/tracker--state", db: environment.BEADS_DB });
+		}
+	},
+);
 
 test("failed notification does not mask publication failure", async () => {
-	const { command, original } = publicationFixture({
+	const { services, original } = publicationFixture({
 		kind: "native",
 		nativeCode: "SYNC_CONFLICT",
 		alerts: ONE,
@@ -51,7 +60,7 @@ test("failed notification does not mask publication failure", async () => {
 	});
 	const reports: string[] = [];
 	await expect(
-		syncBeads(environment, command, {
+		syncBeads(environment, services, {
 			notify: () => Promise.reject(new Error("delivery unavailable")),
 			report: (message) => {
 				reports.push(message);
@@ -65,6 +74,7 @@ test("failed notification does not mask publication failure", async () => {
 function publicationFixture(fixture: FailureFixture) {
 	const original = originalErrors[fixture.nativeCode];
 	const calls: string[] = [];
+	const scopes: BeadsScope[] = [];
 	let merging = false;
 	// eslint-disable-next-line require-await, max-statements -- Fake the serial subprocess boundary without IO or timing.
 	const command: Command = async (argv) => {
@@ -93,9 +103,6 @@ function publicationFixture(fixture: FailureFixture) {
 				break;
 			}
 		}
-		if (argv[FIRST] === "br" && (fixture.kind === "native" || fixture.kind === "other")) {
-			throw original;
-		}
 		if (argv[ONE] === "merge-base") {
 			return "common-revision";
 		}
@@ -105,7 +112,24 @@ function publicationFixture(fixture: FailureFixture) {
 		}
 		return "";
 	};
-	return { command, original, calls };
+	const synchronize = (scope: BeadsScope) => {
+		scopes.push(scope);
+		calls.push("sync");
+		if (fixture.kind === "native" || fixture.kind === "other") {
+			return Promise.reject(original);
+		}
+		return Promise.resolve();
+	};
+	const memory = createMemoryBeads();
+	const beads: BeadsService = {
+		...memory,
+		sync: {
+			...memory.sync,
+			merge: synchronize,
+			flush: synchronize,
+		},
+	};
+	return { services: { beads, command }, original, calls, scopes };
 }
 
 function nativeFailure(code: string): CommandError {

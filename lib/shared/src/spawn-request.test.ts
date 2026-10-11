@@ -6,6 +6,7 @@ import {
 	latestStdoutActivity,
 	projectedRequestLabels,
 	readSpawnRequest,
+	readSpawnRequestSummary,
 	requestAcknowledgment,
 	requestDisposition,
 	requestLabelsCurrent,
@@ -14,7 +15,7 @@ import {
 	spawnRequestLabels,
 } from "./spawn-request.ts";
 import { expect, test } from "bun:test";
-import { beadSchema } from "./bees-io.ts";
+import { beadSchema } from "@hive/beads";
 
 const FIRST = 0;
 const INVALID_HOST_NUMBER = 1;
@@ -295,3 +296,17 @@ test.each(["", " ", INVALID_HOST_NUMBER, null])(
 		expect(() => readSpawnRequest(bead)).toThrow(Error);
 	},
 );
+
+test("request summaries retain validated identity and host without hydrated relations", () => {
+	const bead = {
+		id: original.id,
+		description: JSON.stringify({ ...recipe, host: "requesting-machine" }),
+		labels: spawnRequestLabels(recipe.kind),
+		assignee: "friendly-bee",
+	};
+	const summary = readSpawnRequestSummary(bead);
+	const { taskIds: _taskIds, ...detail } = readSpawnRequest({ ...original, ...bead });
+	expect(summary).toEqual(detail);
+	expect(() => readSpawnRequestSummary({ ...bead, labels: [] })).toThrow(Error);
+	expect(() => readSpawnRequestSummary({ ...bead, assignee: "" })).toThrow(Error);
+});

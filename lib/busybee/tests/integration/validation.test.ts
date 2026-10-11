@@ -2,6 +2,7 @@
 import { afterAll, expect, test } from "bun:test";
 import { cp, mkdtemp, rm } from "node:fs/promises";
 import { dirname, join } from "node:path";
+import { createMemoryBeads } from "@hive/beads";
 import { createServices } from "../../src/native.ts";
 import { runCli } from "../../src/cli.ts";
 import { tmpdir } from "node:os";
@@ -114,6 +115,13 @@ async function invoke(args: string[]) {
 	const services = {
 		...createServices(),
 		actor: undefined,
+		beads: {
+			...createMemoryBeads(),
+			where: () => {
+				calls.push(["where"]);
+				return Promise.reject(new Error("Validation must not invoke tracker operations"));
+			},
+		},
 		execute: (argv: string[]) => {
 			calls.push(argv);
 			return Promise.reject(new Error("Validation must not invoke native commands"));

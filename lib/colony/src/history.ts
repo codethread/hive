@@ -1,5 +1,6 @@
 /* eslint-disable unicorn/no-null -- History explicitly distinguishes unknown evidence from observed facts. */
-import { CommandError, requestOutcomeSchema, requestStateSchema } from "@hive/shared";
+import { requestOutcomeSchema, requestStateSchema } from "@hive/shared";
+import { CommandError } from "@hive/beads";
 import { Database } from "bun:sqlite";
 import type { RepositoryEndpoint } from "@hive/shared";
 import type { RequestRecord } from "./request.ts";

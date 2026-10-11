@@ -247,44 +247,6 @@ export type Detail = z.infer<typeof detailSchema>;
 export type Relation = z.infer<typeof relationSchema>;
 export type Provenance = z.infer<typeof provenanceSchema>;
 
-interface TaskQueryPage {
-	/** Maximum matching rows returned by this native query. */
-	limit: number;
-	/** Matching rows skipped before this page. */
-	offset: number;
-}
-
-/** Exact native label semantics, including literal commas and case. */
-export function taskQuery(filter: BeadFilter, taskIds: string[], page: TaskQueryPage): string[] {
-	let args = ["list"];
-	if (filter.query) {
-		args = ["search", filter.query];
-	}
-	for (const [values, flag] of [
-		[taskIds, "--id"],
-		[filter.statuses, "--status"],
-		[filter.priorities.map(String), "--priority"],
-		[filter.all, "--label"],
-		[filter.any, "--label-any"],
-		[["system", "bee", ...filter.exclude], "--exclude-label"],
-	] as const) {
-		args.push(...values.flatMap((value) => [flag, value]));
-	}
-	if (filter.closed || filter.statuses.includes("closed")) {
-		args.push("--all");
-	}
-	args.push(
-		"--deferred",
-		"--sort",
-		"priority",
-		"--limit",
-		String(page.limit),
-		"--offset",
-		String(page.offset),
-	);
-	return args;
-}
-
 export function boardKey(colony: string, filter: BoardFilter): string {
 	return JSON.stringify([colony, filter]);
 }

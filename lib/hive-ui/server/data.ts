@@ -12,37 +12,21 @@ import type {
 	Provenance,
 	RequestInventory,
 } from "../contracts.ts";
+import type { BeadRecord, BeadRow, BeadSelection, BeadsScope, BeadsService } from "@hive/beads";
 import {
 	COLONY_OBSERVATION_PREFIX,
-	beadSchema,
-	beads,
 	latestColonyObservation,
 	readSpawnRequest,
 	requestOutcome,
 } from "@hive/shared";
-import { PAGE_SIZE, RELATION_LIMIT, REQUEST_PAGE_SIZE, taskQuery } from "../contracts.ts";
-import { z } from "zod";
+import { PAGE_SIZE, RELATION_LIMIT, REQUEST_PAGE_SIZE } from "../contracts.ts";
+import { formatBeadsQuery } from "@hive/beads";
+import { taskSelection } from "./query.ts";
 
 const MAX_REQUESTS = 100;
 const TASK_MATCH_BATCH = 100;
 const MAX_ANCESTORS = 8;
 const INVENTORY_TTL_MS = 10_000;
-const nativeRelationSchema = z.object({
-	dependency_type: z.string(),
-	id: z.string(),
-	priority: z.number().int(),
-	status: z.string(),
-	title: z.string(),
-});
-const nativeSchema = beadSchema.extend({
-	acceptance_criteria: z.string().default(""),
-	created_by: z.string().optional(),
-	dependencies: z.array(nativeRelationSchema).default([]),
-	dependents: z.array(nativeRelationSchema).default([]),
-	title: z.string(),
-});
-const nativeListSchema = z.object({ issues: z.array(nativeSchema) });
-type NativeBead = z.infer<typeof nativeSchema>;
 type Inventory = Extract<RequestInventory, { kind: "loaded" }>;
 interface InventorySnapshot {
 	/** Native lookup start, used to satisfy a refresh cutoff independently of response completion. */
@@ -51,6 +35,8 @@ interface InventorySnapshot {
 	value: Inventory;
 }
 interface ReadContext {
+	/** Injected tracker reads for this endpoint. */
+	beads: BeadsService;
 	/** Server-selected diagnostics sink; machine mode uses a file. */
 	log: (sample: object) => Promise<void>;
 	/** Explicit startup allowlist entry, not a browser-supplied filesystem path. */
@@ -103,7 +89,7 @@ export function createBoardData() {
 	};
 	const cards = async (
 		context: ReadContext,
-		tasks: NativeBead[],
+		tasks: BeadRow[],
 		refreshAfter: number,
 	): Promise<Card[]> => {
 		let assignments: Bee[] = [];
@@ -177,7 +163,7 @@ export function createBoardData() {
 }
 
 // --- Native I/O and projections ---
-function relations(edges: NativeBead["dependencies"]): Detail["dependencies"] {
+function relations(edges: BeadRecord["dependencies"]): Detail["dependencies"] {
 	return {
 		items: edges.slice(0, RELATION_LIMIT).map((edge) => ({
 			dependencyType: edge.dependency_type,
@@ -195,7 +181,7 @@ async function readTasks(
 	context: ReadContext,
 	filter: BoardFilter,
 	inventory: RequestInventory,
-): Promise<{ tasks: NativeBead[]; query: string[] }> {
+): Promise<{ tasks: BeadRow[]; query: string[] }> {
 	let taskIds: string[] = [];
 	if (inventory.kind === "loaded") {
 		if (filter.request === undefined) {
@@ -210,11 +196,12 @@ async function readTasks(
 			return { query: [], tasks: [] };
 		}
 	}
-	const args = taskQuery(filter, taskIds, {
+	const selection = taskSelection(filter, taskIds, {
 		limit: PAGE_SIZE + 1,
 		offset: filter.page * PAGE_SIZE,
 	});
-	const tasks = nativeListSchema.parse(await read(context, args)).issues;
+	const args = formatBeadsQuery(selection, filter.query || undefined);
+	const tasks = await list(context, selection, filter.query);
 	const query = [
 		"br",
 		...args,
@@ -248,10 +235,10 @@ async function filterInventory(
 	const matching = new Set<string>();
 	for (let offset = 0; offset < taskIds.length; offset += TASK_MATCH_BATCH) {
 		const batch = taskIds.slice(offset, offset + TASK_MATCH_BATCH);
-		const args = taskQuery(filter, batch, { limit: batch.length, offset: 0 });
+		const selection = taskSelection(filter, batch, { limit: batch.length, offset: 0 });
 		// eslint-disable-next-line no-await-in-loop -- Bound native process concurrency and argv size while covering every linked task.
-		const { issues } = nativeListSchema.parse(await read(context, args));
-		for (const task of issues) {
+		const tasks = await list(context, selection, filter.query);
+		for (const task of tasks) {
 			matching.add(task.id);
 		}
 	}
@@ -262,17 +249,17 @@ async function filterInventory(
 }
 
 // eslint-disable-next-line max-statements -- Native execution telemetry covers success, size and failure in one boundary.
-async function read(context: ReadContext, args: string[]): Promise<unknown> {
+async function read<Value>(
+	context: ReadContext,
+	args: string[],
+	operation: () => Promise<Value>,
+): Promise<Value> {
 	const started = performance.now();
 	let outcome = "error";
 	let bytes = 0;
 	let failure: string | undefined = undefined;
 	try {
-		const value = await beads(context.colony, "hive-ui", [
-			...args,
-			"--no-auto-import",
-			"--no-auto-flush",
-		]);
+		const value = await operation();
 		bytes = new TextEncoder().encode(JSON.stringify(value)).length;
 		outcome = "ok";
 		return value;
@@ -295,55 +282,72 @@ async function read(context: ReadContext, args: string[]): Promise<unknown> {
 	}
 }
 
-async function show(context: ReadContext, id: string): Promise<NativeBead> {
-	return z
-		.array(nativeSchema)
-		.length(1)
-		.parse(await read(context, ["show", id]))[0]!;
+function readScope(context: ReadContext): BeadsScope {
+	return {
+		actor: "hive-ui",
+		cwd: context.colony.root,
+		db: context.colony.beadsDb,
+		noAutoImport: true,
+		noAutoFlush: true,
+	};
+}
+
+function show(context: ReadContext, id: string): Promise<BeadRecord> {
+	return read(context, ["show", id], () => context.beads.show(readScope(context), id));
+}
+
+async function list(context: ReadContext, selection: BeadSelection, text = ""): Promise<BeadRow[]> {
+	const page = await read<{ issues: BeadRow[] }>(
+		context,
+		formatBeadsQuery(selection, text || undefined),
+		() => {
+			if (text) {
+				return context.beads.search(readScope(context), text, selection);
+			}
+			return context.beads.list(readScope(context), selection);
+		},
+	);
+	return page.issues;
 }
 
 // eslint-disable-next-line max-statements -- One bounded inventory read owns scope, lookahead and native hydration.
 async function readInventory(context: ReadContext, scope: BoardScope): Promise<Inventory> {
 	let limit = MAX_REQUESTS;
-	const args = ["list", "--label", "system", "--label", "bee"];
+	const selection: BeadSelection = { labels: ["system", "bee"] };
 	if (scope.view === "completed") {
 		limit = REQUEST_PAGE_SIZE;
-		args.push(
-			"--all",
-			"--status",
-			"closed",
-			"--label",
-			"bee-outcome:succeeded",
-			"--sort",
-			"updated_at",
-			"--offset",
-			String(scope.requestPage * limit),
-		);
+		selection.all = true;
+		selection.status = ["closed"];
+		selection.labels = [...selection.labels!, "bee-outcome:succeeded"];
+		selection.sort = "updated_at";
+		selection.offset = scope.requestPage * limit;
 	} else {
-		args.push("--status", "open");
+		selection.status = ["open"];
 	}
-	args.push("--limit", String(limit + 1));
-	const listing = nativeListSchema.parse(await read(context, args));
-	if (scope.view === "open" && listing.issues.length > limit) {
+	selection.limit = limit + 1;
+	const issues = await list(context, selection);
+	if (scope.view === "open" && issues.length > limit) {
 		throw new Error(
 			`This MVP supports up to ${MAX_REQUESTS} open requests per colony. Narrow the tracker before loading the board.`,
 		);
 	}
-	const ids = listing.issues.slice(0, limit).map((issue) => issue.id);
-	let requests: NativeBead[] = [];
+	const ids = issues.slice(0, limit).map((issue) => issue.id);
+	let requests: BeadRecord[] = [];
 	if (ids.length > 0) {
-		requests = z.array(nativeSchema).parse(await read(context, ["show", ...ids]));
+		requests = await read(context, ["show", ...ids], () =>
+			context.beads.showMany(readScope(context), ids),
+		);
 	}
 	return {
 		bees: requests.map((request) => bee(request)),
 		total: requests.length,
-		hasMore: listing.issues.length > limit,
+		hasMore: issues.length > limit,
 		kind: "loaded",
 		readAt: new Date().toISOString(),
 	};
 }
 
-function bee(bead: NativeBead): Bee {
+function bee(bead: BeadRecord): Bee {
 	const request = readSpawnRequest(bead);
 	const observed = latestColonyObservation(bead);
 	let observation: Bee["observation"] = null;
@@ -369,7 +373,7 @@ function bee(bead: NativeBead): Bee {
 	};
 }
 
-function card(bead: NativeBead, requests: Bee[]): Card {
+function card(bead: BeadRow, requests: Bee[]): Card {
 	return {
 		assignee: bead.assignee ?? null,
 		beeAssignments: requests
@@ -410,20 +414,12 @@ async function readProvenance(context: ReadContext, id: string): Promise<Provena
 			end = { kind: "unmatched", requester: null };
 			break;
 		}
-		const matches = nativeListSchema.parse(
-			await read(context, [
-				"list",
-				"--label",
-				"system",
-				"--label",
-				"bee",
-				"--assignee",
-				item.requester,
-				"--all",
-				"--limit",
-				"3",
-			]),
-		).issues;
+		const matches = await list(context, {
+			labels: ["system", "bee"],
+			assignee: item.requester,
+			all: true,
+			limit: 3,
+		});
 		if (matches.length === 0) {
 			end = { kind: "unmatched", requester: item.requester };
 			break;
