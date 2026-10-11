@@ -95,7 +95,6 @@ test.each([
 		options.as = caller;
 	}
 	const result = discoverKinds(current, undefined, options);
-	expect(result.kinds.map((kind) => kind.name)).toEqual([...expected]);
 	expect(result.kinds).toEqual(expected.map((name) => ({ description: base.description, name })));
 });
 

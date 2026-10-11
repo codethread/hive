@@ -10,6 +10,7 @@
 		"build": "bun build ./bin/bee.ts --compile --outfile ./dist/bee && bun build ./bin/colony.ts --compile --outfile ./dist/colony && bun build ./bin/runtime.ts --compile --outfile ./dist/colony-runtime && bun build ./bin/worker.ts --compile --outfile ./dist/colony-worker && bun build ./bin/watchdog.ts --compile --outfile ./dist/colony-watchdog"
 	},
 	"dependencies": {
+		"@hive/beads": "workspace:*",
 		"@hive/shared": "workspace:*",
 		"commander": "^15.0.0",
 		"ps-list": "^9.0.0",

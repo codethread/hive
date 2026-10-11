@@ -23,7 +23,7 @@ The current reference app differs from the user's recalled data flow: it uses Ta
 
 ## Package and runtime
 
-`hive-ui` is an independent product package. It imports only `@hive/shared` across package boundaries, reusing native Beads I/O, repository resolution and spawn decoding. It does not import Colony, inspect its private SQLite schema or call `colony list`: that command currently refreshes persisted attempt state. The earlier librarian consultation `.1` established these read-only constraints; its proposed Colony-hosted UI was superseded by the user's explicit package direction.
+`hive-ui` is an independent product package. It imports `@hive/beads` for injected tracker I/O and `@hive/shared` for repository resolution and spawn decoding. It does not import Colony, inspect its private SQLite schema or call `colony list`: that command currently refreshes persisted attempt state. The earlier librarian consultation `.1` established these read-only constraints; its proposed Colony-hosted UI was superseded by the user's explicit package direction.
 
 Startup selects one `--repo`/`--beads-db` pair, or an explicit JSON list of named endpoints through `--colonies`. Each endpoint keeps its canonical root and selected absolute database together. A stable endpoint ID keys routes and per-colony views. The switcher lists configured endpoints without querying all their trackers. Automatic discovery and temporary daemon registrations are outside this MVP.
 
@@ -53,7 +53,7 @@ Bees shows requests in an Outline or Graph, defaulting to Outline. Its separate 
 
 Native `br list` does not supply related task edges, so each requested inventory page requires one batched `br show` to discover membership and recorded observations. This is a bounded cost on the selected colony, not a full-history hydration. Native results contain more fields than the browser needs; the server projects away recipes/prompts and board descriptions/comments. Measure before adding a new native projection API.
 
-All reads use Shared's native `br` boundary with auto-import/export disabled. Repeated label groups go straight to `--label`, `--label-any`, and `--exclude-label`; labels are case-sensitive and commas remain literal. `system` and `bee` are always excluded from task results. The label picker contains labels on the loaded page; exact labels can also be entered manually. It never presents whole-tracker label counts as board counts.
+All reads use the injected `@hive/beads` service, composed with the native adapter in production and auto-import/export disabled. Repeated label groups go straight to `--label`, `--label-any`, and `--exclude-label`; labels are case-sensitive and commas remain literal. `system` and `bee` are always excluded from task results. The label picker contains labels on the loaded page; exact labels can also be entered manually. It never presents whole-tracker label counts as board counts.
 
 Acceptance criteria render through `react-markdown` with `remark-gfm`, preserving native source text while displaying semantic lists and disabled task checkboxes. The renderer is mounted on demand when selected detail has criteria; raw HTML remains escaped and the default safe URL transform is retained. This adds no data reads or changes to route/store ownership.
 

@@ -3,10 +3,12 @@ import { Command, CommanderError } from "commander";
 // eslint-disable-next-line import/no-nodejs-modules -- Resolve explicitly configured local repository endpoints.
 import { basename, resolve } from "node:path";
 import { boardFilterSchema, boardScopeSchema, inventoryFilterSchema } from "../contracts.ts";
+import type { BeadsService } from "@hive/beads";
 import type { Colony } from "../contracts.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Explicit machine-mode diagnostics file boundary.
 import { appendFile } from "node:fs/promises";
 import { createBoardData } from "./data.ts";
+import { createNativeBeads } from "@hive/beads";
 import index from "../src/index.html";
 import { readStatuses } from "./statuses.ts";
 import { resolveRepository } from "@hive/shared";
@@ -83,11 +85,12 @@ async function main(): Promise<void> {
 		}
 		const colonies = await readColonies(options);
 		const data = createBoardData();
+		const beads = createNativeBeads();
 		const server = Bun.serve({
 			development,
 			hostname: "127.0.0.1",
 			port: options.port,
-			routes: { "/*": index, "/api/*": (request) => api(request, { colonies, data, log }) },
+			routes: { "/*": index, "/api/*": (request) => api(request, { beads, colonies, data, log }) },
 		});
 		const ready = {
 			colonies: colonies.length,
@@ -151,10 +154,12 @@ async function colony(endpoint: { root: string; beadsDb: string }, name: string)
 async function api(
 	request: Request,
 	{
+		beads,
 		colonies,
 		data,
 		log,
 	}: {
+		beads: BeadsService;
 		colonies: Colony[];
 		data: ReturnType<typeof createBoardData>;
 		log: (sample: object) => Promise<void>;
@@ -205,7 +210,7 @@ async function api(
 			.int()
 			.nonnegative()
 			.parse(url.searchParams.get("refreshAfter") ?? 0);
-		const context = { colony: selected, log, requestId };
+		const context = { beads, colony: selected, log, requestId };
 		if (route["operation"] === "board") {
 			status = HTTP.badRequest;
 			const filter = boardFilterSchema.parse(JSON.parse(url.searchParams.get("filter") ?? "{}"));

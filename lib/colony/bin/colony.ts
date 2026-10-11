@@ -1,8 +1,9 @@
 #!/usr/bin/env bun
 /* eslint-disable max-dependencies -- CLI composes daemon commands and independent read-only inspection boundaries. */
-import { CommandError, execute, policyChangeSchema, resolveRepository } from "@hive/shared";
+import { CommandError, createNativeBeads } from "@hive/beads";
 import type { ConfigOptions, ServerOptions } from "../src/cli.ts";
 import { colonyEntry, entryCommand } from "../src/executables.ts";
+import { execute, policyChangeSchema, resolveRepository } from "@hive/shared";
 import { requestLazyServer, requestServer } from "../src/client.ts";
 import type { ConfigCommand } from "@hive/shared";
 import type { ServerTarget } from "../src/client.ts";
@@ -16,6 +17,7 @@ import { resolveServerTarget } from "../src/server-target.ts";
 import { runCli } from "../src/cli.ts";
 
 const USER_ARGUMENTS_START = 2;
+const beads = createNativeBeads();
 const SUCCESS = 0;
 const runtime = colonyEntry("runtime");
 process.exitCode = await runCli(Bun.argv.slice(USER_ARGUMENTS_START), {
@@ -44,7 +46,11 @@ process.exitCode = await runCli(Bun.argv.slice(USER_ARGUMENTS_START), {
 			request: options.request,
 		}),
 	explain: async (id, options) =>
-		explainRequest(id, await resolveRepository(options.repo, options.beadsDb), target(options)),
+		explainRequest(
+			id,
+			{ beads, repository: await resolveRepository(options.repo, options.beadsDb) },
+			target(options),
+		),
 	init: initRepository,
 	inspect: async (options) =>
 		requestServer(target(options), {

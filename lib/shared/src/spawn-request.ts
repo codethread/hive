@@ -1,4 +1,4 @@
-import type { Bead, BeadComment } from "./bees-io.ts";
+import type { Bead, BeadComment } from "@hive/beads";
 import type { Recipe } from "./bees.ts";
 import { recipeSchema } from "./bees.ts";
 import { z } from "zod";
@@ -129,6 +129,18 @@ export function spawnRequestLabels(kind: string): string[] {
 
 /** Interpret the Beads representation once, before request-specific decisions. */
 export function readSpawnRequest(bead: Bead): SpawnRequest {
+	return {
+		...readSpawnRequestSummary(bead),
+		taskIds: bead.dependencies
+			.filter(({ dependency_type }) => dependency_type === "related")
+			.map(({ id }) => id),
+	};
+}
+
+/** Decode list-visible request facts without pretending relationship detail was loaded. */
+export function readSpawnRequestSummary(
+	bead: Pick<Bead, "id" | "description" | "labels" | "assignee">,
+): Omit<SpawnRequest, "taskIds"> {
 	const { host, ...capturedRecipe } = z
 		.object({ host: z.string().trim().min(NONEMPTY).optional() })
 		.passthrough()
@@ -148,9 +160,6 @@ export function readSpawnRequest(bead: Bead): SpawnRequest {
 		// eslint-disable-next-line unicorn/no-null -- Missing provenance remains explicitly unbound for historical inspection.
 		host: host ?? null,
 		recipe,
-		taskIds: bead.dependencies
-			.filter(({ dependency_type }) => dependency_type === "related")
-			.map(({ id }) => id),
 	};
 }
 

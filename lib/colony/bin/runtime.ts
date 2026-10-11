@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+import { createNativeBeads } from "@hive/beads";
 import { launch } from "../src/launch.ts";
 import { match } from "ts-pattern";
 import { resolveRepository } from "@hive/shared";
@@ -6,6 +7,7 @@ import { serve } from "../src/server.ts";
 import { z } from "zod";
 
 const USER_ARGUMENTS_START = 2;
+const beads = createNativeBeads();
 const SOCKET_ARGUMENT = 2;
 const STATE_ARGUMENT = 4;
 const commandSchema = z.union([
@@ -37,9 +39,9 @@ try {
 	await match(command)
 		.with({ kind: "launch" }, async ({ id, repo, database, state }) => {
 			const endpoint = await resolveRepository(repo, database);
-			console.log(JSON.stringify(await launch({ ...endpoint, id, state })));
+			console.log(JSON.stringify(await launch({ ...endpoint, beads, id, state })));
 		})
-		.with({ kind: "serve" }, ({ socket, state }) => serve({ socket, state }))
+		.with({ kind: "serve" }, ({ socket, state }) => serve({ socket, state }, beads))
 		.exhaustive();
 } catch (error) {
 	if (error instanceof Error) {

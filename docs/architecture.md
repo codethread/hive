@@ -1,21 +1,24 @@
 # Architecture
 
-Hive's product packages are independently replaceable. They cooperate through commands and protocols; `@hive/shared` is the only permitted cross-package import, and Shared imports no product package. `.oxlintrc.json` enforces this direction.
+Hive's product packages are independently replaceable. They cooperate through commands and protocols; `@hive/shared` and `@hive/beads` are the permitted cross-package imports. Shared may consume Beads; Beads imports no Hive package, and Shared imports no product package. `.oxlintrc.json` enforces this direction.
 
 ## Package responsibilities and seams
 
 | Package | Owns | Interface to other packages |
 | --- | --- | --- |
+| `lib/beads` | The subset of the native Beads contract consumed by Hive, with native and in-memory adapters | Exports an injected service; owns no Hive scheduling or workflow policy |
 | `lib/colony` | Bee request interface and Colony CLI, daemon ownership, repository scheduling, task claims, retries, supervision and private persistence | Imports Shared contracts; consumes spawn beads through native `br`; launches native harness executables |
-| `lib/shared` | Contracts used by both CLI and runtime: recipes, formulas, spawn requests, repository endpoints and daemon messages; common native Beads I/O | Exports types, boundary parsers and small shared operations; owns no daemon, scheduler or CLI presentation |
+| `lib/shared` | Contracts used by both CLI and runtime: recipes, formulas, spawn requests, repository endpoints and daemon messages | Exports types, boundary parsers and small shared operations; owns no daemon, scheduler or CLI presentation |
 | `lib/honeycomb` | Worktree discovery and lifecycle, including canonical-root decisions | Public command interface; Bee and Colony obtain the canonical root through `honeycomb root` |
 | `lib/waggle` | Classifier discovery and execution | Independent `waggle` CLI; it does not decide runtime scheduling or mutate requests |
 | `lib/busybee` | Workflow navigation, task visits and per-run checkpoints | XState chooses transitions; native `br` stores work and checkpoints; optional Bee requests delegate execution to Colony |
-| `lib/hive-ui` | Read-only work-board HTTP projections, route-driven browser snapshots and presentation | Imports Shared native Beads I/O and spawn decoding; reads explicitly configured repository/database pairs |
+| `lib/hive-ui` | Read-only work-board HTTP projections, route-driven browser snapshots and presentation | Imports Beads services and Shared spawn decoding; reads explicitly configured repository/database pairs |
 | `lib/tooling` | Repository maintenance commands | Development tooling, independent of the Bee execution path |
 | `lib/qlock` | Ticketed local command admission, private SQLite queue state and foreground child execution | TypeScript/Bun CLI with pure ticket policy and injected native I/O; only merge-target queues call `honeycomb root` for repository identity |
 
 Use Shared when actual consumers need the same contract. Spawn-request representation belongs there because submission, offline inspection and execution must agree; scheduling and terminal formatting stay in Colony. Busy Bee's workflow rules remain independent of Colony execution; its [specification](../lib/busybee/SPEC.md) defines progression and checkpoint authority.
+
+Beads services are supplied through consumer contexts. Named operations accept typed arguments and return typed records; the native adapter owns CLI arguments and output parsing. Application entry points compose the native adapter; behavior tests supply isolated in-memory adapters implementing those same operations directly. Native conformance tests belong to `lib/beads`, so consumer tests share a validated contract without spawning `br`. Filesystem, Git and process-boundary tests remain with the modules owning those effects.
 
 Hive UI owns its browser/API schemas and bounded read models. It neither imports Colony nor reads its private store; native Beads is its source. See the [UI design](design/hive-ui.md) for fetch ownership and the [UI guide](../lib/hive-ui/README.md) for startup.
 

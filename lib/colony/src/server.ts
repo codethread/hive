@@ -1,3 +1,4 @@
+/* eslint-disable import/max-dependencies -- Server composes tracker injection with daemon, policy and persistence boundaries. */
 /* eslint-disable unicorn/no-null -- Protocol and persisted revision metadata explicitly encode absent policy, actor and formula name. */
 import type {
 	AttemptStatus,
@@ -14,6 +15,7 @@ import { colonyRequestSchema, resolveRepository } from "@hive/shared";
 import { dirname, isAbsolute } from "node:path";
 import { loadPolicy, policySnapshot, policyView, updatePolicy } from "./policy.ts";
 import type { ActivePolicy } from "./policy.ts";
+import type { BeadsService } from "@hive/beads";
 import type { ColonyActivity } from "./colony.ts";
 import { claimServer } from "./server-ownership.ts";
 import { createColony } from "./colony.ts";
@@ -42,7 +44,7 @@ interface ServerOptions {
 
 /** Bind before serving repository mutations; a second socket owner fails clearly. */
 // eslint-disable-next-line max-statements -- The server owns registry, actors and orderly shutdown in one scope.
-export async function serve(options: ServerOptions): Promise<void> {
+export async function serve(options: ServerOptions, beads: BeadsService): Promise<void> {
 	if (!isAbsolute(options.socket) || !isAbsolute(options.state)) {
 		throw new Error("Colony requires absolute socket and state paths");
 	}
@@ -56,7 +58,7 @@ export async function serve(options: ServerOptions): Promise<void> {
 		registration: RunningColony["registration"],
 		activity: ColonyActivity,
 	) => {
-		const actor = createColony({ repository, state: options.state, store }, activity);
+		const actor = createColony({ beads, repository, state: options.state, store }, activity);
 		const policy = match(activity)
 			.with({ state: "awake" }, ({ config, revisionId }) => ({ config, revisionId }))
 			// eslint-disable-next-line unicorn/no-null -- JSON explicitly distinguishes absent effective policy from loaded policy.

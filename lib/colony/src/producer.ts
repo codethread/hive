@@ -1,19 +1,17 @@
-import type { BeesConfig, Recipe, RepositoryEndpoint } from "@hive/shared";
+/* eslint-disable import/max-dependencies -- Submission composes tracker admission, configuration and native recipe capture. */
+import type { BeesConfig, Recipe } from "@hive/shared";
 import { RequestPublicationError, publishRequestLabels } from "./requests.ts";
 import type { RetryOptions, SpawnOptions } from "./bee-cli.ts";
 import {
 	SPAWN_REQUEST_LABELS,
-	beadSchema,
-	beads,
 	canonicalRoot,
 	parseBeesConfig,
 	readSpawnRequest,
 	recipeSchema,
 	requestNeedsAttention,
-	resolveRepository,
-	showBead,
 	spawnRequestLabels,
 } from "@hive/shared";
+import type { TrackerCommands, TrackerContext } from "./tracker.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Canonical config and submission cwd paths.
 import { join, resolve } from "node:path";
 // eslint-disable-next-line import/no-nodejs-modules -- Exclusive configuration creation and execution directory validation.
@@ -22,10 +20,19 @@ import type { InitOptions } from "./cli.ts";
 import { createIdentity } from "./identity.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Submission binds execution to the requesting machine.
 import { hostname } from "node:os";
-import { loadBeesConfig } from "./config.ts";
-import { z } from "zod";
+import type { loadBeesConfig } from "./config.ts";
+import { trackerScope } from "./tracker.ts";
 
 const NONE = 0;
+
+export interface ProducerCommands extends TrackerCommands {
+	/** Load the canonical submission policy and kinds at the command boundary. */
+	loadBeesConfig: typeof loadBeesConfig;
+}
+interface ProducerContext extends TrackerContext {
+	/** Current configuration captured before the request is created. */
+	loadBeesConfig: typeof loadBeesConfig;
+}
 
 export interface InitializedResult {
 	/** Canonical configuration created. */
@@ -54,38 +61,45 @@ export async function initRepository(options: InitOptions): Promise<InitializedR
 	return { kind: "initialized", path };
 }
 export async function spawnRequest(
-	kind: string,
-	requestedIds: string[],
-	options: SpawnOptions,
+	{ kind, requestedIds, options }: { kind: string; requestedIds: string[]; options: SpawnOptions },
+	{ beads, resolveRepository, loadBeesConfig }: ProducerCommands,
 ): Promise<SpawnResult> {
 	const endpoint = await resolveRepository(options.repo, options.beadsDb);
-	return createRequest(endpoint, { kind, requestedIds }, options);
+	return createRequest(
+		{ beads, repository: endpoint, loadBeesConfig },
+		{ kind, requestedIds },
+		options,
+	);
 }
 
 /** Replace a terminal failure using current defaults and unfinished work only. */
 // eslint-disable-next-line max-statements -- Keep admission, replacement creation and predecessor publication ordered at the command boundary.
-export async function retryRequest(id: string, options: RetryOptions): Promise<SpawnResult> {
+export async function retryRequest(
+	id: string,
+	options: RetryOptions,
+	{ beads, resolveRepository, loadBeesConfig }: ProducerCommands,
+): Promise<SpawnResult> {
 	const endpoint = await resolveRepository(options.repo, options.beadsDb);
-	const bead = await showBead(endpoint, options.actor, id);
+	const bead = await beads.show(trackerScope(endpoint, options.actor), id);
 	const old = readSpawnRequest(bead);
 	if (!requestNeedsAttention(bead)) {
-		await publishRequestLabels(endpoint, options.actor, old.id);
+		await publishRequestLabels({ beads, repository: endpoint }, options.actor, old.id);
 		throw new Error(`Request ${old.id} is not an unresolved unsuccessful request`);
 	}
 	const tasks = await Promise.all(
-		old.taskIds.map((taskId) => showBead(endpoint, options.actor, taskId)),
+		old.taskIds.map((taskId) => beads.show(trackerScope(endpoint, options.actor), taskId)),
 	);
 	const ids = tasks.filter((task) => task.status !== "closed").map((task) => task.id);
 	if (ids.length === NONE) {
 		throw new Error(`Request ${old.id} has no unfinished tasks`);
 	}
 	const replacement = await createRequest(
-		endpoint,
+		{ beads, repository: endpoint, loadBeesConfig },
 		{ kind: options.kind ?? old.recipe.kind, requestedIds: ids, supersedes: old.id },
 		options,
 	);
 	try {
-		await publishRequestLabels(endpoint, options.actor, old.id);
+		await publishRequestLabels({ beads, repository: endpoint }, options.actor, old.id);
 	} catch (error) {
 		throw new RequestPublicationError(
 			{ replacementIds: [replacement.request.id], requestId: old.id },
@@ -98,37 +112,34 @@ export async function retryRequest(id: string, options: RetryOptions): Promise<S
 // --- Private functions ---
 // eslint-disable-next-line max-statements -- Admission, recipe capture and provenance form one native submission boundary.
 async function createRequest(
-	endpoint: RepositoryEndpoint,
+	{ beads, repository: endpoint, loadBeesConfig }: ProducerContext,
 	input: { kind: string; requestedIds: string[]; supersedes?: string },
 	options: SpawnOptions,
 ): Promise<SpawnResult> {
 	const { kind, requestedIds, supersedes } = input;
 	const { config } = await loadBeesConfig(endpoint.root);
-	const ids = await admitTasks(endpoint, { actor: options.actor, ids: requestedIds }, config);
+	const ids = await admitTasks(
+		{ beads, repository: endpoint },
+		{ actor: options.actor, ids: requestedIds },
+		config,
+	);
 	const recipe = await captureRecipe({ kind, options }, config);
 	const identity = createIdentity();
-	const dependencies = ids.map((id) => `related:${id}`);
+	const dependencies = ids.map((id) => ({ id, type: "related" }));
 	if (supersedes !== undefined) {
-		dependencies.push(`supersedes:${supersedes}`);
+		dependencies.push({ id: supersedes, type: "supersedes" });
 	}
-	const created = await beads(endpoint, options.actor, [
-		"create",
-		"--title",
-		`Bee ${kind}: ${ids.join(", ")}`,
-		"--owner",
-		config.owner,
-		"--assignee",
-		identity,
-		"--labels",
-		spawnRequestLabels(kind).join(","),
-		"--description",
-		JSON.stringify({ ...recipe, host: hostname() }),
-		"--deps",
-		dependencies.join(","),
-	]);
+	const created = await beads.create(trackerScope(endpoint, options.actor), {
+		title: `Bee ${kind}: ${ids.join(", ")}`,
+		owner: config.owner,
+		assignee: identity,
+		labels: spawnRequestLabels(kind),
+		description: JSON.stringify({ ...recipe, host: hostname() }),
+		deps: dependencies,
+	});
 	return {
 		kind: "spawn_created",
-		request: z.looseObject({ assignee: z.string(), id: z.string() }).parse(created),
+		request: { ...created, assignee: identity },
 	};
 }
 
@@ -193,11 +204,11 @@ async function captureRecipe(
 }
 // eslint-disable-next-line max-statements -- Validate human reservations and task-scoped duplicate candidates before submission.
 async function admitTasks(
-	endpoint: RepositoryEndpoint,
+	{ beads, repository: endpoint }: TrackerContext,
 	{ ids, actor }: { ids: string[]; actor: string },
 	config: BeesConfig,
 ): Promise<string[]> {
-	const tasks = await Promise.all(ids.map((id) => showBead(endpoint, actor, id)));
+	const tasks = await Promise.all(ids.map((id) => beads.show(trackerScope(endpoint, actor), id)));
 	const reserved = tasks.find(
 		(task) =>
 			task.status !== "closed" &&
@@ -215,19 +226,12 @@ async function admitTasks(
 		),
 	);
 	if (requestIds.size > NONE) {
-		const listing = z
-			.object({ issues: z.array(beadSchema) })
-			.parse(
-				await beads(endpoint, actor, [
-					"list",
-					"--status",
-					"open",
-					...SPAWN_REQUEST_LABELS.flatMap((label) => ["--label", label]),
-					...[...requestIds].flatMap((id) => ["--id", id]),
-					"--limit",
-					"0",
-				]),
-			);
+		const listing = await beads.list(trackerScope(endpoint, actor), {
+			status: ["open"],
+			labels: SPAWN_REQUEST_LABELS,
+			ids: [...requestIds],
+			limit: 0,
+		});
 		const duplicate = listing.issues.at(NONE);
 		if (duplicate) {
 			throw new Error(`Open spawn ${duplicate.id} already requests one of these tasks`);

@@ -1,4 +1,4 @@
-import { CommandError } from "./bees-io.ts";
+import { CommandError } from "@hive/beads";
 import type { RepositoryEndpoint } from "./bees-io.ts";
 
 const NOTIFY_TIMEOUT_MS = 10_000;

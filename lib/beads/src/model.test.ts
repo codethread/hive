@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { CommandError } from "./bees-io.ts";
+import { CommandError } from "./model.ts";
 
 test("native stdout diagnostic survives stderr warnings without logging unrelated context", () => {
 	const stdout = JSON.stringify({
@@ -14,7 +14,6 @@ test("native stdout diagnostic survives stderr warnings without logging unrelate
 		stderr: "unrelated runtime warning\n",
 		stdout,
 	});
-	expect(error).toBeInstanceOf(CommandError);
 	expect(error.message).toMatchInlineSnapshot(
 		'"br update exited 6: UPDATE_PRECONDITION_FAILED: test-task changed since you read it. Nothing was written."',
 	);

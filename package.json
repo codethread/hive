@@ -16,6 +16,7 @@
 		"typecheck": "tsc --noEmit -p tsconfig.json && bun run --filter '*' typecheck",
 		"test:all": "bun run ./lib/tooling/src/test-runner.ts all",
 		"test:changed": "bun run ./lib/tooling/src/test-runner.ts changed",
+		"test:contracts": "bun run ./lib/tooling/src/test-runner.ts contracts",
 		"check": "bun run fmt:check && bun run lint && bun run typecheck && bun run test:all",
 		"beads:bootstrap": "bun run ./lib/tooling/src/beads-bootstrap.ts",
 		"beads:setup": "bun run ./lib/tooling/src/beads-setup.ts",

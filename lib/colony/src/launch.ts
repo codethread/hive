@@ -1,16 +1,14 @@
 /* eslint-disable max-dependencies -- Launch boundary composes receipt, identity, configuration and detached executable ownership. */
-import type { Bead, Formula, RepositoryEndpoint } from "@hive/shared";
+import type { Bead, BeadsService } from "@hive/beads";
+import type { Formula, RepositoryEndpoint } from "@hive/shared";
+import { colonyEntry, entryCommand } from "./executables.ts";
 import {
-	beadSchema,
-	beads,
 	formulaSchema,
 	invocationSchema,
 	readSpawnRequest,
 	recipeSchema,
 	renderFormula,
-	showBead,
 } from "@hive/shared";
-import { colonyEntry, entryCommand } from "./executables.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Supply the host home at the native invocation boundary.
 import { homedir, hostname } from "node:os";
 // eslint-disable-next-line import/no-nodejs-modules -- Resolve owned receipt and execution directories.
@@ -23,6 +21,7 @@ import { match } from "ts-pattern";
 import { runOwnedExecution } from "./processes.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Launch the existing detached supervisor for ordinary attempts and drones.
 import { spawn as spawnSupervisor } from "node:child_process";
+import { trackerScope } from "./tracker.ts";
 import { z } from "zod";
 
 const EMPTY = 0;
@@ -81,6 +80,8 @@ export const workerReceiptSchema = z.discriminatedUnion("kind", [
 ]);
 export type LaunchReceipt = z.infer<typeof launchReceiptSchema>;
 export interface LaunchRequest extends RepositoryEndpoint {
+	/** Injected tracker used during preparation only. */
+	beads: BeadsService;
 	/** Spawn request to execute. */
 	id: string;
 	/** Explicit private execution state directory. */
@@ -145,7 +146,8 @@ export async function prepareLaunch(
 	// eslint-disable-next-line unicorn/no-null -- Manual launches have no daemon policy revision.
 	policyRevisionId: string | null = null,
 ): Promise<Preparation> {
-	const spawn = await showBead(request, "colony", request.id);
+	const { beads } = request;
+	const spawn = await beads.show(trackerScope(request, "colony"), request.id);
 	if (spawn.status !== "open") {
 		throw new Error(`Request ${spawn.id} is ${spawn.status}, expected open`);
 	}
@@ -153,10 +155,10 @@ export async function prepareLaunch(
 	if (host !== hostname()) {
 		throw new Error(`Request ${spawn.id} belongs to host ${host ?? "unbound"}, not ${hostname()}`);
 	}
-	const tasks = await Promise.all(taskIds.map((id) => showBead(request, identity, id)));
-	const ready = z
-		.array(beadSchema.pick({ id: true }))
-		.parse(await beads(request, identity, ["ready", "--brief", "--limit", "0"]));
+	const tasks = await Promise.all(
+		taskIds.map((id) => beads.show(trackerScope(request, identity), id)),
+	);
+	const ready = await beads.ready(trackerScope(request, identity), { limit: 0 });
 	const eligible = eligibility(tasks, ready, identity);
 	if (eligible.kind !== "eligible") {
 		return eligible;

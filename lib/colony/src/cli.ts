@@ -1,7 +1,7 @@
 /* eslint-disable import/max-dependencies -- Compose existing runtime boundaries with the independent advisory assessment lifecycle. */
 import { Command, CommanderError } from "commander";
 import type { AssessmentsResult } from "./assessments.ts";
-import { CommandError } from "@hive/shared";
+import { CommandError } from "@hive/beads";
 import type { DaemonResponse } from "./client.ts";
 import { DaemonUnavailableError } from "./client.ts";
 import type { Explanation } from "./explain.ts";

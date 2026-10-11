@@ -1,0 +1,16 @@
+{
+	"name": "@hive/beads",
+	"version": "0.0.0",
+	"private": true,
+	"type": "module",
+	"exports": {
+		".": "./src/index.ts"
+	},
+	"scripts": {
+		"test": "bun test --parallel --parallel-delay=0 --timeout=5000 --only-failures ./src ./tests",
+		"typecheck": "tsc --noEmit"
+	},
+	"dependencies": {
+		"zod": "^4.6.5"
+	}
+}

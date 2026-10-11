@@ -1,25 +1,24 @@
 /* eslint-disable unicorn/no-null -- Diagnostic JSON explicitly represents absent evidence and unknown record times. */
-import type { Bead, ColonyInspection, RepositoryEndpoint, SpawnDisposition } from "@hive/shared";
+import type { ColonyInspection, RepositoryEndpoint, SpawnDisposition } from "@hive/shared";
 import { DaemonUnavailableError, requestServer } from "./client.ts";
-import {
-	beadSchema,
-	beads,
-	latestColonyObservation,
-	readSpawnRequest,
-	requestDisposition,
-	requestLabelsCurrent,
-	showBead,
-} from "@hive/shared";
 import { capacityConstraints, hasCapacity } from "./scheduler.ts";
 import { eligibility, launchBucket, launchReceiptSchema } from "./launch.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Resolve the same execution bucket as launch preparation.
 import { join, resolve } from "node:path";
+import {
+	latestColonyObservation,
+	readSpawnRequest,
+	requestDisposition,
+	requestLabelsCurrent,
+} from "@hive/shared";
+import type { Bead } from "@hive/beads";
 import type { Occupant } from "./scheduler.ts";
 import type { ServerTarget } from "./client.ts";
+import type { TrackerContext } from "./tracker.ts";
 import { observeExecution } from "./processes.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Canonicalize execution cwd without creating it.
 import { realpath } from "node:fs/promises";
-import { z } from "zod";
+import { trackerScope } from "./tracker.ts";
 
 interface Evidence<Value> {
 	/** Authority or concrete observation boundary. */
@@ -131,11 +130,12 @@ export interface Explanation {
 /** Bounded read-only composition; never opens the daemon database or invokes a lifecycle action. */
 export async function explainRequest(
 	id: string,
-	repository: RepositoryEndpoint,
+	context: TrackerContext,
 	target: ServerTarget,
 ): Promise<Explanation> {
+	const { repository } = context;
 	const [tracker, inspection] = await Promise.all([
-		capture("native Beads show/ready", "sampled", () => trackerFacts(id, repository)),
+		capture("native Beads show/ready", "sampled", () => trackerFacts(id, context)),
 		capture(`daemon inspect ${target.socket}`, "checkpoint_age_unknown", async () => {
 			const response = await requestServer(target, { kind: "inspect", repository });
 			if (response.kind !== "inspection") {
@@ -315,15 +315,19 @@ async function capture<Value>(
 		};
 	}
 }
-async function trackerFacts(id: string, repository: RepositoryEndpoint): Promise<TrackerFacts> {
-	const spawn = await showBead(repository, "colony", id);
+async function trackerFacts(
+	id: string,
+	{ beads, repository }: TrackerContext,
+): Promise<TrackerFacts> {
+	const spawn = await beads.show(trackerScope(repository, "colony"), id);
 	const request = readSpawnRequest(spawn);
 	const [tasks, ready] = await Promise.all([
-		Promise.all(request.taskIds.map((task) => showBead(repository, "colony", task))),
-		beads(repository, request.identity, ["ready", "--brief", "--limit", "0"]),
+		Promise.all(
+			request.taskIds.map((task) => beads.show(trackerScope(repository, "colony"), task)),
+		),
+		beads.ready(trackerScope(repository, request.identity), { limit: 0 }),
 	]);
-	const readyBeads = z.array(beadSchema.pick({ id: true })).parse(ready);
-	const decision = eligibility(tasks, readyBeads, request.identity);
+	const decision = eligibility(tasks, ready, request.identity);
 	return {
 		closeReason: spawn.close_reason ?? null,
 		disposition: requestDisposition(spawn),
@@ -339,13 +343,13 @@ async function trackerFacts(id: string, repository: RepositoryEndpoint): Promise
 				assignee: task.assignee ?? null,
 				dependencies: await Promise.all(
 					task.dependencies.map(async (edge) => {
-						const dependency = await showBead(repository, "colony", edge.id);
+						const dependency = await beads.show(trackerScope(repository, "colony"), edge.id);
 						return { ...edge, status: dependency.status, updatedAt: dependency.updated_at };
 					}),
 				),
 				hitl: task.labels.includes("hitl"),
 				id: task.id,
-				ready: readyBeads.some((item) => item.id === task.id),
+				ready: ready.some((item) => item.id === task.id),
 				status: task.status,
 				updatedAt: task.updated_at,
 			})),

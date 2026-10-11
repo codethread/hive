@@ -1,24 +1,16 @@
-import { CommandError, beadSchema, execute as executeProcess } from "@hive/shared";
+import type { BeadRecord, BeadsScope, BeadsService, UpdateBead } from "@hive/beads";
+import { CommandError, createNativeBeads } from "@hive/beads";
 // eslint-disable-next-line import/no-nodejs-modules -- Filesystem access is injected at this native adapter.
 import { readdir, stat } from "node:fs/promises";
+import { execute as executeProcess } from "@hive/shared";
 // eslint-disable-next-line import/no-nodejs-modules -- Author modules are trusted and loaded at the I/O seam.
 import { pathToFileURL } from "node:url";
 // eslint-disable-next-line import/no-nodejs-modules -- Lock identities are generated at the native boundary.
 import { randomUUID } from "node:crypto";
 // eslint-disable-next-line import/no-nodejs-modules -- Resolve caller-selected execution paths.
 import { resolve } from "node:path";
-import { z } from "zod";
 
-const FIRST = 0;
-const ONE = 1;
 const CONFLICT = 6;
-const endpointSchema = z.object({ database_path: z.string().min(ONE) });
-const createdSchema = z.object({ id: z.string().min(ONE) });
-export const nativeBeadSchema = beadSchema.extend({
-	created_by: z.string(),
-	notes: z.string().default(""),
-});
-export type NativeBead = z.infer<typeof nativeBeadSchema>;
 export interface Options {
 	/** Audit identity, otherwise BD_ACTOR. */
 	actor?: string;
@@ -50,6 +42,8 @@ export interface DirectoryEntry {
 	kind: "directory" | "file" | "other";
 }
 export interface Services {
+	/** Selected tracker discovery and operations, native in production. */
+	beads: BeadsService;
 	/** Called immediately before an attempted native state write, after prerequisite reads. */
 	beforeWrite: () => void;
 	/** Invoking directory, not installation directory. */
@@ -96,6 +90,7 @@ export interface CreateTask {
 export function createServices(): Services {
 	return {
 		actor: process.env["BD_ACTOR"],
+		beads: createNativeBeads(),
 		beforeWrite: () => {},
 		cwd: process.cwd(),
 		execute: (argv, cwd) => executeProcess(argv, cwd, process.env),
@@ -130,11 +125,11 @@ async function readEntries(path: string): Promise<DirectoryEntry[]> {
 
 export async function resolveEndpoint(options: Options, services: Services): Promise<Endpoint> {
 	const repo = resolve(services.cwd, options.repo ?? services.cwd);
-	const args = ["br", "where", "--json"];
+	const scope: BeadsScope = { cwd: repo };
 	if (options.db) {
-		args.push("--db", options.db);
+		scope.db = options.db;
 	}
-	const selection = endpointSchema.parse(JSON.parse(await services.execute(args, repo)) as unknown);
+	const selection = await services.beads.where(scope);
 	return { db: selection.database_path, repo };
 }
 
@@ -152,26 +147,8 @@ export async function resolveMutation(
 	return { ...(await resolveEndpoint(options, services)), actor };
 }
 
-export async function tracker(
-	endpoint: Endpoint,
-	args: string[],
-	services: Services,
-): Promise<unknown> {
-	return JSON.parse(
-		await services.execute(["br", ...args, "--db", endpoint.db, "--json"], endpoint.repo),
-	) as unknown;
-}
-
-export async function readBead(
-	endpoint: Endpoint,
-	id: string,
-	services: Services,
-): Promise<NativeBead> {
-	const records = z
-		.array(nativeBeadSchema)
-		.length(ONE)
-		.parse(await tracker(endpoint, ["show", id], services));
-	return records[FIRST]!;
+export function readBead(endpoint: Endpoint, id: string, services: Services): Promise<BeadRecord> {
+	return services.beads.show({ cwd: endpoint.repo, db: endpoint.db }, id);
 }
 
 export async function createTask(
@@ -179,32 +156,12 @@ export async function createTask(
 	task: CreateTask,
 	services: Services,
 ): Promise<string> {
-	const args = [
-		"create",
-		"--title",
-		task.title,
-		"--description",
-		task.description,
-		"--type",
-		"task",
-		"--owner",
-		task.owner,
-		"--status",
-		task.status,
-		"--actor",
-		endpoint.actor,
-	];
-	if (task.parent) {
-		args.push("--parent", task.parent);
-	}
-	if (task.assignee) {
-		args.push("--assignee", task.assignee);
-	}
-	for (const label of task.labels) {
-		args.push("--labels", label);
-	}
 	services.beforeWrite();
-	return createdSchema.parse(await tracker(endpoint, args, services)).id;
+	const created = await services.beads.create(
+		{ actor: endpoint.actor, cwd: endpoint.repo, db: endpoint.db },
+		{ ...task, type: "task" },
+	);
+	return created.id;
 }
 
 export async function closeTask(
@@ -215,34 +172,27 @@ export async function closeTask(
 	const task = await readBead(endpoint, id, services);
 	if (task.status !== "closed") {
 		services.beforeWrite();
-		await tracker(
-			endpoint,
-			["close", id, "--reason", "Completed: XState step finished.", "--actor", endpoint.actor],
-			services,
-		);
+		await services.beads.close({ actor: endpoint.actor, cwd: endpoint.repo, db: endpoint.db }, id, {
+			reason: "Completed: XState step finished.",
+		});
 	}
 }
 
 export async function conditionalUpdate(
-	request: { endpoint: MutationEndpoint; bead: NativeBead; args: string[] },
+	request: {
+		endpoint: MutationEndpoint;
+		bead: Pick<BeadRecord, "id" | "updated_at">;
+		input: UpdateBead;
+	},
 	services: Services,
 ): Promise<boolean> {
-	const { endpoint, bead, args } = request;
+	const { endpoint, bead, input } = request;
 	try {
 		services.beforeWrite();
-		await tracker(
-			endpoint,
-			[
-				"update",
-				bead.id,
-				...args,
-				"--if-unchanged",
-				bead.updated_at,
-				"--force",
-				"--actor",
-				endpoint.actor,
-			],
-			services,
+		await services.beads.update(
+			{ actor: endpoint.actor, cwd: endpoint.repo, db: endpoint.db },
+			[bead.id],
+			{ ...input, force: true, ifUnchanged: bead.updated_at },
 		);
 		return true;
 	} catch (error) {

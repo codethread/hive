@@ -9,16 +9,18 @@ import {
 	runCommand,
 	trackerRoot,
 } from "./beads-environment.ts";
-/* eslint-enable no-duplicate-imports */
+import type { BeadsService } from "@hive/beads";
+import { createNativeBeads } from "@hive/beads";
 // eslint-disable-next-line import/no-nodejs-modules -- Repository CLI filesystem paths.
 import { join } from "node:path";
 // eslint-disable-next-line import/no-nodejs-modules -- Native CLI argument parsing.
 import { parseArgs } from "node:util";
 import { z } from "zod";
-
-const querySummarySchema = z.object({ name: z.string() });
+/* eslint-enable no-duplicate-imports */
 
 export const localSetupServices: SetupServices = {
+	actor: process.env.BD_ACTOR ?? "hive-setup",
+	beads: createNativeBeads(),
 	command: runCommand,
 	exists: (path) => Bun.file(path).exists(),
 	readConfig: async (path) => {
@@ -48,6 +50,10 @@ export type Selection =
 	  };
 
 export interface SetupServices {
+	/** Explicit attribution for tracker operations. */
+	actor: string;
+	/** Selected tracker service, independent of Git and filesystem operations. */
+	beads: BeadsService;
 	/** Read existing local configuration, or an empty document when absent. */
 	readConfig: (path: string) => Promise<string>;
 	/** Check that adoption targets an existing runtime store. */
@@ -79,7 +85,7 @@ export async function setupBeads(
 	await services.write(misePath, configs.mise);
 	await services.command(["mise", "trust", misePath], cwd);
 	await services.write(codexPath, configs.codex);
-	await installAttentionQuery(cwd, environment.BEADS_DB, services.command);
+	await installAttentionQuery(cwd, environment.BEADS_DB, services);
 	return environment.BEADS_DB;
 }
 
@@ -87,37 +93,22 @@ export async function setupBeads(
 export async function installAttentionQuery(
 	cwd: string,
 	database: string,
-	command: Command,
+	services: Pick<SetupServices, "beads" | "actor">,
 ): Promise<void> {
-	const endpoint = ["--db", database, "--actor", process.env.BD_ACTOR ?? "hive-setup", "--json"];
-	const { queries } = z
-		.object({ queries: z.array(querySummarySchema) })
-		.parse(JSON.parse(await command(["br", "query", "list", ...endpoint], cwd)));
+	const endpoint = { actor: services.actor, cwd, db: database };
+	const { queries } = await services.beads.query.list(endpoint);
 	if (queries.some(({ name }) => name === "bee-attention")) {
-		await command(["br", "query", "delete", "bee-attention", ...endpoint], cwd);
+		await services.beads.query.delete(endpoint, "bee-attention");
 	}
-	await command(
-		[
-			"br",
-			"query",
-			"save",
-			"bee-attention",
-			"--description",
-			"Failed unresolved spawn requests, including closed requests",
-			"--label",
-			"system",
-			"--label",
-			"bee",
-			"--label",
-			"bee-outcome:failed",
-			"--label",
-			"bee-resolution:unresolved",
-			"--all",
-			"--limit",
-			"0",
-			...endpoint,
-		],
-		cwd,
+	await services.beads.query.save(
+		endpoint,
+		"bee-attention",
+		{
+			all: true,
+			labels: ["system", "bee", "bee-outcome:failed", "bee-resolution:unresolved"],
+			limit: 0,
+		},
+		"Failed unresolved spawn requests, including closed requests",
 	);
 }
 // --- Private functions ---

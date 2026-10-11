@@ -1,7 +1,13 @@
 /* eslint-disable import/no-nodejs-modules -- Land integration deletes only disposable feature checkouts. */
 import { commandSchemas, inputSchema, machine } from "../../../../.workflows/land/workflow.ts";
 import { cp, mkdir } from "node:fs/promises";
-import { createRepository, invoke, issueIds, optionsArgs, useNativeFixture } from "./support.ts";
+import {
+	createRepository,
+	invoke,
+	issueIds,
+	optionsArgs,
+	useRepositoryFixture,
+} from "./support.ts";
 import { describe, expect, test } from "bun:test";
 import { initialTransition, transition } from "xstate";
 import { metadataSchema, resolvedTaskSchema } from "../../src/definition.ts";
@@ -183,25 +189,19 @@ test("landing briefs keep the passing check gate with the worker before agent re
 	);
 });
 
-describe("native land navigation and continuation", () => {
-	const fixture = useNativeFixture("busybee-land-");
+describe("land definition loading", () => {
+	const fixture = useRepositoryFixture("busybee-land-");
 
 	test("a land run requires retained input before publishing any tasks", async () => {
-		const { feature } = await portableDefinitions();
+		const feature = join(fixture.root, "feature");
+		await createRepository(fixture, feature);
+		await installDefinition(feature);
 		const before = await issueIds(fixture);
 		await expect(
 			invoke([...optionsArgs(fixture), "--repo", feature, "run", "land"], fixture.services),
 		).resolves.toMatchObject({ document: { ok: false, reason: "invalid_input" } });
 		expect(await issueIds(fixture)).toEqual(before);
 	});
-
-	async function portableDefinitions() {
-		const feature = join(fixture.root, "feature");
-		const surviving = join(fixture.root, "surviving");
-		await Promise.all([createRepository(fixture, feature), createRepository(fixture, surviving)]);
-		await Promise.all([installDefinition(feature), installDefinition(surviving)]);
-		return { feature, surviving };
-	}
 
 	async function installDefinition(repo: string) {
 		const folder = join(repo, ".workflows/land");

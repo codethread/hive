@@ -1,6 +1,15 @@
 /* eslint-disable unicorn/no-null -- Tests distinguish no output from observed stdout. */
+import { createSpawn, memoryTracker } from "./tracker.test-support.ts";
 import { expect, test } from "bun:test";
-import { stdoutActivityDue } from "./observations.ts";
+import { publishObservation, stdoutActivityDue } from "./observations.ts";
+import { trackerScope } from "./tracker.ts";
+
+const observationTracker = memoryTracker();
+const observationId = await createSpawn(observationTracker, []);
+await observationTracker.beads.show(
+	trackerScope(observationTracker.repository, "inspector"),
+	observationId,
+);
 
 const previous = {
 	attemptId: "attempt-one",
@@ -37,4 +46,17 @@ test("new attempts replace old activity with unknown and first actual output pub
 	expect(stdoutActivityDue(undefined, fresh)).toBe(true);
 	expect(stdoutActivityDue(previous, fresh)).toBe(true);
 	expect(stdoutActivityDue(fresh, { ...fresh, lastOutputAt: previous.lastOutputAt })).toBe(true);
+});
+
+test("injected observations deduplicate unchanged facts and retain their native attribution", async () => {
+	const tracker = observationTracker;
+	const id = observationId;
+	await publishObservation(tracker, id, "waiting: dependency");
+	await publishObservation(tracker, id, "waiting: dependency");
+	await publishObservation(tracker, id, "waiting: capacity");
+	const request = await tracker.beads.show(trackerScope(tracker.repository, "inspector"), id);
+	expect(request.comments.map(({ author, text }) => ({ author, text }))).toEqual([
+		{ author: "colony", text: "Colony observation: waiting: dependency" },
+		{ author: "colony", text: "Colony observation: waiting: capacity" },
+	]);
 });

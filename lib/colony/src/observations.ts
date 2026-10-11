@@ -2,46 +2,46 @@
 import {
 	COLONY_OBSERVATION_PREFIX,
 	COLONY_STDOUT_PREFIX,
-	beads,
 	latestColonyObservation,
 	latestStdoutActivity,
 	readSpawnRequest,
-	showBead,
 } from "@hive/shared";
-import type { RepositoryEndpoint, StdoutActivity } from "@hive/shared";
 import type { LaunchReceipt } from "./launch.ts";
+import type { StdoutActivity } from "@hive/shared";
+import type { TrackerContext } from "./tracker.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Colony cannot publish observations for another machine's requests.
 import { hostname } from "node:os";
 // eslint-disable-next-line import/no-nodejs-modules -- Inspect the current attempt's owned stdout artifact.
 import { join } from "node:path";
 // eslint-disable-next-line import/no-nodejs-modules -- File metadata preserves output time across sleep and daemon restart.
 import { stat } from "node:fs/promises";
+import { trackerScope } from "./tracker.ts";
 
 const STDOUT_PUBLICATION_INTERVAL_MS = 30_000;
 const EMPTY = 0;
 
 /** Native comments retain observation history and deduplicate unchanged facts across restarts. */
 export async function publishObservation(
-	repository: RepositoryEndpoint,
+	{ beads, repository }: TrackerContext,
 	id: string,
 	fact: string,
 ): Promise<void> {
-	const spawn = await showBead(repository, "colony", id);
+	const spawn = await beads.show(trackerScope(repository, "colony"), id);
 	assertObservationHost(readSpawnRequest(spawn).host, id);
 	const latest = latestColonyObservation(spawn);
 	const message = `${COLONY_OBSERVATION_PREFIX} ${fact}`;
 	if (latest?.text !== message) {
-		await beads(repository, "colony", ["comments", "add", id, "--message", message]);
+		await beads.comments.add(trackerScope(repository, "colony"), id, message);
 	}
 }
 
 /** Awake reconciliation publishes metadata only; detached workers retain their existing authority. */
 export async function publishStdoutActivity(
-	repository: RepositoryEndpoint,
+	{ beads, repository }: TrackerContext,
 	receipt: Pick<LaunchReceipt, "id" | "attemptNumber" | "spawnId" | "directory">,
 	final = false,
 ): Promise<void> {
-	const spawn = await showBead(repository, "colony", receipt.spawnId);
+	const spawn = await beads.show(trackerScope(repository, "colony"), receipt.spawnId);
 	assertObservationHost(readSpawnRequest(spawn).host, receipt.spawnId);
 	const activity: StdoutActivity = {
 		attemptId: receipt.id,
@@ -50,13 +50,11 @@ export async function publishStdoutActivity(
 		recordedAt: new Date().toISOString(),
 	};
 	if (stdoutActivityDue(latestStdoutActivity(spawn), activity, final)) {
-		await beads(repository, "colony", [
-			"comments",
-			"add",
+		await beads.comments.add(
+			trackerScope(repository, "colony"),
 			receipt.spawnId,
-			"--message",
 			`${COLONY_STDOUT_PREFIX} ${JSON.stringify(activity)}`,
-		]);
+		);
 	}
 }
 

@@ -1,5 +1,5 @@
+/* eslint-disable import/max-dependencies -- Inactivity review composes tracker observation with process and persistence authority. */
 /* eslint-disable unicorn/no-null -- Durable review checkpoints distinguish pending decisions and launch failures without receipts. */
-import type { BeesConfig, RepositoryEndpoint } from "@hive/shared";
 // eslint-disable-next-line import/no-nodejs-modules -- Attempt-local immutable reports and execution artifacts.
 import { dirname, join } from "node:path";
 import {
@@ -12,9 +12,11 @@ import {
 import { link, readFile, stat, unlink } from "node:fs/promises";
 import { observeExecution, resumeExecution, stopExecution } from "./processes.ts";
 import { publishObservation, readStdoutActivity } from "./observations.ts";
+import type { BeesConfig } from "@hive/shared";
 import type { LaunchReceipt } from "./launch.ts";
 import type { RequestRecord } from "./request.ts";
 import type { Store } from "./store.ts";
+import type { TrackerContext } from "./tracker.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Supply the host home at the native invocation boundary.
 import { homedir } from "node:os";
 import { readDroneAuthority } from "./store.ts";
@@ -89,9 +91,7 @@ const verdictSchema = z.strictObject({
 });
 export type DroneReview = z.infer<typeof droneReviewSchema>;
 type Verdict = z.infer<typeof verdictSchema>;
-interface ReviewRuntime {
-	/** Canonical repository and selected tracker authority. */
-	repository: RepositoryEndpoint;
+interface ReviewRuntime extends TrackerContext {
 	/** Durable current-attempt and review authority. */
 	store: Store;
 	/** Canonical named drone kind and invocation formulas. */
@@ -280,7 +280,7 @@ async function launchReview(
 	target: LaunchReceipt,
 	now: number,
 ): Promise<DroneReview> {
-	const { repository, store, config } = runtime;
+	const { beads, repository, store, config } = runtime;
 	let review: DroneReview = {
 		deadline: now + DRONE_RUNTIME_MS,
 		decision: null,
@@ -341,7 +341,7 @@ async function launchReview(
 		}
 	});
 	await publishObservation(
-		repository,
+		{ beads, repository },
 		target.spawnId,
 		`running: inactivity review ${review.id}; target attempt ${target.id}; deadline ${new Date(review.deadline).toISOString()}; logs ${review.receipt!.directory}`,
 	);
@@ -460,7 +460,7 @@ async function readVerdict(
 }
 
 async function finishReview(
-	{ repository, store }: ReviewRuntime,
+	{ beads, repository, store }: ReviewRuntime,
 	review: DroneReview,
 ): Promise<DroneReview> {
 	/* An interrupted reservation never received permission. Stop an observed waiter using its
@@ -473,7 +473,7 @@ async function finishReview(
 		await stopExecution(review.receipt);
 	}
 	await publishObservation(
-		repository,
+		{ beads, repository },
 		review.spawnId,
 		`running: inactivity drone ${review.decision!.kind}; target attempt ${review.targetAttemptId}; review ${review.id}; ${review.decision!.detail}`,
 	);

@@ -1,16 +1,17 @@
 /* eslint-disable import/max-dependencies -- Compose existing runtime boundaries with the independent advisory assessment lifecycle. */
-import type { BeesConfig, RepositoryEndpoint } from "@hive/shared";
-import { SPAWN_REQUEST_LABELS, beadSchema, beads, readSpawnRequest, showBead } from "@hive/shared";
+import { SPAWN_REQUEST_LABELS, readSpawnRequest, readSpawnRequestSummary } from "@hive/shared";
 import { assertRequestAuthority, claimRequest, newRequest, reconcileRequests } from "./request.ts";
 import { compareCandidates, hasCapacity, hasContention } from "./scheduler.ts";
 import { prepareLaunch, startSupervisor, writeReceipt } from "./launch.ts";
 import { publishObservation, publishStdoutActivity } from "./observations.ts";
 import { publishRequestLabels, reconcileClosedRequestLabels } from "./requests.ts";
+import type { BeesConfig } from "@hive/shared";
 import type { Occupant } from "./scheduler.ts";
 import type { OperationEvidence } from "./history.ts";
 import type { Preparation } from "./launch.ts";
 import type { RequestRecord } from "./request.ts";
 import type { Store } from "./store.ts";
+import type { TrackerContext } from "./tracker.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- A dispatch pass only owns requests submitted on this machine.
 import { hostname } from "node:os";
 // eslint-disable-next-line import/no-nodejs-modules -- Reference the existing daemon log in operation history.
@@ -21,15 +22,11 @@ import { pageRanks } from "./ranking.ts";
 import { reconcileAssessments } from "./postrun.ts";
 // eslint-disable-next-line import/max-dependencies -- Dispatch completes the verified execution handoff.
 import { resumeExecution } from "./processes.ts";
-// eslint-disable-next-line import/max-dependencies -- Dispatch composes tracker, ranking, inventory and subprocess boundaries.
-import { z } from "zod";
+import { trackerScope } from "./tracker.ts";
 
 const EMPTY = 0;
 const NEXT = 1;
-const requestListSchema = z.object({ issues: z.array(beadSchema) });
-export interface DispatchInput {
-	/** Canonical repository and explicit tracker authority. */
-	repository: RepositoryEndpoint;
+export interface DispatchInput extends TrackerContext {
 	/** Private daemon state directory. */
 	state: string;
 	/** Concrete durable reservation owner. */
@@ -75,25 +72,22 @@ async function prepareCandidates(
 	revisionId: string,
 	evidence: OperationEvidence,
 ): Promise<Candidate[]> {
-	const { repository, state, store } = input;
+	const { beads, repository, state, store } = input;
 	evidence.step("requests.reconcile", repository.root);
-	await reconcileRequests({ config, repository, store });
+	await reconcileRequests({ beads, config, repository, store });
 	evidence.step("labels.reconcile-closed", repository.root);
-	await reconcileClosedRequestLabels(repository);
+	await reconcileClosedRequestLabels(input);
 	evidence.step("tracker.list", repository.root);
-	const { issues } = requestListSchema.parse(
-		await beads(repository, "colony", [
-			"list",
-			"--status",
-			"open",
-			...SPAWN_REQUEST_LABELS.flatMap((label) => ["--label", label]),
-			"--limit",
-			"0",
-		]),
-	);
+	const { issues } = await beads.list(trackerScope(repository, "colony"), {
+		status: ["open"],
+		labels: SPAWN_REQUEST_LABELS,
+		limit: 0,
+	});
 	const candidates: Candidate[] = [];
 	const records = new Map(store.requests(repository.root).map((record) => [record.id, record]));
-	for (const request of issues.filter((issue) => readSpawnRequest(issue).host === hostname())) {
+	for (const request of issues.filter(
+		(issue) => readSpawnRequestSummary(issue).host === hostname(),
+	)) {
 		// eslint-disable-next-line no-await-in-loop -- Retain each request's preparation boundary independently.
 		await store.history.run(
 			{
@@ -108,21 +102,19 @@ async function prepareCandidates(
 				if (!record) {
 					preparation.step("labels.publish", request.id);
 					record = newRequest(
-						await publishRequestLabels(repository, "colony", request.id, hostname()),
+						await publishRequestLabels(input, "colony", request.id, hostname()),
 						repository,
 					);
 					store.saveRequest(repository.root, record);
 					records.set(request.id, record);
 				}
-				assertRequestAuthority(
-					record,
-					readSpawnRequest(await showBead(repository, "colony", request.id)),
-				);
+				const current = await beads.show(trackerScope(repository, "colony"), request.id);
+				assertRequestAuthority(record, readSpawnRequest(current));
 				if (record.state === "waiting") {
 					const id = crypto.randomUUID();
 					preparation.step("launch.prepare", request.id);
 					const prepared = await prepareLaunch(
-						{ ...repository, id: request.id, state },
+						{ ...repository, beads, id: request.id, state },
 						config.formulas,
 						id,
 						record.context.attempts + NEXT,
@@ -132,7 +124,7 @@ async function prepareCandidates(
 						.with({ kind: "waiting" }, async ({ reason }) => {
 							store.advanceRequest(repository.root, record, { message: reason, type: "WAIT" });
 							preparation.step("observation.publish", record.id);
-							await publishObservation(repository, record.id, `waiting: ${reason}`);
+							await publishObservation({ beads, repository }, record.id, `waiting: ${reason}`);
 						})
 						.with({ kind: "finished" }, async () => {
 							store.advanceRequest(repository.root, record, {
@@ -140,7 +132,7 @@ async function prepareCandidates(
 								outcome: "completed",
 								type: "SETTLE",
 							});
-							await reconcileRequests({ config, repository, store });
+							await reconcileRequests({ beads, config, repository, store });
 						})
 						.with({ kind: "prepared" }, (candidate) => {
 							assertRequestAuthority(record, candidate.receipt);
@@ -229,7 +221,7 @@ function orderCandidates(
 
 // eslint-disable-next-line max-statements, max-params -- Capacity, claims, durable reservation and verified supervisor permission form one ordered handoff.
 async function launchCandidates(
-	{ repository, state, store }: DispatchInput,
+	{ beads, repository, state, store }: DispatchInput,
 	config: BeesConfig,
 	candidates: Candidate[],
 	occupied: Occupant[],
@@ -238,7 +230,7 @@ async function launchCandidates(
 		const occupant = { bucket: receipt.bucket, kind: receipt.recipe.kind };
 		if (hasCapacity(occupant, occupied, config.limits)) {
 			// eslint-disable-next-line no-await-in-loop -- Capacity precedes acquisition and process reservation.
-			const claimed = await claimRequest({ config, repository, store }, record);
+			const claimed = await claimRequest({ beads, config, repository, store }, record);
 			if (claimed !== null) {
 				// eslint-disable-next-line no-await-in-loop -- Complete each reserved launch before selecting the next candidate.
 				await store.history.run(
@@ -259,7 +251,7 @@ async function launchCandidates(
 						await writeReceipt(receipt);
 						evidence.completed("receipt.written", receipt.id);
 						evidence.step("stdout.publish", record.id);
-						await publishStdoutActivity(repository, receipt);
+						await publishStdoutActivity({ beads, repository }, receipt);
 						evidence.completed("stdout.published", record.id);
 						evidence.step("supervisor.start", receipt.id);
 						const pid = await startSupervisor(receipt, state);
@@ -274,7 +266,7 @@ async function launchCandidates(
 						});
 						evidence.step("observation.publish", record.id);
 						await publishObservation(
-							repository,
+							{ beads, repository },
 							record.id,
 							`starting: attempt ${receipt.attemptNumber}`,
 						);
@@ -284,7 +276,7 @@ async function launchCandidates(
 			}
 		} else {
 			// eslint-disable-next-line no-await-in-loop -- Keep capacity observations ordered with reservations in this pass.
-			await publishObservation(repository, record.id, "waiting: capacity unavailable");
+			await publishObservation({ beads, repository }, record.id, "waiting: capacity unavailable");
 		}
 	}
 }

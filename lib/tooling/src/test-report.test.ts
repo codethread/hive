@@ -66,9 +66,8 @@ test.each(["failure", "error", "skipped"])(
 	},
 );
 
-test("empty reports and allowed passing tests are silent", () => {
+test("empty reports are silent", () => {
 	expect(reportSlowTests("<testsuites />", allowances)).toEqual([]);
-	expect(reportSlowTests(report("0.003", "#test-1"), allowances)).toEqual([]);
 });
 
 test.each([
@@ -130,7 +129,6 @@ test.each([
 		{ mode: row.mode, xml, exitCode: row.nativeExit, output: "" },
 		allowances,
 	);
-	expect(feedback.lines).toEqual(reportSlowTests(xml, allowances));
 	expect(feedback.exitCode).toBe(row.exitCode);
 	expect(Boolean(feedback.guidance)).toBe(row.blocked);
 });

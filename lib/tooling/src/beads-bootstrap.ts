@@ -22,12 +22,6 @@ const readySchema = z.object({
 	ok: z.literal(true),
 	worktree_path: z.string(),
 });
-const healthSchema = z.object({
-	coverage_drift: z.literal(false),
-	jsonl_exists: z.literal(true),
-	jsonl_newer: z.literal(false),
-	workspace_health: z.literal("healthy"),
-});
 
 export interface BootstrapServices extends SetupServices {
 	/** Create a regular nested checkout through the repository-owned Honeycomb CLI. */
@@ -132,25 +126,22 @@ async function importDatabase(
 			`Missing tracker snapshot at ${tracker}/.beads/issues.jsonl. Bootstrap requires existing history; do not run br init.`,
 		);
 	}
-	const endpoint = ["br", "--db", database, "--actor", process.env.BD_ACTOR ?? "hive-setup"];
+	const endpoint = { actor: services.actor, cwd: tracker, db: database };
 	if (!(await services.exists(database))) {
-		await services.command([...endpoint, "sync", "--import-only"], tracker);
-		await services.command([...endpoint, "sync", "--flush-only"], tracker);
+		await services.beads.sync.import(endpoint);
+		await services.beads.sync.flush(endpoint);
 	}
 	// Refuse incoming unreconciled JSONL before setup or install can trigger native auto-import.
 	// Read-only verification must not auto-import or auto-export an existing database.
-	const health = healthSchema.safeParse(
-		JSON.parse(
-			await services.command(
-				[...endpoint, "--no-auto-import", "--no-auto-flush", "sync", "--status", "--json"],
-				tracker,
-			),
-		),
-	);
-	if (!health.success) {
+	const health = await services.beads.sync.status(endpoint);
+	if (
+		health.coverage_drift ||
+		!health.jsonl_exists ||
+		health.jsonl_newer ||
+		health.workspace_health !== "healthy"
+	) {
 		throw new Error(
 			`Tracker at ${tracker} is unhealthy or has unreconciled JSONL. Inspect br --db ${database} sync --status --json and follow docs/beads-integration.md recovery before bootstrap.`,
-			{ cause: health.error },
 		);
 	}
 }

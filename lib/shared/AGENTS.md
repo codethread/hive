@@ -1,6 +1,6 @@
 # @hive/shared
 
-Owns contracts with actual consumers across product packages: recipes, formulas, spawn-request representation, repository endpoints, daemon messages and common Beads I/O.
+Owns contracts with actual consumers across product packages: recipes, formulas, spawn-request representation, repository endpoints and daemon messages. The consumed native Beads contract and its adapters belong to `@hive/beads`.
 
 The [spawn state and native query contract](../../docs/agents/spawn-requests.md) is the authoritative reference for outcome/resolution labels, valid combinations and native provenance. Read it before changing the request model.
 

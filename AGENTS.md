@@ -22,6 +22,7 @@ Use Bee for repository subagents. Before delegating, follow the [specialist prot
 
 ## Packages
 
+- `lib/beads` — the consumed Beads contract, native adapter and in-memory test adapter.
 - `lib/shared` — utilities and models common to all packages. Not a grab bag: only add what consumers clearly need.
 - `lib/colony` — Bee and Colony CLIs, offline requests, daemon ownership, colony/request lifecycles, dispatch, supervision and private persistence.
 - `lib/honeycomb` — the Git worktree manager and shell picker integrations.
@@ -31,7 +32,7 @@ Use Bee for repository subagents. Before delegating, follow the [specialist prot
 
 ## Architecture rules
 
-Product packages may import only `@hive/shared` across package boundaries; Shared imports no product package. Cross-package relative imports are prohibited. `.oxlintrc.json` enforces these rules.
+Product packages may import `@hive/shared` and `@hive/beads` across package boundaries. Shared may import Beads; Beads imports no Hive package, and Shared imports no product package. Cross-package relative imports are prohibited. `.oxlintrc.json` enforces these rules.
 
 ## Architectural intent
 

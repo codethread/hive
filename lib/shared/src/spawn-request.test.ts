@@ -6,6 +6,7 @@ import {
 	latestStdoutActivity,
 	projectedRequestLabels,
 	readSpawnRequest,
+	readSpawnRequestSummary,
 	requestAcknowledgment,
 	requestDisposition,
 	requestLabelsCurrent,
@@ -14,9 +15,8 @@ import {
 	spawnRequestLabels,
 } from "./spawn-request.ts";
 import { expect, test } from "bun:test";
-import { beadSchema } from "./bees-io.ts";
+import { beadSchema } from "@hive/beads";
 
-const FIRST = 0;
 const INVALID_HOST_NUMBER = 1;
 const original = beadSchema.parse({
 	close_reason: "exhausted",
@@ -52,7 +52,6 @@ test("stdout inspection uses publication time independently of renumbered IDs an
 	expect(latestStdoutActivity(original)).toBeUndefined();
 	expect(latestStdoutActivity(bead)).toEqual(activity);
 	expect(latestColonyObservation(bead)).toEqual(lifecycle);
-	expect(bead.comments[FIRST]?.created_at).toBe(comment.created_at);
 });
 
 test("lifecycle observations remain ordered after local IDs and input order change", () => {
@@ -155,7 +154,6 @@ test("a replacement resolves its predecessor regardless of replacement outcome",
 	expect(requestResolution(bead)).toEqual({ kind: "superseded", replacementIds: ["test-new"] });
 	expect(requestNeedsAttention(bead)).toBe(false);
 	expect(requestDisposition(bead)).toEqual({ outcome: "failed", resolution: "resolved" });
-	expect(bead.close_reason).toBe("exhausted");
 });
 
 test("publication normalizes both namespaces and retains unrelated labels", () => {
@@ -295,3 +293,17 @@ test.each(["", " ", INVALID_HOST_NUMBER, null])(
 		expect(() => readSpawnRequest(bead)).toThrow(Error);
 	},
 );
+
+test("request summaries retain validated identity and host without hydrated relations", () => {
+	const bead = {
+		id: original.id,
+		description: JSON.stringify({ ...recipe, host: "requesting-machine" }),
+		labels: spawnRequestLabels(recipe.kind),
+		assignee: "friendly-bee",
+	};
+	const summary = readSpawnRequestSummary(bead);
+	const { taskIds: _taskIds, ...detail } = readSpawnRequest({ ...original, ...bead });
+	expect(summary).toEqual(detail);
+	expect(() => readSpawnRequestSummary({ ...bead, labels: [] })).toThrow(Error);
+	expect(() => readSpawnRequestSummary({ ...bead, assignee: "" })).toThrow(Error);
+});

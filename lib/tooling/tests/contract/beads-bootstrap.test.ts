@@ -5,6 +5,7 @@ import { expect, test } from "bun:test";
 // eslint-disable-next-line import/no-nodejs-modules -- Isolated native Git and Beads fixtures.
 import { mkdir, mkdtemp, realpath, rm } from "node:fs/promises";
 import type { Command } from "../../src/beads-environment.ts";
+import { createNativeBeads } from "@hive/beads";
 // eslint-disable-next-line import/no-nodejs-modules -- System temporary directory.
 import { tmpdir } from "node:os";
 
@@ -84,10 +85,10 @@ async function fixture(tmp: string, history: History = "present") {
 	const seedDatabase = join(seed, ".beads", "beads.db");
 	const br = ["br", "--actor", "pi", "--db", seedDatabase];
 	await command([...br, "init", "--prefix", "test"], seed);
-	const issue = JSON.parse(
-		await command([...br, "create", "--title", "Shared history", "--owner", "ct", "--json"], seed),
-	);
-	await command([...br, "sync", "--flush-only"], seed);
+	const beads = createNativeBeads({ execute: (argv, cwd) => command(argv, cwd) });
+	const scope = { actor: "pi", cwd: seed, db: seedDatabase };
+	const issue = await beads.create(scope, { title: "Shared history", owner: "ct" });
+	await beads.sync.flush(scope);
 	await command(
 		["git", "add", "--force", ".beads/issues.jsonl", ".beads/config.yaml", ".beads/metadata.json"],
 		seed,
@@ -123,24 +124,22 @@ test(
 		const tmp = await temporaryRoot();
 		try {
 			const { calls, command, database, issue, remote, root, tracker } = await fixture(tmp);
-			const services = { ...localBootstrapServices, command };
+			const services = nativeServices(command);
 			const accepted = await command(["git", "rev-parse", "tracker/state"], remote);
 			expect(await bootstrapBeads(root, services)).toBe(database);
 			expect(await command(["git", "rev-parse", "--abbrev-ref", "@{upstream}"], tracker)).toBe(
 				"origin/tracker/state",
 			);
-			const br = ["br", "--actor", "pi", "--db", database];
-			const [imported] = JSON.parse(await command([...br, "show", issue.id, "--json"], root));
+			const scope = { actor: "pi", cwd: root, db: database };
+			const imported = await services.beads.show(scope, issue.id);
 			expect(imported.title).toBe("Shared history");
 			expect(await Bun.file(join(root, ".beads", "beads.db")).exists()).toBe(false);
 			expect(await Bun.file(join(root, "mise.local.toml")).text()).toContain(database);
 			expect(await Bun.file(join(tracker, ".codex", "config.toml")).text()).toContain(database);
-			const local = JSON.parse(
-				await command(
-					[...br, "create", "--title", "Unpublished local work", "--owner", "ct", "--json"],
-					root,
-				),
-			);
+			const local = await services.beads.create(scope, {
+				title: "Unpublished local work",
+				owner: "ct",
+			});
 			const snapshot = await Bun.file(join(tracker, ".beads", "issues.jsonl")).text();
 			calls.length = 0;
 			expect(await bootstrapBeads(root, services)).toBe(database);
@@ -153,7 +152,7 @@ test(
 				),
 			).toBe(false);
 			expect(await Bun.file(join(tracker, ".beads", "issues.jsonl")).text()).toBe(snapshot);
-			const [preserved] = JSON.parse(await command([...br, "show", local.id, "--json"], root));
+			const preserved = await services.beads.show(scope, local.id);
 			expect(preserved.title).toBe("Unpublished local work");
 			expect(await command(["git", "rev-parse", "tracker/state"], remote)).toBe(accepted);
 		} finally {
@@ -201,8 +200,9 @@ test(
 				"installed\ninstalled\n",
 			);
 			expect(await Bun.file(join(tracker, ".beads/issues.jsonl")).text()).toBe(snapshot);
-			const [imported] = JSON.parse(
-				await command(["br", "--db", database, "show", issue.id, "--json"], root),
+			const imported = await nativeServices(command).beads.show(
+				{ actor: "pi", cwd: root, db: database },
+				issue.id,
 			);
 			expect(imported.title).toBe("Shared history");
 			expect(await command(["git", "rev-parse", "tracker/state"], remote)).toBe(accepted);
@@ -219,9 +219,7 @@ test.each(["missing-snapshot", "missing-branch"] as const)(
 		const tmp = await temporaryRoot();
 		try {
 			const { command, database, root } = await fixture(tmp, history);
-			await expect(
-				bootstrapBeads(root, { ...localBootstrapServices, command }),
-			).rejects.toBeInstanceOf(Error);
+			await expect(bootstrapBeads(root, nativeServices(command))).rejects.toBeInstanceOf(Error);
 			expect(await Bun.file(database).exists()).toBe(false);
 			expect(await Bun.file(join(root, ".beads", "beads.db")).exists()).toBe(false);
 		} finally {
@@ -265,9 +263,7 @@ test(
 			const { command, database, root } = await fixture(tmp);
 			const selection = `[env]\nBEADS_DB = ${JSON.stringify(join(tmp, "other", ".beads", "beads.db"))}\n`;
 			await Bun.write(join(root, "mise.local.toml"), selection);
-			await expect(
-				bootstrapBeads(root, { ...localBootstrapServices, command }),
-			).rejects.toBeInstanceOf(Error);
+			await expect(bootstrapBeads(root, nativeServices(command))).rejects.toBeInstanceOf(Error);
 			expect(await Bun.file(database).exists()).toBe(false);
 			expect(await Bun.file(join(root, "mise.local.toml")).text()).toBe(selection);
 		} finally {
@@ -284,7 +280,7 @@ test(
 		const tmp = await temporaryRoot();
 		try {
 			const { command, database, issue, root, tracker } = await fixture(tmp);
-			const services = { ...localBootstrapServices, command };
+			const services = nativeServices(command);
 			await bootstrapBeads(root, services);
 			const snapshot = join(tracker, ".beads", "issues.jsonl");
 			const exported = await Bun.file(snapshot).text();
@@ -294,20 +290,9 @@ test(
 			const contents = `${JSON.stringify(incoming)}\n`;
 			await Bun.write(snapshot, contents);
 			await expect(bootstrapBeads(root, services)).rejects.toBeInstanceOf(Error);
-			const [preserved] = JSON.parse(
-				await command(
-					[
-						"br",
-						"--db",
-						database,
-						"--no-auto-import",
-						"--no-auto-flush",
-						"show",
-						issue.id,
-						"--json",
-					],
-					root,
-				),
+			const preserved = await services.beads.show(
+				{ actor: "pi", cwd: root, db: database, noAutoImport: true, noAutoFlush: true },
+				issue.id,
 			);
 			expect(preserved.title).toBe("Shared history");
 			expect(await Bun.file(snapshot).text()).toBe(contents);
@@ -317,3 +302,12 @@ test(
 	},
 	timeout,
 );
+
+function nativeServices(command: Command) {
+	return {
+		...localBootstrapServices,
+		actor: "pi",
+		beads: createNativeBeads({ execute: (argv, cwd) => command(argv, cwd) }),
+		command,
+	};
+}

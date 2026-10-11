@@ -1,36 +1,60 @@
 import { expect, test } from "bun:test";
-import { invoke, issueIds, optionsArgs, useNativeFixture, writeDefinition } from "./support.ts";
+import { createMachine } from "xstate";
+import { createMemoryBeads } from "@hive/beads";
+import { createServices } from "../../src/native.ts";
+import { invoke } from "./support.ts";
+import { z } from "zod";
 
-const fixture = useNativeFixture("busybee-failures-");
+const EMPTY = 0;
+const FAILURE = 1;
 
-interface FailureDefinition {
-	/** Trusted context expression in the authoring fixture. */
-	context: string;
-	/** Brief renderer expression for the destination worker. */
-	second: string;
-	/** Transition configuration exercising the selected failure boundary. */
-	transition: string;
-}
-
-test("an initial actor failure returns JSON without creating native tasks", async () => {
-	const source = await definition("initial", {
-		context: '()=>{throw new Error("Initial context failure");}',
-		second: 'task:()=>({instructions:"Second"})',
-		transition: '"second"',
-	});
-	const before = await issueIds(fixture);
-	const result = await invoke([...optionsArgs(fixture), "start", source], fixture.services);
-	expect(result.document).toMatchObject({ ok: false, reason: "command_failed" });
-	expect(await issueIds(fixture)).toEqual(before);
-});
-
-// --- Private helpers ---
-
-function definition(name: string, { context, transition, second }: FailureDefinition) {
-	return writeDefinition(
-		fixture,
-		name,
-		`export const commandSchemas={next:z.object({})};
-export const machine=createMachine({context:${context},initial:"first",states:{first:{meta:{title:"First",task:()=>({instructions:"Complete first"}),commands:{next:"NEXT"}},on:{NEXT:${transition}}},second:{meta:{title:"Second",${second},commands:{next:"DONE"}},on:{DONE:"done"}},done:{type:"final"}}});`,
+test("an initial actor failure returns JSON without creating tasks", async () => {
+	const beads = createMemoryBeads({ db: "/busybee-failure/beads.db" });
+	const definition = {
+		commandSchemas: { next: z.object({}) },
+		inputSchema: z.object({}),
+		machine: createMachine({
+			context: () => {
+				throw new Error("Initial context failure");
+			},
+			initial: "work",
+			states: {
+				work: {
+					meta: {
+						title: "Worker",
+						task: () => ({ instructions: "Complete work" }),
+						commands: { next: "NEXT" },
+					},
+				},
+			},
+		}),
+		runBrief: () => ({ title: "Example", description: "Example workflow" }),
+	};
+	const services = {
+		...createServices(),
+		actor: undefined,
+		beads,
+		cwd: "/busybee-failure",
+		execute: () => Promise.reject(new Error("Workflow behavior must not launch processes")),
+		importModule: () => Promise.resolve(definition),
+		readBytes: () => Promise.resolve(new ArrayBuffer(EMPTY)),
+	};
+	const scope = { cwd: services.cwd };
+	const selection = { all: true, limit: 0 };
+	const before = await beads.list(scope, selection);
+	const result = await invoke(
+		["--actor", "test-agent", "--owner", "test-human", "start", "/busybee-failure/workflow.ts"],
+		services,
 	);
-}
+	expect(result.code).toBe(FAILURE);
+	expect(result.document).toMatchInlineSnapshot(`
+		{
+		  "kind": "start",
+		  "message": "Initial context failure",
+		  "ok": false,
+		  "reason": "command_failed",
+		  "target": "/busybee-failure/workflow.ts",
+		}
+	`);
+	expect(await beads.list(scope, selection)).toEqual(before);
+});

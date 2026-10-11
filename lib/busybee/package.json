@@ -13,6 +13,7 @@
 		"install:bin": "bun run ../tooling/src/install-artifacts.ts busybee"
 	},
 	"dependencies": {
+		"@hive/beads": "workspace:*",
 		"@hive/shared": "workspace:*",
 		"commander": "^15.0.0",
 		"xstate": "^5.33.2",
