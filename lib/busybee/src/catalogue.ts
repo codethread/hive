@@ -2,6 +2,7 @@ import { BusyBeeError, createServices } from "./native.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Pure path resolution keeps entries within their authoring folder.
 import { isAbsolute, join, relative, resolve, sep } from "node:path";
 import type { Services } from "./native.ts";
+import { workflowVersionSchema } from "./compatibility.ts";
 import { z } from "zod";
 
 export type Source =
@@ -22,15 +23,17 @@ export type Source =
 
 const NONEMPTY = 1;
 const FIRST = 0;
-const nameSchema = z.string().regex(/^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/u);
-const manifestSchema = z.strictObject({
-	description: z.string().trim().min(NONEMPTY),
-	run: z
-		.string()
-		.min(NONEMPTY)
-		.regex(/\.(?:js|ts)$/u),
-	version: z.string().trim().min(NONEMPTY).optional(),
-});
+const nameSchema = z.compile(z.string().regex(/^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/u));
+const manifestSchema = z.compile(
+	z.strictObject({
+		description: z.string().trim().min(NONEMPTY),
+		run: z
+			.string()
+			.min(NONEMPTY)
+			.regex(/\.(?:js|ts)$/u),
+		version: workflowVersionSchema,
+	}),
+);
 
 export async function listWorkflows(
 	directory: string | undefined,
@@ -90,6 +93,15 @@ async function repositoryRoot(directory: string, services: Services): Promise<st
 
 async function readManifest(repo: string, name: string, services: Services) {
 	const directory = join(repo, ".workflows", nameSchema.parse(name));
+	await services.readDirectory(directory).catch((error) => {
+		if (error instanceof Error && "code" in error && error.code === "ENOENT") {
+			throw new BusyBeeError("workflow_missing", `Named workflow ${name} is missing from ${repo}`, {
+				cause: error,
+				context: { name, repo },
+			});
+		}
+		throw error;
+	});
 	const content = await services.readText(join(directory, "busybee.toml"));
 	const metadata = manifestSchema.parse(Bun.TOML.parse(content));
 	const source = resolve(directory, metadata.run);

@@ -8,7 +8,7 @@ import { join } from "node:path";
 import { mkdir } from "node:fs/promises";
 
 const SUCCESS = 0;
-const manifest = 'description = "A two-step workflow"\nversion = "1"\nrun = "./entry.ts"\n';
+const manifest = 'description = "A two-step workflow"\nversion = "1.0.0"\nrun = "./entry.ts"\n';
 
 describe("checkout catalogue discovery", () => {
 	const fixture = useRepositoryFixture("busybee-catalogue-");
@@ -28,14 +28,19 @@ describe("checkout catalogue discovery", () => {
 		const listed = await invoke(["list"], services);
 		expect(listed.document).toMatchObject({
 			workflows: [
-				{ description: "A two-step workflow", name: "example", run: "./entry.ts", version: "1" },
+				{
+					description: "A two-step workflow",
+					name: "example",
+					run: "./entry.ts",
+					version: "1.0.0",
+				},
 			],
 		});
 		await expect(
 			invoke(["--repo", nested, "list"], { ...services, cwd: fixture.root }),
 		).resolves.toMatchObject({ document: listed.document });
 		const readable = await captureCli(["list"], services);
-		expect(readable.stdout).toContain("example (1): A two-step workflow");
+		expect(readable.stdout).toContain("example (1.0.0): A two-step workflow");
 		expect(await Bun.file(marker).exists()).toBe(false);
 	});
 
@@ -67,9 +72,12 @@ describe("checkout catalogue discovery", () => {
 });
 
 test.each([
-	{ name: "missing entry", source: 'description="Missing"\nrun="./missing.ts"' },
+	{ name: "missing entry", source: 'description="Missing"\nversion="1.0.0"\nrun="./missing.ts"' },
 	{ name: "invalid TOML", source: 'description="Bad syntax"\nrun=' },
-	{ name: "escaping entry", source: 'description="Escape"\nrun="../example/entry.ts"' },
+	{
+		name: "escaping entry",
+		source: 'description="Escape"\nversion="1.0.0"\nrun="../example/entry.ts"',
+	},
 ])("an invalid manifest with $name fails before workflow creation", async ({ source }) => {
 	const result = await invoke(["run", "invalid"], manifestServices(source));
 	expect(result.code).not.toBe(SUCCESS);
