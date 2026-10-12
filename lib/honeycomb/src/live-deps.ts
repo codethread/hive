@@ -53,7 +53,8 @@ async function pick(
 			delimiter: "\t",
 			header,
 			preview: first?.preview,
-			previewWindow: "down,70%,wrap",
+			// Fzf switches below the list when the side preview would be under 80 columns.
+			previewWindow: "right,70%,wrap,<80(down,70%,wrap)",
 			tmux: tmuxPopup(options),
 			withNth: "2..",
 		},

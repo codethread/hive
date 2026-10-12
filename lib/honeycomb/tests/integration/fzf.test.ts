@@ -13,18 +13,7 @@ const FZF_NO_MATCH = 1;
 const FZF_INTERRUPTED = 130;
 const FZF_FAILURE = 2;
 
-/**
- * Run fzf() in a child Bun whose PATH starts with a stub fzf that records its
- * arguments, echoes the first input line, and exits with exitCode. The child
- * prints the selection, or the thrown error's name and message.
- */
-async function runWithStub(bin: string, exitCode: number) {
-	await writeFile(
-		join(bin, "fzf"),
-		`#!/bin/sh\nprintf '%s\\n' "$@" > "${join(bin, "args")}"\nhead -n 1\nexit ${exitCode}\n`,
-	);
-	await chmod(join(bin, "fzf"), EXECUTABLE_MODE);
-	const script = `
+const FZF_SCRIPT = `
 		const { fzf } = await import(${JSON.stringify(FZF_MODULE)});
 		try {
 			process.stdout.write(await fzf(["/a\\tfirst", "/b\\tsecond"], { delimiter: "\\t", withNth: "2.." }));
@@ -32,6 +21,19 @@ async function runWithStub(bin: string, exitCode: number) {
 			process.stdout.write(error.name + ": " + error.message);
 		}
 	`;
+
+/**
+ * Run a picker script in a child Bun whose PATH starts with a stub fzf that records its
+ * arguments, echoes the first input line, and exits with exitCode. The child
+ * prints the selection, or the thrown error's name and message.
+ */
+async function runWithStub(bin: string, exitCode: number, script = FZF_SCRIPT) {
+	await writeFile(
+		join(bin, "fzf"),
+		`#!/bin/sh\nprintf '%s\\n' "$@" > "${join(bin, "args")}"\nhead -n 1\nexit ${exitCode}\n`,
+	);
+	await chmod(join(bin, "fzf"), EXECUTABLE_MODE);
+
 	const proc = Bun.spawn([process.execPath, "-e", script], {
 		env: { ...process.env, PATH: `${bin}:${process.env.PATH}` },
 		stdout: "pipe",
@@ -55,6 +57,24 @@ describe("fzf", () => {
 	test("returns the selected line and passes options as flags", async () => {
 		expect(await runWithStub(bin, FZF_SUCCESS)).toBe("/a\tfirst");
 		expect(await Bun.file(join(bin, "args")).text()).toBe("--delimiter\n\t\n--with-nth\n2..\n");
+	});
+
+	test("live picker requests a responsive preview layout", async () => {
+		const liveDepsModule = join(import.meta.dir, "../../src/live-deps.ts");
+		const script = `
+			const { createLiveDeps } = await import(${JSON.stringify(liveDepsModule)});
+			const item = await createLiveDeps().picker.pick(
+				[{ key: "/a", display: "/a\\tfirst", preview: "echo preview" }],
+				"Select a worktree",
+				{ interactive: true },
+			);
+			process.stdout.write(item.key);
+		`;
+
+		expect(await runWithStub(bin, FZF_SUCCESS, script)).toBe("/a");
+		const args = await Bun.file(join(bin, "args")).text();
+		expect(args).toContain("--preview-window\nright,70%,wrap,<80(down,70%,wrap)\n");
+		expect(args).toContain("--tmux\ncenter,80%,70%\n");
 	});
 
 	test.each([FZF_NO_MATCH, FZF_INTERRUPTED])("exit %d cancels", async (exitCode) => {
