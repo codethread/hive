@@ -1,10 +1,22 @@
 import type { Bee, Detail, Provenance, Relation } from "../contracts.ts";
-import { BeeAssignment, Label, ResourceNotice, outcomeName, time } from "./ui.tsx";
-import { EMPTY, details, loadDetail, loadProvenance, provenance, snapshot } from "./data.ts";
+import { BeeAssignment, Label, OutlineLink, ResourceNotice, outcomeName, time } from "./ui.tsx";
+import {
+	EMPTY,
+	details,
+	hierarchies,
+	loadDetail,
+	loadHierarchy,
+	loadProvenance,
+	provenance,
+	snapshot,
+} from "./data.ts";
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
-import { Suspense, lazy, useEffect, useLayoutEffect, useRef } from "react";
-import { boardScopeSchema, detailKey } from "../contracts.ts";
+import { Suspense, lazy, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "./tabs.tsx";
+import { boardScopeSchema, detailKey, hierarchyKey } from "../contracts.ts";
+import { BranchExplorer } from "./branch-explorer.tsx";
 import { FilterableLabel } from "./filter-controls.tsx";
+import { hasHierarchy } from "../hierarchy.ts";
 import { useStore } from "zustand";
 
 const MarkdownContent = lazy(async () => {
@@ -19,9 +31,17 @@ export function Inspector({ colonyId, id }: { colonyId: string; id: string }) {
 	const key = detailKey(colonyId, id, scope);
 	const resource = useStore(details.store, (state) => state.entries[key] ?? EMPTY);
 	const detail = snapshot(resource);
+	const hierarchyResource = useStore(
+		hierarchies.store,
+		(state) => state.entries[hierarchyKey(colonyId, [id])] ?? EMPTY,
+	);
+	const hierarchy = snapshot(hierarchyResource);
+	const showOutline = hierarchy === null || hasHierarchy(hierarchy, id);
 	const navigate = useNavigate({ from: "/colonies/$colonyId" });
 	const dialogRef = useRef<HTMLDialogElement>(null);
 	const closeRef = useRef<HTMLButtonElement>(null);
+	const beadTabRef = useRef<HTMLButtonElement>(null);
+	const [pane, setPane] = useState("bead");
 	useLayoutEffect(() => {
 		const dialog = dialogRef.current!;
 		dialog.showModal();
@@ -31,6 +51,9 @@ export function Inspector({ colonyId, id }: { colonyId: string; id: string }) {
 		};
 	}, []);
 	useEffect(() => {
+		if (document.activeElement?.closest(".branch-explorer, .inspector-tabs")) {
+			return;
+		}
 		closeRef.current!.focus();
 		// eslint-disable-next-line react/exhaustive-effect-dependencies -- Related-bead navigation resets keyboard focus when the previous link disappears.
 	}, [id]);
@@ -55,20 +78,23 @@ export function Inspector({ colonyId, id }: { colonyId: string; id: string }) {
 			<header className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-line px-6 py-4 sm:px-8">
 				<div className="min-w-0">
 					<p id="inspector-title" className="text-sm font-medium">
-						Bead inspector
+						Bead details
 					</p>
 					<p className="mt-1 break-all font-mono text-xs text-muted">{id}</p>
 				</div>
-				<div className="flex gap-2">
+				<div className="flex items-center gap-2">
+					<OutlineLink id={id} />
 					<button
 						className="button"
 						type="button"
-						disabled={resource.kind === "loading"}
+						disabled={resource.kind === "loading" || hierarchyResource.kind === "loading"}
 						onClick={() => {
-							void loadDetail(colonyId, id, { refreshAfter: Date.now(), scope });
+							const refreshAfter = Date.now();
+							void loadDetail(colonyId, id, { refreshAfter, scope });
+							void loadHierarchy(colonyId, [id], refreshAfter);
 						}}
 					>
-						Refresh detail
+						Refresh
 					</button>
 					<button
 						ref={closeRef}
@@ -84,76 +110,119 @@ export function Inspector({ colonyId, id }: { colonyId: string; id: string }) {
 					</button>
 				</div>
 			</header>
-			<div key={id} className="inspector-body">
-				<ResourceNotice resource={resource} />
-				{detail && (
-					<>
-						<h2 className="mt-6 text-2xl leading-snug font-medium">{detail.card.title}</h2>
-						<div className="my-3 flex flex-wrap items-center gap-1">
-							<Label>{detail.card.status}</Label>
-							<Label>P{detail.card.priority}</Label>
-							{detail.card.labels.map((label) => (
-								<FilterableLabel key={label} label={label} />
-							))}
-						</div>
-						<p className="mb-6 text-xs text-muted">
-							Assigned to <BeeAssignment card={detail.card} />
-							{detail.card.assignee ?? "nobody"} · updated {time(detail.card.updatedAt)}
-						</p>
-						<section aria-label="Description">
-							<h3 className="section-title">Description</h3>
-							<p className="whitespace-pre-wrap text-sm leading-relaxed">
-								{detail.description || "No description recorded."}
-							</p>
-						</section>
-						<section
-							aria-label="Acceptance criteria"
-							className="mt-6 rounded-lg border border-line bg-canvas px-5 pb-5"
-						>
-							<h3 className="section-title">Acceptance criteria</h3>
-							{detail.acceptanceCriteria ? (
-								<Suspense fallback={<p className="text-sm text-muted">Formatting criteria…</p>}>
-									<MarkdownContent>{detail.acceptanceCriteria}</MarkdownContent>
-								</Suspense>
-							) : (
-								<p className="text-sm text-muted">No acceptance criteria recorded.</p>
-							)}
-						</section>
-						<div className="grid gap-x-6 md:grid-cols-2">
-							<Relations direction="outgoing" relations={detail.dependencies} />
-							<Relations direction="incoming" relations={detail.dependents} />
-						</div>
-						{search.view !== "beads" && (
+			<Tabs
+				value={showOutline ? pane : "bead"}
+				onValueChange={setPane}
+				className="inspector-tabs-root"
+			>
+				{showOutline && (
+					<TabsList className="inspector-tabs" aria-label="Inspector views">
+						<TabsTrigger ref={beadTabRef} value="bead">
+							Bead
+						</TabsTrigger>
+						<TabsTrigger value="outline">Outline</TabsTrigger>
+					</TabsList>
+				)}
+				<div className={`inspector-layout ${showOutline ? "inspector-with-outline" : ""}`}>
+					{/* Keep both panes mounted for the desktop split view and preserve outline state. */}
+					<TabsContent
+						key={id}
+						value="bead"
+						forceMount
+						className="inspector-body"
+						role={showOutline ? "tabpanel" : "region"}
+						aria-label="Bead"
+					>
+						<ResourceNotice resource={resource} />
+						{detail && (
 							<>
-								<h3 className="section-title">Requested work</h3>
-								{detail.card.bees.map((bee) => (
-									<BeeContext key={bee.id} bee={bee} colonyId={colonyId} />
-								))}
-								{detail.card.bees.length === 0 && (
-									<p className="text-sm text-muted">
-										No request links this bead in the selected request page.
+								<h2 className="mt-6 text-2xl leading-snug font-medium">{detail.card.title}</h2>
+								<div className="my-3 flex flex-wrap items-center gap-1">
+									<Label>{detail.card.status}</Label>
+									<Label>P{detail.card.priority}</Label>
+									{detail.card.labels.map((label) => (
+										<FilterableLabel key={label} label={label} />
+									))}
+								</div>
+								<p className="mb-6 text-xs text-muted">
+									<BeeAssignment card={detail.card} />
+									{detail.card.assignee ?? "Unassigned"} · updated {time(detail.card.updatedAt)}
+								</p>
+								<section aria-label="Description">
+									<h3 className="section-title">Description</h3>
+									<p className="whitespace-pre-wrap text-sm leading-relaxed">
+										{detail.description || "No description."}
 									</p>
+								</section>
+								<section
+									aria-label="Acceptance criteria"
+									className="mt-6 rounded-lg border border-line bg-canvas px-5 pb-5"
+								>
+									<h3 className="section-title">Acceptance criteria</h3>
+									{detail.acceptanceCriteria ? (
+										<Suspense fallback={<p className="text-sm text-muted">Loading…</p>}>
+											<MarkdownContent>{detail.acceptanceCriteria}</MarkdownContent>
+										</Suspense>
+									) : (
+										<p className="text-sm text-muted">No acceptance criteria.</p>
+									)}
+								</section>
+								<div className="grid gap-x-6 md:grid-cols-2">
+									<Relations direction="outgoing" relations={detail.dependencies} />
+									<Relations direction="incoming" relations={detail.dependents} />
+								</div>
+								{search.view !== "beads" && (
+									<>
+										<h3 className="section-title">Requested work</h3>
+										{detail.card.bees.map((bee) => (
+											<BeeContext key={bee.id} bee={bee} colonyId={colonyId} />
+										))}
+										{detail.card.bees.length === 0 && (
+											<p className="text-sm text-muted">
+												No request links this bead in the selected request page.
+											</p>
+										)}
+									</>
 								)}
+								<details className="mt-6 border-t border-line pt-3">
+									<summary className="text-xs text-muted">
+										Comments · {detail.comments.length}
+									</summary>
+									<ol className="mt-4 space-y-4">
+										{detail.comments.map((comment) => (
+											<li key={comment.id}>
+												<p className="text-[11px] text-muted">
+													{comment.author} · {time(comment.at)}
+												</p>
+												<p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed">
+													{comment.text}
+												</p>
+											</li>
+										))}
+									</ol>
+								</details>
 							</>
 						)}
-						<details className="mt-6 border-t border-line pt-3">
-							<summary className="text-xs text-muted">Comments · {detail.comments.length}</summary>
-							<ol className="mt-4 space-y-4">
-								{detail.comments.map((comment) => (
-									<li key={comment.id}>
-										<p className="text-[11px] text-muted">
-											{comment.author} · {time(comment.at)}
-										</p>
-										<p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed">
-											{comment.text}
-										</p>
-									</li>
-								))}
-							</ol>
-						</details>
-					</>
-				)}
-			</div>
+					</TabsContent>
+					{showOutline && (
+						<TabsContent value="outline" forceMount className="inspector-hierarchy">
+							<ResourceNotice resource={hierarchyResource} label="Outline" />
+							{hierarchy && (
+								<BranchExplorer
+									hierarchy={hierarchy}
+									selected={id}
+									onSelect={() => {
+										setPane("bead");
+										if (globalThis.matchMedia("(max-width: 760px)").matches) {
+											beadTabRef.current!.focus();
+										}
+									}}
+								/>
+							)}
+						</TabsContent>
+					)}
+				</div>
+			</Tabs>
 		</dialog>
 	);
 }
@@ -172,7 +241,7 @@ function Relations({
 			<h3 className="section-title">
 				{title} · {relations.total}
 			</h3>
-			{relations.total === 0 && <p className="text-sm text-muted">None recorded.</p>}
+			{relations.total === 0 && <p className="text-sm text-muted">None.</p>}
 			<ul className="space-y-2">
 				{relations.items.map((relation) => (
 					<li key={`${relation.id}/${relation.dependencyType}`}>
@@ -207,9 +276,6 @@ function Relations({
 function relationName(relation: Relation, direction: "outgoing" | "incoming"): string {
 	if (relation.dependencyType === "blocks") {
 		return direction === "outgoing" ? "Depends on" : "Blocks";
-	}
-	if (relation.dependencyType === "parent-child") {
-		return direction === "outgoing" ? "Parent" : "Child";
 	}
 	return direction === "outgoing" ? "Links to" : "Linked from";
 }
@@ -296,9 +362,6 @@ function ProvenanceChain({ colonyId, id }: { colonyId: string; id: string }) {
 						))}
 					</ol>
 					<p className="mt-3 text-[11px] leading-relaxed text-muted">{endDescription(value.end)}</p>
-					<p className="mt-2 text-[11px] leading-relaxed text-alert">
-						Requester names are recorded. Bee parentage is inferred, not a captured parent link.
-					</p>
 				</>
 			)}
 		</div>

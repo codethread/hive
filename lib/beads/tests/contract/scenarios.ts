@@ -243,6 +243,35 @@ export async function relationsAndReadiness({ service, scope }: ContractSession)
 	await service.close(scope, child.id, { reason: "done" });
 	await service.close(scope, parent.id, { reason: "done" });
 	const closed = await service.show(scope, child.id);
+	const parentEdges = await service.dep.list(scope, child.id, {
+		direction: "down",
+		type: "parent-child",
+	});
+	expect(
+		parentEdges.map((edge) => ({
+			child: edge.issue_id,
+			parent: edge.depends_on_id,
+			title: edge.title,
+			status: edge.status,
+		})),
+	).toEqual([{ child: child.id, parent: parent.id, title: "parent", status: "closed" }]);
+	const childEdges = await service.dep.list(scope, parent.id, {
+		direction: "up",
+		type: "parent-child",
+	});
+	expect(childEdges.map((edge) => edge.title).toSorted()).toEqual([
+		"child",
+		"inherited blocker child",
+	]);
+	const bothEdges = await service.dep.list(scope, child.id, { direction: "both" });
+	expect(bothEdges.map((edge) => edge.type).toSorted()).toEqual([
+		"blocks",
+		"parent-child",
+		"related",
+	]);
+	const selectedPage = await service.list(scope, { ids: [child.id], all: true });
+	const [selected] = selectedPage.issues;
+	expect(selected).toMatchObject({ dependency_count: 2, dependent_count: 1 });
 	const terminalBefore = await service.showMany(scope, [taskParent.id, child.id]);
 	const terminalUpdates = [];
 	/* eslint-disable no-await-in-loop -- Each rejected batch must preserve its original records. */

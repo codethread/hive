@@ -39,7 +39,10 @@ const boardRoute = createRoute({
 		const { presentation: _presentation, beeQuery: _beeQuery, ...data } = search;
 		return data;
 	},
-	loader: ({ params, deps }) => loadView(params.colonyId, navigationSchema.parse(deps)),
+	loader: ({ params, deps }) => {
+		// Stores expose pending/error states without replacing the board or dismissing its dialog.
+		void loadView(params.colonyId, navigationSchema.parse(deps));
+	},
 	component: WorkPage,
 });
 

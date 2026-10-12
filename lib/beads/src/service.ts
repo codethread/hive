@@ -24,6 +24,12 @@ export interface BeadsService {
 		list: (scope: BeadsScope, id: string) => Promise<BeadComment[]>;
 	};
 	dep: {
+		/** Native edge summaries without hydrating issue content or comments. */
+		list: (
+			scope: BeadsScope,
+			id: string,
+			options: DependencySelection,
+		) => Promise<DependencyEdge[]>;
 		add: (
 			scope: BeadsScope,
 			id: string,
@@ -56,6 +62,27 @@ export interface BeadsService {
 		/** Inspect without native auto-import or auto-flush side effects. */
 		status: (scope: BeadsScope) => Promise<SyncStatus>;
 	};
+}
+
+export interface DependencySelection {
+	/** Native direction: dependencies, dependents, or both. */
+	direction: "down" | "up" | "both";
+	/** Exact native edge type; absent includes every type. */
+	type?: string;
+}
+export interface DependencyEdge {
+	/** Native edge source. */
+	issue_id: string;
+	/** Native edge target. */
+	depends_on_id: string;
+	/** Native dependency type. */
+	type: string;
+	/** Title of the other endpoint relative to the requested issue. */
+	title: string;
+	/** Status of the other endpoint. */
+	status: string;
+	/** Priority of the other endpoint. */
+	priority: number;
 }
 
 /** Execution checkout, tracker authority and audit identity are independent selections. */
@@ -161,8 +188,14 @@ export interface ReadySelection {
 	limit?: number | undefined;
 	sort?: "hybrid" | "priority" | "oldest" | undefined;
 }
+export interface SelectedBead extends BeadRow {
+	/** Total native outgoing edges, across all dependency types. */
+	dependency_count: number;
+	/** Total native incoming edges, across all dependency types. */
+	dependent_count: number;
+}
 export interface BeadPage {
-	issues: BeadRow[];
+	issues: SelectedBead[];
 	total: number;
 	limit: number;
 	offset: number;

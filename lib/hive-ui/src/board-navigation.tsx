@@ -50,6 +50,12 @@ export function BeeHistory() {
 
 /** Switching sections changes navigation without changing the active bead view. */
 function changeScope(current: Navigation, view: BoardScope["view"]): Navigation {
-	const { ancestry: _ancestry, bead: _bead, request: _request, ...rest } = current;
+	const {
+		ancestry: _ancestry,
+		bead: _bead,
+		outline: _outline,
+		request: _request,
+		...rest
+	} = current;
 	return { ...rest, page: 0, requestPage: 0, view };
 }

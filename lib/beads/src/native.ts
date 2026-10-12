@@ -44,8 +44,12 @@ const readySchema = createdSchema.pick({
 	updated_at: true,
 	labels: true,
 });
+const selectedSchema = createdSchema.extend({
+	dependency_count: z.number().int().nonnegative(),
+	dependent_count: z.number().int().nonnegative(),
+});
 const pageSchema = z.object({
-	issues: z.array(createdSchema),
+	issues: z.array(selectedSchema),
 	total: z.number(),
 	limit: z.number(),
 	offset: z.number(),
@@ -78,6 +82,14 @@ const dependencySchema = z.object({
 	depends_on_id: z.string(),
 	type: z.string(),
 	action: z.enum(["added", "already_exists", "removed", "not_found"]),
+});
+const dependencyEdgeSchema = z.object({
+	issue_id: z.string(),
+	depends_on_id: z.string(),
+	type: z.string(),
+	title: z.string(),
+	status: z.string(),
+	priority: z.number(),
 });
 const queryReceiptSchema = z.object({
 	status: z.string(),
@@ -175,6 +187,19 @@ export function createNativeBeads(options: NativeBeadsOptions = {}): BeadsServic
 			list: (scope, id) => read(scope, ["comments", "list", id], z.array(beadCommentSchema)),
 		},
 		dep: {
+			list: (scope, id, selection) =>
+				read(
+					scope,
+					[
+						"dep",
+						"list",
+						id,
+						"--direction",
+						selection.direction,
+						...optionalValue("--type", selection.type),
+					],
+					z.array(dependencyEdgeSchema),
+				),
 			add: (scope, id, dependsOn, type) =>
 				read(
 					scope,

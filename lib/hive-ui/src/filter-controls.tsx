@@ -33,7 +33,13 @@ type LabelGroup = (typeof LABEL_GROUPS)[number];
 
 /** Bead filters change request membership too; start both pages without stale selections. */
 export function editFilters(current: Navigation, patch: Partial<Navigation>): Navigation {
-	const { ancestry: _ancestry, bead: _bead, request: _request, ...rest } = current;
+	const {
+		ancestry: _ancestry,
+		bead: _bead,
+		outline: _outline,
+		request: _request,
+		...rest
+	} = current;
 	return { ...rest, ...patch, page: 0, requestPage: 0 };
 }
 

@@ -169,6 +169,33 @@ export function createMemoryBeads(options: MemoryBeadsOptions = {}): BeadsServic
 				}),
 		},
 		dep: {
+			list: (scope, id, selection) =>
+				resolveMemory(() => {
+					const { store } = select(scope);
+					getIssue(store, id, "dep");
+					return store.edges
+						.filter(
+							(edge) =>
+								(selection.type === undefined || edge.type === selection.type) &&
+								((selection.direction !== "up" && edge.source === id) ||
+									(selection.direction !== "down" && edge.target === id)),
+						)
+						.map((edge) => {
+							let otherId = edge.source;
+							if (edge.source === id) {
+								otherId = edge.target;
+							}
+							const other = getIssue(store, otherId, "dep");
+							return {
+								issue_id: edge.source,
+								depends_on_id: edge.target,
+								type: edge.type,
+								title: other.title,
+								status: other.status,
+								priority: other.priority,
+							};
+						});
+				}),
 			add: (scope, id, dependsOn, type = "blocks") =>
 				resolveMemory(() => addDependency(select(scope), id, dependsOn, type)),
 			remove: (scope, id, dependsOn, type) =>
@@ -574,7 +601,12 @@ function listIssues(store: Store, selection: BeadSelection): BeadPage {
 	const offset = selection.offset ?? ZERO;
 	const limit = selection.limit ?? ZERO;
 	return {
-		issues: paginate(issues, offset, limit).map((issue) => project(issue)),
+		issues: paginate(issues, offset, limit).map((issue) =>
+			Object.assign(project(issue), {
+				dependency_count: store.edges.filter((edge) => edge.source === issue.id).length,
+				dependent_count: store.edges.filter((edge) => edge.target === issue.id).length,
+			}),
+		),
 		total: issues.length,
 		offset,
 		limit,
@@ -606,7 +638,12 @@ function searchIssues(store: Store, text: string, selection: BeadSelection): Bea
 		).length;
 	}
 	return {
-		issues: paginate(issues, offset, limit).map((issue) => project(issue)),
+		issues: paginate(issues, offset, limit).map((issue) =>
+			Object.assign(project(issue), {
+				dependency_count: store.edges.filter((edge) => edge.source === issue.id).length,
+				dependent_count: store.edges.filter((edge) => edge.target === issue.id).length,
+			}),
+		),
 		hidden_closed_count: hiddenClosed,
 		offset,
 		limit,

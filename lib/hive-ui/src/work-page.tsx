@@ -1,25 +1,36 @@
 /* eslint-disable import/max-dependencies -- The route composes the board shell, navigation, filters and detail panels. */
-import { BeeAssignment, Label, ResourceNotice, time } from "./ui.tsx";
 import { BeeHistory, BoardTabs } from "./board-navigation.tsx";
-import type { Board, Card, Navigation } from "../contracts.ts";
-import { EMPTY, boards, colonies, inventories, loadView, preferences, snapshot } from "./data.ts";
-import { FilterableLabel, statusName } from "./filter-controls.tsx";
+import {
+	EMPTY,
+	boards,
+	colonies,
+	hierarchies,
+	inventories,
+	loadView,
+	outlines,
+	preferences,
+	snapshot,
+} from "./data.ts";
 import { Link, Outlet, useNavigate, useParams, useSearch } from "@tanstack/react-router";
 import {
 	PAGE_SIZE,
 	REQUEST_PAGE_SIZE,
 	boardFilterSchema,
 	boardKey,
+	hierarchyKey,
 	inventoryKey,
 	navigationSchema,
 } from "../contracts.ts";
+import { ResourceNotice, time } from "./ui.tsx";
+import { BeadBoard } from "./bead-board.tsx";
+import { BeadOutline } from "./bead-outline.tsx";
 import { BeeWorkspace } from "./bee-workspace.tsx";
+import { ColumnSettings } from "./column-settings.tsx";
 import { FilterWorkspace } from "./filter-drawer.tsx";
 import { HeaderSearch } from "./board-search.tsx";
 import { Inspector } from "./inspector.tsx";
+import type { Navigation } from "../contracts.ts";
 import { useStore } from "zustand";
-
-const STATUS_ORDER = ["in_progress", "open", "blocked", "deferred", "closed"];
 
 export function Shell() {
 	const theme = useStore(preferences, (state) => state.theme);
@@ -74,7 +85,7 @@ export function Shell() {
 									preferences.setState({ theme: name });
 								}}
 							>
-								{name === "moss" ? "Moss" : "Paper"}
+								{name === "moss" ? "Dark" : "Light"}
 							</button>
 						))}
 					</fieldset>
@@ -87,7 +98,7 @@ export function Shell() {
 }
 
 export function Welcome() {
-	return <p className="p-6 text-muted">Choose a configured colony to read its work.</p>;
+	return <p className="p-6 text-muted">Select a colony.</p>;
 }
 
 // eslint-disable-next-line max-statements -- Select the board and inventory resources together for one route.
@@ -98,6 +109,15 @@ export function WorkPage() {
 	const key = boardKey(colonyId, filter);
 	const resource = useStore(boards.store, (state) => state.entries[key] ?? EMPTY);
 	const board = snapshot(resource);
+	const hierarchyResource = useStore(
+		hierarchies.store,
+		(state) =>
+			state.entries[hierarchyKey(colonyId, board?.cards.map((card) => card.id) ?? [])] ?? EMPTY,
+	);
+	const outlineResource = useStore(
+		outlines.store,
+		(state) => state.entries[`${colonyId}/${search.outline}`] ?? EMPTY,
+	);
 	const inventoryResource = useStore(
 		inventories.store,
 		(state) => state.entries[inventoryKey(colonyId, search)] ?? EMPTY,
@@ -109,8 +129,14 @@ export function WorkPage() {
 	let summary = "Bee provenance";
 	let readAt: string | null = null;
 	if (search.view === "beads") {
-		summary = board ? `${board.cards.length} beads on this page` : "No work snapshot";
-		readAt = board?.fetchedAt ?? null;
+		summary = board ? `${board.cards.length} beads on this page` : "Beads";
+		if (search.outline !== undefined) {
+			summary = `Outline · ${search.outline}`;
+		}
+		readAt =
+			search.outline === undefined
+				? (board?.fetchedAt ?? null)
+				: (snapshot(outlineResource)?.fetchedAt ?? null);
 	} else if (inventory?.kind === "loaded") {
 		({ readAt } = inventory);
 	}
@@ -128,15 +154,24 @@ export function WorkPage() {
 						</span>
 					</div>
 					<div className="flex items-center gap-3">
-						{readAt !== null && (
-							<span>
-								{search.view === "beads" ? "Read" : "Requests read"} {time(readAt)} · manual refresh
-							</span>
+						{readAt !== null && <span>Updated {time(readAt)}</span>}
+						{search.view === "beads" && search.outline === undefined && board && (
+							<ColumnSettings
+								key={colonyId}
+								colony={colonyId}
+								present={board.cards.map((card) => card.status)}
+								selected={search.statuses}
+							/>
 						)}
 						<button
 							className="button"
 							type="button"
-							disabled={resource.kind === "loading" || inventoryResource.kind === "loading"}
+							disabled={
+								resource.kind === "loading" ||
+								inventoryResource.kind === "loading" ||
+								outlineResource.kind === "loading" ||
+								hierarchyResource.kind === "loading"
+							}
 							onClick={() => {
 								void loadView(colonyId, search, true);
 							}}
@@ -145,7 +180,7 @@ export function WorkPage() {
 						</button>
 					</div>
 				</div>
-				<ResourceNotice resource={resource} />
+				{search.outline === undefined && <ResourceNotice resource={resource} />}
 				{search.view !== "beads" && <ResourceNotice resource={inventoryResource} />}
 				{inventory?.kind === "loaded" && search.view === "completed" && (
 					<RequestPagination hasMore={inventory.hasMore} />
@@ -153,8 +188,17 @@ export function WorkPage() {
 				<div className="work-layout">
 					{search.view === "beads" ? (
 						<section aria-label="Bead board" className="min-w-0">
-							{board && <BoardColumns board={board} />}
-							{board && <Pagination hasMore={board.hasMore} />}
+							{search.outline === undefined ? (
+								board && (
+									<>
+										<ResourceNotice resource={hierarchyResource} label="Hierarchy" />
+										<BeadBoard board={board} hierarchy={snapshot(hierarchyResource)} />
+										<Pagination hasMore={board.hasMore} />
+									</>
+								)
+							) : (
+								<BeadOutline colonyId={colonyId} id={search.outline} />
+							)}
 						</section>
 					) : (
 						inventory?.kind === "loaded" && (
@@ -167,11 +211,6 @@ export function WorkPage() {
 					{search.bead !== undefined && <Inspector colonyId={colonyId} id={search.bead} />}
 				</div>
 				<footer className="flex flex-wrap justify-between gap-2 border-t border-line px-5 py-3 text-xs text-muted">
-					<span>
-						{search.view === "beads"
-							? "Read-only bead snapshot · refresh to read the latest changes."
-							: "Recorded observations may be stale. Process health is not checked."}
-					</span>
 					<details className="max-w-full">
 						<summary>Tracker & query</summary>
 						<div className="mt-3 space-y-2 break-all font-mono text-[11px]">
@@ -192,88 +231,6 @@ export function WorkPage() {
 }
 
 // --- Board and navigation controls ---
-function BoardColumns({ board }: { board: Board }) {
-	const search = useSearch({ from: "/colonies/$colonyId" });
-	const statuses = [
-		...new Set([
-			...(search.statuses.length > 0
-				? search.statuses
-				: STATUS_ORDER.filter((status) => status !== "deferred" && status !== "closed")),
-			...board.cards.map((card) => card.status),
-		]),
-	];
-	const order = [...new Set([...STATUS_ORDER, ...statuses])];
-	statuses.sort((left, right) => order.indexOf(left) - order.indexOf(right));
-	if (board.cards.length === 0) {
-		return (
-			<div className="grid min-h-80 place-content-center gap-2 p-6 text-center">
-				<h2 className="font-medium">No matching beads</h2>
-				<p className="text-sm text-muted">Try removing a filter, or including closed beads.</p>
-			</div>
-		);
-	}
-	return (
-		<section className="board-columns" aria-label="Native status columns">
-			{statuses.map((status) => {
-				const cards = board.cards.filter((card) => card.status === status);
-				return (
-					<section key={status} className="min-w-0">
-						<header className="mb-3 flex items-center justify-between border-b border-line py-4 text-xs">
-							<h2 className="flex items-center gap-2">
-								<span className={`status-dot status-${status}`} />
-								{statusName(status)}
-							</h2>
-							<span className="font-mono text-muted">{cards.length}</span>
-						</header>
-						<div className="space-y-3">
-							{cards.map((card) => (
-								<BeadCard key={card.id} card={card} />
-							))}
-							{cards.length === 0 && (
-								<p className="py-3 text-xs text-muted">No beads in this column</p>
-							)}
-						</div>
-					</section>
-				);
-			})}
-		</section>
-	);
-}
-
-function BeadCard({ card }: { card: Card }) {
-	const search = useSearch({ from: "/colonies/$colonyId" });
-	return (
-		<article className={`bead-card ${search.bead === card.id ? "selected" : ""}`}>
-			<div className="p-3.5">
-				<div className="flex items-center justify-between gap-2">
-					<span className="font-mono text-[11px] text-muted">{card.id}</span>
-					<Label>P{card.priority}</Label>
-				</div>
-				<h3 className="my-3 text-[15px] leading-snug font-medium">
-					<Link
-						from="/colonies/$colonyId"
-						to="."
-						search={(current) => ({ ...current, bead: card.id })}
-						className="hover:text-accent"
-						aria-current={search.bead === card.id ? "true" : undefined}
-					>
-						{card.title}
-					</Link>
-				</h3>
-				<div className="flex flex-wrap gap-1">
-					{card.labels.map((label) => (
-						<FilterableLabel key={label} label={label} />
-					))}
-				</div>
-			</div>
-			<p className="border-t border-line bg-panel px-3.5 py-2.5 text-[11px] text-muted">
-				Assigned to <BeeAssignment card={card} />
-				{card.assignee ?? "nobody"} · updated {time(card.updatedAt)}
-			</p>
-		</article>
-	);
-}
-
 function Pagination({ hasMore }: { hasMore: boolean }) {
 	const search = useSearch({ from: "/colonies/$colonyId" });
 	const navigate = useNavigate({ from: "/colonies/$colonyId" });

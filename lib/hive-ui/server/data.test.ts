@@ -177,3 +177,98 @@ test("ordinary board retains lookahead and page offsets", async () => {
 		})),
 	);
 });
+
+test("exact hierarchy reads retain linked nodes omitted by native list", async () => {
+	const { beads, context, data, scope } = fixture();
+	const hidden = await beads.create(scope, { title: "Linked tombstone" });
+	context.beads = {
+		...beads,
+		list: async (readScope, selection) => ({
+			...(await beads.list(readScope, selection)),
+			issues: [],
+		}),
+	};
+	const result = await data.hierarchy(context, [hidden.id], 0);
+	expect(result.nodes.map((node) => node.id)).toEqual([hidden.id]);
+});
+
+// eslint-disable-next-line max-statements -- Exercise coalescing, visible failure and recovery on one shared cache.
+test("complete families are reused across overlapping reads and failed loads can be retried", async () => {
+	const { beads, context, data, scope } = fixture();
+	const root = await beads.create(scope, { title: "Root" });
+	const child = await beads.create(scope, { title: "Child", parent: root.id });
+	let edgeReads = 0;
+	context.beads = {
+		...beads,
+		dep: {
+			...beads.dep,
+			list: (readScope, id, options) => {
+				edgeReads++;
+				return beads.dep.list(readScope, id, options);
+			},
+		},
+	};
+	const [family, same] = await Promise.all([
+		data.hierarchy(context, [root.id], 0),
+		data.hierarchy(context, [child.id], 0),
+	]);
+	expect(same.nodes).toEqual(family.nodes);
+	expect(edgeReads).toBe(1);
+	context.beads.dep.list = () => Promise.reject(new Error("Unavailable"));
+	let failure: unknown = null;
+	try {
+		await data.hierarchy(context, [root.id], Number.MAX_SAFE_INTEGER);
+	} catch (error) {
+		failure = error;
+	}
+	expect(failure).toBeInstanceOf(Error);
+	context.beads.dep.list = beads.dep.list;
+	const retried = await data.hierarchy(context, [root.id], Number.MAX_SAFE_INTEGER);
+	expect(retried.nodes).toEqual(family.nodes);
+});
+
+// eslint-disable-next-line max-statements -- Reparenting must invalidate all aliases of both old components.
+test("refresh invalidates old family aliases after a native reparent", async () => {
+	const { beads, context, data, scope } = fixture();
+	const left = await beads.create(scope, { title: "Left" });
+	const right = await beads.create(scope, { title: "Right" });
+	const child = await beads.create(scope, { title: "Moving", parent: left.id });
+	await data.hierarchy(context, [left.id, right.id], 0);
+	await beads.update(scope, [child.id], { parent: right.id });
+	await data.hierarchy(context, [right.id], Number.MAX_SAFE_INTEGER);
+	const oldFamily = await data.hierarchy(context, [left.id], 0);
+	expect(oldFamily.nodes.map((node) => node.id)).toEqual([left.id]);
+	const newFamily = await data.hierarchy(context, [child.id], 0);
+	expect(newFamily.nodes.map((node) => node.id).toSorted()).toEqual(
+		[right.id, child.id].toSorted(),
+	);
+});
+
+// eslint-disable-next-line max-statements -- A queued scope must get its own read after the previous request fails.
+test("failed hierarchy work does not fail a valid waiting scope with a newer cutoff", async () => {
+	const { beads, context, data, scope } = fixture();
+	const valid = await beads.create(scope, { title: "Valid" });
+	const old = Promise.withResolvers<Awaited<ReturnType<typeof beads.list>>>();
+	context.beads = {
+		...beads,
+		list: (readScope, selection) => {
+			if (selection?.ids?.includes("missing") === true) {
+				return old.promise;
+			}
+			return beads.list(readScope, selection);
+		},
+	};
+	const failed = data.outline(context, "missing", 0);
+	const waiting = data.hierarchy(context, [valid.id], Number.MAX_SAFE_INTEGER);
+	const results = Promise.allSettled([failed, waiting]);
+	old.reject(new Error("Old outline failed"));
+	const [oldResult, newResult] = await results;
+	expect(oldResult.status).toBe("rejected");
+	if (oldResult.status === "rejected") {
+		expect(oldResult.reason).toBeInstanceOf(Error);
+	}
+	if (newResult.status === "rejected") {
+		throw newResult.reason;
+	}
+	expect(newResult.value.nodes.map((item) => item.id)).toEqual([valid.id]);
+});

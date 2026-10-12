@@ -106,6 +106,6 @@ function isSearchShortcut(event: KeyboardEvent): boolean {
 		!event.isComposing &&
 		!event.defaultPrevented &&
 		!editing &&
-		document.querySelector('dialog[open], [role="menu"]') === null
+		document.querySelector('dialog[open], [role="dialog"], [role="menu"]') === null
 	);
 }

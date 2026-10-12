@@ -8,11 +8,19 @@ import type {
 	Card,
 	Colony,
 	Detail,
+	Hierarchy,
 	InventoryFilter,
 	Provenance,
 	RequestInventory,
 } from "../contracts.ts";
-import type { BeadRecord, BeadRow, BeadSelection, BeadsScope, BeadsService } from "@hive/beads";
+import type {
+	BeadRecord,
+	BeadRow,
+	BeadSelection,
+	BeadsScope,
+	BeadsService,
+	SelectedBead,
+} from "@hive/beads";
 import {
 	COLONY_OBSERVATION_PREFIX,
 	latestColonyObservation,
@@ -20,7 +28,9 @@ import {
 	requestOutcome,
 } from "@hive/shared";
 import { PAGE_SIZE, RELATION_LIMIT, REQUEST_PAGE_SIZE } from "../contracts.ts";
+import { beadFamilies, branchRows } from "../hierarchy.ts";
 import { formatBeadsQuery } from "@hive/beads";
+import { readHierarchy } from "./hierarchy.ts";
 import { taskSelection } from "./query.ts";
 
 const MAX_REQUESTS = 100;
@@ -50,6 +60,8 @@ export function createBoardData() {
 	// A refresh cutoff is shared by its inventory, board and detail requests. Zero uses the normal TTL.
 	const inventories = new Map<string, InventorySnapshot>();
 	const pendingInventories = new Map<string, Promise<Inventory>>();
+	const branches = new Map<string, { startedAt: number; value: Hierarchy }>();
+	const pendingBranches = new Map<string, Promise<Hierarchy>>();
 	// eslint-disable-next-line max-statements -- Coalesce endpoint reads while retaining the original source freshness.
 	const inventory = async (
 		context: ReadContext,
@@ -101,6 +113,131 @@ export function createBoardData() {
 		}
 		return tasks.map((task) => card(task, assignments));
 	};
+	// eslint-disable-next-line max-statements -- Coalesce overlapping family reads and reuse only complete, fresh components.
+	const hierarchy = async (
+		context: ReadContext,
+		ids: string[],
+		{ direction, refreshAfter }: { direction: "family" | "descendants"; refreshAfter: number },
+	): Promise<Hierarchy> => {
+		if (ids.length === 0) {
+			return { nodes: [], fetchedAt: new Date().toISOString() };
+		}
+		const colony = context.colony.id;
+		const active = pendingBranches.get(colony);
+		if (active) {
+			// The previous caller owns its result; a queued scope only waits for the slot.
+			await Promise.allSettled([active]);
+			return hierarchy(context, ids, { direction, refreshAfter });
+		}
+		for (const [key, entry] of branches) {
+			if (Date.now() - Date.parse(entry.value.fetchedAt) >= INVENTORY_TTL_MS) {
+				branches.delete(key);
+			}
+		}
+		const cached = ids.map((id) => branches.get(`${colony}/${id}`));
+		if (cached.every((entry) => entry !== undefined && entry.startedAt >= refreshAfter)) {
+			const nodes = [
+				...new Map(
+					cached.flatMap((entry) => entry!.value.nodes).map((node) => [node.id, node]),
+				).values(),
+			];
+			const value = {
+				nodes,
+				fetchedAt: cached.map((entry) => entry!.value.fetchedAt).toSorted()[0]!,
+			};
+			if (direction === "descendants") {
+				value.nodes = branchRows(
+					value,
+					nodes.find((node) => node.id === ids[0])!,
+				).map(({ node }) => node);
+			}
+			return value;
+		}
+		const startedAt = Date.now();
+		const pending = readBranch(context, ids, { direction, refreshAfter });
+		pendingBranches.set(colony, pending);
+		try {
+			const value = await pending;
+			const refreshed = new Set(value.nodes.map((node) => node.id));
+			// A native reparent can split/merge components: retire every alias of overlapping old families.
+			for (const [key, entry] of branches) {
+				if (
+					key.startsWith(`${colony}/`) &&
+					entry.value.nodes.some((node) => refreshed.has(node.id))
+				) {
+					branches.delete(key);
+				}
+			}
+			if (direction === "family") {
+				for (const family of beadFamilies(value)) {
+					const branch = { nodes: family.rows.map(({ node }) => node), fetchedAt: value.fetchedAt };
+					for (const node of branch.nodes) {
+						branches.set(`${colony}/${node.id}`, { startedAt, value: branch });
+					}
+				}
+			}
+			return value;
+		} finally {
+			pendingBranches.delete(colony);
+		}
+	};
+	const readBranch = async (
+		context: ReadContext,
+		ids: string[],
+		{ direction, refreshAfter }: { direction: "family" | "descendants"; refreshAfter: number },
+	): Promise<Hierarchy> => {
+		const records = await readHierarchy(
+			ids,
+			{
+				rows: async (batch) => {
+					const rows = await list(context, {
+						ids: batch,
+						all: true,
+						deferred: true,
+						limit: batch.length,
+					});
+					const found = new Set(rows.map((row) => row.id));
+					const missing = batch.filter((id) => !found.has(id));
+					// Native list omits tombstones/templates even with --all; exact reads retain linked nodes.
+					if (missing.length > 0) {
+						const exact = await read(context, ["show", ...missing], () =>
+							context.beads.showMany(readScope(context), missing),
+						);
+						rows.push(
+							...exact.map((bead) =>
+								Object.assign(bead, {
+									dependency_count: bead.dependencies.length,
+									dependent_count: bead.dependents.length,
+								}),
+							),
+						);
+					}
+					return rows;
+				},
+				edges: (id) =>
+					read(context, ["dep", "list", id, "--direction", "both", "--type", "parent-child"], () =>
+						context.beads.dep.list(readScope(context), id, {
+							direction: "both",
+							type: "parent-child",
+						}),
+					),
+			},
+			direction,
+		);
+		const summaries = await cards(
+			context,
+			records.map(({ bead }) => bead),
+			refreshAfter,
+		);
+		return {
+			nodes: summaries.map((summary, index) =>
+				Object.assign(summary, {
+					parentIds: records[index]!.parentIds,
+				}),
+			),
+			fetchedAt: new Date().toISOString(),
+		};
+	};
 	return {
 		board: async (
 			context: ReadContext,
@@ -109,7 +246,8 @@ export function createBoardData() {
 		): Promise<Board> => {
 			const current = await inventory(context, filter, refreshAfter);
 			const { tasks, query } = await readTasks(context, filter, current);
-			const summaries = await cards(context, tasks.slice(0, PAGE_SIZE), refreshAfter);
+			const page = tasks.slice(0, PAGE_SIZE);
+			const summaries = await cards(context, page, refreshAfter);
 			return {
 				cards: summaries,
 				fetchedAt: new Date().toISOString(),
@@ -144,8 +282,12 @@ export function createBoardData() {
 					id: comment.id,
 					text: comment.text,
 				})),
-				dependencies: relations(bead.dependencies),
-				dependents: relations(bead.dependents),
+				dependencies: relations(
+					bead.dependencies.filter((edge) => edge.dependency_type !== "parent-child"),
+				),
+				dependents: relations(
+					bead.dependents.filter((edge) => edge.dependency_type !== "parent-child"),
+				),
 				description: bead.description,
 				fetchedAt: new Date().toISOString(),
 			};
@@ -158,6 +300,10 @@ export function createBoardData() {
 			const current = await inventory(context, filter, refreshAfter);
 			return filterInventory(context, filter, current);
 		},
+		hierarchy: (context: ReadContext, ids: string[], refreshAfter: number) =>
+			hierarchy(context, ids, { direction: "family", refreshAfter }),
+		outline: (context: ReadContext, id: string, refreshAfter: number) =>
+			hierarchy(context, [id], { direction: "descendants", refreshAfter }),
 		provenance: readProvenance,
 	};
 }
@@ -296,8 +442,12 @@ function show(context: ReadContext, id: string): Promise<BeadRecord> {
 	return read(context, ["show", id], () => context.beads.show(readScope(context), id));
 }
 
-async function list(context: ReadContext, selection: BeadSelection, text = ""): Promise<BeadRow[]> {
-	const page = await read<{ issues: BeadRow[] }>(
+async function list(
+	context: ReadContext,
+	selection: BeadSelection,
+	text = "",
+): Promise<SelectedBead[]> {
+	const page = await read<{ issues: SelectedBead[] }>(
 		context,
 		formatBeadsQuery(selection, text || undefined),
 		() => {
@@ -327,9 +477,7 @@ async function readInventory(context: ReadContext, scope: BoardScope): Promise<I
 	selection.limit = limit + 1;
 	const issues = await list(context, selection);
 	if (scope.view === "open" && issues.length > limit) {
-		throw new Error(
-			`This MVP supports up to ${MAX_REQUESTS} open requests per colony. Narrow the tracker before loading the board.`,
-		);
+		throw new Error(`Open requests exceed the ${MAX_REQUESTS}-request limit for this colony.`);
 	}
 	const ids = issues.slice(0, limit).map((issue) => issue.id);
 	let requests: BeadRecord[] = [];

@@ -94,8 +94,7 @@ export function BeeWorkspace({
 				</label>
 			</div>
 			<p className="border-b border-line px-5 py-2 text-xs leading-relaxed text-muted">
-				Solid links: recorded requester names. Dashed links: inferred parents from explicitly loaded
-				ancestry. This is loaded context, not a complete family tree.
+				Solid: requester · Dashed: inferred parent
 			</p>
 			<div className="grid min-w-0 xl:grid-cols-[minmax(0,1fr)_380px]">
 				<div className="min-w-0">
@@ -111,10 +110,7 @@ export function BeeWorkspace({
 							{ancestry && (
 								<>
 									<p>{ancestryEnding(ancestry.end)}</p>
-									<p className="mt-2">
-										Ancestry read {time(ancestry.fetchedAt)}. Names are not recorded parent request
-										IDs.
-									</p>
+									<p className="mt-2">Updated {time(ancestry.fetchedAt)}</p>
 								</>
 							)}
 							<button
@@ -148,10 +144,6 @@ export function BeeWorkspace({
 					) : (
 						<div className="py-8 text-sm text-muted">
 							<h2 className="mb-2 font-medium text-ink">Select a bee request</h2>
-							<p>
-								Inspect its recorded requester, observation and linked work. Load its ancestry when
-								needed.
-							</p>
 						</div>
 					)}
 				</aside>

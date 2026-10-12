@@ -1,8 +1,13 @@
 #!/usr/bin/env bun
 import { Command, CommanderError } from "commander";
+import {
+	PAGE_SIZE,
+	boardFilterSchema,
+	boardScopeSchema,
+	inventoryFilterSchema,
+} from "../contracts.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Resolve explicitly configured local repository endpoints.
 import { basename, resolve } from "node:path";
-import { boardFilterSchema, boardScopeSchema, inventoryFilterSchema } from "../contracts.ts";
 import type { BeadsService } from "@hive/beads";
 import type { Colony } from "../contracts.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Explicit machine-mode diagnostics file boundary.
@@ -16,7 +21,6 @@ import { z } from "zod";
 
 const HTTP = {
 	badRequest: 400,
-	forbidden: 403,
 	missing: 404,
 	ok: 200,
 	readOnly: 405,
@@ -30,6 +34,7 @@ const configSchema = z
 const optionsSchema = z.object({
 	beadsDb: z.string().optional(),
 	colonies: z.string().optional(),
+	host: z.enum(["127.0.0.1", "0.0.0.0"]).default("127.0.0.1"),
 	json: z.boolean().default(false),
 	logFile: z.string().optional(),
 	port: z.coerce.number().int().min(0).max(MAX_PORT),
@@ -51,7 +56,8 @@ async function main(): Promise<void> {
 			"--colonies <file>",
 			"JSON array of {name, root, beadsDb}; replaces the single endpoint",
 		)
-		.option("--port <number>", "Loopback HTTP port (0 chooses a free port)", "4318")
+		.option("--host <address>", "Bind address: 127.0.0.1 or 0.0.0.0 for LAN access", "127.0.0.1")
+		.option("--port <number>", "HTTP port (0 chooses a free port)", "4318")
 		.option("--json", "Emit one JSON startup result (requires --log-file)")
 		.option("--log-file <path>", "Write server/native diagnostics to this file instead of stderr")
 		.addHelpText(
@@ -88,9 +94,12 @@ async function main(): Promise<void> {
 		const beads = createNativeBeads();
 		const server = Bun.serve({
 			development,
-			hostname: "127.0.0.1",
+			hostname: options.host,
 			port: options.port,
-			routes: { "/*": index, "/api/*": (request) => api(request, { beads, colonies, data, log }) },
+			routes: {
+				"/*": index,
+				"/api/*": (request) => api(request, { beads, colonies, data, log, host: options.host }),
+			},
 		});
 		const ready = {
 			colonies: colonies.length,
@@ -158,7 +167,9 @@ async function api(
 		colonies,
 		data,
 		log,
+		host,
 	}: {
+		host: string;
 		beads: BeadsService;
 		colonies: Colony[];
 		data: ReturnType<typeof createBoardData>;
@@ -188,15 +199,15 @@ async function api(
 			status = HTTP.readOnly;
 			throw new Error("This UI only supports read-only GET requests.");
 		}
-		if (url.hostname !== "127.0.0.1" && url.hostname !== "localhost") {
-			status = HTTP.forbidden;
+		if (host === "127.0.0.1" && url.hostname !== "127.0.0.1" && url.hostname !== "localhost") {
+			status = HTTP.badRequest;
 			throw new Error("Use the local UI address.");
 		}
 		if (url.pathname === "/api/colonies") {
 			return respond({ colonies });
 		}
 		const route =
-			/^\/api\/colonies\/(?<colony>[^/]+)\/(?<operation>board|beads|provenance|inventory)(?:\/(?<id>[^/]+))?$/u.exec(
+			/^\/api\/colonies\/(?<colony>[^/]+)\/(?<operation>board|beads|provenance|inventory|outline|hierarchy)(?:\/(?<id>[^/]+))?$/u.exec(
 				url.pathname,
 			)?.groups;
 		const selected = colonies.find((entry) => entry.id === route?.["colony"]);
@@ -225,10 +236,21 @@ async function api(
 			status = HTTP.ok;
 			return respond(await data.inventory(context, filter, refreshAfter));
 		}
+		if (route["operation"] === "hierarchy") {
+			const ids = z
+				.array(idSchema)
+				.max(PAGE_SIZE)
+				.parse(JSON.parse(url.searchParams.get("ids") ?? "[]"));
+			status = HTTP.ok;
+			return respond(await data.hierarchy(context, ids, refreshAfter));
+		}
 		status = HTTP.badRequest;
 		const id = idSchema.parse(decodeURIComponent(route["id"] ?? ""));
 		const scope = boardScopeSchema.parse(JSON.parse(url.searchParams.get("scope") ?? "{}"));
 		status = HTTP.ok;
+		if (route["operation"] === "outline") {
+			return respond(await data.outline(context, id, refreshAfter));
+		}
 		if (route["operation"] === "beads") {
 			return respond(await data.detail(context, id, { scope, refreshAfter }));
 		}

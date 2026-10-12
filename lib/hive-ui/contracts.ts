@@ -54,6 +54,8 @@ export const navigationSchema = boardFilterSchema.extend({
 	bead: z.string().optional(),
 	/** Browser-only search over the loaded request page. */
 	beeQuery: z.string().default(""),
+	/** Dedicated outline of one bead and every native descendant, independent of board filters. */
+	outline: z.string().optional(),
 	/** Presentation of the same loaded request and ancestry data. */
 	presentation: z.enum(["outline", "graph"]).default("outline"),
 });
@@ -122,6 +124,17 @@ export const cardSchema = z.object({
 	title: z.string(),
 	/** Native last-update timestamp, retained without refreshing its meaning. */
 	updatedAt: z.string(),
+});
+export const hierarchySchema = z.object({
+	/** Full summaries in the requested native parent-child branches, including closed beads. */
+	nodes: z.array(
+		cardSchema.extend({
+			/** Recorded parents, never inferred from dependencies or bead ID punctuation. */
+			parentIds: z.array(z.string()),
+		}),
+	),
+	/** Server timestamp when this complete branch read finished. */
+	fetchedAt: z.string(),
 });
 export const requestInventorySchema = z.discriminatedUnion("kind", [
 	z.object({
@@ -233,6 +246,8 @@ export const apiErrorSchema = z.object({
 	message: z.string(),
 });
 
+export type Hierarchy = z.infer<typeof hierarchySchema>;
+export type HierarchyNode = Hierarchy["nodes"][number];
 export type BoardScope = z.infer<typeof boardScopeSchema>;
 export type BeadFilter = z.infer<typeof beadFilterSchema>;
 export type InventoryFilter = z.infer<typeof inventoryFilterSchema>;
@@ -257,4 +272,8 @@ export function detailKey(colony: string, id: string, scope: BoardScope): string
 
 export function inventoryKey(colony: string, filter: InventoryFilter): string {
 	return JSON.stringify([colony, inventoryFilterSchema.parse(filter)]);
+}
+
+export function hierarchyKey(colony: string, ids: string[]): string {
+	return `${colony}/${JSON.stringify([...new Set(ids)].toSorted())}`;
 }
