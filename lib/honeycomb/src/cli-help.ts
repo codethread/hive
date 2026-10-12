@@ -10,6 +10,10 @@ Notes:
   in the worktree containing --cwd. --base-current is refused for a detached
   HEAD or combined with --base. Setup failure rolls the add back and exits 1
   with reason setup_failed; with --json, setup output is in setup_output.
+  Pooled add prepares only its selected slot, preferring a clean initialized
+  placeholder before one missing slot or clean uninitialized placeholder.
+  --slot can select a missing configured slot. Copy/setup runs once after target
+  branch checkout; unrelated slots stay untouched. ensure prepares the whole pool.
 
 Blocked outcomes:
   Existing checkouts, stale or dirty canonical roots, pool exhaustion, and unsafe
@@ -36,8 +40,8 @@ Notes:
 	ensure: `
 Use when:
   Pre-warming an expensive repository's worktree pool before agents or humans
-  request work. add also ensures pools as needed, so this is mainly for setup,
-  repair, or making failures visible early.
+  request work, repairing the entire pool, or making setup failures visible early.
+  add prepares only the slot it selects; ensure prepares all configured slots.
 
 Notes:
   Non-pooled repositories have no slots to materialize. Pool initialization runs

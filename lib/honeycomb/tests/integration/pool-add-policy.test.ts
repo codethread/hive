@@ -243,7 +243,6 @@ test("warns for diverged branches and rejects duplicates without side effects", 
 	expect(JSON.parse(diverged.stdout ?? "{}").diagnostics).toMatchInlineSnapshot(`
 	  [
 	    "[wk-pool] initializing feat1…",
-	    "[wk-pool] initializing feat2…",
 	    "warning: couldn't fast-forward from origin/feature/diverged-pool; preserving local work",
 	  ]
 	`);
@@ -258,7 +257,7 @@ test("warns for diverged branches and rejects duplicates without side effects", 
 		message: expect.stringContaining(`${root}__feat1`),
 		reason: "duplicate_branch",
 	});
-	expect(await gitOut(`${root}__feat2`, "branch", "--show-current")).toBe("wk-pool/feat2");
+	expect(await pathExists(`${root}__feat2`)).toBe(false);
 });
 test("pooled path finds allocated branch and --base only affects new branches", async () => {
 	const root = await prepareBasePool();

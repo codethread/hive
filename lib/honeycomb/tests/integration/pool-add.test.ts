@@ -126,7 +126,7 @@ test("copies into allocated slot after checkout and before setup", async () => {
 	const { root } = await initRepoWithOrigin(tmp.dir);
 	await writeFile(join(root, ".env"), "pooled\n");
 	writeConfig({
-		command: 'cat .env > "$WK_CREATED/allocated-read"',
+		command: 'cat .env > "$(git rev-parse --git-path allocated-read)"',
 		copyToml: 'copy = [".env"]\n',
 		poolSize: SINGLE_SLOT,
 		root,
@@ -142,7 +142,13 @@ test("copies into allocated slot after checkout and before setup", async () => {
 
 	expect(await readFile(join(`${root}__feat1`, ".env"), "utf8")).toBe("pooled\n");
 	expect(await gitOut(`${root}__feat1`, "branch", "--show-current")).toBe("feature/allocated-copy");
-	expect(await readFile(join(`${root}__feat1`, "allocated-read"), "utf8")).toBe("pooled\n");
+	const allocatedReadPath = await gitOut(
+		`${root}__feat1`,
+		"rev-parse",
+		"--git-path",
+		"allocated-read",
+	);
+	expect(await readFile(resolve(`${root}__feat1`, allocatedReadPath), "utf8")).toBe("pooled\n");
 });
 test("setup failure during allocation frees the slot and deletes the new branch", async () => {
 	const { root } = await initRepoWithOrigin(tmp.dir);

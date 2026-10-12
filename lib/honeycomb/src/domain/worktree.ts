@@ -53,7 +53,7 @@ export interface Slot {
 	branch: string | null;
 	/** Whether the slot is available on its placeholder branch. */
 	placeholder: boolean;
-	/** Whether Git reports uncommitted changes. */
+	/** Whether Git reports uncommitted changes or cannot read the slot's status. */
 	dirty: boolean;
 	/** Commit timestamp reported by Git, when available. */
 	lastCommitIso: string | null;

@@ -125,7 +125,7 @@ function registerAdd(program: Command, deps: Deps): void {
 		)
 		.requiredOption("--branch <branch>", "Branch name")
 		.option("--json", "Machine-readable output")
-		.option("--slot <path>", "Specific pool slot path")
+		.option("--slot <path>", "Specific configured pool slot path, including a missing slot")
 		.option("--base <branch>", "Base branch for new branches")
 		.option("--base-current", "Use the branch checked out in the worktree containing --cwd")
 		.option("--force", "Force operation")

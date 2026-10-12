@@ -148,7 +148,7 @@ async function readSlotState(options: {
 		marker.exitCode === EXIT_CODES.SUCCESS && files.exists(resolve(slotPath, marker.stdout.trim()));
 	return {
 		branch: worktree.branch,
-		dirty: status.stdout.trim() !== "",
+		dirty: status.exitCode !== EXIT_CODES.SUCCESS || status.stdout.trim() !== "",
 		exists: true,
 		index,
 		initialized,

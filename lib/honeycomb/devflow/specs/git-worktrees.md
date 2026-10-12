@@ -2,7 +2,7 @@
 
 **Status:** Implemented
 
-**Last Updated:** 2026-10-07
+**Last Updated:** 2026-10-12
 
 ## 1. Overview
 
@@ -118,11 +118,11 @@ A project with `pool_size` uses fixed reusable slots. Pooled mode changes comman
 
 - Existing slots are discovered from registered worktrees in either sibling or nested form; only missing slots use the effective location preference. Placeholder branch `wk-pool/featN`; initialized marker `wk-pool-initialized` in git metadata.
 - If both sibling and nested registered worktrees claim the same `featN` slot, pool operations block rather than choosing one silently.
-- `add` initializes absent or half-initialized slots before allocation. Explicit `ensure` performs the same preparation for pre-warming or repair. Allocation happens only after this ensure step succeeds; initialization failures are loud and no `pool_full` payload is returned for an initialization failure.
+- `add` prepares only the selected slot. It checks out the requested branch before running copy/setup once, and reports `ready` only after setup succeeds. Unrelated missing, half-initialized, occupied, dirty or broken slots are never initialized or repaired by `add`. Explicit `ensure` prepares the entire pool for pre-warming or repair. Selected-slot setup failures are loud; they do not return `pool_full`.
 - `list` reports registered worktrees from one Git inventory read, including existing pool slots regardless of initialization state. It does not load config, inspect dirty state or commit history, run hooks, contact remotes, or create missing slots. Canonical and pool annotations come from Git's inventory.
 - `status` reports missing or half-initialized slots without repairing them; `path` resolves paths without initialization.
 - Pooled `remove` recycles only an existing target and never initializes slots. Missing targets are refused. A half-initialized target remains uninitialized after recycling; the normal dirty-state and branch-safety checks still apply.
-- Allocation prefers initialized placeholder slots first.
+- Allocation prefers the lowest clean initialized placeholder slot, otherwise the lowest missing slot or clean uninitialized placeholder. A slot whose Git status cannot be read is reported as dirty and cannot be automatically selected. `--slot <path>` may select any configured slot, including a missing slot; occupied slots still pass normal safe recycling or explicit `--force` before allocation. Dirty placeholders require explicit forced recycling regardless of initialization state.
 - Safe recycling refuses dirty slots, branches without upstreams, and branches not merged to upstream when deleting the old branch. `remove --keep-branch` only requires a clean slot, then resets it to its placeholder while preserving the old branch. `remove --integrated-into <origin/ref>` applies its squash-aware proof before resetting the clean slot and deleting its old branch. Forced recycling may discard tracked/untracked work and delete the old branch.
 - Exhaustion returns `pool_full` with recyclable candidates (see §4).
 
@@ -130,7 +130,7 @@ A project with `pool_size` uses fixed reusable slots. Pooled mode changes comman
 
 Project config defines required `command`s that prepare a worktree or slot for work, plus optional copy setup that materializes local files or directories into the created worktree. Copy setup runs before the configured command. The command runs under bash with `WK_ROOT` (canonical root) and `WK_CREATED` (the created worktree or allocated slot) exported.
 
-- Add/allocation runs the command inside `honeycomb` before reporting `ready`. On failure the engine rolls back the add: a newly created worktree is removed, a newly created branch is deleted, a pre-existing branch is restored to its previous head, and an allocated pool slot returns to its placeholder. The command fails as a hook failure (exit `1`); without `--json`, its output streams to the terminal as it runs.
+- Add/allocation runs the command inside `honeycomb` before reporting `ready`. On failure the engine rolls back the add: a newly created worktree (including a selected missing pool slot) is removed, a newly created branch is deleted, a pre-existing branch is restored to its previous head, and an allocated existing pool slot returns to its placeholder. An existing uninitialized slot remains uninitialized after failure. The command fails as a hook failure (exit `1`); without `--json`, its output streams to the terminal as it runs.
 - With `--json`, bootstrap output is captured in the payload's `setup_output`; a failure reports `reason: "setup_failed"` with `setup_exit_code`.
 - Pool initialization runs setup inside `honeycomb` so initialized slots are actually ready; newly-created pooled slots roll back on setup failure, while existing half-initialized slots remain uninitialized until a later successful run.
 
