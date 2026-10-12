@@ -45,6 +45,15 @@ eval "set -- ${usage_args:-}"
 exec bun run --filter "${usage_package?}" test "$@"
 '''
 
+[tasks.hive-ui]
+description = "Build and run the Hive UI"
+usage = 'arg "[args]" var=#true double_dash="required" help="Hive UI server arguments after --, e.g. --port 0"'
+run = '''
+eval "set -- ${usage_args:-}"
+bun run --filter @hive/hive-ui build
+exec bun run --cwd lib/hive-ui start "$@"
+'''
+
 [tasks."test:changed"]
 description = "Run tests affected by changes from main and report timings"
 usage = 'arg "[args]" var=#true double_dash="required" help="Extra Bun test arguments after --, e.g. a test path or -t NAME"'
