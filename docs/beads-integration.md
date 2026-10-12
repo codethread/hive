@@ -12,15 +12,19 @@ bun run beads:sync
 
 This command reconciles SQLite and JSONL, commits local tracker changes, fetches and merges compatible remote changes, reconciles the received snapshot and pushes `tracker/state`. It never force-pushes; conflicting records or claims stop synchronization. A shared lock serializes publication checkpoints.
 
-Synchronization runs at session start and before code commits, not on ordinary `br` commands or agent tool calls. The pre-commit hook runs after local quality checks and aborts the commit if synchronization fails, including network failures. Tracker commits skip the sync step to avoid recursion, but retain normal quality hooks. The pre-merge-commit hook uses the same checkpoint.
+Publication is an explicit remote-exchange step. Session-start hooks only configure the environment; Git hooks do not publish the tracker. Snapshot-only commits and merges on `tracker/state` validate the staged JSONL with the existing merge parser (valid issue records and unique IDs), without unrelated code checks. Other changes retain lint-staged and typecheck. Commitlint remains on commit-msg; native reconciliation, snapshot scope checks and conflict handling remain in the publisher.
 
-Explicitly synchronize:
+Synchronize at these boundaries:
 
-- **After claiming, before working:** the claim is provisional until publication succeeds. Respect already-published reservations; do not force a claim to win.
-- **After closure or handoff:** these updates may happen after the final code commit, or without any code commit.
-- **After landing updates:** publish completion separately from application code.
+- **Explicit pull/remote refresh:** the operator consuming remote work runs `bun run beads:sync`, including when returning to an independent or dormant clone before selecting shared work. A code pull and repeat bootstrap do not refresh the live tracker. Sync exchanges changes in both directions; it is not receive-only.
+- **Landing/merge:** the landing actor publishes once after integration and all final task/workflow updates, from a surviving configured checkout.
+- **Deliberate remote handoff/checkpoint:** the responsible actor publishes valuable tracker-only or unlanded work when handing it to another clone, switching/retiring hosts, or requesting a remote checkpoint. Ordinary local handoffs and recording new tasks stay local.
 
-Progress updates remain local until a checkpoint. Every publication includes the shared database's snapshot, including colleagues' ongoing tasks; publishing does not close their work. Never merge `tracker/state` into a code branch.
+All worktrees and bees sharing the selected database see local claims and updates immediately. Routine startup/resume, child completion, progress and local commits need no publication. Independent clones may remain stale until explicit exchange; local-only work has no remote backup or bounded publication delay. Each clone must eventually exchange its updates for remote visibility.
+
+For deliberate cross-clone shared work, prefer agreed task allocation. Otherwise refresh, make the actual claims, successfully publish and verify the reservations before execution; batch reservations when useful. Publish release/handoff before another clone takes over. Claims remain provisional until publication succeeds. Separate clones have separate databases even on one host. Neither local locks nor Git exchange provide distributed leases or fencing; reused actor names can produce identical claims without proving exclusivity. Never force competing claims. Autonomous shared-queue dispatch across clones requires a separately agreed pre-execution coordination protocol.
+
+Native `br` automatic JSONL import/export remains enabled independently of Git publication. Every publication includes the shared database's snapshot, including colleagues' ongoing tasks; publishing does not close their work. Never merge `tracker/state` into a code branch.
 
 ## Selecting storage
 
@@ -32,7 +36,7 @@ bun run beads:setup --db /absolute/hive/.worktrees/tracker--state/.beads/beads.d
 
 Setup preserves unrelated TOML settings and writes `BEADS_DB` to ignored `mise.local.toml` and `.codex/config.toml`. `bun install` inherits the canonical checkout's selection for new Honeycomb worktrees; `bun run beads:setup --source <canonical-root>` repeats that setup explicitly. Consumers honor the selected endpoint rather than deriving another database from their working directory.
 
-Mise supplies the project environment. Direnv projects the selection after normal local approval; Claude's SessionStart hook exports it; Pi's extension sets it at session start; Codex reads its generated shell-environment configuration. Review Codex's SessionStart hook through native hook review once per clone. A failed session-start sync is reported to the user; there is no ongoing tool-call gate.
+Mise supplies the project environment. Direnv projects the selection after normal local approval; Claude's SessionStart hook exports it; Pi's extension sets it at session start; Codex reads its generated shell-environment configuration. Session integrations only configure the environment; remote exchange follows the explicit checkpoints above.
 
 When updating from the former wrapper setup, rerun setup in existing configured checkouts, including the permanent tracker checkout, and restart shells and agents. Setup removes generated wrapper PATH and shell-adapter overrides. Keep the tracker checkout's tooling current with the relevant changes, without merging the entire code branch into `tracker/state`.
 

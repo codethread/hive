@@ -1,0 +1,12 @@
+workflow:
+  strict: true
+  statuses:
+    - open
+    - in_progress
+    - in_review
+    - blocked
+    - deferred
+    - draft
+    - closed
+    - tombstone
+    - pinned
