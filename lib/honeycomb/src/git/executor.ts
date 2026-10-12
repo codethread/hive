@@ -32,4 +32,12 @@ export function createLiveGitRunner(): GitRunner {
 	}
 }
 
+/** Scope all Git reads and mutations in an offline operation to local objects. */
+export function withoutLazyFetch(git: GitRunner): GitRunner {
+	return {
+		run: (args, opts) => git.run(["--no-lazy-fetch", ...args], opts),
+		runRaw: (args, opts) => git.runRaw(["--no-lazy-fetch", ...args], opts),
+	};
+}
+
 export { GitError } from "./error.ts";

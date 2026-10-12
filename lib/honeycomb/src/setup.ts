@@ -1,6 +1,5 @@
 import { ConfigError, EXIT_CODES, UnsafeOperationError } from "./errors.ts";
 import type { CopiedFile, PostCreateScriptSpec } from "./domain/worktree.ts";
-import type { CopyEntry, WorktreeLocation } from "./domain/config.ts";
 import type { GitRunner, WorkspaceFiles } from "./services.ts";
 import {
 	NESTED_WORKTREE_DIR,
@@ -27,6 +26,8 @@ import { existsSync, mkdtempSync, realpathSync, writeFileSync } from "node:fs";
 // oxlint-disable-next-line import/no-nodejs-modules -- Setup uses the user's home and temporary directory.
 import { homedir, tmpdir } from "node:os";
 
+import type { CopyEntry } from "./domain/config.ts";
+
 const EMPTY_PATH_COUNT = 0;
 
 interface CopyPlan {
@@ -52,9 +53,9 @@ interface CopySetup {
 }
 
 /** Create the filesystem service used by live worktree operations. */
-export function createLiveWorkspaceFiles(git: GitRunner): WorkspaceFiles {
+export function createLiveWorkspaceFiles(): WorkspaceFiles {
 	return {
-		copy,
+		copy: runCopySetup,
 		exists,
 		normalizePath,
 		prepareParent,
@@ -76,10 +77,9 @@ export function createLiveWorkspaceFiles(git: GitRunner): WorkspaceFiles {
 	}
 
 	async function prepareParent(
-		root: string,
-		path: string,
-		location: WorktreeLocation,
+		options: Parameters<WorkspaceFiles["prepareParent"]>[number],
 	): Promise<void> {
+		const { git, root, path, location } = options;
 		if (location === "nested") {
 			await writeExcludeFence(git, root, {
 				name: "wktree-location",
@@ -87,10 +87,6 @@ export function createLiveWorkspaceFiles(git: GitRunner): WorkspaceFiles {
 			});
 			await mkdir(dirname(path), { recursive: true });
 		}
-	}
-
-	function copy(root: string, target: string, entries: CopyEntry[]): Promise<CopiedFile[]> {
-		return runCopySetup({ entries, git, root, target });
 	}
 
 	function writePostCreateScriptFile(spec: PostCreateScriptSpec): string {
@@ -158,7 +154,7 @@ async function assertAncestorUntracked(
 	target: string,
 	ancestor: string,
 ): Promise<void> {
-	const directory = await git.runRaw(["-C", target, "ls-tree", "-d", "HEAD", "--", ancestor]);
+	const directory = await git.run(["-C", target, "ls-tree", "-d", "HEAD", "--", ancestor]);
 	if (directory.stdout.trim() !== "") {
 		return;
 	}
@@ -173,7 +169,7 @@ async function assertDestinationUntracked(
 	target: string,
 	path: string,
 ): Promise<void> {
-	const tracked = await git.runRaw(["-C", target, "ls-files", "--", path]);
+	const tracked = await git.run(["-C", target, "ls-files", "--", path]);
 	if (tracked.stdout.trim() !== "") {
 		throw new UnsafeOperationError(`copy destination is tracked by git: ${path}`);
 	}

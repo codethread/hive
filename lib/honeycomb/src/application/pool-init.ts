@@ -45,7 +45,7 @@ async function addSlotWorktree(options: {
 	slot: Slot;
 }): Promise<void> {
 	const { branch, deps, location, root, slot } = options;
-	await deps.files.prepareParent(root, slot.path, location);
+	await deps.files.prepareParent({ root, path: slot.path, location, git: deps.git });
 	await deps.git.run(["-C", root, "worktree", "add", slot.path, branch]);
 }
 
@@ -57,7 +57,7 @@ async function bootstrapSlot(options: {
 	slot: Slot;
 }): Promise<void> {
 	const { command, deps, project, root, slot } = options;
-	await deps.files.copy(root, slot.path, project.copy);
+	await deps.files.copy({ root, target: slot.path, entries: project.copy, git: deps.git });
 	await runBootstrap(deps, {
 		command,
 		created: slot.path,

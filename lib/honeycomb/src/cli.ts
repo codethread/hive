@@ -126,8 +126,13 @@ function registerAdd(program: Command, deps: Deps): void {
 		.requiredOption("--branch <branch>", "Branch name")
 		.option("--json", "Machine-readable output")
 		.option("--slot <path>", "Specific configured pool slot path, including a missing slot")
-		.option("--base <branch>", "Base branch for new branches")
+		.option("--base <ref>", "Base ref for new branches")
 		.option("--base-current", "Use the branch checked out in the worktree containing --cwd")
+		.option(
+			"--no-network",
+			"Use cached/local refs with normal policy; skip remote checks and fetch",
+		)
+		.option("--skip-command", "Skip configured bootstrap; retain copy setup and safety checks")
 		.option("--force", "Force operation")
 		.addHelpText("after", HELP.add)
 		.action((_opts, command) => runAction("add", optsToArgs(command.optsWithGlobals()), deps));
@@ -297,9 +302,11 @@ function optsToArgs(opts: Record<string, unknown>): string[] {
 	const args: string[] = [];
 	for (const [key, value] of Object.entries(opts)) {
 		const flag = key.replaceAll(/[A-Z]/gu, (char) => `-${char.toLowerCase()}`);
-		if (value === true) {
+		if (key === "network" && value === false) {
+			args.push("--no-network");
+		} else if (value === true && key !== "network") {
 			args.push(`--${flag}`);
-		} else if (value !== false && value !== undefined && value !== null) {
+		} else if (key !== "network" && value !== false && value !== undefined && value !== null) {
 			args.push(`--${flag}`, String(value));
 		}
 	}

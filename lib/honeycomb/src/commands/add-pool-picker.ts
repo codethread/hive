@@ -12,18 +12,17 @@ type SlotRisk = Awaited<ReturnType<typeof describeSlotRisk>>;
 
 export async function pickFullPoolSlot(options: {
 	deps: Deps;
-	state: PoolState;
+	state: Pick<PoolState, "root" | "slots">;
 	interactive: boolean;
+	noNetwork: boolean;
 }): Promise<Slot> {
 	const { deps, state, interactive } = options;
-	const candidates = state.slots.filter(
-		(slot) => slot.exists && slot.initialized && !slot.placeholder,
-	);
+	const candidates = state.slots.filter((slot) => slot.exists && !slot.placeholder);
 	const [firstCandidate] = candidates;
 	if (!firstCandidate) {
 		throw new HoneycombError("pool full; no recyclable slots found");
 	}
-	const items = await buildPickerItems(deps, candidates);
+	const items = await buildPickerItems(deps, candidates, options.noNetwork);
 	const selected = await deps.picker.pick(items, "Select a worktree slot to recycle", {
 		interactive,
 	});
@@ -42,12 +41,10 @@ export async function buildRecycleConfirmPrompt(git: GitRunner, slot: Slot): Pro
 
 export async function toPoolFullPayload(
 	git: GitRunner,
-	state: PoolState,
+	state: Pick<PoolState, "root" | "slots">,
 	branch: string,
 ): Promise<PoolFullPayload> {
-	const candidates = state.slots.filter(
-		(slot) => slot.exists && slot.initialized && !slot.placeholder,
-	);
+	const candidates = state.slots.filter((slot) => slot.exists && !slot.placeholder);
 	return {
 		branch,
 		candidates: await Promise.all(
@@ -101,11 +98,19 @@ function slotFlags(slot: Slot, risk: SlotRisk): string {
 	return flags.join("");
 }
 
-function buildPickerPreview(): string {
-	return `slot={1}; counts=$(git -C "$slot" rev-list --left-right --count @{upstream}...HEAD 2>/dev/null); if [ $? -ne 0 ] || [ -z "$counts" ]; then echo '⚠ local-only branch'; else ahead=$(echo "$counts" | awk '{print $2}'); [ "$ahead" -gt 0 ] 2>/dev/null && echo "⚠ $ahead unpushed commits will be lost"; echo "upstream: $(echo "$counts" | awk '{print $1}') behind, $ahead ahead"; fi; git -C "$slot" log -5 --format='%h %s'; git -C "$slot" status --porcelain | head`;
+function buildPickerPreview(noNetwork: boolean): string {
+	let git = "git";
+	if (noNetwork) {
+		git += " --no-lazy-fetch";
+	}
+	return `slot={1}; counts=$(${git} -C "$slot" rev-list --left-right --count @{upstream}...HEAD 2>/dev/null); if [ $? -ne 0 ] || [ -z "$counts" ]; then echo '⚠ local-only branch'; else ahead=$(echo "$counts" | awk '{print $2}'); [ "$ahead" -gt 0 ] 2>/dev/null && echo "⚠ $ahead unpushed commits will be lost"; echo "upstream: $(echo "$counts" | awk '{print $1}') behind, $ahead ahead"; fi; ${git} -C "$slot" log -5 --format='%h %s'; ${git} -C "$slot" status --porcelain | head`;
 }
 
-async function buildPickerItems(deps: Deps, candidates: Slot[]): Promise<PickerItem[]> {
+async function buildPickerItems(
+	deps: Deps,
+	candidates: Slot[],
+	noNetwork: boolean,
+): Promise<PickerItem[]> {
 	const items: PickerItem[] = [];
 	for (const slot of candidates) {
 		// eslint-disable-next-line no-await-in-loop -- Preserve ordered Git observations and first-failure behavior for picker rows.
@@ -113,7 +118,7 @@ async function buildPickerItems(deps: Deps, candidates: Slot[]): Promise<PickerI
 		items.push({
 			display: `${slot.path}\tfeat${slot.index}  ${slot.branch ?? "(detached)"}  ${formatRelativeAge(slot.lastCommitIso, deps.clock.now())}${slotFlags(slot, risk)}`,
 			key: String(slot.index),
-			preview: buildPickerPreview(),
+			preview: buildPickerPreview(noNetwork),
 		});
 	}
 	return items;

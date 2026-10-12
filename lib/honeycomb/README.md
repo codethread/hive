@@ -96,7 +96,23 @@ honeycomb finish --json
 honeycomb finish --title "<subject>" --json   # squash strategy
 ```
 
-With `--json`, stdout is always a single JSON object and stderr stays silent. Check `ok`: failures carry `ok: false` with a `kind` (`blocked` or `error`) and a machine-readable `reason`. `add` runs the configured setup command before reporting `ready`, capturing its output in `setup_output`. If setup fails, `add` rolls back and exits `1` with `reason: "setup_failed"`.
+With `--json`, stdout is always a single JSON object and stderr stays silent. Check `ok`: failures carry `ok: false` with a `kind` (`blocked` or `error`) and a machine-readable `reason`. `add` runs the configured setup command before reporting `ready`, capturing its output in `setup_output`, unless `--skip-command` is selected. If setup fails, `add` rolls back and exits `1` with `reason: "setup_failed"`.
+
+For an add using only local Git state, or to omit configured bootstrap:
+
+```bash
+honeycomb add --branch feature/example --no-network
+honeycomb add --branch feature/example --skip-command
+honeycomb add --branch feature/example --no-network --skip-command --json
+```
+
+`--no-network` requires Git 2.45+ to suppress on-demand object fetching. It skips `pre_remote_check`, fetching and remote default discovery while retaining the configured add policy using cached refs. `origin_default` starts new default-base branches at cached `origin/<default>` without changing the canonical root. `fresh_canonical` requires a clean canonical root on the default branch and safely fast-forwards it to the cached origin tip before branching; local-ahead or diverged roots still block. Existing branches retain their cached-origin fast-forward attempt, warning and preserving local work if it fails.
+
+The default name must be recorded locally in `origin/HEAD`. When the cached default ref is absent, a known local default committed tip remains usable; `fresh_canonical` still requires a clean root on that branch. Missing metadata or both default refs requires `--base <local-ref>` or `--base-current`, which override default policy and resolve locally. Missing required objects fail instead of being downloaded. Pool recycling and rollback use one commit resolved before slot mutation: cached origin default first, then local default, then an explicit base if neither default is available.
+
+`--skip-command` independently skips bootstrap while retaining copies/symlinks and safety checks. It permits cold pooled allocation without writing an initialization marker. An existing marker remains: it records historical successful pool initialization. An occupied unmarked slot remains occupied and appears among recycling candidates. Successful skipped adds keep `kind: "ready"`; the skipped steps appear in `diagnostics` with `--json` or terminal progress otherwise.
+
+`--no-network` governs Honeycomb's Git operations. Configured commands and user Git hooks can perform their own network operations; combine `--skip-command` or intervene in those hooks when needed. These flags apply only to `add`; other commands retain their configured behavior.
 
 Use this to see what config applies to the current repository:
 

@@ -14,6 +14,7 @@ import {
 	mergeOriginIfPresent,
 	prepareAddBranch,
 	rollbackNonPoolAdd,
+	withoutLazyFetch,
 } from "./add-worktree.ts";
 import { encodeBranch, worktreePathForName } from "../domain/worktree.ts";
 import {
@@ -49,6 +50,10 @@ interface AddRequest {
 	force: boolean;
 	/** Permit shell/session focus. */
 	interactive: boolean;
+	/** Suppress Honeycomb-controlled network IO while retaining cached-ref policy. */
+	noNetwork: boolean;
+	/** Omit bootstrap while retaining copies and safety. */
+	skipCommand: boolean;
 	/** Output rendering mode. */
 	output: OutputMode;
 	/** Explicit pool slot override. */
@@ -73,7 +78,11 @@ type Checkout = Awaited<ReturnType<typeof prepareCheckout>>;
 export async function addCommand(args: string[], deps: Deps): Promise<CommandResult> {
 	const request = parseAddRequest(args);
 	try {
-		const context = await prepareAdd(request, deps);
+		let operationDeps = deps;
+		if (request.noNetwork) {
+			operationDeps = { ...deps, git: withoutLazyFetch(deps.git) };
+		}
+		const context = await prepareAdd(request, operationDeps);
 		if (context.explanation.project?.poolSize) {
 			return addFromPool(context, context.explanation.project);
 		}
@@ -106,6 +115,8 @@ function parseAddRequest(args: string[]): AddRequest {
 		cwd,
 		force: opts.force === true,
 		interactive: opts.interactive === true,
+		noNetwork: opts["no-network"] === true,
+		skipCommand: opts["skip-command"] === true,
 		output: parseOutputMode(opts),
 		slotPath: optionalRef(opts.slot),
 	};
@@ -155,8 +166,24 @@ async function prepareAdd(request: AddRequest, deps: Deps): Promise<AddContext> 
 	const explanation = deps.config.explain(config, root);
 	const context = { base: request.base, config, deps, explanation, request, root };
 	context.base = await inspectAddTarget(context);
-	await runPreRemoteCheck(deps, { config, operation: "honeycomb add", root });
+	await prepareAddHooks(context);
 	return context;
+}
+
+async function prepareAddHooks(context: AddContext): Promise<void> {
+	const { config, deps, request, root } = context;
+	if (request.noNetwork) {
+		deps.progress.banner(
+			"honeycomb: --no-network: using cached/local refs; remote checks and fetch skipped",
+		);
+	} else {
+		await runPreRemoteCheck(deps, { config, operation: "honeycomb add", root });
+	}
+	if (request.skipCommand) {
+		deps.progress.banner(
+			"honeycomb: --skip-command: configured bootstrap skipped; copy setup retained",
+		);
+	}
 }
 
 async function prepareCheckout(context: AddContext) {
@@ -174,6 +201,7 @@ async function prepareCheckout(context: AddContext) {
 		branch: request.branch,
 		config,
 		deps,
+		noNetwork: request.noNetwork,
 		root,
 	});
 	const originalBranchHead = await captureExistingBranchHead({
@@ -194,9 +222,14 @@ async function populateCheckout(checkout: Checkout): Promise<void> {
 		worktreePath,
 	});
 	if (explanation.project) {
-		await deps.files.copy(root, worktreePath, explanation.project.copy);
+		await deps.files.copy({
+			root,
+			target: worktreePath,
+			entries: explanation.project.copy,
+			git: deps.git,
+		});
 	}
-	if (explanation.command.command) {
+	if (!request.skipCommand && explanation.command.command) {
 		await runBootstrap(deps, {
 			command: explanation.command.command,
 			created: worktreePath,
@@ -210,7 +243,12 @@ async function populateCheckout(checkout: Checkout): Promise<void> {
 async function createCheckout(checkout: Checkout): Promise<void> {
 	const { base, branchState, deps, explanation, originalBranchHead, request, root, worktreePath } =
 		checkout;
-	await deps.files.prepareParent(root, worktreePath, explanation.worktreeLocation);
+	await deps.files.prepareParent({
+		root,
+		path: worktreePath,
+		location: explanation.worktreeLocation,
+		git: deps.git,
+	});
 	await addNonPoolWorktree({
 		base,
 		branch: request.branch,
@@ -284,6 +322,8 @@ async function addFromPool(
 		force: request.force,
 		interactive: request.interactive,
 		json: request.output.json,
+		noNetwork: request.noNetwork,
+		skipCommand: request.skipCommand,
 		project,
 		root,
 		slotPath: request.slotPath,

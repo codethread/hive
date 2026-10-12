@@ -41,9 +41,27 @@ export interface WorkspaceFiles {
 	/** Check whether a filesystem target exists. */
 	exists: (path: string) => boolean;
 	/** Prepare the directory and ignore entry for a nested worktree. */
-	prepareParent: (root: string, path: string, location: WorktreeLocation) => Promise<void>;
+	prepareParent: (options: {
+		/** Operation-scoped Git boundary, including offline object policy. */
+		git: GitRunner;
+		/** Canonical root whose shared exclude is updated. */
+		root: string;
+		/** Target checkout path. */
+		path: string;
+		/** Placement policy for missing checkouts. */
+		location: WorktreeLocation;
+	}) => Promise<void>;
 	/** Validate all destinations before replacing configured local assets. */
-	copy: (root: string, target: string, entries: CopyEntry[]) => Promise<CopiedFile[]>;
+	copy: (options: {
+		/** Operation-scoped Git boundary for tracked-path safety checks. */
+		git: GitRunner;
+		/** Canonical root supplying relative copy sources. */
+		root: string;
+		/** Checkout receiving assets. */
+		target: string;
+		/** Parsed copy/symlink requests. */
+		entries: CopyEntry[];
+	}) => Promise<CopiedFile[]>;
 	/** Write an executable bootstrap script and return its path. */
 	writePostCreateScript: (spec: PostCreateScriptSpec) => string;
 }

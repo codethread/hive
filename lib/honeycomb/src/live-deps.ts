@@ -15,7 +15,7 @@ const ANSWER_BYTES = 1;
 /** Assemble live Git, filesystem, hook, picker, and terminal services. */
 export function createLiveDeps(): Deps {
 	const git = createLiveGitRunner();
-	const files = createLiveWorkspaceFiles(git);
+	const files = createLiveWorkspaceFiles();
 	return {
 		cdDirective: createFileCdDirective(process.env.HONEYCOMB_CD_FILE),
 		clock: { now: Date.now },

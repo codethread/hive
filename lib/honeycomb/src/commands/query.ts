@@ -144,7 +144,12 @@ export async function copyCommand(args: string[], deps: Deps): Promise<CommandRe
 	const config = deps.config.read(canonical.path);
 	const target = resolveCopyTarget({ canonical, cwd: request.cwd, deps, worktrees });
 	const { project } = deps.config.explain(config, canonical.path);
-	const copied = await deps.files.copy(canonical.path, target.path, project?.copy ?? []);
+	const copied = await deps.files.copy({
+		root: canonical.path,
+		target: target.path,
+		entries: project?.copy ?? [],
+		git: deps.git,
+	});
 	const payload = {
 		copied,
 		exclude_paths: [...new Set(copied.map((entry) => entry.to))].toSorted(),

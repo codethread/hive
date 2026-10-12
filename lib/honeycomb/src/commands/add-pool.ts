@@ -15,10 +15,11 @@ import {
 	checkoutBranchInSlot,
 	mergeOriginIfPresent,
 	prepareAddBranch,
+	resolvePoolResetCommit,
 	rollbackNonPoolAdd,
 	rollbackPooledAllocation,
 } from "./add-worktree.ts";
-import { buildPoolState, recycleSlot } from "../application/pool.ts";
+import { buildPoolSlots, recycleSlot } from "../application/pool.ts";
 import {
 	buildRecycleConfirmPrompt,
 	pickFullPoolSlot,
@@ -47,6 +48,10 @@ interface PooledAddOptions {
 	interactive: boolean;
 	/** Whether full pools produce JSON rather than a picker. */
 	json: boolean;
+	/** Use only local refs and objects throughout allocation. */
+	noNetwork: boolean;
+	/** Skip bootstrap without changing copy/safety behavior. */
+	skipCommand: boolean;
 	/** Configured pooled project. */
 	project: ProjectConfig;
 	/** Canonical repository root. */
@@ -57,10 +62,12 @@ interface PooledAddOptions {
 	worktreeLocation: WorktreeLocation;
 }
 interface PreparedPool extends PooledAddOptions {
-	/** Branch state observed after fetch. */
+	/** Branch state observed from available refs. */
 	branchState: BranchState;
 	/** Pool observations before allocation. */
-	state: PoolState;
+	state: Pick<PoolState, "root" | "slots">;
+	/** Validated local commit used to return an existing slot to its placeholder. */
+	resetCommit: string;
 }
 interface Allocation extends PreparedPool {
 	/** Selected slot to prepare and allocate. */
@@ -86,23 +93,34 @@ function assertBranchAvailable(worktrees: Worktree[], branch: string): void {
 	}
 }
 
-async function inspectPool(options: PooledAddOptions): Promise<PoolState> {
+async function inspectPool(options: PooledAddOptions): Promise<Pick<PoolState, "root" | "slots">> {
 	const { deps, project, root, worktreeLocation } = options;
 	const worktrees = await listWorktrees(deps.git, root);
 	assertBranchAvailable(worktrees, options.branch);
-	return buildPoolState({ deps, location: worktreeLocation, project, worktrees });
+	return {
+		root,
+		slots: await buildPoolSlots({ deps, location: worktreeLocation, project, worktrees }),
+	};
 }
 
 async function preparePooledAdd(options: PooledAddOptions): Promise<PreparedPool> {
 	const { base, branch, config, deps, root } = options;
 	const worktrees = await listWorktrees(deps.git, root);
 	assertBranchAvailable(worktrees, branch);
-	const preparedBranch = await prepareAddBranch({ base, branch, config, deps, root });
+	const preparedBranch = await prepareAddBranch({
+		base,
+		branch,
+		config,
+		deps,
+		root,
+		noNetwork: options.noNetwork,
+	});
 	const state = await inspectPool(options);
-	return { ...options, ...preparedBranch, state };
+	const resetCommit = await resolvePoolResetCommit(options);
+	return { ...options, ...preparedBranch, resetCommit, state };
 }
 
-async function populatePooledSlot(options: Allocation & { command: string }): Promise<void> {
+async function populatePooledSlot(options: Allocation): Promise<void> {
 	const { branch, command, deps, project, root, slot } = options;
 	await mergeOriginIfPresent({
 		branch,
@@ -110,19 +128,21 @@ async function populatePooledSlot(options: Allocation & { command: string }): Pr
 		progress: deps.progress,
 		worktreePath: slot.path,
 	});
-	await deps.files.copy(root, slot.path, project.copy);
-	await runBootstrap(deps, {
-		command,
-		created: slot.path,
-		pooled: true,
-		projectName: projectNameFor(project, root),
-		root,
-	});
+	await deps.files.copy({ root, target: slot.path, entries: project.copy, git: deps.git });
+	if (!options.skipCommand && command) {
+		await runBootstrap(deps, {
+			command,
+			created: slot.path,
+			pooled: true,
+			projectName: projectNameFor(project, root),
+			root,
+		});
+	}
 }
 
 async function allocatePooledSlot(options: Allocation): Promise<ReadyAddPayload> {
 	const { branch, branchState, command, deps, project, root, slot } = options;
-	if (!command) {
+	if (!command && !options.skipCommand) {
 		throw new ConfigError(
 			`project ${project.name ?? project.root} requires command for pooled setup`,
 		);
@@ -135,7 +155,7 @@ async function allocatePooledSlot(options: Allocation): Promise<ReadyAddPayload>
 	});
 	await checkoutPooledSlot(options);
 	try {
-		await populatePooledSlot({ ...options, command });
+		await populatePooledSlot(options);
 	} catch (error) {
 		await rollbackSelectedSlot({ ...options, originalBranchHead });
 		throw error;
@@ -166,7 +186,12 @@ async function checkoutPooledSlot(options: Allocation): Promise<void> {
 		});
 		return;
 	}
-	await deps.files.prepareParent(root, slot.path, options.worktreeLocation);
+	await deps.files.prepareParent({
+		root,
+		path: slot.path,
+		location: options.worktreeLocation,
+		git: deps.git,
+	});
 	await addNonPoolWorktree({
 		base,
 		branch,
@@ -184,7 +209,7 @@ async function rollbackSelectedSlot(
 	const { branch, branchState, deps, originalBranchHead, root, slot } = options;
 	const rollback = { branch, branchState, git: deps.git, originalBranchHead, root };
 	if (slot.exists) {
-		await rollbackPooledAllocation({ ...rollback, slot });
+		await rollbackPooledAllocation({ ...rollback, slot, resetCommit: options.resetCommit });
 		return;
 	}
 	await rollbackNonPoolAdd({ ...rollback, worktreePath: slot.path });
@@ -196,7 +221,12 @@ async function recycleAndReadSlot(
 	force: boolean,
 ): Promise<Slot | undefined> {
 	const { deps, project, root, worktreeLocation } = options;
+	let preparedReset: { slot: Slot; commit: string } | undefined = undefined;
+	if (options.noNetwork) {
+		preparedReset = { slot: selected, commit: options.resetCommit };
+	}
 	await recycleSlot({
+		preparedReset,
 		files: deps.files,
 		force,
 		git: deps.git,
@@ -208,13 +238,13 @@ async function recycleAndReadSlot(
 		slotPath: selected.path,
 		worktreeLocation,
 	});
-	const state = await buildPoolState({
+	const slots = await buildPoolSlots({
 		deps,
 		location: worktreeLocation,
 		project,
 		worktrees: await listWorktrees(deps.git, root),
 	});
-	return state.slots.find((candidate) => candidate.index === selected.index);
+	return slots.find((candidate) => candidate.index === selected.index);
 }
 
 async function selectExplicitSlot(options: PreparedPool, slotPath: string): Promise<Slot> {
@@ -252,6 +282,7 @@ async function recycleFullPoolSlot(options: PreparedPool): Promise<Slot> {
 	const selected = await pickFullPoolSlot({
 		deps: options.deps,
 		interactive: options.interactive,
+		noNetwork: options.noNetwork,
 		state: options.state,
 	});
 	await confirmRecycle(options, selected);

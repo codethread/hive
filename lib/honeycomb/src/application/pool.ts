@@ -20,23 +20,16 @@ export async function recycleSlot(options: {
 	keepBranch: boolean;
 	integratedInto: string | null;
 	worktreeLocation: WorktreeLocation;
+	/** Add-local offline reset resolved before slot mutation. Other callers discover/fetch normally. */
+	preparedReset?: { slot: Slot; commit: string } | undefined;
 }): Promise<void> {
-	const { files, git, project, root, slotPath, keepBranch, integratedInto, worktreeLocation } =
-		options;
-	const { slot, trunk } = await locateSlot({
-		files,
-		git,
-		project,
-		root,
-		slotPath,
-		worktreeLocation,
-	});
-	await git.run(["-C", root, "fetch", "origin"]);
+	const { git, root, keepBranch, integratedInto } = options;
+	const { slot, resetCommit } = await resolveRecycleReset(options);
 	if (options.force) {
-		await forceResetSlot({ git, keepBranch, root, slot, trunk });
+		await forceResetSlot({ git, keepBranch, root, slot, resetCommit });
 		return;
 	}
-	await recycleSlotSafely({ git, integratedInto, keepBranch, root, slot, trunk });
+	await recycleSlotSafely({ git, integratedInto, keepBranch, root, slot, resetCommit });
 }
 
 export async function ensurePool(options: {
@@ -59,6 +52,15 @@ export async function ensurePool(options: {
 	return state;
 }
 // --- Private functions ---
+
+async function resolveRecycleReset(options: Parameters<typeof recycleSlot>[number]) {
+	if (options.preparedReset) {
+		return { slot: options.preparedReset.slot, resetCommit: options.preparedReset.commit };
+	}
+	const { slot, trunk } = await locateSlot(options);
+	await options.git.run(["-C", options.root, "fetch", "origin"]);
+	return { slot, resetCommit: `origin/${trunk}` };
+}
 
 function unpooledState(project: ProjectConfig, files: WorkspaceFiles): PoolState {
 	return {
@@ -137,10 +139,10 @@ async function checkoutPlaceholder(options: {
 	git: GitRunner;
 	placeholderBranch: string;
 	slotPath: string;
-	trunk: string;
+	resetCommit: string;
 }): Promise<void> {
-	const { git, placeholderBranch, slotPath, trunk } = options;
-	await git.run(["-C", slotPath, "checkout", "-B", placeholderBranch, `origin/${trunk}`]);
+	const { git, placeholderBranch, slotPath, resetCommit } = options;
+	await git.run(["-C", slotPath, "checkout", "-B", placeholderBranch, resetCommit]);
 }
 
 async function forceResetSlot(options: {
@@ -148,9 +150,9 @@ async function forceResetSlot(options: {
 	keepBranch: boolean;
 	root: string;
 	slot: Slot;
-	trunk: string;
+	resetCommit: string;
 }): Promise<void> {
-	const { git, keepBranch, root, slot, trunk } = options;
+	const { git, keepBranch, root, slot, resetCommit } = options;
 	const oldBranch = recyclableOldBranch(slot);
 	await git.run([
 		"-C",
@@ -159,7 +161,7 @@ async function forceResetSlot(options: {
 		"-f",
 		"-B",
 		placeholderBranchFor(slot.index),
-		`origin/${trunk}`,
+		resetCommit,
 	]);
 	await git.run(["-C", slot.path, "reset", "--hard", placeholderBranchFor(slot.index)]);
 	await git.run(["-C", slot.path, "clean", "-fd"]);
@@ -174,9 +176,9 @@ async function recycleSlotSafely(options: {
 	keepBranch: boolean;
 	root: string;
 	slot: Slot;
-	trunk: string;
+	resetCommit: string;
 }): Promise<void> {
-	const { git, integratedInto, keepBranch, root, slot, trunk } = options;
+	const { git, integratedInto, keepBranch, root, slot, resetCommit } = options;
 	const status = await git.runRaw(["-C", slot.path, "status", "--porcelain=v1"]);
 	if (status.stdout.trim() !== "") {
 		throw new DirtySlotError(`slot ${slot.path} has uncommitted changes; pass --force to recycle`);
@@ -195,7 +197,7 @@ async function recycleSlotSafely(options: {
 		git,
 		placeholderBranch: placeholderBranchFor(slot.index),
 		slotPath: slot.path,
-		trunk,
+		resetCommit,
 	});
 	if (!keepBranch && oldBranch) {
 		await deleteSourceBranch({ git, integratedInto, oldBranch, root });
@@ -233,4 +235,9 @@ async function ensurePoolSlots(options: {
 	});
 }
 
-export { buildPoolState, describeSlotRisk, ensurePlaceholderBranch } from "./pool-state.ts";
+export {
+	buildPoolSlots,
+	buildPoolState,
+	describeSlotRisk,
+	ensurePlaceholderBranch,
+} from "./pool-state.ts";

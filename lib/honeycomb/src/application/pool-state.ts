@@ -29,16 +29,29 @@ export async function buildPoolState(options: {
 	/** Effective placement policy; defaults to the project's preference. */
 	location?: WorktreeLocation;
 }): Promise<PoolState> {
-	const { project: cfg, worktrees, deps, location = cfg.worktreeLocation ?? "sibling" } = options;
+	const { project: cfg, deps } = options;
 	const slotCount = requirePoolSize(cfg);
 	const { git, files } = deps;
 	const root = files.normalizePath(cfg.root);
 	const trunk = await detectOriginDefaultBranch(git, root);
-	const slots = await Promise.all(
-		Array.from({ length: slotCount }, (_slotNumber, zeroBased) =>
+	const slots = await buildPoolSlots(options);
+	return { hasPool: true, root, size: slotCount, slots, trunk };
+}
+
+/** Observe slot occupancy and readiness independently of origin/default discovery. */
+export function buildPoolSlots(options: {
+	project: ProjectConfig;
+	worktrees: Worktree[];
+	deps: { git: GitRunner; files: Pick<WorkspaceFiles, "normalizePath" | "exists"> };
+	location?: WorktreeLocation;
+}): Promise<Slot[]> {
+	const { project, worktrees, deps, location = project.worktreeLocation ?? "sibling" } = options;
+	const root = deps.files.normalizePath(project.root);
+	return Promise.all(
+		Array.from({ length: requirePoolSize(project) }, (_slotNumber, zeroBased) =>
 			buildPoolSlotState({
-				files,
-				git,
+				files: deps.files,
+				git: deps.git,
 				index: zeroBased + FIRST_SLOT_INDEX,
 				location,
 				root,
@@ -46,7 +59,6 @@ export async function buildPoolState(options: {
 			}),
 		),
 	);
-	return { hasPool: true, root, size: slotCount, slots, trunk };
 }
 
 export async function describeSlotRisk(

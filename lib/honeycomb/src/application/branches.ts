@@ -71,8 +71,9 @@ export async function resolveDefaultBaseForNewBranch(options: {
 	policy: AddPolicy;
 	branchState: BranchState;
 	base: string | null;
+	noNetwork: boolean;
 }): Promise<string | null> {
-	const { git, root, policy, branchState, base } = options;
+	const { branchState, base } = options;
 	if (branchState !== "none") {
 		// oxlint-disable-next-line unicorn/no-null -- public result type signals "no base needed" with null
 		return null;
@@ -80,12 +81,41 @@ export async function resolveDefaultBaseForNewBranch(options: {
 	if (base) {
 		return base;
 	}
-	const defaultBranch = await detectOriginDefaultBranch(git, root);
-	if (policy !== "fresh_canonical") {
-		return `origin/${defaultBranch}`;
+	return await resolvePolicyDefaultBase(options);
+}
+
+export async function readLocalDefaultBranch(git: GitRunner, root: string): Promise<string | null> {
+	const symbolic = await git.runRaw(["-C", root, "symbolic-ref", "refs/remotes/origin/HEAD"]);
+	if (symbolic.exitCode === EXIT_CODES.SUCCESS) {
+		return parseTrunkFromSymbolicRef(symbolic.stdout);
 	}
-	await fastForwardCanonicalDefault(git, root, defaultBranch);
-	return defaultBranch;
+	// oxlint-disable-next-line unicorn/no-null -- Local default discovery explicitly models missing metadata.
+	return null;
+}
+
+/** Resolve a commit without contacting origin or substituting the current HEAD. */
+export async function resolveOfflineDefaultBase(git: GitRunner, root: string): Promise<string> {
+	const trunk = await resolveDefaultBranchName(git, root, true);
+	const cached = `refs/remotes/origin/${trunk}`;
+	if (await refExists(git, root, cached)) {
+		return resolveCommitRef({ git, label: "cached origin default branch", ref: cached, root });
+	}
+	const ref = `refs/heads/${trunk}`;
+	if (!(await refExists(git, root, ref))) {
+		throw new UsageError(
+			`cached origin and local default branch ${trunk} are missing; pass --base <local-ref> with --no-network`,
+		);
+	}
+	return resolveCommitRef({ git, label: "local default branch", ref, root });
+}
+
+export async function resolveLocalBaseCommit(
+	git: GitRunner,
+	root: string,
+	base: string,
+): Promise<string> {
+	const ref = await resolveBaseRef(git, root, base);
+	return resolveCommitRef({ git, label: "--base", ref, root });
 }
 
 export async function assertCanonicalCanFastForward(
@@ -93,13 +123,7 @@ export async function assertCanonicalCanFastForward(
 	root: string,
 	defaultBranch: string,
 ): Promise<void> {
-	await assertCanonicalClean(git, root);
-	const current = await git.run(["-C", root, "branch", "--show-current"]);
-	if (current.stdout.trim() !== defaultBranch) {
-		throw new WrongCanonicalBranchError(
-			`canonical root must be checked out on ${defaultBranch}; currently on ${current.stdout.trim() || "detached HEAD"}`,
-		);
-	}
+	await assertCanonicalOnDefault(git, root, defaultBranch);
 	await assertHeadIsAncestorOf(git, root, `origin/${defaultBranch}`);
 }
 
@@ -116,16 +140,16 @@ export async function resolveBaseRef(git: GitRunner, root: string, base: string)
 	if (base.startsWith("origin/")) {
 		const remoteName = base.slice("origin/".length);
 		if (await refExists(git, root, `refs/remotes/origin/${remoteName}`)) {
-			return base;
+			return `refs/remotes/origin/${remoteName}`;
 		}
 	}
 	if (await refExists(git, root, `refs/heads/${base}`)) {
-		return base;
+		return `refs/heads/${base}`;
 	}
 	if (await refExists(git, root, `refs/remotes/origin/${base}`)) {
-		return `origin/${base}`;
+		return `refs/remotes/origin/${base}`;
 	}
-	throw new UsageError(`base branch not found locally or on origin: ${base}`);
+	return resolveCommitRef({ git, label: "--base", ref: base, root });
 }
 
 export async function assertBranchHasMergedUpstream(
@@ -191,10 +215,62 @@ export async function assertBranchSafelyDeletable(
 }
 
 export async function refExists(git: GitRunner, root: string, ref: string): Promise<boolean> {
-	const result = await git.runRaw(["-C", root, "show-ref", "--verify", ref]);
-	return result.exitCode === EXIT_CODES.SUCCESS;
+	const result = await git.run(["-C", root, "for-each-ref", "--format=%(refname)", ref]);
+	return result.stdout.split("\n").includes(ref);
 }
 // --- Private functions ---
+
+async function resolvePolicyDefaultBase({
+	git,
+	root,
+	policy,
+	noNetwork,
+}: Parameters<typeof resolveDefaultBaseForNewBranch>[number]): Promise<string> {
+	const defaultBranch = await resolveDefaultBranchName(git, root, noNetwork);
+	if (noNetwork && !(await refExists(git, root, `refs/remotes/origin/${defaultBranch}`))) {
+		const localBase = await resolveOfflineDefaultBase(git, root);
+		if (policy === "fresh_canonical") {
+			await assertCanonicalOnDefault(git, root, defaultBranch);
+		}
+		return localBase;
+	}
+	if (policy !== "fresh_canonical") {
+		return `origin/${defaultBranch}`;
+	}
+	await fastForwardCanonicalDefault(git, root, defaultBranch);
+	return defaultBranch;
+}
+
+async function resolveDefaultBranchName(
+	git: GitRunner,
+	root: string,
+	noNetwork: boolean,
+): Promise<string> {
+	if (!noNetwork) {
+		return detectOriginDefaultBranch(git, root);
+	}
+	const trunk = await readLocalDefaultBranch(git, root);
+	if (!trunk) {
+		throw new TrunkDetectionError(
+			"origin/HEAD is unknown locally; pass --base <local-ref> with --no-network",
+		);
+	}
+	return trunk;
+}
+
+async function assertCanonicalOnDefault(
+	git: GitRunner,
+	root: string,
+	defaultBranch: string,
+): Promise<void> {
+	await assertCanonicalClean(git, root);
+	const current = await git.run(["-C", root, "branch", "--show-current"]);
+	if (current.stdout.trim() !== defaultBranch) {
+		throw new WrongCanonicalBranchError(
+			`canonical root must be checked out on ${defaultBranch}; currently on ${current.stdout.trim() || "detached HEAD"}`,
+		);
+	}
+}
 
 function branchStateFromRefs(lines: string[], branch: string): BranchState {
 	const local = lines.includes(`refs/heads/${branch}`);

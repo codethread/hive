@@ -12,6 +12,8 @@ const BOOLEAN_OPTIONS = new Set([
 	"--json",
 	"--keep-branch",
 	"--open",
+	"--no-network",
+	"--skip-command",
 	"--self",
 ]);
 

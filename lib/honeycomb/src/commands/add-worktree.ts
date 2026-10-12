@@ -3,12 +3,14 @@ import type { Deps, GitRunner, ProgressReporter } from "../services.ts";
 import {
 	detectBranchState,
 	detectOriginDefaultBranch,
-	resolveBaseRef,
+	readLocalDefaultBranch,
+	refExists,
 	resolveDefaultBaseForNewBranch,
+	resolveLocalBaseCommit,
+	resolveOfflineDefaultBase,
 } from "../application/branches.ts";
 import { EXIT_CODES } from "../errors.ts";
 import type { TreesConfig } from "../domain/config.ts";
-import { ensurePlaceholderBranch } from "../application/pool.ts";
 
 export async function prepareAddBranch(options: {
 	base: string | null;
@@ -16,18 +18,39 @@ export async function prepareAddBranch(options: {
 	config: TreesConfig;
 	deps: Deps;
 	root: string;
+	noNetwork: boolean;
 }) {
-	const { base, branch, config, deps, root } = options;
-	await deps.git.run(["-C", root, "fetch", "origin"]);
+	const { branch, deps, root, noNetwork } = options;
+	if (!noNetwork) {
+		await deps.git.run(["-C", root, "fetch", "origin"]);
+	}
 	const branchState = await detectBranchState(deps.git, root, branch);
-	const defaultBase = await resolveDefaultBaseForNewBranch({
-		base,
-		branchState,
-		git: deps.git,
-		policy: deps.config.explain(config, root).addPolicy,
-		root,
-	});
-	return { base: base ?? defaultBase, branchState };
+	return { base: await resolveBranchBase(options, branchState), branchState };
+}
+
+export async function resolvePoolResetCommit(options: {
+	base: string | null;
+	deps: Deps;
+	noNetwork: boolean;
+	root: string;
+}): Promise<string> {
+	const { base, deps, noNetwork, root } = options;
+	if (!noNetwork) {
+		const trunk = await detectOriginDefaultBranch(deps.git, root);
+		return resolveLocalBaseCommit(deps.git, root, `origin/${trunk}`);
+	}
+	const trunk = await readLocalDefaultBranch(deps.git, root);
+	if (
+		trunk &&
+		((await refExists(deps.git, root, `refs/remotes/origin/${trunk}`)) ||
+			(await refExists(deps.git, root, `refs/heads/${trunk}`)))
+	) {
+		return resolveOfflineDefaultBase(deps.git, root);
+	}
+	if (base) {
+		return resolveLocalBaseCommit(deps.git, root, base);
+	}
+	return resolveOfflineDefaultBase(deps.git, root);
 }
 
 export async function captureExistingBranchHead(options: {
@@ -82,12 +105,11 @@ export async function rollbackPooledAllocation(options: {
 	branch: string;
 	branchState: BranchState;
 	originalBranchHead: string | null;
+	resetCommit: string;
 }): Promise<void> {
-	const { git, root, slot, branch, branchState, originalBranchHead } = options;
-	const trunk = await detectOriginDefaultBranch(git, root);
+	const { resetCommit, git, root, slot, branch, branchState, originalBranchHead } = options;
 	const placeholderBranch = `wk-pool/feat${slot.index}`;
-	await ensurePlaceholderBranch({ branch: placeholderBranch, git, root, trunk });
-	await git.runRaw(["-C", slot.path, "checkout", "-f", "-B", placeholderBranch, `origin/${trunk}`]);
+	await git.runRaw(["-C", slot.path, "checkout", "-f", "-B", placeholderBranch, resetCommit]);
 	await git.runRaw(["-C", slot.path, "reset", "--hard", placeholderBranch]);
 	await git.runRaw(["-C", slot.path, "clean", "-fd"]);
 	await restoreBranchRef({ branch, branchState, git, originalBranchHead, root });
@@ -122,7 +144,7 @@ export async function addNonPoolWorktree(options: {
 		]);
 		return;
 	}
-	const startPoint = await resolveStartPoint(git, root, base);
+	const startPoint = base ?? "HEAD";
 	await git.run(["-C", root, "worktree", "add", "--no-track", "-b", branch, path, startPoint]);
 }
 
@@ -144,7 +166,7 @@ export async function checkoutBranchInSlot(options: {
 		await git.run(["-C", slotPath, "checkout", "--no-track", "-B", branch, `origin/${branch}`]);
 		return;
 	}
-	const startPoint = await resolveStartPoint(git, slotPath, base);
+	const startPoint = base ?? "HEAD";
 	await git.run(["-C", slotPath, "checkout", "--no-track", "-B", branch, startPoint]);
 }
 
@@ -172,6 +194,26 @@ export async function mergeOriginIfPresent(options: {
 }
 // --- Private functions ---
 
+async function resolveBranchBase(
+	options: Parameters<typeof prepareAddBranch>[number],
+	branchState: BranchState,
+): Promise<string | null> {
+	const { base, deps, config, noNetwork, root } = options;
+	const defaultBase = await resolveDefaultBaseForNewBranch({
+		base,
+		branchState,
+		git: deps.git,
+		noNetwork,
+		policy: deps.config.explain(config, root).addPolicy,
+		root,
+	});
+	const selectedBase = base ?? defaultBase;
+	if (branchState === "none" && selectedBase) {
+		return resolveLocalBaseCommit(deps.git, root, selectedBase);
+	}
+	return selectedBase;
+}
+
 function warnIgnoredBase(
 	state: BranchState,
 	base: string | null,
@@ -182,9 +224,4 @@ function warnIgnoredBase(
 	}
 }
 
-function resolveStartPoint(git: GitRunner, root: string, base: string | null): Promise<string> {
-	if (base) {
-		return resolveBaseRef(git, root, base);
-	}
-	return Promise.resolve("HEAD");
-}
+export { withoutLazyFetch } from "../git/executor.ts";

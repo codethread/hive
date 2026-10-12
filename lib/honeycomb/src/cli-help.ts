@@ -14,6 +14,21 @@ Notes:
   placeholder before one missing slot or clean uninitialized placeholder.
   --slot can select a missing configured slot. Copy/setup runs once after target
   branch checkout; unrelated slots stay untouched. ensure prepares the whole pool.
+  --no-network requires Git 2.45+. It skips pre_remote_check, fetch and remote
+  default discovery. Cached refs still follow add policy: origin_default starts
+  at cached origin/<default>; fresh_canonical requires a clean root on default
+  and safely fast-forwards it to the cached tip. Existing branches attempt their
+  normal cached-origin fast-forward, warning and preserving local work on failure.
+  With no cached default ref, use the known local default tip; fresh_canonical
+  still requires a clean root on default. Missing origin/HEAD metadata or both
+  default refs requires --base <local-ref> or --base-current. Explicit bases
+  override default policy and resolve locally. Pool recycling/rollback prefers
+  cached default, then local default, then an explicit base when neither exists.
+  Missing local objects fail instead of downloading them.
+  --skip-command independently omits bootstrap, retaining copies/symlinks and
+  safety checks. Cold pooled slots remain uninitialized; existing markers stay.
+  Skips appear in diagnostics with --json. Configured commands and user Git hooks
+  can still contact the network; use --skip-command or intervene as needed.
 
 Blocked outcomes:
   Existing checkouts, stale or dirty canonical roots, pool exhaustion, and unsafe
