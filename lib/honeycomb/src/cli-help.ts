@@ -133,7 +133,7 @@ Notes:
   Without --open, the selected path is printed; with --interactive it is also
   written to the file named by HONEYCOMB_CD_FILE so a shell wrapper can change to
   it. --open requires --interactive and a multiplexer session. Cancelling exits
-  130 without output.
+  without output or side effects: 0 with --interactive, otherwise 130.
 `,
 	remove: `
 Use when:

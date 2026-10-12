@@ -22,6 +22,9 @@ export async function pickCommand(args: string[], deps: Deps): Promise<CommandRe
 	const { items, worktrees } = await buildPickList(request, deps);
 	const selected = await pickSelection({ deps, interactive: request.interactive, items });
 	if (selected === undefined) {
+		if (request.interactive) {
+			return { exitCode: EXIT_CODES.SUCCESS };
+		}
 		return { exitCode: EXIT_CODES.CANCELLED };
 	}
 	const worktree = requireSelectedWorktree(worktrees, selected);

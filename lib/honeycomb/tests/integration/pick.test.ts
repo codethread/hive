@@ -114,13 +114,17 @@ describe("honeycomb pick --open", () => {
 		expect(cdDirective.paths).toEqual([]);
 	});
 
-	test("cancel exits quietly without switching", async () => {
+	test.each([
+		["interactive open", ["--open", "--interactive"], EXIT_CODES.SUCCESS],
+		["interactive cd", ["--interactive"], EXIT_CODES.SUCCESS],
+		["noninteractive", [], EXIT_CODES.CANCELLED],
+	])("cancel %s exits quietly without switching", async (_case, flags, exitCode) => {
 		// oxlint-disable-next-line unicorn/no-null -- TestPicker models cancellation as an explicit null choice
 		const { deps, multiplexer, cdDirective } = pickDeps(null);
 
-		const result = await dispatch("pick", ["--cwd", root, "--open", "--interactive"], deps);
+		const result = await dispatch("pick", ["--cwd", root, ...flags], deps);
 
-		expect(result).toEqual({ exitCode: EXIT_CODES.CANCELLED });
+		expect(result).toEqual({ exitCode });
 		expect(multiplexer.opened).toEqual([]);
 		expect(cdDirective.paths).toEqual([]);
 	});
