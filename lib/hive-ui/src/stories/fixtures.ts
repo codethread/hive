@@ -18,9 +18,16 @@ export const worker: Bee = {
 	kind: "worker",
 	harness: "codex",
 	model: "fixture-model",
+	needsAttention: false,
 	requester: "green-calm-heron",
 	status: "open",
 	outcome: "pending",
+	stdout: {
+		attemptId: "fixture-attempt",
+		attemptNumber: 1,
+		lastOutputAt: "2026-10-08T14:29:32.000Z",
+		recordedAt: "2026-10-08T14:29:35.000Z",
+	},
 	closedAt: null,
 	observation: { at: OBSERVED_AT, author: "colony", text: "Implementation is in progress." },
 	taskIds: ["hv-ui.1", "hv-ui.2"],
@@ -43,14 +50,28 @@ export const reviewer: Bee = {
 	kind: "reviewer",
 	requester: "ct",
 	observation: null,
+	stdout: null,
 	taskIds: ["hv-review"],
 };
-export const bees: Bee[] = [worker, reviewer];
+export const quietBee: Bee = {
+	...worker,
+	id: "hv-request-quiet",
+	identity: "copper-still-wren",
+	requester: "ct",
+	stdout: {
+		attemptId: "quiet-attempt",
+		attemptNumber: 1,
+		lastOutputAt: "2026-10-08T14:19:00.000Z",
+		recordedAt: "2026-10-08T14:29:50.000Z",
+	},
+	taskIds: ["hv-quiet"],
+};
+export const bees: Bee[] = [worker, reviewer, quietBee];
 export const completedBees: Bee[] = [parentBee];
 export const outcomeBees: Bee[] = [
 	worker,
 	parentBee,
-	{ ...reviewer, status: "closed", outcome: "failed", closedAt: OBSERVED_AT },
+	{ ...reviewer, status: "closed", outcome: "failed", needsAttention: true, closedAt: OBSERVED_AT },
 	{
 		...worker,
 		id: "hv-request-cancelled",
@@ -71,7 +92,7 @@ export const cards: Card[] = [
 	card("hv-ui", "Build the Hive UI", "in_progress", { assignee: "green-calm-heron", priority: 1 }),
 	card("hv-ui.1", "Arrange bee provenance graph", "in_progress", {
 		assignee: worker.identity,
-		beeAssignments: [{ id: worker.id, kind: worker.kind }],
+		beeAssignments: [{ id: worker.id, kind: worker.kind, stdout: worker.stdout }],
 		priority: 1,
 	}),
 	card("hv-ui.2", "Inspect linked work and acceptance criteria", "open"),
@@ -86,6 +107,10 @@ export const cards: Card[] = [
 	card("hv-review", "Review the component workshop", "in_review", {
 		assignee: reviewer.identity,
 		labels: ["ui", "review"],
+	}),
+	card("hv-quiet", "Tighten keyboard navigation", "in_progress", {
+		assignee: quietBee.identity,
+		beeAssignments: [{ id: quietBee.id, kind: quietBee.kind, stdout: quietBee.stdout }],
 	}),
 	card("hv-backlog", "Explore colony comparison", "open", { priority: 4, labels: [] }),
 ];

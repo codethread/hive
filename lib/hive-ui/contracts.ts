@@ -95,6 +95,8 @@ export const beeSchema = z.object({
 	kind: z.string(),
 	/** Model captured in the request recipe. */
 	model: z.string(),
+	/** Failed request still unresolved according to native acknowledgment/supersession facts. */
+	needsAttention: z.boolean(),
 	/** Latest recorded Colony observation, or null when none exists. */
 	observation: observationSchema.nullable(),
 	/** Outcome derived from native request status and close reason. */
@@ -103,6 +105,19 @@ export const beeSchema = z.object({
 	requester: z.string().nullable(),
 	/** Native request bead status, separate from execution observations. */
 	status: z.string(),
+	/** Latest stdout evidence for the published attempt; never inferred from assignment. */
+	stdout: z
+		.object({
+			/** Published attempt identity, kept separate from request identity. */
+			attemptId: z.string(),
+			/** Attempt ordinal accompanying the original output evidence. */
+			attemptNumber: z.number().int().positive(),
+			/** Source output time; null means the published attempt has no observed output. */
+			lastOutputAt: z.iso.datetime({ precision: 3 }).nullable(),
+			/** Publication time, not a substitute for lastOutputAt. */
+			recordedAt: z.iso.datetime({ precision: 3 }),
+		})
+		.nullable(),
 	/** Related task bead IDs recording requested work, not current claims. */
 	taskIds: z.array(z.string()),
 });
@@ -110,7 +125,7 @@ export const cardSchema = z.object({
 	/** Native task assignee, or null when unassigned. */
 	assignee: z.string().nullable(),
 	/** Open linked requests whose identity matches this in-progress task's native assignee. */
-	beeAssignments: z.array(beeSchema.pick({ id: true, kind: true })),
+	beeAssignments: z.array(beeSchema.pick({ id: true, kind: true, stdout: true })),
 	/** Native task bead ID used for selection and detail reads. */
 	id: z.string(),
 	/** Exact native labels retained for display and filter actions. */

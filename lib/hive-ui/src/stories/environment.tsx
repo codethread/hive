@@ -1,4 +1,5 @@
 /* eslint-disable import/max-dependencies -- The workshop wires the production router and resource boundaries once. */
+import { COLONY_ID, OBSERVED_AT } from "./fixtures.ts";
 import {
 	Outlet,
 	RouterProvider,
@@ -22,7 +23,7 @@ import {
 	provenance,
 } from "../data.ts";
 import { createContext, useContext, useEffect, useState } from "react";
-import { COLONY_ID } from "./fixtures.ts";
+import { ActivityClock } from "../activity-clock.tsx";
 import type { Navigation } from "../../contracts.ts";
 import type { ReactNode } from "react";
 import { Shell } from "../work-page.tsx";
@@ -35,6 +36,7 @@ export const storyNavigationSchema = navigationSchema.extend({
 	view: navigationSchema.shape.view.default("beads"),
 });
 
+const STORY_NOW = Date.parse(OBSERVED_AT);
 const StoryContent = createContext<ReactNode>(null);
 
 export function StoryEnvironment({
@@ -56,9 +58,11 @@ export function StoryEnvironment({
 	}, [theme]);
 	return (
 		<div data-theme={theme} className="min-h-screen bg-canvas text-ink">
-			<StoryContent.Provider value={children}>
-				<RouterProvider router={router} />
-			</StoryContent.Provider>
+			<ActivityClock.Provider value={STORY_NOW}>
+				<StoryContent.Provider value={children}>
+					<RouterProvider router={router} />
+				</StoryContent.Provider>
+			</ActivityClock.Provider>
 		</div>
 	);
 }

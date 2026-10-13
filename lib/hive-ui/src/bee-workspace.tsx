@@ -1,6 +1,6 @@
 import type { Bee, Board, Provenance, RequestInventory } from "../contracts.ts";
+import { BeeActivity, Label, ResourceNotice, outcomeName, time } from "./ui.tsx";
 import { EMPTY, loadProvenance, preferences, provenance, snapshot } from "./data.ts";
-import { Label, ResourceNotice, outcomeName, time } from "./ui.tsx";
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { ancestryEnding, beeScene } from "./bee-scene.ts";
 import { graphRuntime, loadGraph } from "./graph-loader.ts";
@@ -70,8 +70,8 @@ export function BeeWorkspace({
 				</fieldset>
 				<BeeSearch />
 				<span className="text-xs text-muted">
-					{scene.matches.length} matching requests · {scene.contextIds.size} context ·{" "}
-					{inventory.total} requests on this page
+					{scene.matches.length} of {inventory.total} requests
+					{scene.contextIds.size > 0 && ` · ${scene.contextIds.size} from ancestry`}
 				</span>
 				<label className="flex min-w-0 items-center gap-2 text-sm text-muted">
 					Inspect request
@@ -93,9 +93,6 @@ export function BeeWorkspace({
 					</select>
 				</label>
 			</div>
-			<p className="border-b border-line px-5 py-2 text-xs leading-relaxed text-muted">
-				Solid: requester · Dashed: inferred parent
-			</p>
 			<div className="grid min-w-0 xl:grid-cols-[minmax(0,1fr)_380px]">
 				<div className="min-w-0">
 					<BeeRenderer
@@ -241,7 +238,8 @@ function BeeOutline({
 				>
 					<button
 						type="button"
-						className={`w-full rounded-lg border p-4 text-left ${
+						data-attention={bee.needsAttention}
+						className={`bee-outline-card w-full rounded-lg border p-4 text-left ${
 							selected === bee.id ? "border-accent bg-tint" : "border-line bg-panel hover:bg-raised"
 						}`}
 						aria-pressed={selected === bee.id}
@@ -256,11 +254,14 @@ function BeeOutline({
 							</span>
 						</span>
 						<span className="mt-2 block text-xs text-muted">
-							{bee.id} · {bee.taskIds.length} linked beads{" "}
-							{scene.contextIds.has(bee.id) && "· context"}
+							{bee.id} · {bee.taskIds.length} linked {bee.taskIds.length === 1 ? "bead" : "beads"}
+							{scene.contextIds.has(bee.id) && " · From ancestry"}
 						</span>
 						<span className="mt-2 block text-xs text-muted">
 							{depth > 0 ? "↳ Inferred parent · " : ""}Requested by {bee.requester ?? "unrecorded"}
+						</span>
+						<span className="mt-3 block">
+							<BeeActivity bee={bee} />
 						</span>
 						<span className="mt-2 block text-xs text-muted">
 							{bee.observation
@@ -310,6 +311,9 @@ function RequestSummary({
 			>
 				{search.ancestry === bee.id && ancestry ? "Refresh ancestry" : "Load ancestry"}
 			</button>
+			<div className="mt-4">
+				<BeeActivity bee={bee} />
+			</div>
 			<h3 className="section-title">Last recorded observation</h3>
 			{bee.observation ? (
 				<>

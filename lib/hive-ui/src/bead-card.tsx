@@ -1,13 +1,26 @@
-import { BeeAssignment, Label, time } from "./ui.tsx";
+import { BeeActivity, BeeAssignment, Label, WorkStatus, time } from "./ui.tsx";
 import { Link, useSearch } from "@tanstack/react-router";
 import type { Card } from "../contracts.ts";
 import { FilterableLabel } from "./filter-controls.tsx";
+import { Card as SurfaceCard } from "./primitives.tsx";
 
-export function BeadCard({ card, compact = false }: { card: Card; compact?: boolean }) {
+export function BeadCard({
+	card,
+	compact = false,
+	showStatus = true,
+}: {
+	card: Card;
+	compact?: boolean;
+	showStatus?: boolean;
+}) {
 	const search = useSearch({ from: "/colonies/$colonyId" });
+	const [latest] = card.beeAssignments.toSorted((left, right) =>
+		(right.stdout?.lastOutputAt ?? "").localeCompare(left.stdout?.lastOutputAt ?? ""),
+	);
 	return (
-		<article
+		<SurfaceCard
 			data-bead-id={card.id}
+			data-status={card.status}
 			className={`bead-card ${compact ? "compact-bead" : ""} ${search.bead === card.id ? "selected" : ""}`}
 		>
 			<div className="bead-card-content">
@@ -15,6 +28,7 @@ export function BeadCard({ card, compact = false }: { card: Card; compact?: bool
 					<span className="font-mono text-[11px] text-muted">{card.id}</span>
 					{!compact && <Label>P{card.priority}</Label>}
 				</div>
+				{showStatus && <WorkStatus status={card.status} />}
 				<h3 className="bead-card-title">
 					<Link
 						from="/colonies/$colonyId"
@@ -34,13 +48,16 @@ export function BeadCard({ card, compact = false }: { card: Card; compact?: bool
 					</div>
 				)}
 			</div>
-			<p className="bead-card-footer">
-				<span>
+			<div className="bead-card-footer">
+				<span className="bead-assignee">
 					<BeeAssignment card={card} />
 					{card.assignee ?? "Unassigned"}
 				</span>
-				<span>Updated {time(card.updatedAt)}</span>
-			</p>
-		</article>
+				{card.assignee !== null && card.status === "in_progress" && (
+					<BeeActivity bee={{ outcome: "pending", stdout: latest?.stdout ?? null }} />
+				)}
+				<span className="bead-updated">Updated {time(card.updatedAt)}</span>
+			</div>
+		</SurfaceCard>
 	);
 }

@@ -42,10 +42,7 @@ export function BeadBoard({ board, hierarchy }: { board: Board; hierarchy: Hiera
 			>
 				{statuses.map((status) => (
 					<header key={status} className="adaptive-status-heading">
-						<h2>
-							<span className={`status-dot status-${status}`} />
-							{statusName(status)}
-						</h2>
+						<h2>{statusName(status)}</h2>
 						<span>{board.cards.filter((card) => card.status === status).length}</span>
 					</header>
 				))}
@@ -86,7 +83,11 @@ function ColumnFamily({ family, status }: { family: BoardFamily; status: string 
 					className={family.layout === "rails" && depth > 0 ? "bead-rail-child" : ""}
 					style={family.layout === "rails" ? { marginLeft: depth * RAIL_STEP } : undefined}
 				>
-					<BeadCard card={node} compact={family.layout === "rails" && node.id !== family.root.id} />
+					<BeadCard
+						card={node}
+						compact={family.layout === "rails" && node.id !== family.root.id}
+						showStatus={false}
+					/>
 				</div>
 			))}
 		</div>
@@ -139,7 +140,12 @@ function FamilyLane({ family, statuses }: { family: BoardFamily; statuses: strin
 			{columns.map(({ status, rows }) => (
 				<div key={status} className="adaptive-cell" aria-label={statusName(status)}>
 					{(collapsed ? rows.slice(0, 1) : rows).map(({ node }) => (
-						<BeadCard key={node.id} card={node} compact={node.id !== family.root.id} />
+						<BeadCard
+							key={node.id}
+							card={node}
+							compact={node.id !== family.root.id}
+							showStatus={false}
+						/>
 					))}
 				</div>
 			))}

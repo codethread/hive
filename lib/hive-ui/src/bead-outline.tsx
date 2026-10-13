@@ -36,7 +36,7 @@ export function BeadOutline({ colonyId, id }: { colonyId: string; id: string }) 
 							<h2>{root.title}</h2>
 							<p>
 								{hierarchy.nodes.length - 1} descendants · {hierarchy.nodes.filter(unclosed).length}{" "}
-								active
+								unfinished
 							</p>
 						</div>
 						<div className="flex shrink-0 flex-wrap items-center gap-4">

@@ -24,7 +24,9 @@ import type {
 import {
 	COLONY_OBSERVATION_PREFIX,
 	latestColonyObservation,
+	latestStdoutActivity,
 	readSpawnRequest,
+	requestNeedsAttention,
 	requestOutcome,
 } from "@hive/shared";
 import { PAGE_SIZE, RELATION_LIMIT, REQUEST_PAGE_SIZE } from "../contracts.ts";
@@ -516,10 +518,12 @@ function bee(bead: BeadRecord): Bee {
 		identity: request.identity,
 		kind: request.recipe.kind,
 		model: request.recipe.model,
+		needsAttention: requestNeedsAttention(bead),
 		observation,
 		outcome: requestOutcome(bead),
 		requester: bead.created_by ?? null,
 		status: bead.status,
+		stdout: latestStdoutActivity(bead) ?? null,
 		taskIds: request.taskIds,
 	};
 }
@@ -535,7 +539,7 @@ function card(bead: BeadRow, requests: Bee[]): Card {
 					request.identity === bead.assignee &&
 					request.taskIds.includes(bead.id),
 			)
-			.map(({ id, kind }) => ({ id, kind })),
+			.map(({ id, kind, stdout }) => ({ id, kind, stdout })),
 		id: bead.id,
 		labels: bead.labels,
 		priority: bead.priority,

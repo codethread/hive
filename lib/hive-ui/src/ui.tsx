@@ -1,7 +1,78 @@
 import type { Bee, Card } from "../contracts.ts";
+import {
+	Circle,
+	CircleCheck,
+	CircleDashed,
+	CircleHelp,
+	Eye,
+	Timer,
+	TriangleAlert,
+	UserRound,
+} from "lucide-react";
+import { beeActivity, outputAge } from "./activity.ts";
+import { Badge } from "./primitives.tsx";
 import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import type { Resource } from "./data.ts";
+import { statusName } from "./filter-controls.tsx";
+import { useActivityClock } from "./activity-clock.tsx";
+
+export function BeeActivity({ bee }: { bee: Pick<Bee, "outcome" | "stdout"> }) {
+	const now = useActivityClock();
+	const activity = beeActivity(bee, now);
+	const ActivityIcon = activity === "attention" ? TriangleAlert : CircleHelp;
+	const at = bee.stdout?.lastOutputAt ?? null;
+	if (activity === "ended") {
+		return null;
+	}
+	return (
+		<span
+			className={`bee-activity bee-activity-${activity}`}
+			title={
+				at === null
+					? "No stdout evidence for the current attempt. Assignment alone does not establish activity."
+					: `Last recorded output ${time(at)}. Active means output in the last 2 minutes. ` +
+						"Investigate after 10 minutes without output; this does not confirm a stalled process."
+			}
+		>
+			<Badge variant="outline" className="bee-activity-badge">
+				{activity === "active" ? (
+					<span aria-hidden="true">🐝</span>
+				) : (
+					<ActivityIcon aria-hidden="true" />
+				)}
+				<span className={activity === "active" ? "sr-only" : undefined}>
+					{
+						{
+							active: "Active bee",
+							attention: "Needs investigation",
+							quiet: "No recent output",
+							unknown: "Activity unknown",
+						}[activity]
+					}
+				</span>
+			</Badge>
+			{at !== null && <span className="bee-output-age">Output {outputAge(at, now)}</span>}
+		</span>
+	);
+}
+
+export function WorkStatus({ status }: { status: string }) {
+	const icons: Record<string, typeof Circle> = {
+		in_progress: Timer,
+		blocked: TriangleAlert,
+		closed: CircleCheck,
+		in_review: Eye,
+		draft: CircleDashed,
+	};
+	const Icon = icons[status] ?? Circle;
+	return (
+		<Badge variant="outline" className="work-status" data-status={status}>
+			<Icon aria-hidden="true" />
+			{statusName(status)}
+		</Badge>
+	);
+}
 
 export function OutlineLink({ id }: { id: string }) {
 	return (
@@ -76,19 +147,7 @@ export function BeeAssignment({ card }: { card: Card }) {
 			className="mr-1"
 			title={`Assigned to ${card.assignee} · ${requests}. Recorded assignment; process health is not checked.`}
 		>
-			<svg
-				aria-hidden="true"
-				viewBox="0 0 16 16"
-				width="12"
-				height="12"
-				className="inline-block text-accent"
-				fill="none"
-				stroke="currentColor"
-				strokeWidth="1.5"
-			>
-				<circle cx="8" cy="5" r="2.5" />
-				<path d="M3 14v-2a5 5 0 0 1 10 0v2" />
-			</svg>
+			<UserRound aria-hidden="true" className="inline-block size-3 text-muted" />
 			<span className="sr-only">Bee assigned</span>
 		</span>
 	);
@@ -105,7 +164,7 @@ export function time(value: string): string {
 }
 
 export function outcomeName(outcome: Bee["outcome"]): string {
-	return { cancelled: "Cancelled", failed: "Failed", pending: "Pending", succeeded: "Completed" }[
+	return { cancelled: "Cancelled", failed: "Failed", pending: "Open", succeeded: "Completed" }[
 		outcome
 	];
 }

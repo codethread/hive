@@ -1,13 +1,47 @@
 /* eslint-disable id-length -- React Flow and Dagre use x/y coordinates. */
-import { Background, Controls, Handle, MarkerType, Position, ReactFlow } from "@xyflow/react";
+/* The graph composes layout, themed cards, activity and its accessible help dialog. */
+/* eslint-disable import/max-dependencies */
+import {
+	Background,
+	Controls,
+	Handle,
+	MarkerType,
+	Panel,
+	Position,
+	ReactFlow,
+} from "@xyflow/react";
+import { Badge, Button, Card as SurfaceCard } from "./primitives.tsx";
+import { BeeActivity, outcomeName } from "./ui.tsx";
+import {
+	Circle,
+	CircleCheck,
+	CircleSlash,
+	CircleX,
+	Info,
+	Layers3,
+	TriangleAlert,
+	X,
+} from "lucide-react";
+import {
+	Root as Dialog,
+	Close as DialogClose,
+	Content as DialogContent,
+	Description as DialogDescription,
+	Overlay as DialogOverlay,
+	Portal as DialogPortal,
+	Title as DialogTitle,
+	Trigger as DialogTrigger,
+} from "@radix-ui/react-dialog";
 import type { Edge, Node, NodeProps } from "@xyflow/react";
 import type { GraphLabel, NodeLabel } from "@dagrejs/dagre";
 import { graphlib, layout as runLayout } from "@dagrejs/dagre";
 import type { Bee } from "../contracts.ts";
 import type { GraphProps } from "./graph-loader.ts";
+import { beeActivity } from "./activity.ts";
+import { useActivityClock } from "./activity-clock.tsx";
 import { useMemo } from "react";
 
-const CARD = { width: 272, height: 136 };
+const CARD = { width: 292, height: 172 };
 const ACTOR = { width: 184, height: 58 };
 const HALF = 2;
 const FIT = { padding: 0.16, maxZoom: 1 };
@@ -35,28 +69,20 @@ export function BeeGraph({ scene, selected, onSelect, theme }: GraphProps) {
 		() =>
 			graph.nodes.map((node): GraphNode =>
 				node.type === "request"
-					? { ...node, data: { ...node.data, chosen: node.data.bee.id === selected, onSelect } }
+					? {
+							...node,
+							data: {
+								...node.data,
+								chosen: node.data.bee.id === selected,
+								onSelect,
+							},
+						}
 					: node,
 			),
 		[graph.nodes, selected, onSelect],
 	);
 	return (
 		<div className="bee-graph" data-theme={theme}>
-			<div className="bee-graph-toolbar">
-				<div className="bee-graph-legend">
-					<span>
-						<i />
-						Recorded requester
-					</span>
-					<span>
-						<i className="inferred" />
-						Inferred parent
-					</span>
-				</div>
-				<span>
-					{scene.matches.length} matches · {scene.contextIds.size} context
-				</span>
-			</div>
 			<div className="bee-graph-canvas">
 				<ReactFlow<GraphNode>
 					nodes={nodes}
@@ -77,10 +103,14 @@ export function BeeGraph({ scene, selected, onSelect, theme }: GraphProps) {
 				>
 					<Background gap={GRID_GAP} size={1} color="var(--line)" />
 					<Controls showInteractive={false} fitViewOptions={FIT} />
+					<Panel position="top-right" className="bee-graph-toolbar">
+						<span>
+							{scene.requests.length} {scene.requests.length === 1 ? "request" : "requests"}
+							{scene.contextIds.size > 0 && ` · ${scene.contextIds.size} from ancestry`}
+						</span>
+						<GraphInfo theme={theme} />
+					</Panel>
 				</ReactFlow>
-			</div>
-			<div className="bee-graph-help">
-				Drag canvas to pan · scroll to zoom · Tab then Enter to select a request
 			</div>
 		</div>
 	);
@@ -88,12 +118,104 @@ export function BeeGraph({ scene, selected, onSelect, theme }: GraphProps) {
 
 // --- HTML nodes and deterministic layout of the supplied evidence ---
 
+function GraphInfo({ theme }: Pick<GraphProps, "theme">) {
+	return (
+		<Dialog>
+			<DialogTrigger asChild>
+				<Button variant="ghost" size="icon" aria-label="About this graph" title="About this graph">
+					<Info aria-hidden="true" />
+				</Button>
+			</DialogTrigger>
+			<DialogPortal>
+				<DialogOverlay className="fixed inset-0 z-50 bg-black/50" />
+				<DialogContent
+					data-theme={theme}
+					className={`fixed top-1/2 left-1/2 z-50 max-h-[85dvh] w-[calc(100%-2rem)] max-w-md
+							-translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-lg border border-line
+							bg-panel p-5 text-sm text-ink shadow-xl`}
+				>
+					<header className="flex items-center justify-between gap-4">
+						<DialogTitle className="font-semibold">About this graph</DialogTitle>
+						<DialogClose asChild>
+							<Button variant="ghost" size="icon" aria-label="Close graph information">
+								<X aria-hidden="true" />
+							</Button>
+						</DialogClose>
+					</header>
+					<DialogDescription className="text-xs text-muted">
+						Connections, activity and navigation.
+					</DialogDescription>
+					<dl className="mt-5 space-y-4 text-xs">
+						<div>
+							<dt className="bee-graph-legend font-medium">
+								<i aria-hidden="true" /> Recorded requester
+							</dt>
+							<dd className="mt-1 text-muted">A solid line shows who requested the bee.</dd>
+						</div>
+						<div>
+							<dt className="bee-graph-legend font-medium">
+								<i aria-hidden="true" className="inferred" /> Inferred parent
+							</dt>
+							<dd className="mt-1 text-muted">
+								A dashed line links a requester name to a historical bee request. Cards marked “From
+								ancestry” were added when ancestry was loaded.
+							</dd>
+						</div>
+						<div>
+							<dt className="flex items-center gap-2 font-medium text-active">
+								<span aria-hidden="true">🐝</span> Active bee
+							</dt>
+							<dd className="mt-1 text-muted">
+								Orange means recorded output in the last 2 minutes. “Open” means the request hasn’t
+								finished; assignment alone does not establish activity.
+							</dd>
+						</div>
+						<div>
+							<dt className="flex items-center gap-2 font-medium text-attention">
+								<TriangleAlert aria-hidden="true" className="size-4" /> Investigate
+							</dt>
+							<dd className="mt-1 text-muted">
+								Red means an unresolved failure or 10+ minutes without output on an open request.
+								Silence is a reason to check, not proof the bee is stalled.
+							</dd>
+						</div>
+						<div>
+							<dt className="font-medium">Quiet or unknown</dt>
+							<dd className="mt-1 text-muted">
+								2–10 minutes without output stays neutral. Activity is unknown when no output
+								timestamp is available. Refresh the workspace to load new evidence.
+							</dd>
+						</div>
+					</dl>
+					<p className="mt-5 border-t border-line pt-4 text-xs text-muted">
+						Drag to pan · Scroll or use +/− to zoom · Fit to show all nodes · Tab then Enter to
+						select a card
+					</p>
+				</DialogContent>
+			</DialogPortal>
+		</Dialog>
+	);
+}
+
 function RequestCard({ data }: NodeProps<RequestNode>) {
 	const { bee, context, chosen, onSelect } = data;
+	const now = useActivityClock();
+	const activity = beeActivity(bee, now);
+	const OutcomeIcon = {
+		pending: Circle,
+		succeeded: CircleCheck,
+		cancelled: CircleSlash,
+		failed: CircleX,
+	}[bee.outcome];
 	return (
-		<div className={`bee-graph-card${context ? " context" : ""}${chosen ? " chosen" : ""}`}>
+		<SurfaceCard
+			data-activity={activity}
+			data-attention={bee.needsAttention}
+			className={`bee-graph-card${context ? " context" : ""}${chosen ? " chosen" : ""}`}
+		>
 			<Handle type="target" position={Position.Left} />
-			<button
+			<Button
+				variant="ghost"
 				type="button"
 				className="nodrag nopan"
 				aria-pressed={chosen}
@@ -103,21 +225,37 @@ function RequestCard({ data }: NodeProps<RequestNode>) {
 			>
 				<span className="bee-graph-card-top">
 					<span>{bee.kind}</span>
-					<span className={`bee-graph-outcome ${bee.outcome}`}>{bee.outcome}</span>
+					<Badge
+						variant="secondary"
+						className={`bee-graph-outcome ${bee.outcome}`}
+						data-attention={bee.needsAttention}
+						title={
+							bee.outcome === "pending"
+								? "Request has not finished. It may be waiting, running or retrying; bee activity is shown separately."
+								: undefined
+						}
+					>
+						<OutcomeIcon aria-hidden="true" />
+						{outcomeName(bee.outcome)}
+					</Badge>
 				</span>
 				<strong title={bee.identity}>{bee.identity}</strong>
 				<span className="bee-graph-request-id" title={bee.id}>
 					{bee.id}
 				</span>
+				<span className="bee-graph-activity">
+					<BeeActivity bee={bee} />
+				</span>
 				<span className="bee-graph-card-bottom">
-					<span>
+					<span className="inline-flex items-center gap-1">
+						<Layers3 aria-hidden="true" className="size-3" />
 						{bee.taskIds.length} linked {bee.taskIds.length === 1 ? "bead" : "beads"}
 					</span>
-					<span>{context ? "Context" : "Match"}</span>
+					{context && <span>From ancestry</span>}
 				</span>
-			</button>
+			</Button>
 			<Handle type="source" position={Position.Right} />
-		</div>
+		</SurfaceCard>
 	);
 }
 
@@ -147,7 +285,12 @@ function graphLayout(
 			type: "request",
 			position: { x: 0, y: 0 },
 			...CARD,
-			data: { bee, context: scene.contextIds.has(bee.id), chosen: false, onSelect },
+			data: {
+				bee,
+				context: scene.contextIds.has(bee.id),
+				chosen: false,
+				onSelect,
+			},
 		});
 		if (bee.requester !== null && !inferredChildren.has(bee.id)) {
 			const source = `actor:${bee.requester}`;
