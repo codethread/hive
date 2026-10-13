@@ -14,6 +14,7 @@ import { trackerScope } from "./tracker.ts";
 const FIRST = 0;
 // Seed the isolated release fixture outside behavior timing, following config.test.ts.
 const releaseFixture = await claimFixture();
+const hierarchyFixture = await hierarchyClaimFixture();
 
 async function claimFixture() {
 	const tracker = memoryTracker();
@@ -26,6 +27,44 @@ async function claimFixture() {
 		tracker.repository,
 	);
 	return { tracker, id, foreign, closed, request };
+}
+
+// eslint-disable-next-line max-statements -- Seed one isolated hierarchy before measuring release behavior.
+async function hierarchyClaimFixture() {
+	const tracker = memoryTracker();
+	const root = await createTask(tracker, { assignee: "worker", status: "in_progress" });
+	const foreign = await createTask(tracker, {
+		parent: root,
+		assignee: "another-bee",
+		status: "in_progress",
+	});
+	const descendant = await createTask(tracker, {
+		parent: foreign,
+		assignee: "worker",
+		status: "blocked",
+	});
+	const reserved = await createTask(tracker, {
+		parent: root,
+		assignee: "worker",
+		status: "in_progress",
+		labels: ["hitl"],
+	});
+	const closed = await createTask(tracker, {
+		parent: root,
+		assignee: "worker",
+		status: "closed",
+	});
+	const unrelated = await createTask(tracker, {
+		assignee: "worker",
+		status: "in_progress",
+		deps: [{ id: root, type: "related" }],
+	});
+	const scope = trackerScope(tracker.repository, "inspector");
+	const untouched = [foreign, reserved, closed, unrelated];
+	const before = await tracker.beads.showMany(scope, untouched);
+	const spawn = await createSpawn(tracker, [root]);
+	const request = newRequest(await tracker.beads.show(scope, spawn), tracker.repository);
+	return { tracker, root, descendant, untouched, before, scope, request };
 }
 
 function operationEvidence(): OperationEvidence & { failures: unknown[]; effects: string[] } {
@@ -74,6 +113,26 @@ test("claims preserve human ownership and release only unfinished tasks still ow
 	const untouched = await tracker.beads.show(trackerScope(tracker.repository, "inspector"), closed);
 	expect(untouched.status).toBe("closed");
 	expect(evidence.effects).toEqual([`tracker.claimed:${id}`, `tracker.released:${id}`]);
+});
+
+test("stopped root releases owned descendants while preserving protected and related work", async () => {
+	const { tracker, root, descendant, untouched, before, scope, request } = hierarchyFixture;
+	const evidence = operationEvidence();
+	await releaseClaims(
+		tracker,
+		{ ...request, context: { ...request.context, claims: [root] } },
+		evidence,
+	);
+	const released = await tracker.beads.showMany(scope, [root, descendant]);
+	expect(released.map(({ owner, status, assignee }) => ({ owner, status, assignee }))).toEqual([
+		{ owner: "ct", status: "open", assignee: undefined },
+		{ owner: "ct", status: "blocked", assignee: undefined },
+	]);
+	const preserved = await tracker.beads.showMany(scope, untouched);
+	expect(preserved.map(({ updated_at }) => updated_at)).toEqual(
+		before.map(({ updated_at }) => updated_at),
+	);
+	expect(evidence.effects).toEqual([`tracker.released:${root}`, `tracker.released:${descendant}`]);
 });
 
 test.each([

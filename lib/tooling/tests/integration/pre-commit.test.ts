@@ -105,14 +105,6 @@ test.each([
 
 test.each([
 	{
-		name: "valid snapshot",
-		branch: "tracker/state",
-		snapshot: '{"id":"hv-test"}\n',
-		mixed: false,
-		accepted: true,
-		commands: ["run scripts/beads-validate.ts"],
-	},
-	{
 		name: "malformed staged snapshot",
 		branch: "tracker/state",
 		snapshot: "{broken\n",

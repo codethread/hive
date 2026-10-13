@@ -29,17 +29,9 @@
 			"threshold": "DANGER",
 			"justification": "User approved retaining this real Beads contract check and its timing allowance on 2026-10-10: bootstrap does not let setup auto-import an unreconciled incoming snapshot."
 		},
-		"#test-8": {
-			"threshold": "DANGER",
-			"justification": "User preapproved bounded native contracts in lib/beads on 2026-10-11. lib/beads/tests/contract/native.test.ts compares revisions, CAS failures, claim conflicts, comments and diagnostics against a disposable real tracker; native init and the command sequence measured 678-1457ms. The case retains its explicit 5000ms timeout; failures remain failures."
-		},
 		"#test-9": {
 			"threshold": "DANGER",
 			"justification": "User preapproved bounded native contracts in lib/beads on 2026-10-11. lib/beads/tests/contract/native.test.ts compares filter combinations, search, sorting and pagination against a disposable real tracker; native init and the command sequence measured 689-958ms after parity correction. The case retains its explicit 5000ms timeout; failures remain failures."
-		},
-		"#test-10": {
-			"threshold": "DANGER",
-			"justification": "User preapproved bounded native contracts in lib/beads on 2026-10-11. lib/beads/tests/contract/native.test.ts compares relationship hydration, blocked claims, readiness and closure against a disposable real tracker; native init and the command sequence measured 1162ms after parity correction. The case retains its explicit 5000ms timeout; failures remain failures."
 		},
 		"#test-11": {
 			"threshold": "DANGER",

@@ -37,18 +37,28 @@ export async function acquireClaim(
 		throw error;
 	}
 }
-/** Stopped execution is a caller precondition; never clear another identity's claim. */
+/** Release the stopped identity's unfinished hierarchy; execution stop is a caller precondition. */
 // eslint-disable-next-line max-statements -- Each conditional release retains its successful effect before inspecting the next claim.
 export async function releaseClaims(
 	{ beads, repository }: TrackerContext,
 	record: RequestRecord,
 	evidence: OperationEvidence,
 ): Promise<void> {
-	for (const id of record.context.claims) {
+	const pending = new Set(record.context.claims);
+	for (const id of pending) {
 		evidence.step("tracker.show", id);
 		// eslint-disable-next-line no-await-in-loop -- Conditional releases are serialized against real tracker versions.
 		const task = await beads.show(trackerScope(repository, record.context.identity), id);
-		if (task.status !== "closed" && task.assignee === record.context.identity) {
+		for (const child of task.dependents) {
+			if (child.dependency_type === "parent-child") {
+				pending.add(child.id);
+			}
+		}
+		if (
+			task.status !== "closed" &&
+			task.assignee === record.context.identity &&
+			!task.labels.includes("hitl")
+		) {
 			let { status } = task;
 			if (status === "in_progress") {
 				status = "open";

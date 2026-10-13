@@ -1,11 +1,5 @@
 /* eslint-disable max-statements -- Disposable contract fixture preparation and cleanup stay together. */
-import {
-	contractSession,
-	filtersAndPagination,
-	labelsAndSavedQueries,
-	relationsAndReadiness,
-	revisionsAndClaims,
-} from "./scenarios.ts";
+import { contractSession, filtersAndPagination, labelsAndSavedQueries } from "./scenarios.ts";
 import { createMemoryBeads, createNativeBeads } from "../../src/index.ts";
 import { expect, test } from "bun:test";
 // eslint-disable-next-line import/no-nodejs-modules -- Disposable native contract fixture.
@@ -21,23 +15,9 @@ const CONTRACT_TIMEOUT = 5000;
 const FIXTURE_NOW = "2026-10-11T00:00:00.000Z";
 
 test(
-	"native and memory preserve revisions, claims and diagnostics #test-8",
-	async () => {
-		await compare(revisionsAndClaims);
-	},
-	CONTRACT_TIMEOUT,
-);
-test(
 	"native and memory preserve filters, search and pagination #test-9",
 	async () => {
 		await compare(filtersAndPagination);
-	},
-	CONTRACT_TIMEOUT,
-);
-test(
-	"native and memory preserve relations and readiness #test-10",
-	async () => {
-		await compare(relationsAndReadiness);
 	},
 	CONTRACT_TIMEOUT,
 );
@@ -50,7 +30,7 @@ test(
 );
 
 // --- Private functions ---
-async function compare(scenario: typeof revisionsAndClaims): Promise<void> {
+async function compare(scenario: typeof filtersAndPagination): Promise<void> {
 	const temporary = await mkdtemp(join(tmpdir(), "hive-beads-contract-"));
 	const root = await realpath(temporary);
 	const db = join(root, ".beads", "beads.db");

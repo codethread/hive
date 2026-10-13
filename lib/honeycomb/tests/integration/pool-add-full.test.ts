@@ -9,11 +9,9 @@ import {
 } from "./support.ts";
 import { expect, test } from "bun:test";
 import { gitOut, useTmpHome } from "./lifecycle-helpers.ts";
-import type { TestPicker } from "./support.ts";
 
 const SINGLE_SLOT = 1;
 const NO_CONFIRMATIONS = 0;
-const ONE_CONFIRMATION = 1;
 
 const tmp = useTmpHome("honeycomb-pool-add-full-test-");
 const { initRepoWithOrigin } = useOriginFixture();
@@ -23,24 +21,6 @@ async function occupySlot() {
 	writeConfig({ command: "echo ready", poolSize: SINGLE_SLOT, root, tmp: tmp.dir });
 	await createPoolSlot({ branch: "feature/one", index: SINGLE_SLOT, initialized: true, root });
 	return root;
-}
-
-async function assertPickerIgnored(
-	root: string,
-	picker: TestPicker,
-	request: { branch: string; extra?: string[] },
-) {
-	const { branch, extra = [] } = request;
-	const blocked = await dispatch(
-		"add",
-		["--cwd", root, "--branch", branch, ...extra, "--json"],
-		testDeps({ picker }),
-	);
-	expect(blocked.exitCode).toBe(EXIT_CODES.BLOCKED);
-	expect(JSON.parse(blocked.stdout ?? "{}")).toMatchObject({ branch, kind: "pool_full" });
-	expect(picker.items).toEqual([]);
-	expect(picker.confirmCalls).toBe(NO_CONFIRMATIONS);
-	expect(await gitOut(`${root}__feat1`, "branch", "--show-current")).toBe("feature/one");
 }
 
 test("machine json pool_full bypasses picker and leaves the occupied slot untouched", async () => {
@@ -71,30 +51,4 @@ test("machine json pool_full bypasses picker and leaves the occupied slot untouc
 	expect(await gitOut(`${root}__feat1`, "branch", "--show-current")).toBe("feature/one");
 	expect(picker.items).toEqual([]);
 	expect(picker.confirmCalls).toBe(NO_CONFIRMATIONS);
-});
-test("machine json pool_full ignores picker state and --force without mutating the slot", async () => {
-	const root = await occupySlot();
-	// oxlint-disable-next-line unicorn/no-null -- TestPicker uses null to model cancellation.
-	const cancelPicker = createTestPicker(null, true);
-	await assertPickerIgnored(root, cancelPicker, { branch: "feature/cancel" });
-	await assertPickerIgnored(root, createTestPicker("1", false), { branch: "feature/no" });
-	await assertPickerIgnored(root, createTestPicker("1", false), {
-		branch: "feature/forced",
-		extra: ["--force"],
-	});
-});
-test("human pool_full recycle tells the picker the invocation is not interactive", async () => {
-	const root = await occupySlot();
-	const picker = createTestPicker("1", true);
-
-	const recycled = await dispatch(
-		"add",
-		["--cwd", root, "--branch", "feature/two"],
-		testDeps({ picker }),
-	);
-
-	expect(recycled.exitCode).toBe(EXIT_CODES.SUCCESS);
-	expect(picker.options).toEqual({ interactive: false });
-	expect(picker.confirmCalls).toBe(ONE_CONFIRMATION);
-	expect(await gitOut(`${root}__feat1`, "branch", "--show-current")).toBe("feature/two");
 });

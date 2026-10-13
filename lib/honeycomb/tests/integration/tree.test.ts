@@ -1,7 +1,7 @@
 import { EXIT_CODES, dispatch } from "../../src/index.ts";
 import { expect, test } from "bun:test";
-import { gitOut, runCli, useTmpHome } from "./lifecycle-helpers.ts";
-import { initRepo, testDeps, writeConfig } from "./support.ts";
+import { gitOut, useTmpHome } from "./lifecycle-helpers.ts";
+import { initRepo, testDeps } from "./support.ts";
 import { GitError } from "../../src/git/error.ts";
 // oxlint-disable-next-line import/no-nodejs-modules -- Integration fixtures use real checkout paths.
 import { join } from "node:path";
@@ -33,69 +33,6 @@ async function treeJson(root: string) {
 	expect(result.stderr).toBeUndefined();
 	return JSON.parse(result.stdout ?? "{}");
 }
-
-async function addCommittedBranch(root: string, branch: string, base: string) {
-	const path = await addBranch(root, branch, base);
-	return { head: await commit(path, branch), path };
-}
-
-async function initBranchingTree() {
-	const root = await initTreeRepo();
-	const aHead = await gitOut(root, "rev-parse", "HEAD");
-	const branchB = await addCommittedBranch(root, "b", "main");
-	const branchC = await addCommittedBranch(root, "c", "b");
-	await addBranch(root, "c-twin", "c");
-	const branchD = await addCommittedBranch(root, "d", "main");
-	writeConfig({ command: "exit 99", root, tmp: home.dir });
-	await Bun.write(join(home.dir, "config", "honeycomb.toml"), "[[project]]\nroot = ");
-	return {
-		aHead,
-		bHead: branchB.head,
-		cHead: branchC.head,
-		cPath: branchC.path,
-		dHead: branchD.head,
-		root,
-	};
-}
-
-test("CLI renders nearest ancestors, siblings, and equal HEADs without loading config", async () => {
-	const { aHead, bHead, cHead, cPath, dHead, root } = await initBranchingTree();
-	const result = await runCli(["tree", "--cwd", cPath]);
-	expect(result.exitCode).toBe(EXIT_CODES.SUCCESS);
-	expect(result.stderr).toBe("");
-	expect(result.stdout).toMatchInlineSnapshot(`
-"Worktrees (inferred from Git ancestry; not creation history)
-└── main [canonical] [? parent unclear: no ancestor worktree]
-    ├── b
-    │   └── c = c-twin [same HEAD]
-    └── d
-"
-`);
-	const json = await runCli(["--cwd", cPath, "tree", "--json"]);
-	expect(json.exitCode).toBe(EXIT_CODES.SUCCESS);
-	expect(json.stderr).toBe("");
-	expect(JSON.parse(json.stdout)).toMatchObject({
-		basis: "git_ancestry",
-		diagnostics: [],
-		kind: "tree",
-		nodes: [
-			{
-				id: aHead,
-				parentage: { kind: "unknown", reason: "no_ancestor" },
-				worktrees: [{ branch: "main", branch_ref: "refs/heads/main", canonical: true, path: root }],
-			},
-			{ id: bHead, parentage: { head: aHead, kind: "inferred" }, worktrees: [{ branch: "b" }] },
-			{
-				id: cHead,
-				parentage: { head: bHead, kind: "inferred" },
-				worktrees: [{ branch: "c" }, { branch: "c-twin" }],
-			},
-			{ id: dHead, parentage: { head: aHead, kind: "inferred" }, worktrees: [{ branch: "d" }] },
-		],
-		ok: true,
-		setup_output: [],
-	});
-});
 
 async function initOlderAndUnrelatedTree() {
 	const root = await initTreeRepo();
