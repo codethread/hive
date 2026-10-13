@@ -1,5 +1,12 @@
-import type { AttemptDetails, ColonyInspection, RepositoryEndpoint } from "@hive/shared";
+import type {
+	AttemptDetails,
+	ColonyInspection,
+	RepositoryEndpoint,
+	RequestCheckpointView,
+	RequestDiagnostic,
+} from "@hive/shared";
 import type { AttemptInventory, Store } from "./store.ts";
+import type { RequestRecord } from "./request.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Inspection returns owned artifact locations without reading log contents.
 import { join } from "node:path";
 
@@ -16,21 +23,50 @@ export function inspectRepository(
 		kind: "inspection",
 		observedAt: new Date().toISOString(),
 		repository,
-		requests: store.requests(repository.root).map(({ id, state, context }) => ({
-			attemptId: context.attemptId,
-			attempts: context.attempts,
-			id,
-			identity: context.identity,
-			message: context.message,
-			outcome: context.outcome,
-			retryAt: context.retryAt,
-			state,
-			taskIds: context.taskIds,
-		})),
+		requests: store.requests(repository.root).map((record) => checkpointView(record)),
+	};
+}
+
+/** Read one request's complete retained history and the full live capacity set. */
+export function diagnoseRequest(
+	repository: RepositoryEndpoint,
+	requestId: string,
+	store: Store,
+): Omit<RequestDiagnostic, "colony"> {
+	store.assertRepository(repository);
+	const request = store.request(repository.root, requestId);
+	// eslint-disable-next-line unicorn/no-null -- Diagnostic JSON distinguishes an absent checkpoint from an unavailable read.
+	let checkpoint: RequestCheckpointView | null = null;
+	if (request) {
+		checkpoint = checkpointView(request);
+	}
+	return {
+		attempts: store
+			.retainedAttempts(repository.root, requestId)
+			.map((attempt) => attemptDetails(attempt)),
+		checkpoint,
+		kind: "request_diagnostic",
+		observedAt: new Date().toISOString(),
+		repository,
+		reservations: store.retainedReservations(repository.root),
 	};
 }
 
 // --- Private functions ---
+function checkpointView({ id, state, context }: RequestRecord): RequestCheckpointView {
+	return {
+		attemptId: context.attemptId,
+		attempts: context.attempts,
+		id,
+		identity: context.identity,
+		message: context.message,
+		outcome: context.outcome,
+		retryAt: context.retryAt,
+		state,
+		taskIds: context.taskIds,
+	};
+}
+
 function attemptDetails({ id, spawnId, state, receipt }: AttemptInventory): AttemptDetails {
 	return {
 		attemptNumber: receipt.attemptNumber,

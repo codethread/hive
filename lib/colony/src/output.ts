@@ -96,6 +96,7 @@ function formatResult(result: Result): string {
 		.with({ kind: "assessments" }, formatAssessments)
 		.with({ kind: "events" }, formatHistory)
 		.with({ kind: "inspection" }, formatInspection)
+		.with({ kind: "request_diagnostic" }, (diagnostic) => JSON.stringify(diagnostic))
 		.exhaustive();
 }
 function formatColony(colony: ColonyStatus): string {

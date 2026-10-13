@@ -1,12 +1,138 @@
 /* eslint-disable unicorn/no-null -- Fixtures preserve explicit absent diagnostic evidence. */
+import type { Explanation, ExplanationIO } from "./explain.ts";
+import { createSpawn, createTask, memoryTracker } from "./tracker.test-support.ts";
 import { expect, test } from "bun:test";
-import type { Explanation } from "./explain.ts";
-import { explainConditions } from "./explain.ts";
+import { explainConditions, explainRequest } from "./explain.ts";
+import { DaemonUnavailableError } from "./client.ts";
+import type { RequestDiagnostic } from "@hive/shared";
+import { readSpawnRequest } from "@hive/shared";
+import { trackerScope } from "./tracker.ts";
 
 const EMPTY = 0;
+const TWO = 2;
 const OBSERVED = "2026-10-04T12:00:00.000Z";
 const repository = { beadsDb: "/repo/beads.db", root: "/repo" };
 const limits = { colony: 1, kind: 1, kinds: {}, worktree: 1 };
+const tracker = memoryTracker();
+const taskId = await createTask(tracker);
+const requestId = await createSpawn(tracker, [taskId]);
+const request = readSpawnRequest(
+	await tracker.beads.show(trackerScope(tracker.repository, "fixture"), requestId),
+);
+const diagnostic: RequestDiagnostic = {
+	attempts: [retainedAttempt("failed"), retainedAttempt("exited")],
+	checkpoint: null,
+	colony: {
+		attempts: [{ id: "other-attempt", spawnId: "other", state: "running" }],
+		intent: "awake",
+		policy: { limits, ranking: "fifo" },
+		registration: "durable",
+		repository: tracker.repository,
+		state: "awake",
+	},
+	kind: "request_diagnostic",
+	observedAt: OBSERVED,
+	repository: tracker.repository,
+	reservations: [
+		{
+			id: "other-attempt",
+			spawnId: "other",
+			state: "running",
+			bucket: tracker.repository.root,
+			kind: "worker",
+		},
+	],
+};
+// Establish the prior sample before another request reserves capacity; the test observes the changed daemon evidence afresh.
+const initial = await explainRequest(requestId, tracker, {
+	bucket: () => Promise.resolve(tracker.repository.root),
+	diagnose: () =>
+		Promise.resolve({
+			...diagnostic,
+			attempts: [],
+			colony: { ...diagnostic.colony!, attempts: [] },
+			reservations: [],
+		}),
+	observe: unexpectedIO,
+	source: "fixture daemon",
+});
+
+test("another request changes available capacity while every target terminal attempt stays observable", async () => {
+	const reads: string[] = [];
+	const io: ExplanationIO = {
+		bucket: () => {
+			reads.push("bucket");
+			return Promise.resolve(tracker.repository.root);
+		},
+		diagnose: (id) => {
+			reads.push(`diagnose:${id}`);
+			return Promise.resolve(diagnostic);
+		},
+		observe: (id, attempt) => {
+			reads.push(`observe:${id}:${attempt.id}`);
+			return Promise.resolve("live");
+		},
+		source: "fixture daemon",
+	};
+	const result = await explainRequest(requestId, tracker, io);
+	expect(initial.capacity.result).toMatchObject({ kind: "available", value: { available: true } });
+	expect(reads).toEqual([
+		`diagnose:${requestId}`,
+		"bucket",
+		`observe:${requestId}:failed`,
+		`observe:${requestId}:exited`,
+	]);
+	expect(result.capacity.result).toMatchObject({
+		kind: "available",
+		value: { available: false, occupied: [{ bucket: tracker.repository.root, kind: "worker" }] },
+	});
+	expect(result.runtime.freshness).toBe("checkpoint_age_unknown");
+	expect(result.processes.map(({ attemptId }) => attemptId)).toEqual(["failed", "exited"]);
+	expect(result.diagnostics.filter(({ code }) => code === "attempt_process")).toHaveLength(TWO);
+	expect(result.diagnostics.map(({ code }) => code)).toContain("capacity");
+});
+
+test.each([
+	{ failure: "connection", reason: "daemon_unavailable" },
+	{ failure: "authority", reason: "evidence_unavailable" },
+])("$failure failure retains independent native evidence", async ({ failure, reason }) => {
+	let error: Error = new Error("Different tracker");
+	if (failure === "connection") {
+		error = new DaemonUnavailableError("No daemon");
+	}
+	const result = await explainRequest(requestId, tracker, {
+		bucket: unexpectedIO,
+		observe: unexpectedIO,
+		source: "fixture daemon",
+		diagnose: () => Promise.reject(error),
+	});
+	expect(result.tracker.result.kind).toBe("available");
+	expect(result.runtime.result).toMatchObject({ kind: "unavailable", reason });
+	expect(result.capacity.result.kind).toBe("unavailable");
+	expect(result.processes).toEqual([]);
+});
+
+test("tracker failure leaves retained and process evidence available with unknown capacity", async () => {
+	const result = await explainRequest(
+		requestId,
+		{
+			...tracker,
+			beads: { ...tracker.beads, show: () => Promise.reject(new Error("Tracker unavailable")) },
+		},
+		{
+			bucket: unexpectedIO,
+			diagnose: () => Promise.resolve(diagnostic),
+			observe: () => Promise.resolve("stopped"),
+			source: "fixture daemon",
+		},
+	);
+	expect(result.tracker.result.kind).toBe("unavailable");
+	expect(result.runtime.result.kind).toBe("available");
+	expect(result.capacity.result.kind).toBe("unavailable");
+	expect(
+		result.processes.every(({ evidence: process }) => process.result.kind === "available"),
+	).toBe(true);
+});
 
 test.each([
 	{ expected: "colony_asleep", state: "asleep" },
@@ -231,6 +357,35 @@ test("closed tasks leave a live bee in control of its completion point", () => {
 });
 
 // --- Private functions ---
+function unexpectedIO(): never {
+	throw new Error("Unavailable evidence must not trigger dependent reads");
+}
+
+function retainedAttempt(state: "failed" | "exited"): RequestDiagnostic["attempts"][number] {
+	return {
+		attemptNumber: 1,
+		bucket: tracker.repository.root,
+		createdAt: OBSERVED,
+		cwd: tracker.repository.root,
+		harness: "fixture",
+		id: state,
+		identity: request.identity,
+		kind: request.recipe.kind,
+		model: "fixture",
+		paths: {
+			receipt: `/${state}/receipt`,
+			stderr: "/stderr",
+			stdout: "/stdout",
+			supervisor: "/supervisor",
+			worker: "/worker",
+		},
+		policyRevisionId: null,
+		spawnId: request.id,
+		state,
+		taskIds: request.taskIds,
+	};
+}
+
 function evidence(): Omit<Explanation, "diagnostics"> {
 	return {
 		capacity: {

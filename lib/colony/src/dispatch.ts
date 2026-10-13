@@ -91,7 +91,7 @@ async function prepareCandidates(
 		// eslint-disable-next-line no-await-in-loop -- Retain each request's preparation boundary independently.
 		await store.history.run(
 			{
-				checkpoint: () => store.requests(repository.root).find(({ id }) => id === request.id),
+				checkpoint: () => store.request(repository.root, request.id),
 				operation: "prepare",
 				repository,
 				requestId: request.id,
@@ -235,7 +235,7 @@ async function launchCandidates(
 				// eslint-disable-next-line no-await-in-loop -- Complete each reserved launch before selecting the next candidate.
 				await store.history.run(
 					{
-						checkpoint: () => store.requests(repository.root).find(({ id }) => id === record.id),
+						checkpoint: () => store.request(repository.root, record.id),
 						operation: "launch",
 						repository,
 						requestId: record.id,

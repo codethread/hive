@@ -53,7 +53,7 @@ test("history retains native failure and confirmed partial effects without mutat
 		await expect(
 			store.history.run(
 				{
-					checkpoint: () => store.requests(repository.root)[FIRST],
+					checkpoint: () => store.request(repository.root, request.id),
 					operation: "claim",
 					repository,
 					requestId: request.id,

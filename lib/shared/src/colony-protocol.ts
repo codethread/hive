@@ -142,10 +142,25 @@ export const attemptDetailsSchema = attemptStatusSchema.extend({
 	taskIds: z.array(z.string()),
 });
 
+/** Retained live reservations needed to apply repository-wide capacity limits. */
+export const attemptReservationSchema = attemptStatusSchema.extend({
+	/** Canonical execution bucket, independent of the inspected request. */
+	bucket: z.string(),
+	/** Captured bee kind counted by dispatch. */
+	kind: z.string(),
+	/** Checkpoint state only; this read does not probe processes. */
+	state: z.enum(["starting", "running"]),
+});
+
 /** One operation per HTTP request on the selected local Unix socket. */
 export const colonyRequestSchema = z.discriminatedUnion("kind", [
 	z.strictObject({ kind: z.literal("status") }),
 	z.strictObject({ kind: z.literal("inspect"), repository: repositoryEndpointSchema }),
+	z.strictObject({
+		kind: z.literal("diagnose"),
+		repository: repositoryEndpointSchema,
+		requestId: z.string().min(NONEMPTY),
+	}),
 	z.strictObject({ kind: z.literal("stop") }),
 	z.strictObject({
 		kind: z.literal("wake"),
@@ -164,6 +179,20 @@ export const colonyRequestSchema = z.discriminatedUnion("kind", [
 
 /** Public responses are validated by the CLI at the transport boundary. */
 export const colonyResponseSchema = z.discriminatedUnion("kind", [
+	z.strictObject({
+		/** All retained attempts for the target, including terminal attempts. */
+		attempts: z.array(attemptDetailsSchema),
+		/** Target's last reconciled checkpoint, absent before registration. */
+		checkpoint: requestCheckpointViewSchema.nullable(),
+		/** Current membership and policy; attempt statuses contain live reservations only. */
+		colony: colonyStatusSchema.nullable(),
+		kind: z.literal("request_diagnostic"),
+		/** Read time, not checkpoint reconciliation time. */
+		observedAt: z.string(),
+		repository: repositoryEndpointSchema,
+		/** Complete repository-wide starting/running reservation set. */
+		reservations: z.array(attemptReservationSchema),
+	}),
 	z.strictObject({
 		attempts: z.array(attemptDetailsSchema),
 		/** Current membership, absent after removal or before registration. */
@@ -212,3 +241,5 @@ export type PolicyRevision = z.infer<typeof policyRevisionSchema>;
 export type RequestCheckpointView = z.infer<typeof requestCheckpointViewSchema>;
 export type AttemptDetails = z.infer<typeof attemptDetailsSchema>;
 export type ColonyInspection = Extract<ColonyResponse, { kind: "inspection" }>;
+export type RequestDiagnostic = Extract<ColonyResponse, { kind: "request_diagnostic" }>;
+export type AttemptReservation = z.infer<typeof attemptReservationSchema>;

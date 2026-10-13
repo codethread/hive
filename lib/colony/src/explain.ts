@@ -1,10 +1,11 @@
 /* eslint-disable unicorn/no-null -- Diagnostic JSON explicitly represents absent evidence and unknown record times. */
-import type { ColonyInspection, RepositoryEndpoint, SpawnDisposition } from "@hive/shared";
-import { DaemonUnavailableError, requestServer } from "./client.ts";
+import type {
+	AttemptDetails,
+	RepositoryEndpoint,
+	RequestDiagnostic,
+	SpawnDisposition,
+} from "@hive/shared";
 import { capacityConstraints, hasCapacity } from "./scheduler.ts";
-import { eligibility, launchBucket, launchReceiptSchema } from "./launch.ts";
-// eslint-disable-next-line import/no-nodejs-modules -- Resolve the same execution bucket as launch preparation.
-import { join, resolve } from "node:path";
 import {
 	latestColonyObservation,
 	readSpawnRequest,
@@ -12,13 +13,22 @@ import {
 	requestLabelsCurrent,
 } from "@hive/shared";
 import type { Bead } from "@hive/beads";
+import { DaemonUnavailableError } from "./client.ts";
 import type { Occupant } from "./scheduler.ts";
-import type { ServerTarget } from "./client.ts";
 import type { TrackerContext } from "./tracker.ts";
-import { observeExecution } from "./processes.ts";
-// eslint-disable-next-line import/no-nodejs-modules -- Canonicalize execution cwd without creating it.
-import { realpath } from "node:fs/promises";
+import { eligibility } from "./launch.ts";
 import { trackerScope } from "./tracker.ts";
+
+export interface ExplanationIO {
+	/** Selected daemon socket for evidence attribution. */
+	source: string;
+	/** Scoped retained evidence; does not reconcile or probe processes. */
+	diagnose: (requestId: string) => Promise<RequestDiagnostic>;
+	/** Canonical execution bucket used by launch preparation. */
+	bucket: (cwd: string | null) => Promise<string>;
+	/** Fresh liveness observation after validating immutable attempt authority. */
+	observe: (requestId: string, attempt: AttemptDetails) => Promise<"live" | "stopped">;
+}
 
 interface Evidence<Value> {
 	/** Authority or concrete observation boundary. */
@@ -74,11 +84,11 @@ interface TrackerFacts {
 }
 interface RuntimeFacts {
 	/** Live loop state and active policy from the selected daemon. */
-	colony: ColonyInspection["colony"];
+	colony: RequestDiagnostic["colony"];
 	/** Last reconciled request, whose reconciliation timestamp is not retained. */
-	checkpoint: ColonyInspection["requests"][number] | null;
+	checkpoint: RequestDiagnostic["checkpoint"];
 	/** Retained attempts for this request, without refreshing their checkpoint state. */
-	attempts: ColonyInspection["attempts"];
+	attempts: RequestDiagnostic["attempts"];
 }
 interface CapacityFacts {
 	/** Same canonical kind/bucket as launch preparation. */
@@ -86,7 +96,7 @@ interface CapacityFacts {
 	/** Retained starting/running reservations counted by dispatch. */
 	occupied: Occupant[];
 	/** Active policy limits, not canonical configuration guesses. */
-	limits: NonNullable<NonNullable<ColonyInspection["colony"]>["policy"]>["limits"];
+	limits: NonNullable<NonNullable<RequestDiagnostic["colony"]>["policy"]>["limits"];
 	/** Shared scheduler decision, not a slot reservation or queue-position prediction. */
 	available: boolean;
 }
@@ -131,20 +141,14 @@ export interface Explanation {
 export async function explainRequest(
 	id: string,
 	context: TrackerContext,
-	target: ServerTarget,
+	io: ExplanationIO,
 ): Promise<Explanation> {
 	const { repository } = context;
 	const [tracker, inspection] = await Promise.all([
 		capture("native Beads show/ready", "sampled", () => trackerFacts(id, context)),
-		capture(`daemon inspect ${target.socket}`, "checkpoint_age_unknown", async () => {
-			const response = await requestServer(target, { kind: "inspect", repository });
-			if (response.kind !== "inspection") {
-				throw new Error("Expected inspection response");
-			}
-			return response;
-		}),
+		capture(io.source, "checkpoint_age_unknown", () => io.diagnose(id)),
 	]);
-	const runtime = runtimeEvidence(id, inspection);
+	const runtime = runtimeEvidence(inspection);
 	const [capacity, processes] = await Promise.all([
 		capture(
 			"dispatch hasCapacity: active policy and retained reservations",
@@ -154,7 +158,7 @@ export async function explainRequest(
 				if (inspection.result.kind === "unavailable") {
 					throw new Error("Daemon inspection unavailable");
 				}
-				const { colony, attempts } = inspection.result.value;
+				const { colony, reservations } = inspection.result.value;
 				if (colony?.policy === null || colony === null) {
 					throw new Error("No active scheduling policy");
 				}
@@ -162,11 +166,8 @@ export async function explainRequest(
 					throw new Error("Tracker execution inputs unavailable");
 				}
 				const { execution } = tracker.result.value;
-				const cwd = await realpath(resolve(repository.root, execution.cwd ?? "."));
-				const candidate = { bucket: await launchBucket(cwd), kind: execution.kind };
-				const occupied = attempts
-					.filter(({ state }) => state === "starting" || state === "running")
-					.map((attempt) => ({ bucket: attempt.bucket, kind: attempt.kind }));
+				const candidate = { bucket: await io.bucket(execution.cwd), kind: execution.kind };
+				const occupied = reservations.map(({ bucket, kind }) => ({ bucket, kind }));
 				return {
 					available: hasCapacity(candidate, occupied, colony.policy.limits),
 					candidate,
@@ -175,7 +176,7 @@ export async function explainRequest(
 				};
 			},
 		),
-		observeAttempts(id, repository, runtime),
+		observeAttempts(id, runtime, io),
 	]);
 	const result: Explanation = {
 		capacity,
@@ -357,27 +358,23 @@ async function trackerFacts(
 		updatedAt: spawn.updated_at,
 	};
 }
-function runtimeEvidence(id: string, evidence: Evidence<ColonyInspection>): Evidence<RuntimeFacts> {
+function runtimeEvidence(evidence: Evidence<RequestDiagnostic>): Evidence<RuntimeFacts> {
 	if (evidence.result.kind === "unavailable") {
 		return { ...evidence, result: evidence.result };
 	}
-	const { colony, requests, attempts } = evidence.result.value;
+	const { colony, checkpoint, attempts } = evidence.result.value;
 	return {
 		...evidence,
 		result: {
 			kind: "available",
-			value: {
-				attempts: attempts.filter(({ spawnId }) => spawnId === id),
-				checkpoint: requests.find((request) => request.id === id) ?? null,
-				colony,
-			},
+			value: { attempts, checkpoint, colony },
 		},
 	};
 }
 function observeAttempts(
 	id: string,
-	repository: RepositoryEndpoint,
 	runtime: Evidence<RuntimeFacts>,
+	io: ExplanationIO,
 ): Promise<ProcessFact[]> {
 	if (runtime.result.kind === "unavailable") {
 		return Promise.resolve([]);
@@ -388,24 +385,7 @@ function observeAttempts(
 			evidence: await capture(
 				`verified process ownership ${attempt.paths.receipt}`,
 				"sampled",
-				async () => {
-					const receipt = launchReceiptSchema.parse(await Bun.file(attempt.paths.receipt).json());
-					if (
-						receipt.id !== attempt.id ||
-						receipt.spawnId !== id ||
-						receipt.beadsDb !== repository.beadsDb
-					) {
-						throw new Error("Receipt does not match inspected attempt authority");
-					}
-					if (
-						!(await Bun.file(join(receipt.directory, "ownership.json")).exists()) &&
-						!(await Bun.file(join(receipt.directory, "supervisor.json")).exists())
-					) {
-						throw new Error("No ownership or supervisor handoff evidence; process state unknown");
-					}
-					const observed = await observeExecution(receipt);
-					return observed.kind;
-				},
+				() => io.observe(id, attempt),
 			),
 		})),
 	);

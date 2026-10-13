@@ -224,7 +224,7 @@ export async function reconcileRequests(runtime: RequestRuntime): Promise<void> 
 		// eslint-disable-next-line no-await-in-loop -- Finish each request's external effects before advancing another durable checkpoint.
 		await store.history.run(
 			{
-				checkpoint: () => store.requests(repository.root).find(({ id }) => id === saved.id),
+				checkpoint: () => store.request(repository.root, saved.id),
 				operation: "reconcile",
 				repository,
 				requestId: saved.id,
@@ -243,7 +243,7 @@ export function claimRequest(
 	const { repository, store } = runtime;
 	return store.history.run(
 		{
-			checkpoint: () => store.requests(repository.root).find(({ id }) => id === saved.id),
+			checkpoint: () => store.request(repository.root, saved.id),
 			operation: "claim",
 			repository,
 			requestId: saved.id,

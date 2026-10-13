@@ -8,6 +8,7 @@ import { requestLazyServer, requestServer } from "../src/client.ts";
 import type { ConfigCommand } from "@hive/shared";
 import type { ServerTarget } from "../src/client.ts";
 import { explainRequest } from "../src/explain.ts";
+import { explanationIO } from "../src/explain-io.ts";
 import { initRepository } from "../src/producer.ts";
 import { launchedResultSchema } from "../src/output.ts";
 import { match } from "ts-pattern";
@@ -45,12 +46,10 @@ process.exitCode = await runCli(Bun.argv.slice(USER_ARGUMENTS_START), {
 			repository: await resolveRepository(options.repo, options.beadsDb),
 			request: options.request,
 		}),
-	explain: async (id, options) =>
-		explainRequest(
-			id,
-			{ beads, repository: await resolveRepository(options.repo, options.beadsDb) },
-			target(options),
-		),
+	explain: async (id, options) => {
+		const repository = await resolveRepository(options.repo, options.beadsDb);
+		return explainRequest(id, { beads, repository }, explanationIO(repository, target(options)));
+	},
 	init: initRepository,
 	inspect: async (options) =>
 		requestServer(target(options), {

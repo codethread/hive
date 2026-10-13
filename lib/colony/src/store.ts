@@ -1,6 +1,13 @@
 /* eslint-disable import/max-dependencies -- Compose existing runtime boundaries with the independent advisory assessment lifecycle. */
-import type { AttemptStatus, ColonyStatus, PolicyRevision, RepositoryEndpoint } from "@hive/shared";
+import type {
+	AttemptReservation,
+	AttemptStatus,
+	ColonyStatus,
+	PolicyRevision,
+	RepositoryEndpoint,
+} from "@hive/shared";
 import type { RequestEvent, RequestRecord } from "./request.ts";
+import { attemptReservationSchema, policyRevisionSchema } from "@hive/shared";
 import { launchReceiptSchema, workerReceiptSchema } from "./launch.ts";
 import { requestRecordSchema, transitionRequest } from "./request.ts";
 import type { Assessment } from "./postrun.ts";
@@ -15,7 +22,6 @@ import { hostname } from "node:os";
 // eslint-disable-next-line import/no-nodejs-modules -- SQLite and receipt paths belong to daemon state.
 import { join } from "node:path";
 import { openHistory } from "./history.ts";
-import { policyRevisionSchema } from "@hive/shared";
 // eslint-disable-next-line import/no-nodejs-modules -- Read atomic worker receipt replacements without a cached BunFile size.
 import { readFile } from "node:fs/promises";
 import { z } from "zod";
@@ -60,15 +66,22 @@ export function openStore(state: string) {
  CREATE TABLE IF NOT EXISTS drone_reviews (id TEXT PRIMARY KEY, root TEXT NOT NULL, target_attempt_id TEXT NOT NULL, snapshot TEXT NOT NULL);
  CREATE TABLE IF NOT EXISTS assessments (id TEXT PRIMARY KEY, root TEXT NOT NULL, beads_db TEXT NOT NULL, request_id TEXT NOT NULL, snapshot TEXT NOT NULL, UNIQUE(root, request_id));
  CREATE TABLE IF NOT EXISTS active_policies (root TEXT PRIMARY KEY, revision_id TEXT NOT NULL REFERENCES policy_revisions(id));`);
+	database.exec(`CREATE INDEX IF NOT EXISTS attempts_by_request ON attempts(root, spawn_id);
+ CREATE INDEX IF NOT EXISTS live_attempts_by_root ON attempts(root) WHERE state IN ('starting', 'running');
+ CREATE INDEX IF NOT EXISTS attempts_by_tracker ON attempts(root, json_extract(snapshot, '$.beadsDb'));
+ CREATE INDEX IF NOT EXISTS requests_by_tracker ON requests(root, json_extract(snapshot, '$.beadsDb'));`);
 	const assertRepository = (repository: RepositoryEndpoint): void => {
+		// Tracker indexes let the extrema prove agreement without reading every historical snapshot.
 		const rows = z.array(z.strictObject({ beadsDb: z.string() })).parse(
 			database
 				.query(
-					`SELECT beads_db AS beadsDb FROM repositories WHERE root = ?
- UNION SELECT json_extract(snapshot, '$.beadsDb') AS beadsDb FROM attempts WHERE root = ?
- UNION SELECT json_extract(snapshot, '$.beadsDb') AS beadsDb FROM requests WHERE root = ?`,
+					`SELECT beads_db AS beadsDb FROM repositories WHERE root = ?1
+ UNION SELECT beadsDb FROM (SELECT json_extract(snapshot, '$.beadsDb') AS beadsDb FROM attempts WHERE root = ?1 ORDER BY json_extract(snapshot, '$.beadsDb') LIMIT 1)
+ UNION SELECT beadsDb FROM (SELECT json_extract(snapshot, '$.beadsDb') AS beadsDb FROM attempts WHERE root = ?1 ORDER BY json_extract(snapshot, '$.beadsDb') DESC LIMIT 1)
+ UNION SELECT beadsDb FROM (SELECT json_extract(snapshot, '$.beadsDb') AS beadsDb FROM requests WHERE root = ?1 ORDER BY json_extract(snapshot, '$.beadsDb') LIMIT 1)
+ UNION SELECT beadsDb FROM (SELECT json_extract(snapshot, '$.beadsDb') AS beadsDb FROM requests WHERE root = ?1 ORDER BY json_extract(snapshot, '$.beadsDb') DESC LIMIT 1)`,
 				)
-				.all(repository.root, repository.root, repository.root),
+				.all(repository.root),
 		);
 		if (rows.some((row) => row.beadsDb !== repository.beadsDb)) {
 			throw new Error(`Repository ${repository.root} already uses a different Beads database`);
@@ -238,6 +251,17 @@ export function openStore(state: string) {
 					database.query("SELECT snapshot FROM requests WHERE root = ? ORDER BY rowid").all(root),
 				)
 				.map(({ snapshot }) => requestRecordSchema.parse(JSON.parse(snapshot))),
+		/** Read the latest persisted checkpoint using the existing composite primary key. */
+		request: (root: string, id: string): RequestRecord | undefined => {
+			const row = database
+				.query("SELECT snapshot FROM requests WHERE root = ? AND spawn_id = ?")
+				.get(root, id);
+			if (row === null) {
+				return;
+			}
+			const { snapshot } = z.object({ snapshot: z.string() }).parse(row);
+			return requestRecordSchema.parse(JSON.parse(snapshot));
+		},
 		reserve: (root: string, receipt: LaunchReceipt, record: RequestRecord): RequestRecord =>
 			database.transaction(() => {
 				database
@@ -262,6 +286,33 @@ export function openStore(state: string) {
 				spawnId: row.spawnId,
 				state: row.state,
 			})),
+		/** Target history only; do not refresh worker receipts or process state. */
+		retainedAttempts: (root: string, requestId: string): AttemptInventory[] =>
+			z
+				.array(attemptRowSchema)
+				.parse(
+					database
+						.query(
+							"SELECT id, spawn_id AS spawnId, directory, token, snapshot, state FROM attempts WHERE root = ? AND spawn_id = ? ORDER BY rowid",
+						)
+						.all(root, requestId),
+				)
+				.map((row) => ({
+					id: row.id,
+					receipt: launchReceiptSchema.parse(JSON.parse(row.snapshot)),
+					spawnId: row.spawnId,
+					state: row.state,
+				})),
+		/** Capacity projection of every retained live reservation, without unrelated receipt hydration. */
+		retainedReservations: (root: string): AttemptReservation[] =>
+			z.array(attemptReservationSchema).parse(
+				database
+					.query(
+						`SELECT id, spawn_id AS spawnId, state, json_extract(snapshot, '$.bucket') AS bucket,
+ json_extract(snapshot, '$.recipe.kind') AS kind FROM attempts WHERE root = ? AND state IN ('starting', 'running') ORDER BY rowid`,
+					)
+					.all(root),
+			),
 		saveDroneReview: (root: string, review: DroneReview): void => {
 			database
 				.query(

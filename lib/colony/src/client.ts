@@ -75,6 +75,7 @@ export async function requestLazyServer(
 function expectedResponse(request: ColonyRequest): string {
 	return match(request)
 		.with({ kind: "inspect" }, () => "inspection")
+		.with({ kind: "diagnose" }, () => "request_diagnostic")
 		.with({ kind: "config" }, () => "config")
 		.with({ kind: "wake" }, () => "awake")
 		.with({ kind: "add" }, () => "registered")
