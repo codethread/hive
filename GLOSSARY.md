@@ -2,6 +2,8 @@
 
 Shared vocabulary for Hive's agents, work tracking and repository tooling. Use these terms consistently in code, documentation and beads.
 
+UI presentation names are defined in the nested [Hive UI glossary](./lib/hive-ui/GLOSSARY.md).
+
 _To be built_ marks capabilities still planned beyond the Bee and Colony implementation.
 
 ## Agents and identity

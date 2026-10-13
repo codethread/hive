@@ -42,11 +42,11 @@
 	},
 	"lint-staged": {
 		"lib/honeycomb/{src/schemas.ts,scripts/config-schema.ts}": "bun run --filter @hive/honeycomb schema:stage",
-		"*.{js,jsx,ts,tsx,mjs,cjs}": [
+		"!(mockServiceWorker).{js,jsx,ts,tsx,mjs,cjs}": [
 			"oxlint --fix",
 			"oxfmt"
 		],
-		"!(*.jsonl)": "oxfmt --no-error-on-unmatched-pattern"
+		"!(*.jsonl|mockServiceWorker.js)": "oxfmt --no-error-on-unmatched-pattern"
 	},
 	"pi": {
 		"skills": [

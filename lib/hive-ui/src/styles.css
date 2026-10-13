@@ -282,6 +282,8 @@ body:has(.inspector[open], .filter-drawer[open]) {
 		0 5px 18px #00000020;
 }
 .bee-graph-card button {
+	/* Fixed React Flow node wrappers disable pointer events; request buttons remain interactive. */
+	pointer-events: auto;
 	display: flex;
 	flex-direction: column;
 	width: 100%;

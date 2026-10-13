@@ -4,6 +4,38 @@ Hive UI replaces the generated Python/HTML prototype with a small React applicat
 
 The UI does not claim work, edit labels, close beads, retry requests, start a daemon, or introduce a second tracker. The original `pi/active-bees-work-board-poc` branch remains a visual reference, not a code dependency.
 
+## Component catalogue
+
+The nested [Hive UI glossary](../../lib/hive-ui/GLOSSARY.md) owns the canonical presentation names. Story titles use those exact names under Bees, Beads, Workspace and Foundations. This table maps them to the production components; change the glossary, table and story metadata together when renaming a surface. `bun run --cwd lib/hive-ui storybook:check` verifies this mapping and is included in the package typecheck gate.
+
+| Canonical name | Story title | Key components |
+| --- | --- | --- |
+| Bee graph | `Bees/Bee graph` | `BeeGraph` |
+| Bee workspace | `Bees/Bee workspace` | `BeeWorkspace` |
+| Bead card | `Beads/Bead card` | `BeadCard` |
+| Bead board | `Beads/Bead board` | `BeadBoard` |
+| Bead outline | `Beads/Bead outline` | `BeadOutline`, `OutlineClosedToggle` |
+| Branch explorer | `Beads/Branch explorer` | `BranchExplorer` |
+| Bead inspector | `Beads/Bead inspector` | `Inspector` |
+| Work board | `Workspace/Work board` | `Shell`, `WorkPage` |
+| Filter workspace | `Workspace/Filter workspace` | `FilterWorkspace` |
+| Filter controls | `Workspace/Filter controls` | `StatusFilters`, `PriorityFilters`, `LabelFilters`, `ActiveFilters`, `FilterableLabel` |
+| Board navigation | `Workspace/Board navigation` | `BoardTabs`, `BeeHistory` |
+| Board search | `Workspace/Board search` | `HeaderSearch`, `BeeSearch` |
+| Column settings | `Workspace/Column settings` | `ColumnSettings` |
+| Tabs | `Foundations/Tabs` | `Tabs`, `TabsList`, `TabsTrigger`, `TabsContent` |
+| Markdown content | `Foundations/Markdown content` | `MarkdownContent` |
+| Resource notice | `Foundations/Resource notice` | `ResourceNotice` |
+| Bead metadata | `Foundations/Bead metadata` | `Label`, `BeeAssignment` |
+
+Storybook lives in the same package, with configuration in `lib/hive-ui/.storybook` and stories/fixtures in `lib/hive-ui/src/stories`. Its React/Vite builder processes the production stylesheet through Tailwind 4. This is a development workshop; the product still uses Bun's server and asset build. Package typechecking includes the workshop configuration and stories.
+
+Stories render the production components using a memory router, production stores and MSW fixture responses. The workshop never starts the native API or reads a tracker. Navigation, selection, filter changes, refresh and ancestry actions use deterministic responses; timestamps describe fixed observations. Stores, saved views and column preferences reset between stories in the workshop's browser origin. Full-page stories compose the real shell, including the responsive sidebar/drawer and inspector.
+
+Bee graph stories show recorded requesters, inferred ancestry, historical context, all request outcomes, empty results and long identities. Selection updates a visible selected-request readout and records a selection action. The Bee workspace and Work board stories exercise selection, linked work and ancestry end to end. All stories share a Moss/Paper toolbar; Paper also has explicit visual examples. Autodocs, controls, actions and accessibility inspection are available from Storybook's panels.
+
+Launch and static-build commands are in the [usage guide](../../lib/hive-ui/README.md#component-workshop).
+
 ## What the Millstrand exploration found
 
 Three Luna explorations are recorded on `hv-active-bees-work-board-x68q.2`, `.3`, and `.4`. Their source was the local `millstrand-ui` checkout on 2026-10-08.

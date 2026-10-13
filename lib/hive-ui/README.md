@@ -67,6 +67,28 @@ Family reads follow only native `parent-child` edges. Summary batches contain at
 
 The UI accepts up to 100 open requests per colony, 50 completed requests per history page and eight provenance steps. Exceeding the request limit produces a visible error instead of a silently incomplete board. Native request membership requires a bounded batch detail read; completed request history is queried only in the Completed bees view or for expanded provenance.
 
+## Component workshop
+
+From the checkout root:
+
+```sh
+mise run hive-ui:storybook
+```
+
+Storybook listens on all interfaces by default. Open <http://127.0.0.1:6006> locally, or `http://<machine-LAN-IP>:6006` from another device on the same network. Use `mise run hive-ui:storybook -- --host 127.0.0.1` for localhost only, or `mise run hive-ui:storybook -- --port 6007` to choose another port. It requires workspace dependencies (`bun install`) and Node.js 20.19+ or 22.12+ for the Vite builder; no Beads database, `br` or running Colony is needed.
+
+Start with **Bees → Bee graph → Inferred Ancestry** for the graph canvas, or **Workspace → Work board → Bee Graph** for the complete interface. Click requests, pan, zoom and use Fit; the full workspace also lets you inspect linked beads and load ancestry. The toolbar switches between Moss and Paper. The workshop uses fixed example records and resets saved views and column preferences between stories in its own browser origin.
+
+The catalogue also covers boards, cards, inspector and outlines, filters, saved views, navigation, column settings, tabs, Markdown and resource notices. Autodocs and the Controls, Actions and Accessibility panels sit beside the examples. Resize the preview to explore the mobile filter drawer and inspector panes.
+
+```sh
+mise run hive-ui:storybook:build
+```
+
+The static build is written to `lib/hive-ui/dist/storybook`. Serve that directory over HTTP, rather than opening `index.html` directly. MSW uses a service worker on localhost/HTTPS and browser request interception on plain LAN HTTP. The package also exposes `bun run --cwd lib/hive-ui storybook`, `storybook:build` and `storybook:check`.
+
+Canonical names live in the nested [UI glossary](./GLOSSARY.md), with component/story mappings in the [design catalogue](../../docs/design/hive-ui.md#component-catalogue). The package typecheck gate checks that all story titles, glossary names and mapped component exports stay in sync.
+
 ## Development and diagnostics
 
 `bun run --cwd lib/hive-ui dev` restarts the Bun server when source changes. Reload the browser after edits; React hot replacement is disabled because the current Bun/TanStack Router combination fails during route initialization with it enabled. Development serves HTML/TSX and Tailwind directly. The standalone build embeds those assets, with Tailwind processed at build time.

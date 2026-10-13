@@ -1,6 +1,6 @@
 # Domain docs
 
-This repository uses one shared domain context. Paths below are relative to the repository root.
+This repository uses one shared domain context. Hive UI adds nested presentation vocabulary in [its glossary](../../lib/hive-ui/GLOSSARY.md), without redefining the shared domain. Paths below are relative to the repository root.
 
 When interpreting or changing domain terminology, read [GLOSSARY.md](../../GLOSSARY.md). When a task depends on or changes a design decision, read the relevant records under `docs/adr/`.
 
