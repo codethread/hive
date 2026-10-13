@@ -37,7 +37,12 @@ export const machine = setup({ types: {} as { context: Work; input: Work } }).cr
 				commands: { next: "COMPLETED" },
 				task: ({ context }: { context: Work }) => ({
 					title: context.title,
-					instructions: `${context.request}\n\nAcceptance criteria:\n${context.acceptance.map((criterion) => `- [ ] ${criterion}`).join("\n")}\n\nPerform this assignment, verify every criterion and record the evidence on this stage. Then close this stage and submit next. Busy Bee closes the run.`,
+					instructions:
+						`${context.request}\n\nAcceptance criteria:\n` +
+						`${context.acceptance.map((criterion) => `- [ ] ${criterion}`).join("\n")}` +
+						"\n\nPerform this assignment, verify every criterion and record the " +
+						"evidence on this stage. Then close this stage and submit next. Busy " +
+						"Bee closes the run.",
 				}),
 			},
 			on: { COMPLETED: "done" },

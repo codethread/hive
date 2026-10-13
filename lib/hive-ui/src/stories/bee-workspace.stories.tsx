@@ -21,7 +21,9 @@ const meta = {
 		docs: {
 			description: {
 				component:
-					"Bee workspace: shared request selection, Outline/Graph presentation, local request search, selected work and explicit ancestry loading. All reads use fixture responses.",
+					"Bee workspace: shared request selection, Outline/Graph presentation, " +
+					"local request search, selected work and explicit ancestry loading. " +
+					"All reads use fixture responses.",
 			},
 		},
 	},

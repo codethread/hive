@@ -66,7 +66,8 @@ async function pick(
 	return item;
 }
 
-// oxlint-disable-next-line eslint/require-await -- Keep synchronous terminal interaction inside an async boundary so IO errors reject the returned promise.
+// Keep synchronous terminal interaction inside an async boundary so IO errors reject the returned promise.
+// oxlint-disable-next-line eslint/require-await
 async function confirm(prompt: string): Promise<boolean> {
 	// oxlint-disable-next-line node/no-sync -- The interactive single-byte prompt owns the terminal until answered.
 	const tty = openSync("/dev/tty", "r+");
@@ -74,7 +75,8 @@ async function confirm(prompt: string): Promise<boolean> {
 		// oxlint-disable-next-line node/no-sync -- Display the prompt before the blocking terminal read.
 		writeFileSync(tty, prompt);
 		const answer = Buffer.alloc(ANSWER_BYTES);
-		// oxlint-disable-next-line node/no-sync -- Read one byte at the descriptor's current position, as in the original prompt.
+		// Read one byte at the descriptor's current position, as in the original prompt.
+		// oxlint-disable-next-line node/no-sync
 		readSync(tty, answer);
 		// oxlint-disable-next-line node/no-sync -- Finish the prompt before returning control to the caller.
 		writeFileSync(tty, "\n");

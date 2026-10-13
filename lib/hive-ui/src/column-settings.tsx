@@ -50,7 +50,12 @@ export function ColumnSettings({ colony, present, selected }: ColumnSettingsProp
 				<DialogOverlay className="fixed inset-0 z-50 bg-black/50" />
 				<DialogContent
 					data-theme={theme}
-					className="fixed top-1/2 left-1/2 z-50 max-h-[85dvh] w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-lg border border-line bg-panel p-5 text-sm text-ink shadow-xl"
+					className={
+						"fixed top-1/2 left-1/2 z-50 max-h-[85dvh] w-[calc(100%-2rem)] " +
+						"max-w-sm -translate-x-1/2 -translate-y-1/2 overflow-y-auto " +
+						"rounded-lg border border-line bg-panel p-5 text-sm text-ink " +
+						"shadow-xl"
+					}
 				>
 					<header className="flex items-center justify-between gap-4">
 						<DialogTitle className="font-semibold">Column settings</DialogTitle>

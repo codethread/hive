@@ -59,7 +59,13 @@ test("preflight uses the injected command runner and preserves failure diagnosti
 
 test("pool status observes initialization through the injected filesystem", async () => {
 	const worktrees = parseWorktreeList(
-		"worktree /repo\nHEAD abc\nbranch refs/heads/main\n\nworktree /repo__feat1\nHEAD abc\nbranch refs/heads/wk-pool/feat1\n",
+		"worktree /repo\n" +
+			"HEAD abc\n" +
+			"branch refs/heads/main\n" +
+			"\n" +
+			"worktree /repo__feat1\n" +
+			"HEAD abc\n" +
+			"branch refs/heads/wk-pool/feat1\n",
 	);
 
 	const observedPaths: string[] = [];

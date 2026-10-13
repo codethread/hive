@@ -1,4 +1,5 @@
-/* eslint-disable import/max-dependencies -- The route composes the board shell, navigation, filters and detail panels. */
+// The route composes the board shell, navigation, filters and detail panels.
+/* eslint-disable import/max-dependencies */
 import { BeeHistory, BoardTabs } from "./board-navigation.tsx";
 import {
 	EMPTY,
@@ -144,7 +145,12 @@ export function WorkPage() {
 	return (
 		<main className="work-page">
 			<FilterWorkspace board={board}>
-				<div className="flex flex-wrap items-center justify-between gap-2 border-b border-line px-5 py-2 text-xs text-muted">
+				<div
+					className={
+						"flex flex-wrap items-center justify-between gap-2 border-b " +
+						"border-line px-5 py-2 text-xs text-muted"
+					}
+				>
 					<div className="flex flex-wrap items-center gap-3">
 						{search.view !== "beads" && <BeeHistory />}
 						<span>

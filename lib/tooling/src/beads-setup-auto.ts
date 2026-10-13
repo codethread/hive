@@ -16,6 +16,7 @@ if (await Bun.file(`${source}/mise.local.toml`).exists()) {
 }
 if (!configured) {
 	console.log(
-		"Beads is not configured here. Run mise trust, then mise run; the default task bootstraps this clone's tracker after install/build.",
+		"Beads is not configured here. Run mise trust, then mise run; the " +
+			"default task bootstraps this clone's tracker after install/build.",
 	);
 }

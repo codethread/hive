@@ -27,7 +27,8 @@ test.each([
 	{ kind: "merge error", nativeCode: "IO_ERROR", alerts: 0, gitConflict: false },
 ] as const)(
 	"publication stops and alerts only a verified conflict: $kind",
-	// eslint-disable-next-line max-statements -- Verify notification policy and tracker attribution across each typed sync failure.
+	// Verify notification policy and tracker attribution across each typed sync failure.
+	// eslint-disable-next-line max-statements
 	async (fixture) => {
 		const { services, original, calls, scopes } = publicationFixture(fixture);
 		const bodies: string[] = [];

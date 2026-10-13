@@ -7,7 +7,9 @@ const POLICY = 'owner="ct"\nhumans=["ct"]\n[formulas]\n';
 const DEFINITION =
 	'name="reviewer"\ndescription="Review changes."\nharness="codex"\nmodel="folder-model"\neffort="high"\n';
 const INLINE =
-	'[kinds.reviewer]\ndescription="Central reviewer."\nharness="pi"\nmodel="central-model"\neffort="low"\nprompt="Central instructions"\n';
+	'[kinds.reviewer]\ndescription="Central ' +
+	'reviewer."\nharness="pi"\nmodel="central-model"\neffort="low"\nprompt="Central ' +
+	'instructions"\n';
 
 // Warm the schema at fixture setup, outside unit-test timing.
 await loadBeesConfig("/repo", fixture({ [CENTRAL]: POLICY }));

@@ -9,11 +9,15 @@ import {
 import type { LaunchReceipt } from "./launch.ts";
 import type { StdoutActivity } from "@hive/shared";
 import type { TrackerContext } from "./tracker.ts";
-// eslint-disable-next-line import/no-nodejs-modules -- Colony cannot publish observations for another machine's requests.
+/* eslint-disable-next-line import/no-nodejs-modules --
+ * Colony cannot publish observations for another machine's requests.
+ */
 import { hostname } from "node:os";
 // eslint-disable-next-line import/no-nodejs-modules -- Inspect the current attempt's owned stdout artifact.
 import { join } from "node:path";
-// eslint-disable-next-line import/no-nodejs-modules -- File metadata preserves output time across sleep and daemon restart.
+/* eslint-disable-next-line import/no-nodejs-modules --
+ * File metadata preserves output time across sleep and daemon restart.
+ */
 import { stat } from "node:fs/promises";
 import { trackerScope } from "./tracker.ts";
 

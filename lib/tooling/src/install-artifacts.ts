@@ -13,7 +13,8 @@ const MINIMUM_ARTIFACTS = 1;
 const artifactNamesSchema = z.array(z.string().regex(/^[a-z][\da-z-]*$/u)).min(MINIMUM_ARTIFACTS);
 
 /** Copy built executables, replacing destination symlinks rather than their targets. */
-// eslint-disable-next-line max-statements -- Keep staging, replacement and cleanup together at the installation boundary.
+// Keep staging, replacement and cleanup together at the installation boundary.
+// eslint-disable-next-line max-statements
 export async function installArtifacts(
 	sourceDirectory: string,
 	destination: string,
@@ -51,7 +52,9 @@ async function main(): Promise<void> {
 		});
 		if (values.help) {
 			console.log(
-				"Usage: install:bin <artifact...> [--directory <path>]\nInstall named executables from this package's dist/ directory. Default destination: ~/.local/bin. Run build first.",
+				"Usage: install:bin <artifact...> [--directory <path>]\nInstall named " +
+					"executables from this package's dist/ directory. Default " +
+					"destination: ~/.local/bin. Run build first.",
 			);
 			return;
 		}

@@ -138,7 +138,8 @@ export function actorFor(
 	state: { input: unknown } | { snapshot: Snapshot<unknown> },
 ): WorkflowActor {
 	const actor = createActor(definition.machine, state);
-	// Snapshot checks report failures through the CLI; observe errors to suppress XState's asynchronous unhandled-error channel.
+	// Snapshot checks report failures through the CLI.
+	// Observe errors to suppress XState's asynchronous unhandled-error channel.
 	actor.subscribe({ error: () => {} });
 	return actor;
 }

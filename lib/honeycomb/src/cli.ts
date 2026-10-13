@@ -76,7 +76,8 @@ function registerRoot(program: Command, deps: Deps): void {
 		.command("root")
 		.summary("Print canonical root")
 		.description(
-			"Print the protected canonical/root worktree for the repository containing --cwd (or the current directory by default).",
+			"Print the protected canonical/root worktree for the repository containing --cwd (or the " +
+				"current directory by default).",
 		)
 		.addHelpText("after", HELP.root)
 		.action((_opts, command) => runAction("root", optsToArgs(command.optsWithGlobals()), deps));
@@ -109,7 +110,8 @@ function registerPath(program: Command, deps: Deps): void {
 		.command("path")
 		.summary("Resolve branch path")
 		.description(
-			"Print the deterministic worktree path for a branch in the repository containing --cwd (or the current directory by default).",
+			"Print the deterministic worktree path for a branch in the repository containing --cwd (or the " +
+				"current directory by default).",
 		)
 		.requiredOption("--branch <branch>", "Branch name")
 		.addHelpText("after", HELP.path)
@@ -212,7 +214,8 @@ function registerPick(program: Command, deps: Deps): void {
 		.command("pick")
 		.summary("Fuzzy-pick worktree")
 		.description(
-			"Fuzzy-pick a worktree with fzf and print its path, or with --interactive hand it to the invoking shell or open its multiplexer session.",
+			"Fuzzy-pick a worktree with fzf and print its path, or with --interactive hand it to the " +
+				"invoking shell or open its multiplexer session.",
 		)
 		.option("--open", "Open the selection's multiplexer session instead of printing its path")
 		.addHelpText("after", HELP.pick)

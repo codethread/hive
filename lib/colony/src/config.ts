@@ -24,7 +24,9 @@ export interface LoadedBeesConfig {
 }
 
 /** Load canonical configuration and kind folders once for every Bee/Colony consumer. */
-// eslint-disable-next-line max-statements -- Keep source loading, precedence and diagnostics together at this IO boundary.
+/* eslint-disable-next-line max-statements --
+ * Keep source loading, precedence and diagnostics together at this IO boundary.
+ */
 export async function loadBeesConfig(
 	root: string,
 	files: ConfigFiles = liveFiles,

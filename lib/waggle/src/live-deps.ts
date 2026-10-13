@@ -3,7 +3,8 @@ import type { ClassificationRequest } from "./classifiers.ts";
 import type { Fetch } from "@typesafe-ai/sdk";
 import { TypeSafeClient } from "@typesafe-ai/sdk";
 import type { WaggleDependencies } from "./cli.ts";
-// eslint-disable-next-line import/no-nodejs-modules -- Resolve paths within the explicitly selected classifier directory.
+// Resolve paths within the explicitly selected classifier directory.
+// eslint-disable-next-line import/no-nodejs-modules
 import { join } from "node:path";
 // eslint-disable-next-line import/no-nodejs-modules -- Classifier catalogue access is a filesystem boundary.
 import { readdir } from "node:fs/promises";

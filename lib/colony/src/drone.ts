@@ -1,5 +1,10 @@
-/* eslint-disable import/max-dependencies -- Inactivity review composes tracker observation with process and persistence authority. */
-/* eslint-disable unicorn/no-null -- Durable review checkpoints distinguish pending decisions and launch failures without receipts. */
+/* eslint-disable import/max-dependencies --
+ * Inactivity review composes tracker observation with process and persistence authority.
+ */
+/* eslint-disable unicorn/no-null --
+ * Durable review checkpoints distinguish pending decisions and launch failures without
+ * receipts.
+ */
 // eslint-disable-next-line import/no-nodejs-modules -- Attempt-local immutable reports and execution artifacts.
 import { dirname, join } from "node:path";
 import {
@@ -133,7 +138,9 @@ export function inactivityReviewDue(input: {
 }
 
 /** Reconcile one current target; drones never enter the task-request scheduler or claim work. */
-// eslint-disable-next-line max-statements -- Keep the one-shot durable review checkpoints and their ordered effects together.
+/* eslint-disable-next-line max-statements --
+ * Keep the one-shot durable review checkpoints and their ordered effects together.
+ */
 export async function reviewInactivity(
 	runtime: ReviewRuntime,
 	record: RequestRecord,
@@ -184,7 +191,11 @@ export async function reviewInactivity(
 		review.decision.kind !== "active" &&
 		review.decision.kind !== "cancelled"
 	) {
-		return `Inactivity drone ${review.decision.kind}; attempt ${record.context.attemptId}; review ${review.id}; ${review.decision.detail}`;
+		return (
+			`Inactivity drone ${review.decision.kind}; attempt ` +
+			`${record.context.attemptId}; review ${review.id}; ` +
+			`${review.decision.detail}`
+		);
 	}
 	return undefined;
 }
@@ -213,7 +224,9 @@ export async function cancelDroneReview(
 }
 
 /** A drone submits once using injected context and recorded current target/review authority. */
-// eslint-disable-next-line max-statements -- Validate current authority before atomically publishing exactly one report.
+/* eslint-disable-next-line max-statements --
+ * Validate current authority before atomically publishing exactly one report.
+ */
 export async function submitDroneVerdict(
 	spawnId: string,
 	verdict: string,
@@ -274,7 +287,9 @@ export function assertVerdictAuthority(
 }
 
 // --- Review effects ---
-// eslint-disable-next-line max-statements -- Reserve before launch, then record authority before granting execution permission.
+/* eslint-disable-next-line max-statements --
+ * Reserve before launch, then record authority before granting execution permission.
+ */
 async function launchReview(
 	runtime: ReviewRuntime,
 	target: LaunchReceipt,
@@ -343,7 +358,9 @@ async function launchReview(
 	await publishObservation(
 		{ beads, repository },
 		target.spawnId,
-		`running: inactivity review ${review.id}; target attempt ${target.id}; deadline ${new Date(review.deadline).toISOString()}; logs ${review.receipt!.directory}`,
+		`running: inactivity review ${review.id}; target attempt ` +
+			`${target.id}; deadline ${new Date(review.deadline).toISOString()}; ` +
+			`logs ${review.receipt!.directory}`,
 	);
 	return review;
 }
@@ -475,7 +492,9 @@ async function finishReview(
 	await publishObservation(
 		{ beads, repository },
 		review.spawnId,
-		`running: inactivity drone ${review.decision!.kind}; target attempt ${review.targetAttemptId}; review ${review.id}; ${review.decision!.detail}`,
+		`running: inactivity drone ${review.decision!.kind}; target attempt ` +
+			`${review.targetAttemptId}; review ${review.id}; ` +
+			`${review.decision!.detail}`,
 	);
 	const finished: DroneReview = { ...review, decision: review.decision!, phase: "finished" };
 	store.saveDroneReview(repository.root, finished);
@@ -496,7 +515,17 @@ function droneReceipt(
 	if (!formula) {
 		throw new Error(`No formula named ${defaults.harness} for inactivity drone ${kind}`);
 	}
-	const prompt = `${defaults.prompt}\n\nInspect only spawn ${target.spawnId}, execution attempt ${target.id}, review ${review.id}. Deadline: ${new Date(review.deadline).toISOString()}. Target logs and process ownership evidence: ${target.directory} (stdout.log, stderr.log, ownership.json, worker.json). Consider legitimate long-running waits; PID existence or stdout silence alone does not prove progress or inactivity. Report exactly one verdict with: bee report ${target.spawnId} active|inactive. Do not close tasks, claim work, signal processes, assign lifecycle states, launch another drone, or use bee finish. Colony owns all lifecycle decisions.`;
+	const prompt =
+		`${defaults.prompt}\n\nInspect only spawn ${target.spawnId}, ` +
+		`execution attempt ${target.id}, review ${review.id}. Deadline: ` +
+		`${new Date(review.deadline).toISOString()}. Target logs and process ` +
+		`ownership evidence: ${target.directory} (stdout.log, stderr.log, ` +
+		`ownership.json, worker.json). Consider ` +
+		`legitimate long-running waits; PID existence or stdout silence alone ` +
+		`does not prove progress or inactivity. Report exactly one verdict ` +
+		`with: bee report ${target.spawnId} active|inactive. Do not close tasks, claim work, signal processes, ` +
+		`assign lifecycle states, launch another drone, or use bee finish. ` +
+		`Colony owns all lifecycle decisions.`;
 	const recipe = {
 		cwd: target.cwd,
 		effort: defaults.effort,

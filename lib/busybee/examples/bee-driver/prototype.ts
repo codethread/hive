@@ -81,7 +81,11 @@ async function executePrototype(): Promise<void> {
 		.requiredOption("--owner <human>", "Accountable human")
 		.addHelpText(
 			"after",
-			"\nDefault input: title, request and acceptance (array of verification criteria).\nCustom workflows: inspect required inputs with busybee input-schema --source PATH --json.\nThe resulting Bee request watches one run; Busy Bee creates stages, workers close them, and Busy Bee closes the run.\n",
+			"\nDefault input: title, request and acceptance (array of verification " +
+				"criteria).\nCustom workflows: inspect required inputs with busybee " +
+				"input-schema --source PATH --json.\nThe resulting Bee request watches " +
+				"one run; Busy Bee creates stages, workers close them, and Busy Bee " +
+				"closes the run.\n",
 		);
 	cli.parse();
 	const { workflow, ...options } = cli.opts<SubmissionOptions & { workflow?: string }>();
@@ -120,12 +124,24 @@ async function spawn(
 }
 
 function driverInstructions(run: string): string {
-	return `Drive the existing Busy Bee run ${run} to completion. Resume this run; never start a second run.
-Use ${JSON.stringify(process.execPath)} ${JSON.stringify(BUSYBEE)} show ${run} --json and discover ${run} --json.
-Read active worker beads, respect their assignments, complete their work, close them, and submit the declared outcome with next or choice. Claim manual stages with your injected identity. For next, supply the active stage bead ID as the task argument.
-Automatic stages have independent Bee requests. Leave those assignments intact and use collect for their results; do not create a workflow wrapper for them.
-Busy Bee owns closure of this run. Do not close it manually. Only report bee finish success once the run reports done.
-If blocked, record the blocker and next action on this run, leave it open, and report bee finish blocked. Initial workflow inputs are already persisted.`;
+	return (
+		`Drive the existing Busy Bee run ${run}` +
+		" to completion. Resume this run; never start a second run.\nUse " +
+		`${JSON.stringify(process.execPath)} ` +
+		`${JSON.stringify(BUSYBEE)} show ` +
+		`${run} --json and discover ` +
+		`${run} --json.\nRead active worker beads, respect their assignments, ` +
+		"complete their work, close them, and submit the declared outcome " +
+		"with next or choice. Claim manual stages with your injected " +
+		"identity. For next, supply the active stage bead ID as the task " +
+		"argument.\nAutomatic stages have independent Bee requests. Leave " +
+		"those assignments intact and use collect for their results; do not " +
+		"create a workflow wrapper for them.\nBusy Bee owns closure of this " +
+		"run. Do not close it manually. Only report bee finish success once " +
+		"the run reports done.\nIf blocked, record the blocker and next action " +
+		"on this run, leave it open, and report bee finish blocked. Initial " +
+		"workflow inputs are already persisted."
+	);
 }
 
 function prototypeFailure(error: unknown): Record<string, unknown> {

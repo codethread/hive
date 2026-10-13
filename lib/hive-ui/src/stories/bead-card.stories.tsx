@@ -27,7 +27,9 @@ export const LongTitle: Story = {
 		card: {
 			...cards[0]!,
 			title:
-				"Arrange a large provenance graph with recorded requester attribution, inferred parents and historical context across many linked task beads",
+				"Arrange a large provenance graph with recorded requester " +
+				"attribution, inferred parents and historical context across many " +
+				"linked task beads",
 		},
 	},
 };

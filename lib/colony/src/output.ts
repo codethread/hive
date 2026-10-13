@@ -127,10 +127,17 @@ function formatPolicy(policy: PolicyView | null): string {
 	].join("\n");
 }
 function formatLimits(limits: PolicyView["limits"]): string {
-	return `Limits: colony ${limits.colony}; kind ${limits.kind}; worktree ${limits.worktree}; named kinds ${JSON.stringify(limits.kinds)}`;
+	return (
+		`Limits: colony ${limits.colony}; kind ${limits.kind}; worktree ` +
+		`${limits.worktree}; named kinds ${JSON.stringify(limits.kinds)}`
+	);
 }
 function formatRevision(revision: PolicyRevision): string {
-	return `Revision ${revision.id}: ${revision.source}; actor ${revision.actor ?? "unattributed"}; ${revision.createdAt}; formula ${revision.formulaName ?? "none"}`;
+	return (
+		`Revision ${revision.id}: ${revision.source}; actor ` +
+		`${revision.actor ?? "unattributed"}; ${revision.createdAt}; formula ` +
+		`${revision.formulaName ?? "none"}`
+	);
 }
 function formatInspection(result: Extract<DaemonResponse, { kind: "inspection" }>): string {
 	const lines = [
@@ -146,13 +153,18 @@ function formatInspection(result: Extract<DaemonResponse, { kind: "inspection" }
 	}
 	for (const request of result.requests) {
 		lines.push(
-			`Request checkpoint ${request.id}: ${request.state}; identity ${request.identity}; tasks ${request.taskIds.join(", ")}; attempts ${request.attempts}; active attempt ${request.attemptId ?? "none"}; retry at ${request.retryAt ?? "none"}; outcome ${request.outcome ?? "none"}`,
+			`Request checkpoint ${request.id}: ${request.state}; identity ` +
+				`${request.identity}; tasks ${request.taskIds.join(", ")}; attempts ` +
+				`${request.attempts}; active attempt ${request.attemptId ?? "none"}; ` +
+				`retry at ${request.retryAt ?? "none"}; outcome ` +
+				`${request.outcome ?? "none"}`,
 			`Request diagnostic: ${request.message}`,
 		);
 	}
 	for (const attempt of result.attempts) {
 		lines.push(
-			`Attempt ${attempt.id}: ${attempt.state}; request ${attempt.spawnId}; number ${attempt.attemptNumber}; ${attempt.createdAt}`,
+			`Attempt ${attempt.id}: ${attempt.state}; request ${attempt.spawnId}; ` +
+				`number ${attempt.attemptNumber}; ${attempt.createdAt}`,
 			`Identity: ${attempt.identity}; recipe ${attempt.kind} / ${attempt.harness} / ${attempt.model}`,
 			`Tasks: ${attempt.taskIds.join(", ")}`,
 			`Execution cwd: ${attempt.cwd}`,
@@ -171,7 +183,8 @@ function formatExplanation(result: Explanation): string {
 		`Beads database: ${result.repository.beadsDb}`,
 		...result.diagnostics.map(
 			(item) =>
-				`${item.kind} [${item.code}]: ${item.message}\nNext transition: ${item.nextTransition}\nEvidence: ${item.evidence.join(", ")}`,
+				`${item.kind} [${item.code}]: ${item.message}\nNext transition: ` +
+				`${item.nextTransition}\nEvidence: ${item.evidence.join(", ")}`,
 		),
 		...(["tracker", "runtime", "capacity"] as const).map(
 			(name) => `${name}: ${JSON.stringify(result[name])}`,
@@ -184,17 +197,23 @@ function formatExplanation(result: Explanation): string {
 
 function formatHistory(result: HistoryResult): string {
 	return [
-		`Operation history: ${result.repository.root}; retained limits ${result.retention} finished / ${result.unfinishedRetention} unfinished across daemon`,
+		`Operation history: ${result.repository.root}; retained limits ` +
+			`${result.retention} finished / ${result.unfinishedRetention} ` +
+			`unfinished across daemon`,
 		"Start sequence order; unfinished means completion unknown. Checkpoints are historical, not refreshed.",
 		...result.events.flatMap((event) => [
-			`#${event.sequence} ${event.startedAt} ${event.operation} ${event.requestId ?? result.repository.root}: ${event.status}`,
+			`#${event.sequence} ${event.startedAt} ${event.operation} ` +
+				`${event.requestId ?? result.repository.root}: ${event.status}`,
 			`Last boundary: ${event.step.operation} ${event.step.target}`,
 			`Before: ${JSON.stringify(event.before)}; after (last recorded): ${JSON.stringify(event.after)}`,
 			`Known completed effects: ${JSON.stringify(event.completedEffects)}`,
 			// eslint-disable-next-line no-ternary -- Optional failure contributes one human diagnostic line.
 			...(event.failure
 				? [
-						`Failure at ${event.failure.step.operation} ${event.failure.step.target}: ${event.failure.code ?? "unknown"} (exit ${event.failure.exitCode ?? "unknown"}): ${event.failure.message}`,
+						`Failure at ${event.failure.step.operation} ` +
+							`${event.failure.step.target}: ${event.failure.code ?? "unknown"} ` +
+							`(exit ${event.failure.exitCode ?? "unknown"}): ` +
+							`${event.failure.message}`,
 					]
 				: []),
 			...event.evidence.map((path) => `Evidence: ${path}`),

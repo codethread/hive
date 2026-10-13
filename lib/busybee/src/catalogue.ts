@@ -1,5 +1,6 @@
 import { BusyBeeError, createServices } from "./native.ts";
-// eslint-disable-next-line import/no-nodejs-modules -- Pure path resolution keeps entries within their authoring folder.
+// Pure path resolution keeps entries within their authoring folder.
+// eslint-disable-next-line import/no-nodejs-modules
 import { isAbsolute, join, relative, resolve, sep } from "node:path";
 import type { Services } from "./native.ts";
 import { workflowVersionSchema } from "./compatibility.ts";

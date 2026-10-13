@@ -105,7 +105,8 @@ test.each([
 	{ position: "review", testId: "#test-18" },
 ])(
 	"compatible minor insertion resumes an existing run at $position $testId",
-	// eslint-disable-next-line max-statements -- Verify restore, next transition and written version as one engine lifecycle.
+	// Verify restore, next transition and written version as one engine lifecycle.
+	// eslint-disable-next-line max-statements
 	async ({ position }) => {
 		const beads = createMemoryBeads({ db });
 		const scope = { actor: "test-agent", cwd: repo, db };
@@ -180,54 +181,63 @@ test.each([
 	},
 );
 
-// eslint-disable-next-line max-statements -- Verify surviving visit publication and preflight through a complete parallel engine lifecycle.
-test("parallel progress preserves a surviving visit context and preflights its unchanged frozen contract #test-19", async () => {
-	const beads = createMemoryBeads({ db });
-	const scope = { actor: "test-agent", cwd: repo, db };
-	let concurrentSave = false;
-	const io: Services = {
-		...services,
-		actor: "test-agent",
-		beads: {
-			...beads,
-			show: async (selected, id) => {
-				const record = await beads.show(selected, id);
-				if (concurrentSave && record.labels.includes("busybee-checkpoint")) {
-					concurrentSave = false;
-					const latest = readCheckpoint(record);
-					latest.visits["other"] = SAVED_VISITS;
-					// Save after discovery; the returned revision is stale for the first ownership attempt.
-					await beads.update(scope, [id], { description: JSON.stringify(latest) });
-				}
-				return record;
+// Verify surviving visit publication and preflight through a complete parallel engine lifecycle.
+test(
+	"parallel progress preserves a surviving visit context and preflights " +
+		"its unchanged frozen contract #test-19",
+	// eslint-disable-next-line max-statements
+	async () => {
+		const beads = createMemoryBeads({ db });
+		const scope = { actor: "test-agent", cwd: repo, db };
+		let concurrentSave = false;
+		const io: Services = {
+			...services,
+			actor: "test-agent",
+			beads: {
+				...beads,
+				show: async (selected, id) => {
+					const record = await beads.show(selected, id);
+					if (concurrentSave && record.labels.includes("busybee-checkpoint")) {
+						concurrentSave = false;
+						const latest = readCheckpoint(record);
+						latest.visits["other"] = SAVED_VISITS;
+						// Save after discovery; the returned revision is stale for the first ownership attempt.
+						await beads.update(scope, [id], { description: JSON.stringify(latest) });
+					}
+					return record;
+				},
 			},
-		},
-		execute: () => Promise.resolve(repo),
-		importModule: () => Promise.resolve(parallelDefinition),
-		sleep: () => Promise.resolve(),
-	};
-	const view = await startNamed("example", { owner: "ct" }, io);
-	const left = view.active.find((entry) => entry.title === "Left")!;
-	await beads.close(scope, left.bead);
-	concurrentSave = true;
-	await navigate(
-		{ id: view.id, operation: "submit", bead: left.bead, choice: "left", data: {} },
-		{},
-		io,
-	);
-	const listing = await beads.list(scope, { labels: ["busybee-checkpoint"], all: true, limit: 0 });
-	const record = listing.issues.find((item) => item.labels.includes("busybee-checkpoint"))!;
-	const saved = readCheckpoint(await beads.show(scope, record.id));
-	const surviving = saved.active.find((entry) => entry.meta.title === "Right")!;
-	expect(saved.snapshot).toMatchObject({ context: { revision: "new" } });
-	expect(saved.visits["other"]).toBe(SAVED_VISITS);
-	expect(surviving.context).toEqual({ revision: "old" });
-	expect(surviving.meta).toMatchObject({ instructions: "old", commands: { right: "RIGHT_OLD" } });
-	const report = assessRun({
-		run: saved,
-		checkpoint: record.id,
-		definition: parallelDefinition,
-		version: "1.0.0",
-	});
-	expect(report.findings.filter((finding) => finding.status === "failed")).toEqual([]);
-});
+			execute: () => Promise.resolve(repo),
+			importModule: () => Promise.resolve(parallelDefinition),
+			sleep: () => Promise.resolve(),
+		};
+		const view = await startNamed("example", { owner: "ct" }, io);
+		const left = view.active.find((entry) => entry.title === "Left")!;
+		await beads.close(scope, left.bead);
+		concurrentSave = true;
+		await navigate(
+			{ id: view.id, operation: "submit", bead: left.bead, choice: "left", data: {} },
+			{},
+			io,
+		);
+		const listing = await beads.list(scope, {
+			labels: ["busybee-checkpoint"],
+			all: true,
+			limit: 0,
+		});
+		const record = listing.issues.find((item) => item.labels.includes("busybee-checkpoint"))!;
+		const saved = readCheckpoint(await beads.show(scope, record.id));
+		const surviving = saved.active.find((entry) => entry.meta.title === "Right")!;
+		expect(saved.snapshot).toMatchObject({ context: { revision: "new" } });
+		expect(saved.visits["other"]).toBe(SAVED_VISITS);
+		expect(surviving.context).toEqual({ revision: "old" });
+		expect(surviving.meta).toMatchObject({ instructions: "old", commands: { right: "RIGHT_OLD" } });
+		const report = assessRun({
+			run: saved,
+			checkpoint: record.id,
+			definition: parallelDefinition,
+			version: "1.0.0",
+		});
+		expect(report.findings.filter((finding) => finding.status === "failed")).toEqual([]);
+	},
+);

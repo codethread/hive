@@ -90,7 +90,9 @@ export async function awaitExecutionPermission(
 	const temporary = join(ref.directory, "supervisor.json.tmp");
 	await Bun.write(temporary, JSON.stringify(supervisor));
 	await rename(temporary, join(ref.directory, "supervisor.json"));
-	/* eslint-disable no-await-in-loop -- A detached supervisor waits without launching until its recorded owner authorizes it. */
+	/* eslint-disable no-await-in-loop --
+	 * A detached supervisor waits without launching until its recorded owner authorizes it.
+	 */
 	while (!(await Bun.file(join(ref.directory, "permission.json")).exists())) {
 		if (deadline !== undefined && Date.now() >= deadline) {
 			throw new Error("Execution permission deadline reached");
@@ -101,7 +103,9 @@ export async function awaitExecutionPermission(
 	await verifyPermission(ref);
 }
 /** Recovery can complete a verified handoff; an already executing worker needs no new permission. */
-// eslint-disable-next-line max-statements -- Validate existing authority before publishing a new durable launch permission.
+/* eslint-disable-next-line max-statements --
+ * Validate existing authority before publishing a new durable launch permission.
+ */
 export async function resumeExecution(
 	ref: ExecutionRef,
 	recordSupervisor: (owner: ProcessFingerprint) => void,
@@ -123,7 +127,9 @@ export async function resumeExecution(
 }
 
 /** Observe only the execution tree; the supervisor itself performs artifact bookkeeping. */
-// eslint-disable-next-line max-statements -- Distinguish verified pending supervisors from running and proven stopped harnesses.
+/* eslint-disable-next-line max-statements --
+ * Distinguish verified pending supervisors from running and proven stopped harnesses.
+ */
 export async function observeExecution(
 	ref: ExecutionRef,
 ): Promise<{ kind: "live" } | { kind: "stopped" }> {
@@ -146,7 +152,9 @@ export async function observeExecution(
 }
 
 /** Stop verified descendants even when they have moved into separate process groups. */
-// eslint-disable-next-line max-statements -- Verification, signalling and bounded stop confirmation are one ownership boundary.
+/* eslint-disable-next-line max-statements --
+ * Verification, signalling and bounded stop confirmation are one ownership boundary.
+ */
 export async function stopExecution(ref: ExecutionRef): Promise<void> {
 	const deadline = Date.now() + STOP_TIMEOUT;
 	if (!(await Bun.file(join(ref.directory, "ownership.json")).exists())) {
@@ -179,7 +187,10 @@ export async function stopExecution(ref: ExecutionRef): Promise<void> {
 }
 
 /** The child handle proves short-lived root exit; process snapshots retain observed descendants. */
-// eslint-disable-next-line max-statements, max-params -- Keep child creation, ownership recording and the optional supervisor deadline beside completion proof.
+/* eslint-disable-next-line max-statements, max-params --
+ * Keep child creation, ownership recording and the optional supervisor deadline beside
+ * completion proof.
+ */
 export async function runOwnedExecution(
 	ref: ExecutionRef,
 	start: () => Subprocess,
@@ -208,7 +219,9 @@ export async function runOwnedExecution(
 		}
 		const child = start();
 		let exited = false;
-		// eslint-disable-next-line promise/prefer-await-to-then -- Observe child completion concurrently with ownership snapshots.
+		/* eslint-disable-next-line promise/prefer-await-to-then --
+		 * Observe child completion concurrently with ownership snapshots.
+		 */
 		const completion = child.exited.then((code) => {
 			exited = true;
 			return code;
@@ -219,7 +232,9 @@ export async function runOwnedExecution(
 		await writeOwnership(ref, owned);
 		await onStarted(child.pid);
 		/* eslint-disable no-await-in-loop -- Capture descendant lineage throughout the live child lifetime. */
-		// eslint-disable-next-line no-unmodified-loop-condition -- The owned child completion promise updates this condition.
+		/* eslint-disable-next-line no-unmodified-loop-condition --
+		 * The owned child completion promise updates this condition.
+		 */
 		while (!exited) {
 			if (deadline !== undefined && Date.now() >= deadline) {
 				await stopExecution(ref);
@@ -259,7 +274,9 @@ async function verifyPermission(ref: ExecutionRef): Promise<void> {
 async function awaitSupervisor(ref: ExecutionRef): Promise<ProcessFingerprint> {
 	const deadline = Date.now() + STOP_TIMEOUT;
 	const path = join(ref.directory, "supervisor.json");
-	/* eslint-disable no-await-in-loop -- Bound initial handoff publication; absent evidence is never inferred as stopped. */
+	/* eslint-disable no-await-in-loop --
+	 * Bound initial handoff publication; absent evidence is never inferred as stopped.
+	 */
 	while (!(await Bun.file(path).exists())) {
 		if (Date.now() >= deadline) {
 			throw new Error(`Execution ${ref.directory} has no supervisor handoff`);
@@ -275,7 +292,10 @@ async function awaitSupervisor(ref: ExecutionRef): Promise<ProcessFingerprint> {
 }
 async function stopSupervisor(supervisor: ProcessFingerprint): Promise<void> {
 	const deadline = Date.now() + STOP_TIMEOUT;
-	/* eslint-disable no-await-in-loop -- Stop only the verified permission waiter before declaring an unstarted execution stopped. */
+	/* eslint-disable no-await-in-loop --
+	 * Stop only the verified permission waiter before declaring an unstarted execution
+	 * stopped.
+	 */
 	while ((await observeProcess(supervisor)) === "live") {
 		if (Date.now() >= deadline) {
 			throw new Error(`Supervisor ${supervisor.pid} did not stop`);
@@ -285,7 +305,9 @@ async function stopSupervisor(supervisor: ProcessFingerprint): Promise<void> {
 	}
 	/* eslint-enable no-await-in-loop */
 }
-// eslint-disable-next-line max-statements -- Join independently written ownership and cleanup artifacts at one validated boundary.
+/* eslint-disable-next-line max-statements --
+ * Join independently written ownership and cleanup artifacts at one validated boundary.
+ */
 async function readOwnership(ref: ExecutionRef): Promise<Ownership> {
 	const owned = ownershipSchema.parse(await Bun.file(join(ref.directory, "ownership.json")).json());
 	if (owned.token !== ref.token) {
@@ -348,7 +370,9 @@ function verify(recorded: Fingerprint, current: ProcessDescriptor): void {
 	// Ps-list reports second-resolution lstart; this is a sampled identity, not a race-free OS handle.
 	if (recorded.startTime !== current.startTime?.getTime()) {
 		throw new Error(
-			`Ambiguous ownership of recorded PID ${recorded.pid}; refusing to signal: recorded start ${recorded.startTime}, observed start ${current.startTime?.getTime()}`,
+			`Ambiguous ownership of recorded PID ${recorded.pid}; refusing to ` +
+				`signal: recorded start ${recorded.startTime}, observed start ` +
+				`${current.startTime?.getTime()}`,
 		);
 	}
 }

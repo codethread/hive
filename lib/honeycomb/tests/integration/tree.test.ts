@@ -5,7 +5,8 @@ import { initRepo, testDeps } from "./support.ts";
 import { GitError } from "../../src/git/error.ts";
 // oxlint-disable-next-line import/no-nodejs-modules -- Integration fixtures use real checkout paths.
 import { join } from "node:path";
-// oxlint-disable-next-line import/no-nodejs-modules -- Resolve macOS temporary-directory symlinks to Git's inventory paths.
+// Resolve macOS temporary-directory symlinks to Git's inventory paths.
+// oxlint-disable-next-line import/no-nodejs-modules
 import { realpath } from "node:fs/promises";
 
 const GIT_FAILURE = 128;

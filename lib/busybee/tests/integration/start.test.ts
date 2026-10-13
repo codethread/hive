@@ -34,7 +34,8 @@ const services: Services = {
 };
 const hash = await fingerprint({ directory: folder, kind: "folder", source }, services);
 
-// eslint-disable-next-line max-statements -- One successful start checks its observable CLI, projection and endpoint contract.
+// One successful start checks its observable CLI, projection and endpoint contract.
+// eslint-disable-next-line max-statements
 test("start publishes an initial worker and one JSON success document through the CLI/runtime #test-55", async () => {
 	const root = "/busybee-start";
 	const startDb = `${root}/.beads/beads.startDb`;
@@ -189,7 +190,9 @@ test("discover requires user selection when the saved named folder is absent #te
 		reason: "workflow_missing",
 	});
 	expect(error.message).toMatchInlineSnapshot(
-		`"Cannot restore run mem-1: named workflow example is missing. Stop and ask the user which workflow to use; do not infer a replacement for example."`,
+		'"Cannot restore run mem-1: named workflow example is missing. Stop ' +
+			"and ask the user which workflow to use; do not infer a replacement " +
+			'for example."',
 	);
 	await fixture.assertPreserved();
 });
@@ -244,7 +247,8 @@ test("changed explicit-file runs keep their source-based diagnostic #test-46", a
 	expect(error).toBeInstanceOf(BusyBeeError);
 	expect(error).toMatchObject({ reason: "definition_changed" });
 	expect(error.message).toMatchInlineSnapshot(
-		`"Workflow definition changed; inspect the current source at /repo/.workflows/example/entry.ts and start a fresh run."`,
+		'"Workflow definition changed; inspect the current source at ' +
+			'/repo/.workflows/example/entry.ts and start a fresh run."',
 	);
 	await fixture.assertPreserved();
 });
@@ -267,7 +271,8 @@ async function inspect(operation: string, fixture: { id: string; io: Services })
 	throw new Error("Expected restoration to fail");
 }
 
-// eslint-disable-next-line max-statements -- Keep one retained checkpoint fixture and its observation boundary together.
+// Keep one retained checkpoint fixture and its observation boundary together.
+// eslint-disable-next-line max-statements
 async function retainedRun(
 	overrides: Partial<Services>,
 	definition:

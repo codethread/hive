@@ -67,7 +67,8 @@ export function createTmuxMultiplexer(runner: CommandRunner, env: TmuxEnvironmen
 		// Zsh ties its special `path` variable to PATH; keep the worktree separate.
 		return [
 			`worktree_path=${WORKTREE_PATH_FIELD}`,
-			`pane=$(tmux list-panes -a -F '${PANE_LIST_FORMAT}' 2>/dev/null | awk -F '\\t' -v path="$worktree_path" '$2 == path || index($2, path "/") == 1 { print $1; exit }')`,
+			`pane=$(tmux list-panes -a -F '${PANE_LIST_FORMAT}' 2>/dev/null | awk -F '\\t' -v ` +
+				`path="$worktree_path" '$2 == path || index($2, path "/") == 1 { print $1; exit }')`,
 			`[ -n "$pane" ] && tmux capture-pane -ep -t "$pane" 2>/dev/null || git -C "$worktree_path" log --oneline -20`,
 		].join("; ");
 	}

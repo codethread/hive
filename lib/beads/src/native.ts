@@ -1,4 +1,5 @@
-/* eslint-disable max-params -- Native dep and query operations keep scope, identifiers and their named options explicit. */
+// Native dep and query operations keep scope, identifiers and their named options explicit.
+/* eslint-disable max-params */
 import type {
 	BeadSelection,
 	BeadsScope,

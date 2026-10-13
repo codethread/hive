@@ -47,7 +47,11 @@ export class RequestPublicationError extends Error {
 	constructor(context: { requestId: string; replacementIds: string[] }, cause: unknown) {
 		const { requestId, replacementIds } = context;
 		super(
-			`Request ${requestId} label publication failed; native facts are retained. Replacement IDs: ${replacementIds.join(", ") || "none"}. Inspect bee status ${requestId}; repeat the initiating operation to repair publication (bee ack for acknowledgment, wake for runtime settlement). ${String(cause)}`,
+			`Request ${requestId} label publication failed; native facts are retained. Replacement ` +
+				`IDs: ${replacementIds.join(", ") || "none"}. Inspect bee status ` +
+				`${requestId}; repeat the initiating operation to repair publication ` +
+				`(bee ack ` +
+				`for acknowledgment, wake for runtime settlement). ${String(cause)}`,
 			{ cause },
 		);
 		this.name = "RequestPublicationError";
@@ -153,7 +157,10 @@ export async function inspectRequest(
 		request: await requestView({ beads, repository }, request, ready),
 	};
 }
-// eslint-disable-next-line max-statements -- Keep candidate discovery, authoritative filtering and selected detail reads ordered together.
+/* eslint-disable-next-line max-statements --
+ * Keep candidate discovery, authoritative filtering and selected detail reads ordered
+ * together.
+ */
 export async function listRequests(
 	options: ListOptions,
 	{ beads, resolveRepository }: TrackerCommands,
@@ -188,7 +195,9 @@ export async function listRequests(
 	};
 }
 /** Closing a request records intent; an awake Colony performs owned execution cleanup. */
-// eslint-disable-next-line max-statements -- Preserve committed closure and its publication context through offline repair.
+/* eslint-disable-next-line max-statements --
+ * Preserve committed closure and its publication context through offline repair.
+ */
 export async function stopRequest(
 	id: string,
 	options: StopOptions,
@@ -221,7 +230,10 @@ export async function stopRequest(
 }
 
 /** Accept failure offline; native attribution survives partial publication and repeated calls. */
-// eslint-disable-next-line max-statements -- Keep native acceptance, publication and partial-write context in one ordered operation.
+/* eslint-disable-next-line max-statements --
+ * Keep native acceptance, publication and partial-write context in one ordered
+ * operation.
+ */
 export async function acknowledgeRequest(
 	id: string,
 	options: AckOptions,
@@ -278,10 +290,15 @@ export async function publishRequestLabels(
 	for (const predecessor of spawn.dependencies.filter(
 		({ dependency_type }) => dependency_type === "supersedes",
 	)) {
-		// eslint-disable-next-line no-await-in-loop -- Finish each predecessor's projection before admitting its replacement.
+		/* eslint-disable-next-line no-await-in-loop --
+		 * Finish each predecessor's projection before admitting its replacement.
+		 */
 		const old = await beads.show(trackerScope(repository, actor), predecessor.id);
 		if (host === undefined || readSpawnRequest(old).host === host) {
-			// eslint-disable-next-line no-await-in-loop -- Native provenance already exists; repair only predecessors belonging to this publisher.
+			/* eslint-disable-next-line no-await-in-loop --
+			 * Native provenance already exists; repair only predecessors belonging to this
+			 * publisher.
+			 */
 			await publishLabels({ beads, repository }, { actor, host }, old);
 		}
 	}
@@ -301,13 +318,17 @@ export async function reconcileClosedRequestLabels({
 	for (const issue of issues.filter(
 		(candidate) => readSpawnRequestSummary(candidate).host === hostname(),
 	)) {
-		// eslint-disable-next-line no-await-in-loop -- Bounded native publications complete before the next closed request is repaired.
+		/* eslint-disable-next-line no-await-in-loop --
+		 * Bounded native publications complete before the next closed request is repaired.
+		 */
 		await publishRequestLabels({ beads, repository }, "colony", issue.id, hostname());
 	}
 }
 
 // --- Private functions ---
-// eslint-disable-next-line max-statements -- Keep the bounded conflict recovery and its latest failure context together.
+/* eslint-disable-next-line max-statements --
+ * Keep the bounded conflict recovery and its latest failure context together.
+ */
 async function publishLabels(
 	{ beads, repository }: TrackerContext,
 	{ actor, host }: { actor: string; host: string | undefined },
@@ -319,7 +340,9 @@ async function publishLabels(
 	let current = bead;
 	let canRepublish = true;
 	try {
-		/* eslint-disable no-await-in-loop -- One rebased write is allowed; a second conflict only gets a convergence read. */
+		/* eslint-disable no-await-in-loop --
+		 * One rebased write is allowed; a second conflict only gets a convergence read.
+		 */
 		while (!requestLabelsCurrent(current)) {
 			try {
 				await beads.update(trackerScope(repository, actor), [current.id], {

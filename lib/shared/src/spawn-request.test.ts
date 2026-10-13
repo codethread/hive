@@ -45,7 +45,15 @@ test("stdout inspection uses publication time independently of renumbered IDs an
 			{
 				...comment,
 				id: 99,
-				text: `${COLONY_STDOUT_PREFIX} ${JSON.stringify({ ...activity, attemptId: "first-attempt", attemptNumber: 1, recordedAt: "2026-10-04T09:59:00.123Z", lastOutputAt: "2026-10-04T09:59:00.123Z" })}`,
+				text:
+					`${COLONY_STDOUT_PREFIX} ` +
+					`${JSON.stringify({
+						...activity,
+						attemptId: "first-attempt",
+						attemptNumber: 1,
+						recordedAt: "2026-10-04T09:59:00.123Z",
+						lastOutputAt: "2026-10-04T09:59:00.123Z",
+					})}`,
 			},
 		],
 	};
@@ -184,7 +192,8 @@ test("publication normalizes both namespaces and retains unrelated labels", () =
 	expect(projectedRequestLabels(published)).toEqual(labels);
 });
 
-// eslint-disable-next-line max-statements -- One closure fixture checks acceptance, native attribution and competing provenance together.
+// One closure fixture checks acceptance, native attribution and competing provenance together.
+// eslint-disable-next-line max-statements
 test("the first acknowledgment of this closure resolves attention with native attribution", () => {
 	const closedAt = "2026-10-04T10:00:00.123456Z";
 	const comment = { author: "operator", created_at: "2026-10-04T11:00:00Z", issue_id: original.id };
@@ -206,7 +215,9 @@ test("the first acknowledgment of this closure resolves attention with native at
 			{
 				...comment,
 				id: 1,
-				text: `${BEE_ACKNOWLEDGMENT_PREFIX} ${JSON.stringify({ closedAt: "earlier closure", reason: "Old acknowledgment" })}`,
+				text:
+					`${BEE_ACKNOWLEDGMENT_PREFIX} ` +
+					`${JSON.stringify({ closedAt: "earlier closure", reason: "Old acknowledgment" })}`,
 			},
 			first,
 		],

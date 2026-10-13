@@ -3,7 +3,9 @@ import { assessmentSchema, assessmentSourceSchema } from "./postrun.ts";
 import type { Assessment } from "./postrun.ts";
 import { Database } from "bun:sqlite";
 import type { RepositoryEndpoint } from "@hive/shared";
-// eslint-disable-next-line import/no-nodejs-modules -- Offline access selects the existing daemon store and private source bundle.
+/* eslint-disable-next-line import/no-nodejs-modules --
+ * Offline access selects the existing daemon store and private source bundle.
+ */
 import { join } from "node:path";
 import { z } from "zod";
 
@@ -48,7 +50,8 @@ export async function readAssessments(state: string, filter: AssessmentFilter) {
 			.parse(
 				database
 					.query(
-						"SELECT snapshot FROM assessments WHERE root = ? AND beads_db = ? AND (? IS NULL OR request_id = ?) ORDER BY rowid DESC LIMIT ?",
+						"SELECT snapshot FROM assessments WHERE root = ? AND beads_db = ? " +
+							"AND (? IS NULL OR request_id = ?) ORDER BY rowid DESC LIMIT ?",
 					)
 					.all(
 						filter.repository.root,
@@ -59,7 +62,9 @@ export async function readAssessments(state: string, filter: AssessmentFilter) {
 					),
 			);
 		const assessments = await Promise.all(
-			// eslint-disable-next-line max-statements -- Project private rows without exposing execution tokens or transcript data.
+			/* eslint-disable-next-line max-statements --
+			 * Project private rows without exposing execution tokens or transcript data.
+			 */
 			rows.map(async ({ snapshot }) => {
 				const assessment = assessmentSchema.parse(JSON.parse(snapshot));
 				const details: AssessmentDetails = {};

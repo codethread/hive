@@ -55,7 +55,8 @@ export function Inspector({ colonyId, id }: { colonyId: string; id: string }) {
 			return;
 		}
 		closeRef.current!.focus();
-		// eslint-disable-next-line react/exhaustive-effect-dependencies -- Related-bead navigation resets keyboard focus when the previous link disappears.
+		// Related-bead navigation resets keyboard focus when the previous link disappears.
+		// eslint-disable-next-line react/exhaustive-effect-dependencies
 	}, [id]);
 	const close = () => {
 		void navigate({
@@ -75,7 +76,12 @@ export function Inspector({ colonyId, id }: { colonyId: string; id: string }) {
 				close();
 			}}
 		>
-			<header className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-line px-6 py-4 sm:px-8">
+			<header
+				className={
+					"flex shrink-0 flex-wrap items-center justify-between gap-3 border-b " +
+					"border-line px-6 py-4 sm:px-8"
+				}
+			>
 				<div className="min-w-0">
 					<p id="inspector-title" className="text-sm font-medium">
 						Bead details
@@ -377,7 +383,10 @@ function endDescription(end: Provenance["end"]): string {
 				: `No matching bee for “${end.requester}” in this tracker.`;
 		}
 		case "ambiguous": {
-			return `Ambiguous requester “${end.requester}”; candidates include ${end.candidates.join(", ")}. No parent chosen.`;
+			return (
+				`Ambiguous requester “${end.requester}”; candidates include ` +
+				`${end.candidates.join(", ")}. No parent chosen.`
+			);
 		}
 		case "cycle": {
 			return `Name matching revisits ${end.id}; traversal stopped.`;

@@ -76,7 +76,8 @@ export async function openQueue(lock: string): Promise<QueueStore> {
 
 // --- Private functions ---
 
-// eslint-disable-next-line max-statements -- Validate the destination and resolve repository identity in one command boundary.
+// Validate the destination and resolve repository identity in one command boundary.
+// eslint-disable-next-line max-statements
 async function resolveLock(target: LockTarget): Promise<string> {
 	if (target.kind === "path") {
 		return resolve(target.path);

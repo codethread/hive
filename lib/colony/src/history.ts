@@ -90,7 +90,9 @@ export function openHistory(database: Database, state: string) {
  sequence INTEGER PRIMARY KEY AUTOINCREMENT, root TEXT NOT NULL, beads_db TEXT NOT NULL,
  request_id TEXT, snapshot TEXT NOT NULL);`);
 	return {
-		// eslint-disable-next-line max-statements -- One operation owns durable start, progress and completion around external effects.
+		/* eslint-disable-next-line max-statements --
+		 * One operation owns durable start, progress and completion around external effects.
+		 */
 		run: async <Result>(
 			input: OperationInput,
 			action: (evidence: OperationEvidence) => Promise<Result>,
@@ -117,8 +119,12 @@ export function openHistory(database: Database, state: string) {
 					)
 					.run(repository.root, repository.beadsDb, requestId, JSON.stringify(record));
 				database
-					.query(`DELETE FROM operations WHERE json_extract(snapshot, '$.status') = 'unfinished'
- AND sequence NOT IN (SELECT sequence FROM operations WHERE json_extract(snapshot, '$.status') = 'unfinished' ORDER BY sequence DESC LIMIT ?)`)
+					.query(
+						`DELETE FROM operations WHERE json_extract(snapshot, '$.status') = ` +
+							`'unfinished'
+ AND sequence NOT IN (SELECT sequence FROM operations WHERE json_extract(snapshot, ` +
+							`'$.status') = 'unfinished' ORDER BY sequence DESC LIMIT ?)`,
+					)
 					.run(UNFINISHED_OPERATIONS);
 				return inserted.lastInsertRowid;
 			})();
@@ -170,8 +176,10 @@ export function openHistory(database: Database, state: string) {
 					}
 					database
 						.query(
-							`DELETE FROM operations WHERE json_extract(snapshot, '$.status') != 'unfinished'
- AND sequence NOT IN (SELECT sequence FROM operations WHERE json_extract(snapshot, '$.status') != 'unfinished' ORDER BY sequence DESC LIMIT ?)`,
+							`DELETE FROM operations WHERE json_extract(snapshot, '$.status') != ` +
+								`'unfinished'
+ AND sequence NOT IN (SELECT sequence FROM operations WHERE json_extract(snapshot, ` +
+								`'$.status') != 'unfinished' ORDER BY sequence DESC LIMIT ?)`,
 						)
 						.run(RETAINED_OPERATIONS);
 				})();
@@ -256,7 +264,11 @@ function redactDiagnostic(message: string): string {
 	return message
 		.replaceAll(/\b(?<scheme>Bearer\s+)\S+/giu, "$<scheme>[redacted]")
 		.replaceAll(
-			/\b(?<key>[\w-]*(?:password|token|secret|api[_-]?key|authorization))["']?(?<separator>\s*[:=]\s*)(?:"[^"]*"|'[^']*'|\S+)/giu,
+			new RegExp(
+				String.raw`\b(?<key>[\w-]*(?:password|token|secret|api[_-]?key|authorization))` +
+					String.raw`["']?(?<separator>\s*[:=]\s*)(?:"[^"]*"|'[^']*'|\S+)`,
+				"giu",
+			),
 			"$<key>$<separator>[redacted]",
 		)
 		.replaceAll(/(?<scheme>https?:\/\/)[^\s/@]+:[^\s/@]+@/giu, "$<scheme>[redacted]@")

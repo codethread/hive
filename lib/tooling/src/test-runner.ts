@@ -53,7 +53,8 @@ async function main(args: string[]): Promise<number> {
 	return exitCode;
 }
 
-// eslint-disable-next-line max-statements -- Keep child execution, diagnostic replay and report cleanup in one IO boundary.
+// Keep child execution, diagnostic replay and report cleanup in one IO boundary.
+// eslint-disable-next-line max-statements
 async function runTests(selection: TestSelection, testArgs: string[]): Promise<number> {
 	const allowances = parseSlowTestAllowances(
 		await Bun.file(new URL("../slow-tests.json", import.meta.url)).json(),

@@ -90,7 +90,9 @@ test.each([
 	{ expected: "stopped_observed", observed: "stopped", recorded: "running" },
 ] as const)(
 	"reports fresh $observed against stale $recorded without repairing evidence",
-	// eslint-disable-next-line max-statements -- Compare immutable evidence with both contradictory diagnostic conclusions.
+	/* eslint-disable-next-line max-statements --
+	 * Compare immutable evidence with both contradictory diagnostic conclusions.
+	 */
 	({ observed, recorded, expected }) => {
 		const result = evidence();
 		if (result.runtime.result.kind !== "available" || result.tracker.result.kind !== "available") {
@@ -226,7 +228,8 @@ test("closed tasks leave a live bee in control of its completion point", () => {
 	expect(
 		explainConditions(result).find(({ code }) => code === "tasks_finished")?.nextTransition,
 	).toMatchInlineSnapshot(
-		'"The bee retains its live execution for cleanup and reporting; a finish report or process exit allows Colony to settle it."',
+		'"The bee retains its live execution for cleanup and reporting; a ' +
+			'finish report or process exit allows Colony to settle it."',
 	);
 });
 

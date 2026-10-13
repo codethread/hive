@@ -146,7 +146,8 @@ test.each([
 	{ noNetwork: true, skipCommand: true, state: "cold" },
 	{ noNetwork: true, skipCommand: true, state: "warm" },
 ] as const)(
-	"real CLI pooled flags preserve copies and truthful marker (noNetwork=$noNetwork, skipCommand=$skipCommand, state=$state)",
+	"real CLI pooled flags preserve copies and truthful marker (noNetwork=$noNetwork, " +
+		"skipCommand=$skipCommand, state=$state)",
 	async (options) => {
 		const root = await poolFixture(options);
 		const flags = addFlags(options);
@@ -281,17 +282,21 @@ async function existingCachedPoolFixture() {
 	return fixture;
 }
 
-test("offline pooled existing branch fast-forwards from cache and setup rollback restores its original tip", async () => {
-	const { root, trunk, cached } = await existingCachedPoolFixture();
-	const failed = await addPool(root, ["--no-network"]);
-	expect(failed.failure).toBeInstanceOf(HookError);
-	expect(await gitOut(root, "rev-parse", "feature/new")).toBe(trunk);
-	expect(await gitOut(`${root}__feat2`, "rev-parse", "HEAD")).toBe(cached);
-	const success = await addPool(root, ["--no-network", "--skip-command"]);
-	expect(success.exitCode).toBe(EXIT_CODES.SUCCESS);
-	expect(await gitOut(root, "rev-parse", "feature/new")).toBe(cached);
-	expect(await gitOut(root, "rev-parse", "main")).toBe(trunk);
-});
+test(
+	"offline pooled existing branch fast-forwards from cache " +
+		"and setup rollback restores its original tip",
+	async () => {
+		const { root, trunk, cached } = await existingCachedPoolFixture();
+		const failed = await addPool(root, ["--no-network"]);
+		expect(failed.failure).toBeInstanceOf(HookError);
+		expect(await gitOut(root, "rev-parse", "feature/new")).toBe(trunk);
+		expect(await gitOut(`${root}__feat2`, "rev-parse", "HEAD")).toBe(cached);
+		const success = await addPool(root, ["--no-network", "--skip-command"]);
+		expect(success.exitCode).toBe(EXIT_CODES.SUCCESS);
+		expect(await gitOut(root, "rev-parse", "feature/new")).toBe(cached);
+		expect(await gitOut(root, "rev-parse", "main")).toBe(trunk);
+	},
+);
 
 test("offline forced recycle and rollback prefer cached reset over an explicit older base", async () => {
 	const { root, cached } = await aheadPoolFixture("origin_default");

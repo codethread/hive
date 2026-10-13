@@ -38,7 +38,10 @@ const meta = {
 		docs: {
 			description: {
 				component:
-					"Bee graph: automatically arranged request cards. Solid edges show recorded requester attribution; dashed edges show explicitly loaded inferred ancestry. Click a card to select it; pan, zoom and Fit use the real React Flow viewport.",
+					"Bee graph: automatically arranged request cards. Solid edges show " +
+					"recorded requester attribution; dashed edges show explicitly loaded " +
+					"inferred ancestry. Click a card to select it; pan, zoom and Fit use " +
+					"the real React Flow viewport.",
 			},
 		},
 	},

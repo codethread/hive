@@ -8,7 +8,8 @@ export function createFileCdDirective(file: string | undefined): CdDirective {
 
 	function write(path: string): void {
 		if (file) {
-			// oxlint-disable-next-line node/no-sync -- CdDirective.write is synchronous: the wrapper reads the file after process exit.
+			// CdDirective.write is synchronous: the wrapper reads the file after process exit.
+			// oxlint-disable-next-line node/no-sync
 			writeFileSync(file, path);
 		}
 	}

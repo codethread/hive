@@ -113,7 +113,8 @@ export function createBoardData() {
 		}
 		return tasks.map((task) => card(task, assignments));
 	};
-	// eslint-disable-next-line max-statements -- Coalesce overlapping family reads and reuse only complete, fresh components.
+	// Coalesce overlapping family reads and reuse only complete, fresh components.
+	// eslint-disable-next-line max-statements
 	const hierarchy = async (
 		context: ReadContext,
 		ids: string[],
@@ -362,7 +363,8 @@ async function readTasks(
 }
 
 /** Match native task predicates across the whole candidate membership, not the visible task page. */
-// eslint-disable-next-line max-statements -- Keep activation, bounded native matching and existential projection together.
+// Keep activation, bounded native matching and existential projection together.
+// eslint-disable-next-line max-statements
 async function filterInventory(
 	context: ReadContext,
 	filter: BeadFilter,
@@ -381,7 +383,8 @@ async function filterInventory(
 	for (let offset = 0; offset < taskIds.length; offset += TASK_MATCH_BATCH) {
 		const batch = taskIds.slice(offset, offset + TASK_MATCH_BATCH);
 		const selection = taskSelection(filter, batch, { limit: batch.length, offset: 0 });
-		// eslint-disable-next-line no-await-in-loop -- Bound native process concurrency and argv size while covering every linked task.
+		// Bound native process concurrency and argv size while covering every linked task.
+		// eslint-disable-next-line no-await-in-loop
 		const tasks = await list(context, selection, filter.query);
 		for (const task of tasks) {
 			matching.add(task.id);
@@ -393,7 +396,8 @@ async function filterInventory(
 	};
 }
 
-// eslint-disable-next-line max-statements -- Native execution telemetry covers success, size and failure in one boundary.
+// Native execution telemetry covers success, size and failure in one boundary.
+// eslint-disable-next-line max-statements
 async function read<Value>(
 	context: ReadContext,
 	args: string[],
@@ -542,7 +546,8 @@ function card(bead: BeadRow, requests: Bee[]): Card {
 }
 
 /** Traverse only requested ancestry. Names are attribution, never unique parent keys. */
-// eslint-disable-next-line max-statements -- Bounded traversal keeps ambiguity, cycles and recorded attribution together.
+// Bounded traversal keeps ambiguity, cycles and recorded attribution together.
+// eslint-disable-next-line max-statements
 async function readProvenance(context: ReadContext, id: string): Promise<Provenance> {
 	const chain: Bee[] = [];
 	const seen = new Set<string>();

@@ -304,7 +304,8 @@ async function assertCanonicalOnDefault(
 	const current = await git.run(["-C", root, "branch", "--show-current"]);
 	if (current.stdout.trim() !== defaultBranch) {
 		throw new WrongCanonicalBranchError(
-			`canonical root must be checked out on ${defaultBranch}; currently on ${current.stdout.trim() || "detached HEAD"}`,
+			`canonical root must be checked out on ${defaultBranch}; currently on ` +
+				`${current.stdout.trim() || "detached HEAD"}`,
 		);
 	}
 }

@@ -171,5 +171,9 @@ test.each([
 // --- Private functions ---
 
 function report(seconds: string, name = "example", content = ""): string {
-	return `<testsuites><testsuite><testcase name="${name}" classname="" file="example.test.ts" line="12" time="${seconds}">${content}</testcase></testsuite></testsuites>`;
+	return (
+		`<testsuites><testsuite><testcase name="${name}` +
+		`" classname="" file="example.test.ts" line="12" time="${seconds}">` +
+		`${content}</testcase></testsuite></testsuites>`
+	);
 }

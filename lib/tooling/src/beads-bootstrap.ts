@@ -64,7 +64,10 @@ async function verifySelection(root: string, database: string, command: Command)
 	const selected = await resolveEnvironment(root, command);
 	if (selected.BEADS_DB !== database) {
 		throw new Error(
-			`Selected BEADS_DB at ${root} is ${selected.BEADS_DB}, not ${database}. Use beads:setup to adopt an existing endpoint; bootstrap will not replace it.`,
+			`Selected BEADS_DB at ${root} is ` +
+				`${selected.BEADS_DB}, not ` +
+				`${database}. Use beads:setup to adopt an existing endpoint; bootstrap will not ` +
+				"replace it.",
 		);
 	}
 }
@@ -111,7 +114,8 @@ async function verifyTracker(tracker: string, common: string, command: Command):
 	);
 	if (actualCommon !== common || branch !== trackerBranch || remote !== upstream) {
 		throw new Error(
-			`Expected ${tracker} to be this repository's tracker/state checkout tracking origin/tracker/state. Review its Git registration before bootstrap.`,
+			`Expected ${tracker} to be this repository's tracker/state checkout tracking ` +
+				"origin/tracker/state. Review its Git registration before bootstrap.",
 		);
 	}
 }
@@ -123,7 +127,9 @@ async function importDatabase(
 ): Promise<void> {
 	if (!(await services.exists(join(tracker, ".beads", "issues.jsonl")))) {
 		throw new Error(
-			`Missing tracker snapshot at ${tracker}/.beads/issues.jsonl. Bootstrap requires existing history; do not run br init.`,
+			`Missing tracker snapshot at ${tracker}` +
+				"/.beads/issues.jsonl. Bootstrap requires existing history; do not " +
+				"run br init.",
 		);
 	}
 	const endpoint = { actor: services.actor, cwd: tracker, db: database };
@@ -141,7 +147,9 @@ async function importDatabase(
 		health.workspace_health !== "healthy"
 	) {
 		throw new Error(
-			`Tracker at ${tracker} is unhealthy or has unreconciled JSONL. Inspect br --db ${database} sync --status --json and follow docs/beads-integration.md recovery before bootstrap.`,
+			`Tracker at ${tracker} is unhealthy or has unreconciled JSONL. Inspect br --db ` +
+				`${database} sync --status --json and follow docs/beads-integration.md recovery ` +
+				"before bootstrap.",
 		);
 	}
 }
@@ -177,7 +185,8 @@ if (import.meta.main) {
 	const { values } = parseArgs({ options: { help: { short: "h", type: "boolean" } } });
 	if (values.help) {
 		console.log(
-			"Usage: bun run beads:bootstrap\nCreate this clone's permanent tracker from origin/tracker/state; never commits or pushes.",
+			"Usage: bun run beads:bootstrap\nCreate this clone's permanent tracker " +
+				"from origin/tracker/state; never commits or pushes.",
 		);
 	} else {
 		const database = await bootstrapBeads(process.cwd(), localBootstrapServices);

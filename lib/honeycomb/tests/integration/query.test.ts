@@ -12,12 +12,15 @@ import {
 	useOriginFixture,
 	writeConfig,
 } from "./support.ts";
-// oxlint-disable-next-line import/no-nodejs-modules -- Integration fixtures exercise real filesystem and process boundaries.
+// Integration fixtures exercise real filesystem and process boundaries.
+// oxlint-disable-next-line import/no-nodejs-modules
 import { mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
 import type { CommandResult } from "../../src/protocol.ts";
-// oxlint-disable-next-line import/no-nodejs-modules -- Integration fixtures exercise real filesystem and process boundaries.
+// Integration fixtures exercise real filesystem and process boundaries.
+// oxlint-disable-next-line import/no-nodejs-modules
 import { join } from "node:path";
-// oxlint-disable-next-line import/no-nodejs-modules -- Integration fixtures exercise real filesystem and process boundaries.
+// Integration fixtures exercise real filesystem and process boundaries.
+// oxlint-disable-next-line import/no-nodejs-modules
 import { tmpdir } from "node:os";
 
 const { initRepoWithOrigin } = useOriginFixture();
@@ -90,7 +93,21 @@ test("config explain reports effective policy JSON", async () => {
 	const configHome = join(tmp, "config-explain");
 	await writeRawConfig(
 		configHome,
-		`[defaults.finish]\nstrategy = "rebase_ff"\n\n[[rule]]\nroot_glob = "${await realpath(tmp)}/**"\n[rule.add]\npolicy = "fresh_canonical"\n[rule.finish]\npush = true\n\n[[project]]\nname = "repo"\nroot = "${root}"\n[project.finish]\ndelete_branch = true\n`,
+		`[defaults.finish]\n` +
+			`strategy = "rebase_ff"\n` +
+			`\n` +
+			`[[rule]]\n` +
+			`root_glob = "${await realpath(tmp)}/**"\n` +
+			`[rule.add]\n` +
+			`policy = "fresh_canonical"\n` +
+			`[rule.finish]\n` +
+			`push = true\n` +
+			`\n` +
+			`[[project]]\n` +
+			`name = "repo"\n` +
+			`root = "${root}"\n` +
+			`[project.finish]\n` +
+			`delete_branch = true\n`,
 	);
 
 	const result = await dispatch("config", ["explain", "--cwd", root, "--json"], deps);

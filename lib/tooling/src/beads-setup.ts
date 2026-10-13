@@ -64,7 +64,8 @@ export interface SetupServices {
 	command: Command;
 }
 
-// eslint-disable-next-line max-statements -- Checkout environment and native preset installation share one explicit setup boundary.
+// Checkout environment and native preset installation share one explicit setup boundary.
+// eslint-disable-next-line max-statements
 export async function setupBeads(
 	cwd: string,
 	selection: Selection,

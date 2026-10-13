@@ -1,6 +1,8 @@
 import type { AttemptDetails, ColonyInspection, RepositoryEndpoint } from "@hive/shared";
 import type { AttemptInventory, Store } from "./store.ts";
-// eslint-disable-next-line import/no-nodejs-modules -- Inspection returns owned artifact locations without reading log contents.
+/* eslint-disable-next-line import/no-nodejs-modules --
+ * Inspection returns owned artifact locations without reading log contents.
+ */
 import { join } from "node:path";
 
 /** Inspect retained daemon evidence without registering a repository or reconciling its tracker. */

@@ -149,7 +149,9 @@ export async function explainRequest(
 		capture(
 			"dispatch hasCapacity: active policy and retained reservations",
 			"checkpoint_age_unknown",
-			// eslint-disable-next-line max-statements -- Read active policy and canonical capacity inputs without reserving a slot.
+			/* eslint-disable-next-line max-statements --
+			 * Read active policy and canonical capacity inputs without reserving a slot.
+			 */
 			async () => {
 				if (inspection.result.kind === "unavailable") {
 					throw new Error("Daemon inspection unavailable");
@@ -240,7 +242,8 @@ export function explainConditions(result: Omit<Explanation, "diagnostics">): Dia
 				.map(({ scope, used, maximum }) => `${scope} ${used}/${maximum}`)
 				.join(", ")}. Counts are retained reservations.`,
 			nextTransition:
-				"A counted reservation must be released by Colony or the limiting policy must change; the next dispatch pass must still acquire claims.",
+				"A counted reservation must be released by Colony or the limiting " +
+				"policy must change; the next dispatch pass must still acquire claims.",
 		});
 	}
 	processConditions(result, add);
@@ -265,7 +268,8 @@ export function explainConditions(result: Omit<Explanation, "diagnostics">): Dia
 			kind: "disagreement",
 			message: "Native request is open but its checkpoint is terminal.",
 			nextTransition:
-				"Resolve the native/checkpoint disagreement before expecting another dispatch; this inspection cannot establish a safe transition.",
+				"Resolve the native/checkpoint disagreement before expecting another " +
+				"dispatch; this inspection cannot establish a safe transition.",
 		});
 	}
 	if (
@@ -282,7 +286,9 @@ export function explainConditions(result: Omit<Explanation, "diagnostics">): Dia
 			kind: "progress",
 			message: "No eligibility or capacity blocker observed at these samples.",
 			nextTransition:
-				"An awake dispatch pass must rank this request, prepare the captured formula, recheck capacity and acquire all task claims; this is not a launch guarantee.",
+				"An awake dispatch pass must rank this request, prepare the captured " +
+				"formula, recheck capacity and acquire all task claims; this is not " +
+				"a launch guarantee.",
 		});
 	}
 	return diagnostics;
@@ -411,16 +417,23 @@ function observeAttempts(
 	);
 }
 type AddDiagnostic = (diagnostic: Diagnostic) => void;
-// eslint-disable-next-line max-statements -- Native settlement and new-attempt eligibility are separate from an executing checkpoint.
+/* eslint-disable-next-line max-statements --
+ * Native settlement and new-attempt eligibility are separate from an executing
+ * checkpoint.
+ */
 function trackerConditions(tracker: TrackerFacts, add: AddDiagnostic, executing: boolean): void {
 	if (tracker.status !== "open") {
 		add({
 			code: "request_closed",
 			evidence: ["tracker"],
 			kind: "progress",
-			message: `Native request is ${tracker.status}; outcome ${tracker.disposition.outcome}, resolution ${tracker.disposition.resolution}.`,
+			message:
+				`Native request is ${tracker.status}; outcome ` +
+				`${tracker.disposition.outcome}, resolution ` +
+				`${tracker.disposition.resolution}.`,
 			nextTransition:
-				"No further launch is scheduled for a closed request. Unresolved failure needs an explicit operator decision; running cleanup remains separate.",
+				"No further launch is scheduled for a closed request. Unresolved failure " +
+				"needs an explicit operator decision; running cleanup remains separate.",
 		});
 		if (
 			tracker.disposition.outcome === "failed" &&
@@ -432,7 +445,9 @@ function trackerConditions(tracker: TrackerFacts, add: AddDiagnostic, executing:
 				kind: "blocker",
 				message: `Request failed and remains unresolved: ${tracker.closeReason ?? "no closure reason recorded"}.`,
 				nextTransition:
-					"An explicit operator decision is required to resolve the failure or submit a linked replacement; this closed request will not retry automatically.",
+					"An explicit operator decision is required to resolve the failure " +
+					"or submit a linked replacement; this closed request will not retry " +
+					"automatically.",
 			});
 		}
 		return;
@@ -441,7 +456,8 @@ function trackerConditions(tracker: TrackerFacts, add: AddDiagnostic, executing:
 		let nextTransition = "An awake pass must settle the request and publish its outcome.";
 		if (executing) {
 			nextTransition =
-				"The bee retains its live execution for cleanup and reporting; a finish report or process exit allows Colony to settle it.";
+				"The bee retains its live execution for cleanup and reporting; a finish " +
+				"report or process exit allows Colony to settle it.";
 		}
 		add({
 			code: "tasks_finished",
@@ -461,7 +477,9 @@ function trackerConditions(tracker: TrackerFacts, add: AddDiagnostic, executing:
 			kind: "blocker",
 			message: tracker.message ?? "Request is not eligible.",
 			nextTransition:
-				"Every unfinished task must be native-ready, not hitl, and unassigned or assigned to the captured identity; at least one related task is required.",
+				"Every unfinished task must be native-ready, not hitl, and unassigned " +
+				"or assigned to the captured identity; at least one related task is " +
+				"required.",
 		});
 	}
 	for (const task of tracker.tasks.filter((item) => item.status !== "closed")) {
@@ -483,8 +501,12 @@ function taskConditions(task: TaskFact, identity: string, add: AddDiagnostic): v
 			code: "native_readiness",
 			evidence: ["tracker"],
 			kind: "blocker",
-			message: `Task ${task.id} is absent from native ready; direct dependencies: ${task.dependencies.map((dep) => `${dep.dependency_type}:${dep.id} (${dep.status})`).join(", ") || "none"}.`,
-			nextTransition: `Native Beads must report task ${task.id} ready after its dependency/status conditions are satisfied.`,
+			message:
+				`Task ${task.id} is absent from native ready; direct dependencies: ` +
+				`${task.dependencies.map((dep) => `${dep.dependency_type}:${dep.id} (${dep.status})`).join(", ") || "none"}.`,
+			nextTransition:
+				`Native Beads must report task ${task.id} ready after its ` +
+				`dependency/status conditions are satisfied.`,
 		});
 	}
 	if (task.hitl) {
@@ -515,7 +537,8 @@ function authorityConditions(
 			kind: "disagreement",
 			message: "Native identity or related task links differ from the captured request checkpoint.",
 			nextTransition:
-				"Resolve the request authority mismatch before expecting another launch; the existing checkpoint does not authorize the changed request.",
+				"Resolve the request authority mismatch before expecting another launch; " +
+				"the existing checkpoint does not authorize the changed request.",
 		});
 	}
 	if (checkpoint.state === "executing") {
@@ -526,9 +549,12 @@ function authorityConditions(
 				code: "execution_claim",
 				evidence: ["tracker", "runtime"],
 				kind: "disagreement",
-				message: `Executing checkpoint belongs to ${checkpoint.identity}, but task ${task.id} is assigned to ${task.assignee ?? "nobody"}.`,
+				message:
+					`Executing checkpoint belongs to ${checkpoint.identity}, but task ` +
+					`${task.id} is assigned to ${task.assignee ?? "nobody"}.`,
 				nextTransition:
-					"An awake pass must observe the changed task authority; a live process observation does not establish a valid native claim.",
+					"An awake pass must observe the changed task authority; a live process " +
+					"observation does not establish a valid native claim.",
 			});
 		}
 	}
@@ -596,7 +622,10 @@ function processConditions(result: Omit<Explanation, "diagnostics">, add: AddDia
 		}
 	}
 }
-// eslint-disable-next-line max-statements -- Compare one fresh ownership observation with the independent native and retained authorities.
+/* eslint-disable-next-line max-statements --
+ * Compare one fresh ownership observation with the independent native and retained
+ * authorities.
+ */
 function processDiagnostics(
 	process: ProcessFact,
 	result: Omit<Explanation, "diagnostics">,
@@ -610,7 +639,8 @@ function processDiagnostics(
 				kind: "unknown",
 				message: process.evidence.result.message,
 				nextTransition:
-					"Obtain valid ownership evidence and a verifiable process snapshot before concluding execution has stopped.",
+					"Obtain valid ownership evidence and a verifiable process snapshot " +
+					"before concluding execution has stopped.",
 			},
 		];
 	}
@@ -619,7 +649,8 @@ function processDiagnostics(
 		live: {
 			code: "running_observed",
 			nextTransition:
-				"Owned execution must finish and an awake pass must observe task/worker results; liveness alone does not prove useful work.",
+				"Owned execution must finish and an awake pass must observe task/worker " +
+				"results; liveness alone does not prove useful work.",
 		},
 		stopped: {
 			code: "stopped_observed",

@@ -33,7 +33,9 @@ const insightsSchema = z.object({
 });
 
 /** Rank the complete graph from this colony's selected database through BV's read-only reader. */
-// eslint-disable-next-line max-statements -- Native execution, authority validation and required scores form one I/O boundary.
+/* eslint-disable-next-line max-statements --
+ * Native execution, authority validation and required scores form one I/O boundary.
+ */
 export async function pageRanks(
 	repository: RepositoryEndpoint,
 	state: string,

@@ -15,7 +15,8 @@ export function createLiveGitRunner(): GitRunner {
 	}
 
 	async function runRaw(args: string[], opts: { cwd?: string } = {}): Promise<GitResult> {
-		// A stable neutral cwd keeps git's own -C flag meaningful after a worktree deletes the process's original directory, and avoids accidental writes into $HOME.
+		// A neutral cwd keeps Git's -C flag meaningful after the original directory is deleted.
+		// It also avoids accidental writes into $HOME.
 		const proc = Bun.spawn(["git", ...args], {
 			cwd: opts.cwd ?? "/",
 			stderr: "pipe",

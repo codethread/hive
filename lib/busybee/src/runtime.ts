@@ -191,7 +191,10 @@ export async function discover(
 	return {
 		active: run.active.map((entry) => discoveryEntry(entry, definition)),
 		constraints:
-			"Task must still be active in the workflow and already closed through native br when submitted. Workers close their own tasks; the runner closes grouping and workflow beads. Discovery is a snapshot, not a reservation.",
+			"Task must still be active in the workflow and already closed through " +
+			"native br when submitted. Workers close their own tasks; the runner " +
+			"closes grouping and workflow beads. Discovery is a snapshot, not a " +
+			"reservation.",
 		id,
 	};
 }
@@ -221,7 +224,8 @@ export function frontier(
 	const context = Object.fromEntries(
 		Object.entries(actorContext(actor)).filter(([key]) => key !== "workers"),
 	);
-	// eslint-disable-next-line no-underscore-dangle -- XState v5 exposes the active hierarchy here; this is the sole version-specific projection.
+	// XState v5 exposes the active hierarchy here; this is the sole version-specific projection.
+	// eslint-disable-next-line no-underscore-dangle
 	const entries = workNodes(snapshot._nodes).map((node) =>
 		nodeEntry(node, { context, inheritedParent, path }),
 	);
@@ -390,7 +394,17 @@ async function restoreDefinition(run: Run, endpoint: Endpoint, services: Service
 		const recovery = {
 			definition_changed: {
 				state: "changed",
-				guidance: `You may create a fresh run of ${name} for the same already-authorized scope without asking the user again. Inspect busybee input-schema ${name}, then use busybee run ${name} with the current input schema. Preserve the original request and authorization, source/target, scope, owner/assignment, selected tracker and old run/task/evidence references. Inspect completed and uncertain effects and use the current workflow's triage to continue remaining work without blindly replaying completed effects. Retain the old run as history; do not migrate its snapshot or bypass current checks and reviews.`,
+				guidance:
+					`You may create a fresh run of ${name}` +
+					" for the same already-authorized scope without asking the user " +
+					`again. Inspect busybee input-schema ${name}, then use busybee run ` +
+					`${name} with the current input schema. Preserve the original request and ` +
+					"authorization, source/target, scope, owner/assignment, selected " +
+					"tracker and old run/task/evidence references. Inspect completed and " +
+					"uncertain effects and use the current workflow's triage to continue " +
+					"remaining work without blindly replaying completed effects. Retain " +
+					"the old run as history; do not migrate its snapshot or bypass " +
+					"current checks and reviews.",
 			},
 			workflow_missing: {
 				state: "is missing",
@@ -413,7 +427,9 @@ async function loadRetainedDefinition(run: Run, endpoint: Endpoint, services: Se
 	if (!compatibleWorkflowVersion(run.definition.version, selected.metadata.version)) {
 		throw new BusyBeeError(
 			"definition_changed",
-			`Workflow ${run.definition.name} version ${selected.metadata.version} cannot resume version ${run.definition.version}.`,
+			`Workflow ${run.definition.name} version ` +
+				`${selected.metadata.version} cannot resume version ` +
+				`${run.definition.version}.`,
 			{
 				context: {
 					savedVersion: run.definition.version,
@@ -450,13 +466,16 @@ async function acquire(
 		if (services.now() >= deadline) {
 			throw new BusyBeeError(
 				"checkpoint_locked",
-				`Checkpoint ${bead.id} is locked: ${bead.notes}. No automatic expiry; inspect the owner and partial effects before explicit recovery.`,
+				`Checkpoint ${bead.id} is locked: ` +
+					`${bead.notes}. No automatic expiry; inspect the owner and partial effects before ` +
+					"explicit recovery.",
 				{ context: { checkpoint: bead.id } },
 			);
 		}
 		// eslint-disable-next-line no-await-in-loop -- Contention uses bounded sequential polling.
 		await services.sleep(LOCK_POLL);
-		// eslint-disable-next-line no-await-in-loop -- Refresh a rejected or occupied candidate before another ownership attempt.
+		// Refresh a rejected or occupied candidate before another ownership attempt.
+		// eslint-disable-next-line no-await-in-loop
 		bead = await readBead(endpoint, bead.id, services);
 	}
 }
@@ -519,7 +538,8 @@ function mutationCheckpoint(
 	return checkpointBead(endpoint, request.id, services);
 }
 
-// eslint-disable-next-line max-statements -- Keep the lock release, retained-effect failure, and actor cleanup in one ownership scope.
+// Keep the lock release, retained-effect failure, and actor cleanup in one ownership scope.
+// eslint-disable-next-line max-statements
 async function mutateOwned(
 	input: { lock: Lock; request: Mutation; endpoint: MutationEndpoint },
 	services: Services,
@@ -546,7 +566,8 @@ async function mutateOwned(
 		if (effects) {
 			throw new BusyBeeError(
 				"partial_effects",
-				`Mutation failed; checkpoint ${lock.checkpoint} remains locked by ${lock.owner}. Inspect partial effects before recovery.`,
+				`Mutation failed; checkpoint ${lock.checkpoint} remains locked by ` +
+					`${lock.owner}. Inspect partial effects before recovery.`,
 				{ cause: error, context: { checkpoint: lock.checkpoint, owner: lock.owner } },
 			);
 		}
@@ -681,7 +702,9 @@ function assertCompleted(task: BeadRecord, bead: string, endpoint: MutationEndpo
 	if (task.status !== "closed") {
 		throw new BusyBeeError(
 			"task_not_closed",
-			`Task ${bead} must be closed before submitting a result. Finish its work and child tasks, then run br close ${bead} --db ${JSON.stringify(endpoint.db)} using your own --actor or BD_ACTOR first.`,
+			`Task ${bead} must be closed before submitting a result. Finish its work and ` +
+				`child tasks, then run br close ${bead} --db ` +
+				`${JSON.stringify(endpoint.db)} using your own --actor or BD_ACTOR first.`,
 		);
 	}
 }
@@ -696,12 +719,15 @@ async function assertOpenParents(
 		const existing = previous.get(entry.key);
 		const parent = destinationParent(entry, previous, run.id);
 		if ((!existing || completed.has(existing.bead)) && parent) {
-			// eslint-disable-next-line no-await-in-loop -- Reject the first closed structural parent before creating any native work.
+			// Reject the first closed structural parent before creating any native work.
+			// eslint-disable-next-line no-await-in-loop
 			const record = await readBead(endpoint, parent, services);
 			if (record.status === "closed") {
 				throw new BusyBeeError(
 					"closed_parent",
-					`Cannot create new work beneath closed parent ${parent}. Use an open grouping state without worker commands for nested work.`,
+					`Cannot create new work beneath closed parent ${parent}` +
+						". Use an open grouping state without worker commands for nested " +
+						"work.",
 				);
 			}
 		}
@@ -915,10 +941,21 @@ function taskDescription(meta: ActiveEntry["meta"], run: Run, endpoint: Mutation
 		"The runner closes this grouping bead after processing every worker result; workers must leave it open.";
 	if (meta.commands) {
 		completion =
-			"Finish the work and any child tasks, satisfy native acceptance gates, then close this task with br close before submitting a result. Do not close the workflow or grouping beads; the runner owns those. A closed task remains active until its result is accepted.";
+			"Finish the work and any child tasks, satisfy native acceptance " +
+			"gates, then close this task with br close before submitting a " +
+			"result. Do not close the workflow or grouping beads; the runner owns " +
+			"those. A closed task remains active until its result is accepted.";
 	}
-	const discovery = `busybee --db ${JSON.stringify(endpoint.db)} discover ${run.id}\nUse the current checkout (or --repo) containing the same definition. From a Hive checkout, bun run --silent busybee invokes the same CLI.`;
-	return `${meta.instructions}\n\n${completion}\n\nDiscover active choices and payload requirements:\n${discovery}\nAdd --json for machine-readable schemas.`;
+	const discovery =
+		`busybee --db ${JSON.stringify(endpoint.db)} discover ` +
+		`${run.id}\nUse the current checkout (or --repo) containing the same ` +
+		"definition. From a Hive checkout, bun run --silent busybee invokes " +
+		"the same CLI.";
+	return (
+		`${meta.instructions}\n\n` +
+		`${completion}\n\nDiscover active choices and payload requirements:\n` +
+		`${discovery}\nAdd --json for machine-readable schemas.`
+	);
 }
 
 async function spawnBee(
@@ -931,7 +968,14 @@ async function spawnBee(
 	services: Services,
 ): Promise<string> {
 	const { bead, description, endpoint, meta } = input;
-	const prompt = `Workflow task ${bead}.\n\n${description}\n\nRead the complete task with br show ${bead} --json. Work only on this task. Save the required JSON result in its notes with br update ${bead} --notes '<JSON>', then br close ${bead}. Use your own audit actor through --actor or BD_ACTOR. The result must contain choice, one of: ${Object.keys(meta.commands ?? {}).join(", ")}. Do not advance the workflow yourself.`;
+	const prompt =
+		`Workflow task ${bead}.\n\n` +
+		`${description}\n\nRead the complete task with br show ` +
+		`${bead} --json. Work only on this task. Save the required JSON result in ` +
+		`its notes with br update ${bead} --notes '<JSON>', then br close ` +
+		`${bead}. Use your own audit actor through --actor or BD_ACTOR. The result ` +
+		`must contain choice, one of: ${Object.keys(meta.commands ?? {}).join(", ")}` +
+		". Do not advance the workflow yourself.";
 	const output = await services.execute(
 		[
 			"bee",

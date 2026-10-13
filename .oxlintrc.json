@@ -10,6 +10,7 @@
 		"nursery": "off"
 	},
 	"plugins": ["eslint", "typescript", "oxc", "unicorn", "import", "promise", "node"],
+	"jsPlugins": ["@stylistic/eslint-plugin"],
 	"env": {
 		"es2026": true,
 		"node": true
@@ -18,6 +19,14 @@
 		"Bun": "readonly"
 	},
 	"rules": {
+		"@stylistic/max-len": [
+			"error",
+			{
+				"code": 120,
+				"tabWidth": 2,
+				"ignoreTemplateLiterals": false
+			}
+		],
 		"func-style": [
 			"error",
 			"declaration",

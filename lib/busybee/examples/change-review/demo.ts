@@ -1,4 +1,5 @@
-/* eslint-disable import/no-nodejs-modules -- This executable demo creates an isolated repository for actual review work. */
+// This executable demo creates an isolated repository for actual review work.
+/* eslint-disable import/no-nodejs-modules */
 import { mkdir, mkdtemp } from "node:fs/promises";
 import { Command } from "commander";
 import { createServices } from "../../src/native.ts";
@@ -108,7 +109,9 @@ console.log(JSON.stringify(selectTasks(tasks, { status: values.status, limit }))
 );
 await Bun.write(
 	join(repo, "README.md"),
-	"# Task list\n\nRun `bun cli.js --status open --limit 1` to list the first open task.\nUse `--limit 0` for all matching tasks. Omit the limit for all matches.\n",
+	"# Task list\n\nRun `bun cli.js --status open --limit 1` to list the " +
+		"first open task.\nUse `--limit 0` for all matching tasks. Omit the " +
+		"limit for all matches.\n",
 );
 const inputFile = join(root, "input.json");
 await Bun.write(
@@ -118,7 +121,11 @@ await Bun.write(
 			base,
 			execution: { mode: "manual" },
 			request:
-				"Add an optional non-negative integer --limit. Filter by --status before applying the limit and preserve input order. A limit of 0 must return no tasks; an omitted limit returns all matches. Reject negative or fractional limits. Document the behavior and provide meaningful regression coverage.",
+				"Add an optional non-negative integer --limit. Filter by --status " +
+				"before applying the limit and preserve input order. A limit of 0 " +
+				"must return no tasks; an omitted limit returns all matches. Reject " +
+				"negative or fractional limits. Document the behavior and provide " +
+				"meaningful regression coverage.",
 			title: "Add --limit to the task list CLI",
 		},
 		undefined,

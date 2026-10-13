@@ -318,13 +318,16 @@ function writeResult(
 	}
 	if (result.kind === "drone_verdict_submitted") {
 		stdout(
-			`Submitted verdict for ${result.requestId}, attempt ${result.attemptId}, review ${result.reviewId}; Colony validates when awake.\n`,
+			`Submitted verdict for ${result.requestId}, attempt ` +
+				`${result.attemptId}, review ${result.reviewId}; Colony validates when ` +
+				`awake.\n`,
 		);
 		return;
 	}
 	if (result.kind === "finish_submitted") {
 		stdout(
-			`Submitted finish for ${result.requestId}, attempt ${result.attemptId}; Colony validates and settles when awake.\n`,
+			`Submitted finish for ${result.requestId}, attempt ` +
+				`${result.attemptId}; Colony validates and settles when awake.\n`,
 		);
 		return;
 	}
@@ -343,7 +346,8 @@ function writeResult(
 	if (result.kind === "request_acknowledged") {
 		const { request } = result;
 		const lines = [
-			`Request ${request.id}: ${request.disposition.outcome}; resolution: ${request.resolution.kind}; labels: ${request.labelPublication}`,
+			`Request ${request.id}: ${request.disposition.outcome}; resolution: ` +
+				`${request.resolution.kind}; labels: ${request.labelPublication}`,
 		];
 		if (request.acknowledgment !== null) {
 			lines.push(formatAcknowledgment(request.acknowledgment));
@@ -404,14 +408,19 @@ function withoutPrompt(request: RequestView) {
 	return { ...request, recipe: { cwd, effort, harness, kind, model } };
 }
 
-// eslint-disable-next-line max-statements -- Keep the human request facts and explicitly stale observations in one formatter.
+/* eslint-disable-next-line max-statements --
+ * Keep the human request facts and explicitly stale observations in one formatter.
+ */
 function formatRequest(request: RequestView, includePrompt = false): string {
 	const lines = [
 		`Request ${request.id}: ${request.status}`,
 		`Identity: ${request.identity}`,
 		`Host: ${request.host ?? "unbound"}`,
-		`Outcome: ${request.disposition.outcome}; resolution: ${request.disposition.resolution}; labels: ${request.labelPublication}`,
-		`Recipe: ${request.recipe.kind} / ${request.recipe.harness} / ${request.recipe.model} / ${request.recipe.effort}`,
+		`Outcome: ${request.disposition.outcome}; resolution: ` +
+			`${request.disposition.resolution}; labels: ` +
+			`${request.labelPublication}`,
+		`Recipe: ${request.recipe.kind} / ${request.recipe.harness} / ` +
+			`${request.recipe.model} / ${request.recipe.effort}`,
 	];
 	if (request.closedAt !== null) {
 		lines.push(`Closed: ${request.closedAt}`);
@@ -438,7 +447,8 @@ function formatRequest(request: RequestView, includePrompt = false): string {
 		lines.push("Last recorded observation: none (execution state unknown)");
 	} else {
 		lines.push(
-			`Last recorded observation (${request.lastObservation.createdAt}, ${request.lastObservation.author}): ${request.lastObservation.text}`,
+			`Last recorded observation (${request.lastObservation.createdAt}, ` +
+				`${request.lastObservation.author}): ${request.lastObservation.text}`,
 		);
 	}
 	if (request.stdoutActivity === null) {
@@ -446,7 +456,9 @@ function formatRequest(request: RequestView, includePrompt = false): string {
 	} else {
 		const activity = request.stdoutActivity;
 		lines.push(
-			`Latest stdout activity (attempt ${activity.attemptNumber}, ${activity.attemptId}): ${activity.lastOutputAt ?? "unknown (no output observed)"}`,
+			`Latest stdout activity (attempt ${activity.attemptNumber}, ` +
+				`${activity.attemptId}): ` +
+				`${activity.lastOutputAt ?? "unknown (no output observed)"}`,
 		);
 	}
 	if (includePrompt) {

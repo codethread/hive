@@ -1,4 +1,5 @@
-// eslint-disable-next-line import/no-nodejs-modules -- Real installation regression uses disposable filesystem fixtures.
+// Real installation regression uses disposable filesystem fixtures.
+// eslint-disable-next-line import/no-nodejs-modules
 import { chmod, lstat, mkdir, mkdtemp, readdir, rm, symlink } from "node:fs/promises";
 import { expect, test } from "bun:test";
 import { installArtifacts } from "./install-artifacts.ts";

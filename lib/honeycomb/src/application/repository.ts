@@ -114,7 +114,8 @@ async function readActiveAncestors(git: GitRunner, cwd: string, worktrees: Workt
 	for (const head of heads) {
 		const candidates = new Set<string>();
 		for (const candidate of heads.filter((other) => other !== head)) {
-			// oxlint-disable-next-line eslint/no-await-in-loop -- Bound Git subprocesses instead of spawning a quadratic number concurrently.
+			// Bound Git subprocesses instead of spawning a quadratic number concurrently.
+			// oxlint-disable-next-line eslint/no-await-in-loop
 			if (await isAncestor({ ancestor: candidate, cwd, git, head })) {
 				candidates.add(candidate);
 			}

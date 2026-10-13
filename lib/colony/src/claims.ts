@@ -5,7 +5,9 @@ import type { TrackerContext } from "./tracker.ts";
 import { trackerScope } from "./tracker.ts";
 
 /** Claim only the task versions inspected by the daemon, preserving their human owner. */
-// eslint-disable-next-line max-statements, max-params -- Reservation inspection and native conditional claim handling form one boundary.
+/* eslint-disable-next-line max-statements, max-params --
+ * Reservation inspection and native conditional claim handling form one boundary.
+ */
 export async function acquireClaim(
 	{ beads, repository }: TrackerContext,
 	identity: string,
@@ -38,7 +40,10 @@ export async function acquireClaim(
 	}
 }
 /** Release the stopped identity's unfinished hierarchy; execution stop is a caller precondition. */
-// eslint-disable-next-line max-statements -- Each conditional release retains its successful effect before inspecting the next claim.
+/* eslint-disable-next-line max-statements --
+ * Each conditional release retains its successful effect before inspecting the next
+ * claim.
+ */
 export async function releaseClaims(
 	{ beads, repository }: TrackerContext,
 	record: RequestRecord,
@@ -64,7 +69,9 @@ export async function releaseClaims(
 				status = "open";
 			}
 			evidence.step("tracker.release", id);
-			// eslint-disable-next-line no-await-in-loop -- A stale version fails loudly and leaves the remaining claims intact.
+			/* eslint-disable-next-line no-await-in-loop --
+			 * A stale version fails loudly and leaves the remaining claims intact.
+			 */
 			await beads.update(trackerScope(repository, record.context.identity), [id], {
 				assignee: "",
 				status,

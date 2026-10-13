@@ -300,7 +300,8 @@ test(
 				"--",
 				process.execPath,
 				"-e",
-				'process.on("SIGTERM", () => console.log("terminating")); console.log("ready"); await Bun.stdin.text(); process.exit(23);',
+				'process.on("SIGTERM", () => console.log("terminating")); ' +
+					'console.log("ready"); await Bun.stdin.text(); process.exit(23);',
 			],
 			{ cwd: directory, stdin: "pipe", stdout: "pipe", stderr: "pipe" },
 		);
@@ -395,7 +396,9 @@ test.each([
 	{
 		name: "multiple reserved turns",
 		snapshot:
-			'{"nextId":3,"tickets":[{"id":1,"cwd":"/caller","urgent":null,"state":"ready","readyAt":0},{"id":2,"cwd":"/caller","urgent":null,"state":"ready","readyAt":0}]}',
+			'{"nextId":3,"tickets":[{"id":1,"cwd":"/caller","urgent":null,"state"' +
+			':"ready","readyAt":0},{"id":2,"cwd":"/caller","urgent":null,"state":' +
+			'"ready","readyAt":0}]}',
 	},
 ])("rejects $name in valid SQLite without resetting the queue", async ({ snapshot }) => {
 	await seedTicket();

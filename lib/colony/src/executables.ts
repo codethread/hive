@@ -1,4 +1,6 @@
-// eslint-disable-next-line import/no-nodejs-modules -- Resolve source entries or installed companion executables at the process boundary.
+/* eslint-disable-next-line import/no-nodejs-modules --
+ * Resolve source entries or installed companion executables at the process boundary.
+ */
 import { dirname, resolve } from "node:path";
 
 /** Colony's companion executables ship together in one bin directory. */

@@ -1,8 +1,10 @@
-/* oxlint-disable-next-line import/no-nodejs-modules -- integration suites create real git worktrees and fixture files on disk */
+// Integration suites create real git worktrees and fixture files on disk
+// oxlint-disable-next-line import/no-nodejs-modules
 import { access, appendFile, cp, mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
 /* oxlint-disable-next-line import/no-nodejs-modules -- fixtures build paths inside their temporary roots */
 import { join, resolve } from "node:path";
-/* oxlint-disable-next-line import/no-nodejs-modules -- writeConfig stays synchronous, so it needs the sync fs entrypoint */
+// The writeConfig helper stays synchronous, so it needs the sync fs entrypoint
+// oxlint-disable-next-line import/no-nodejs-modules
 import { mkdirSync, writeFileSync } from "node:fs";
 import type { Deps } from "../../src/index";
 import { EXIT_CODES } from "../../src/errors.ts";
@@ -89,13 +91,15 @@ export function writeConfig(options: {
 }): void {
 	const { tmp, root, command, poolSize, copyToml } = options;
 	const configHome = join(tmp, "config");
-	// oxlint-disable-next-line node/no-sync -- writeConfig stays synchronous so every integration suite can call it inline
+	// The writeConfig helper stays synchronous so every integration suite can call it inline
+	// oxlint-disable-next-line node/no-sync
 	mkdirSync(configHome, { recursive: true });
 	let poolLine = "";
 	if (poolSize) {
 		poolLine = `pool_size = ${poolSize}\n`;
 	}
-	// oxlint-disable-next-line node/no-sync -- writeConfig stays synchronous so every integration suite can call it inline
+	// The writeConfig helper stays synchronous so every integration suite can call it inline
+	// oxlint-disable-next-line node/no-sync
 	writeFileSync(
 		join(configHome, "honeycomb.toml"),
 		`[[project]]\nroot = "${root}"\ncommand = '''\n${command}\n'''\n${poolLine}${copyToml ?? ""}`,
@@ -263,7 +267,17 @@ async function buildBaseOriginFixture(): Promise<OriginFixture> {
 	// Seed the initial history in one native Git operation, without a throwaway working checkout.
 	await run(
 		["git", "-C", remote, "fast-import", "--quiet"],
-		"commit refs/heads/main\ncommitter Test User <test@example.test> 1700000000 +0000\ndata 8\ninitial\n\nM 100644 inline README.md\ndata 6\nhello\n\n\ndone\n",
+		"commit refs/heads/main\n" +
+			"committer Test User <test@example.test> 1700000000 +0000\n" +
+			"data 8\n" +
+			"initial\n" +
+			"\n" +
+			"M 100644 inline README.md\n" +
+			"data 6\n" +
+			"hello\n" +
+			"\n" +
+			"\n" +
+			"done\n",
 	);
 	await run(["git", "clone", "--template=", remote, join(tmp, "repo")]);
 	const root = await realpath(join(tmp, "repo"));

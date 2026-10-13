@@ -122,7 +122,13 @@ function checkpointHeaderError(checkpoint: string, raw: unknown, cause: unknown)
 	let guidance = "Create a fresh run with the installed engine; do not migrate the saved snapshot.";
 	if (identity.success) {
 		context["name"] = identity.data.definition.name;
-		guidance = `Inspect whether named workflow ${identity.data.definition.name} still exists. If it exists, you may create a fresh run of that same workflow for the same already-authorized scope without asking again; inspect completed and uncertain effects and preserve the old run and evidence. If it is missing, stop and ask the user which workflow to use. Do not migrate the saved snapshot.`;
+		guidance =
+			`Inspect whether named workflow ${identity.data.definition.name}` +
+			" still exists. If it exists, you may create a fresh run of that same " +
+			"workflow for the same already-authorized scope without asking again; " +
+			"inspect completed and uncertain effects and preserve the old run and " +
+			"evidence. If it is missing, stop and ask the user which workflow to " +
+			"use. Do not migrate the saved snapshot.";
 	}
 	return new BusyBeeError(
 		reason,

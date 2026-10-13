@@ -40,7 +40,14 @@ export function TabsTrigger({ className, ...props }: ComponentProps<typeof TabsP
 		<TabsPrimitiveTrigger
 			data-slot="tabs-trigger"
 			className={cn(
-				"inline-flex h-full flex-1 items-center justify-center gap-1.5 rounded-md border border-transparent px-3 py-1 text-sm font-medium whitespace-nowrap transition-colors hover:text-ink focus-visible:border-accent focus-visible:ring-[3px] focus-visible:ring-accent/30 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 data-[state=active]:border-line data-[state=active]:bg-panel data-[state=active]:text-ink data-[state=active]:shadow-sm",
+				"inline-flex h-full flex-1 items-center justify-center gap-1.5 " +
+					"rounded-md border border-transparent px-3 py-1 text-sm font-medium " +
+					"whitespace-nowrap transition-colors hover:text-ink " +
+					"focus-visible:border-accent focus-visible:ring-[3px] " +
+					"focus-visible:ring-accent/30 focus-visible:outline-none " +
+					"disabled:pointer-events-none disabled:opacity-50 " +
+					"data-[state=active]:border-line data-[state=active]:bg-panel " +
+					"data-[state=active]:text-ink data-[state=active]:shadow-sm",
 				className,
 			)}
 			{...props}

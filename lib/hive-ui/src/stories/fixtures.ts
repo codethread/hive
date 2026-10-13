@@ -104,7 +104,11 @@ export const board: Board = {
 	query: ["br", "list", "--exclude-label", "system", "--json"],
 };
 export const criteria =
-	"## Review the bee graph\n\n- [x] Recorded requester edges stay solid\n- [ ] Inferred parent edges stay dashed\n- [ ] Selection works with keyboard and pointer\n\n| Evidence | Meaning |\n| --- | --- |\n| Match | Request on the loaded page |\n| Context | Explicitly loaded ancestry |\n\nSee the `BeeGraph` story for both palettes.";
+	"## Review the bee graph\n\n- [x] Recorded requester edges stay solid\n- " +
+	"[ ] Inferred parent edges stay dashed\n- [ ] Selection works with " +
+	"keyboard and pointer\n\n| Evidence | Meaning |\n| --- | --- |\n| Match | " +
+	"Request on the loaded page |\n| Context | Explicitly loaded ancestry " +
+	"|\n\nSee the `BeeGraph` story for both palettes.";
 
 export function fixtureDetail(id: string): Detail {
 	const selected = cards.find((entry) => entry.id === id)!;

@@ -154,7 +154,8 @@ export function BeeWorkspace({
 
 // --- Request outline and selected work ---
 
-// eslint-disable-next-line max-statements -- Keep mutually exclusive empty, outline and graph loading outcomes explicit.
+// Keep mutually exclusive empty, outline and graph loading outcomes explicit.
+// eslint-disable-next-line max-statements
 function BeeRenderer({
 	scene,
 	selected,
@@ -194,7 +195,8 @@ function BeeRenderer({
 	return <output className="block p-6 text-sm text-muted">Loading graph…</output>;
 }
 
-// eslint-disable-next-line max-statements -- A bounded walk keeps cyclic components visible once, alongside rooted branches.
+// A bounded walk keeps cyclic components visible once, alongside rooted branches.
+// eslint-disable-next-line max-statements
 function BeeOutline({
 	scene,
 	selected,
@@ -239,7 +241,9 @@ function BeeOutline({
 				>
 					<button
 						type="button"
-						className={`w-full rounded-lg border p-4 text-left ${selected === bee.id ? "border-accent bg-tint" : "border-line bg-panel hover:bg-raised"}`}
+						className={`w-full rounded-lg border p-4 text-left ${
+							selected === bee.id ? "border-accent bg-tint" : "border-line bg-panel hover:bg-raised"
+						}`}
 						aria-pressed={selected === bee.id}
 						onClick={() => {
 							onSelect(bee.id);

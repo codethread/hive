@@ -9,11 +9,14 @@ import {
 	useOriginFixture,
 	writeConfig,
 } from "./support.ts";
-// oxlint-disable-next-line import/no-nodejs-modules -- Integration fixtures exercise real filesystem and process boundaries.
+// Integration fixtures exercise real filesystem and process boundaries.
+// oxlint-disable-next-line import/no-nodejs-modules
 import { join, resolve } from "node:path";
-// oxlint-disable-next-line import/no-nodejs-modules -- Integration fixtures exercise real filesystem and process boundaries.
+// Integration fixtures exercise real filesystem and process boundaries.
+// oxlint-disable-next-line import/no-nodejs-modules
 import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
-// oxlint-disable-next-line import/no-nodejs-modules -- Integration fixtures exercise real filesystem and process boundaries.
+// Integration fixtures exercise real filesystem and process boundaries.
+// oxlint-disable-next-line import/no-nodejs-modules
 import { tmpdir } from "node:os";
 
 const { initRepoWithOrigin } = useOriginFixture();
@@ -223,19 +226,23 @@ async function initExcludeFence() {
 	return { excludePath, root, worktreePath };
 }
 
-test("exclude fence is idempotent, preserves unrelated lines, removes when copy is removed, and ignores copied files", async () => {
-	const { root, excludePath, worktreePath } = await initExcludeFence();
+test(
+	"exclude fence is idempotent, preserves unrelated lines, removes when copy is removed, and ignores " +
+		"copied files",
+	async () => {
+		const { root, excludePath, worktreePath } = await initExcludeFence();
 
-	await dispatch("copy", ["--cwd", worktreePath], deps);
-	await dispatch("copy", ["--cwd", worktreePath], deps);
+		await dispatch("copy", ["--cwd", worktreePath], deps);
+		await dispatch("copy", ["--cwd", worktreePath], deps);
 
-	const withFence = await readFile(resolve(root, excludePath), "utf8");
-	expect(withFence).toBe("*.log\n# wktree-start\n.env\n# wktree-end\n");
-	const status = await run(["git", "-C", worktreePath, "status", "--porcelain"]);
-	expect(status.stdout).toBe("");
+		const withFence = await readFile(resolve(root, excludePath), "utf8");
+		expect(withFence).toBe("*.log\n# wktree-start\n.env\n# wktree-end\n");
+		const status = await run(["git", "-C", worktreePath, "status", "--porcelain"]);
+		expect(status.stdout).toBe("");
 
-	writeConfig({ command: "echo ready", root, tmp });
-	await dispatch("copy", ["--cwd", worktreePath], deps);
+		writeConfig({ command: "echo ready", root, tmp });
+		await dispatch("copy", ["--cwd", worktreePath], deps);
 
-	expect(await readFile(resolve(root, excludePath), "utf8")).toBe("*.log\n");
-});
+		expect(await readFile(resolve(root, excludePath), "utf8")).toBe("*.log\n");
+	},
+);

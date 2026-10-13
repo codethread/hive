@@ -264,7 +264,8 @@ async function statusPayload(options: {
 	const { config, deps, explanation, root, worktrees } = options;
 	const { project } = explanation;
 	if (!project?.poolSize) {
-		// eslint-disable-next-line unicorn/no-null -- Public status JSON includes an explicit null trunk when no pool exists.
+		// Public status JSON includes an explicit null trunk when no pool exists.
+		// eslint-disable-next-line unicorn/no-null
 		return { hasPool: false, kind: "status", root, size: 0, slots: [], trunk: null };
 	}
 	await runPreRemoteCheck(deps, { config, operation: "honeycomb status", root });

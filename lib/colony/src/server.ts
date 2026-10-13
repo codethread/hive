@@ -1,5 +1,10 @@
-/* eslint-disable import/max-dependencies -- Server composes tracker injection with daemon, policy and persistence boundaries. */
-/* eslint-disable unicorn/no-null -- Protocol and persisted revision metadata explicitly encode absent policy, actor and formula name. */
+/* eslint-disable import/max-dependencies --
+ * Server composes tracker injection with daemon, policy and persistence boundaries.
+ */
+/* eslint-disable unicorn/no-null --
+ * Protocol and persisted revision metadata explicitly encode absent policy, actor and
+ * formula name.
+ */
 import type {
 	AttemptStatus,
 	BeesConfig,
@@ -61,12 +66,16 @@ export async function serve(options: ServerOptions, beads: BeadsService): Promis
 		const actor = createColony({ beads, repository, state: options.state, store }, activity);
 		const policy = match(activity)
 			.with({ state: "awake" }, ({ config, revisionId }) => ({ config, revisionId }))
-			// eslint-disable-next-line unicorn/no-null -- JSON explicitly distinguishes absent effective policy from loaded policy.
+			/* eslint-disable-next-line unicorn/no-null --
+			 * JSON explicitly distinguishes absent effective policy from loaded policy.
+			 */
 			.otherwise(() => null);
 		colonies.set(repository.root, { actor, policy, registration, repository });
 		actor.start();
 	};
-	// eslint-disable-next-line max-params -- One activation joins authority, membership, validated policy and audit attribution.
+	/* eslint-disable-next-line max-params --
+	 * One activation joins authority, membership, validated policy and audit attribution.
+	 */
 	const activate = (
 		repository: RepositoryEndpoint,
 		registration: RunningColony["registration"],
@@ -81,7 +90,9 @@ export async function serve(options: ServerOptions, beads: BeadsService): Promis
 	let closing = false;
 	const server = Bun.serve({
 		fetch: (request) => {
-			// eslint-disable-next-line max-statements, promise/prefer-await-to-then -- Serialize lifecycle commands behind registry restoration and prior drains.
+			/* eslint-disable-next-line max-statements, promise/prefer-await-to-then --
+			 * Serialize lifecycle commands behind registry restoration and prior drains.
+			 */
 			const response = pending.then(async () => {
 				try {
 					if (closing) {
@@ -124,7 +135,10 @@ export async function serve(options: ServerOptions, beads: BeadsService): Promis
 						})
 						.with(
 							{ kind: "config" },
-							// eslint-disable-next-line max-statements -- Validate and drain before atomically activating a revision; inspection exposes metadata only.
+							/* eslint-disable-next-line max-statements --
+							 * Validate and drain before atomically activating a revision; inspection exposes
+							 * metadata only.
+							 */
 							async ({ repository, command: configCommand }): Promise<ColonyResponse> => {
 								const canonical = await resolveRepository(repository.root, repository.beadsDb);
 								const current = colonies.get(canonical.root);
@@ -146,7 +160,9 @@ export async function serve(options: ServerOptions, beads: BeadsService): Promis
 										)
 										.exhaustive();
 									const source = match(configCommand)
-										// eslint-disable-next-line unicorn/no-null -- Reset changes the complete canonical baseline, not one formula.
+										/* eslint-disable-next-line unicorn/no-null --
+										 * Reset changes the complete canonical baseline, not one formula.
+										 */
 										.with({ operation: "reset" }, ({ actor }) => ({
 											actor,
 											formulaName: null,
@@ -202,7 +218,10 @@ export async function serve(options: ServerOptions, beads: BeadsService): Promis
 							}
 							return { kind: "registered", repository: canonical };
 						})
-						// eslint-disable-next-line max-statements -- Wake drains the old actor, persists intent, then installs newly loaded canonical configuration.
+						/* eslint-disable-next-line max-statements --
+						 * Wake drains the old actor, persists intent, then installs newly loaded canonical
+						 * configuration.
+						 */
 						.with({ kind: "wake" }, async ({ repository, temporary }): Promise<ColonyResponse> => {
 							const canonical = await resolveRepository(repository.root, repository.beadsDb);
 							const current = colonies.get(canonical.root);
@@ -227,7 +246,9 @@ export async function serve(options: ServerOptions, beads: BeadsService): Promis
 								install(canonical, registration, activity);
 								throw new Error(activity.message);
 							}
-							// eslint-disable-next-line unicorn/no-null -- Canonical files have no inferred actor or changed formula name.
+							/* eslint-disable-next-line unicorn/no-null --
+							 * Canonical files have no inferred actor or changed formula name.
+							 */
 							activate(canonical, registration, activity.config, {
 								actor: null,
 								formulaName: null,
@@ -238,7 +259,9 @@ export async function serve(options: ServerOptions, beads: BeadsService): Promis
 						.with(
 							{ kind: "sleep" },
 							{ kind: "remove" },
-							// eslint-disable-next-line max-statements -- Both commands drain before applying their distinct membership transitions.
+							/* eslint-disable-next-line max-statements --
+							 * Both commands drain before applying their distinct membership transitions.
+							 */
 							async ({ kind, repository }): Promise<ColonyResponse> => {
 								const canonical = await resolveRepository(repository.root, repository.beadsDb);
 								const current = colonies.get(canonical.root);
@@ -271,7 +294,9 @@ export async function serve(options: ServerOptions, beads: BeadsService): Promis
 							closing = true;
 							await Promise.all([...colonies.values()].map(({ actor }) => drain(actor)));
 							store.clearPolicies();
-							// eslint-disable-next-line promise/no-nesting -- Close SQLite only after the current response and all accepted commands drain.
+							/* eslint-disable-next-line promise/no-nesting --
+							 * Close SQLite only after the current response and all accepted commands drain.
+							 */
 							void server.stop().then(() => {
 								store.close();
 								return ownership.close();
@@ -303,7 +328,9 @@ export async function serve(options: ServerOptions, beads: BeadsService): Promis
 					if (activity.state === "failed") {
 						install(repository, "durable", activity);
 					}
-					// eslint-disable-next-line unicorn/no-null -- Recovery loads canonical files without attributing their author.
+					/* eslint-disable-next-line unicorn/no-null --
+					 * Recovery loads canonical files without attributing their author.
+					 */
 					else {
 						activate(repository, "durable", activity.config, {
 							actor: null,

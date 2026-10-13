@@ -11,7 +11,10 @@ import { tmpdir } from "node:os";
 
 const timeout = 15_000;
 const success = 0;
-const trackedEnvironment = `[env]\nBEADS_DB = "{{ exec(command='git rev-parse --path-format=absolute --git-common-dir') | dirname }}/.worktrees/tracker--state/.beads/beads.db"\n`;
+const trackedEnvironment =
+	"[env]\nBEADS_DB = \"{{ exec(command='git rev-parse " +
+	"--path-format=absolute --git-common-dir') | dirname " +
+	'}}/.worktrees/tracker--state/.beads/beads.db"\n';
 const defaultMiseConfig = await Bun.file(new URL("../../../../mise.toml", import.meta.url)).text();
 
 type History = "present" | "missing-snapshot" | "missing-branch";

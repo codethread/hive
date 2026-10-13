@@ -81,7 +81,9 @@ test("offline stop publishes cancellation and default listing retains only unres
 	});
 });
 
-// eslint-disable-next-line max-statements -- Partial publication, repair and idempotence form one offline acknowledgment contract.
+/* eslint-disable-next-line max-statements --
+ * Partial publication, repair and idempotence form one offline acknowledgment contract.
+ */
 test("acknowledgment survives failed label publication and repeats repair without another comment", async () => {
 	const { tracker, id } = acknowledgment;
 	const beads = beforeTrackerWrite(tracker.beads, () => {

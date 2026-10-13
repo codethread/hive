@@ -51,7 +51,8 @@ function fixture() {
 	return { beads, context, data: createBoardData(), samples, scope };
 }
 
-// eslint-disable-next-line max-statements -- Seed predicates and verify the user-visible board and detail through the public reader.
+// Seed predicates and verify the user-visible board and detail through the public reader.
+// eslint-disable-next-line max-statements
 test("ordinary board applies task predicates and projects detail comments and relationships", async () => {
 	const { beads, context, data, samples, scope } = fixture();
 	const task = await beads.create(scope, {

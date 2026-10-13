@@ -1,4 +1,7 @@
-/* eslint-disable import/max-dependencies -- Compose existing runtime boundaries with the independent advisory assessment lifecycle. */
+/* eslint-disable import/max-dependencies --
+ * Compose existing runtime boundaries with the independent advisory assessment
+ * lifecycle.
+ */
 import { SPAWN_REQUEST_LABELS, readSpawnRequest, readSpawnRequestSummary } from "@hive/shared";
 import { assertRequestAuthority, claimRequest, newRequest, reconcileRequests } from "./request.ts";
 import { compareCandidates, hasCapacity, hasContention } from "./scheduler.ts";
@@ -65,7 +68,10 @@ export async function dispatch(
 }
 
 // --- Private functions ---
-// eslint-disable-next-line max-statements, max-params -- Keep request hydration, preparation and durable waiting or settlement decisions together.
+/* eslint-disable-next-line max-statements, max-params --
+ * Keep request hydration, preparation and durable waiting or settlement decisions
+ * together.
+ */
 async function prepareCandidates(
 	input: DispatchInput,
 	config: BeesConfig,
@@ -96,7 +102,9 @@ async function prepareCandidates(
 				repository,
 				requestId: request.id,
 			},
-			// eslint-disable-next-line max-statements -- Preparation keeps hydration and the waiting or settlement checkpoint together.
+			/* eslint-disable-next-line max-statements --
+			 * Preparation keeps hydration and the waiting or settlement checkpoint together.
+			 */
 			async (preparation) => {
 				let record = records.get(request.id);
 				if (!record) {
@@ -146,7 +154,9 @@ async function prepareCandidates(
 	return candidates;
 }
 
-// eslint-disable-next-line max-params, max-statements -- One dispatch pass shares its current reservations and operation evidence.
+/* eslint-disable-next-line max-params, max-statements --
+ * One dispatch pass shares its current reservations and operation evidence.
+ */
 async function dispatchPriorityGroups(
 	input: DispatchInput,
 	config: BeesConfig,
@@ -183,7 +193,9 @@ async function dispatchPriorityGroups(
 			ordered.push(...group.filter((candidate) => !feasible.includes(candidate)));
 		}
 		evidence.step("dispatch.launch", input.repository.root);
-		// eslint-disable-next-line no-await-in-loop -- Finish higher-priority acquisition before testing the next group's contention.
+		/* eslint-disable-next-line no-await-in-loop --
+		 * Finish higher-priority acquisition before testing the next group's contention.
+		 */
 		await launchCandidates(input, config, ordered, occupied);
 	}
 }
@@ -219,7 +231,10 @@ function orderCandidates(
 		.map(({ candidate }) => candidate);
 }
 
-// eslint-disable-next-line max-statements, max-params -- Capacity, claims, durable reservation and verified supervisor permission form one ordered handoff.
+/* eslint-disable-next-line max-statements, max-params --
+ * Capacity, claims, durable reservation and verified supervisor permission form one
+ * ordered handoff.
+ */
 async function launchCandidates(
 	{ beads, repository, state, store }: DispatchInput,
 	config: BeesConfig,
@@ -232,7 +247,9 @@ async function launchCandidates(
 			// eslint-disable-next-line no-await-in-loop -- Capacity precedes acquisition and process reservation.
 			const claimed = await claimRequest({ beads, config, repository, store }, record);
 			if (claimed !== null) {
-				// eslint-disable-next-line no-await-in-loop -- Complete each reserved launch before selecting the next candidate.
+				/* eslint-disable-next-line no-await-in-loop --
+				 * Complete each reserved launch before selecting the next candidate.
+				 */
 				await store.history.run(
 					{
 						checkpoint: () => store.requests(repository.root).find(({ id }) => id === record.id),
@@ -240,7 +257,9 @@ async function launchCandidates(
 						repository,
 						requestId: record.id,
 					},
-					// eslint-disable-next-line max-statements -- Record the ordered reservation, supervisor and permission handoff.
+					/* eslint-disable-next-line max-statements --
+					 * Record the ordered reservation, supervisor and permission handoff.
+					 */
 					async (evidence) => {
 						evidence.reference(receipt.directory);
 						evidence.step("attempt.reserve", receipt.id);

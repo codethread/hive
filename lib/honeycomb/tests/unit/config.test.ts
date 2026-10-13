@@ -85,7 +85,14 @@ test.each<{ name: string; toml: string; expected: ProjectConfig[] }>([
 			},
 		],
 		name: "mixed projects",
-		toml: '[[project]]\nroot = "/tmp/one"\ncommand = "echo one"\n[[project]]\nroot = "/tmp/two"\ncommand = "echo two"\npool_size = 2',
+		toml:
+			"[[project]]\n" +
+			'root = "/tmp/one"\n' +
+			'command = "echo one"\n' +
+			"[[project]]\n" +
+			'root = "/tmp/two"\n' +
+			'command = "echo two"\n' +
+			"pool_size = 2",
 	},
 ])("parses $name", ({ toml, expected }) => {
 	expect(parseConfig(toml).projects).toEqual(expected);

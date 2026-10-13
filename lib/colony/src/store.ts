@@ -1,4 +1,7 @@
-/* eslint-disable import/max-dependencies -- Compose existing runtime boundaries with the independent advisory assessment lifecycle. */
+/* eslint-disable import/max-dependencies --
+ * Compose existing runtime boundaries with the independent advisory assessment
+ * lifecycle.
+ */
 import type { AttemptStatus, ColonyStatus, PolicyRevision, RepositoryEndpoint } from "@hive/shared";
 import type { RequestEvent, RequestRecord } from "./request.ts";
 import { launchReceiptSchema, workerReceiptSchema } from "./launch.ts";
@@ -10,13 +13,17 @@ import type { LaunchReceipt } from "./launch.ts";
 import type { PolicySnapshot } from "./policy.ts";
 import { assessmentSchema } from "./postrun.ts";
 import { droneReviewSchema } from "./drone.ts";
-// eslint-disable-next-line import/no-nodejs-modules -- Inventory must not observe or update foreign or unbound process artifacts.
+/* eslint-disable-next-line import/no-nodejs-modules --
+ * Inventory must not observe or update foreign or unbound process artifacts.
+ */
 import { hostname } from "node:os";
 // eslint-disable-next-line import/no-nodejs-modules -- SQLite and receipt paths belong to daemon state.
 import { join } from "node:path";
 import { openHistory } from "./history.ts";
 import { policyRevisionSchema } from "@hive/shared";
-// eslint-disable-next-line import/no-nodejs-modules -- Read atomic worker receipt replacements without a cached BunFile size.
+/* eslint-disable-next-line import/no-nodejs-modules --
+ * Read atomic worker receipt replacements without a cached BunFile size.
+ */
 import { readFile } from "node:fs/promises";
 import { z } from "zod";
 
@@ -49,17 +56,29 @@ export type Store = ReturnType<typeof openStore>;
 /** Concrete registry and immutable launch reservations; only the socket owner writes here. */
 export function openStore(state: string) {
 	const database = new Database(join(state, "colony.sqlite"), { create: true });
-	database.exec(`PRAGMA journal_mode = WAL;
+	database.exec(
+		`PRAGMA journal_mode = WAL;
  CREATE TABLE IF NOT EXISTS repositories (
- root TEXT PRIMARY KEY, beads_db TEXT NOT NULL, intent TEXT NOT NULL CHECK(intent IN ('awake', 'asleep')));
+ root TEXT PRIMARY KEY, beads_db TEXT NOT NULL, intent TEXT NOT NULL ` +
+			`CHECK(intent IN ('awake', 'asleep')));
  CREATE TABLE IF NOT EXISTS attempts (
- id TEXT PRIMARY KEY, root TEXT NOT NULL, spawn_id TEXT NOT NULL, directory TEXT NOT NULL,
- token TEXT NOT NULL, snapshot TEXT NOT NULL, state TEXT NOT NULL, supervisor_pid INTEGER);
- CREATE TABLE IF NOT EXISTS requests (root TEXT NOT NULL, spawn_id TEXT NOT NULL, snapshot TEXT NOT NULL, PRIMARY KEY(root, spawn_id));
- CREATE TABLE IF NOT EXISTS policy_revisions (id TEXT PRIMARY KEY, root TEXT NOT NULL, metadata TEXT NOT NULL, snapshot TEXT NOT NULL);
- CREATE TABLE IF NOT EXISTS drone_reviews (id TEXT PRIMARY KEY, root TEXT NOT NULL, target_attempt_id TEXT NOT NULL, snapshot TEXT NOT NULL);
- CREATE TABLE IF NOT EXISTS assessments (id TEXT PRIMARY KEY, root TEXT NOT NULL, beads_db TEXT NOT NULL, request_id TEXT NOT NULL, snapshot TEXT NOT NULL, UNIQUE(root, request_id));
- CREATE TABLE IF NOT EXISTS active_policies (root TEXT PRIMARY KEY, revision_id TEXT NOT NULL REFERENCES policy_revisions(id));`);
+ id TEXT PRIMARY KEY, root TEXT NOT NULL, spawn_id TEXT NOT NULL, ` +
+			`directory TEXT NOT NULL,
+ token TEXT NOT NULL, snapshot TEXT NOT NULL, state TEXT NOT NULL, ` +
+			`supervisor_pid INTEGER);
+ CREATE TABLE IF NOT EXISTS requests (root TEXT NOT NULL, spawn_id ` +
+			`TEXT NOT NULL, snapshot TEXT NOT NULL, PRIMARY KEY(root, spawn_id));
+ CREATE TABLE IF NOT EXISTS policy_revisions (id TEXT PRIMARY KEY, ` +
+			`root TEXT NOT NULL, metadata TEXT NOT NULL, snapshot TEXT NOT NULL);
+ CREATE TABLE IF NOT EXISTS drone_reviews (id TEXT PRIMARY KEY, root ` +
+			`TEXT NOT NULL, target_attempt_id TEXT NOT NULL, snapshot TEXT NOT ` +
+			`NULL);
+ CREATE TABLE IF NOT EXISTS assessments (id TEXT PRIMARY KEY, root ` +
+			`TEXT NOT NULL, beads_db TEXT NOT NULL, request_id TEXT NOT NULL, ` +
+			`snapshot TEXT NOT NULL, UNIQUE(root, request_id));
+ CREATE TABLE IF NOT EXISTS active_policies (root TEXT PRIMARY KEY, ` +
+			`revision_id TEXT NOT NULL REFERENCES policy_revisions(id));`,
+	);
 	const assertRepository = (repository: RepositoryEndpoint): void => {
 		const rows = z.array(z.strictObject({ beadsDb: z.string() })).parse(
 			database
@@ -80,7 +99,8 @@ export function openStore(state: string) {
 			.parse(
 				database
 					.query(
-						"SELECT id, spawn_id AS spawnId, directory, token, snapshot, state FROM attempts WHERE root = ? ORDER BY rowid",
+						"SELECT id, spawn_id AS spawnId, directory, token, snapshot, state " +
+							"FROM attempts WHERE root = ? ORDER BY rowid",
 					)
 					.all(root),
 			);
@@ -89,7 +109,9 @@ export function openStore(state: string) {
 			(row) => requestIds === undefined || requestIds.has(row.spawnId),
 		);
 		return Promise.all(
-			// eslint-disable-next-line max-statements -- Refresh the owned receipt and process liveness together before updating inventory.
+			/* eslint-disable-next-line max-statements --
+			 * Refresh the owned receipt and process liveness together before updating inventory.
+			 */
 			rows.map(async (row) => {
 				const launch = launchReceiptSchema.parse(JSON.parse(row.snapshot));
 				if (launch.host !== hostname()) {
@@ -116,14 +138,16 @@ export function openStore(state: string) {
 	const saveRequest = (root: string, record: RequestRecord): void => {
 		database
 			.query(
-				"INSERT INTO requests (root, spawn_id, snapshot) VALUES (?, ?, ?) ON CONFLICT(root, spawn_id) DO UPDATE SET snapshot = excluded.snapshot",
+				"INSERT INTO requests (root, spawn_id, snapshot) VALUES (?, ?, ?) " +
+					"ON CONFLICT(root, spawn_id) DO UPDATE SET snapshot = excluded.snapshot",
 			)
 			.run(root, record.id, JSON.stringify(record));
 	};
 	const saveAssessment = (root: string, assessment: Assessment): void => {
 		database
 			.query(
-				"INSERT INTO assessments (id, root, beads_db, request_id, snapshot) VALUES (?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET snapshot = excluded.snapshot",
+				"INSERT INTO assessments (id, root, beads_db, request_id, snapshot) " +
+					"VALUES (?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET snapshot = excluded.snapshot",
 			)
 			.run(
 				assessment.id,
@@ -150,7 +174,8 @@ export function openStore(state: string) {
 					.run(revision.id, root, JSON.stringify(revision), JSON.stringify(snapshot));
 				database
 					.query(
-						"INSERT INTO active_policies (root, revision_id) VALUES (?, ?) ON CONFLICT(root) DO UPDATE SET revision_id = excluded.revision_id",
+						"INSERT INTO active_policies (root, revision_id) VALUES (?, ?) ON " +
+							"CONFLICT(root) DO UPDATE SET revision_id = excluded.revision_id",
 					)
 					.run(root, revision.id);
 			})(),
@@ -242,7 +267,8 @@ export function openStore(state: string) {
 			database.transaction(() => {
 				database
 					.query(
-						"INSERT INTO attempts (id, root, spawn_id, directory, token, snapshot, state) VALUES (?, ?, ?, ?, ?, ?, 'starting')",
+						"INSERT INTO attempts (id, root, spawn_id, directory, token, snapshot, " +
+							"state) VALUES (?, ?, ?, ?, ?, ?, 'starting')",
 					)
 					.run(
 						receipt.id,
@@ -265,7 +291,8 @@ export function openStore(state: string) {
 		saveDroneReview: (root: string, review: DroneReview): void => {
 			database
 				.query(
-					"INSERT INTO drone_reviews (id, root, target_attempt_id, snapshot) VALUES (?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET snapshot = excluded.snapshot",
+					"INSERT INTO drone_reviews (id, root, target_attempt_id, snapshot) " +
+						"VALUES (?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET snapshot = excluded.snapshot",
 				)
 				.run(review.id, root, review.targetAttemptId, JSON.stringify(review));
 		},

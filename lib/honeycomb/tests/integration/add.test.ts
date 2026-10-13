@@ -90,7 +90,11 @@ test("uses inherited rule command for a repo without exact project config", asyn
 	await mkdir(configHome, { recursive: true });
 	await writeFile(
 		join(configHome, "honeycomb.toml"),
-		`[[rule]]\nroot_glob = "${await realpath(tmp.dir)}/**"\ncommand = '''\necho inherited > "$WK_CREATED/rule-sentinel"\n'''\n`,
+		`[[rule]]\n` +
+			`root_glob = "${await realpath(tmp.dir)}/**"\n` +
+			`command = '''\n` +
+			`echo inherited > "$WK_CREATED/rule-sentinel"\n` +
+			`'''\n`,
 	);
 	setTestEnv("XDG_CONFIG_HOME", configHome);
 

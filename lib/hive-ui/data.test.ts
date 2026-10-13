@@ -11,7 +11,8 @@ const right = node("right");
 const original = { nodes: [left, right, node("child", ["left"])], fetchedAt: OLD };
 const moved = { nodes: [right, node("child", ["right"])], fetchedAt: NEW };
 
-// eslint-disable-next-line max-statements -- Follow a reparent through refresh, old-parent navigation, member selection and the board cache.
+// Follow a reparent through refresh, old-parent navigation, member selection and the board cache.
+// eslint-disable-next-line max-statements
 test("a refreshed family retires removed-member aliases and overlapping board resources", async () => {
 	const reads: string[] = [];
 	const responses: Record<string, Hierarchy> = {

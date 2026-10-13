@@ -212,7 +212,22 @@ export function formatConfigSummary(payload: ReturnType<typeof toConfigExplainPa
 	const matchedRules = payload.matched_rules.map((rule) => rule.root_glob).join(", ") || "(none)";
 	const project = formatProject(payload.project);
 	const local = payload.local_config?.path ?? "(none)";
-	return `root: ${payload.root}\nmatched_rules: ${matchedRules}\nproject: ${project}\nlocal_config: ${local}\ncommand.source: ${formatCommandSource(payload.command.source)}\npre_remote_check.source: ${formatCommandSource(payload.pre_remote_check.source)}\nworktree_location: ${payload.worktree_location}\nadd.policy: ${payload.add.policy}\nfinish.enabled: ${payload.finish.enabled}\nfinish.strategy: ${payload.finish.strategy}\nfinish.push: ${payload.finish.push}\nfinish.remove_worktree: ${payload.finish.remove_worktree}\nfinish.delete_branch: ${payload.finish.delete_branch}\nsetup: ${JSON.stringify(payload.setup)}\n`;
+	return (
+		`root: ${payload.root}\n` +
+		`matched_rules: ${matchedRules}\n` +
+		`project: ${project}\n` +
+		`local_config: ${local}\n` +
+		`command.source: ${formatCommandSource(payload.command.source)}\n` +
+		`pre_remote_check.source: ${formatCommandSource(payload.pre_remote_check.source)}\n` +
+		`worktree_location: ${payload.worktree_location}\n` +
+		`add.policy: ${payload.add.policy}\n` +
+		`finish.enabled: ${payload.finish.enabled}\n` +
+		`finish.strategy: ${payload.finish.strategy}\n` +
+		`finish.push: ${payload.finish.push}\n` +
+		`finish.remove_worktree: ${payload.finish.remove_worktree}\n` +
+		`finish.delete_branch: ${payload.finish.delete_branch}\n` +
+		`setup: ${JSON.stringify(payload.setup)}\n`
+	);
 }
 // --- Private functions ---
 

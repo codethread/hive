@@ -91,7 +91,8 @@ export function boardFamilies(board: Board, hierarchy: Hierarchy | null): BoardF
 	hierarchy = {
 		...hierarchy,
 		nodes: [
-			// eslint-disable-next-line oxc/no-map-spread -- Combine independently cached snapshots without mutating either source.
+			// Combine independently cached snapshots without mutating either source.
+			// eslint-disable-next-line oxc/no-map-spread
 			...hierarchy.nodes.map((node) => ({ ...node, ...cards.get(node.id) })),
 			...board.cards
 				.filter((card) => !loadedIds.has(card.id))
@@ -160,7 +161,8 @@ function childIndex(
 	return children;
 }
 
-// eslint-disable-next-line max-statements -- Component discovery and forest traversal share their visited sets and relation indexes.
+// Component discovery and forest traversal share their visited sets and relation indexes.
+// eslint-disable-next-line max-statements
 function groupFamilies(hierarchy: Hierarchy, parents: Map<string, string[]>): BeadFamily[] {
 	const byId = new Map(hierarchy.nodes.map((node) => [node.id, node]));
 	const children = childIndex(hierarchy.nodes, parents);

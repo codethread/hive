@@ -1,4 +1,7 @@
-/* eslint-disable max-dependencies -- Launch boundary composes receipt, identity, configuration and detached executable ownership. */
+/* eslint-disable max-dependencies --
+ * Launch boundary composes receipt, identity, configuration and detached executable
+ * ownership.
+ */
 import type { Bead, BeadsService } from "@hive/beads";
 import type { Formula, RepositoryEndpoint } from "@hive/shared";
 import { colonyEntry, entryCommand } from "./executables.ts";
@@ -19,7 +22,9 @@ import { agentEnvironment } from "./identity.ts";
 import { loadBeesConfig } from "./config.ts";
 import { match } from "ts-pattern";
 import { runOwnedExecution } from "./processes.ts";
-// eslint-disable-next-line import/no-nodejs-modules -- Launch the existing detached supervisor for ordinary attempts and drones.
+/* eslint-disable-next-line import/no-nodejs-modules --
+ * Launch the existing detached supervisor for ordinary attempts and drones.
+ */
 import { spawn as spawnSupervisor } from "node:child_process";
 import { trackerScope } from "./tracker.ts";
 import { z } from "zod";
@@ -137,7 +142,9 @@ export async function launch(request: LaunchRequest): Promise<unknown> {
 }
 
 /** One preparation path serves synchronous launch and daemon reservations. */
-// eslint-disable-next-line max-statements, max-params -- Keep eligibility and immutable snapshot creation before any process side effect.
+/* eslint-disable-next-line max-statements, max-params --
+ * Keep eligibility and immutable snapshot creation before any process side effect.
+ */
 export async function prepareLaunch(
 	request: LaunchRequest,
 	formulas: Record<string, Formula>,
@@ -169,14 +176,19 @@ export async function prepareLaunch(
 	}
 	const prompt = [
 		recipe.prompt,
-		`Read the full instructions and acceptance criteria on the related task beads. They define the assignment and completion requirements.
+		`Read the full instructions and acceptance criteria on the related ` +
+			`task beads. They define the assignment and completion requirements.
 
 Before ending this Colony execution:
-1. Comment on each assigned task with your deliverable and verification evidence.
+1. Comment on each assigned task with your deliverable and verification ` +
+			`evidence.
 2. Close only assigned tasks whose acceptance criteria are satisfied.
 3. When every assigned task is complete, call bee finish success.
 
-If blocked, complete all possible work, record the blocker and required next action on unfinished tasks, leave them unclosed, then call bee finish blocked --reason "<unfinished task, blocker and required next action>".
+If blocked, complete all possible work, record the blocker and required ` +
+			`next action on unfinished tasks, leave them unclosed, then call bee ` +
+			`finish blocked --reason "<unfinished task, blocker and required next ` +
+			`action>".
 
 Related tasks: ${taskIds.join(", ")}`,
 	]
@@ -347,7 +359,9 @@ export async function startSupervisor(
 				stdio: ["ignore", log.fd, log.fd],
 			},
 		);
-		// eslint-disable-next-line promise/avoid-new -- Adapt Node subprocess spawn/error events to the reservation handoff.
+		/* eslint-disable-next-line promise/avoid-new --
+		 * Adapt Node subprocess spawn/error events to the reservation handoff.
+		 */
 		return await new Promise<number>((resolve, reject) => {
 			child.once("error", reject);
 			child.once("spawn", () => {

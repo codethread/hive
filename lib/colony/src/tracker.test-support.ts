@@ -2,7 +2,9 @@
 import type { BeadsService, CreateBead } from "@hive/beads";
 import type { TrackerCommands, TrackerContext } from "./tracker.ts";
 import { createMemoryBeads } from "@hive/beads";
-// eslint-disable-next-line import/no-nodejs-modules -- Fixtures bind requests to the same host as production authority checks.
+/* eslint-disable-next-line import/no-nodejs-modules --
+ * Fixtures bind requests to the same host as production authority checks.
+ */
 import { hostname } from "node:os";
 import { spawnRequestLabels } from "@hive/shared";
 import { trackerScope } from "./tracker.ts";

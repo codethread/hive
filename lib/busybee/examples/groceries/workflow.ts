@@ -42,7 +42,9 @@ export const machine = logic.createMachine({
 						},
 						task: () => ({
 							instructions:
-								"Estimate the basket total using the selected shops and quantities. Compare with the household budget. Ask for the budget if it is unknown; do not invent one.",
+								"Estimate the basket total using the selected shops and quantities. " +
+								"Compare with the household budget. Ask for the budget if it is " +
+								"unknown; do not invent one.",
 						}),
 					},
 					on: {
@@ -56,7 +58,9 @@ export const machine = logic.createMachine({
 						commands: { next: "NEXT" },
 						task: () => ({
 							instructions:
-								"Reduce cost using seasonal alternatives, shared ingredients or existing pantry stock. Preserve the meal count and dietary requirements. Record the revised recipe choices.",
+								"Reduce cost using seasonal alternatives, shared ingredients or " +
+								"existing pantry stock. Preserve the meal count and dietary " +
+								"requirements. Record the revised recipe choices.",
 						}),
 					},
 					on: {
@@ -74,7 +78,9 @@ export const machine = logic.createMachine({
 						commands: { incompatible: "CHOICE.incompatible", safe: "CHOICE.safe" },
 						task: () => ({
 							instructions:
-								"Check the chosen recipes against the household dietary requirements and allergies. Inspect substitutions too. Resolve missing requirements with the user before choosing safe.",
+								"Check the chosen recipes against the household dietary requirements " +
+								"and allergies. Inspect substitutions too. Resolve missing " +
+								"requirements with the user before choosing safe.",
 						}),
 					},
 					on: {
@@ -89,7 +95,8 @@ export const machine = logic.createMachine({
 				title: "Meal planning complete",
 				task: () => ({
 					instructions:
-						"The dated meal plan and grocery list are ready, with pantry deductions and fallback choices recorded. Finish this workflow bead.",
+						"The dated meal plan and grocery list are ready, with pantry " +
+						"deductions and fallback choices recorded. Finish this workflow bead.",
 				}),
 			},
 			type: "final",
@@ -103,7 +110,9 @@ export const machine = logic.createMachine({
 						commands: { done: "CHOICE.done", revise: "CHOICE.revise" },
 						task: () => ({
 							instructions:
-								"Verify that every planned meal has ingredients covered by pantry stock or the shopping list, quantities match servings, and the plan fits calendar, diet and budget. Choose revise if anything changed.",
+								"Verify that every planned meal has ingredients covered by pantry " +
+								"stock or the shopping list, quantities match servings, and the plan " +
+								"fits calendar, diet and budget. Choose revise if anything changed.",
 						}),
 					},
 					on: {
@@ -120,7 +129,10 @@ export const machine = logic.createMachine({
 						commands: { next: "NEXT" },
 						task: () => ({
 							instructions:
-								"Produce one consolidated shopping list grouped by shop and aisle, with quantities and agreed substitutes. Include the estimated cost. If nothing is needed, explicitly say so. This workflow does not place an order.",
+								"Produce one consolidated shopping list grouped by shop and aisle, " +
+								"with quantities and agreed substitutes. Include the estimated cost. " +
+								"If nothing is needed, explicitly say so. This workflow does not " +
+								"place an order.",
 						}),
 					},
 					on: {
@@ -133,7 +145,9 @@ export const machine = logic.createMachine({
 						commands: { next: "NEXT" },
 						task: () => ({
 							instructions:
-								"Produce a dated meal plan with recipe links, servings, prep time and leftovers. Align late evenings and guest meals with the calendar. Include the agreed recipe fallbacks.",
+								"Produce a dated meal plan with recipe links, servings, prep time and " +
+								"leftovers. Align late evenings and guest meals with the calendar. " +
+								"Include the agreed recipe fallbacks.",
 						}),
 					},
 					on: {
@@ -151,7 +165,9 @@ export const machine = logic.createMachine({
 						commands: { next: "NEXT" },
 						task: () => ({
 							instructions:
-								"Check fridge, freezer and cupboard stock against the recipes. Record usable quantities and expiry dates. Subtract usable stock; do not assume a staple is available.",
+								"Check fridge, freezer and cupboard stock against the recipes. Record " +
+								"usable quantities and expiry dates. Subtract usable stock; do not " +
+								"assume a staple is available.",
 						}),
 					},
 					on: {
@@ -169,7 +185,10 @@ export const machine = logic.createMachine({
 						commands: { busy: "CHOICE.busy", flexible: "CHOICE.flexible" },
 						task: () => ({
 							instructions:
-								"Check the calendar for meals at home, late evenings, guests and travel. Record the dates and number of servings. Choose busy for limited cooking time or flexible when there is time to cook. Discover the payload contract and supply the actual meal count.",
+								"Check the calendar for meals at home, late evenings, guests and " +
+								"travel. Record the dates and number of servings. Choose busy for " +
+								"limited cooking time or flexible when there is time to cook. " +
+								"Discover the payload contract and supply the actual meal count.",
 						}),
 					},
 					on: {
@@ -194,7 +213,9 @@ export const machine = logic.createMachine({
 						commands: { next: "NEXT" },
 						task: () => ({
 							instructions:
-								"Read the saved recipes. Select quick dinners and one batch recipe that fit the busy evenings. Reuse ingredients and schedule leftovers. Record recipe links and servings.",
+								"Read the saved recipes. Select quick dinners and one batch recipe " +
+								"that fit the busy evenings. Reuse ingredients and schedule " +
+								"leftovers. Record recipe links and servings.",
 						}),
 					},
 					on: {
@@ -207,7 +228,9 @@ export const machine = logic.createMachine({
 						commands: { next: "NEXT" },
 						task: () => ({
 							instructions:
-								"Replace the recipe that conflicts with diet, budget or availability. Prefer a saved recipe sharing ingredients already planned. Keep the calendar and servings fixed unless the user asks otherwise.",
+								"Replace the recipe that conflicts with diet, budget or availability. " +
+								"Prefer a saved recipe sharing ingredients already planned. Keep the " +
+								"calendar and servings fixed unless the user asks otherwise.",
 						}),
 					},
 					on: {
@@ -220,7 +243,9 @@ export const machine = logic.createMachine({
 						commands: { next: "NEXT" },
 						task: () => ({
 							instructions:
-								"Read the saved recipes and choose a varied set of meals for the calendar. Include preparation time, servings, guest meals and leftovers. Record recipe links.",
+								"Read the saved recipes and choose a varied set of meals for the " +
+								"calendar. Include preparation time, servings, guest meals and " +
+								"leftovers. Record recipe links.",
 						}),
 					},
 					on: {
@@ -242,7 +267,9 @@ export const machine = logic.createMachine({
 						},
 						task: () => ({
 							instructions:
-								"Check availability of the remaining items at the preferred shop. Choose available if all required items can be obtained, including the case where the pantry already covers everything.",
+								"Check availability of the remaining items at the preferred shop. " +
+								"Choose available if all required items can be obtained, including " +
+								"the case where the pantry already covers everything.",
 						}),
 					},
 					on: {
@@ -257,7 +284,9 @@ export const machine = logic.createMachine({
 						commands: { next: "NEXT", replan: "CHOICE.replan" },
 						task: () => ({
 							instructions:
-								"Scale recipe ingredients to servings, combine duplicates, normalize compatible units and subtract pantry quantities. Group the remaining items by shop section. Keep recipe links for substitutions.",
+								"Scale recipe ingredients to servings, combine duplicates, normalize " +
+								"compatible units and subtract pantry quantities. Group the remaining " +
+								"items by shop section. Keep recipe links for substitutions.",
 						}),
 					},
 					on: {
@@ -276,7 +305,9 @@ export const machine = logic.createMachine({
 						},
 						task: () => ({
 							instructions:
-								"For each unavailable item, compare a dietary-safe ingredient substitute, another shop, or a replacement recipe. Record the choice and quantities. Do not silently drop a meal.",
+								"For each unavailable item, compare a dietary-safe ingredient " +
+								"substitute, another shop, or a replacement recipe. Record the choice " +
+								"and quantities. Do not silently drop a meal.",
 						}),
 					},
 					on: {
@@ -295,7 +326,9 @@ export const machine = logic.createMachine({
 						commands: { next: "NEXT", replan: "CHOICE.replan" },
 						task: () => ({
 							instructions:
-								"Check the missing items at another suitable shop and record the source and price. Recheck the consolidated list after changing shops.",
+								"Check the missing items at another suitable shop and record the " +
+								"source and price. Recheck the consolidated list after changing " +
+								"shops.",
 						}),
 					},
 					on: {

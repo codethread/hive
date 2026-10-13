@@ -49,7 +49,8 @@ test("typed records and saved filters are detached from mutable fixture storage"
 	expect(matches.issues).toHaveLength(ONE);
 });
 
-// eslint-disable-next-line max-statements -- One injected clock proves time-gate maturity and monotonic revisions through clock reversal.
+// One injected clock proves time-gate maturity and monotonic revisions through clock reversal.
+// eslint-disable-next-line max-statements
 test("deferral follows the fixture clock without requiring another mutation", async () => {
 	let now = "2026-01-01T00:00:00.000Z";
 	const memory = createMemoryBeads({ now: () => now });

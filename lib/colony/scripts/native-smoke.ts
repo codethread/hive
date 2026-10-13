@@ -1,7 +1,9 @@
 #!/usr/bin/env bun
 // eslint-disable-next-line import/no-nodejs-modules -- Every probe endpoint and executable is explicit.
 import { join, resolve } from "node:path";
-// eslint-disable-next-line import/no-nodejs-modules -- Manual native probes retain an isolated repository and private evidence directory.
+/* eslint-disable-next-line import/no-nodejs-modules --
+ * Manual native probes retain an isolated repository and private evidence directory.
+ */
 import { mkdir, realpath } from "node:fs/promises";
 import type { ColonyInspection } from "@hive/shared";
 import { Command } from "commander";
@@ -60,7 +62,9 @@ const command = new Command()
 await run(optionsSchema.parse(command.opts()));
 
 // --- Probe workflow ---
-// eslint-disable-next-line max-statements -- One isolated probe owns fixture creation, public execution, evidence and cleanup.
+/* eslint-disable-next-line max-statements --
+ * One isolated probe owns fixture creation, public execution, evidence and cleanup.
+ */
 async function run(options: Options): Promise<void> {
 	const fixture = await createFixture(options);
 	let spawnId: string | undefined = undefined;
@@ -175,16 +179,32 @@ async function createFixture(options: Options): Promise<Fixture> {
 }
 
 async function writeProbe(fixture: Fixture, taskId: string): Promise<void> {
-	const script = `const names = ["BD_ACTOR", "HIVE_AGENT_NAME", "BR_AGENT_NAME", "BR_HARNESS", "BR_MODEL", "BEADS_DB", "HIVE_ATTEMPT_ID"];
-await Bun.write("tool-evidence.json", JSON.stringify({cwd: process.cwd(), env: Object.fromEntries(names.map(name => [name, process.env[name]]))}, null, 2));
-const child = Bun.spawn(["br", "close", ${JSON.stringify(taskId)}, "--reason", "Native tool subprocess completed", "--db", process.env.BEADS_DB, "--actor", process.env.BD_ACTOR, "--json"], {stdout: "pipe", stderr: "pipe"});
-const [stdout, stderr, code] = await Promise.all([new Response(child.stdout).text(), new Response(child.stderr).text(), child.exited]);
-await Bun.write("tool-closure.json", JSON.stringify({code, stderr, stdout}, null, 2));
+	const script =
+		`const names = ["BD_ACTOR", "HIVE_AGENT_NAME", "BR_AGENT_NAME", "BR_HARNESS", ` +
+		`"BR_MODEL", "BEADS_DB", "HIVE_ATTEMPT_ID"];
+await Bun.write("tool-evidence.json", JSON.stringify({cwd: process.cwd(), ` +
+		`env: Object.fromEntries(names.map(name => [name, process.env[name]]))}, ` +
+		`null, 2));
+const child = Bun.spawn(["br", "close", ${JSON.stringify(taskId)}, ` +
+		`"--reason", "Native tool subprocess completed", "--db", ` +
+		`process.env.BEADS_DB, ` +
+		`"--actor", process.env.BD_ACTOR, "--json"], {stdout: "pipe", stderr: ` +
+		`"pipe"});
+const [stdout, stderr, code] = await Promise.all([new Response(child.stdout).text(), ` +
+		`new Response(child.stderr).text(), child.exited]);
+await Bun.write("tool-closure.json", JSON.stringify({code, stderr, ` +
+		`stdout}, null, 2));
 if (code !== 0) throw new Error(stderr);
 console.log("Native tool probe complete");
 `;
 	await Bun.write(join(fixture.repo, "probe.ts"), script);
-	const prompt = `Use your shell tool to execute this exact command in the current repository: ${JSON.stringify(process.execPath)} ./probe.ts . It writes a local environment receipt and closes only the disposable related task. Do not edit the script, override environment variables, close the spawn request, or change any account/hook/trust settings. After it succeeds, reply briefly and finish.`;
+	const prompt =
+		`Use your shell tool to execute this exact command in the current ` +
+		`repository: ${JSON.stringify(process.execPath)} ./probe.ts . It ` +
+		`writes a local environment receipt and closes only ` +
+		`the disposable related task. Do not edit the script, override environment ` +
+		`variables, close the spawn request, or change any account/hook/trust ` +
+		`settings. After it succeeds, reply briefly and finish.`;
 	const { argv, headless } = nativeArguments(fixture.options.harness);
 	await Bun.write(
 		join(fixture.repo, ".hive", "bees.toml"),
@@ -251,7 +271,9 @@ function nativeArguments(harness: Options["harness"]): { argv: string[]; headles
 		.exhaustive();
 }
 
-// eslint-disable-next-line max-statements -- Verify native tool evidence against immutable launch and terminal tracker records.
+/* eslint-disable-next-line max-statements --
+ * Verify native tool evidence against immutable launch and terminal tracker records.
+ */
 async function verify(
 	fixture: Fixture,
 	result: { identity: string; inspection: ColonyInspection; spawnId: string; taskId: string },
@@ -299,7 +321,9 @@ async function verify(
 	await save(fixture, "tool-evidence.json", evidence);
 }
 
-// eslint-disable-next-line max-statements -- Always stop the owned daemon while retaining reconciliation and teardown errors.
+/* eslint-disable-next-line max-statements --
+ * Always stop the owned daemon while retaining reconciliation and teardown errors.
+ */
 async function cleanup(fixture: Fixture, spawnId: string | undefined): Promise<void> {
 	const errors: unknown[] = [];
 	try {
@@ -422,7 +446,9 @@ async function native(fixture: Fixture, argv: string[]): Promise<string> {
 }
 async function until(check: () => Promise<boolean> | boolean, timeout: number): Promise<void> {
 	const deadline = Date.now() + timeout;
-	// eslint-disable-next-line no-await-in-loop -- Bound polling by native lifecycle evidence, never a fixed completion sleep.
+	/* eslint-disable-next-line no-await-in-loop --
+	 * Bound polling by native lifecycle evidence, never a fixed completion sleep.
+	 */
 	while (!(await check())) {
 		if (Date.now() >= deadline) {
 			throw new Error("Native probe deadline exceeded");

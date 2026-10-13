@@ -36,7 +36,10 @@ export interface RunRuntime {
 }
 
 /** A user-invoked harness launch, independent of Colony and Beads. */
-// eslint-disable-next-line max-statements -- Validate once, prepare the invocation and hand off without introducing a managed lifecycle.
+/* eslint-disable-next-line max-statements --
+ * Validate once, prepare the invocation and hand off without introducing a managed
+ * lifecycle.
+ */
 export async function runKind(
 	kind: string,
 	options: RunOptions,

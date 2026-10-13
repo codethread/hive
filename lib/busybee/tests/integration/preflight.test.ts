@@ -31,78 +31,87 @@ const persistedRootSchema = z.compile(
 const definition = makeDefinition();
 const run = savedRun("run");
 
-// eslint-disable-next-line max-statements -- Verify one complete CLI report and its no-effect boundary together.
-test("preflight CLI retains failed and unchecked runs, filters completed/other runs, and never writes or starts #test-37", async () => {
-	let started = FIRST;
-	let rendered = FIRST;
-	const candidate = makeDefinition(
-		() => {
-			rendered += FAILURE;
-		},
-		() => {
-			started += FAILURE;
-		},
-	);
-	const invalid = savedRun("invalid");
-	invalid.snapshot = { ...invalid.snapshot, context: { revision: FAILURE } };
-	const other = savedRun("other");
-	other.definition = { kind: "named", name: "another", version: "1.0.0" };
-	const fixture = await memoryTracker(candidate, [invalid, run, savedRun("closed"), other]);
-	await fixture.beads.close(fixture.scope, fixture.ids.get("closed")!);
-	const before = await fixture.records();
-	const result = await captureCli(
-		["--repo", repo, "--db", db, "preflight", "example", "--json"],
-		fixture.services,
-	);
-	expect(result.code).toBe(FAILURE);
-	expect(result.stderr).toBe("");
-	expect(JSON.parse(result.stdout)).toMatchObject({
-		kind: "preflight",
-		ok: false,
-		reason: "preflight_incompatible",
-		message: expect.any(String),
-		repo,
-		db,
-		source,
-		version: "1.1.0",
-		status: "incompatible",
-		runs: [
-			{ id: fixture.ids.get("run"), status: "unchecked" },
-			{ id: fixture.ids.get("invalid"), status: "incompatible" },
-		],
-	});
-	expect(started).toBe(FIRST);
-	expect(rendered).toBe(TARGET);
-	expect(await fixture.records()).toEqual(before);
-	expect(fixture.calls).toContainEqual({
-		scope: { cwd: repo, db },
-		selection: { labels: ["system", "busybee-checkpoint"], all: true, limit: FIRST },
-	});
-	expect(fixture.reads.toSorted()).toEqual(
-		["closed", "invalid", "run"].map((name) => fixture.ids.get(name)!).toSorted(),
-	);
-});
+// Verify one complete CLI report and its no-effect boundary together.
+test(
+	"preflight CLI retains failed and unchecked runs, filters " +
+		"completed/other runs, and never writes or starts #test-37",
+	// eslint-disable-next-line max-statements
+	async () => {
+		let started = FIRST;
+		let rendered = FIRST;
+		const candidate = makeDefinition(
+			() => {
+				rendered += FAILURE;
+			},
+			() => {
+				started += FAILURE;
+			},
+		);
+		const invalid = savedRun("invalid");
+		invalid.snapshot = { ...invalid.snapshot, context: { revision: FAILURE } };
+		const other = savedRun("other");
+		other.definition = { kind: "named", name: "another", version: "1.0.0" };
+		const fixture = await memoryTracker(candidate, [invalid, run, savedRun("closed"), other]);
+		await fixture.beads.close(fixture.scope, fixture.ids.get("closed")!);
+		const before = await fixture.records();
+		const result = await captureCli(
+			["--repo", repo, "--db", db, "preflight", "example", "--json"],
+			fixture.services,
+		);
+		expect(result.code).toBe(FAILURE);
+		expect(result.stderr).toBe("");
+		expect(JSON.parse(result.stdout)).toMatchObject({
+			kind: "preflight",
+			ok: false,
+			reason: "preflight_incompatible",
+			message: expect.any(String),
+			repo,
+			db,
+			source,
+			version: "1.1.0",
+			status: "incompatible",
+			runs: [
+				{ id: fixture.ids.get("run"), status: "unchecked" },
+				{ id: fixture.ids.get("invalid"), status: "incompatible" },
+			],
+		});
+		expect(started).toBe(FIRST);
+		expect(rendered).toBe(TARGET);
+		expect(await fixture.records()).toEqual(before);
+		expect(fixture.calls).toContainEqual({
+			scope: { cwd: repo, db },
+			selection: { labels: ["system", "busybee-checkpoint"], all: true, limit: FIRST },
+		});
+		expect(fixture.reads.toSorted()).toEqual(
+			["closed", "invalid", "run"].map((name) => fixture.ids.get(name)!).toSorted(),
+		);
+	},
+);
 
-test("successful CLI reports explicit uncertainty and resolves proposed source from invoking directory #test-41", async () => {
-	const fixture = await memoryTracker(definition, []);
-	fixture.services.readDirectory = () => {
-		throw new Error("Standalone proposal must not require catalogue");
-	};
-	const result = await captureCli(
-		["preflight", "example", "--source", "proposed.ts", "--json"],
-		fixture.services,
-	);
-	expect(result.code).toBe(SUCCESS);
-	expect(JSON.parse(result.stdout)).toMatchObject({
-		kind: "preflight",
-		ok: true,
-		version: null,
-		source: `${repo}/proposed.ts`,
-		status: "unchecked",
-		runs: [],
-	});
-	expect(fixture.imports).toEqual([`${repo}/proposed.ts`]);
-});
+test(
+	"successful CLI reports explicit uncertainty and resolves proposed " +
+		"source from invoking directory #test-41",
+	async () => {
+		const fixture = await memoryTracker(definition, []);
+		fixture.services.readDirectory = () => {
+			throw new Error("Standalone proposal must not require catalogue");
+		};
+		const result = await captureCli(
+			["preflight", "example", "--source", "proposed.ts", "--json"],
+			fixture.services,
+		);
+		expect(result.code).toBe(SUCCESS);
+		expect(JSON.parse(result.stdout)).toMatchObject({
+			kind: "preflight",
+			ok: true,
+			version: null,
+			source: `${repo}/proposed.ts`,
+			status: "unchecked",
+			runs: [],
+		});
+		expect(fixture.imports).toEqual([`${repo}/proposed.ts`]);
+	},
+);
 
 test("missing resumeSchema leaves context unchecked despite successful restore and rendering", () => {
 	const { resumeSchema: _schema, ...unchecked } = definition;
@@ -217,28 +226,34 @@ test("native tracker failures keep their diagnostic instead of becoming a missin
 	await expect(preflight("example", {}, fixture.services)).rejects.toBe(nativeFailure);
 });
 
-// eslint-disable-next-line max-statements -- Assess malformed matching, unrelated and completed checkpoint records in one query.
-test("unsupported matching checkpoints preserve other runs and exclude malformed closed/other-name records #test-43", async () => {
-	const other = savedRun("other");
-	other.definition = { kind: "named", name: "another", version: "1.0.0" };
-	const fixture = await memoryTracker(definition, [
-		savedRun("legacy"),
-		run,
-		savedRun("closed"),
-		other,
-	]);
-	await fixture.corruptFormat("legacy");
-	await fixture.beads.close(fixture.scope, fixture.ids.get("closed")!);
-	await fixture.corruptFormat("closed");
-	await fixture.corruptFormat("other");
-	const report = await preflight("example", {}, fixture.services);
-	expect(report.runs).toMatchObject([
-		{ id: fixture.ids.get("run"), status: "unchecked" },
-		{ checkpoint: fixture.checkpoints.get("legacy"), status: "incompatible" },
-	]);
-});
+// Assess malformed matching, unrelated and completed checkpoint records in one query.
+// eslint-disable-next-line max-statements
+test(
+	"unsupported matching checkpoints preserve other runs and exclude " +
+		"malformed closed/other-name records #test-43",
+	async () => {
+		const other = savedRun("other");
+		other.definition = { kind: "named", name: "another", version: "1.0.0" };
+		const fixture = await memoryTracker(definition, [
+			savedRun("legacy"),
+			run,
+			savedRun("closed"),
+			other,
+		]);
+		await fixture.corruptFormat("legacy");
+		await fixture.beads.close(fixture.scope, fixture.ids.get("closed")!);
+		await fixture.corruptFormat("closed");
+		await fixture.corruptFormat("other");
+		const report = await preflight("example", {}, fixture.services);
+		expect(report.runs).toMatchObject([
+			{ id: fixture.ids.get("run"), status: "unchecked" },
+			{ checkpoint: fixture.checkpoints.get("legacy"), status: "incompatible" },
+		]);
+	},
+);
 
-// eslint-disable-next-line max-statements -- Retain independent diagnostics and prove subsequent observations read fresh lock and relation state.
+// Retain independent diagnostics and prove subsequent observations read fresh lock and relation state.
+// eslint-disable-next-line max-statements
 test("malformed identity, orphan checkpoint relations and retained locks stay visible #test-35", async () => {
 	const fixture = await memoryTracker(definition, [savedRun("unknown"), run]);
 	await fixture.beads.update(fixture.scope, [fixture.checkpoints.get("unknown")!], {
@@ -479,7 +494,8 @@ function savedRun(id: string): Run & {
 	};
 }
 
-// eslint-disable-next-line max-statements -- Keep isolated memory seeding and read-only observations local to this report fixture.
+// Keep isolated memory seeding and read-only observations local to this report fixture.
+// eslint-disable-next-line max-statements
 async function memoryTracker(candidate: Definition, runs: Run[]) {
 	const beads = createMemoryBeads({ db });
 	const scope = { actor: "test-agent", cwd: repo, db };

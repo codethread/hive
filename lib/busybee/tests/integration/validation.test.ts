@@ -1,4 +1,5 @@
-/* eslint-disable import/no-nodejs-modules -- Integration tests create isolated author modules with independent dependency copies. */
+// Integration tests create isolated author modules with independent dependency copies.
+/* eslint-disable import/no-nodejs-modules */
 import { assign, createMachine } from "xstate";
 import { cp, mkdtemp, rm } from "node:fs/promises";
 import { dirname, join } from "node:path";
@@ -15,7 +16,9 @@ const FIRST = 0;
 const ASSIGNED_COUNT = 1;
 const SUCCESS = 0;
 const FAILURE = 1;
-const exports = `export const commandSchemas={next:z.object({})};\nexport function runBrief(){return {title:"Example",description:"Example"};}\n`;
+const exports =
+	"export const commandSchemas={next:z.object({})};\nexport function " +
+	'runBrief(){return {title:"Example",description:"Example"};}\n';
 const schemas = { empty: z.object({}), request: z.object({ request: z.string() }) };
 const commonDefinition = {
 	commandSchemas: { next: schemas.empty },
@@ -209,7 +212,9 @@ async function writeIndependentDefinition(directory: string): Promise<string> {
 	const source = join(directory, "workflow.ts");
 	await Bun.write(
 		source,
-		`import {createMachine} from "xstate"; import {z} from "zod"; ${exports} export const inputSchema=z.object({});export const machine=createMachine({initial:"work",states:{work:{}}});`,
+		`import {createMachine} from "xstate"; import {z} from "zod"; ${exports}` +
+			" export const inputSchema=z.object({});export const " +
+			'machine=createMachine({initial:"work",states:{work:{}}});',
 	);
 	return source;
 }

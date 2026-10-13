@@ -78,7 +78,7 @@ function splitRecordLines(record: string): RecordFields {
 	return { attributes, flags };
 }
 
-// Git porcelain omits absent fields while Worktree JSON encodes that absence as explicit null; these null literals are the external contract, not a sentinel.
+// Git porcelain omits absent fields; Worktree JSON uses explicit null as the external contract.
 function localBranchName(branchRef: string | null): string | null {
 	if (branchRef === null || !branchRef.startsWith(REF_HEADS_PREFIX)) {
 		// oxlint-disable-next-line unicorn/no-null -- Absent Git metadata is an explicit-null public parser contract.

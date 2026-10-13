@@ -103,7 +103,14 @@ function buildPickerPreview(noNetwork: boolean): string {
 	if (noNetwork) {
 		git += " --no-lazy-fetch";
 	}
-	return `slot={1}; counts=$(${git} -C "$slot" rev-list --left-right --count @{upstream}...HEAD 2>/dev/null); if [ $? -ne 0 ] || [ -z "$counts" ]; then echo '⚠ local-only branch'; else ahead=$(echo "$counts" | awk '{print $2}'); [ "$ahead" -gt 0 ] 2>/dev/null && echo "⚠ $ahead unpushed commits will be lost"; echo "upstream: $(echo "$counts" | awk '{print $1}') behind, $ahead ahead"; fi; ${git} -C "$slot" log -5 --format='%h %s'; ${git} -C "$slot" status --porcelain | head`;
+	return (
+		`slot={1}; counts=$(${git} -C "$slot" rev-list --left-right --count @{upstream}...HEAD ` +
+		`2>/dev/null); if [ $? -ne 0 ] || [ -z "$counts" ]; then echo '⚠ local-only branch'; else ` +
+		`ahead=$(echo "$counts" | awk '{print $2}'); [ "$ahead" -gt 0 ] 2>/dev/null && echo "⚠ $ahead ` +
+		`unpushed commits will be lost"; echo "upstream: $(echo "$counts" | awk '{print $1}') behind, ` +
+		`$ahead ahead"; fi; ${git} -C "$slot" log -5 --format='%h %s'; ${git} -C "$slot" status ` +
+		`--porcelain | head`
+	);
 }
 
 async function buildPickerItems(
@@ -113,10 +120,13 @@ async function buildPickerItems(
 ): Promise<PickerItem[]> {
 	const items: PickerItem[] = [];
 	for (const slot of candidates) {
-		// eslint-disable-next-line no-await-in-loop -- Preserve ordered Git observations and first-failure behavior for picker rows.
+		// Preserve ordered Git observations and first-failure behavior for picker rows.
+		// eslint-disable-next-line no-await-in-loop
 		const risk = await describeSlotRisk(deps.git, slot);
 		items.push({
-			display: `${slot.path}\tfeat${slot.index}  ${slot.branch ?? "(detached)"}  ${formatRelativeAge(slot.lastCommitIso, deps.clock.now())}${slotFlags(slot, risk)}`,
+			display:
+				`${slot.path}\tfeat${slot.index}  ${slot.branch ?? "(detached)"}  ` +
+				`${formatRelativeAge(slot.lastCommitIso, deps.clock.now())}${slotFlags(slot, risk)}`,
 			key: String(slot.index),
 			preview: buildPickerPreview(noNetwork),
 		});

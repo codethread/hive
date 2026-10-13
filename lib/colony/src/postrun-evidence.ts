@@ -1,7 +1,9 @@
 /* eslint-disable unicorn/no-null -- Missing native counters remain unknown rather than zero. */
 // eslint-disable-next-line import/no-nodejs-modules -- Codex's native default applies when CODEX_HOME is not supplied.
 import { homedir } from "node:os";
-// eslint-disable-next-line import/no-nodejs-modules -- Locate only the exact native thread named by the owned stdout log.
+/* eslint-disable-next-line import/no-nodejs-modules --
+ * Locate only the exact native thread named by the owned stdout log.
+ */
 import { join } from "node:path";
 import { z } from "zod";
 
@@ -88,8 +90,11 @@ export function codexTokenEvidence(lines: string[]): TokenEvidence {
 		}
 	}
 	const uncertainty = [
-		"Orientation attribution is not measured. First-call input, where present, includes all initial context and is not wasted-token accounting.",
-		"Counters are thread-cumulative observations, not attempt deltas or unique document tokens. Cached input is a subset. Do not add overlapping resumed-thread totals.",
+		"Orientation attribution is not measured. First-call input, where " +
+			"present, includes all initial context and is not wasted-token accounting.",
+		"Counters are thread-cumulative observations, not attempt deltas or " +
+			"unique document tokens. Cached input is a subset. Do not add overlapping " +
+			"resumed-thread totals.",
 	];
 	if (threads.has(null)) {
 		uncertainty.push("Thread identity unavailable; cross-attempt overlap cannot be established.");
@@ -110,7 +115,9 @@ export function codexTokenEvidence(lines: string[]): TokenEvidence {
 }
 
 /** Read only owned stdout and exact thread-matched rollouts; missing telemetry is visible coverage. */
-// eslint-disable-next-line max-statements -- Keep source selection and cross-source cumulative-counter deduplication adjacent.
+/* eslint-disable-next-line max-statements --
+ * Keep source selection and cross-source cumulative-counter deduplication adjacent.
+ */
 export async function readTokenEvidence(
 	path: string,
 	harness: string,
@@ -133,7 +140,9 @@ export async function readTokenEvidence(
 		}
 	}
 	for (const id of ids) {
-		// eslint-disable-next-line no-await-in-loop -- Read at most one exact, validated native thread per observed identity.
+		/* eslint-disable-next-line no-await-in-loop --
+		 * Read at most one exact, validated native thread per observed identity.
+		 */
 		const rollout = await readRollout(codexHome, id);
 		if (rollout.kind === "unavailable") {
 			evidence.uncertainty.push(`Thread ${id}: ${rollout.reason}`);

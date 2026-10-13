@@ -1,6 +1,8 @@
 /* eslint-disable unicorn/no-null -- Unknown checkpoint fields are explicit in durable history. */
 import { expect, test } from "bun:test";
-// eslint-disable-next-line import/no-nodejs-modules -- Exercise the real private SQLite boundary in disposable directories.
+/* eslint-disable-next-line import/no-nodejs-modules --
+ * Exercise the real private SQLite boundary in disposable directories.
+ */
 import { mkdtemp, readdir, rm } from "node:fs/promises";
 import { CommandError } from "@hive/beads";
 import type { RequestRecord } from "./request.ts";
@@ -33,7 +35,9 @@ const request: RequestRecord = {
 	state: "waiting",
 };
 
-// eslint-disable-next-line max-statements -- Exercise one failed operation and verify offline reads preserve its private database.
+/* eslint-disable-next-line max-statements --
+ * Exercise one failed operation and verify offline reads preserve its private database.
+ */
 test("history retains native failure and confirmed partial effects without mutating inspected state", async () => {
 	const state = await mkdtemp(join(tmpdir(), "colony-history-"));
 	const store = openStore(state);
@@ -46,7 +50,8 @@ test("history retains native failure and confirmed partial effects without mutat
 				error: {
 					code: "SYNC_CONFLICT",
 					message:
-						"Tracker failed token=secret-value Bearer hidden-value access_token=access-value client_secret=client-value DB_PASSWORD=db-value HIVE_ATTEMPT_TOKEN=attempt-value",
+						"Tracker failed token=secret-value Bearer hidden-value access_token=access-value " +
+						"client_secret=client-value DB_PASSWORD=db-value HIVE_ATTEMPT_TOKEN=attempt-value",
 				},
 			}),
 		});
@@ -85,7 +90,8 @@ test("history retains native failure and confirmed partial effects without mutat
 				code: "SYNC_CONFLICT",
 				exitCode: EXIT_FAILURE,
 				message:
-					"Tracker failed token=[redacted] Bearer [redacted] access_token=[redacted] client_secret=[redacted] DB_PASSWORD=[redacted] HIVE_ATTEMPT_TOKEN=[redacted]",
+					"Tracker failed token=[redacted] Bearer [redacted] access_token=[redacted] " +
+					"client_secret=[redacted] DB_PASSWORD=[redacted] HIVE_ATTEMPT_TOKEN=[redacted]",
 				step: { operation: "tracker.claim", target: "task-b" },
 			},
 			status: "failed",

@@ -83,7 +83,12 @@ export function reportTestRun(run: TestRun, allowances: Allowances): TestRunFeed
 		lines,
 		exitCode: run.exitCode || failureExitCode,
 		guidance:
-			"ERROR test:all: unapproved DANGER timings block landing. Refactor meaningful tests, setup or dependency seams using relevant skills, preserving coverage, then rerun bun run check. If the measured cost is necessary, propose the exact lib/tooling/slow-tests.json allowance and justification for explicit user sign-off before editing it. Landing remains blocked until the gate passes.",
+			"ERROR test:all: unapproved DANGER timings block landing. Refactor " +
+			"meaningful tests, setup or dependency seams using relevant skills, " +
+			"preserving coverage, then rerun bun run check. If the measured cost " +
+			"is necessary, propose the exact lib/tooling/slow-tests.json " +
+			"allowance and justification for explicit user sign-off before " +
+			"editing it. Landing remains blocked until the gate passes.",
 	};
 }
 
@@ -119,7 +124,12 @@ function collectSlowTests(xml: string, allowances: Allowances) {
 			return [
 				{
 					severity,
-					line: `${testCase.file}:${testCase.line} ${severity} ${durationMs.toFixed(durationPrecision)}ms ${description.replaceAll(/\s+/gu, " ")}`,
+					line:
+						`${testCase.file}:` +
+						`${testCase.line} ` +
+						`${severity} ` +
+						`${durationMs.toFixed(durationPrecision)}ms ` +
+						`${description.replaceAll(/\s+/gu, " ")}`,
 				},
 			];
 		});

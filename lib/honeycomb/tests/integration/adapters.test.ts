@@ -1,14 +1,18 @@
 import { EXIT_CODES, HookError } from "../../src/errors.ts";
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-// oxlint-disable-next-line import/no-nodejs-modules -- Integration fixtures exercise real filesystem and process boundaries.
+// Integration fixtures exercise real filesystem and process boundaries.
+// oxlint-disable-next-line import/no-nodejs-modules
 import { chmod, mkdtemp, rm, writeFile } from "node:fs/promises";
-// oxlint-disable-next-line import/no-nodejs-modules -- Integration fixtures exercise real filesystem and process boundaries.
+// Integration fixtures exercise real filesystem and process boundaries.
+// oxlint-disable-next-line import/no-nodejs-modules
 import { closeSync, openSync, writeSync } from "node:fs";
 import { createLiveGitRunner } from "../../src/git/executor.ts";
 import { createLiveHookRunner } from "../../src/hooks.ts";
-// oxlint-disable-next-line import/no-nodejs-modules -- Integration fixtures exercise real filesystem and process boundaries.
+// Integration fixtures exercise real filesystem and process boundaries.
+// oxlint-disable-next-line import/no-nodejs-modules
 import { join } from "node:path";
-// oxlint-disable-next-line import/no-nodejs-modules -- Integration fixtures exercise real filesystem and process boundaries.
+// Integration fixtures exercise real filesystem and process boundaries.
+// oxlint-disable-next-line import/no-nodejs-modules
 import { tmpdir } from "node:os";
 
 const HOOK_FAILURE_CODE = 7;
@@ -41,7 +45,8 @@ describe("LiveHookRunner", () => {
 
 	test("streams output while the hook waits for a response", async () => {
 		const { fifo, script } = await createHandshake(tmp);
-		// oxlint-disable-next-line node/no-sync -- The synchronous streaming callback must answer the waiting FIFO immediately.
+		// The synchronous streaming callback must answer the waiting FIFO immediately.
+		// oxlint-disable-next-line node/no-sync
 		const response = openSync(fifo, "r+");
 		try {
 			const seen: string[] = [];

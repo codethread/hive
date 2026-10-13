@@ -220,7 +220,8 @@ async function selectionOptions({ service, scope }: ContractSession, id: string)
 		},
 	];
 	const pages = [];
-	/* eslint-disable no-await-in-loop -- Native selections are observed independently with their exact expected ordering. */
+	// Native selections are observed independently with their exact expected ordering.
+	/* eslint-disable no-await-in-loop */
 	for (const { selection, titles } of rows) {
 		const page = await service.list(scope, selection);
 		expect(page.issues.map((issue) => issue.title)).toEqual(titles);
@@ -267,7 +268,8 @@ async function selectionOptions({ service, scope }: ContractSession, id: string)
 		{ all: true, offset: 99, limit: 1 },
 	];
 	const searches = [];
-	/* eslint-disable no-await-in-loop -- Search exercises the shared exposed selection options through its own native query path. */
+	// Search exercises the shared exposed selection options through its own native query path.
+	/* eslint-disable no-await-in-loop */
 	for (const selection of searchSelections) {
 		searches.push(pageFacts(await service.search(scope, "needle", selection)));
 	}

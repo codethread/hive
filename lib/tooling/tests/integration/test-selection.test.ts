@@ -16,26 +16,30 @@ const untracked = "lib/beads/tests/contract/fixtures.ts";
 const alternateInput = "bunfig.toml";
 const expectedInputs = [committed, staged, unstaged, untracked].toSorted();
 
-test("Git discovery selects committed, staged, unstaged and untracked inputs with alternate changed references", async () => {
-	const root = await mkdtemp(join(tmpdir(), "hive test selection "));
-	try {
-		await prepare(root);
-		const changed = await readChangedPaths("main", root);
-		expect(changed.toSorted()).toEqual(expectedInputs);
-		expect(selectTestRuns("changed", changed).map((run) => run.suite)).toEqual([
-			"ordinary",
-			"contracts",
-		]);
-		const alternate = await readChangedPaths("alternate", root);
-		expect(alternate.toSorted()).toEqual([...expectedInputs, alternateInput].toSorted());
-		expect(selectTestRuns("changed", alternate).map((run) => run.suite)).toEqual([
-			"ordinary",
-			"contracts",
-		]);
-	} finally {
-		await rm(root, { force: true, recursive: true });
-	}
-});
+test(
+	"Git discovery selects committed, staged, unstaged and untracked " +
+		"inputs with alternate changed references",
+	async () => {
+		const root = await mkdtemp(join(tmpdir(), "hive test selection "));
+		try {
+			await prepare(root);
+			const changed = await readChangedPaths("main", root);
+			expect(changed.toSorted()).toEqual(expectedInputs);
+			expect(selectTestRuns("changed", changed).map((run) => run.suite)).toEqual([
+				"ordinary",
+				"contracts",
+			]);
+			const alternate = await readChangedPaths("alternate", root);
+			expect(alternate.toSorted()).toEqual([...expectedInputs, alternateInput].toSorted());
+			expect(selectTestRuns("changed", alternate).map((run) => run.suite)).toEqual([
+				"ordinary",
+				"contracts",
+			]);
+		} finally {
+			await rm(root, { force: true, recursive: true });
+		}
+	},
+);
 
 // eslint-disable-next-line max-statements -- Keep the bounded branch/index/worktree fixture together.
 async function prepare(root: string): Promise<void> {

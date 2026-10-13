@@ -270,7 +270,8 @@ function createResource<Value>(
 	return { load, store };
 }
 
-// eslint-disable-next-line max-statements -- Retire overlapping snapshots and publish complete member aliases atomically.
+// Retire overlapping snapshots and publish complete member aliases atomically.
+// eslint-disable-next-line max-statements
 function publishHierarchy(
 	entries: ResourceState<Hierarchy>["entries"],
 	key: string,
@@ -311,7 +312,8 @@ function publishHierarchy(
 	return next;
 }
 
-// eslint-disable-next-line max-statements -- Account for every fetch, decode and validation outcome in one transport boundary.
+// Account for every fetch, decode and validation outcome in one transport boundary.
+// eslint-disable-next-line max-statements
 async function request<Value>(path: string, schema: z.ZodType<Value>): Promise<Value> {
 	const start = performance.now();
 	let requestId: string | null = null;

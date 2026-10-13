@@ -16,7 +16,8 @@ interface HierarchyReads {
 }
 
 /** Traverse complete ordinary families with bounded native concurrency, without reading comments. */
-// eslint-disable-next-line max-statements -- Each frontier discovers the next explicit native links; publish only a complete traversal.
+// Each frontier discovers the next explicit native links; publish only a complete traversal.
+// eslint-disable-next-line max-statements
 export async function readHierarchy(
 	ids: string[],
 	reads: HierarchyReads,
@@ -52,7 +53,8 @@ export async function readHierarchy(
 						known.filter((edge) => edge.issue_id === row.id).length === row.dependency_count &&
 						known.filter((edge) => edge.depends_on_id === row.id).length === row.dependent_count
 					) {
-						// eslint-disable-next-line promise/no-return-wrap -- The aggregator accepts both known and asynchronously read edges as promises.
+						// The aggregator accepts both known and asynchronously read edges as promises.
+						// eslint-disable-next-line promise/no-return-wrap
 						return Promise.resolve(known);
 					}
 					return reads.edges(row.id);

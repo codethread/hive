@@ -62,7 +62,9 @@ test("submission rejects human reservations and admits one open request per task
 	).rejects.toBeInstanceOf(Error);
 });
 
-// eslint-disable-next-line max-statements -- Verify the retained replacement and unchanged predecessor after a partial write.
+/* eslint-disable-next-line max-statements --
+ * Verify the retained replacement and unchanged predecessor after a partial write.
+ */
 test("retry retains a created replacement when predecessor label publication fails", async () => {
 	const beads = beforeTrackerWrite(retry.beads, () => {
 		throw new Error("publication unavailable");

@@ -1,4 +1,6 @@
-// oxlint-disable max-classes-per-file -- The error taxonomy is one cohesive module: a tiny class per failure reason keeps instanceof checks, exit codes, and reasons together.
+// The error taxonomy is cohesive, with a tiny class per failure reason.
+// Each class keeps instanceof checks, exit codes, and reasons together.
+// oxlint-disable max-classes-per-file
 
 export const EXIT_CODES = {
 	BLOCKED: 10,
@@ -41,7 +43,8 @@ export class HoneycombError extends Error {
 	constructor(message: string, exitCode: number = EXIT_CODES.FAILURE, options?: ErrorOptions) {
 		super(message, options);
 		this.exitCode = exitCode;
-		// oxlint-disable-next-line unicorn/custom-error-definition -- HoneycombError derives the concrete name from new.target, including external subclasses.
+		// HoneycombError derives the concrete name from new.target, including external subclasses.
+		// oxlint-disable-next-line unicorn/custom-error-definition
 		this.name = new.target.name;
 	}
 }
@@ -49,7 +52,8 @@ export class HoneycombError extends Error {
 /** A non-honeycomb throw, normalized so the boundary formats everything the same way. */
 export class UnexpectedError extends HoneycombError {
 	override readonly reason = "internal";
-	// oxlint-disable-next-line unicorn/custom-error-definition -- HoneycombError derives the concrete name from new.target, including external subclasses.
+	// HoneycombError derives the concrete name from new.target, including external subclasses.
+	// oxlint-disable-next-line unicorn/custom-error-definition
 	constructor(cause: unknown) {
 		super(errorMessage(cause), EXIT_CODES.FAILURE, { cause });
 	}
@@ -57,7 +61,8 @@ export class UnexpectedError extends HoneycombError {
 
 export class UsageError extends HoneycombError {
 	override readonly reason: string = "usage";
-	// oxlint-disable-next-line unicorn/custom-error-definition -- HoneycombError derives the concrete name from new.target, including external subclasses.
+	// HoneycombError derives the concrete name from new.target, including external subclasses.
+	// oxlint-disable-next-line unicorn/custom-error-definition
 	constructor(message: string) {
 		super(message, EXIT_CODES.USAGE);
 	}
@@ -66,7 +71,8 @@ export class UsageError extends HoneycombError {
 export class BlockedError extends HoneycombError {
 	override readonly kind = "blocked";
 	override readonly reason: string = "blocked";
-	// oxlint-disable-next-line unicorn/custom-error-definition -- HoneycombError derives the concrete name from new.target, including external subclasses.
+	// HoneycombError derives the concrete name from new.target, including external subclasses.
+	// oxlint-disable-next-line unicorn/custom-error-definition
 	constructor(message: string) {
 		super(message, EXIT_CODES.BLOCKED);
 	}
@@ -75,13 +81,15 @@ export class BlockedError extends HoneycombError {
 export class UnsafeOperationError extends HoneycombError {
 	override readonly kind = "blocked";
 	override readonly reason: string = "unsafe";
-	// oxlint-disable-next-line unicorn/custom-error-definition -- HoneycombError derives the concrete name from new.target, including external subclasses.
+	// HoneycombError derives the concrete name from new.target, including external subclasses.
+	// oxlint-disable-next-line unicorn/custom-error-definition
 	constructor(message: string) {
 		super(message, EXIT_CODES.UNSAFE);
 	}
 }
 
-// oxlint-disable-next-line unicorn/custom-error-definition -- HoneycombError derives the concrete name from new.target, including external subclasses.
+// HoneycombError derives the concrete name from new.target, including external subclasses.
+// oxlint-disable-next-line unicorn/custom-error-definition
 export class ConfigError extends UsageError {
 	override readonly reason = "config";
 }
@@ -89,68 +97,81 @@ export class ConfigError extends UsageError {
 // oxlint-disable-next-line unicorn/custom-error-definition -- Renaming the exported class would change its public name.
 export class PickerCancelled extends HoneycombError {
 	override readonly reason = "cancelled";
-	// oxlint-disable-next-line unicorn/custom-error-definition -- HoneycombError derives the concrete name from new.target, including external subclasses.
+	// HoneycombError derives the concrete name from new.target, including external subclasses.
+	// oxlint-disable-next-line unicorn/custom-error-definition
 	constructor() {
 		super("cancelled", EXIT_CODES.CANCELLED);
 	}
 }
 
-// oxlint-disable-next-line unicorn/custom-error-definition -- HoneycombError derives the concrete name from new.target, including external subclasses.
+// HoneycombError derives the concrete name from new.target, including external subclasses.
+// oxlint-disable-next-line unicorn/custom-error-definition
 export class DuplicateBranchError extends BlockedError {
 	override readonly reason = "duplicate_branch";
 }
 
-// oxlint-disable-next-line unicorn/custom-error-definition -- HoneycombError derives the concrete name from new.target, including external subclasses.
+// HoneycombError derives the concrete name from new.target, including external subclasses.
+// oxlint-disable-next-line unicorn/custom-error-definition
 export class DirtySlotError extends UnsafeOperationError {
 	override readonly reason = "dirty_slot";
 }
 
-// oxlint-disable-next-line unicorn/custom-error-definition -- HoneycombError derives the concrete name from new.target, including external subclasses.
+// HoneycombError derives the concrete name from new.target, including external subclasses.
+// oxlint-disable-next-line unicorn/custom-error-definition
 export class UnmergedBranchError extends UnsafeOperationError {
 	override readonly reason = "unmerged_branch";
 }
 
-// oxlint-disable-next-line unicorn/custom-error-definition -- HoneycombError derives the concrete name from new.target, including external subclasses.
+// HoneycombError derives the concrete name from new.target, including external subclasses.
+// oxlint-disable-next-line unicorn/custom-error-definition
 export class DirtyCanonicalError extends BlockedError {
 	override readonly reason = "dirty_canonical";
 }
 
-// oxlint-disable-next-line unicorn/custom-error-definition -- HoneycombError derives the concrete name from new.target, including external subclasses.
+// HoneycombError derives the concrete name from new.target, including external subclasses.
+// oxlint-disable-next-line unicorn/custom-error-definition
 export class DirtyWorktreeError extends BlockedError {
 	override readonly reason = "dirty_worktree";
 }
 
-// oxlint-disable-next-line unicorn/custom-error-definition -- HoneycombError derives the concrete name from new.target, including external subclasses.
+// HoneycombError derives the concrete name from new.target, including external subclasses.
+// oxlint-disable-next-line unicorn/custom-error-definition
 export class WrongCanonicalBranchError extends BlockedError {
 	override readonly reason = "wrong_canonical_branch";
 }
 
-// oxlint-disable-next-line unicorn/custom-error-definition -- HoneycombError derives the concrete name from new.target, including external subclasses.
+// HoneycombError derives the concrete name from new.target, including external subclasses.
+// oxlint-disable-next-line unicorn/custom-error-definition
 export class NonFastForwardCanonicalError extends BlockedError {
 	override readonly reason = "non_ff_canonical";
 }
 
-// oxlint-disable-next-line unicorn/custom-error-definition -- HoneycombError derives the concrete name from new.target, including external subclasses.
+// HoneycombError derives the concrete name from new.target, including external subclasses.
+// oxlint-disable-next-line unicorn/custom-error-definition
 export class TargetNotFreshError extends BlockedError {
 	override readonly reason = "target_not_fresh";
 }
 
-// oxlint-disable-next-line unicorn/custom-error-definition -- HoneycombError derives the concrete name from new.target, including external subclasses.
+// HoneycombError derives the concrete name from new.target, including external subclasses.
+// oxlint-disable-next-line unicorn/custom-error-definition
 export class FinishConflictError extends BlockedError {
 	override readonly reason = "conflict";
 }
 
-// oxlint-disable-next-line unicorn/custom-error-definition -- HoneycombError derives the concrete name from new.target, including external subclasses.
+// HoneycombError derives the concrete name from new.target, including external subclasses.
+// oxlint-disable-next-line unicorn/custom-error-definition
 export class PushRejectedError extends BlockedError {
 	override readonly reason = "push_rejected";
 }
 
-// oxlint-disable-next-line unicorn/custom-error-definition -- HoneycombError derives the concrete name from new.target, including external subclasses.
+// HoneycombError derives the concrete name from new.target, including external subclasses.
+// oxlint-disable-next-line unicorn/custom-error-definition
 export class ReservedPrefixError extends UsageError {
 	override readonly reason = "reserved_prefix";
 }
 
-// oxlint-disable-next-line unicorn/custom-error-definition -- HoneycombError derives the concrete name from new.target, including external subclasses.
+// HoneycombError derives the concrete name from new.target, including external subclasses.
+// oxlint-disable-next-line unicorn/custom-error-definition
 export class CanonicalRootError extends UnsafeOperationError {
 	override readonly reason = "canonical_root";
 }
@@ -163,7 +184,8 @@ export class PreRemoteCheckError extends BlockedError {
 	source: string | null;
 	/** Diagnostic output from the failed preflight check. */
 	stderr: string;
-	// oxlint-disable-next-line unicorn/custom-error-definition -- HoneycombError derives the concrete name from new.target, including external subclasses.
+	// HoneycombError derives the concrete name from new.target, including external subclasses.
+	// oxlint-disable-next-line unicorn/custom-error-definition
 	constructor(operation: string, source: string | null, stderr: string) {
 		super(preRemoteMessage(operation, source, stderr));
 		this.operation = operation;
@@ -178,7 +200,8 @@ export class HookError extends HoneycombError {
 	hookExitCode: number;
 	/** Worktree path where the setup hook failed. */
 	slotPath: string;
-	// oxlint-disable-next-line unicorn/custom-error-definition -- HoneycombError derives the concrete name from new.target, including external subclasses.
+	// HoneycombError derives the concrete name from new.target, including external subclasses.
+	// oxlint-disable-next-line unicorn/custom-error-definition
 	constructor(hookExitCode: number, slotPath: string) {
 		super(`hook failed in ${slotPath} (${hookExitCode})`, EXIT_CODES.FAILURE);
 		this.hookExitCode = hookExitCode;
@@ -187,7 +210,8 @@ export class HookError extends HoneycombError {
 	}
 }
 
-// oxlint-disable-next-line unicorn/custom-error-definition -- HoneycombError derives the concrete name from new.target, including external subclasses.
+// HoneycombError derives the concrete name from new.target, including external subclasses.
+// oxlint-disable-next-line unicorn/custom-error-definition
 export class TrunkDetectionError extends UsageError {
 	override readonly reason = "trunk_detection_failed";
 }

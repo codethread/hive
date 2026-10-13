@@ -1,6 +1,7 @@
 import { ConfigError, dispatch } from "../../src/index";
 import { afterEach, beforeEach, expect, test } from "bun:test";
-// oxlint-disable-next-line import/no-nodejs-modules -- Integration fixtures exercise real filesystem and process boundaries.
+// Integration fixtures exercise real filesystem and process boundaries.
+// oxlint-disable-next-line import/no-nodejs-modules
 import { basename, join } from "node:path";
 import {
 	deps,
@@ -10,9 +11,11 @@ import {
 	useOriginFixture,
 	writeConfig,
 } from "./support.ts";
-// oxlint-disable-next-line import/no-nodejs-modules -- Integration fixtures exercise real filesystem and process boundaries.
+// Integration fixtures exercise real filesystem and process boundaries.
+// oxlint-disable-next-line import/no-nodejs-modules
 import { homedir, tmpdir } from "node:os";
-// oxlint-disable-next-line import/no-nodejs-modules -- Integration fixtures exercise real filesystem and process boundaries.
+// Integration fixtures exercise real filesystem and process boundaries.
+// oxlint-disable-next-line import/no-nodejs-modules
 import {
 	lstat,
 	mkdir,
@@ -147,7 +150,12 @@ test("copies object file sources from root-relative, absolute, and home paths", 
 	try {
 		writeConfig({
 			command: "echo ready",
-			copyToml: `copy = [\n  { from = "root.env", to = "copied/root.env" },\n  { from = ${JSON.stringify(absoluteSource)}, to = "copied/absolute.env" },\n  { from = "~/${homeRelative}", to = ["copied/home.env", "copied/home-again.env"] },\n]\n`,
+			copyToml:
+				`copy = [\n` +
+				`  { from = "root.env", to = "copied/root.env" },\n` +
+				`  { from = ${JSON.stringify(absoluteSource)}, to = "copied/absolute.env" },\n` +
+				`  { from = "~/${homeRelative}", to = ["copied/home.env", "copied/home-again.env"] },\n` +
+				`]\n`,
 			root,
 			tmp,
 		});

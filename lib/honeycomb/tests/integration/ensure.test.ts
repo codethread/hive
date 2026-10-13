@@ -10,11 +10,14 @@ import {
 	useOriginFixture,
 	writeConfig,
 } from "./support.ts";
-// oxlint-disable-next-line import/no-nodejs-modules -- Integration fixtures exercise real filesystem and process boundaries.
+// Integration fixtures exercise real filesystem and process boundaries.
+// oxlint-disable-next-line import/no-nodejs-modules
 import { join, resolve } from "node:path";
-// oxlint-disable-next-line import/no-nodejs-modules -- Integration fixtures exercise real filesystem and process boundaries.
+// Integration fixtures exercise real filesystem and process boundaries.
+// oxlint-disable-next-line import/no-nodejs-modules
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
-// oxlint-disable-next-line import/no-nodejs-modules -- Integration fixtures exercise real filesystem and process boundaries.
+// Integration fixtures exercise real filesystem and process boundaries.
+// oxlint-disable-next-line import/no-nodejs-modules
 import { tmpdir } from "node:os";
 
 const { initRepoWithOrigin } = useOriginFixture();

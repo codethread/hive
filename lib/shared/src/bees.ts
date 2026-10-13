@@ -159,7 +159,8 @@ export function validateFormula(formula: Formula): void {
 	}
 }
 /** Render tokens individually, omitting empty arguments; json quotes native config values. */
-// eslint-disable-next-line max-params -- Formula, recipe, invocation mode and host home are independent rendering inputs.
+// Formula, recipe, invocation mode and host home are independent rendering inputs.
+// eslint-disable-next-line max-params
 export function renderFormula(
 	formula: Formula,
 	recipe: Recipe,

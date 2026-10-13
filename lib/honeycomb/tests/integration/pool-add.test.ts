@@ -47,7 +47,13 @@ async function prepareMixedPool() {
 
 	await writeFile(
 		join(configHome, "honeycomb.toml"),
-		`worktree_location = "sibling"\n\n[[project]]\nroot = "${root}"\ncommand = "echo ready"\npool_size = 2\nworktree_location = "nested"\n`,
+		`worktree_location = "sibling"\n` +
+			`\n` +
+			`[[project]]\n` +
+			`root = "${root}"\n` +
+			`command = "echo ready"\n` +
+			`pool_size = 2\n` +
+			`worktree_location = "nested"\n`,
 	);
 	const nestedSlot = join(root, ".worktrees", "feat2");
 	await dispatch("ensure", ["--cwd", root], testDeps());

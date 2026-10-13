@@ -20,7 +20,14 @@ test.each([
 			root: "/tmp/repo",
 		}),
 	).toBe(
-		`#!/usr/bin/env bash\nset -euo pipefail\nexport WK_ROOT='/tmp/repo'\nexport WK_CREATED='${created}'\necho 'project: app'\ncd "$WK_CREATED"\necho ready\n${marker}`,
+		`#!/usr/bin/env bash\n` +
+			`set -euo pipefail\n` +
+			`export WK_ROOT='/tmp/repo'\n` +
+			`export WK_CREATED='${created}'\n` +
+			`echo 'project: app'\n` +
+			`cd "$WK_CREATED"\n` +
+			`echo ready\n` +
+			`${marker}`,
 	);
 });
 

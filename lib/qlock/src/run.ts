@@ -109,7 +109,8 @@ export type Outcome =
 	  };
 
 /** Coordinate queue transitions without constructing filesystem or process dependencies. */
-// eslint-disable-next-line max-statements -- Keep queue acquisition, execution cleanup and failure context in one lifecycle.
+// Keep queue acquisition, execution cleanup and failure context in one lifecycle.
+// eslint-disable-next-line max-statements
 export async function runRequest(request: Request, deps: Dependencies): Promise<Outcome> {
 	const { operation } = request;
 	let id: number | undefined = undefined;

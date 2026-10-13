@@ -1,4 +1,5 @@
-/* eslint-disable max-params -- Native dep/query operations keep explicit scope, identifiers and named options together. */
+// Native dep/query operations keep explicit scope, identifiers and named options together.
+/* eslint-disable max-params */
 /* eslint-disable max-statements -- Atomic mutations validate their prerequisites before writing. */
 /* eslint-disable unicorn/no-null -- Native update receipts report null for cleared assignment and ownership. */
 import type {

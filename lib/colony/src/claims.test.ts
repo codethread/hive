@@ -84,7 +84,9 @@ function operationEvidence(): OperationEvidence & { failures: unknown[]; effects
 	};
 }
 
-// eslint-disable-next-line max-statements -- One release verifies owned, foreign and closed claims against the same request.
+/* eslint-disable-next-line max-statements --
+ * One release verifies owned, foreign and closed claims against the same request.
+ */
 test("claims preserve human ownership and release only unfinished tasks still owned by this bee", async () => {
 	const { tracker, id, foreign, closed, request } = releaseFixture;
 	const evidence = operationEvidence();

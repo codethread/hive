@@ -21,7 +21,8 @@ import {
 } from "node:fs/promises";
 // oxlint-disable-next-line import/no-nodejs-modules -- Workspace paths are resolved at this IO boundary.
 import { dirname, join, resolve } from "node:path";
-// oxlint-disable-next-line import/no-nodejs-modules -- These operations implement the existing synchronous WorkspaceFiles contract.
+// These operations implement the existing synchronous WorkspaceFiles contract.
+// oxlint-disable-next-line import/no-nodejs-modules
 import { existsSync, mkdtempSync, realpathSync, writeFileSync } from "node:fs";
 // oxlint-disable-next-line import/no-nodejs-modules -- Setup uses the user's home and temporary directory.
 import { homedir, tmpdir } from "node:os";
@@ -65,7 +66,8 @@ export function createLiveWorkspaceFiles(): WorkspaceFiles {
 	function normalizePath(path: string): string {
 		// oxlint-disable-next-line node/no-sync -- Canonical path matching is a synchronous injected service contract.
 		if (existsSync(path)) {
-			// oxlint-disable-next-line node/no-sync -- Preserve synchronous canonicalization for config and worktree selectors.
+			// Preserve synchronous canonicalization for config and worktree selectors.
+			// oxlint-disable-next-line node/no-sync
 			return realpathSync(path);
 		}
 		return path;
@@ -101,7 +103,8 @@ function writePostCreateScript(spec: PostCreateScriptSpec): string {
 	// oxlint-disable-next-line node/no-sync -- WorkspaceFiles returns the completed script path synchronously.
 	const sessionDir = mkdtempSync(join(tmpdir(), `${session}.wktree.`));
 	const scriptPath = resolve(sessionDir, "post-create.sh");
-	// oxlint-disable-next-line node/no-sync -- The synchronous script contract requires the executable to exist on return.
+	// The synchronous script contract requires the executable to exist on return.
+	// oxlint-disable-next-line node/no-sync
 	writeFileSync(scriptPath, generatePostCreateScript(spec), { mode: 0o755 });
 	return scriptPath;
 }
@@ -178,7 +181,8 @@ async function assertDestinationUntracked(
 	const prefix: string[] = [];
 	for (const part of parts) {
 		prefix.push(part);
-		// oxlint-disable-next-line eslint/no-await-in-loop -- Check ancestors in order and stop at the first unsafe destination.
+		// Check ancestors in order and stop at the first unsafe destination.
+		// oxlint-disable-next-line eslint/no-await-in-loop
 		await assertAncestorUntracked(git, target, prefix.join("/"));
 	}
 }
@@ -187,7 +191,8 @@ async function planCopyEntry(options: CopySetup, entry: CopyEntry): Promise<Copy
 	const source = await copySource(options.root, entry);
 	const plans: CopyPlan[] = [];
 	for (const to of entry.to) {
-		// oxlint-disable-next-line eslint/no-await-in-loop -- Preserve deterministic preflight failure order before any filesystem mutations.
+		// Preserve deterministic preflight failure order before any filesystem mutations.
+		// oxlint-disable-next-line eslint/no-await-in-loop
 		await assertDestinationUntracked(options.git, options.target, to);
 		plans.push({ ...source, destination: resolve(options.target, to), to });
 	}
@@ -263,12 +268,14 @@ async function writeExcludeFence(
 async function runCopySetup(options: CopySetup): Promise<CopiedFile[]> {
 	const plans: CopyPlan[] = [];
 	for (const entry of options.entries) {
-		// oxlint-disable-next-line eslint/no-await-in-loop -- All preflight checks finish in configuration order before replacing assets.
+		// All preflight checks finish in configuration order before replacing assets.
+		// oxlint-disable-next-line eslint/no-await-in-loop
 		const entryPlans = await planCopyEntry(options, entry);
 		plans.push(...entryPlans);
 	}
 	for (const plan of plans) {
-		// oxlint-disable-next-line eslint/no-await-in-loop -- Destinations may overlap; preserve configured replacement order and first failure.
+		// Destinations may overlap; preserve configured replacement order and first failure.
+		// oxlint-disable-next-line eslint/no-await-in-loop
 		await materializeCopy(plan);
 	}
 	await writeExcludeFence(options.git, options.root, {

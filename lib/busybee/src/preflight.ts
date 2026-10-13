@@ -14,7 +14,8 @@ import type { BeadRow } from "@hive/beads";
 import type { Source } from "./catalogue.ts";
 import { compatibleWorkflowVersion } from "./compatibility.ts";
 import { frontier } from "./runtime.ts";
-// eslint-disable-next-line import/no-nodejs-modules -- Compare declared context fields without treating schema output as a migration.
+// Compare declared context fields without treating schema output as a migration.
+// eslint-disable-next-line import/no-nodejs-modules
 import { isDeepStrictEqual } from "node:util";
 import { namedDefinition } from "./catalogue.ts";
 import { readCheckpoint } from "./checkpoint.ts";
@@ -34,7 +35,9 @@ const taskContextSchema = z.compile(z.record(z.string(), z.unknown()));
 const limits = [
 	"Future states, command payloads, guards and action implementations are unchecked.",
 	"Imports, snapshot restoration and task renderers execute trusted author code; this is not a sandbox.",
-	"This read-only observation does not reserve runs or authorize execution; checkpoint locks and concurrent changes require separate inspection.",
+	"This read-only observation does not reserve runs or authorize " +
+		"execution; checkpoint locks and concurrent changes require separate " +
+		"inspection.",
 ];
 
 export interface Finding {
@@ -215,7 +218,8 @@ export function assessResumeContext(
 			return {
 				...finding,
 				message:
-					"resumeSchema changes declared persisted fields through defaults or transforms; the unchanged context remains unchecked.",
+					"resumeSchema changes declared persisted fields through defaults or " +
+					"transforms; the unchanged context remains unchecked.",
 			};
 		}
 		return { ...finding, message: "Passed for this saved frontier.", status: "passed" };
@@ -261,7 +265,8 @@ async function candidateSource(
 	return { candidate: selected, version: selected.metadata.version };
 }
 
-// eslint-disable-next-line max-statements -- Filter identity and native completion before decoding or assessing candidate state.
+// Filter identity and native completion before decoding or assessing candidate state.
+// eslint-disable-next-line max-statements
 async function inspectCheckpoint(
 	record: BeadRow,
 	candidate: {
@@ -318,7 +323,9 @@ async function inspectCheckpoint(
 	if (record.notes.trim()) {
 		result.findings.push({
 			check: "checkpoint_lock",
-			message: `Checkpoint ownership is retained: ${record.notes}. Inspect its owner and any uncertain effects before execution.`,
+			message:
+				`Checkpoint ownership is retained: ${record.notes}` +
+				". Inspect its owner and any uncertain effects before execution.",
 			status: "unchecked",
 		});
 	}
@@ -388,7 +395,8 @@ function assessFrontier(
 	}
 }
 
-// eslint-disable-next-line max-statements -- Keep restoration failures and one indexed traversal of saved children together.
+// Keep restoration failures and one indexed traversal of saved children together.
+// eslint-disable-next-line max-statements
 function verifyActorTree(actor: WorkflowActor, saved: PersistedActor): void {
 	const snapshot = actor.getSnapshot();
 	if (snapshot.status === "error") {
@@ -427,7 +435,8 @@ function checkpointIdentity(
 			checkpoint,
 			message: `Cannot attribute checkpoint to a workflow: ${message(error)}`,
 		});
-		// eslint-disable-next-line no-useless-return -- TypeScript requires an explicit return at this failed decode boundary.
+		// TypeScript requires an explicit return at this failed decode boundary.
+		// eslint-disable-next-line no-useless-return
 		return undefined;
 	}
 }

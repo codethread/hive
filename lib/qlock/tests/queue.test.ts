@@ -1,4 +1,5 @@
-/* eslint-disable no-magic-numbers, unicorn/no-null -- Tests spell out expected IDs, timings and the domain null urgency. */
+// Tests spell out expected IDs, timings and the domain null urgency.
+/* eslint-disable no-magic-numbers, unicorn/no-null */
 import {
 	QlockError,
 	READY_WINDOW_MS,

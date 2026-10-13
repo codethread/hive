@@ -32,7 +32,9 @@ const alerted: WatchdogCheckpoint = {
 
 test.each([false, true])(
 	"native Beads conflict reaches watchdog with publication wrapper %j",
-	// eslint-disable-next-line max-statements -- One watchdog episode proves classification, delivery and deduplication together.
+	/* eslint-disable-next-line max-statements --
+	 * One watchdog episode proves classification, delivery and deduplication together.
+	 */
 	async (wrapped) => {
 		let error: Error = new CommandError("br sync", {
 			code: 6,

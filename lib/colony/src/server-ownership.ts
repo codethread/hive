@@ -3,7 +3,9 @@ import {
 	observeProcess,
 	processFingerprintSchema,
 } from "./processes.ts";
-// eslint-disable-next-line import/no-nodejs-modules -- Ownership receipts and socket identity live in the selected state directory.
+/* eslint-disable-next-line import/no-nodejs-modules --
+ * Ownership receipts and socket identity live in the selected state directory.
+ */
 import { lstat, readFile, rename, unlink } from "node:fs/promises";
 import { Database } from "bun:sqlite";
 // eslint-disable-next-line import/no-nodejs-modules -- Probe a Unix listener without sending application commands.
@@ -107,7 +109,9 @@ async function recoverSocket(location: ServerLocation): Promise<void> {
 }
 
 function assertDisconnected(path: string): Promise<void> {
-	// eslint-disable-next-line promise/avoid-new -- Adapt a native Unix connection probe without sending application data.
+	/* eslint-disable-next-line promise/avoid-new --
+	 * Adapt a native Unix connection probe without sending application data.
+	 */
 	return new Promise((resolve, reject) => {
 		const probe = createConnection(path);
 		probe.setTimeout(PROBE_TIMEOUT);

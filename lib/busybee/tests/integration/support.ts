@@ -1,4 +1,5 @@
-/* eslint-disable import/no-nodejs-modules -- Integration fixtures own disposable native repositories and filesystem setup. */
+// Integration fixtures own disposable native repositories and filesystem setup.
+/* eslint-disable import/no-nodejs-modules */
 import type { MutationEndpoint, Services } from "../../src/native.ts";
 import { afterEach, beforeEach, expect } from "bun:test";
 import { createMemoryBeads, createNativeBeads } from "@hive/beads";
@@ -11,7 +12,10 @@ import { runViewSchema } from "../../src/runtime.ts";
 import { tmpdir } from "node:os";
 
 const SUCCESS = 0;
-const imports = `import {createMachine,setup,assign} from ${JSON.stringify(import.meta.resolve("xstate"))};import {z} from ${JSON.stringify(import.meta.resolve("zod"))};`;
+const imports =
+	"import {createMachine,setup,assign} from " +
+	`${JSON.stringify(import.meta.resolve("xstate"))};import {z} from ` +
+	`${JSON.stringify(import.meta.resolve("zod"))};`;
 
 export interface RepositoryFixture {
 	/** Disposable fixture root, including the execution repository. */
@@ -35,7 +39,8 @@ export function useRepositoryFixture(prefix: string, native = false): Repository
 		root: "",
 		services: createServices(),
 	};
-	// eslint-disable-next-line max-statements -- Keep endpoint, environment and repository initialization in one setup hook.
+	// Keep endpoint, environment and repository initialization in one setup hook.
+	// eslint-disable-next-line max-statements
 	beforeEach(async () => {
 		fixture.root = await mkdtemp(join(tmpdir(), prefix));
 		const repo = join(fixture.root, "repo");
@@ -80,7 +85,9 @@ export async function writeDefinition(
 	const source = join(fixture.root, name, "workflow.ts");
 	await Bun.write(
 		source,
-		`${imports}export const inputSchema=z.object({});export function runBrief(){return {title:"Integration workflow",description:"Complete the fixture tasks"};}${body}`,
+		`${imports}export const inputSchema=z.object({});export function ` +
+			'runBrief(){return {title:"Integration ' +
+			`workflow",description:"Complete the fixture tasks"};}${body}`,
 	);
 	return source;
 }

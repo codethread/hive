@@ -157,7 +157,8 @@ export function readSpawnRequestSummary(
 	return {
 		id: bead.id,
 		identity: bead.assignee,
-		// eslint-disable-next-line unicorn/no-null -- Missing provenance remains explicitly unbound for historical inspection.
+		// Missing provenance remains explicitly unbound for historical inspection.
+		// eslint-disable-next-line unicorn/no-null
 		host: host ?? null,
 		recipe,
 	};
@@ -202,7 +203,8 @@ export function requestAcknowledgment(bead: Bead): RequestAcknowledgment | undef
 }
 
 /** Read resolution from native closure, acknowledgment and distinct supersession edges. */
-// eslint-disable-next-line max-statements -- Keep the independent native resolution facts and their precedence together.
+// Keep the independent native resolution facts and their precedence together.
+// eslint-disable-next-line max-statements
 export function requestResolution(bead: Bead): RequestResolution {
 	const outcome = requestOutcome(bead);
 	if (outcome === "pending") {

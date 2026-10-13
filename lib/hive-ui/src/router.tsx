@@ -1,4 +1,5 @@
-/* eslint-disable sort-keys -- TanStack infers loader dependencies in declaration order: validateSearch, loaderDeps, loader. */
+// TanStack infers loader dependencies in declaration order: validateSearch, loaderDeps, loader.
+/* eslint-disable sort-keys */
 import { Shell, Welcome, WorkPage } from "./work-page.tsx";
 import { colonies, loadColonies, loadView, rememberView, snapshot } from "./data.ts";
 import { createRootRoute, createRoute, createRouter, redirect } from "@tanstack/react-router";

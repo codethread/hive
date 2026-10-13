@@ -252,7 +252,8 @@ function commentIdentity(comment: Comment): string {
 }
 
 /** Append-only multiset union retains repeated identical comments without counting each clone twice. */
-// eslint-disable-next-line max-statements -- Preserve per-side multiplicity while selecting deterministic local counters.
+// Preserve per-side multiplicity while selecting deterministic local counters.
+// eslint-disable-next-line max-statements
 function mergeComments(records: readonly (IssueRecord | undefined)[]): Comment[] {
 	const combined = new Map<string, Comment[]>();
 	for (const record of records) {

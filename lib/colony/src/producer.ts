@@ -1,4 +1,6 @@
-/* eslint-disable import/max-dependencies -- Submission composes tracker admission, configuration and native recipe capture. */
+/* eslint-disable import/max-dependencies --
+ * Submission composes tracker admission, configuration and native recipe capture.
+ */
 import type { BeesConfig, Recipe } from "@hive/shared";
 import { RequestPublicationError, publishRequestLabels } from "./requests.ts";
 import type { RetryOptions, SpawnOptions } from "./bee-cli.ts";
@@ -14,7 +16,9 @@ import {
 import type { TrackerCommands, TrackerContext } from "./tracker.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Canonical config and submission cwd paths.
 import { join, resolve } from "node:path";
-// eslint-disable-next-line import/no-nodejs-modules -- Exclusive configuration creation and execution directory validation.
+/* eslint-disable-next-line import/no-nodejs-modules --
+ * Exclusive configuration creation and execution directory validation.
+ */
 import { mkdir, open, realpath, stat } from "node:fs/promises";
 import type { InitOptions } from "./cli.ts";
 import { createIdentity } from "./identity.ts";
@@ -73,7 +77,10 @@ export async function spawnRequest(
 }
 
 /** Replace a terminal failure using current defaults and unfinished work only. */
-// eslint-disable-next-line max-statements -- Keep admission, replacement creation and predecessor publication ordered at the command boundary.
+/* eslint-disable-next-line max-statements --
+ * Keep admission, replacement creation and predecessor publication ordered at the
+ * command boundary.
+ */
 export async function retryRequest(
 	id: string,
 	options: RetryOptions,
@@ -110,7 +117,9 @@ export async function retryRequest(
 }
 
 // --- Private functions ---
-// eslint-disable-next-line max-statements -- Admission, recipe capture and provenance form one native submission boundary.
+/* eslint-disable-next-line max-statements --
+ * Admission, recipe capture and provenance form one native submission boundary.
+ */
 async function createRequest(
 	{ beads, repository: endpoint, loadBeesConfig }: ProducerContext,
 	input: { kind: string; requestedIds: string[]; supersedes?: string },
@@ -144,7 +153,8 @@ async function createRequest(
 }
 
 function initialConfig(options: InitOptions): string {
-	return `owner = ${JSON.stringify(options.owner)}
+	return (
+		`owner = ${JSON.stringify(options.owner)}
 humans = [${JSON.stringify(options.owner)}]
 ranking = "bv-pagerank"
 max_retries = 3
@@ -171,8 +181,12 @@ Work on the related task beads.
 [formulas.codex]
 executable = "codex"
 headless = ["exec", "--json", "--sandbox", "workspace-write"]
-argv = ["-m", "{{model}}", "-c", 'model_reasoning_effort="{{effort}}"', "-c", 'shell_environment_policy.inherit="all"', "{{#if system_prompt}}-c{{/if}}", '{{#if system_prompt}}developer_instructions={{json system_prompt}}{{/if}}', "--", "{{prompt}}"]
-`;
+argv = ["-m", "{{model}}", "-c", 'model_reasoning_effort="{{effort}}"', ` +
+		`"-c", 'shell_environment_policy.inherit="all"', "{{#if system_prompt}}-c{{/if}}", ` +
+		`'{{#if system_prompt}}developer_instructions={{json system_prompt}}{{/if}}', ` +
+		`"--", "{{prompt}}"]
+`
+	);
 }
 // eslint-disable-next-line max-statements -- Snapshot the recipe and execution directory together at submission.
 async function captureRecipe(
@@ -184,7 +198,7 @@ async function captureRecipe(
 	if (!defaults) {
 		throw new Error(`Unknown bee kind ${kind}`);
 	}
-	let cwd: string | null = null; // eslint-disable-line unicorn/no-null -- Null explicitly captures canonical-default execution.
+	let cwd: string | null = null; // eslint-disable-line unicorn/no-null -- Null captures canonical-default execution.
 	if (options.cwd !== undefined) {
 		cwd = await realpath(resolve(options.cwd));
 		const info = await stat(cwd);
@@ -202,7 +216,9 @@ async function captureRecipe(
 		system_prompt: options.systemPrompt ?? defaults.system_prompt,
 	});
 }
-// eslint-disable-next-line max-statements -- Validate human reservations and task-scoped duplicate candidates before submission.
+/* eslint-disable-next-line max-statements --
+ * Validate human reservations and task-scoped duplicate candidates before submission.
+ */
 async function admitTasks(
 	{ beads, repository: endpoint }: TrackerContext,
 	{ ids, actor }: { ids: string[]; actor: string },

@@ -43,7 +43,8 @@ async function git(args: string[], root: string, env: ReturnType<typeof environm
 	return result.stdout;
 }
 
-// eslint-disable-next-line max-statements -- Keep the real Git partial-staging fixture and deterministic writer together.
+// Keep the real Git partial-staging fixture and deterministic writer together.
+// eslint-disable-next-line max-statements
 async function prepare(root: string, env: ReturnType<typeof environment>) {
 	await mkdir(join(root, "bin"));
 	await mkdir(join(root, ".beads"));

@@ -345,7 +345,10 @@ function printDiscovery(result: Discovery): string {
 
 function printPreflight(result: PreflightReport): string {
 	const lines = [
-		`${result.name} ${result.version ?? "(version unchecked)"}: ${result.status} (${result.runs.length} unfinished runs)`,
+		`${result.name} ` +
+			`${result.version ?? "(version unchecked)"}: ` +
+			`${result.status} (` +
+			`${result.runs.length} unfinished runs)`,
 	];
 	for (const diagnostic of result.discovery) {
 		lines.push(`${diagnostic.checkpoint}: ${diagnostic.message}`);
@@ -410,7 +413,12 @@ function readableField(input: {
 		requirement = "required";
 	}
 	return [
-		`${indent}${name} (${requirement}, ${String(field.type ?? "variant")}) ${field.description ?? ""} ${JSON.stringify(constraints)}`,
+		`${indent}` +
+			`${name} (` +
+			`${requirement}, ` +
+			`${String(field.type ?? "variant")}) ` +
+			`${field.description ?? ""} ` +
+			`${JSON.stringify(constraints)}`,
 		...readableChildren(field.items ?? field, `${indent}  `),
 	];
 }

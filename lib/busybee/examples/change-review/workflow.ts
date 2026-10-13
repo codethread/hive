@@ -160,7 +160,10 @@ export const reviewer = setup({
 						context.task.instructions,
 						`Assigned files:\n${context.task.files.map((file) => `- ${file}`).join("\n")}`,
 						`Required checks:\n${context.task.checks.map((check) => `- ${check}`).join("\n")}`,
-						"Read surrounding contracts as needed. Do not modify files: other reviewers share this checkout. Report evidence, including checks that failed. A completed review may request changes; closing this task does not mean approval.",
+						"Read surrounding contracts as needed. Do not modify files: other " +
+							"reviewers share this checkout. Report evidence, including checks " +
+							"that failed. A completed review may request changes; closing this " +
+							"task does not mean approval.",
 						"Discover the approved and changes result contracts with the task discovery command below.",
 					].join("\n\n"),
 				}),
@@ -249,9 +252,20 @@ export const machine = setup({
 					...assignment(context.change.execution),
 					instructions: [
 						changeBrief(context.change),
-						"Inspect the actual cumulative diff against the base above, surrounding code, repository rules and tests. Include staged, unstaged and relevant untracked files; use git status --short --untracked-files=all as well as git diff. Do not edit the change.",
-						"Choose the review tasks this specific change needs. Each task must explain its concrete risk, assigned files, what to inspect or run, and evidence required for completion. Reviewers run concurrently and must not modify files. Cover the whole change; do not use a fixed docs/API/tests checklist or invent findings. Use a distinct task ID for each brief.",
-						"Record a revision fingerprint identifying the diff you inspected (for example a SHA-256 of the cumulative patch and relevant untracked contents). Keep the checkout unchanged during a review round.",
+						"Inspect the actual cumulative diff against the base above, " +
+							"surrounding code, repository rules and tests. Include staged, " +
+							"unstaged and relevant untracked files; use git status --short " +
+							"--untracked-files=all as well as git diff. Do not edit the change.",
+						"Choose the review tasks this specific change needs. Each task must " +
+							"explain its concrete risk, assigned files, what to inspect or run, " +
+							"and evidence required for completion. Reviewers run concurrently and " +
+							"must not modify files. Cover the whole change; do not use a fixed " +
+							"docs/API/tests checklist or invent findings. Use a distinct task ID " +
+							"for each brief.",
+						"Record a revision fingerprint identifying the diff you inspected " +
+							"(for example a SHA-256 of the cumulative patch and relevant " +
+							"untracked contents). Keep the checkout unchanged during a review " +
+							"round.",
 						previousBrief(context.previous),
 						"Discover the planned result contract with the task discovery command below.",
 					].join("\n\n"),
@@ -264,11 +278,20 @@ export const machine = setup({
 				title: "Repair findings",
 				commands: { repaired: "REPAIRED" },
 				task: ({ context }: { context: ReviewState }) => ({
-					title: `Repair ${context.plan!.tasks.reduce((count, task) => count + context.results[task.id]!.findings.length, ZERO)} findings: ${context.change.title}`,
+					title:
+						"Repair " +
+						`${context.plan!.tasks.reduce(
+							(count, task) => count + context.results[task.id]!.findings.length,
+							ZERO,
+						)}` +
+						` findings: ${context.change.title}`,
 					...assignment(context.change.execution),
 					instructions: [
 						changeBrief(context.change),
-						`Repair the findings from round ${context.round}, revision ${context.plan!.revision}. All reviewers have finished; this is the sole task that may edit the change.`,
+						`Repair the findings from round ${context.round}, revision ` +
+							`${context.plan!.revision}` +
+							". All reviewers have finished; this is the sole task that may edit " +
+							"the change.",
 						...context.plan!.tasks.flatMap((task) =>
 							context.results[task.id]!.findings.map((finding) =>
 								[
@@ -279,8 +302,12 @@ export const machine = setup({
 								].join("\n"),
 							),
 						),
-						"Make the smallest coherent fixes, add meaningful regression coverage where needed, and run the checks above. Do not mark repaired while a finding remains unresolved. Report actual command results, not planned verification. Do not commit, push or publish the change.",
-						"Discover the repaired result contract with the task discovery command below. The next planner inspects the new cumulative diff.",
+						"Make the smallest coherent fixes, add meaningful regression coverage " +
+							"where needed, and run the checks above. Do not mark repaired while a " +
+							"finding remains unresolved. Report actual command results, not " +
+							"planned verification. Do not commit, push or publish the change.",
+						"Discover the repaired result contract with the task discovery " +
+							"command below. The next planner inspects the new cumulative diff.",
 					].join("\n\n"),
 				}),
 			},
@@ -294,7 +321,10 @@ export const machine = setup({
 				title: "Review round",
 				task: ({ context }: { context: ReviewState }) => ({
 					title: `Review round ${context.round}: ${context.change.title}`,
-					instructions: `${context.plan!.summary}\n\nRevision: ${context.plan!.revision}\nWait for all ${context.plan!.tasks.length} reviews. This grouping bead has no worker.`,
+					instructions:
+						`${context.plan!.summary}\n\nRevision: ` +
+						`${context.plan!.revision}\nWait for all ` +
+						`${context.plan!.tasks.length} reviews. This grouping bead has no worker.`,
 				}),
 			},
 			on: { "REVIEW.RESULT": { actions: "collect" } },
@@ -306,20 +336,26 @@ function previousBrief(previous: ReviewState["previous"]): string {
 	if (!previous) {
 		return "This is the first review round.";
 	}
-	return `Previous repair: ${previous.repair.summary}\nVerification:\n${previous.repair.verification.join("\n")}\nPrevious findings to verify again:\n${Object.values(
-		previous.results,
-	)
-		.flatMap((result) =>
-			result.findings.map(
-				(finding) =>
-					`${finding.location}: ${finding.problem}; fix: ${finding.fix}; verify: ${finding.verification}`,
-			),
-		)
-		.join("\n")}`;
+	return (
+		`Previous repair: ${previous.repair.summary}\nVerification:\n` +
+		`${previous.repair.verification.join("\n")}\nPrevious findings to verify again:\n` +
+		`${Object.values(previous.results)
+			.flatMap((result) =>
+				result.findings.map(
+					(finding) =>
+						`${finding.location}: ${finding.problem}; fix: ${finding.fix}; verify: ${finding.verification}`,
+				),
+			)
+			.join("\n")}`
+	);
 }
 
 function changeBrief(change: Change) {
-	return `Change: ${change.title}\n\nRequested outcome:\n${change.request}\n\nCompare against base commit: ${change.base}`;
+	return (
+		`Change: ${change.title}\n\nRequested outcome:\n` +
+		`${change.request}\n\nCompare against base commit: ` +
+		`${change.base}`
+	);
 }
 
 function assignment(execution: Change["execution"]): { bee?: { kind: string } } {
@@ -370,7 +406,9 @@ export const inputConstraints = "Text fields are trimmed and must remain nonempt
 export function describe(entry: { context: Record<string, unknown> }) {
 	return {
 		constraints:
-			"Text fields are trimmed and must remain nonempty. Review task IDs must be unique in each plan. Review revisions must equal the assigned revision shown on the task.",
+			"Text fields are trimmed and must remain nonempty. Review task IDs " +
+			"must be unique in each plan. Review revisions must equal the " +
+			"assigned revision shown on the task.",
 		revision: entry.context["revision"],
 	};
 }

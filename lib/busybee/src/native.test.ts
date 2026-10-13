@@ -42,7 +42,8 @@ test.each([
 	{ code: VALIDATION, conflict: false },
 ])(
 	"conditional writes preserve revision guards and classify native failure $code",
-	// eslint-disable-next-line max-statements -- Keep the CAS scope, publication marker and fault classification in one boundary check.
+	// Keep the CAS scope, publication marker and fault classification in one boundary check.
+	// eslint-disable-next-line max-statements
 	async ({ code, conflict }) => {
 		const beads = createMemoryBeads();
 		const bead = await beads.create(scope, { title: "Checkpoint" });

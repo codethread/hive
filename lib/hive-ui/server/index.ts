@@ -41,11 +41,17 @@ const optionsSchema = z.object({
 	repo: z.string(),
 });
 const idSchema = z.string().regex(/^[\da-z][\w.-]*$/iu);
+const apiRoute = new RegExp(
+	/^\/api\/colonies\/(?<colony>[^/]+)\//u.source +
+		/(?<operation>board|beads|provenance|inventory|outline|hierarchy)(?:\/(?<id>[^/]+))?$/u.source,
+	"u",
+);
 
 await main();
 
 /** A foreground read-only app; no daemon lifecycle or tracker mutation commands. */
-// eslint-disable-next-line max-statements -- Own startup, structured CLI failure and shutdown in one foreground boundary.
+// Own startup, structured CLI failure and shutdown in one foreground boundary.
+// eslint-disable-next-line max-statements
 async function main(): Promise<void> {
 	const program = new Command()
 		.name("hive-ui")
@@ -62,7 +68,9 @@ async function main(): Promise<void> {
 		.option("--log-file <path>", "Write server/native diagnostics to this file instead of stderr")
 		.addHelpText(
 			"after",
-			"\nRun hive-ui, or use bun run start from lib/hive-ui during development. No daemon is started. Each browser view selects exactly one configured endpoint.",
+			"\nRun hive-ui, or use bun run start from lib/hive-ui during " +
+				"development. No daemon is started. Each browser view selects exactly " +
+				"one configured endpoint.",
 		)
 		.configureOutput({ writeErr: () => {} })
 		.exitOverride();
@@ -206,10 +214,7 @@ async function api(
 		if (url.pathname === "/api/colonies") {
 			return respond({ colonies });
 		}
-		const route =
-			/^\/api\/colonies\/(?<colony>[^/]+)\/(?<operation>board|beads|provenance|inventory|outline|hierarchy)(?:\/(?<id>[^/]+))?$/u.exec(
-				url.pathname,
-			)?.groups;
+		const route = apiRoute.exec(url.pathname)?.groups;
 		const selected = colonies.find((entry) => entry.id === route?.["colony"]);
 		if (!route || !selected) {
 			status = HTTP.missing;

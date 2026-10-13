@@ -17,7 +17,8 @@ test.each([
 	{ conflict: "native merge", notifyExit: 0, unmerged: "" },
 ])(
 	"publisher delivers $conflict conflict via stdin and retains failure with notifier exit $notifyExit",
-	// eslint-disable-next-line max-statements -- Exercise the real CLI and notifier subprocess contract in one private fixture.
+	// Exercise the real CLI and notifier subprocess contract in one private fixture.
+	// eslint-disable-next-line max-statements
 	async ({ conflict, notifyExit, unmerged }) => {
 		const temporary = await mkdtemp(join(tmpdir(), "beads-notify-"));
 		const root = await realpath(temporary);

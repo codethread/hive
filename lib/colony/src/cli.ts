@@ -1,4 +1,7 @@
-/* eslint-disable import/max-dependencies -- Compose existing runtime boundaries with the independent advisory assessment lifecycle. */
+/* eslint-disable import/max-dependencies --
+ * Compose existing runtime boundaries with the independent advisory assessment
+ * lifecycle.
+ */
 import { Command, CommanderError } from "commander";
 import type { AssessmentsResult } from "./assessments.ts";
 import { CommandError } from "@hive/beads";
@@ -136,9 +139,8 @@ export async function runCli(argv: string[], deps: ColonyDependencies): Promise<
 				},
 			) => {
 				if (options.schema) {
-					deps.stdout(
-						`${JSON.stringify({ kind: "assessment_schema", ok: true, schema: z.toJSONSchema(assessmentReportSchema) })}\n`,
-					);
+					const schema = z.toJSONSchema(assessmentReportSchema);
+					deps.stdout(`${JSON.stringify({ kind: "assessment_schema", ok: true, schema })}\n`);
 					return;
 				}
 				if (options.source && !options.request) {
@@ -297,7 +299,10 @@ export async function runCli(argv: string[], deps: ColonyDependencies): Promise<
 }
 
 // --- Private functions ---
-// eslint-disable-next-line max-statements -- Normalize failures and preserve partial publication context at the shared CLI boundary.
+/* eslint-disable-next-line max-statements --
+ * Normalize failures and preserve partial publication context at the shared CLI
+ * boundary.
+ */
 export function reportFailure(
 	error: unknown,
 	json: boolean,

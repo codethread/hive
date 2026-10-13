@@ -17,7 +17,8 @@ const SUCCESS = 0;
 const program = new Command()
 	.name("colony-watchdog")
 	.description(
-		"Observe Colony every 30s; failure alerts have a 30-minute cooldown, recovery notifies immediately; never wake or repair it",
+		"Observe Colony every 30s; failure alerts have a 30-minute cooldown, " +
+			"recovery notifies immediately; never wake or repair it",
 	)
 	.option("--state <directory>", "Colony state directory (same default as colony)")
 	.option("--socket <path>", "Colony socket; requires --state")

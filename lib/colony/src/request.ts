@@ -1,5 +1,11 @@
-/* eslint-disable import/max-dependencies -- Compose existing runtime boundaries with the independent advisory assessment lifecycle. */
-/* eslint-disable unicorn/no-null -- Durable JSON checkpoints explicitly preserve absent attempt, claim, deadline and outcome fields. */
+/* eslint-disable import/max-dependencies --
+ * Compose existing runtime boundaries with the independent advisory assessment
+ * lifecycle.
+ */
+/* eslint-disable unicorn/no-null --
+ * Durable JSON checkpoints explicitly preserve absent attempt, claim, deadline and
+ * outcome fields.
+ */
 import type { AttemptInventory, Store } from "./store.ts";
 import type { BeesConfig, RepositoryEndpoint, SpawnRequest } from "@hive/shared";
 import { acquireClaim, releaseClaims } from "./claims.ts";
@@ -11,13 +17,18 @@ import { readSpawnRequest, requestOutcomeSchema, requestStateSchema } from "@hiv
 import type { Bead } from "@hive/beads";
 import type { OperationEvidence } from "./history.ts";
 import type { TrackerContext } from "./tracker.ts";
-// eslint-disable-next-line import/no-nodejs-modules -- Durable checkpoints retain authority only on their requesting host.
+/* eslint-disable-next-line import/no-nodejs-modules --
+ * Durable checkpoints retain authority only on their requesting host.
+ */
 import { hostname } from "node:os";
 import { prepareAssessment } from "./postrun.ts";
 import { publishRequestLabels } from "./requests.ts";
 import { readFinishReport } from "./launch.ts";
 import { trackerScope } from "./tracker.ts";
-// eslint-disable-next-line import/max-dependencies -- Request reconciliation composes claims, execution, drone review and operation evidence.
+/* eslint-disable-next-line import/max-dependencies --
+ * Request reconciliation composes claims, execution, drone review and operation
+ * evidence.
+ */
 import { z } from "zod";
 
 const ZERO = 0;
@@ -221,7 +232,9 @@ export async function reconcileRequests(runtime: RequestRuntime): Promise<void> 
 	for (const saved of store
 		.requests(repository.root)
 		.filter(({ state, host }) => state !== "terminal" && host === hostname())) {
-		// eslint-disable-next-line no-await-in-loop -- Finish each request's external effects before advancing another durable checkpoint.
+		/* eslint-disable-next-line no-await-in-loop --
+		 * Finish each request's external effects before advancing another durable checkpoint.
+		 */
 		await store.history.run(
 			{
 				checkpoint: () => store.requests(repository.root).find(({ id }) => id === saved.id),
@@ -235,7 +248,9 @@ export async function reconcileRequests(runtime: RequestRuntime): Promise<void> 
 }
 
 /** Acquire sequentially only after capacity is granted; each intent precedes its tracker write. */
-// eslint-disable-next-line max-statements -- Claim checkpoints and partial-failure cleanup stay adjacent to their mutations.
+/* eslint-disable-next-line max-statements --
+ * Claim checkpoints and partial-failure cleanup stay adjacent to their mutations.
+ */
 export function claimRequest(
 	runtime: RequestRuntime,
 	saved: RequestRecord,
@@ -252,7 +267,9 @@ export function claimRequest(
 	);
 }
 
-// eslint-disable-next-line max-statements -- Acquisition checkpoints and partial failure settlement remain ordered together.
+/* eslint-disable-next-line max-statements --
+ * Acquisition checkpoints and partial failure settlement remain ordered together.
+ */
 async function acquireRequest(
 	runtime: RequestRuntime,
 	saved: RequestRecord,
@@ -277,11 +294,15 @@ async function acquireRequest(
 				outcome: "claim_failed",
 				type: "SETTLE",
 			});
-			// eslint-disable-next-line no-await-in-loop -- No execution has launched; release only already recorded partial acquisitions.
+			/* eslint-disable-next-line no-await-in-loop --
+			 * No execution has launched; release only already recorded partial acquisitions.
+			 */
 			await finishSettlement(runtime, record, evidence);
 			return null;
 		}
-		// eslint-disable-next-line unicorn/prefer-ternary -- Explicit machine events keep claim and closed-task paths visible.
+		/* eslint-disable-next-line unicorn/prefer-ternary --
+		 * Explicit machine events keep claim and closed-task paths visible.
+		 */
 		if (outcome === "claimed") {
 			record = store.advanceRequest(repository.root, record, { id, type: "ACQUIRED" });
 		} else {
@@ -301,7 +322,9 @@ async function acquireRequest(
 }
 
 // --- Request effects ---
-// eslint-disable-next-line max-statements, max-params -- Reconcile durable lifecycle state with current tracker and verified execution facts.
+/* eslint-disable-next-line max-statements, max-params --
+ * Reconcile durable lifecycle state with current tracker and verified execution facts.
+ */
 async function reconcileRequest(
 	runtime: RequestRuntime,
 	saved: RequestRecord,
@@ -363,7 +386,10 @@ async function reconcileRequest(
 				let message = "Execution stopped with unfinished work";
 				if (report?.outcome === "blocked") {
 					outcome = "blocked";
-					message = `Self-report blocked; attempt ${attempt.id}; unfinished tasks: ${unfinished.map(({ id }) => id).join(", ")}; reason: ${report.reason}`;
+					message =
+						`Self-report blocked; attempt ${attempt.id}; unfinished tasks: ` +
+						`${unfinished.map(({ id }) => id).join(", ")}; reason: ` +
+						`${report.reason}`;
 				} else if (unfinished.length === ZERO) {
 					outcome = "completed";
 					message = `Execution finished with all tasks closed; attempt ${attempt.id}`;
@@ -449,7 +475,9 @@ async function publishRunningObservation(
 	const review = store.latestDroneReview(repository.root, attempt.id);
 	let fact = `running: attempt ${attempt.receipt.attemptNumber}`;
 	if (review !== undefined) {
-		fact += `; inactivity drone ${review.phase}; review ${review.id}; deadline ${new Date(review.deadline).toISOString()}`;
+		fact +=
+			`; inactivity drone ${review.phase}; review ${review.id}; deadline ` +
+			`${new Date(review.deadline).toISOString()}`;
 		if (review.decision !== null) {
 			fact += `; ${review.decision.kind}; ${review.decision.detail}`;
 		}

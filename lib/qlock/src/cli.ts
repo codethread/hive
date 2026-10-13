@@ -209,7 +209,14 @@ function reportFailure(error: unknown, options: StatusOptions, deps: Dependencie
 	}
 	if (options.json === true) {
 		deps.stdout(
-			`${JSON.stringify({ ok: false, kind: "error", reason: failure.reason, message: failure.message, target: unresolvedTarget(options, failure.context.lock), ...failure.context })}\n`,
+			`${JSON.stringify({
+				ok: false,
+				kind: "error",
+				reason: failure.reason,
+				message: failure.message,
+				target: unresolvedTarget(options, failure.context.lock),
+				...failure.context,
+			})}\n`,
 		);
 	} else {
 		deps.stderr(`qlock: ${failure.message}\n`);

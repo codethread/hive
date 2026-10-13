@@ -10,7 +10,8 @@ export const CopyModeSchema = z.enum(["copy", "symlink"]);
 export const PoolSizeSchema = z.number().int().min(MINIMUM_LIST_LENGTH);
 
 const NonEmptyStringSchema = z.string().regex(/\S/u, "must be a non-empty string");
-// oxlint-disable-next-line no-control-regex -- Filesystem paths cannot contain a null byte; also emit this constraint for editors.
+// Filesystem paths cannot contain a null byte; also emit this constraint for editors.
+// oxlint-disable-next-line no-control-regex
 const PathSchema = NonEmptyStringSchema.regex(/^[^\u0000]*$/u, "path must not contain a null byte");
 const WorktreeLocationSchema = z.enum(["sibling", "nested"]);
 const AddPolicySchema = z.strictObject({
@@ -100,7 +101,8 @@ const RepositoryOptionsShape = {
 export const RepositoryConfigSchema = z
 	.strictObject(RepositoryOptionsShape)
 	.describe(
-		"Repository-local honeycomb.toml at the canonical root. Explicit fields override global settings; omitted fields inherit them.",
+		"Repository-local honeycomb.toml at the canonical root. Explicit fields override global " +
+			"settings; omitted fields inherit them.",
 	);
 
 const ProjectSchema = z.strictObject({
@@ -165,7 +167,8 @@ export function createConfigSchema(context: ConfigPathContext) {
 			refinement.addIssue({ code: "custom", message: issue.message, path: issue.path });
 		}
 	}).describe(
-		"HONEYCOMB configuration. Policy inheritance, canonical path matching and normalized path safety are also checked at runtime.",
+		"HONEYCOMB configuration. Policy inheritance, canonical path matching and normalized path safety " +
+			"are also checked at runtime.",
 	);
 }
 // --- Private functions ---

@@ -1,5 +1,7 @@
 import { expect, test } from "bun:test";
-// eslint-disable-next-line import/no-nodejs-modules -- Reuse disposable filesystem fixtures for native telemetry lookup.
+/* eslint-disable-next-line import/no-nodejs-modules --
+ * Reuse disposable filesystem fixtures for native telemetry lookup.
+ */
 import { mkdtemp, rm } from "node:fs/promises";
 // eslint-disable-next-line import/no-nodejs-modules -- Scope every native session path to the fixture.
 import { join } from "node:path";
@@ -22,7 +24,10 @@ const events = [
 	.map((event) => JSON.stringify(event))
 	.join("\n");
 
-// eslint-disable-next-line max-statements -- One real filesystem fixture proves exact-thread lookup, absence and ambiguity handling.
+/* eslint-disable-next-line max-statements --
+ * One real filesystem fixture proves exact-thread lookup, absence and ambiguity
+ * handling.
+ */
 test("self-reaped Codex runs recover only their exact native counters", async () => {
 	const root = await mkdtemp(join(tmpdir(), "postrun-usage-"));
 	const stdout = join(root, "stdout.log");
