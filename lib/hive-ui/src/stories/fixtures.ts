@@ -87,7 +87,7 @@ export const cards: Card[] = [
 		assignee: reviewer.identity,
 		labels: ["ui", "review"],
 	}),
-	card("hv-backlog", "Explore colony comparison", "deferred", { priority: 4, labels: [] }),
+	card("hv-backlog", "Explore colony comparison", "open", { priority: 4, labels: [] }),
 ];
 export const hierarchy: Hierarchy = {
 	fetchedAt: OBSERVED_AT,

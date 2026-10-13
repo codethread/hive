@@ -69,8 +69,6 @@ Workspace discovery, route redirects, and precedence:
 | `close` | Policy-aware close, optional force/bypass evidence and next-work suggestions | `src/cli/commands/close.rs` |
 | `reopen` | Reopen terminal work through transition policy | `src/cli/commands/reopen.rs` |
 | `delete` | Create a tombstone rather than silently dropping issue history | `src/cli/commands/delete.rs` |
-| `defer` | Move issues to deferred status and optionally set a time gate | `src/cli/commands/defer.rs` |
-| `undefer` | Return deferred issues to active workflow; dispatched to `defer.rs` | `src/cli/commands/defer.rs` |
 | `comments` (`add`, `list`) | Append or list issue comments; bare `comments <ID>` also lists; top-level alias `comment` | `src/cli/commands/comments.rs` |
 
 Model and mutation internals:
@@ -236,14 +234,13 @@ Machine-output source map:
 MCP surface:
 
 - Tools in `src/mcp/tools.rs`: `list_issues`, `show_issue`, `create_issue`, `update_issue`, `close_issue`, `manage_dependencies`, `project_overview`.
-- Resources in `src/mcp/resources.rs`: project info, issue-by-ID through `beads://issue/{id}`, schema, labels, ready/blocked/in-progress/deferred/bottleneck issue views, coordination status, graph health, and recent events.
+- Resources in `src/mcp/resources.rs`: project info, issue-by-ID through `beads://issue/{id}`, schema, labels, ready/blocked/in-progress/bottleneck issue views, coordination status, graph health, and recent events.
 - Prompts in `src/mcp/prompts.rs`: `triage`, `status_report`, `plan_next_work`, `polish_backlog`.
 - `tests/e2e_mcp_protocol.rs`: discovery-surface assertions.
 
 ## Dispatch exceptions, aliases, and feature gates
 
 - `status` is a separate top-level variant dispatched to `stats.rs`.
-- `undefer` dispatches to `defer.rs`.
 - `vcs-status` dispatches to `vcs.rs`.
 - `serve` bypasses `src/cli/commands/` and enters `src/mcp/mod.rs`.
 - Top-level aliases: `comment`, `completion`, `coord`, `robot_docs`, `schedule`.

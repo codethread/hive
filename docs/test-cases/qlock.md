@@ -1,4 +1,4 @@
-# Deferred Qlock test case
+# Parked Qlock test case
 
 This scenario records one removed executable check, with no parameterized variants. Remaining tests may cover portions of the behavior. The removal ledger is `hv-luv2v` comment 4466; the source inventory is `hv-hu8eo.7` comment 4385. Follow-up work remains on `hv-luv2v`.
 

@@ -16,7 +16,6 @@ export function taskSelection(
 		...(filter.any.length > 0 && { labelAny: filter.any }),
 		excludeLabels: ["system", "bee", ...filter.exclude],
 		all: filter.closed || filter.statuses.includes("closed"),
-		deferred: true,
 		sort: "priority",
 	};
 }

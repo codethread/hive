@@ -232,7 +232,7 @@ system_prompt = "Inspect the target's logs and process evidence, including legit
 
 After **15 minutes without stdout**, an awake Colony launches one drone for an unreconciled running attempt with unfinished tasks. A never-written stdout log uses attempt creation as the quiet interval's starting point. Actual log activity, rather than the potentially delayed public timestamp, drives the trigger. The drone receives the exact target attempt, log/process-evidence directory, review ID and deadline, and runs in the target's recorded execution directory. Silence or PID existence alone does not prove inactivity or progress.
 
-The drone uses `bee report SPAWN_ID active|inactive`. **Active** leaves the target running and defers the next review for 15 minutes from Colony's acceptance, independently of actual stdout time. **Inactive** enters the normal attempt-failure policy: verified stop, release only its own unfinished claims, retry within `max_retries`, then failed/unresolved on exhaustion. This adds no request outcome or resolution value.
+The drone uses `bee report SPAWN_ID active|inactive`. **Active** leaves the target running and postpones the next review for 15 minutes from Colony's acceptance, independently of actual stdout time. **Inactive** enters the normal attempt-failure policy: verified stop, release only its own unfinished claims, retry within `max_retries`, then failed/unresolved on exhaustion. This adds no request outcome or resolution value.
 
 Each review gets **one launch attempt and at most five minutes of runtime**, with no automatic drone retry. Launch failure, exit without a valid verdict and timeout all apply inactive consequences, with distinct `launch_failed`, `exited_without_verdict`, `timeout` and inspected `inactive` diagnostics. The detached supervisor enforces its deadline even while Colony sleeps or the daemon is stopped; target settlement waits for awake reconciliation. A valid verdict durably submitted before the deadline can be consumed after wake. Duplicate, stale, replaced-attempt and late reports are rejected. Reviews already authorized for execution survive daemon recovery without launching another drone. Missing or ambiguous process authority remains a visible failure rather than permission to signal or release claims.
 
@@ -568,7 +568,7 @@ Overrides last until a fresh wake, daemon recovery wake or explicit reset reload
 
 ## Verification
 
-Native failure and confirmed partial-effect evidence: `bun test lib/colony/src/history.smoke.test.ts`. Bounded-retention, crash-uncertainty and retry checks were deferred during the timing cleanup; their scenarios and restoration pointers are in the [Colony coverage record](../../docs/test-cases/colony.md).
+Native failure and confirmed partial-effect evidence: `bun test lib/colony/src/history.smoke.test.ts`. Bounded-retention, crash-uncertainty and retry checks were parked during the timing cleanup; their scenarios and restoration pointers are in the [Colony coverage record](../../docs/test-cases/colony.md).
 
 Run from the Hive checkout. Installed Bee/Colony commands run on Bun. The repository check includes the full test suite:
 
@@ -586,7 +586,7 @@ The smoke fixtures use real disposable Git repositories, Beads databases, socket
 | Interactive terminal input rejection | `bun test lib/colony/src/run.smoke.test.ts` |
 | Native usage-counter recovery | `bun test lib/colony/src/postrun-evidence.smoke.test.ts` |
 
-Offline submission, daemon lifecycle, scheduling, self-report, claims/retry, recovery, request authority, policy revisions and runtime-inspection smoke coverage is deferred in the [coverage record](../../docs/test-cases/colony.md). The record preserves the removed assertions; runtime behavior is unchanged.
+Offline submission, daemon lifecycle, scheduling, self-report, claims/retry, recovery, request authority, policy revisions and runtime-inspection smoke coverage is parked in the [coverage record](../../docs/test-cases/colony.md). The record preserves the removed assertions; runtime behavior is unchanged.
 
 For a real, authenticated native harness, run the opt-in probe separately:
 

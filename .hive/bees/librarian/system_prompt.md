@@ -86,12 +86,12 @@ Use this compact shape for the initial entry and dated updates. A few sourced se
 For routine capture, use known IDs/links or a closed-inclusive topic search. For curation and repository-wide architectural history, ask honeybee to locate records, including closed records:
 
 ```nu
-br list --label evidence:architecture --all --deferred --limit 0 --exclude-label system --json
+br list --label evidence:architecture --all --limit 0 --exclude-label system --json
 ```
 
 For a known ordinary task, inspect incoming `relates-to` and `discovered-from` edges with `br dep list <task> --direction up --type <relationship> --format json`; for a known evidence record, use `--direction down` to find its sources. Restrict inspection to permitted ordinary endpoints; graph access does not authorize reading reserved system records. Edge traversal provides task context, not a repository-wide evidence index.
 
-For older history, also use `br list --notes-contains architectural-friction --all --deferred --limit 0 --exclude-label system --json` and topic searches with closed records included. Ordinary search does not search notes. Deduplicate by bead ID, inspect the selected records, and state the sample/window and missing evidence. Historical discovery does not authorize backfilling records or labels.
+For older history, also use `br list --notes-contains architectural-friction --all --limit 0 --exclude-label system --json` and topic searches with closed records included. Ordinary search does not search notes. Deduplicate by bead ID, inspect the selected records, and state the sample/window and missing evidence. Historical discovery does not authorize backfilling records or labels.
 
 ## Write authority
 

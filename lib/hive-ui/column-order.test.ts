@@ -16,20 +16,20 @@ test("default columns preserve selected and custom statuses without showing save
 });
 
 test("filtered moves preserve absent columns and new statuses append in default order", () => {
-	const preferred = ["review", "closed", "open", "in_progress", "blocked", "deferred"];
+	const preferred = ["review", "closed", "open", "in_progress", "blocked", "draft"];
 	const moved = swapColumns(columnOrder(["open", "review"], preferred), "open", "review");
-	expect(moved).toEqual(["open", "closed", "review", "in_progress", "blocked", "deferred"]);
+	expect(moved).toEqual(["open", "closed", "review", "in_progress", "blocked", "draft"]);
 	expect(boardStatuses([], ["review", "closed", "open"], moved)).toEqual([
 		"open",
 		"closed",
 		"review",
 	]);
-	expect(boardStatuses(["qa", "deferred"], [], ["open"])).toEqual([
+	expect(boardStatuses(["qa", "draft"], [], ["open"])).toEqual([
 		"open",
 		"in_progress",
 		"blocked",
-		"deferred",
 		"qa",
+		"draft",
 	]);
 });
 

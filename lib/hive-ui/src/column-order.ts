@@ -1,7 +1,7 @@
 import { createStore } from "zustand/vanilla";
 import { z } from "zod";
 
-const STATUS_ORDER = ["in_progress", "open", "blocked", "deferred", "closed"];
+const STATUS_ORDER = ["in_progress", "open", "blocked", "closed"];
 const STORAGE_KEY = "hive-ui.column-order";
 const collectionSchema = z.record(z.string(), z.array(z.string().min(1)));
 interface ColumnOrderState {
@@ -18,9 +18,7 @@ export function boardStatuses(
 	preferred: string[],
 ): string[] {
 	const visible = new Set([
-		...(selected.length > 0
-			? selected
-			: STATUS_ORDER.filter((status) => status !== "deferred" && status !== "closed")),
+		...(selected.length > 0 ? selected : STATUS_ORDER.filter((status) => status !== "closed")),
 		...present,
 	]);
 	return columnOrder([...visible], preferred).filter((status) => visible.has(status));

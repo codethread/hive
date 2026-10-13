@@ -1,4 +1,4 @@
-# Deferred Busy Bee test cases
+# Parked Busy Bee test cases
 
 These are removed executable checks, recorded for reconsideration rather than a new behavior contract. Remaining tests may cover portions. The 45 removed original cases measured over 1000ms; faster siblings and the unmeasured repository-default tracker-selection row remain.
 

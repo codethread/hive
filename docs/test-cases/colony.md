@@ -1,4 +1,4 @@
-# Deferred Colony test cases
+# Parked Colony test cases
 
 These are removed executable checks, rewritten as restoration scenarios. Remaining tests may cover parts of the same behavior. The record accounts for **44 original cases**: 43 in 23 removed smoke files and one removed history case. Thirty exceeded 1000ms in the baseline; the other 14 were removed with their files. The 23 files used explicit 10–180 second timeouts, which are not approval for replacement tests.
 
@@ -743,7 +743,7 @@ Scenario: Adopt live work after a daemon crash
   And durable awake membership returns while temporary membership disappears
   And an unrelated sentinel process survives
 
-Scenario: Defer sleeping cancellation through recovery
+Scenario: Delay sleeping cancellation through recovery
   Given a durable colony sleeps while its worker is alive and its request is then closed
   When other colonies run and the daemon crashes and recovers
   Then asleep intent, the worker and its in-progress claim remain
@@ -968,8 +968,8 @@ Scenario: Accept one authorized active verdict durably
   Then the target stays live, the inspector stops and an active observation is recorded
   And stdout remains empty, repeated reconciliation retains that review and duplicate verdicts are refused
 
-Scenario: Retry inactive work after the deferral interval
-  Given an active review's independent deferral checkpoint expires
+Scenario: Retry inactive work after the review interval
+  Given an active review's independent review-delay checkpoint expires
   When a new review reports inactive
   Then the old review cannot report and the new review has no policy revision ID
   And the target stops, its claim releases and the request becomes retrying

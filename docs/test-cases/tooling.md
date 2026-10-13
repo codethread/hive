@@ -31,4 +31,4 @@ Baseline: `61e736f8e1f4bfad9b7338e140d33938d0426f71`. Source: `lib/tooling/tests
 | `notes.md` | Line 80 | staged notes.md preserves newer working content and runs only applicable tools |
 | `source.ts` | Line 81 | staged source.ts preserves newer working content and runs only applicable tools |
 
-Source correspondence is recorded in scout `hv-hu8eo.2` comment 4378 and removal task `hv-hu8eo.13`. Ledger `hv-luv2v` comment 4466 retains the Tooling Beads checks; those executable checks are not deferred scenarios here. The focused `.beads/issues.jsonl` regression also remains executable in the same integration file, with a destructive fake formatter that exposes a broken JSONL exclusion.
+Source correspondence is recorded in scout `hv-hu8eo.2` comment 4378 and removal task `hv-hu8eo.13`. Ledger `hv-luv2v` comment 4466 retains the Tooling Beads checks; those executable checks are not parked scenarios here. The focused `.beads/issues.jsonl` regression also remains executable in the same integration file, with a destructive fake formatter that exposes a broken JSONL exclusion.

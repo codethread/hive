@@ -193,7 +193,6 @@ export function createBoardData() {
 					const rows = await list(context, {
 						ids: batch,
 						all: true,
-						deferred: true,
 						limit: batch.length,
 					});
 					const found = new Set(rows.map((row) => row.id));

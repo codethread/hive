@@ -14,7 +14,6 @@ export const DEFAULT_BEAD_STATUSES = [
 	"open",
 	"in_progress",
 	"blocked",
-	"deferred",
 	"draft",
 	"closed",
 	"tombstone",
@@ -68,7 +67,7 @@ export const colonySchema = z.object({
 	name: z.string(),
 	/** Resolved repository root for native reads. */
 	root: z.string(),
-	/** Native defaults plus workflow statuses loaded from this endpoint's tracker policy. */
+	/** Standard UI statuses plus workflow statuses loaded from this endpoint's tracker policy. */
 	statuses: z.array(beadStatusSchema),
 });
 export const coloniesSchema = z.object({

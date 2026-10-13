@@ -53,7 +53,7 @@ SQLite runtime state <---- import/export/merge ----> JSONL interchange state
 | Concept | Semantics |
 | --- | --- |
 | Issue | ID, title and long-form fields; status, priority and type; assignee/owner; estimate and dates; source routing; labels, dependencies and comments for interchange/display |
-| Status | Built-ins are `open`, `in_progress`, `blocked`, `deferred`, `draft`, `closed`, `tombstone`, and `pinned`; custom statuses are accepted and policy can constrain them |
+| Status | Hive policy permits `open`, `in_progress`, `in_review`, `blocked`, `draft`, `closed`, `tombstone`, and `pinned`; native custom statuses are representable and policy constrains allowed values |
 | Priority | Integer P0–P4: critical, high, medium, low, backlog |
 | Type | Built-ins are `task`, `bug`, `feature`, `epic`, `chore`, `docs`, and `question`; custom types are representable |
 | Dependency | Directed typed edge: the source issue depends on the target issue; identity is source + target + type |
@@ -131,7 +131,7 @@ Use `br ready` as the canonical actionable-work query. By default, a ready issue
 
 - belongs to the configured ready status group, which defaults to `open`;
 - has no unresolved blocking relationship;
-- is not hidden by a future `defer_until` time gate;
+- has no active time gate;
 - is not excluded as a template, pinned context, tombstone, or other non-work record; and
 - matches requested assignee, label, type, priority, or parent filters.
 

@@ -15,4 +15,4 @@ qlock exec --merge-target main -w 180 -- honeycomb finish --json --title "feat: 
 qlock exec --merge-target main -w 180 -- gh pr merge 123 --squash
 ```
 
-Keep final refresh/revalidation, merge, required push and confirmation inside one lock. Queue a script for multi-step or deferred merges; wait for completion, not just auto-merge registration.
+Keep final refresh/revalidation, merge, required push and confirmation inside one lock. Queue a script for multi-step or queued merges; wait for completion, not just auto-merge registration.

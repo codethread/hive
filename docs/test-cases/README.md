@@ -1,4 +1,4 @@
-# Deferred test cases
+# Parked test cases
 
 These Given/When/Then scenarios preserve the behavior verified by tests removed during the October 10, 2026 timing cleanup. Restoration mappings identify the original executable checks. Remaining tests may cover parts of the same behavior.
 
@@ -15,6 +15,6 @@ Original source is retained in Git at `61e736f8e1f4bfad9b7338e140d33938d0426f71`
 git show 61e736f8e1f4bfad9b7338e140d33938d0426f71:lib/colony/src/scheduler.smoke.test.ts
 ```
 
-The deferred work is tracked in Beads as `hv-luv2v`; the cleanup and scout inventories are under `hv-hu8eo`. When revisiting a scenario, identify the contract worth preserving and use focused dependencies or a separately selectable boundary check. Existing timeouts are evidence of the original setup, not approved timeouts for replacement tests.
+The parked work is tracked in Beads as `hv-luv2v`; the cleanup and scout inventories are under `hv-hu8eo`. When revisiting a scenario, identify the contract worth preserving and use focused dependencies or a separately selectable boundary check. Existing timeouts are evidence of the original setup, not approved timeouts for replacement tests.
 
 Beads bootstrap checks retain their real Git/filesystem boundaries under `lib/tooling/tests/contract/`, with existing user-approved timing allowances in `lib/tooling/slow-tests.json`. Native Beads API conformance belongs under `lib/beads/tests/contract/`; [test selection](../repository-commands.md#test-selection) describes the finite inputs that select it and the explicit contract command. Consumer behavior tests use memory. Merge-driver tests, publication checks and the opt-in native harness verification script remain. Other third-party contract-test candidates require discussion before promotion.

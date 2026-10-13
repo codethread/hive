@@ -37,7 +37,7 @@ For native sessions, deterministic session-based names mean a clear/new session 
 
 Clearing owned state means replacing this integration's identity state. It does not mean clearing all environment variables, editing old conversation history, or removing another extension's prompt contribution. The precise cleanup mechanics and bee-session rebinding are adapter acceptance work.
 
-## Considered and intentionally deferred
+## Considered and intentionally parked
 
 | Considered behavior | Why it is outside MVP |
 | --- | --- |

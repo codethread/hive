@@ -5,7 +5,7 @@ import { readHierarchy } from "./hierarchy.ts";
 const rows: SelectedBead[] = [
 	{ id: "root", status: "closed", dependency_count: 0, dependent_count: 1 },
 	{ id: "middle", status: "closed", dependency_count: 1, dependent_count: 1 },
-	{ id: "selected", status: "deferred", dependency_count: 1, dependent_count: 0 },
+	{ id: "selected", status: "open", dependency_count: 1, dependent_count: 0 },
 ].map((row) =>
 	Object.assign(row, {
 		title: row.id,
