@@ -59,7 +59,7 @@ const summary = { ...request, recipe: metadata };
 test.each([{ args: ["spawn", "worker", "task-1"] }, { args: ["retry", "request-0"] }])(
 	"$args returns the next-command identifiers without native metadata",
 	async ({ args }) => {
-		const result = await invoke([...args, "--json"]);
+		const result = await invoke([...args, "--actor", "test", "--json"]);
 		expect(JSON.parse(result.stdout)).toEqual({
 			kind: "spawn_created",
 			ok: true,

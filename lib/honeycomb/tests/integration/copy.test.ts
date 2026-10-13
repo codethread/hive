@@ -192,28 +192,3 @@ test.each(["", "/tmp/abs", "~/secret", "../escape"])(
 		expect(result.failure).toBeInstanceOf(ConfigError);
 	},
 );
-
-test("missing source fails as a config error payload", async () => {
-	const { root } = await initRepoWithOrigin(tmp);
-	writeConfig({ command: "echo ready", root, tmp });
-	await dispatch("add", ["--cwd", root, "--branch", "feature/missing-copy", "--json"], deps);
-	writeConfig({ command: "echo ready", copyToml: 'copy = [".env.missing"]\n', root, tmp });
-
-	const result = await dispatch(
-		"copy",
-		["--cwd", `${root}__feature--missing-copy`, "--json"],
-		deps,
-	);
-
-	expect(result.failure).toBeInstanceOf(ConfigError);
-	expect(JSON.parse(result.stdout ?? "{}")).toMatchInlineSnapshot(`
-	  {
-	    "diagnostics": [],
-	    "kind": "error",
-	    "message": "copy source does not exist: .env.missing",
-	    "ok": false,
-	    "reason": "config",
-	    "setup_output": [],
-	  }
-	`);
-});

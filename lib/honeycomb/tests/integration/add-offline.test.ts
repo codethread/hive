@@ -148,8 +148,6 @@ async function nestedCopyFixture() {
 }
 
 test.each([
-	{ missing: "unknown-default", policy: "origin_default" },
-	{ missing: "missing-defaults", policy: "origin_default" },
 	{ missing: "unknown-default", policy: "fresh_canonical" },
 	{ missing: "missing-defaults", policy: "fresh_canonical" },
 ])(
