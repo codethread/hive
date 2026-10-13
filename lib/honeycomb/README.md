@@ -127,27 +127,39 @@ honeycomb tree
 honeycomb tree --json
 ```
 
-`tree` renders registered worktrees using **current Git commit ancestry**, not recorded branch creation history:
+`tree` groups worktrees relative to the **repository's default branch**, then infers feature stacks from current Git ancestry. It does not record branch creation history.
 
 ```text
-Worktrees (inferred from Git ancestry; not creation history)
-└── main [canonical] [? parent unclear: no ancestor worktree]
-    ├── feature/api
-    │   └── feature/ui = feature/ui-review [same HEAD]
-    └── feature/docs
+Worktrees (default-branch groups; inferred feature stacks, not creation history)
+└── main [canonical] [default]
+    ├── feature/api [2 ahead, 3 behind]
+    │   └── feature/ui = feature/ui-review [same HEAD] [4 ahead, 3 behind]
+    └── feature/docs [1 ahead, 1 behind]
+
+Free pool slots (relative to default branch)
+├── wk-pool/feat1 [pool:free] [0 ahead, 20 behind]
+└── wk-pool/feat2 [pool:free] [0 ahead, 5 behind]
 ```
 
-Worktrees at the same commit share a node (`=` / `[same HEAD]`); this does not imply parentage between them. Each node nests under its nearest strict ancestor among the registered HEAD groups. Nodes with no registered ancestor or multiple incomparable nearest ancestors stay at the top level, marked `?`. Bare and unborn worktrees have no HEAD and remain separate, marked `[? no HEAD]`. Detached worktrees are labelled by their paths.
+The default **name** comes from local `origin/HEAD` metadata, not the canonical checkout or a hardcoded name. The baseline is that branch's local tip, or its cached `origin/<default>` tip when the local branch does not exist. A default without a checkout still appears as the baseline header. This is a local snapshot, not a claim that origin is current.
 
-The view follows locally available history, so merges, rebases, and shallow history can change the shape. Already-integrated branches may appear **above** `main`. Even an unmarked edge proves commit ancestry, not which branch a worktree was created from.
+- Direct children of the default are **baseline grouping**, not proof they descend from its current tip. Independent branches forked from older default commits remain siblings. Already-contained HEADs also stay at this level.
+- Below feature branches, nesting means one nearest strict ancestor HEAD among active worktrees with commits outside the default history. A branch based on an older default commit can still parent a stack. Baseline history and free pool slots never become feature parents.
+- Equal active HEADs share a node (`=` / `[same HEAD]`); equality does not imply parentage. Free pool slots are displayed separately and flat, including slots with commits ahead of the default.
+- Multiple incomparable nearest feature ancestors remain at the top level, marked `?`. HEADs with no common ancestor in local history and bare/unborn worktrees without a HEAD also stay separate. Detached worktrees use their paths as labels.
 
-Like `list`, `tree` never loads config or runs setup. It also reads local commit history, requires Git 2.45+ to prevent on-demand fetching, and never contacts remotes. Git errors fail the command rather than becoming uncertainty markers.
+Counts are commits reachable only from the worktree (`ahead`) or baseline (`behind`), not content-equivalence or squash-merge detection. Merges, rebases and shallow history can change the inferred stacks. Even an inferred edge does not establish which branch a worktree was created from.
 
-JSON uses `kind: "tree"`, `basis: "git_ancestry"`, and a flat `nodes` array. Each node contains `id` (its full commit OID, or worktree path when no commit exists), `worktrees` (the same fields as `list --json`), and `parentage`:
+Like `list`, `tree` never loads config or runs setup. It requires Git 2.45+ to prevent on-demand fetching and never contacts remotes. Missing local objects and Git errors fail the command rather than becoming uncertainty markers. A committed inventory without a known default fails with `trunk_detection_failed`; set its local designation with `git remote set-head origin <default-branch>` (the named remote-tracking branch must exist). An inventory with no committed HEADs remains displayable without a baseline.
 
-- `{ "kind": "inferred", "head": "<parent OID>" }`
-- `{ "kind": "ambiguous", "heads": ["<candidate OID>", "..."] }`
-- `{ "kind": "unknown", "reason": "no_ancestor" }` or `"no_head"`
+JSON retains `kind: "tree"`, `basis: "git_ancestry"`, and a flat `nodes` array containing every registered worktree, including free slots. `default_branch` supplies `{ branch, ref, head }`, or `null` when there are no committed HEADs. Each node contains:
+
+- `id`: its full commit OID, or worktree path when no commit exists.
+- `worktrees`: the same fields as `list --json`. Equal HEADs stay grouped here, even when free and active members are displayed separately in text.
+- `comparison`: `{ kind: "related" | "no_common_ancestor", ahead, behind }` against the baseline, or `null` for a missing HEAD. No common ancestor means none was observed locally; shallow history may be incomplete.
+- `parentage`: `{ kind: "inferred", head }` for a nearest eligible feature ancestor; `{ kind: "ambiguous", heads }` for incomparable candidates; or `{ kind: "unknown", reason: "no_ancestor" | "no_head" }`. `no_ancestor` means no eligible **feature** parent, not no baseline association.
+
+The text view groups related nodes without an inferred or ambiguous parent beneath the baseline; this grouping is not stored as an inferred `parentage` edge. Free members are selected by `worktrees[].pool.placeholder` and never removed from the JSON inventory.
 
 ## Config
 

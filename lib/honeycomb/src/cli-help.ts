@@ -217,16 +217,26 @@ Notes:
 `,
 	tree: `
 Use when:
-  Visualizing current commit ancestry among registered worktrees, not which
-  branch each worktree was originally created from.
+  Viewing worktrees relative to the repository default branch, with inferred
+  feature stacks and a separate flat list of free pool slots.
 
 Notes:
-  Equal HEADs share a node marked "same HEAD"; nesting uses the nearest strict
-  ancestor HEAD group. ? marks no known parent or multiple nearest ancestors;
-  these nodes stay at the top level. Older integrated branches may appear above
-  main. Bare and unborn worktrees have no HEAD and stay separate.
+  Discovers the default name from local origin/HEAD, not canonical HEAD or a
+  hardcoded branch name. Uses its local tip, or cached origin tip if absent.
+  Missing default metadata/tips fail; set git remote set-head origin <branch>
+  when the remote-tracking branch exists. An inventory without commits needs
+  no baseline. The default header can appear even without a checkout.
+  Children of the default are baseline groups, not proven ancestry edges.
+  Feature nesting uses nearest strict ancestor HEADs with commits outside
+  default history; old default snapshots and free slots cannot parent stacks.
+  Equal active HEADs share a node marked "same HEAD". ? marks ambiguous stacks,
+  no common ancestor in local history, or no HEAD; these stay separate.
+  Ahead/behind counts compare commits with the baseline, not file contents.
   Reads local Git history only (Git 2.45+); no config, setup, or remote access.
-  Git errors fail the command rather than being treated as uncertain ancestry.
-  --json emits kind "tree" with nodes containing id, worktrees, and parentage.
+  Missing objects and Git errors fail, not become uncertainty. Shallow history,
+  merges and rebases can change the view; it is not branch creation history.
+  --json retains kind "tree" and all worktrees in nodes, adding default_branch
+  and node comparison metadata. parentage describes feature ancestry only;
+  default grouping and flat free-slot presentation do not assert parentage.
 `,
 };

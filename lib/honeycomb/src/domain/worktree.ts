@@ -5,6 +5,7 @@ import type { WorktreeLocation } from "./config.ts";
 
 const LEGACY_NESTED_WORKTREE_DIR = ".wktree";
 const MIN_BRANCH_PARTS = 1;
+const NO_COMMITS = 0;
 export const NESTED_WORKTREE_DIR = ".worktrees";
 const TILDE_PREFIX = "~/";
 
@@ -124,7 +125,7 @@ export type BranchState = "local" | "remote" | "local-remote" | "none";
 
 export type WorktreeParentage =
 	| {
-			/** One nearest strict ancestor among registered HEAD groups. */
+			/** One nearest strict ancestor with feature commits outside the default branch. */
 			kind: "inferred";
 			/** Parent group's commit OID. */
 			head: string;
@@ -138,9 +139,34 @@ export type WorktreeParentage =
 	| {
 			/** No parent can be established from this inventory. */
 			kind: "unknown";
-			/** Missing commit or no registered ancestor of the commit. */
+			/** Missing commit or no eligible feature ancestor of the commit. */
 			reason: "no_head" | "no_ancestor";
 	  };
+
+export interface TreeDefaultBranch {
+	/** Default branch name discovered from local origin/HEAD metadata. */
+	branch: string;
+	/** Local default ref, or cached origin ref when the local branch is absent. */
+	ref: string;
+	/** Snapshotted commit used for every baseline comparison. */
+	head: string;
+}
+
+export interface TreeComparison {
+	/** Whether local history contains a common ancestor with the default branch. */
+	kind: "related" | "no_common_ancestor";
+	/** Commits reachable only from this HEAD. */
+	ahead: number;
+	/** Commits reachable only from the default branch. */
+	behind: number;
+}
+
+export interface WorktreeTree {
+	/** Baseline designation and commit; absent for an inventory with no commits. */
+	defaultBranch: TreeDefaultBranch | undefined;
+	/** Every registered worktree, grouped by commit or missing-HEAD path. */
+	nodes: WorktreeTreeNode[];
+}
 
 export interface WorktreeTreeNode {
 	/** Commit OID for a HEAD group, or checkout path when there is no commit. */
@@ -149,6 +175,8 @@ export interface WorktreeTreeNode {
 	worktrees: Worktree[];
 	/** Current commit ancestry, not recorded branch creation history. */
 	parentage: WorktreeParentage;
+	/** Counts against the default branch; absent for a missing HEAD. */
+	comparison: TreeComparison | undefined;
 }
 
 /** Git reports an all-zero HEAD for an unborn branch and no HEAD for a bare entry. */
@@ -159,27 +187,28 @@ export function worktreeCommit(worktree: Worktree): string | undefined {
 	return undefined;
 }
 
-/** Reduce strict ancestor observations to a forest, keeping uncertain parents at its roots. */
-export function buildWorktreeTree(
-	worktrees: Worktree[],
-	ancestors: ReadonlyMap<string, ReadonlySet<string>>,
-): WorktreeTreeNode[] {
-	const groups = new Map<string, WorktreeTreeNode>();
-	for (const worktree of worktrees) {
-		const head = worktreeCommit(worktree);
-		const id = head ?? worktree.path;
-		const existing = groups.get(id);
-		if (existing) {
-			existing.worktrees.push(worktree);
-		} else {
-			groups.set(id, {
-				id,
-				parentage: inferWorktreeParentage(head, ancestors),
-				worktrees: [worktree],
-			});
-		}
-	}
-	return [...groups.values()];
+/** Infer feature stacks without turning baseline history or free slots into parents. */
+export function buildWorktreeTree(options: {
+	/** Inventory observed once at the application boundary. */
+	worktrees: Worktree[];
+	/** Strict ancestor observations between active worktree HEADs. */
+	ancestors: ReadonlyMap<string, ReadonlySet<string>>;
+	/** Repository default designation and immutable comparison tip. */
+	defaultBranch: TreeDefaultBranch | undefined;
+	/** Default-relative observations for each committed HEAD. */
+	comparisons: ReadonlyMap<string, TreeComparison>;
+}): WorktreeTree {
+	const activeHeads = options.worktrees
+		.filter((worktree) => !worktree.pool?.placeholder)
+		.map((worktree) => worktreeCommit(worktree))
+		.filter((head) => head !== undefined);
+	const featureHeads = new Set(
+		activeHeads.filter((head) => {
+			const comparison = options.comparisons.get(head);
+			return comparison?.kind === "related" && comparison.ahead > NO_COMMITS;
+		}),
+	);
+	return { defaultBranch: options.defaultBranch, nodes: groupWorktreeNodes(options, featureHeads) };
 }
 
 export function sessionNameForWorktreePath(worktreePath: string): string {
@@ -246,14 +275,41 @@ export function resolveCopySource(root: string, from: string, home: string): str
 
 // --- Private functions ---
 
+function groupWorktreeNodes(
+	options: Parameters<typeof buildWorktreeTree>[number],
+	featureHeads: ReadonlySet<string>,
+): WorktreeTreeNode[] {
+	const { worktrees, ancestors, comparisons } = options;
+	const groups = new Map<string, WorktreeTreeNode>();
+	for (const worktree of worktrees) {
+		const head = worktreeCommit(worktree);
+		const id = head ?? worktree.path;
+		const existing = groups.get(id);
+		if (existing) {
+			existing.worktrees.push(worktree);
+		} else {
+			groups.set(id, {
+				comparison: comparisons.get(id),
+				id,
+				parentage: inferWorktreeParentage(head, ancestors, featureHeads),
+				worktrees: [worktree],
+			});
+		}
+	}
+	return [...groups.values()];
+}
+
 function inferWorktreeParentage(
 	head: string | undefined,
 	ancestors: ReadonlyMap<string, ReadonlySet<string>>,
+	featureHeads: ReadonlySet<string>,
 ): WorktreeParentage {
 	if (head === undefined) {
 		return { kind: "unknown", reason: "no_head" };
 	}
-	const candidates = [...(ancestors.get(head) ?? [])];
+	const candidates = [...(ancestors.get(head) ?? [])].filter(
+		(candidate) => featureHeads.has(head) && featureHeads.has(candidate),
+	);
 	const nearest = candidates.filter(
 		(candidate) => !candidates.some((other) => ancestors.get(other)?.has(candidate)),
 	);

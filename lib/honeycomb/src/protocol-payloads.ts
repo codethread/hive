@@ -1,4 +1,12 @@
-import type { AddPlan, RemovePlan, Worktree, WorktreeTreeNode } from "./domain/worktree.ts";
+import type {
+	AddPlan,
+	RemovePlan,
+	TreeComparison,
+	TreeDefaultBranch,
+	Worktree,
+	WorktreeTree,
+	WorktreeTreeNode,
+} from "./domain/worktree.ts";
 import type { PolicyExplanation, ProjectConfig, RepositoryConfig } from "./domain/config.ts";
 import { projectNameFor } from "./domain/config.ts";
 import { sessionNameForWorktreePath } from "./domain/worktree.ts";
@@ -6,6 +14,14 @@ import { sessionNameForWorktreePath } from "./domain/worktree.ts";
 const SHORT_COMMIT_LENGTH = 7;
 const COMMIT_START = 0;
 const LAST_ITEM = -1;
+const NO_ITEMS = 0;
+
+interface TreeLine {
+	/** Rendered label, independent of worktree identity. */
+	label: string;
+	/** Display children: baseline grouping or inferred feature ancestry. */
+	children: TreeLine[];
+}
 
 interface SessionInfo {
 	/** Stable tmux session name. */
@@ -125,11 +141,15 @@ export function formatWorktreeList(worktrees: Worktree[]): string {
 	return lines.map((line) => `${line}\n`).join("");
 }
 
-export function toTreePayload(nodes: WorktreeTreeNode[]) {
+export function toTreePayload(tree: WorktreeTree) {
 	return {
 		basis: "git_ancestry",
+		// oxlint-disable-next-line unicorn/no-null -- No baseline exists for an inventory without commits.
+		default_branch: tree.defaultBranch ?? null,
 		kind: "tree",
-		nodes: nodes.map((node) => ({
+		nodes: tree.nodes.map((node) => ({
+			// oxlint-disable-next-line unicorn/no-null -- Missing HEADs have no comparison, not zero counts.
+			comparison: node.comparison ?? null,
 			id: node.id,
 			parentage: node.parentage,
 			worktrees: node.worktrees.map(toListJson),
@@ -137,25 +157,16 @@ export function toTreePayload(nodes: WorktreeTreeNode[]) {
 	};
 }
 
-export function formatWorktreeTree(nodes: WorktreeTreeNode[]): string {
-	const lines = ["Worktrees (inferred from Git ancestry; not creation history)"];
-	const roots = nodes.filter((node) => node.parentage.kind !== "inferred");
-	const append = (siblings: WorktreeTreeNode[], prefix: string): void => {
-		for (const node of siblings) {
-			let connector = "├── ";
-			let indent = "│   ";
-			if (node === siblings.at(LAST_ITEM)) {
-				connector = "└── ";
-				indent = "    ";
-			}
-			lines.push(`${prefix}${connector}${formatTreeNode(node)}`);
-			const children = nodes.filter(
-				(child) => child.parentage.kind === "inferred" && child.parentage.head === node.id,
-			);
-			append(children, `${prefix}${indent}`);
-		}
-	};
-	append(roots, "");
+export function formatWorktreeTree(tree: WorktreeTree): string {
+	const lines = [
+		"Worktrees (default-branch groups; inferred feature stacks, not creation history)",
+	];
+	appendTreeLines(lines, activeTreeLines(tree), "");
+	const free = freePoolLines(tree.nodes);
+	if (free.length > NO_ITEMS) {
+		lines.push("", "Free pool slots (relative to default branch)");
+		appendTreeLines(lines, free, "");
+	}
 	return `${lines.join("\n")}\n`;
 }
 
@@ -232,27 +243,104 @@ function toLocalConfigPayload(local: RepositoryConfig | undefined) {
 	};
 }
 
+function activeTreeLines(tree: WorktreeTree): TreeLine[] {
+	const { defaultBranch } = tree;
+	const nodes = tree.nodes
+		.map((node) => ({
+			...node,
+			worktrees: node.worktrees.filter((worktree) => !worktree.pool?.placeholder),
+		}))
+		.filter((node) => node.worktrees.length);
+	const displayNode = (node: WorktreeTreeNode): TreeLine => ({
+		label: formatTreeNode(node),
+		children: nodes
+			.filter((child) => child.parentage.kind === "inferred" && child.parentage.head === node.id)
+			.map((child) => displayNode(child)),
+	});
+	const roots = nodes.filter(
+		(node) => node.id !== defaultBranch?.head && node.parentage.kind !== "inferred",
+	);
+	const grouped = roots.filter(
+		(node) => node.comparison?.kind === "related" && node.parentage.kind !== "ambiguous",
+	);
+	const display = roots.filter((node) => !grouped.includes(node)).map((node) => displayNode(node));
+	if (defaultBranch) {
+		display.unshift({
+			label: formatDefaultBranch(defaultBranch, nodes),
+			children: grouped.map((child) => displayNode(child)),
+		});
+	}
+	return display;
+}
+
+function freePoolLines(nodes: WorktreeTreeNode[]): TreeLine[] {
+	return nodes
+		.flatMap((node) =>
+			node.worktrees.flatMap((worktree) => {
+				if (!worktree.pool?.placeholder) {
+					return [];
+				}
+				return [
+					{
+						index: worktree.pool.index,
+						label: formatTreeWorktree(worktree) + formatTreeComparison(node.comparison),
+						children: [],
+					},
+				];
+			}),
+		)
+		.toSorted((left, right) => left.index - right.index);
+}
+
+function appendTreeLines(lines: string[], siblings: TreeLine[], prefix: string): void {
+	for (const node of siblings) {
+		let connector = "├── ";
+		let indent = "│   ";
+		if (node === siblings.at(LAST_ITEM)) {
+			connector = "└── ";
+			indent = "    ";
+		}
+		lines.push(`${prefix}${connector}${node.label}`);
+		appendTreeLines(lines, node.children, `${prefix}${indent}`);
+	}
+}
+
+function formatDefaultBranch(baseline: TreeDefaultBranch, nodes: WorktreeTreeNode[]): string {
+	const worktrees = nodes.find((node) => node.id === baseline.head)?.worktrees ?? [];
+	const checkedOut = worktrees.find((worktree) => worktree.branchRef === baseline.ref);
+	let label = `${baseline.ref.replace(/^refs\/(?:heads|remotes)\//u, "")} [default; not checked out]`;
+	if (checkedOut) {
+		label = `${formatTreeWorktree(checkedOut)} [default]`;
+	}
+	const others = worktrees.filter((worktree) => worktree !== checkedOut);
+	if (others.length > NO_ITEMS) {
+		label += ` = ${others.map((worktree) => formatTreeWorktree(worktree)).join(" = ")} [same HEAD]`;
+	}
+	return label;
+}
+
 function formatTreeNode(node: WorktreeTreeNode): string {
-	const labels = node.worktrees.map((worktree) => formatTreeWorktree(worktree));
-	const [, second] = node.worktrees;
+	const labels = node.worktrees.map(formatTreeWorktree);
 	let label = labels.join(" = ");
+	const [, second] = node.worktrees;
 	if (second) {
 		label += " [same HEAD]";
 	}
-	return label + formatTreeParentage(node.parentage);
+	label += formatTreeComparison(node.comparison);
+	if (node.parentage.kind === "ambiguous") {
+		return `${label} [? parent unclear: multiple nearest ancestors]`;
+	}
+	return label;
 }
 
-function formatTreeParentage(parentage: WorktreeTreeNode["parentage"]): string {
-	if (parentage.kind === "ambiguous") {
-		return " [? parent unclear: multiple nearest ancestors]";
+function formatTreeComparison(comparison: TreeComparison | undefined): string {
+	if (!comparison) {
+		return " [? no HEAD]";
 	}
-	if (parentage.kind === "unknown") {
-		if (parentage.reason === "no_head") {
-			return " [? no HEAD]";
-		}
-		return " [? parent unclear: no ancestor worktree]";
+	if (comparison.kind === "no_common_ancestor") {
+		return " [? no common ancestor in local history]";
 	}
-	return "";
+	return ` [${comparison.ahead} ahead, ${comparison.behind} behind]`;
 }
 
 function formatTreeWorktree(worktree: Worktree): string {

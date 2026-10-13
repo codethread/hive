@@ -8,11 +8,20 @@ import { join } from "node:path";
 // oxlint-disable-next-line import/no-nodejs-modules -- Resolve macOS temporary-directory symlinks to Git's inventory paths.
 import { realpath } from "node:fs/promises";
 
+const GIT_FAILURE = 128;
 const home = useTmpHome("honeycomb-tree-");
 
-async function initTreeRepo() {
+async function initTreeRepo(defaultBranch = "main") {
 	const root = join(home.dir, "repo");
 	await initRepo(root);
+	await gitOut(root, "branch", "-m", defaultBranch);
+	await gitOut(root, "update-ref", `refs/remotes/origin/${defaultBranch}`, "HEAD");
+	await gitOut(
+		root,
+		"symbolic-ref",
+		"refs/remotes/origin/HEAD",
+		`refs/remotes/origin/${defaultBranch}`,
+	);
 	return realpath(root);
 }
 
@@ -34,6 +43,11 @@ async function treeJson(root: string) {
 	return JSON.parse(result.stdout ?? "{}");
 }
 
+async function addCommittedBranch(root: string, branch: string, base: string) {
+	const path = await addBranch(root, branch, base);
+	return { head: await commit(path, branch), path };
+}
+
 async function initOlderAndUnrelatedTree() {
 	const root = await initTreeRepo();
 	const old = await addBranch(root, "old", "main");
@@ -45,21 +59,25 @@ async function initOlderAndUnrelatedTree() {
 	return { mainHead, oldHead, root };
 }
 
-test("older worktree commits can appear above canonical main; unrelated history stays separate", async () => {
+test("contained worktrees stay beneath the local default; unrelated history stays separate", async () => {
 	const { mainHead, oldHead, root } = await initOlderAndUnrelatedTree();
 	const payload = await treeJson(root);
 	expect(payload.nodes).toContainEqual(
 		expect.objectContaining({
 			id: mainHead,
-			parentage: { head: oldHead, kind: "inferred" },
+			parentage: { kind: "unknown", reason: "no_ancestor" },
 		}),
+	);
+	expect(payload.default_branch).toMatchObject({ head: mainHead });
+	expect(payload.nodes).toContainEqual(
+		expect.objectContaining({ id: oldHead, comparison: { kind: "related", ahead: 0, behind: 1 } }),
 	);
 	const result = await dispatch("tree", ["--cwd", root], testDeps());
 	expect(result.stdout).toMatchInlineSnapshot(`
-"Worktrees (inferred from Git ancestry; not creation history)
-├── old [? parent unclear: no ancestor worktree]
-│   └── main [canonical]
-└── independent [? parent unclear: no ancestor worktree]
+"Worktrees (default-branch groups; inferred feature stacks, not creation history)
+├── main [canonical] [default]
+│   └── old [0 ahead, 1 behind]
+└── independent [? no common ancestor in local history]
 "
 `);
 });
@@ -88,30 +106,136 @@ test("detached worktrees are labelled by path and group with matching branch HEA
 		{ worktrees: [{ branch: "main" }, { detached: true, path }] },
 	]);
 	const text = await dispatch("tree", ["--cwd", root], testDeps());
-	expect(text.stdout).toContain(`main [canonical] = ${path} [detached] [same HEAD]`);
+	expect(text.stdout).toContain(`main [canonical] [default] = ${path} [detached] [same HEAD]`);
 });
 
-test("ancestry query errors fail as git_failed instead of appearing as uncertain parents", async () => {
-	const root = await initTreeRepo();
-	const branch = await addBranch(root, "branch", "main");
-	await commit(branch, "branch");
-	const deps = testDeps();
-	const result = await dispatch("tree", ["--cwd", root, "--json"], {
-		...deps,
-		git: {
-			run: deps.git.run,
-			runRaw: (args) => {
-				expect(args).toContain("--no-lazy-fetch");
-				return Promise.resolve({ exitCode: 128, stderr: "missing commit object", stdout: "" });
+test.each(["symbolic-ref", "rev-parse", "rev-list", "merge-base"])(
+	"%s errors fail as git_failed instead of appearing as uncertain parents",
+	async (operation) => {
+		const root = await initTreeRepo();
+		const branch = await addBranch(root, "branch", "main");
+		await commit(branch, "branch");
+		const deps = testDeps();
+		const result = await dispatch("tree", ["--cwd", root, "--json"], {
+			...deps,
+			git: {
+				run: (args) => {
+					expect(args).toContain("--no-lazy-fetch");
+					if (args.includes(operation)) {
+						throw new GitError(args, "missing commit object", GIT_FAILURE);
+					}
+					return deps.git.run(args);
+				},
+				runRaw: (args) => {
+					expect(args).toContain("--no-lazy-fetch");
+					if (args.includes(operation)) {
+						return Promise.resolve({ exitCode: 128, stderr: "missing commit object", stdout: "" });
+					}
+					return deps.git.runRaw(args);
+				},
 			},
+		});
+		expect(result.exitCode).toBe(EXIT_CODES.FAILURE);
+		expect(result.failure).toBeInstanceOf(GitError);
+		expect(result.stderr).toBeUndefined();
+		expect(JSON.parse(result.stdout ?? "{}")).toMatchObject({
+			kind: "error",
+			ok: false,
+			reason: "git_failed",
+		});
+	},
+);
+
+async function initDefaultAwayFromCanonical(removeLocal: boolean) {
+	const root = await initTreeRepo("release/trunk");
+	const baseline = await gitOut(root, "rev-parse", "HEAD");
+	await gitOut(root, "checkout", "-b", "canonical-feature");
+	await commit(root, "canonical feature work");
+	if (removeLocal) {
+		await gitOut(root, "branch", "-D", "release/trunk");
+	}
+	return { root, baseline };
+}
+
+test.each([
+	{ removeLocal: false, ref: "refs/heads/release/trunk" },
+	{ removeLocal: true, ref: "refs/remotes/origin/release/trunk" },
+])("discovers $ref independently of canonical HEAD", async ({ removeLocal, ref }) => {
+	const { root, baseline } = await initDefaultAwayFromCanonical(removeLocal);
+	const result = await treeJson(root);
+	expect(result.default_branch).toEqual({
+		branch: "release/trunk",
+		head: baseline,
+		ref,
+	});
+	expect(result.nodes).toMatchObject([
+		{
+			comparison: { kind: "related", ahead: 1, behind: 0 },
+			worktrees: [{ branch: "canonical-feature", canonical: true }],
 		},
-	});
-	expect(result.exitCode).toBe(EXIT_CODES.FAILURE);
-	expect(result.failure).toBeInstanceOf(GitError);
-	expect(result.stderr).toBeUndefined();
-	expect(JSON.parse(result.stdout ?? "{}")).toMatchObject({
-		kind: "error",
-		ok: false,
-		reason: "git_failed",
-	});
+	]);
+	const text = await dispatch("tree", ["--cwd", root], testDeps());
+	expect(text.stdout).toContain("release/trunk [default; not checked out]");
+	expect(text.stdout).toContain("    └── canonical-feature [canonical] [1 ahead, 0 behind]");
+});
+
+test.each([
+	{ missing: "designation", args: ["symbolic-ref", "--delete", "refs/remotes/origin/HEAD"] },
+	{
+		missing: "tips",
+		args: ["symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/missing"],
+	},
+])(
+	"missing default $missing fails instead of guessing main or canonical HEAD",
+	async ({ args }) => {
+		const root = await initTreeRepo();
+		await gitOut(root, ...args);
+		const result = await dispatch("tree", ["--cwd", root, "--json"], testDeps());
+		expect(JSON.parse(result.stdout ?? "{}")).toMatchObject({
+			ok: false,
+			reason: "trunk_detection_failed",
+		});
+		expect(result.exitCode).not.toBe(EXIT_CODES.SUCCESS);
+	},
+);
+
+async function initOldBaseStack() {
+	const root = await initTreeRepo("trunk");
+	await gitOut(root, "worktree", "add", "-b", "wk-pool/feat1", `${root}__feat1`, "trunk");
+	const parent = await addCommittedBranch(root, "parent", "trunk");
+	const child = await addCommittedBranch(root, "child", "parent");
+	await commit(root, "advance default");
+	await gitOut(root, "worktree", "add", "-b", "wk-pool/feat2", `${root}__feat2`, "trunk");
+	await addCommittedBranch(root, "sibling", "trunk");
+	const baseline = await commit(root, "advance default again");
+	return { root, parent, child, baseline };
+}
+
+test("stale pool commits do not parent an old-base feature stack", async () => {
+	const { parent, child, baseline } = await initOldBaseStack();
+	const payload = await treeJson(child.path);
+	expect(payload.default_branch).toMatchObject({ head: baseline, branch: "trunk" });
+	expect(payload.nodes).toContainEqual(
+		expect.objectContaining({
+			id: parent.head,
+			parentage: { kind: "unknown", reason: "no_ancestor" },
+			comparison: { kind: "related", ahead: 1, behind: 2 },
+		}),
+	);
+	expect(payload.nodes).toContainEqual(
+		expect.objectContaining({ id: child.head, parentage: { kind: "inferred", head: parent.head } }),
+	);
+	const text = await dispatch("tree", ["--cwd", child.path], testDeps());
+	expect(text.stdout).toMatchInlineSnapshot(`
+	  "Worktrees (default-branch groups; inferred feature stacks, not creation history)
+	  └── trunk [canonical] [default]
+	      ├── parent [1 ahead, 2 behind]
+	      │   └── child [2 ahead, 2 behind]
+	      └── sibling [1 ahead, 1 behind]
+
+	  Free pool slots (relative to default branch)
+	  ├── wk-pool/feat1 [pool:free] [0 ahead, 2 behind]
+	  └── wk-pool/feat2 [pool:free] [0 ahead, 1 behind]
+	  "
+	`);
 });

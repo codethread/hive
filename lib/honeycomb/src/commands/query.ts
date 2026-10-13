@@ -76,11 +76,11 @@ export async function listCommand(args: string[], deps: Deps): Promise<CommandRe
 
 export async function treeCommand(args: string[], deps: Deps): Promise<CommandResult> {
 	const request = parseQueryRequest(args);
-	const nodes = await readWorktreeTree(deps.git, request.cwd);
+	const tree = await readWorktreeTree(deps.git, request.cwd);
 	if (request.output.json) {
-		return finalizeStructuredResult(toTreePayload(nodes), request.output);
+		return finalizeStructuredResult(toTreePayload(tree), request.output);
 	}
-	return { exitCode: EXIT_CODES.SUCCESS, stdout: formatWorktreeTree(nodes) };
+	return { exitCode: EXIT_CODES.SUCCESS, stdout: formatWorktreeTree(tree) };
 }
 
 export async function pathCommand(args: string[], deps: Deps): Promise<CommandResult> {

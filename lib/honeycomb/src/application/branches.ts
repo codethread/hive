@@ -1,3 +1,4 @@
+import type { BranchState, TreeDefaultBranch } from "../domain/worktree.ts";
 import {
 	DirtyCanonicalError,
 	DirtyWorktreeError,
@@ -11,12 +12,13 @@ import {
 } from "../errors.ts";
 import { parseTrunkFromRemoteShow, parseTrunkFromSymbolicRef } from "../git/worktrees.ts";
 import type { AddPolicy } from "../domain/config.ts";
-import type { BranchState } from "../domain/worktree.ts";
+import { GitError } from "../git/error.ts";
 import type { GitRunner } from "../services.ts";
 
 /** Git diff reports differing content with exit status one. */
 const DIFF_FOUND = 1;
 const NO_PATHS = 0;
+const NOT_SYMBOLIC = 1;
 
 interface ComparisonRequest {
 	/** Branch whose integration is being verified. */
@@ -85,12 +87,47 @@ export async function resolveDefaultBaseForNewBranch(options: {
 }
 
 export async function readLocalDefaultBranch(git: GitRunner, root: string): Promise<string | null> {
-	const symbolic = await git.runRaw(["-C", root, "symbolic-ref", "refs/remotes/origin/HEAD"]);
+	const args = ["-C", root, "symbolic-ref", "--quiet", "refs/remotes/origin/HEAD"];
+	const symbolic = await git.runRaw(args);
 	if (symbolic.exitCode === EXIT_CODES.SUCCESS) {
 		return parseTrunkFromSymbolicRef(symbolic.stdout);
 	}
+	if (symbolic.exitCode !== NOT_SYMBOLIC) {
+		throw new GitError(args, symbolic.stderr, symbolic.exitCode);
+	}
 	// oxlint-disable-next-line unicorn/no-null -- Local default discovery explicitly models missing metadata.
 	return null;
+}
+
+/** A worktree view prefers the local default tip, unlike add's cached-origin policy. */
+export async function resolveTreeDefaultBranch(
+	git: GitRunner,
+	root: string,
+): Promise<TreeDefaultBranch> {
+	const branch = await readLocalDefaultBranch(git, root);
+	if (!branch) {
+		throw new TrunkDetectionError(
+			"origin/HEAD is unknown locally; set it with git remote set-head origin <default-branch>, then retry tree",
+		);
+	}
+	let ref = `refs/heads/${branch}`;
+	if (!(await refExists(git, root, ref))) {
+		ref = `refs/remotes/origin/${branch}`;
+		if (!(await refExists(git, root, ref))) {
+			throw new TrunkDetectionError(
+				`neither local nor cached origin default branch ${branch} exists; fetch it before retrying tree`,
+			);
+		}
+	}
+	const resolved = await git.run([
+		"-C",
+		root,
+		"rev-parse",
+		"--verify",
+		"--end-of-options",
+		`${ref}^{commit}`,
+	]);
+	return { branch, head: resolved.stdout.trim(), ref };
 }
 
 /** Resolve a commit without contacting origin or substituting the current HEAD. */
