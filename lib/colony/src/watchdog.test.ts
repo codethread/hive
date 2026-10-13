@@ -12,7 +12,8 @@ const ONE = 1;
 const START = 1_000_000;
 const GRACE_MS = 60_000;
 const BEFORE = 1;
-const empty = watchdogCheckpointSchema.parse({ failures: [], outage: null });
+const COOLDOWN_MS = 1_800_000;
+const empty = watchdogCheckpointSchema.parse({ failures: [], lastNotifiedAt: null, outage: null });
 const repository = { beadsDb: "/tracker.db", root: "/repo" };
 const failed: ColonyStatus = {
 	attempts: [],
@@ -23,7 +24,11 @@ const failed: ColonyStatus = {
 	repository,
 	state: "failed",
 };
-const alerted: WatchdogCheckpoint = { failures: [repository], outage: null };
+const alerted: WatchdogCheckpoint = {
+	failures: [repository],
+	lastNotifiedAt: START,
+	outage: null,
+};
 
 test.each([false, true])(
 	"native Beads conflict reaches watchdog with publication wrapper %j",
@@ -88,20 +93,35 @@ test("failed colony alerts immediately and deduplicates changed diagnostics afte
 	expect(repeated.next).toEqual(alerted);
 });
 
-test.each(["awake", "asleep"] as const)("%s clears a failure once and rearms alerts", (state) => {
-	const observation = { colonies: [{ ...failed, state }], kind: "reachable" as const };
-	const recovery = advanceWatchdog(alerted, observation, START);
-	expect(recovery.body).toContain(`Current state: ${state}`);
-	expect(recovery.next).toEqual(empty);
-	expect(advanceWatchdog(recovery.next, observation, START).body).toBeUndefined();
-	expect(
-		advanceWatchdog(recovery.next, { colonies: [failed], kind: "reachable" }, START).body,
-	).toContain("Colony failed");
-});
+test.each(["awake", "asleep"] as const)(
+	"%s notifies recovery immediately but keeps failures quiet",
+	(state) => {
+		const observation = { colonies: [{ ...failed, state }], kind: "reachable" as const };
+		const recovery = advanceWatchdog(alerted, observation, START);
+		expect(recovery.body).toContain(`Current state: ${state}`);
+		expect(recovery.next).toEqual({ ...empty, lastNotifiedAt: START });
+		expect(advanceWatchdog(recovery.next, observation, START).body).toBeUndefined();
+		const relapse = advanceWatchdog(
+			recovery.next,
+			{ colonies: [failed], kind: "reachable" },
+			START,
+		);
+		expect(relapse.body).toBeUndefined();
+		expect(relapse.next.failures).toEqual([]);
+		expect(
+			advanceWatchdog(relapse.next, { colonies: [failed], kind: "reachable" }, START + COOLDOWN_MS)
+				.body,
+		).toContain("Colony failed");
+	},
+);
 
 test("unavailability waits 60 seconds across restarts and alerts once", () => {
 	const observation = { kind: "unavailable" as const };
-	const first = advanceWatchdog(alerted, observation, START);
+	const first = advanceWatchdog(
+		{ ...alerted, lastNotifiedAt: START - COOLDOWN_MS },
+		observation,
+		START,
+	);
 	expect(first.body).toBeUndefined();
 	// eslint-disable-next-line unicorn/prefer-structured-clone -- Exercise the persisted JSON round trip.
 	const restored = watchdogCheckpointSchema.parse(JSON.parse(JSON.stringify(first.next)));
@@ -124,6 +144,7 @@ test("brief unavailability clears silently and resets the grace period", () => {
 test("transport recovery does not clear colony failures or report missing registrations healthy", () => {
 	const previous: WatchdogCheckpoint = {
 		failures: [repository],
+		lastNotifiedAt: START,
 		outage: { delivered: true, since: START },
 	};
 	const recovered = advanceWatchdog(previous, { colonies: [], kind: "reachable" }, START);
@@ -137,11 +158,15 @@ test("transport recovery does not clear colony failures or report missing regist
 	expect(stillFailed.body).toBeUndefined();
 });
 
-test("daemon recovery still reports newly failed colonies, keyed by both repository and tracker", () => {
+test("daemon recovery batches eligible failures, keyed by both repository and tracker", () => {
 	const otherTracker = { ...repository, beadsDb: "/other.db" };
 	const otherRoot = { ...repository, root: "/other" };
 	const result = advanceWatchdog(
-		{ failures: [repository], outage: { delivered: true, since: START } },
+		{
+			...alerted,
+			lastNotifiedAt: START - COOLDOWN_MS,
+			outage: { delivered: true, since: START - COOLDOWN_MS },
+		},
 		{
 			colonies: [
 				failed,
@@ -158,15 +183,80 @@ test("daemon recovery still reports newly failed colonies, keyed by both reposit
 	expect(result.next.failures).toEqual([repository, otherTracker, otherRoot]);
 });
 
+test("new failures wait for the exact cooldown boundary across restarts", () => {
+	const other = { ...failed, repository: { ...repository, root: "/other" } };
+	const observation = { colonies: [failed, other], kind: "reachable" as const };
+	const suppressed = advanceWatchdog(alerted, observation, START + COOLDOWN_MS - BEFORE);
+	expect(suppressed.body).toBeUndefined();
+	expect(suppressed.next).toEqual(alerted);
+	// eslint-disable-next-line unicorn/prefer-structured-clone -- Exercise the persisted JSON round trip.
+	const restored = watchdogCheckpointSchema.parse(JSON.parse(JSON.stringify(suppressed.next)));
+	const due = advanceWatchdog(restored, observation, START + COOLDOWN_MS);
+	expect(due.body).toContain("/other");
+	expect(due.next).toEqual({
+		failures: [repository, other.repository],
+		lastNotifiedAt: START + COOLDOWN_MS,
+		outage: null,
+	});
+	expect(
+		advanceWatchdog(due.next, observation, START + COOLDOWN_MS + COOLDOWN_MS).body,
+	).toBeUndefined();
+});
+
+test("daemon outages share the failure cooldown without losing their grace period", () => {
+	const observation = { kind: "unavailable" as const };
+	const onset = advanceWatchdog(alerted, observation, START);
+	const suppressed = advanceWatchdog(onset.next, observation, START + GRACE_MS);
+	expect(suppressed.body).toBeUndefined();
+	expect(suppressed.next.outage).toEqual({ delivered: false, since: START });
+	expect(
+		advanceWatchdog(suppressed.next, observation, START + COOLDOWN_MS - BEFORE).body,
+	).toBeUndefined();
+	const due = advanceWatchdog(suppressed.next, observation, START + COOLDOWN_MS);
+	expect(due.body).toContain("unavailable");
+	expect(due.next.outage?.delivered).toBe(true);
+});
+
+test("recovery does not sneak new failures through the cooldown and restarts its window", () => {
+	const other = { ...failed, repository: { ...repository, root: "/other" } };
+	const recovered = advanceWatchdog(
+		{ ...alerted, outage: { delivered: true, since: START - GRACE_MS } },
+		{ colonies: [{ ...failed, state: "awake" }, other], kind: "reachable" },
+		START + GRACE_MS,
+	);
+	expect(recovered.body).toContain("reachable again");
+	expect(recovered.body).toContain("failure cleared");
+	expect(recovered.body).not.toContain("/other");
+	expect(recovered.next).toEqual({ ...empty, lastNotifiedAt: START + GRACE_MS });
+	const observation = { colonies: [other], kind: "reachable" as const };
+	expect(advanceWatchdog(recovered.next, observation, START + COOLDOWN_MS).body).toBeUndefined();
+	expect(
+		advanceWatchdog(recovered.next, observation, START + GRACE_MS + COOLDOWN_MS).body,
+	).toContain("/other");
+});
+
+test("failure cleared during cooldown is not sent later as a stale alert", () => {
+	const previous = { ...empty, lastNotifiedAt: START };
+	const suppressed = advanceWatchdog(previous, { colonies: [failed], kind: "reachable" }, START);
+	const recovered = advanceWatchdog(
+		suppressed.next,
+		{ colonies: [{ ...failed, state: "awake" }], kind: "reachable" },
+		START + COOLDOWN_MS,
+	);
+	expect(recovered).toEqual({ body: undefined, next: previous });
+});
+
 test("poll delivers before saving and stays silent with the restored checkpoint", async () => {
 	const effects: string[] = [];
 	let saved = empty;
+	let now = START;
 	const io = {
 		notify: () => {
 			effects.push("notify");
+			now += GRACE_MS;
 			return Promise.resolve();
 		},
-		now: () => START,
+		now: () => now,
 		observe: () => Promise.resolve({ colonies: [failed], kind: "reachable" as const }),
 		save: (next: WatchdogCheckpoint) => {
 			effects.push("save");
@@ -176,25 +266,40 @@ test("poll delivers before saving and stays silent with the restored checkpoint"
 	};
 	await pollWatchdog(empty, io);
 	expect(effects).toEqual(["notify", "save"]);
+	expect(saved.lastNotifiedAt).toBe(START + GRACE_MS);
 	await pollWatchdog(saved, io);
 	expect(effects).toEqual(["notify", "save"]);
 });
 
-test("notification failure propagates without marking the incident delivered", async () => {
-	let saved = false;
-	await expect(
-		pollWatchdog(empty, {
-			notify: () => Promise.reject(new Error("Delivery failed")),
-			now: () => START,
-			observe: () => Promise.resolve({ colonies: [failed], kind: "reachable" }),
-			save: () => {
-				saved = true;
-				return Promise.resolve();
-			},
-		}),
-	).rejects.toBeInstanceOf(Error);
-	expect(saved).toBe(false);
-});
+test.each([
+	{
+		name: "failure",
+		previous: empty,
+		state: "failed",
+	},
+	{
+		name: "recovery",
+		previous: alerted,
+		state: "awake",
+	},
+])(
+	"$name notification failure propagates without consuming delivery state",
+	async ({ previous, state }) => {
+		let saved = false;
+		await expect(
+			pollWatchdog(previous, {
+				notify: () => Promise.reject(new Error("Delivery failed")),
+				now: () => START,
+				observe: () => Promise.resolve({ colonies: [{ ...failed, state }], kind: "reachable" }),
+				save: () => {
+					saved = true;
+					return Promise.resolve();
+				},
+			}),
+		).rejects.toBeInstanceOf(Error);
+		expect(saved).toBe(false);
+	},
+);
 
 test("poll persists outage onset before an alert is due", async () => {
 	let saved = empty;

@@ -5,11 +5,14 @@ import { z } from "zod";
 
 export const WATCHDOG_POLL_MS = 30_000;
 const UNAVAILABLE_GRACE_MS = 60_000;
+const NOTIFICATION_COOLDOWN_MS = 1_800_000;
 
 /** Watcher-owned delivery bookkeeping, never scheduling authority. */
 export const watchdogCheckpointSchema = z.strictObject({
 	/** Failed repository/tracker episodes whose alert was delivered. */
 	failures: z.array(repositoryEndpointSchema),
+	/** Latest successful notification time in epoch milliseconds, or none yet. */
+	lastNotifiedAt: z.number().finite().nullable(),
 	/** Sustained transport outage, including whether its alert was delivered. */
 	outage: z.strictObject({ since: z.number().finite(), delivered: z.boolean() }).nullable(),
 });
@@ -42,16 +45,24 @@ export function advanceWatchdog(
 	observation: WatchdogObservation,
 	now: number,
 ): WatchdogTransition {
+	let { lastNotifiedAt } = previous;
+	const canAlert =
+		previous.lastNotifiedAt === null || now - previous.lastNotifiedAt >= NOTIFICATION_COOLDOWN_MS;
 	if (observation.kind === "unavailable") {
 		const outage = previous.outage ?? { delivered: false, since: now };
-		const alert = !outage.delivered && now - outage.since >= UNAVAILABLE_GRACE_MS;
+		const alert = canAlert && !outage.delivered && now - outage.since >= UNAVAILABLE_GRACE_MS;
 		let body: string | undefined = undefined;
 		if (alert) {
 			body = "Colony daemon unavailable for at least 60 seconds.";
+			lastNotifiedAt = now;
 		}
 		return {
 			body,
-			next: { ...previous, outage: { ...outage, delivered: outage.delivered || alert } },
+			next: {
+				...previous,
+				lastNotifiedAt,
+				outage: { ...outage, delivered: outage.delivered || alert },
+			},
 		};
 	}
 	const failures = new Map(
@@ -65,7 +76,7 @@ export function advanceWatchdog(
 		const key = identity(colony.repository);
 		const label = `${colony.repository.root} (Beads: ${colony.repository.beadsDb})`;
 		if (colony.state === "failed") {
-			if (!failures.has(key)) {
+			if (canAlert && !failures.has(key)) {
 				messages.push(`Colony failed: ${label}\n${colony.message}`);
 				failures.set(key, colony.repository);
 			}
@@ -73,9 +84,17 @@ export function advanceWatchdog(
 			messages.push(`Colony failure cleared: ${label}\nCurrent state: ${colony.state}.`);
 		}
 	}
+	const body = messages.join("\n\n") || undefined;
+	if (body !== undefined) {
+		lastNotifiedAt = now;
+	}
 	return {
-		body: messages.join("\n\n") || undefined,
-		next: { failures: [...failures.values()], outage: null },
+		body,
+		next: {
+			failures: [...failures.values()],
+			lastNotifiedAt,
+			outage: null,
+		},
 	};
 }
 
@@ -85,13 +104,15 @@ export async function pollWatchdog(
 ): Promise<WatchdogCheckpoint> {
 	const observation = await io.observe();
 	const transition = advanceWatchdog(previous, observation, io.now());
+	let { next } = transition;
 	if (transition.body !== undefined) {
 		await io.notify(transition.body);
+		next = { ...next, lastNotifiedAt: io.now() };
 	}
-	if (JSON.stringify(previous) !== JSON.stringify(transition.next)) {
-		await io.save(transition.next);
+	if (JSON.stringify(previous) !== JSON.stringify(next)) {
+		await io.save(next);
 	}
-	return transition.next;
+	return next;
 }
 
 // --- Private functions ---

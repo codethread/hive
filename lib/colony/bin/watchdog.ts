@@ -16,7 +16,9 @@ const NOTIFY_TIMEOUT_MS = 10_000;
 const SUCCESS = 0;
 const program = new Command()
 	.name("colony-watchdog")
-	.description("Observe Colony every 30s and notify via cc-notify; never wake or repair it")
+	.description(
+		"Observe Colony every 30s; failure alerts have a 30-minute cooldown, recovery notifies immediately; never wake or repair it",
+	)
 	.option("--state <directory>", "Colony state directory (same default as colony)")
 	.option("--socket <path>", "Colony socket; requires --state")
 	.parse();
@@ -26,7 +28,7 @@ const socketKey = new Bun.CryptoHasher("sha256").update(target.socket).digest("h
 const checkpointPath = join(directory, `${socketKey}.json`);
 const checkpointFile = Bun.file(checkpointPath);
 // eslint-disable-next-line unicorn/no-null -- JSON checkpoint uses explicit absence.
-let checkpoint: WatchdogCheckpoint = { failures: [], outage: null };
+let checkpoint: WatchdogCheckpoint = { failures: [], lastNotifiedAt: null, outage: null };
 if (await checkpointFile.exists()) {
 	checkpoint = watchdogCheckpointSchema.parse(await checkpointFile.json());
 }
