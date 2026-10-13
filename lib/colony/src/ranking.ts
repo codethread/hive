@@ -46,8 +46,6 @@ export async function pageRanks(
 					"bv",
 					"--robot-insights",
 					"--force-full-analysis",
-					"--robot-max-results",
-					"100",
 					"--db",
 					repository.beadsDb,
 					"--format",

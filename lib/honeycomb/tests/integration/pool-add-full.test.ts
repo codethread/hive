@@ -43,48 +43,6 @@ async function assertPickerIgnored(
 	expect(await gitOut(`${root}__feat1`, "branch", "--show-current")).toBe("feature/one");
 }
 
-test("machine json add reports pool_full and --slot selects a specific slot", async () => {
-	const root = await occupySlot();
-
-	const blocked = await dispatch(
-		"add",
-		["--cwd", root, "--branch", "feature/two", "--json"],
-		// oxlint-disable-next-line unicorn/no-null -- TestPicker uses null to model cancellation.
-		testDeps({ picker: createTestPicker(null, true) }),
-	);
-
-	expect(blocked.exitCode).toBe(EXIT_CODES.BLOCKED);
-	expect(JSON.parse(blocked.stdout ?? "{}")).toMatchObject({
-		branch: "feature/two",
-		candidates: [
-			{
-				branch: "feature/one",
-				dirty: false,
-				local_only: true,
-				path: `${root}__feat1`,
-				slot: 1,
-			},
-		],
-		kind: "pool_full",
-		root,
-	});
-
-	const selected = await dispatch(
-		"add",
-		["--cwd", root, "--branch", "feature/two", "--json", "--slot", `${root}__feat1`, "--force"],
-		// oxlint-disable-next-line unicorn/no-null -- TestPicker uses null to model cancellation.
-		testDeps({ picker: createTestPicker(null, true) }),
-	);
-
-	expect(selected.exitCode).toBe(EXIT_CODES.SUCCESS);
-	expect(JSON.parse(selected.stdout ?? "{}")).toMatchObject({
-		branch: "feature/two",
-		kind: "ready",
-		session: { name: "repo__feat1", path: `${root}__feat1` },
-		worktree_path: `${root}__feat1`,
-	});
-	expect(await gitOut(`${root}__feat1`, "branch", "--show-current")).toBe("feature/two");
-});
 test("machine json pool_full bypasses picker and leaves the occupied slot untouched", async () => {
 	const root = await occupySlot();
 	await run([

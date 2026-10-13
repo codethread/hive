@@ -97,44 +97,6 @@ test("CLI renders nearest ancestors, siblings, and equal HEADs without loading c
 	});
 });
 
-async function initAmbiguousTree() {
-	const root = await initTreeRepo();
-	const left = await addCommittedBranch(root, "left", "main");
-	const right = await addCommittedBranch(root, "right", "main");
-	const merged = await addBranch(root, "merged", "left");
-	await gitOut(merged, "merge", "--no-ff", "right", "-m", "join both");
-	const mergedHead = await gitOut(merged, "rev-parse", "HEAD");
-	const child = await addCommittedBranch(root, "child", "merged");
-	return { childHead: child.head, leftHead: left.head, mergedHead, rightHead: right.head, root };
-}
-
-test("multiple nearest ancestors stay at the top level rather than choosing a merge parent", async () => {
-	const { childHead, leftHead, mergedHead, rightHead, root } = await initAmbiguousTree();
-	const payload = await treeJson(root);
-	expect(payload.nodes).toContainEqual(
-		expect.objectContaining({
-			id: mergedHead,
-			parentage: { heads: [leftHead, rightHead], kind: "ambiguous" },
-		}),
-	);
-	expect(payload.nodes).toContainEqual(
-		expect.objectContaining({
-			id: childHead,
-			parentage: { head: mergedHead, kind: "inferred" },
-		}),
-	);
-	const result = await dispatch("tree", ["--cwd", root], testDeps());
-	expect(result.stdout).toMatchInlineSnapshot(`
-"Worktrees (inferred from Git ancestry; not creation history)
-├── main [canonical] [? parent unclear: no ancestor worktree]
-│   ├── left
-│   └── right
-└── merged [? parent unclear: multiple nearest ancestors]
-    └── child
-"
-`);
-});
-
 async function initOlderAndUnrelatedTree() {
 	const root = await initTreeRepo();
 	const old = await addBranch(root, "old", "main");

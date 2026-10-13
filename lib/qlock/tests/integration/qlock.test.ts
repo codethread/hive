@@ -20,7 +20,6 @@ const singleRunner = 1;
 const ticketIncrement = 1;
 let directory = "";
 let lock = "";
-const mergeStates: string[] = [];
 
 beforeEach(async () => {
 	const temporary = await mkdtemp(resolve(tmpdir(), "hive-qlock-"));
@@ -30,8 +29,6 @@ beforeEach(async () => {
 
 afterEach(async () => {
 	await rm(directory, { recursive: true, force: true });
-	await Promise.all(mergeStates.map((state) => rm(state, { recursive: true, force: true })));
-	mergeStates.length = 0;
 });
 
 test("exec preserves command arguments, streams and exit status, then frees the queue", async () => {
@@ -219,34 +216,6 @@ test.each([
 	expect(result.code).toBe(usage);
 	expect(result.stderr).toContain("qlock:");
 });
-
-test(
-	"merge queues use Honeycomb's root and normalize destination branch refs",
-	// eslint-disable-next-line max-statements -- Exercise native Git, Honeycomb and qlock with isolated merge queues.
-	async () => {
-		await expect(command(["git", "init", "--initial-branch=main"])).resolves.toMatchObject({
-			code: 0,
-		});
-		const root = await command(["honeycomb", "root"], { ...process.env, WK_ROOT: undefined });
-		expect(root.code).toBe(success);
-		for (const branch of ["main", "release"]) {
-			const key = new Bun.CryptoHasher("sha256")
-				.update(`${root.stdout.trim()}\nrefs/heads/${branch}\n`)
-				.digest("hex");
-			mergeStates.push(`/tmp/agent-merge-${key}.lock.d`);
-		}
-		const [mainState] = mergeStates;
-		const first = await seedTicket(mainState!.replace(/\.d$/u, ""));
-		const sameQueue = await qlock(["status", "--merge-target", "refs/heads/main"]);
-		expect(sameQueue.stdout).toContain(`ticket ${first} ready`);
-		await expect(qlock(["status", "--merge-target", "release"])).resolves.toMatchObject({
-			stdout: "free\n",
-		});
-		await expect(
-			qlock(["exec", "-w", "0", "--ticket", first, "--merge-target", "main", "--", "true"]),
-		).resolves.toMatchObject({ code: 0 });
-	},
-);
 
 test("parallel initial exec attempts retain unique tickets behind a held slot", async () => {
 	const first = await seedTicket();

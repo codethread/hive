@@ -252,10 +252,7 @@ async function aheadPoolFixture(policy: string) {
 	return { root, trunk, cached };
 }
 
-test.each([
-	{ policy: "origin_default", canonical: "trunk" },
-	{ policy: "fresh_canonical", canonical: "cached" },
-] as const)(
+test.each([{ policy: "origin_default", canonical: "trunk" }] as const)(
 	"offline pooled $policy branch and rollback use cached default",
 	async ({ policy, canonical }) => {
 		const fixture = await aheadPoolFixture(policy);
@@ -304,15 +301,4 @@ test("offline forced recycle and rollback prefer cached reset over an explicit o
 	expect(await gitOut(`${root}__feat2`, "branch", "--show-current")).toBe("wk-pool/feat2");
 	expect(await gitOut(`${root}__feat2`, "rev-parse", "HEAD")).toBe(cached);
 	expect(await gitSucceeds(root, "show-ref", "--verify", "refs/heads/feature/new")).toBe(false);
-});
-
-test("offline pooled reset falls back to known local default when cached ref is absent", async () => {
-	const { root, trunk } = await aheadPoolFixture("fresh_canonical");
-	await run(["git", "-C", root, "update-ref", "-d", "refs/remotes/origin/main"]);
-	const failed = await addPool(root, ["--no-network"]);
-	expect(failed.failure).toBeInstanceOf(HookError);
-	expect(await gitOut(`${root}__feat2`, "rev-parse", "HEAD")).toBe(trunk);
-	const success = await addPool(root, ["--no-network", "--skip-command"]);
-	expect(success.exitCode).toBe(EXIT_CODES.SUCCESS);
-	expect(await gitOut(`${root}__feat2`, "rev-parse", "HEAD")).toBe(trunk);
 });

@@ -17,6 +17,16 @@ import { reportFailure } from "./cli.ts";
 
 const SUCCESS = 0;
 const JSON_INDENT = 2;
+type BeeResult =
+	| AcknowledgmentResult
+	| AssessmentSubmission
+	| RequestResult
+	| RequestListResult
+	| SpawnResult
+	| FinishResult
+	| DroneReportResult
+	| KindsResult;
+
 export interface SpawnOptions {
 	/** Repository discovery directory. */
 	repo: string;
@@ -144,7 +154,7 @@ export async function runBeeCli(argv: string[], deps: BeeDependencies): Promise<
 					deps.stderr(`Warning: ${warning}\n`);
 				}
 			}
-			writeResult(result, json, deps.stdout);
+			writeResult(result, { json }, deps.stdout);
 		});
 	submissionOptions(
 		program
@@ -152,7 +162,11 @@ export async function runBeeCli(argv: string[], deps: BeeDependencies): Promise<
 			.description("Submit task beads using the selected kind")
 			.addHelpText("after", HELP.spawn),
 	).action(async (kind: string, tasks: string[], options: SpawnOptions) => {
-		writeResult(await deps.spawn(kind, tasks, options), argv.includes("--json"), deps.stdout);
+		writeResult(
+			await deps.spawn(kind, tasks, options),
+			{ json: argv.includes("--json") },
+			deps.stdout,
+		);
 	});
 	submissionOptions(
 		program
@@ -162,7 +176,7 @@ export async function runBeeCli(argv: string[], deps: BeeDependencies): Promise<
 	)
 		.option("--kind <kind>", "Select another kind; defaults to the old request kind")
 		.action(async (id: string, options: RetryOptions) => {
-			writeResult(await deps.retry(id, options), argv.includes("--json"), deps.stdout);
+			writeResult(await deps.retry(id, options), { json: argv.includes("--json") }, deps.stdout);
 		});
 	program
 		.command("finish <outcome>")
@@ -170,30 +184,45 @@ export async function runBeeCli(argv: string[], deps: BeeDependencies): Promise<
 		.addHelpText("after", HELP.finish)
 		.option("--reason <text>", "Required durable blocker and next action for blocked")
 		.action(async (outcome: string, options: { reason?: string }) => {
-			writeResult(await deps.finish(outcome, options), argv.includes("--json"), deps.stdout);
+			writeResult(
+				await deps.finish(outcome, options),
+				{ json: argv.includes("--json") },
+				deps.stdout,
+			);
 		});
 	program
 		.command("assess")
 		.description("Submit a post-run advisory report under injected assessment authority")
 		.requiredOption("--file <path>", "JSON report; contract: colony assessments --schema")
 		.action(async (options: { file: string }) => {
-			writeResult(await deps.assess(options.file), argv.includes("--json"), deps.stdout);
+			writeResult(await deps.assess(options.file), { json: argv.includes("--json") }, deps.stdout);
 		});
 	program
 		.command("report <spawn-id> <verdict>")
 		.description("Report active or inactive from this Colony inactivity drone")
 		.addHelpText("after", HELP.report)
 		.action(async (id: string, verdict: string) => {
-			writeResult(await deps.report(id, verdict), argv.includes("--json"), deps.stdout);
+			writeResult(await deps.report(id, verdict), { json: argv.includes("--json") }, deps.stdout);
 		});
 	inspectionOptions(
 		program
 			.command("status <spawn-id>")
 			.description("Inspect request facts and timestamped last observations")
 			.addHelpText("after", HELP.status),
-	).action(async (id: string, options: InspectionOptions) => {
-		writeResult(await deps.status(id, options), argv.includes("--json"), deps.stdout);
-	});
+	)
+		.option("--include-prompt", "Include both full captured prompt fields in status output", false)
+		.action(
+			async (
+				id: string,
+				{ includePrompt, ...options }: InspectionOptions & { includePrompt: boolean },
+			) => {
+				writeResult(
+					await deps.status(id, options),
+					{ includePrompt, json: argv.includes("--json") },
+					deps.stdout,
+				);
+			},
+		);
 	inspectionOptions(
 		program
 			.command("list")
@@ -202,7 +231,7 @@ export async function runBeeCli(argv: string[], deps: BeeDependencies): Promise<
 	)
 		.option("--all", "Include resolved historical requests", false)
 		.action(async (options: ListOptions) => {
-			writeResult(await deps.list(options), argv.includes("--json"), deps.stdout);
+			writeResult(await deps.list(options), { json: argv.includes("--json") }, deps.stdout);
 		});
 	inspectionOptions(
 		program
@@ -217,7 +246,7 @@ export async function runBeeCli(argv: string[], deps: BeeDependencies): Promise<
 		)
 		.requiredOption("--reason <text>", "Why this failure no longer needs attention")
 		.action(async (id: string, options: AckOptions) => {
-			writeResult(await deps.ack(id, options), argv.includes("--json"), deps.stdout);
+			writeResult(await deps.ack(id, options), { json: argv.includes("--json") }, deps.stdout);
 		});
 	inspectionOptions(
 		program
@@ -227,7 +256,7 @@ export async function runBeeCli(argv: string[], deps: BeeDependencies): Promise<
 	)
 		.requiredOption("--actor <identity>", "Identity closing this request", process.env["BD_ACTOR"])
 		.action(async (id: string, options: StopOptions) => {
-			writeResult(await deps.stop(id, options), argv.includes("--json"), deps.stdout);
+			writeResult(await deps.stop(id, options), { json: argv.includes("--json") }, deps.stdout);
 		});
 	try {
 		await program.parseAsync(argv, { from: "user" });
@@ -260,20 +289,12 @@ function inspectionOptions(command: Command): Command {
 }
 // eslint-disable-next-line max-statements -- Render the three distinct public request results at one output boundary.
 function writeResult(
-	result:
-		| AcknowledgmentResult
-		| RequestResult
-		| RequestListResult
-		| SpawnResult
-		| FinishResult
-		| AssessmentSubmission
-		| DroneReportResult
-		| KindsResult,
-	json: boolean,
+	result: BeeResult,
+	{ json, includePrompt = false }: { json: boolean; includePrompt?: boolean },
 	stdout: (text: string) => void,
 ): void {
 	if (json) {
-		stdout(`${JSON.stringify({ ok: true, ...result })}\n`);
+		stdout(`${JSON.stringify({ ok: true, ...jsonResult(result, includePrompt) })}\n`);
 		return;
 	}
 	if (result.kind === "bee_kinds") {
@@ -315,7 +336,7 @@ function writeResult(
 		if (result.requests.length === SUCCESS) {
 			stdout("No matching bee requests.\n");
 		} else {
-			stdout(`${result.requests.map(formatRequest).join("\n\n")}\n`);
+			stdout(`${result.requests.map((request) => formatRequest(request)).join("\n\n")}\n`);
 		}
 		return;
 	}
@@ -333,10 +354,58 @@ function writeResult(
 		stdout(`${lines.join("\n")}\n`);
 		return;
 	}
-	stdout(`${formatRequest(result.request)}\n`);
+	stdout(`${formatRequest(result.request, includePrompt)}\n`);
 }
+
+/** Project command-sized JSON without changing native facts or internal inspection results. */
+function jsonResult(result: BeeResult, includePrompt: boolean) {
+	switch (result.kind) {
+		case "spawn_created": {
+			const { id, assignee } = result.request;
+			return { kind: result.kind, request: { assignee, id } };
+		}
+		case "request_stopped": {
+			const { request } = result;
+			return {
+				...result,
+				request: {
+					acknowledgment: request.acknowledgment,
+					host: request.host,
+					closeReason: request.closeReason,
+					closedAt: request.closedAt,
+					disposition: request.disposition,
+					id: request.id,
+					identity: request.identity,
+					labelPublication: request.labelPublication,
+					needsAttention: request.needsAttention,
+					resolution: request.resolution,
+					status: request.status,
+					supersedes: request.supersedes,
+				},
+			};
+		}
+		case "request_list": {
+			return { ...result, requests: result.requests.map(withoutPrompt) };
+		}
+		case "request_status": {
+			if (includePrompt) {
+				return result;
+			}
+			return { ...result, request: withoutPrompt(result.request) };
+		}
+		default: {
+			return result;
+		}
+	}
+}
+
+function withoutPrompt(request: RequestView) {
+	const { cwd, effort, harness, kind, model } = request.recipe;
+	return { ...request, recipe: { cwd, effort, harness, kind, model } };
+}
+
 // eslint-disable-next-line max-statements -- Keep the human request facts and explicitly stale observations in one formatter.
-function formatRequest(request: RequestView): string {
+function formatRequest(request: RequestView, includePrompt = false): string {
 	const lines = [
 		`Request ${request.id}: ${request.status}`,
 		`Identity: ${request.identity}`,
@@ -378,6 +447,12 @@ function formatRequest(request: RequestView): string {
 		const activity = request.stdoutActivity;
 		lines.push(
 			`Latest stdout activity (attempt ${activity.attemptNumber}, ${activity.attemptId}): ${activity.lastOutputAt ?? "unknown (no output observed)"}`,
+		);
+	}
+	if (includePrompt) {
+		lines.push(
+			`Captured system prompt:\n${request.recipe.system_prompt}`,
+			`Captured prompt:\n${request.recipe.prompt}`,
 		);
 	}
 	lines.push(

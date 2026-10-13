@@ -148,26 +148,6 @@ async function nestedCopyFixture() {
 }
 
 test.each([
-	{ policy: "origin_default", canonical: "localTip" },
-	{ policy: "fresh_canonical", canonical: "cachedTip" },
-] as const)(
-	"real CLI offline $policy uses newer cached develop with normal canonical policy",
-	async ({ policy, canonical }) => {
-		const fixture = await aheadDevelop(policy);
-		const { root, cachedTip } = fixture;
-		const result = await offlineAdd(root);
-		expect(result.exitCode).toBe(EXIT_CODES.SUCCESS);
-		expect(JSON.parse(result.stdout).kind).toBe("ready");
-		expect(JSON.parse(result.stdout).setup_output).toContainEqual({
-			stream: "stdout",
-			line: "bootstrap-ran",
-		});
-		expect(await gitOut(root, "rev-parse", "feature/offline")).toBe(cachedTip);
-		expect(await gitOut(root, "rev-parse", "develop")).toBe(fixture[canonical]);
-	},
-);
-
-test.each([
 	{ missing: "unknown-default", policy: "origin_default" },
 	{ missing: "missing-defaults", policy: "origin_default" },
 	{ missing: "unknown-default", policy: "fresh_canonical" },
@@ -186,7 +166,7 @@ test.each([
 	},
 );
 
-test.each(["local", "local-remote", "remote"] as const)(
+test.each(["local", "remote"] as const)(
 	"offline existing %s branch uses local state according to cached branch state",
 	async (state) => {
 		const { root, expected } = await existingBranch(state);

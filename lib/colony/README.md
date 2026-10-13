@@ -203,7 +203,7 @@ bun run lib/colony/bin/bee.ts list --all --repo /path/to/repo --beads-db /path/t
 bun run lib/colony/bin/bee.ts stop <spawn-id> --repo /path/to/repo --beads-db /path/to/beads.db --actor operator
 ```
 
-These commands use only Beads and repository discovery. They need neither `.hive/bees.toml` nor a running daemon. `list` defaults to open requests and unresolved failures; `--all` also includes resolved history. `status` reports the captured recipe, friendly identity, linked task status and native readiness, request closure and the timestamp of the latest recorded Colony observation. Native task readiness is separate from Colony's capacity and claim decisions.
+These commands use only Beads and repository discovery. They need neither `.hive/bees.toml` nor a running daemon. `list` defaults to open requests and unresolved failures; `--all` also includes resolved history. `status` reports captured recipe metadata, friendly identity, linked task status and native readiness, request closure and the timestamp of the latest recorded Colony observation. Use `status <spawn-id> --include-prompt` to include both full captured prompt fields in human or JSON output. Native task readiness is separate from Colony's capacity and claim decisions.
 
 For native listings, run `br query run bee-attention --db "$BEADS_DB" --json` after [installing the preset](../../docs/agents/spawn-requests.md#saved-presets). It includes closed unsuccessful requests that remain unresolved. Bee status also exposes the finite `disposition` and whether its native label publication is current.
 
@@ -386,6 +386,8 @@ History excludes recipes, full prompts, checkpoint free text, raw command output
 ## Output for people and scripts
 
 Without `--json`, successful commands print readable results on stdout and diagnostics on stderr. With `--json`, each finite command emits one JSON object on stdout and leaves stderr empty. Successful payloads retain their fields at the top level with `ok: true` and a `kind`; failures have `ok: false`, `kind: "error"`, `reason` and `message`. Exit status is zero for success, one for operational failure and two for CLI usage errors.
+
+Bee JSON defaults are command-sized: `spawn` and `retry` return `request: {id, assignee}`, not the native Beads creation record. `status` and `list` omit `recipe.prompt` and `recipe.system_prompt`; inspect one request with `status <spawn-id> --include-prompt --json` when those instructions are needed. Stored recipes are unchanged. `stop` returns request identity, host, acknowledgment, closure, outcome/resolution, attention and label-publication facts, without the recipe, tasks or execution observations. That acknowledges native request closure, not process termination; use `status` for subsequent observations. Listing membership is unchanged: the default includes open requests and unresolved failures, and `--all` includes resolved history.
 
 | Command result | `kind` |
 | --- | --- |
@@ -580,8 +582,8 @@ The smoke fixtures use real disposable Git repositories, Beads databases, socket
 | Boundary | Focused command |
 | --- | --- |
 | Native failure and partial-effect history | `bun test lib/colony/src/history.smoke.test.ts` |
-| Filesystem kind discovery and invalid layout | `bun test lib/colony/src/config-discovery.smoke.test.ts lib/colony/src/kinds-files.smoke.test.ts` |
-| Interactive terminal handoff | `bun test lib/colony/src/run.smoke.test.ts` |
+| Filesystem kind discovery and invalid layout | `bun test lib/colony/src/config-discovery.smoke.test.ts` |
+| Interactive terminal input rejection | `bun test lib/colony/src/run.smoke.test.ts` |
 | Native usage-counter recovery | `bun test lib/colony/src/postrun-evidence.smoke.test.ts` |
 
 Offline submission, daemon lifecycle, scheduling, self-report, claims/retry, recovery, request authority, policy revisions and runtime-inspection smoke coverage is deferred in the [coverage record](../../docs/test-cases/colony.md). The record preserves the removed assertions; runtime behavior is unchanged.

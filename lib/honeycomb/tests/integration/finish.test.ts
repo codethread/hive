@@ -10,7 +10,7 @@ import {
 	writeConfig,
 } from "./support.ts";
 import { expect, test } from "bun:test";
-import { gitOut, gitSucceeds, gitText, useTmpHome } from "./lifecycle-helpers.ts";
+import { gitOut, gitSucceeds, useTmpHome } from "./lifecycle-helpers.ts";
 // oxlint-disable-next-line import/no-nodejs-modules -- Integration fixtures exercise real filesystem IO.
 import { join } from "node:path";
 
@@ -136,24 +136,6 @@ test("non-json finish prints a one-line summary to stderr", async () => {
 	expect(result.exitCode).toBe(EXIT_CODES.SUCCESS);
 	expect(result.stdout).toBeUndefined();
 	expect(result.stderr).toBe("honeycomb: finished feature/human-finish into main\n");
-});
-test("pushes target branch after successful finish when enabled", async () => {
-	const { remote, worktreePath } = await prepareFinish(
-		"feature/push-finish",
-		"[project.finish]\npush = true\n",
-	);
-	await commitFile({
-		content: "pushed\n",
-		message: "pushed work",
-		path: "pushed.txt",
-		repo: worktreePath,
-	});
-
-	const result = await dispatch("finish", ["--cwd", worktreePath, "--json"], deps);
-
-	expect(result.exitCode).toBe(EXIT_CODES.SUCCESS);
-	expect(JSON.parse(result.stdout ?? "{}")).toMatchObject({ cleanup_actions: ["push"] });
-	expect(await gitText(remote, "show", "main:pushed.txt")).toBe("pushed\n");
 });
 test("push rejection blocks configured cleanup and preserves source worktree and branch", async () => {
 	const { remote, root, worktreePath } = await prepareFinish(

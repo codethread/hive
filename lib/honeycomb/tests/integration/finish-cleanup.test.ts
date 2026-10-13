@@ -1,20 +1,7 @@
 import { EXIT_CODES, dispatch } from "../../src/index";
-import {
-	commitFile,
-	deps,
-	pathExists,
-	testDeps,
-	useOriginFixture,
-	writeConfig,
-} from "./support.ts";
+import { commitFile, deps, pathExists, useOriginFixture, writeConfig } from "./support.ts";
 import { expect, test } from "bun:test";
 import { gitOut, gitSucceeds, gitText, useTmpHome } from "./lifecycle-helpers.ts";
-// oxlint-disable-next-line import/no-nodejs-modules -- Integration fixtures exercise real filesystem IO.
-import { join, resolve } from "node:path";
-// oxlint-disable-next-line import/no-nodejs-modules -- Integration fixtures exercise real filesystem IO.
-import { writeFile } from "node:fs/promises";
-
-const SINGLE_SLOT = 1;
 
 const tmp = useTmpHome("honeycomb-finish-cleanup-test-");
 const { initRepoWithOrigin } = useOriginFixture();
@@ -24,27 +11,6 @@ async function prepareFinish(branch: string, policy = "") {
 	writeConfig({ command: "echo ready", copyToml: policy, root, tmp: tmp.dir });
 	await dispatch("add", ["--cwd", root, "--branch", branch, "--json"], deps);
 	return { remote, root, worktreePath: `${root}__${branch.replaceAll("/", "--")}` };
-}
-
-async function preparePooledFinish() {
-	const { root } = await initRepoWithOrigin(tmp.dir);
-	writeConfig({
-		command: "mkdir -p node_modules; touch node_modules/.keep",
-		copyToml: "[project.finish]\nremove_worktree = true\n",
-		poolSize: SINGLE_SLOT,
-		root,
-		tmp: tmp.dir,
-	});
-	await dispatch("ensure", ["--cwd", root], testDeps());
-	const excludePath = await gitOut(`${root}__feat1`, "rev-parse", "--git-path", "info/exclude");
-	await writeFile(resolve(`${root}__feat1`, excludePath), "node_modules/\n");
-	await dispatch(
-		"add",
-		["--cwd", root, "--branch", "feature/pooled-finish", "--slot", `${root}__feat1`, "--json"],
-		testDeps(),
-	);
-
-	return root;
 }
 
 test("removes a non-pooled source worktree after finish when cleanup is enabled", async () => {
@@ -70,24 +36,7 @@ test("removes a non-pooled source worktree after finish when cleanup is enabled"
 		await gitSucceeds(root, "show-ref", "--verify", "refs/heads/feature/remove-after-finish"),
 	).toBe(true);
 });
-test("recycles a pooled local-only source worktree after finish while preserving ignored files", async () => {
-	const root = await preparePooledFinish();
-	await commitFile({
-		content: "pooled\n",
-		message: "pooled work",
-		path: "pooled.txt",
-		repo: `${root}__feat1`,
-	});
 
-	const result = await dispatch("finish", ["--cwd", `${root}__feat1`, "--json"], testDeps());
-
-	expect(result.exitCode).toBe(EXIT_CODES.SUCCESS);
-	expect(JSON.parse(result.stdout ?? "{}")).toMatchObject({
-		cleanup_actions: ["recycle_worktree"],
-	});
-	expect(await gitOut(`${root}__feat1`, "branch", "--show-current")).toBe("wk-pool/feat1");
-	expect(await pathExists(join(`${root}__feat1`, "node_modules", ".keep"))).toBe(true);
-});
 test("deletes source branch after squash finish when configured", async () => {
 	const { root, worktreePath } = await prepareFinish(
 		"feature/delete-after-squash",

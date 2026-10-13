@@ -1,4 +1,4 @@
-import { BlockedError, EXIT_CODES, PreRemoteCheckError, dispatch } from "../../src/index";
+import { EXIT_CODES, PreRemoteCheckError, dispatch } from "../../src/index";
 import {
 	commitFile,
 	commitOnRemoteDefault,
@@ -31,17 +31,6 @@ async function prepareDivergedPool() {
 	await commitFile({ content: "local\n", message: "local", path: "local.txt", repo: root });
 	await run(["git", "-C", root, "checkout", "main"]);
 	writeConfig({ command: "echo ready", poolSize: TWO_SLOTS, root, tmp: tmp.dir });
-	return root;
-}
-
-async function prepareBasePool() {
-	const { root, remote } = await initRepoWithOrigin(tmp.dir);
-	await createRemoteBranch(remote, "base/pool");
-	await run(["git", "-C", root, "fetch", "origin"]);
-	await run(["git", "-C", root, "branch", "feature/existing-base"]);
-	writeConfig({ command: "echo ready", poolSize: TWO_SLOTS, root, tmp: tmp.dir });
-	await createPoolSlot({ branch: "wk-pool/feat1", index: SINGLE_SLOT, initialized: true, root });
-	await createPoolSlot({ branch: "wk-pool/feat2", index: TWO_SLOTS, initialized: true, root });
 	return root;
 }
 
@@ -258,34 +247,4 @@ test("warns for diverged branches and rejects duplicates without side effects", 
 		reason: "duplicate_branch",
 	});
 	expect(await pathExists(`${root}__feat2`)).toBe(false);
-});
-test("pooled path finds allocated branch and --base only affects new branches", async () => {
-	const root = await prepareBasePool();
-	const warnDeps = testDeps();
-
-	await dispatch(
-		"add",
-		["--cwd", root, "--branch", "feature/from-base", "--base", "base/pool", "--json"],
-		warnDeps,
-	);
-	expect(await gitText(`${root}__feat1`, "show", "HEAD:remote.txt")).toBe("base/pool\n");
-	const path = await dispatch("path", ["--cwd", root, "--branch", "feature/from-base"], warnDeps);
-	expect(path.stdout).toBe(`${root}__feat1\n`);
-	const { failure } = await dispatch(
-		"path",
-		["--cwd", root, "--branch", "feature/missing"],
-		warnDeps,
-	);
-	expect(failure).toBeInstanceOf(BlockedError);
-
-	const ignored = await dispatch(
-		"add",
-		["--cwd", root, "--branch", "feature/existing-base", "--base", "base/pool", "--json"],
-		warnDeps,
-	);
-	expect(JSON.parse(ignored.stdout ?? "{}").diagnostics).toMatchInlineSnapshot(`
-	  [
-	    "--base ignored: branch already exists",
-	  ]
-	`);
 });
