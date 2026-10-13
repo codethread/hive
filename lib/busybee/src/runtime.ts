@@ -1,3 +1,4 @@
+import type { ActiveEntry, Locator, Run } from "./checkpoint.ts";
 import type { BeadRecord, UpdateBead } from "@hive/beads";
 import {
 	BusyBeeError,
@@ -10,10 +11,9 @@ import {
 	resolveMutation,
 } from "./native.ts";
 import type { Definition, Metadata, WorkflowActor, WorkflowNode } from "./definition.ts";
-import type { MutationEndpoint, Options, Services } from "./native.ts";
+import type { Endpoint, MutationEndpoint, Options, Services } from "./native.ts";
 import {
 	actorContext,
-	actorFor,
 	briefSchema,
 	childActors,
 	currentStatus,
@@ -21,13 +21,16 @@ import {
 	load,
 	metadataSchema,
 	readInput,
-	resolvedTaskSchema,
+	renderTask,
+	restoredActor,
 	snapshotFor,
 	targetActor,
 } from "./definition.ts";
 import type { Snapshot } from "xstate";
 import type { Source } from "./catalogue.ts";
+import { compatibleWorkflowVersion } from "./compatibility.ts";
 import { namedDefinition } from "./catalogue.ts";
+import { readCheckpoint } from "./checkpoint.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Resolve author-selected files at the application boundary.
 import { resolve } from "node:path";
 import { z } from "zod";
@@ -37,48 +40,22 @@ const ONE = 1;
 const LOCK_TIMEOUT = 10_000;
 const LOCK_POLL = 25;
 const text = z.string().min(ONE);
-const contextSchema = z.record(z.string(), z.unknown());
-const entrySchema = z.object({
-	bead: text,
-	context: contextSchema,
-	key: text,
-	meta: resolvedTaskSchema,
-	node: text,
-	parent: text.optional(),
-	path: z.array(text),
-	request: text.nullable(),
-});
-const visitSchema = z.object({
-	bead: text,
-	node: text,
-	parent: text,
-	path: z.array(text),
-	request: text.nullable(),
-	visit: z.number().int().positive(),
-});
-const locatorSchema = z.discriminatedUnion("kind", [
-	z.object({ kind: z.literal("named"), name: text }),
-	z.object({ kind: z.literal("source"), source: text }),
-]);
-const historyEntrySchema = z.object({
-	bead: text,
-	command: text,
-	data: z.unknown(),
-	request: text.nullable(),
-});
-const runSchema = z.object({
-	active: z.array(entrySchema),
-	created: z.array(visitSchema),
-	definition: locatorSchema,
-	hash: text,
-	history: z.array(historyEntrySchema),
-	id: text,
-	snapshot: z.custom<Snapshot<unknown>>((value) => typeof value === "object" && value !== null),
-	visits: z.record(z.string(), z.number().int().positive()),
-});
-const lockSchema = z.object({ owner: text, pid: z.number().int() });
-const beeResponseSchema = z.object({ ok: z.literal(true), request: z.object({ id: text }) });
-const automaticResultSchema = z.object({ choice: text }).passthrough();
+const contextSchema = z.compile(z.record(z.string(), z.unknown()));
+const visitSchema = z.compile(
+	z.object({
+		bead: text,
+		node: text,
+		parent: text,
+		path: z.array(text),
+		request: text.nullable(),
+		visit: z.number().int().positive(),
+	}),
+);
+const lockSchema = z.compile(z.object({ owner: text, pid: z.number().int() }));
+const beeResponseSchema = z.compile(
+	z.object({ ok: z.literal(true), request: z.object({ id: text }) }),
+);
+const automaticResultSchema = z.compile(z.object({ choice: text }).passthrough());
 const viewEntrySchema = z.object({
 	bead: text,
 	commands: z.array(text),
@@ -88,16 +65,15 @@ const viewEntrySchema = z.object({
 	request: text.nullable(),
 	title: text,
 });
-export const runViewSchema = z.object({
-	active: z.array(viewEntrySchema),
-	created: z.array(visitSchema),
-	id: text,
-	status: text,
-});
+export const runViewSchema = z.compile(
+	z.object({
+		active: z.array(viewEntrySchema),
+		created: z.array(visitSchema),
+		id: text,
+		status: text,
+	}),
+);
 export type RunView = z.infer<typeof runViewSchema>;
-type Run = z.infer<typeof runSchema>;
-type ActiveEntry = z.infer<typeof entrySchema>;
-type Locator = z.infer<typeof locatorSchema>;
 interface Entry {
 	/** Stable actor-path and node identity during one active visit. */
 	key: string;
@@ -146,7 +122,15 @@ interface SubmitTask extends RunTarget {
 }
 export type Navigation = InspectRun | CollectRun | SubmitTask;
 type WorkRequest = CollectRun | SubmitTask;
-type Mutation = WorkRequest | { operation: "initialize"; id: string };
+interface InitializeRun extends RunTarget {
+	/** Publish the initial frontier using the definition loaded for creation. */
+	operation: "initialize";
+	/** Newly created checkpoint; no relation discovery is needed. */
+	checkpoint: string;
+	/** Validated creation definition, retained only for this invocation. */
+	definition: Definition;
+}
+type Mutation = WorkRequest | InitializeRun;
 interface Submission {
 	/** Active native visit being completed. */
 	entry: ActiveEntry;
@@ -163,7 +147,7 @@ export async function startNamed(
 ): Promise<RunView> {
 	const selected = await namedDefinition(name, options.repo, services);
 	return initialize(
-		{ kind: "named", name },
+		{ kind: "named", name, version: selected.metadata.version },
 		{ directory: selected.directory, kind: "folder", source: selected.source },
 		{ options, services },
 	);
@@ -186,7 +170,7 @@ export async function navigate(
 	if (request.operation === "show") {
 		const endpoint = await resolveEndpoint(options, services);
 		const run = await readRun(endpoint, request.id, services);
-		const { actor } = await restore(run, { ...options, repo: endpoint.repo }, services);
+		const { actor } = await restore(run, endpoint, services);
 		const result = view(run, actor);
 		actor.stop();
 		return result;
@@ -202,7 +186,7 @@ export async function discover(
 ) {
 	const endpoint = await resolveEndpoint(options, services);
 	const run = await readRun(endpoint, id, services);
-	const { actor, definition } = await restore(run, { ...options, repo: endpoint.repo }, services);
+	const { actor, definition } = await restore(run, endpoint, services);
 	actor.stop();
 	return {
 		active: run.active.map((entry) => discoveryEntry(entry, definition)),
@@ -222,6 +206,30 @@ function discoveryEntry(entry: ActiveEntry, definition: Definition) {
 		})),
 		title: entry.meta.title,
 	};
+}
+
+/** Read the current actor task frontier without starting or advancing it. */
+export function frontier(
+	actor: WorkflowActor,
+	path: string[] = [],
+	inheritedParent?: string,
+): Entry[] {
+	const snapshot = actor.getSnapshot();
+	if (snapshot.status !== "active") {
+		return [];
+	}
+	const context = Object.fromEntries(
+		Object.entries(actorContext(actor)).filter(([key]) => key !== "workers"),
+	);
+	// eslint-disable-next-line no-underscore-dangle -- XState v5 exposes the active hierarchy here; this is the sole version-specific projection.
+	const entries = workNodes(snapshot._nodes).map((node) =>
+		nodeEntry(node, { context, inheritedParent, path }),
+	);
+	for (const child of childActors(actor)) {
+		const group = text.parse(actorContext(child)["group"]);
+		entries.push(...frontier(child, [...path, child.id], `${path.join("/")}:${group}`));
+	}
+	return entries;
 }
 
 // --- Private functions ---
@@ -245,7 +253,8 @@ async function initialize(
 		return await createRun(
 			{
 				brief,
-				definition: locator,
+				definition,
+				locator,
 				endpoint,
 				hash,
 				identity: { assignee: options.assignee ?? endpoint.actor, owner: options.owner },
@@ -271,7 +280,8 @@ async function initialDefinition(
 async function createRun(
 	input: {
 		brief: z.infer<typeof briefSchema>;
-		definition: Locator;
+		definition: Definition;
+		locator: Locator;
 		endpoint: MutationEndpoint;
 		hash: string;
 		identity: { owner: string; assignee: string };
@@ -279,7 +289,7 @@ async function createRun(
 	},
 	services: Services,
 ): Promise<RunView> {
-	const { brief, definition: locator, endpoint, hash, identity, snapshot } = input;
+	const { brief, definition, locator, endpoint, hash, identity, snapshot } = input;
 	const id = await createTask(
 		endpoint,
 		{
@@ -292,6 +302,7 @@ async function createRun(
 		services,
 	);
 	const state: Run = {
+		formatVersion: 1,
 		active: [],
 		created: [],
 		definition: locator,
@@ -319,7 +330,7 @@ async function createRun(
 		checkpoint,
 		"related",
 	);
-	return mutate({ id, operation: "initialize" }, endpoint, services);
+	return mutate({ checkpoint, definition, id, operation: "initialize" }, endpoint, services);
 }
 
 async function readRun(
@@ -327,16 +338,15 @@ async function readRun(
 	id: string,
 	services: Services,
 ): Promise<Run> {
-	const checkpoint = await checkpointId(endpoint, id, services);
-	const record = await readBead(endpoint, checkpoint, services);
-	return runSchema.parse(JSON.parse(record.description) as unknown);
+	const record = await checkpointBead(endpoint, id, services);
+	return readCheckpoint(record);
 }
 
-async function checkpointId(
+async function checkpointBead(
 	endpoint: { repo: string; db: string },
 	id: string,
 	services: Services,
-): Promise<string> {
+): Promise<BeadRecord> {
 	const parent = await readBead(endpoint, id, services);
 	const related = await Promise.all(
 		parent.dependencies
@@ -352,38 +362,81 @@ async function checkpointId(
 			`Expected one related workflow checkpoint for ${id}`,
 		);
 	}
-	return checkpoints[FIRST]!.id;
+	return checkpoints[FIRST]!;
 }
 
 async function restore(
 	run: Run,
-	options: Options,
+	endpoint: Endpoint,
 	services: Services,
 ): Promise<{ actor: WorkflowActor; definition: Definition }> {
-	const source = await definitionSource(run.definition, options, services);
-	const { definition } = await load({ ...source, expectedHash: run.hash }, services);
-	const actor = actorFor(definition, { snapshot: run.snapshot });
-	actor.start();
+	const { definition } = await restoreDefinition(run, endpoint, services);
+	const actor = restoredActor(definition, run.snapshot);
 	return { actor, definition };
 }
 
-function definitionSource(locator: Locator, options: Options, services: Services): Promise<Source> {
-	if (locator.kind === "named") {
-		return namedDefinition(locator.name, options.repo, services);
+async function restoreDefinition(run: Run, endpoint: Endpoint, services: Services) {
+	try {
+		return await loadRetainedDefinition(run, endpoint, services);
+	} catch (error) {
+		if (
+			run.definition.kind !== "named" ||
+			!(error instanceof BusyBeeError) ||
+			(error.reason !== "definition_changed" && error.reason !== "workflow_missing")
+		) {
+			throw error;
+		}
+		const { name } = run.definition;
+		const recovery = {
+			definition_changed: {
+				state: "changed",
+				guidance: `You may create a fresh run of ${name} for the same already-authorized scope without asking the user again. Inspect busybee input-schema ${name}, then use busybee run ${name} with the current input schema. Preserve the original request and authorization, source/target, scope, owner/assignment, selected tracker and old run/task/evidence references. Inspect completed and uncertain effects and use the current workflow's triage to continue remaining work without blindly replaying completed effects. Retain the old run as history; do not migrate its snapshot or bypass current checks and reviews.`,
+			},
+			workflow_missing: {
+				state: "is missing",
+				guidance: `Stop and ask the user which workflow to use; do not infer a replacement for ${name}.`,
+			},
+		}[error.reason];
+		throw new BusyBeeError(
+			error.reason,
+			`Cannot restore run ${run.id}: named workflow ${name} ${recovery.state}. ${recovery.guidance}`,
+			{ cause: error, context: { ...error.context, ...endpoint, name, run: run.id } },
+		);
 	}
-	return Promise.resolve({ kind: "file", source: locator.source });
+}
+
+async function loadRetainedDefinition(run: Run, endpoint: Endpoint, services: Services) {
+	if (run.definition.kind === "source") {
+		return load({ kind: "file", source: run.definition.source, expectedHash: run.hash }, services);
+	}
+	const selected = await namedDefinition(run.definition.name, endpoint.repo, services);
+	if (!compatibleWorkflowVersion(run.definition.version, selected.metadata.version)) {
+		throw new BusyBeeError(
+			"definition_changed",
+			`Workflow ${run.definition.name} version ${selected.metadata.version} cannot resume version ${run.definition.version}.`,
+			{
+				context: {
+					savedVersion: run.definition.version,
+					proposedVersion: selected.metadata.version,
+				},
+			},
+		);
+	}
+	const loaded = await load(selected, services);
+	run.definition.version = selected.metadata.version;
+	run.hash = loaded.hash;
+	return loaded;
 }
 
 async function acquire(
 	endpoint: MutationEndpoint,
-	checkpoint: string,
+	checkpoint: string | BeadRecord,
 	services: Services,
-): Promise<string> {
+): Promise<Lock> {
 	const owner = services.uuid();
 	const deadline = services.now() + LOCK_TIMEOUT;
+	let bead = await lockCandidate(checkpoint, endpoint, services);
 	for (;;) {
-		// eslint-disable-next-line no-await-in-loop -- A retry must observe the current native owner.
-		const bead = await readBead(endpoint, checkpoint, services);
 		if (
 			!bead.notes &&
 			// eslint-disable-next-line no-await-in-loop -- Native CAS decides ownership before retrying.
@@ -392,18 +445,31 @@ async function acquire(
 				services,
 			))
 		) {
-			return owner;
+			return { checkpoint: bead.id, owner };
 		}
 		if (services.now() >= deadline) {
 			throw new BusyBeeError(
 				"checkpoint_locked",
-				`Checkpoint ${checkpoint} is locked: ${bead.notes}. No automatic expiry; inspect the owner and partial effects before explicit recovery.`,
-				{ context: { checkpoint } },
+				`Checkpoint ${bead.id} is locked: ${bead.notes}. No automatic expiry; inspect the owner and partial effects before explicit recovery.`,
+				{ context: { checkpoint: bead.id } },
 			);
 		}
 		// eslint-disable-next-line no-await-in-loop -- Contention uses bounded sequential polling.
 		await services.sleep(LOCK_POLL);
+		// eslint-disable-next-line no-await-in-loop -- Refresh a rejected or occupied candidate before another ownership attempt.
+		bead = await readBead(endpoint, bead.id, services);
 	}
+}
+
+function lockCandidate(
+	checkpoint: string | BeadRecord,
+	endpoint: MutationEndpoint,
+	services: Services,
+): BeadRecord | Promise<BeadRecord> {
+	if (typeof checkpoint === "string") {
+		return readBead(endpoint, checkpoint, services);
+	}
+	return checkpoint;
 }
 
 async function owned(
@@ -437,9 +503,20 @@ async function mutate(
 	endpoint: MutationEndpoint,
 	services: Services,
 ): Promise<RunView> {
-	const checkpoint = await checkpointId(endpoint, request.id, services);
-	const owner = await acquire(endpoint, checkpoint, services);
-	return mutateOwned({ endpoint, lock: { checkpoint, owner }, request }, services);
+	const checkpoint = await mutationCheckpoint(request, endpoint, services);
+	const lock = await acquire(endpoint, checkpoint, services);
+	return mutateOwned({ endpoint, lock, request }, services);
+}
+
+function mutationCheckpoint(
+	request: Mutation,
+	endpoint: MutationEndpoint,
+	services: Services,
+): string | Promise<BeadRecord> {
+	if (request.operation === "initialize") {
+		return request.checkpoint;
+	}
+	return checkpointBead(endpoint, request.id, services);
 }
 
 // eslint-disable-next-line max-statements -- Keep the lock release, retained-effect failure, and actor cleanup in one ownership scope.
@@ -485,13 +562,16 @@ async function prepareMutation(
 	services: Services,
 ) {
 	const { lock, request, endpoint } = input;
-	const record = await readBead(endpoint, lock.checkpoint, services);
-	const locked = { ...lock, state: runSchema.parse(JSON.parse(record.description) as unknown) };
+	const locked = {
+		...lock,
+		state: readCheckpoint(await readBead(endpoint, lock.checkpoint, services)),
+	};
+	if (request.operation === "initialize") {
+		return { actor: restoredActor(request.definition, locked.state.snapshot), locked };
+	}
 	const { actor, definition } = await restore(locked.state, endpoint, services);
 	try {
-		if (request.operation !== "initialize") {
-			await prepare({ actor, definition, endpoint, request, run: locked.state }, services);
-		}
+		await prepare({ actor, definition, endpoint, request, run: locked.state }, services);
 		return { actor, locked };
 	} catch (error) {
 		actor.stop();
@@ -640,29 +720,13 @@ function destinationParent(
 	return previous.get(entry.parent)?.bead;
 }
 
-function frontier(actor: WorkflowActor, path: string[] = [], inheritedParent?: string): Entry[] {
-	const snapshot = actor.getSnapshot();
-	if (snapshot.status !== "active") {
-		return [];
-	}
-	// eslint-disable-next-line no-underscore-dangle -- XState v5 exposes the active hierarchy here; this is the sole version-specific projection.
-	const nodes = snapshot._nodes;
-	const context = Object.fromEntries(
-		Object.entries(actorContext(actor)).filter(([key]) => key !== "workers"),
+function workNodes(nodes: WorkflowNode[]): WorkflowNode[] {
+	const completedParents = new Set(
+		nodes.filter((node) => node.type === "final").map((node) => node.parent),
 	);
-	const entries = nodes
-		.filter(
-			(node) =>
-				node.type !== "final" &&
-				node.meta?.["title"] &&
-				!nodes.some((child) => child.parent === node && child.type === "final"),
-		)
-		.map((node) => nodeEntry(node, { context, inheritedParent, path }));
-	for (const child of childActors(actor)) {
-		const group = text.parse(actorContext(child)["group"]);
-		entries.push(...frontier(child, [...path, child.id], `${path.join("/")}:${group}`));
-	}
-	return entries;
+	return nodes.filter(
+		(node) => node.type !== "final" && node.meta?.["title"] && !completedParents.has(node),
+	);
 }
 
 function nodeEntry(
@@ -757,6 +821,7 @@ async function publishEntries(
 			active.push({
 				...entry,
 				bead: existing.bead,
+				context: existing.context,
 				meta: existing.meta,
 				request: existing.request,
 			});
@@ -807,11 +872,7 @@ async function enter(input: EntryInput, services: Services): Promise<ActiveEntry
 
 function entryCreation(input: EntryInput) {
 	const { entry, active, run, identity, endpoint } = input;
-	const { task, ...metadata } = entry.meta;
-	const meta = resolvedTaskSchema.parse({
-		...metadata,
-		...contextSchema.parse(task({ context: entry.context })),
-	});
+	const meta = renderTask(entry.meta, entry.context);
 	let parent = run.id;
 	if (entry.parent) {
 		parent = active.find((item) => item.key === entry.parent)!.bead;

@@ -1,10 +1,12 @@
 import { Command, CommanderError } from "commander";
 import type { Options, Services } from "./native.ts";
 import { discover, navigate, start, startNamed } from "./runtime.ts";
+import { importDefinition, validate } from "./definition.ts";
 import { listWorkflows, namedDefinition } from "./catalogue.ts";
-import { load, validate } from "./definition.ts";
 import { BusyBeeError } from "./native.ts";
+import type { PreflightReport } from "./preflight.ts";
 import type { Source } from "./catalogue.ts";
+import { preflight } from "./preflight.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Explicit source paths resolve against the invoking directory.
 import { resolve } from "node:path";
 import { z } from "zod";
@@ -46,6 +48,8 @@ export interface Terminal {
 	stderr: (value: string) => void;
 }
 interface Invocation {
+	/** Completed reports can contain incompatibilities without throwing away findings. */
+	exitCode: number;
 	/** Commander owns parsed global options and arguments. */
 	cli: Command;
 	/** Captured help output emitted once after parsing stops. */
@@ -83,6 +87,7 @@ export async function runCli(
 ): Promise<number> {
 	const invocation: Invocation = {
 		cli: commandOptions(),
+		exitCode: SUCCESS,
 		help: "",
 		json: argv.includes("--json"),
 		kind: "cli",
@@ -93,10 +98,11 @@ export async function runCli(
 	configure(invocation);
 	registerCreation(invocation);
 	registerInspection(invocation);
+	registerPreflight(invocation);
 	registerNavigation(invocation);
 	try {
 		await invocation.cli.parseAsync(argv, { from: "user" });
-		return SUCCESS;
+		return invocation.exitCode;
 	} catch (error) {
 		return reportFailure(error, invocation);
 	}
@@ -170,8 +176,8 @@ function registerInspection(invocation: Invocation): void {
 		.command("input-schema [name]")
 		.option("--source <path>", "Inspect an explicit source module instead of a catalogue name")
 		.action(async (name: string | undefined, selection: { source?: string }) => {
-			const source = await schemaSource({ name, path: selection.source }, invocation);
-			const { definition } = await load(source, services);
+			const { source } = await schemaSource({ name, path: selection.source }, invocation);
+			const definition = await importDefinition(source, services);
 			const result = {
 				constraints: definition.inputConstraints ?? "Initial workflow input",
 				schema: z.toJSONSchema(definition.inputSchema, { io: "input" }),
@@ -182,6 +188,34 @@ function registerInspection(invocation: Invocation): void {
 		const result = await discover(id, options(), services);
 		writeResult(result, invocation, printDiscovery(result));
 	});
+}
+
+function registerPreflight(invocation: Invocation): void {
+	const { cli, services } = invocation;
+	cli
+		.command("preflight <name>")
+		.description("Read-only assessment of unfinished named runs; future paths remain unchecked")
+		.option(
+			"--source <path>",
+			"Proposed module without catalogue lookup; version compatibility stays unchecked",
+		)
+		.action(async (name: string, selection: { source?: string }) => {
+			const result = await preflight(name, { ...cli.opts<CliOptions>(), ...selection }, services);
+			if (result.status !== "incompatible") {
+				writeResult(result, invocation, printPreflight(result));
+				return;
+			}
+			invocation.exitCode = FAILURE;
+			writeResult(
+				{
+					...result,
+					reason: "preflight_incompatible",
+					message: `Preflight found incompatibilities for workflow ${name}; inspect runs and discovery findings.`,
+				},
+				invocation,
+				printPreflight(result),
+			);
+		});
 }
 
 function registerNavigation(invocation: Invocation): void {
@@ -244,7 +278,7 @@ function writeResult(result: object, invocation: Invocation, readable?: string):
 	}
 	let document = result;
 	if (invocation.json) {
-		document = { ...result, kind: invocation.kind, ok: true };
+		document = { ...result, kind: invocation.kind, ok: invocation.exitCode === SUCCESS };
 	}
 	invocation.terminal.stdout(`${JSON.stringify(document, undefined, INDENT)}\n`);
 }
@@ -306,6 +340,23 @@ function printDiscovery(result: Discovery): string {
 	for (const task of result.active ?? []) {
 		lines.push(...readableTask(task));
 	}
+	return `${lines.join("\n")}\n`;
+}
+
+function printPreflight(result: PreflightReport): string {
+	const lines = [
+		`${result.name} ${result.version ?? "(version unchecked)"}: ${result.status} (${result.runs.length} unfinished runs)`,
+	];
+	for (const diagnostic of result.discovery) {
+		lines.push(`${diagnostic.checkpoint}: ${diagnostic.message}`);
+	}
+	for (const run of result.runs) {
+		lines.push(`${run.id} [${run.checkpoint}]: ${run.status}`);
+		for (const finding of run.findings) {
+			lines.push(`  ${finding.status} ${finding.check}: ${finding.message}`);
+		}
+	}
+	lines.push(...result.limits);
 	return `${lines.join("\n")}\n`;
 }
 

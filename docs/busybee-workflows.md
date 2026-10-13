@@ -9,7 +9,8 @@ Export the following from a JavaScript or TypeScript module:
 | Export | Contract |
 | --- | --- |
 | `machine` | XState v5 machine with pure workflow actions; Busy Bee publishes native effects after advancement |
-| `inputSchema` | Zod schema for initial input |
+| `inputSchema` | Zod schema for creation input only; not used to validate persisted context on resume |
+| `resumeSchema` (optional) | Zod schema for persisted root actor context, checked by preflight |
 | `runBrief(input)` | Returns `{title, description}` for the run bead |
 | `commandSchemas` | Maps outcome names to Zod payload schemas; use `z.object({})` for no payload |
 | `validateCommand(entry, command, data)` (optional) | Checks context-dependent constraints after schema parsing; throws to reject |
@@ -30,13 +31,74 @@ Store each workflow at `.workflows/<name>/busybee.toml` in the caller's Git chec
 
 ```toml
 description = "Prepare a weekly meal plan and grocery list"
-version = "1"
+version = "1.0.0"
 run = "./workflow.ts"
 ```
 
-`description` and `run` are required; `version` is descriptive text, not a compatibility mechanism. The entry must be a relative `.js` or `.ts` path within the folder. Keep local helpers beside it and generated outputs elsewhere: Busy Bee fingerprints the folder's regular files. External imports and installed packages are outside that check.
+`description`, `version` and `run` are required. `version` must be a full SemVer such as `1.0.0` or `1.1.0-beta.1`, not `1`, `1.0` or a range. It declares compatibility with saved runs as described below. The entry must be a relative `.js` or `.ts` path within the folder. Keep local helpers beside it and generated outputs elsewhere: Busy Bee fingerprints the folder's regular files as provenance. External imports and installed packages are outside that hash.
 
 `list` reads manifests without evaluating workflow code; a missing `.workflows` directory yields an empty catalogue, while malformed entries fail. `run NAME` and `input-schema NAME` resolve entries from the current checkout, including nested callers or `--repo`. Use `start PATH` and `input-schema --source PATH` when working without a manifest.
+
+## Version saved workflow contracts
+
+A named run saves its manifest version. Resume accepts the current version only when it is equal to or newer than the saved version within the saved version's caret range. This direction matters: a run saved by `1.3.0` cannot resume with `1.2.0`.
+
+| Saved version  | Allowed current versions               | Rejected examples       |
+| -------------- | -------------------------------------- | ----------------------- |
+| `1.2.3`        | `1.2.3` through versions below `2.0.0` | `1.2.2`, `2.0.0`        |
+| `0.2.3`        | `0.2.3` through versions below `0.3.0` | `0.2.2`, `0.3.0`        |
+| `0.0.3`        | `0.0.3` only                           | `0.0.2`, `0.0.4`        |
+| `1.2.3-beta.1` | Exact same version only                | `1.2.3-beta.2`, `1.2.3` |
+
+If either version is a prerelease, exact SemVer equality is required; build metadata does not affect equality or precedence. After a successful mutation, the checkpoint saves the current manifest version, so later restores compare against that version. Read-only inspection does not persist a version update. The named folder hash records the source that produced the latest saved checkpoint; a changed hash does not refuse a compatible version. Explicit-file runs have no manifest compatibility promise and refuse changed entry-file hashes before import. Neither mechanism checks installed dependencies or external imports.
+
+Within a compatible release, preserve the contracts already stored by a run:
+
+- Keep state node IDs and child actor routes restorable. Renaming or removing states referenced by saved snapshots can break restoration.
+- Keep persisted context understandable by guards, actions and render callbacks. Initial input parsing does not recreate or upgrade context on resume.
+- Preserve active visits' frozen command names, their event mappings and accepted payload meaning. Published briefs stay fixed even if the renderer changes for future visits.
+- Preserve completed work's meaning. A new mandatory prerequisite inserted before work already completed cannot be enforced by restoring that snapshot; it breaks compatibility.
+
+For versions at or above `1.0.0`, use a major bump when these contracts break. Before `1.0.0`, cross the caret boundary (`0.2.x` to `0.3.0`, or `0.0.3` to `0.0.4`). A patch can fix instructions or computation while preserving these contracts; a minor can add compatible future work or choices without changing frozen active commands. The version is an author's promise, not an engine proof.
+
+For example, suppose the old chart is `prepare -> review -> publish`, and a saved run is active at the stable `review` state. An optional summary step can be inserted on either side:
+
+| Candidate chart | What the restored run does |
+| --- | --- |
+| `prepare -> summary -> review -> publish` | Resumes at `review`; skips the new earlier `summary` |
+| `prepare -> review -> summary -> publish` | Resumes at `review`; visits the new later `summary` after its outcome |
+
+Both can be compatible when the summary is optional for existing runs, state IDs/context remain valid and `review` keeps its frozen commands. A run already at `publish` skips either insertion. If the summary is mandatory before publishing, that run cannot satisfy the new requirement through ordinary resume; choose an incompatible version and regenerate from current evidence. Restoring a snapshot does not replay newly inserted earlier states or validate every possible saved position.
+
+## Preflight existing runs
+
+Use the proposed checkout's manifest and module, or check an explicit proposed module independently of the catalogue:
+
+```sh
+busybee preflight groceries --json
+busybee --repo /path/to/candidate-checkout --db /path/to/beads.db preflight groceries --json
+busybee preflight groceries --source /path/to/proposed-workflow.ts --json
+```
+
+With `--source`, no manifest version is inferred from a different module: version compatibility is explicitly unchecked, and the saved name need not exist in the current catalogue. To check both version and structure, use `--repo` with the proposed manifest and entry.
+
+Preflight reads existing unfinished runs of the named workflow from the selected tracker. It checks version compatibility, restores snapshots without starting actors, checks active state IDs/actor paths and frozen command mappings, and renders current-frontier tasks against the candidate. Findings are reported per run as `passed`, `failed` or `unchecked`. The report's status is `incompatible` if a check fails, otherwise `unchecked` because future execution remains unproved. Incompatibility exits nonzero and retains the full JSON report with `ok: false`, `reason: "preflight_incompatible"` and a summary `message`; an `unchecked` report exits zero without claiming complete compatibility. A tracker containing no matching unfinished runs supplies no saved-run compatibility evidence.
+
+Export `resumeSchema` when the workflow has persisted-context requirements. `inputSchema` validates creation input only; actor context may contain accumulated decisions and differ from that input. Preflight applies `resumeSchema` to the raw persisted root context before XState revives actor references. Child contexts can have different shapes; preflight restores child actors and checks their active paths and task rendering, but this schema does not validate their contexts. Frozen task-facing context excludes actor references in `workers`; the persisted root context retains XState’s serialized references. Keep other exposed fields JSON-serializable. Schema parsing checks compatibility without replacing stored context with parsed/transformed output. Normal resume does not run `resumeSchema` automatically.
+
+For example, require a branch that existing root contexts must already contain:
+
+```ts
+export const resumeSchema = z.compile(z.looseObject({ branch: z.string().min(1) }));
+```
+
+Keep this schema at module scope and compile the final schema after refinements. A default or transformation cannot supply missing persisted data: preflight reports that conversion is required rather than migrating a run. Adding a newly required branch to a workflow whose saved contexts lack it needs an incompatible version and a fresh run.
+
+Without `resumeSchema`, the report explicitly leaves context validation unchecked. Even with it, a passing schema and successful rendering do not prove future guard/action paths, all future payload semantics or external effects. An author helper that restores and renders representative snapshots is useful evidence, not proof for every future path. Exercise meaningful saved positions and outcomes separately, including runs past any inserted step.
+
+The engine performs no writes, acquires no mutation reservation, starts no actors and creates no Bee requests during preflight. Definition imports, schema checks and render callbacks still execute trusted author code. Keep them pure; preflight is not a sandbox and cannot prevent their own I/O. It reports a momentary inspection, not a reservation against concurrent mutations.
+
+Checkpoint storage has a separate engine `formatVersion: 1`; changing workflow SemVer does not change or upgrade that format. Busy Bee validates the small checkpoint header and trusts its own stored body. Missing, old or unknown formats reject with regenerate guidance and have no migration. For incompatible known names, preserve authorization and evidence and start a fresh same-scope run; for a missing name, stop and ask which workflow to use. See [resume and failures](../lib/busybee/README.md#resume-and-failures).
 
 ## Keep the chart inspectable
 

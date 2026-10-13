@@ -1,93 +1,202 @@
 /* eslint-disable import/no-nodejs-modules -- Integration tests create isolated author modules with independent dependency copies. */
-import { afterAll, expect, test } from "bun:test";
+import { assign, createMachine } from "xstate";
 import { cp, mkdtemp, rm } from "node:fs/promises";
 import { dirname, join } from "node:path";
+import { expect, test } from "bun:test";
+import type { Services } from "../../src/native.ts";
 import { createMemoryBeads } from "@hive/beads";
 import { createServices } from "../../src/native.ts";
-import { runCli } from "../../src/cli.ts";
+import { invoke } from "./support.ts";
 import { tmpdir } from "node:os";
+import { validate } from "../../src/definition.ts";
+import { z } from "zod";
 
-const root = await mkdtemp(join(tmpdir(), "busybee-validation-"));
-afterAll(async () => {
-	await rm(root, { force: true, recursive: true });
-});
-const imports = `import {createMachine,assign} from ${JSON.stringify(import.meta.resolve("xstate"))};\nimport {z} from ${JSON.stringify(import.meta.resolve("zod"))};\n`;
+const FIRST = 0;
+const ASSIGNED_COUNT = 1;
+const SUCCESS = 0;
+const FAILURE = 1;
 const exports = `export const commandSchemas={next:z.object({})};\nexport function runBrief(){return {title:"Example",description:"Example"};}\n`;
-const cases = [
-	{
-		machine: 'createMachine({initial:"work",states:{work:{on:{NEXT:"done"}},done:{type:"final"}}})',
-		name: "valid",
-		ok: true,
-		schema: "z.object({})",
-	},
-	{
-		machine: 'createMachine({initial:"work",states:{work:{on:{NEXT:"missing"}}}})',
-		name: "bad-target",
-		ok: false,
-		schema: "z.object({})",
-	},
-	{
-		machine: 'createMachine({initial:"missing",states:{work:{}}})',
-		name: "bad-initial",
-		ok: false,
-		schema: "z.object({})",
-	},
-	{
-		machine: "createMachine({})",
-		name: "required-input",
-		ok: false,
-		schema: "z.object({request:z.string()})",
-	},
-	{
-		machine: 'createMachine({context:()=>{throw new Error("initial failure");}})',
-		name: "initial-error",
-		ok: false,
-		schema: "z.object({})",
-	},
-	{
-		input: '{"request":"Work"}',
-		machine: "createMachine({})",
-		name: "supplied-input",
-		ok: true,
-		schema: "z.object({request:z.string()})",
-	},
-];
+const schemas = { empty: z.object({}), request: z.object({ request: z.string() }) };
+const commonDefinition = {
+	commandSchemas: { next: schemas.empty },
+	runBrief: () => ({ title: "Example", description: "Example" }),
+};
 
-test.each(cases)(
-	"validate $name without a tracker or live actor",
-	async ({ name, machine, schema, input, ok }) => {
-		const path = join(root, name, "workflow.ts");
-		await Bun.write(
-			path,
-			`${imports}${exports}export const inputSchema=${schema};\nexport const machine=${machine};\n`,
-		);
-		const args = ["validate", path, "--json"];
-		await addInput(args, input, name);
-		const result = await invoke(args);
-		expect(result.document).toMatchObject({ kind: "validate", ok });
-		expect(result.stderr).toEqual([]);
-		expect(result.calls).toEqual([]);
-	},
-);
+test("validate bad-target without a tracker or live actor", async () => {
+	const fixture = validationServices({
+		importModule: () =>
+			Promise.resolve({
+				...commonDefinition,
+				inputSchema: schemas.empty,
+				machine: createMachine({ initial: "work", states: { work: { on: { NEXT: "missing" } } } }),
+			}),
+	});
+	const failure = await validate(
+		"/busybee-validation/bad-target/workflow.ts",
+		undefined,
+		fixture.services,
+	).catch((error: unknown) => error);
+	expect(failure).toBeInstanceOf(Error);
+	expect(failure)
+		.toMatchInlineSnapshot(`[Error: Invalid transition definition for state node '(machine).work':
+Child state 'missing' does not exist on '(machine)']`);
+	await assertNoEffects(fixture);
+});
 
-test("pure initial validation evaluates assignment but does not start entry effects", async () => {
-	const path = join(root, "pure", "workflow.ts");
-	const effect = join(root, "effect");
-	await Bun.write(
-		path,
-		`${imports}${exports}export const inputSchema=z.object({});\nexport const machine=createMachine({context:{count:0},initial:"work",states:{work:{entry:[assign({count:()=>1}),()=>{throw new Error(${JSON.stringify(effect)});} ],always:{guard:({context})=>context.count===1,target:"done"}},done:{type:"final"}}});`,
+test("validate bad-initial without a tracker or live actor #test-58", async () => {
+	const fixture = validationServices({
+		importModule: () =>
+			Promise.resolve({
+				...commonDefinition,
+				inputSchema: schemas.empty,
+				machine: createMachine({ initial: "missing", states: { work: {} } }),
+			}),
+	});
+	const failure = await validate(
+		"/busybee-validation/bad-initial/workflow.ts",
+		undefined,
+		fixture.services,
+	).catch((error: unknown) => error);
+	expect(failure).toBeInstanceOf(Error);
+	expect(failure).toMatchInlineSnapshot(
+		`[Error: Initial state node "missing" not found on parent state node #(machine)]`,
 	);
-	const result = await invoke(["validate", path, "--json"]);
-	expect(result.document).toMatchObject({
+	await assertNoEffects(fixture);
+});
+
+test("validate initial-error without a tracker or live actor #test-59", async () => {
+	const error = new Error("initial failure");
+	const fixture = validationServices({
+		importModule: () =>
+			Promise.resolve({
+				...commonDefinition,
+				inputSchema: schemas.empty,
+				machine: createMachine({
+					context: () => {
+						throw error;
+					},
+				}),
+			}),
+	});
+	await expect(
+		validate("/busybee-validation/initial-error/workflow.ts", undefined, fixture.services),
+	).rejects.toBe(error);
+	await assertNoEffects(fixture);
+});
+
+test("pure initial validation evaluates assignment but does not start entry effects #test-57", async () => {
+	const machine = createMachine({
+		context: { count: FIRST },
+		initial: "work",
+		states: {
+			work: {
+				entry: [
+					assign({ count: () => ASSIGNED_COUNT }),
+					() => {
+						throw new Error("Validation must not execute entry effects");
+					},
+				],
+				always: { guard: ({ context }) => context.count === ASSIGNED_COUNT, target: "done" },
+			},
+			done: { type: "final" },
+		},
+	});
+	const fixture = validationServices({
+		importModule: () =>
+			Promise.resolve({ ...commonDefinition, inputSchema: schemas.empty, machine }),
+	});
+	const source = "/busybee-validation/pure/workflow.ts";
+	expect(await validate(source, undefined, fixture.services)).toEqual({
 		checks: ["definition_resolution", "input_schema", "initial_snapshot"],
-		ok: true,
+		source,
 		status: "done",
 	});
-	expect(result.calls).toEqual([]);
+	await assertNoEffects(fixture);
 });
 
-test("global CLI loads repository machines and schemas from independent dependency copies", async () => {
-	const directory = join(root, "independent");
+test("validate required-input without a tracker or live actor #test-60", async () => {
+	const fixture = validationServices({
+		importModule: () =>
+			Promise.resolve({
+				...commonDefinition,
+				inputSchema: schemas.request,
+				machine: createMachine({}),
+			}),
+	});
+	const source = "/busybee-validation/required-input/workflow.ts";
+	const result = await invoke(["validate", source], fixture.services);
+	expect(result.code).toBe(FAILURE);
+	expect(result.document).toMatchObject({
+		kind: "validate",
+		ok: false,
+		reason: "invalid_input",
+		target: source,
+	});
+	expect(result.stderr).toBe("");
+	await assertNoEffects(fixture);
+});
+
+test("validate supplied-input without a tracker or live actor #test-61", async () => {
+	const reads: string[] = [];
+	const fixture = validationServices({
+		importModule: () =>
+			Promise.resolve({
+				...commonDefinition,
+				inputSchema: schemas.request,
+				machine: createMachine({
+					context: ({ input }) => schemas.request.parse(input),
+					initial: "work",
+					states: {
+						work: {
+							always: { guard: ({ context }) => context.request === "Work", target: "done" },
+						},
+						done: { type: "final" },
+					},
+				}),
+			}),
+		readText: (path) => {
+			reads.push(path);
+			return Promise.resolve('{"request":"Work"}');
+		},
+	});
+	const source = "/busybee-validation/supplied-input/workflow.ts";
+	const inputFile = "/busybee-validation/supplied-input/input.json";
+	const result = await invoke(["validate", source, "--input-file", inputFile], fixture.services);
+	expect(reads).toEqual([inputFile]);
+	expect(result.code).toBe(SUCCESS);
+	expect(result.document).toEqual({
+		checks: ["definition_resolution", "input_schema", "initial_snapshot"],
+		kind: "validate",
+		ok: true,
+		source,
+		status: "done",
+	});
+	expect(result.stderr).toBe("");
+	await assertNoEffects(fixture);
+});
+
+test("global CLI loads repository machines and schemas from independent dependency copies #test-56", async () => {
+	const root = await mkdtemp(join(tmpdir(), "busybee-validation-"));
+	try {
+		const source = await writeIndependentDefinition(join(root, "independent"));
+		const fixture = validationServices();
+		const result = await invoke(["validate", source], fixture.services);
+		expect(result.code).toBe(SUCCESS);
+		expect(result.document).toEqual({
+			checks: ["definition_resolution", "input_schema", "initial_snapshot"],
+			kind: "validate",
+			ok: true,
+			source,
+			status: "active",
+		});
+		expect(result.stderr).toBe("");
+		await assertNoEffects(fixture);
+	} finally {
+		await rm(root, { force: true, recursive: true });
+	}
+});
+
+async function writeIndependentDefinition(directory: string): Promise<string> {
 	await Promise.all(
 		["xstate", "zod"].map((name) =>
 			cp(
@@ -97,52 +206,50 @@ test("global CLI loads repository machines and schemas from independent dependen
 			),
 		),
 	);
-	const path = join(directory, "workflow.ts");
+	const source = join(directory, "workflow.ts");
 	await Bun.write(
-		path,
+		source,
 		`import {createMachine} from "xstate"; import {z} from "zod"; ${exports} export const inputSchema=z.object({});export const machine=createMachine({initial:"work",states:{work:{}}});`,
 	);
-	const result = await invoke(["validate", path, "--json"]);
-	expect(result.document).toMatchObject({ ok: true, status: "active" });
-	expect(result.calls).toEqual([]);
-	await rm(directory, { recursive: true });
-});
+	return source;
+}
 
-async function invoke(args: string[]) {
-	const stdout: string[] = [];
-	const stderr: string[] = [];
+function validationServices(overrides: Partial<Services> = {}) {
 	const calls: string[][] = [];
-	const services = {
+	const beads = createMemoryBeads();
+	const services: Services = {
 		...createServices(),
 		actor: undefined,
 		beads: {
-			...createMemoryBeads(),
+			...beads,
 			where: () => {
 				calls.push(["where"]);
 				return Promise.reject(new Error("Validation must not invoke tracker operations"));
 			},
 		},
-		execute: (argv: string[]) => {
+		beforeWrite: () => {
+			calls.push(["beforeWrite"]);
+			throw new Error("Validation must not publish effects");
+		},
+		execute: (argv) => {
 			calls.push(argv);
 			return Promise.reject(new Error("Validation must not invoke native commands"));
 		},
+		readBytes: (path) => {
+			calls.push(["readBytes", path]);
+			return Promise.reject(new Error("Validation must not read provenance"));
+		},
+		readText: (path) => {
+			calls.push(["readText", path]);
+			return Promise.reject(new Error("Validation must not read omitted input"));
+		},
+		...overrides,
 	};
-	await runCli(args, services, {
-		stderr: (text) => {
-			stderr.push(text);
-		},
-		stdout: (text) => {
-			stdout.push(text);
-		},
-	});
-	const document: unknown = JSON.parse(stdout.join(""));
-	return { calls, document, stderr };
+	return { beads, calls, services };
 }
 
-async function addInput(args: string[], input: string | undefined, name: string): Promise<void> {
-	if (input) {
-		const path = join(root, `${name}.json`);
-		await Bun.write(path, input);
-		args.push("--input-file", path);
-	}
+async function assertNoEffects(fixture: ReturnType<typeof validationServices>): Promise<void> {
+	expect(fixture.calls).toEqual([]);
+	const result = await fixture.beads.list({ cwd: fixture.services.cwd }, { all: true, limit: 0 });
+	expect(result.issues).toEqual([]);
 }

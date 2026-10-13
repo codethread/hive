@@ -44,6 +44,218 @@
 		"#test-11": {
 			"threshold": "DANGER",
 			"justification": "User preapproved bounded native contracts in lib/beads on 2026-10-11. lib/beads/tests/contract/native.test.ts compares label replacement and saved query creation, closed-issue selection, overrides and deletion against a disposable real tracker; native init and the command sequence measured 734-772ms after parity correction. The case retains its explicit 5000ms timeout; failures remain failures."
+		},
+		"#test-12": {
+			"threshold": "SLOW",
+			"justification": "ct approved retaining the measured Busy Bee slow cases after the per-file pyramid refactor on 2026-10-13. lib/busybee/tests/integration/catalogue.test.ts: an unresolved workflow name ../example fails before creation. Three fresh-process cold samples measured median 0.919ms, maximum 1.358ms. Retains this coherent behavior at its assessed cheapest faithful surface; real XState/native/import contracts are not mocked away. No timeout or global cutoff change."
+		},
+		"#test-13": {
+			"threshold": "SLOW",
+			"justification": "ct approved retaining the measured Busy Bee slow cases after the per-file pyramid refactor on 2026-10-13. lib/busybee/tests/integration/catalogue.test.ts: input discovery rejects a name and --source together before I/O. Three fresh-process cold samples measured median 1.643ms, maximum 1.643ms. Retains this coherent behavior at its assessed cheapest faithful surface; real XState/native/import contracts are not mocked away. No timeout or global cutoff change."
+		},
+		"#test-14": {
+			"threshold": "XSLOW",
+			"justification": "ct approved retaining the measured Busy Bee slow cases after the per-file pyramid refactor on 2026-10-13. lib/busybee/tests/integration/catalogue.test.ts: listing finds checkout metadata from nested and explicit repositories without importing code or selecting a tracker. Three fresh-process cold samples measured median 25.770ms, maximum 27.668ms. Retains this coherent behavior at its assessed cheapest faithful surface; real XState/native/import contracts are not mocked away. No timeout or global cutoff change."
+		},
+		"#test-15": {
+			"threshold": "XSLOW",
+			"justification": "ct approved retaining the measured Busy Bee slow cases after the per-file pyramid refactor on 2026-10-13. lib/busybee/tests/integration/catalogue.test.ts: named input discovery evaluates the entry and exposes its authoritative and readable constraints. Three fresh-process cold samples measured median 45.040ms, maximum 47.633ms. Retains this coherent behavior at its assessed cheapest faithful surface; real XState/native/import contracts are not mocked away. No timeout or global cutoff change."
+		},
+		"#test-16": {
+			"threshold": "SLOW",
+			"justification": "ct approved retaining the measured Busy Bee slow cases after the per-file pyramid refactor on 2026-10-13. lib/busybee/tests/integration/catalogue.test.ts: the CLI maps a malformed manifest to a command failure without creation. Three fresh-process cold samples measured median 1.693ms, maximum 1.750ms. Retains this coherent behavior at its assessed cheapest faithful surface; real XState/native/import contracts are not mocked away. No timeout or global cutoff change."
+		},
+		"#test-17": {
+			"threshold": "XSLOW",
+			"justification": "ct approved retaining the measured Busy Bee slow cases after the per-file pyramid refactor on 2026-10-13. lib/busybee/tests/integration/compatibility.test.ts: compatible minor insertion resumes an existing run at prepare. Three fresh-process cold samples measured median 5.981ms, maximum 6.567ms. Retains this coherent behavior at its assessed cheapest faithful surface; real XState/native/import contracts are not mocked away. No timeout or global cutoff change."
+		},
+		"#test-18": {
+			"threshold": "XSLOW",
+			"justification": "ct approved retaining the measured Busy Bee slow cases after the per-file pyramid refactor on 2026-10-13. lib/busybee/tests/integration/compatibility.test.ts: compatible minor insertion resumes an existing run at review. Three fresh-process cold samples measured median 6.090ms, maximum 6.335ms. Retains this coherent behavior at its assessed cheapest faithful surface; real XState/native/import contracts are not mocked away. No timeout or global cutoff change."
+		},
+		"#test-19": {
+			"threshold": "XSLOW",
+			"justification": "ct approved retaining the measured Busy Bee slow cases after the per-file pyramid refactor on 2026-10-13. lib/busybee/tests/integration/compatibility.test.ts: parallel progress preserves a surviving visit context and preflights its unchanged frozen contract. Three fresh-process cold samples measured median 6.160ms, maximum 6.642ms. Retains this coherent behavior at its assessed cheapest faithful surface; real XState/native/import contracts are not mocked away. No timeout or global cutoff change."
+		},
+		"#test-20": {
+			"threshold": "SLOW",
+			"justification": "ct approved retaining the measured Busy Bee slow cases after the per-file pyramid refactor on 2026-10-13. lib/busybee/tests/integration/failure.test.ts: an initial actor failure returns JSON without creating tasks. Three fresh-process cold samples measured median 3.052ms, maximum 3.086ms. Retains this coherent behavior at its assessed cheapest faithful surface; real XState/native/import contracts are not mocked away. No timeout or global cutoff change."
+		},
+		"#test-21": {
+			"threshold": "SLOW",
+			"justification": "ct approved retaining the measured Busy Bee slow cases after the per-file pyramid refactor on 2026-10-13. lib/busybee/tests/integration/land.test.ts: a land run requires retained input before publishing any tasks. Three fresh-process cold samples measured median 3.104ms, maximum 3.278ms. Retains this coherent behavior at its assessed cheapest faithful surface; real XState/native/import contracts are not mocked away. No timeout or global cutoff change."
+		},
+		"#test-22": {
+			"threshold": "XSLOW",
+			"justification": "ct approved retaining the measured Busy Bee slow cases after the per-file pyramid refactor on 2026-10-13. lib/busybee/tests/integration/land.test.ts: landing briefs keep the passing check gate with the worker before agent review. Three fresh-process cold samples measured median 2.378ms, maximum 5.385ms. Retains this coherent behavior at its assessed cheapest faithful surface; real XState/native/import contracts are not mocked away. No timeout or global cutoff change."
+		},
+		"#test-23": {
+			"threshold": "XSLOW",
+			"justification": "ct approved retaining the measured Busy Bee slow cases after the per-file pyramid refactor on 2026-10-13. lib/busybee/tests/integration/land.test.ts: the actual land chart navigates PR fixes, rebuttals, stale review, late feedback and fresh readiness without executing landing effects. Three fresh-process cold samples measured median 6.730ms, maximum 7.402ms. Retains this coherent behavior at its assessed cheapest faithful surface; real XState/native/import contracts are not mocked away. No timeout or global cutoff change."
+		},
+		"#test-24": {
+			"threshold": "XSLOW",
+			"justification": "ct approved retaining the measured Busy Bee slow cases after the per-file pyramid refactor on 2026-10-13. lib/busybee/tests/integration/land.test.ts: the actual land chart navigates checks already passed without local approval without executing landing effects. Three fresh-process cold samples measured median 5.117ms, maximum 7.881ms. Retains this coherent behavior at its assessed cheapest faithful surface; real XState/native/import contracts are not mocked away. No timeout or global cutoff change."
+		},
+		"#test-25": {
+			"threshold": "SLOW",
+			"justification": "ct approved retaining the measured Busy Bee slow cases after the per-file pyramid refactor on 2026-10-13. lib/busybee/tests/integration/land.test.ts: the actual land chart navigates reviewed PR already merged remotely without executing landing effects. Three fresh-process cold samples measured median 4.347ms, maximum 4.605ms. Retains this coherent behavior at its assessed cheapest faithful surface; real XState/native/import contracts are not mocked away. No timeout or global cutoff change."
+		},
+		"#test-26": {
+			"threshold": "XSLOW",
+			"justification": "ct approved retaining the measured Busy Bee slow cases after the per-file pyramid refactor on 2026-10-13. lib/busybee/tests/integration/land.test.ts: the actual land chart navigates reviewed content not yet committed without executing landing effects. Three fresh-process cold samples measured median 5.387ms, maximum 6.073ms. Retains this coherent behavior at its assessed cheapest faithful surface; real XState/native/import contracts are not mocked away. No timeout or global cutoff change."
+		},
+		"#test-27": {
+			"threshold": "XSLOW",
+			"justification": "ct approved retaining the measured Busy Bee slow cases after the per-file pyramid refactor on 2026-10-13. lib/busybee/tests/integration/land.test.ts: the actual land chart navigates unfinished work, failed checks, review findings, changed commits and retriage without executing landing effects. Three fresh-process cold samples measured median 5.501ms, maximum 6.051ms. Retains this coherent behavior at its assessed cheapest faithful surface; real XState/native/import contracts are not mocked away. No timeout or global cutoff change."
+		},
+		"#test-28": {
+			"threshold": "SLOW",
+			"justification": "ct approved retaining the measured Busy Bee slow cases after the per-file pyramid refactor on 2026-10-13. lib/busybee/tests/integration/land.test.ts: the actual land chart navigates worktree already integrated without executing landing effects. Three fresh-process cold samples measured median 2.562ms, maximum 2.636ms. Retains this coherent behavior at its assessed cheapest faithful surface; real XState/native/import contracts are not mocked away. No timeout or global cutoff change."
+		},
+		"#test-29": {
+			"threshold": "XSLOW",
+			"justification": "ct approved retaining the measured Busy Bee slow cases after the per-file pyramid refactor on 2026-10-13. lib/busybee/tests/integration/native.test.ts: native tracker discovery routes writes to the repository database with owner and actor. Three fresh-process cold samples measured median 219.343ms, maximum 221.540ms. Retains this coherent behavior at its assessed cheapest faithful surface; real XState/native/import contracts are not mocked away. No timeout or global cutoff change."
+		},
+		"#test-30": {
+			"threshold": "XSLOW",
+			"justification": "ct approved retaining the measured Busy Bee slow cases after the per-file pyramid refactor on 2026-10-13. lib/busybee/tests/integration/native.test.ts: schema discovery works without a database while starting from the same checkout fails clearly. Three fresh-process cold samples measured median 21.444ms, maximum 22.112ms. Retains this coherent behavior at its assessed cheapest faithful surface; real XState/native/import contracts are not mocked away. No timeout or global cutoff change."
+		},
+		"#test-31": {
+			"threshold": "XSLOW",
+			"justification": "ct approved retaining the measured Busy Bee slow cases after the per-file pyramid refactor on 2026-10-13. lib/busybee/tests/integration/native.test.ts: the public executable emits one JSON error document and keeps stderr silent. Three fresh-process cold samples measured median 45.045ms, maximum 47.567ms. Retains this coherent behavior at its assessed cheapest faithful surface; real XState/native/import contracts are not mocked away. No timeout or global cutoff change."
+		},
+		"#test-32": {
+			"threshold": "SLOW",
+			"justification": "ct approved retaining the measured Busy Bee slow cases after the per-file pyramid refactor on 2026-10-13. lib/busybee/tests/integration/preflight.test.ts: frozen effective choices use the saved visit context and allow additional candidate choices. Three fresh-process cold samples measured median 1.700ms, maximum 1.718ms. Retains this coherent behavior at its assessed cheapest faithful surface; real XState/native/import contracts are not mocked away. No timeout or global cutoff change."
+		},
+		"#test-33": {
+			"threshold": "SLOW",
+			"justification": "ct approved retaining the measured Busy Bee slow cases after the per-file pyramid refactor on 2026-10-13. lib/busybee/tests/integration/preflight.test.ts: frozen events require a transition on the active node or its ancestors. Three fresh-process cold samples measured median 1.661ms, maximum 2.666ms. Retains this coherent behavior at its assessed cheapest faithful surface; real XState/native/import contracts are not mocked away. No timeout or global cutoff change."
+		},
+		"#test-34": {
+			"threshold": "SLOW",
+			"justification": "ct approved retaining the measured Busy Bee slow cases after the per-file pyramid refactor on 2026-10-13. lib/busybee/tests/integration/preflight.test.ts: independent root context, active path, and frozen command failures retain all findings. Three fresh-process cold samples measured median 1.915ms, maximum 2.058ms. Retains this coherent behavior at its assessed cheapest faithful surface; real XState/native/import contracts are not mocked away. No timeout or global cutoff change."
+		},
+		"#test-35": {
+			"threshold": "SLOW",
+			"justification": "ct approved retaining the measured Busy Bee slow cases after the per-file pyramid refactor on 2026-10-13. lib/busybee/tests/integration/preflight.test.ts: malformed identity, orphan checkpoint relations and retained locks stay visible. Three fresh-process cold samples measured median 3.598ms, maximum 3.699ms. Retains this coherent behavior at its assessed cheapest faithful surface; real XState/native/import contracts are not mocked away. No timeout or global cutoff change."
+		},
+		"#test-36": {
+			"threshold": "SLOW",
+			"justification": "ct approved retaining the measured Busy Bee slow cases after the per-file pyramid refactor on 2026-10-13. lib/busybee/tests/integration/preflight.test.ts: missing child actor logic is structural incompatibility even when XState drops it silently. Three fresh-process cold samples measured median 1.577ms, maximum 1.642ms. Retains this coherent behavior at its assessed cheapest faithful surface; real XState/native/import contracts are not mocked away. No timeout or global cutoff change."
+		},
+		"#test-37": {
+			"threshold": "XSLOW",
+			"justification": "ct approved retaining the measured Busy Bee slow cases after the per-file pyramid refactor on 2026-10-13. lib/busybee/tests/integration/preflight.test.ts: preflight CLI retains failed and unchecked runs, filters completed/other runs, and never writes or starts. Three fresh-process cold samples measured median 6.425ms, maximum 6.860ms. Retains this coherent behavior at its assessed cheapest faithful surface; real XState/native/import contracts are not mocked away. No timeout or global cutoff change."
+		},
+		"#test-38": {
+			"threshold": "SLOW",
+			"justification": "ct approved retaining the measured Busy Bee slow cases after the per-file pyramid refactor on 2026-10-13. lib/busybee/tests/integration/preflight.test.ts: restored child state removed is checked while resumeSchema receives raw root data only. Three fresh-process cold samples measured median 2.060ms, maximum 2.222ms. Retains this coherent behavior at its assessed cheapest faithful surface; real XState/native/import contracts are not mocked away. No timeout or global cutoff change."
+		},
+		"#test-39": {
+			"threshold": "SLOW",
+			"justification": "ct approved retaining the measured Busy Bee slow cases after the per-file pyramid refactor on 2026-10-13. lib/busybee/tests/integration/preflight.test.ts: restored child state work is checked while resumeSchema receives raw root data only. Three fresh-process cold samples measured median 1.836ms, maximum 2.005ms. Retains this coherent behavior at its assessed cheapest faithful surface; real XState/native/import contracts are not mocked away. No timeout or global cutoff change."
+		},
+		"#test-40": {
+			"threshold": "SLOW",
+			"justification": "ct approved retaining the measured Busy Bee slow cases after the per-file pyramid refactor on 2026-10-13. lib/busybee/tests/integration/preflight.test.ts: snapshot restoration reports removed states. Three fresh-process cold samples measured median 0.954ms, maximum 1.034ms. Retains this coherent behavior at its assessed cheapest faithful surface; real XState/native/import contracts are not mocked away. No timeout or global cutoff change."
+		},
+		"#test-41": {
+			"threshold": "SLOW",
+			"justification": "ct approved retaining the measured Busy Bee slow cases after the per-file pyramid refactor on 2026-10-13. lib/busybee/tests/integration/preflight.test.ts: successful CLI reports explicit uncertainty and resolves proposed source from invoking directory. Three fresh-process cold samples measured median 1.954ms, maximum 1.972ms. Retains this coherent behavior at its assessed cheapest faithful surface; real XState/native/import contracts are not mocked away. No timeout or global cutoff change."
+		},
+		"#test-42": {
+			"threshold": "SLOW",
+			"justification": "ct approved retaining the measured Busy Bee slow cases after the per-file pyramid refactor on 2026-10-13. lib/busybee/tests/integration/preflight.test.ts: task renderer exceptions remain findings alongside other incompatibilities. Three fresh-process cold samples measured median 1.463ms, maximum 1.538ms. Retains this coherent behavior at its assessed cheapest faithful surface; real XState/native/import contracts are not mocked away. No timeout or global cutoff change."
+		},
+		"#test-43": {
+			"threshold": "XSLOW",
+			"justification": "ct approved retaining the measured Busy Bee slow cases after the per-file pyramid refactor on 2026-10-13. lib/busybee/tests/integration/preflight.test.ts: unsupported matching checkpoints preserve other runs and exclude malformed closed/other-name records. Three fresh-process cold samples measured median 4.513ms, maximum 5.736ms. Retains this coherent behavior at its assessed cheapest faithful surface; real XState/native/import contracts are not mocked away. No timeout or global cutoff change."
+		},
+		"#test-44": {
+			"threshold": "SLOW",
+			"justification": "ct approved retaining the measured Busy Bee slow cases after the per-file pyramid refactor on 2026-10-13. lib/busybee/tests/integration/start.test.ts: an existing malformed manifest remains a parse failure. Three fresh-process cold samples measured median 1.482ms, maximum 1.512ms. Retains this coherent behavior at its assessed cheapest faithful surface; real XState/native/import contracts are not mocked away. No timeout or global cutoff change."
+		},
+		"#test-45": {
+			"threshold": "SLOW",
+			"justification": "ct approved retaining the measured Busy Bee slow cases after the per-file pyramid refactor on 2026-10-13. lib/busybee/tests/integration/start.test.ts: an unchanged definition's import failure is not a missing workflow. Three fresh-process cold samples measured median 2.267ms, maximum 2.849ms. Retains this coherent behavior at its assessed cheapest faithful surface; real XState/native/import contracts are not mocked away. No timeout or global cutoff change."
+		},
+		"#test-46": {
+			"threshold": "SLOW",
+			"justification": "ct approved retaining the measured Busy Bee slow cases after the per-file pyramid refactor on 2026-10-13. lib/busybee/tests/integration/start.test.ts: changed explicit-file runs keep their source-based diagnostic. Three fresh-process cold samples measured median 1.363ms, maximum 1.412ms. Retains this coherent behavior at its assessed cheapest faithful surface; real XState/native/import contracts are not mocked away. No timeout or global cutoff change."
+		},
+		"#test-47": {
+			"threshold": "SLOW",
+			"justification": "ct approved retaining the measured Busy Bee slow cases after the per-file pyramid refactor on 2026-10-13. lib/busybee/tests/integration/start.test.ts: collect releases ownership after restoration refusal without publishing tasks. Three fresh-process cold samples measured median 2.552ms, maximum 2.639ms. Retains this coherent behavior at its assessed cheapest faithful surface; real XState/native/import contracts are not mocked away. No timeout or global cutoff change."
+		},
+		"#test-48": {
+			"threshold": "SLOW",
+			"justification": "ct approved retaining the measured Busy Bee slow cases after the per-file pyramid refactor on 2026-10-13. lib/busybee/tests/integration/start.test.ts: discover requires user selection when the saved named folder is absent. Three fresh-process cold samples measured median 1.459ms, maximum 1.471ms. Retains this coherent behavior at its assessed cheapest faithful surface; real XState/native/import contracts are not mocked away. No timeout or global cutoff change."
+		},
+		"#test-49": {
+			"threshold": "SLOW",
+			"justification": "ct approved retaining the measured Busy Bee slow cases after the per-file pyramid refactor on 2026-10-13. lib/busybee/tests/integration/start.test.ts: restoration preserves the actual folder permission failure. Three fresh-process cold samples measured median 1.388ms, maximum 1.388ms. Retains this coherent behavior at its assessed cheapest faithful surface; real XState/native/import contracts are not mocked away. No timeout or global cutoff change."
+		},
+		"#test-50": {
+			"threshold": "SLOW",
+			"justification": "ct approved retaining the measured Busy Bee slow cases after the per-file pyramid refactor on 2026-10-13. lib/busybee/tests/integration/start.test.ts: restoration preserves the actual manifest permission failure. Three fresh-process cold samples measured median 1.583ms, maximum 1.667ms. Retains this coherent behavior at its assessed cheapest faithful surface; real XState/native/import contracts are not mocked away. No timeout or global cutoff change."
+		},
+		"#test-51": {
+			"threshold": "SLOW",
+			"justification": "ct approved retaining the measured Busy Bee slow cases after the per-file pyramid refactor on 2026-10-13. lib/busybee/tests/integration/start.test.ts: restoration preserves the actual missing entry. Three fresh-process cold samples measured median 1.500ms, maximum 1.602ms. Retains this coherent behavior at its assessed cheapest faithful surface; real XState/native/import contracts are not mocked away. No timeout or global cutoff change."
+		},
+		"#test-52": {
+			"threshold": "SLOW",
+			"justification": "ct approved retaining the measured Busy Bee slow cases after the per-file pyramid refactor on 2026-10-13. lib/busybee/tests/integration/start.test.ts: restoration preserves the actual missing file during fingerprint. Three fresh-process cold samples measured median 2.051ms, maximum 2.171ms. Retains this coherent behavior at its assessed cheapest faithful surface; real XState/native/import contracts are not mocked away. No timeout or global cutoff change."
+		},
+		"#test-53": {
+			"threshold": "SLOW",
+			"justification": "ct approved retaining the measured Busy Bee slow cases after the per-file pyramid refactor on 2026-10-13. lib/busybee/tests/integration/start.test.ts: restoration preserves the actual missing manifest. Three fresh-process cold samples measured median 1.388ms, maximum 1.505ms. Retains this coherent behavior at its assessed cheapest faithful surface; real XState/native/import contracts are not mocked away. No timeout or global cutoff change."
+		},
+		"#test-54": {
+			"threshold": "SLOW",
+			"justification": "ct approved retaining the measured Busy Bee slow cases after the per-file pyramid refactor on 2026-10-13. lib/busybee/tests/integration/start.test.ts: show rejects a changed named checkpoint before import with authorized same-scope recovery. Three fresh-process cold samples measured median 2.408ms, maximum 3.396ms. Retains this coherent behavior at its assessed cheapest faithful surface; real XState/native/import contracts are not mocked away. No timeout or global cutoff change."
+		},
+		"#test-55": {
+			"threshold": "XSLOW",
+			"justification": "ct approved retaining the measured Busy Bee slow cases after the per-file pyramid refactor on 2026-10-13. lib/busybee/tests/integration/start.test.ts: start publishes an initial worker and one JSON success document through the CLI/runtime. Three fresh-process cold samples measured median 7.407ms, maximum 8.803ms. Retains this coherent behavior at its assessed cheapest faithful surface; real XState/native/import contracts are not mocked away. No timeout or global cutoff change."
+		},
+		"#test-56": {
+			"threshold": "XSLOW",
+			"justification": "ct approved retaining the measured Busy Bee slow cases after the per-file pyramid refactor on 2026-10-13. lib/busybee/tests/integration/validation.test.ts: global CLI loads repository machines and schemas from independent dependency copies. Three fresh-process cold samples measured median 105.798ms, maximum 106.919ms. Retains this coherent behavior at its assessed cheapest faithful surface; real XState/native/import contracts are not mocked away. No timeout or global cutoff change."
+		},
+		"#test-57": {
+			"threshold": "SLOW",
+			"justification": "ct approved retaining the measured Busy Bee slow cases after the per-file pyramid refactor on 2026-10-13. lib/busybee/tests/integration/validation.test.ts: pure initial validation evaluates assignment but does not start entry effects. Three fresh-process cold samples measured median 2.207ms, maximum 2.296ms. Retains this coherent behavior at its assessed cheapest faithful surface; real XState/native/import contracts are not mocked away. No timeout or global cutoff change."
+		},
+		"#test-58": {
+			"threshold": "SLOW",
+			"justification": "ct approved retaining the measured Busy Bee slow cases after the per-file pyramid refactor on 2026-10-13. lib/busybee/tests/integration/validation.test.ts: validate bad-initial without a tracker or live actor. Three fresh-process cold samples measured median 1.102ms, maximum 1.149ms. Retains this coherent behavior at its assessed cheapest faithful surface; real XState/native/import contracts are not mocked away. No timeout or global cutoff change."
+		},
+		"#test-59": {
+			"threshold": "SLOW",
+			"justification": "ct approved retaining the measured Busy Bee slow cases after the per-file pyramid refactor on 2026-10-13. lib/busybee/tests/integration/validation.test.ts: validate initial-error without a tracker or live actor. Three fresh-process cold samples measured median 1.528ms, maximum 1.554ms. Retains this coherent behavior at its assessed cheapest faithful surface; real XState/native/import contracts are not mocked away. No timeout or global cutoff change."
+		},
+		"#test-60": {
+			"threshold": "SLOW",
+			"justification": "ct approved retaining the measured Busy Bee slow cases after the per-file pyramid refactor on 2026-10-13. lib/busybee/tests/integration/validation.test.ts: validate required-input without a tracker or live actor. Three fresh-process cold samples measured median 2.571ms, maximum 2.843ms. Retains this coherent behavior at its assessed cheapest faithful surface; real XState/native/import contracts are not mocked away. No timeout or global cutoff change."
+		},
+		"#test-61": {
+			"threshold": "SLOW",
+			"justification": "ct approved retaining the measured Busy Bee slow cases after the per-file pyramid refactor on 2026-10-13. lib/busybee/tests/integration/validation.test.ts: validate supplied-input without a tracker or live actor. Three fresh-process cold samples measured median 3.709ms, maximum 3.809ms. Retains this coherent behavior at its assessed cheapest faithful surface; real XState/native/import contracts are not mocked away. No timeout or global cutoff change."
+		},
+		"#test-62": {
+			"threshold": "SLOW",
+			"justification": "ct approved retaining the measured Busy Bee slow cases after the per-file pyramid refactor on 2026-10-13. lib/busybee/tests/unit/checkpoint.test.ts: future checkpoint format requires a fresh run. Three fresh-process cold samples measured median 1.087ms, maximum 1.243ms. Retains this coherent behavior at its assessed cheapest faithful surface; real XState/native/import contracts are not mocked away. No timeout or global cutoff change."
+		},
+		"#test-63": {
+			"threshold": "SLOW",
+			"justification": "ct approved retaining the measured Busy Bee slow cases after the per-file pyramid refactor on 2026-10-13. lib/busybee/tests/unit/checkpoint.test.ts: missing checkpoint format requires a fresh run. Three fresh-process cold samples measured median 1.064ms, maximum 1.312ms. Retains this coherent behavior at its assessed cheapest faithful surface; real XState/native/import contracts are not mocked away. No timeout or global cutoff change."
+		},
+		"#test-64": {
+			"threshold": "SLOW",
+			"justification": "ct approved retaining the measured Busy Bee slow cases after the per-file pyramid refactor on 2026-10-13. lib/busybee/tests/unit/compatibility.test.ts: 1.2.3+old can resume 1.2.3+new: true. Three fresh-process cold samples measured median 0.706ms, maximum 1.464ms. Retains this coherent behavior at its assessed cheapest faithful surface; real XState/native/import contracts are not mocked away. No timeout or global cutoff change."
 		}
 	}
 }

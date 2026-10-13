@@ -23,6 +23,7 @@ Repository workflows live in `.workflows/<name>/`. To try one, copy the [groceri
 
 ```toml
 description = "Prepare a weekly meal plan and grocery list"
+version = "1.0.0"
 run = "./workflow.ts"
 ```
 
@@ -62,23 +63,34 @@ Repeat until `status` is `done`. A closed task stays active until Busy Bee accep
 
 ## Commands
 
-| Command                      | Use                                                             |
-| ---------------------------- | --------------------------------------------------------------- |
-| `list`                       | List repository workflows without executing them                |
-| `input-schema NAME`          | Inspect a workflow's initial input                              |
-| `run NAME --owner HUMAN`     | Start a repository workflow                                     |
-| `show RUN`                   | Read current tasks and visit records                            |
-| `discover RUN`               | Inspect choices, payload schemas and task constraints           |
-| `next RUN TASK`              | Submit the task's `next` outcome                                |
-| `choice RUN TASK CHOICE`     | Submit a named outcome                                          |
-| `collect RUN`                | Process closed automatic tasks                                  |
-| `input-schema --source PATH` | Inspect an explicit definition file                             |
-| `start PATH --owner HUMAN`   | Run a definition without a catalogue manifest                   |
-| `validate PATH`              | Check a definition and its initial input without creating beads |
+| Command | Use |
+| --- | --- |
+| `list` | List repository workflows without executing them |
+| `input-schema NAME` | Inspect a workflow's initial input |
+| `run NAME --owner HUMAN` | Start a repository workflow |
+| `show RUN` | Read current tasks and visit records |
+| `discover RUN` | Inspect choices, payload schemas and task constraints |
+| `next RUN TASK` | Submit the task's `next` outcome |
+| `choice RUN TASK CHOICE` | Submit a named outcome |
+| `collect RUN` | Process closed automatic tasks |
+| `input-schema --source PATH` | Inspect an explicit definition file |
+| `start PATH --owner HUMAN` | Run a definition without a catalogue manifest |
+| `validate PATH` | Check a definition and its initial input without creating beads |
+| `preflight NAME [--source PATH]` | Check unfinished named runs against a current or proposed definition |
 
 `run`, `start` and `validate` accept `--input-file FILE`. See `busybee --help` for options and the [authoring guide](../../docs/busybee-workflows.md) for definitions and validation limits.
 
-`list`, `input-schema` and `validate` need no tracker or actor. `show` and `discover` are read-only snapshots, not reservations. Discovery summaries are readable by default; `--json` includes complete schemas, including nested and conditional constraints. Run commands return JSON. With `--json`, every command emits one stdout document containing `ok` and `kind`; failures add `reason`, `message` and known context, leave stderr empty and exit nonzero.
+`list`, `input-schema` and `validate` need no tracker or actor. `preflight` needs the selected tracker but no actor. `show` and `discover` are read-only snapshots, not reservations. Discovery summaries are readable by default; `--json` includes complete schemas, including nested and conditional constraints. Run commands return JSON. With `--json`, every command emits one stdout document containing `ok` and `kind`; command errors add `reason`, `message` and known context, leave stderr empty and exit nonzero. A preflight incompatibility retains its full report alongside those failure fields.
+
+Before updating a named workflow, check the selected tracker's existing unfinished runs:
+
+```sh
+busybee preflight groceries --json
+busybee --repo /path/to/candidate-checkout --db /path/to/beads.db preflight groceries --json
+busybee preflight groceries --source /path/to/proposed-workflow.ts --json
+```
+
+`--repo` selects the proposed catalogue and its manifest version. `--source` checks an explicit proposed module without requiring a current catalogue entry; because the module declares no manifest version, version compatibility is reported as unchecked. Preflight checks version compatibility, snapshot restoration, active states and frozen command contracts, current task rendering and persisted root actor context when the author supplies `resumeSchema`. Without that schema, the report identifies root context validation as unchecked; child context validation and future paths remain unproved in either case. Incompatible runs produce a nonzero exit and preserve the full JSON report with `ok: false`, `reason: "preflight_incompatible"` and a summary `message`. Preflight performs no engine writes, starts no actor and launches no worker, but imports and render callbacks execute trusted workflow code. It is not a sandbox. See the [authoring guide](../../docs/busybee-workflows.md#preflight-existing-runs) for author obligations and limits.
 
 ## Ownership and assignment
 
@@ -121,6 +133,14 @@ Worktree integration uses Honeycomb; PR integration uses the repository's GitHub
 
 ## Resume and failures
 
-Named runs can resume from another checkout with the same database and unchanged definition folder, even after the original worktree is removed. Keep generated files outside that folder: its manifest, entry and local helpers are fingerprinted. Explicit-path runs retain their source path and fingerprint only the entry file. Neither check covers external imports or installed dependencies. Changed-definition resumption is unsupported; start a fresh run.
+Named runs resolve their saved name in the current checkout and can resume there with the same database, even after the original worktree is removed. Each manifest requires a full SemVer `version`, such as `1.2.3`. The current version must be equal to or newer than the saved version within its forward caret range: saved `1.2.3` permits newer `1.x` patch/minor versions and rejects `2.0.0` and downgrades. Before `1.0.0`, caret ranges are narrower: `0.2.3` permits versions below `0.3.0`, while `0.0.3` permits only itself. If either version is a prerelease, only the exact same SemVer version resumes; build metadata does not affect equality or precedence. Successful mutations save the current version for subsequent comparisons; read-only inspection does not persist that update. Authors promise that allowed versions preserve saved state, context and task contracts; preflight helps check that promise.
+
+The named definition's folder hash records the definition that produced the latest saved checkpoint, rather than deciding compatibility. Keep generated files outside that folder: the manifest, entry and local helpers are fingerprinted. Explicit-path runs retain their source path and require the entry-file hash to match before import; changed files require a fresh run. Neither hash covers external imports or installed dependencies.
+
+Engine checkpoints use `formatVersion: 1`, independently of workflow SemVer. The engine validates the checkpoint header and trusts its own stored snapshot and visit body. Old or unknown checkpoint formats are rejected with fresh-run guidance; there is no migration. See the [checkpoint contract](./SPEC.md#checkpoint-and-failure-boundary).
+
+For an incompatible named workflow that still exists, a bee may start a fresh run of the **same name for the same already-authorized scope without asking the user again**. Inspect `busybee input-schema NAME`, prepare input for the current schema, then use `busybee run NAME --input-file FILE --owner HUMAN` with the retained repository, database and assignment options. Preserve the original request and authorization, source/target, scope, owner/assignment intent, tracker and old run/task/evidence references. Inspect completed and uncertain effects before execution; use the current workflow's triage and current evidence to continue remaining work without blindly replaying completed effects or bypassing checks and reviews. Retain the old run as history; starting fresh does not decide its closure.
+
+If the saved workflow name no longer exists, **stop and ask the user which workflow to use**. Do not infer a replacement. A missing/malformed manifest in an existing workflow folder, invalid entry or unrelated I/O failure needs diagnosis of that failure. Busy Bee reports these separately from a missing name. It does not create a replacement run or migrate the saved snapshot. Explicit-file runs continue to identify their saved source file; the same-name recovery policy applies to named runs.
 
 Concurrent submissions require one live database. Tracker synchronization does not provide a distributed lock. Invalid submissions fail before publishing task effects. If a write has been attempted and its outcome is uncertain, Busy Bee retains the checkpoint lock for inspection. There is no automatic expiry or partial-write recovery. Inspect the reported checkpoint and native records before recovery; prefer a fresh run after uncertain effects. The [specification](./SPEC.md#checkpoint-and-failure-boundary) explains this boundary.

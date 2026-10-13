@@ -16,7 +16,11 @@
 		"@hive/beads": "workspace:*",
 		"@hive/shared": "workspace:*",
 		"commander": "^15.0.0",
+		"semver": "^7.8.5",
 		"xstate": "^5.33.2",
 		"zod": "^4.6.5"
+	},
+	"devDependencies": {
+		"@types/semver": "^7.8.0"
 	}
 }
