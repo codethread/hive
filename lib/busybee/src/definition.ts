@@ -87,7 +87,12 @@ export async function load(
 			`Workflow definition changed; inspect the current source at ${source.source} and start a fresh run.`,
 		);
 	}
-	return { definition: definitionSchema.parse(await services.importModule(source.source)), hash };
+	return { definition: await importDefinition(source.source, services), hash };
+}
+
+/** Import and validate a definition without calculating unused provenance. */
+export async function importDefinition(source: string, services: Services): Promise<Definition> {
+	return definitionSchema.parse(await services.importModule(source));
 }
 
 export async function readInput(
@@ -113,7 +118,7 @@ export async function validate(
 	inputFile: string | undefined,
 	services: Services,
 ): Promise<{ checks: string[]; source: string; status: string }> {
-	const { definition } = await load({ kind: "file", source }, services);
+	const definition = await importDefinition(source, services);
 	const input = await readInput(definition, inputFile, services);
 	// Resolve lazy XState node definitions before evaluating the initial pure transition.
 	void definition.machine.definition;
@@ -177,6 +182,13 @@ export function initialActor(definition: Definition, input: unknown): WorkflowAc
 		actor.stop();
 		throw snapshot.error;
 	}
+	return actor;
+}
+
+/** Start an actor from a persisted workflow snapshot. */
+export function restoredActor(definition: Definition, snapshot: Snapshot<unknown>): WorkflowActor {
+	const actor = actorFor(definition, { snapshot });
+	actor.start();
 	return actor;
 }
 

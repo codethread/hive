@@ -25,8 +25,8 @@ test("engine-owned named checkpoint retains its typed persisted payload", () => 
 const NEXT_FORMAT = 2;
 
 test.each([
-	{ label: "missing", formatVersion: undefined },
-	{ label: "future", formatVersion: NEXT_FORMAT },
+	{ label: "missing #test-63", formatVersion: undefined },
+	{ label: "future #test-62", formatVersion: NEXT_FORMAT },
 ])("$label checkpoint format requires a fresh run", ({ formatVersion }) => {
 	try {
 		readCheckpoint(record(JSON.stringify({ ...run, formatVersion })));

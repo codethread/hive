@@ -5,11 +5,12 @@ import {
 	actorFor,
 	childActors,
 	declaresEvent,
-	load,
+	importDefinition,
 	renderTask,
 	targetActor,
 } from "./definition.ts";
 import { createServices, readBead, resolveEndpoint } from "./native.ts";
+import type { BeadRow } from "@hive/beads";
 import type { Source } from "./catalogue.ts";
 import { compatibleWorkflowVersion } from "./compatibility.ts";
 import { frontier } from "./runtime.ts";
@@ -22,10 +23,13 @@ import { resolve } from "node:path";
 import { z } from "zod";
 
 const EMPTY = 0;
-const diagnosticIdentitySchema = z.object({
-	id: z.string(),
-	definition: z.object({ kind: z.string(), name: z.string().optional() }),
-});
+const workflowIdentitySchema = z.object({ kind: z.string(), name: z.string().optional() });
+const diagnosticIdentitySchema = z.compile(
+	z.object({
+		id: z.string(),
+		definition: workflowIdentitySchema,
+	}),
+);
 const taskContextSchema = z.compile(z.record(z.string(), z.unknown()));
 const limits = [
 	"Future states, command payloads, guards and action implementations are unchecked.",
@@ -97,17 +101,17 @@ export async function preflight(
 	const endpoint = await resolveEndpoint(options, services);
 	const { candidate, version } = await candidateSource(name, options, endpoint, services);
 	const { source } = candidate;
-	const { definition } = await load(candidate, services);
+	const definition = await importDefinition(source, services);
 	const listing = await services.beads.list(
 		{ cwd: endpoint.repo, db: endpoint.db },
 		{ labels: ["system", "busybee-checkpoint"], all: true, limit: EMPTY },
 	);
 	const runs: RunAssessment[] = [];
 	const discovery: DiscoveryDiagnostic[] = [];
-	for (const { id } of listing.issues) {
+	for (const record of listing.issues) {
 		// eslint-disable-next-line no-await-in-loop -- Preserve deterministic native discovery and per-run diagnostics.
 		const assessment = await inspectCheckpoint(
-			id,
+			record,
 			{ definition, discovery, endpoint, name, version },
 			services,
 		);
@@ -259,7 +263,7 @@ async function candidateSource(
 
 // eslint-disable-next-line max-statements -- Filter identity and native completion before decoding or assessing candidate state.
 async function inspectCheckpoint(
-	id: string,
+	record: BeadRow,
 	candidate: {
 		definition: Definition;
 		discovery: DiscoveryDiagnostic[];
@@ -269,7 +273,7 @@ async function inspectCheckpoint(
 	},
 	services: Services,
 ): Promise<RunAssessment | undefined> {
-	const record = await readBead(candidate.endpoint, id, services);
+	const { id } = record;
 	const identity = checkpointIdentity(record.description, id, candidate.discovery);
 	if (
 		!identity ||
@@ -332,31 +336,30 @@ function assessFrontier(
 	check(findings, "current_frontier", () => {
 		entries = frontier(root);
 	});
-	const currentEntries = entries;
+	const currentEntries = new Map(entries.map((entry) => [entry.key, entry]));
+	const savedEntries = new Map(active.map((entry) => [entry.key, entry]));
 	const rendered = new Map<string, ResolvedTask>();
-	for (const entry of currentEntries) {
+	for (const entry of entries) {
 		check(findings, `task_render:${entry.key}`, () => {
-			const saved = active.find((visit) => visit.key === entry.key);
+			const saved = savedEntries.get(entry.key);
 			const context = structuredClone(saved?.context ?? entry.context);
 			rendered.set(entry.key, renderTask(entry.meta, context));
 		});
 	}
 	for (const entry of active) {
+		const current = currentEntries.get(entry.key);
 		check(findings, `active_state:${entry.bead}`, () => {
 			if (
-				!currentEntries.some(
-					(current) =>
-						current.key === entry.key &&
-						current.node === entry.node &&
-						JSON.stringify(current.path) === JSON.stringify(entry.path),
-				)
+				!current ||
+				current.node !== entry.node ||
+				current.path.length !== entry.path.length ||
+				current.path.some((segment, index) => segment !== entry.path[index])
 			) {
 				throw new Error(
 					`Saved active node ${entry.node} at ${entry.path.join("/")} is absent from the proposed frontier`,
 				);
 			}
 		});
-		const current = currentEntries.find((item) => item.key === entry.key);
 		if (current) {
 			check(findings, `event_contract:${entry.bead}`, () => {
 				const actor = targetActor(root, entry.path);
@@ -385,13 +388,19 @@ function assessFrontier(
 	}
 }
 
+// eslint-disable-next-line max-statements -- Keep restoration failures and one indexed traversal of saved children together.
 function verifyActorTree(actor: WorkflowActor, saved: PersistedActor): void {
 	const snapshot = actor.getSnapshot();
 	if (snapshot.status === "error") {
 		throw snapshot.error;
 	}
-	for (const [id, child] of Object.entries(saved.children ?? {})) {
-		const restored = childActors(actor).find((item) => item.id === id);
+	const savedChildren = Object.entries(saved.children ?? {});
+	if (savedChildren.length === EMPTY) {
+		return;
+	}
+	const children = new Map(childActors(actor).map((child) => [child.id, child]));
+	for (const [id, child] of savedChildren) {
+		const restored = children.get(id);
 		if (!restored) {
 			throw new Error(`Saved child actor ${id} has no proposed actor logic`);
 		}

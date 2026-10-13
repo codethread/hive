@@ -8,7 +8,7 @@ import { z } from "zod";
 const EMPTY = 0;
 const FAILURE = 1;
 
-test("an initial actor failure returns JSON without creating tasks", async () => {
+test("an initial actor failure returns JSON without creating tasks #test-20", async () => {
 	const beads = createMemoryBeads({ db: "/busybee-failure/beads.db" });
 	const definition = {
 		commandSchemas: { next: z.object({}) },

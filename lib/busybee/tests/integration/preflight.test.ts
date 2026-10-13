@@ -32,7 +32,7 @@ const definition = makeDefinition();
 const run = savedRun("run");
 
 // eslint-disable-next-line max-statements -- Verify one complete CLI report and its no-effect boundary together.
-test("preflight CLI retains failed and unchecked runs, filters completed/other runs, and never writes or starts", async () => {
+test("preflight CLI retains failed and unchecked runs, filters completed/other runs, and never writes or starts #test-37", async () => {
 	let started = FIRST;
 	let rendered = FIRST;
 	const candidate = makeDefinition(
@@ -78,9 +78,12 @@ test("preflight CLI retains failed and unchecked runs, filters completed/other r
 		scope: { cwd: repo, db },
 		selection: { labels: ["system", "busybee-checkpoint"], all: true, limit: FIRST },
 	});
+	expect(fixture.reads.toSorted()).toEqual(
+		["closed", "invalid", "run"].map((name) => fixture.ids.get(name)!).toSorted(),
+	);
 });
 
-test("successful CLI reports explicit uncertainty and resolves proposed source from invoking directory", async () => {
+test("successful CLI reports explicit uncertainty and resolves proposed source from invoking directory #test-41", async () => {
 	const fixture = await memoryTracker(definition, []);
 	fixture.services.readDirectory = () => {
 		throw new Error("Standalone proposal must not require catalogue");
@@ -121,7 +124,7 @@ test("missing resumeSchema leaves context unchecked despite successful restore a
 	expect(report.findings.filter((finding) => finding.status === "failed")).toEqual([]);
 });
 
-test("snapshot restoration reports removed states", () => {
+test("snapshot restoration reports removed states #test-40", () => {
 	const invalid = savedRun("invalid");
 	invalid.snapshot = { ...invalid.snapshot, value: "removed" };
 	const report = assessRun({
@@ -137,7 +140,7 @@ test("snapshot restoration reports removed states", () => {
 	]);
 });
 
-test("missing child actor logic is structural incompatibility even when XState drops it silently", () => {
+test("missing child actor logic is structural incompatibility even when XState drops it silently #test-36", () => {
 	const invalid = savedRun("invalid");
 	invalid.snapshot = {
 		...invalid.snapshot,
@@ -156,7 +159,7 @@ test("missing child actor logic is structural incompatibility even when XState d
 	});
 });
 
-test("independent root context, active path, and frozen command failures retain all findings", () => {
+test("independent root context, active path, and frozen command failures retain all findings #test-34", () => {
 	const invalid = savedRun("invalid");
 	invalid.snapshot = { ...invalid.snapshot, context: { revision: FAILURE } };
 	invalid.active.push({
@@ -185,7 +188,7 @@ test("independent root context, active path, and frozen command failures retain 
 	]);
 });
 
-test("task renderer exceptions remain findings alongside other incompatibilities", () => {
+test("task renderer exceptions remain findings alongside other incompatibilities #test-42", () => {
 	const candidate = makeDefinition(() => {
 		throw new Error("Missing render input");
 	});
@@ -208,14 +211,14 @@ test("task renderer exceptions remain findings alongside other incompatibilities
 });
 
 test("native tracker failures keep their diagnostic instead of becoming a missing workflow", async () => {
-	const fixture = await memoryTracker(definition, [run]);
+	const fixture = await memoryTracker(definition, []);
 	const nativeFailure = new Error("Tracker unavailable");
 	fixture.services.beads.where = () => Promise.reject(nativeFailure);
 	await expect(preflight("example", {}, fixture.services)).rejects.toBe(nativeFailure);
 });
 
 // eslint-disable-next-line max-statements -- Assess malformed matching, unrelated and completed checkpoint records in one query.
-test("unsupported matching checkpoints preserve other runs and exclude malformed closed/other-name records", async () => {
+test("unsupported matching checkpoints preserve other runs and exclude malformed closed/other-name records #test-43", async () => {
 	const other = savedRun("other");
 	other.definition = { kind: "named", name: "another", version: "1.0.0" };
 	const fixture = await memoryTracker(definition, [
@@ -235,7 +238,8 @@ test("unsupported matching checkpoints preserve other runs and exclude malformed
 	]);
 });
 
-test("malformed identity, orphan checkpoint relations and retained locks stay visible", async () => {
+// eslint-disable-next-line max-statements -- Retain independent diagnostics and prove subsequent observations read fresh lock and relation state.
+test("malformed identity, orphan checkpoint relations and retained locks stay visible #test-35", async () => {
 	const fixture = await memoryTracker(definition, [savedRun("unknown"), run]);
 	await fixture.beads.update(fixture.scope, [fixture.checkpoints.get("unknown")!], {
 		description: "invalid JSON",
@@ -260,9 +264,26 @@ test("malformed identity, orphan checkpoint relations and retained locks stay vi
 	expect(
 		report.runs[FIRST]!.findings.find((finding) => finding.check === "checkpoint_lock"),
 	).toMatchObject({ status: "unchecked" });
+	await fixture.beads.update(fixture.scope, [fixture.checkpoints.get("run")!], {
+		notes: "",
+		force: true,
+	});
+	await fixture.beads.dep.add(
+		fixture.scope,
+		fixture.ids.get("run")!,
+		fixture.checkpoints.get("run")!,
+		"related",
+	);
+	const refreshed = await preflight("example", {}, fixture.services);
+	expect(refreshed.runs[FIRST]!.findings).not.toContainEqual(
+		expect.objectContaining({ check: "checkpoint_lock" }),
+	);
+	expect(
+		refreshed.runs[FIRST]!.findings.find((finding) => finding.check === "checkpoint_relation"),
+	).toMatchObject({ status: "passed" });
 });
 
-test("frozen effective choices use the saved visit context and allow additional candidate choices", () => {
+test("frozen effective choices use the saved visit context and allow additional candidate choices #test-32", () => {
 	const candidate = makeDefinition(
 		() => {},
 		() => {},
@@ -292,7 +313,7 @@ test("frozen effective choices use the saved visit context and allow additional 
 	expect(JSON.stringify(saved)).toBe(before);
 });
 
-test("frozen events require a transition on the active node or its ancestors", () => {
+test("frozen events require a transition on the active node or its ancestors #test-33", () => {
 	const candidate = {
 		...definition,
 		machine: createMachine({
@@ -321,10 +342,10 @@ test("frozen events require a transition on the active node or its ancestors", (
 });
 
 test.each([
-	{ value: "work", status: "passed" },
-	{ value: "removed", status: "failed" },
+	{ value: "work", status: "passed", testId: "#test-39" },
+	{ value: "removed", status: "failed", testId: "#test-38" },
 ])(
-	"restored child state $value is checked while resumeSchema receives raw root data only",
+	"restored child state $value is checked while resumeSchema receives raw root data only $testId",
 	({ value, status }) => {
 		const child = createMachine({
 			id: "child",
@@ -480,6 +501,7 @@ async function memoryTracker(candidate: Definition, runs: Run[]) {
 		await beads.dep.add(scope, parent.id, checkpoint.id, "related");
 	}
 	const calls: { scope: BeadsScope; selection: BeadSelection | undefined }[] = [];
+	const reads: string[] = [];
 	const imports: string[] = [];
 	const services: Services = {
 		...createServices(),
@@ -487,6 +509,10 @@ async function memoryTracker(candidate: Definition, runs: Run[]) {
 		cwd: repo,
 		beads: {
 			...beads,
+			show: (selected, id) => {
+				reads.push(id);
+				return beads.show(selected, id);
+			},
 			list: (selected, selection) => {
 				calls.push({ scope: selected, selection });
 				return beads.list(selected, selection);
@@ -511,6 +537,7 @@ async function memoryTracker(candidate: Definition, runs: Run[]) {
 		ids,
 		checkpoints,
 		calls,
+		reads,
 		imports,
 		services,
 		records: () => beads.showMany(scope, [...ids.values(), ...checkpoints.values()]),

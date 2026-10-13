@@ -8,6 +8,7 @@ import { captureCli } from "./support.ts";
 import { createMachine } from "xstate";
 import { createMemoryBeads } from "@hive/beads";
 import { fingerprint } from "../../src/catalogue.ts";
+import { readCheckpoint } from "../../src/checkpoint.ts";
 import { z } from "zod";
 
 const FIRST = 0;
@@ -34,7 +35,7 @@ const services: Services = {
 const hash = await fingerprint({ directory: folder, kind: "folder", source }, services);
 
 // eslint-disable-next-line max-statements -- One successful start checks its observable CLI, projection and endpoint contract.
-test("start publishes an initial worker and one JSON success document through the CLI/runtime", async () => {
+test("start publishes an initial worker and one JSON success document through the CLI/runtime #test-55", async () => {
 	const root = "/busybee-start";
 	const startDb = `${root}/.beads/beads.startDb`;
 	const beads = createMemoryBeads({ db: startDb });
@@ -137,6 +138,15 @@ test("start publishes an initial worker and one JSON success document through th
 		owner: "responsible-human",
 		status: "in_progress",
 	});
+	const records = await beads.list({ cwd: root, db: startDb }, { all: true, limit: 0 });
+	const checkpoint = records.issues.find((record) => record.labels.includes("busybee-checkpoint"))!;
+	const saved = await beads.show({ cwd: root, db: startDb }, checkpoint.id);
+	expect(saved.notes).toBe("");
+	expect(readCheckpoint(saved)).toMatchObject({
+		active: [{ bead: started.active[FIRST]!.bead }],
+		id: started.id,
+		snapshot: { status: "active", value: "work" },
+	});
 	for (const { operation, scope } of calls) {
 		expect(scope.cwd).toBe(root);
 		if (operation !== "where") {
@@ -152,7 +162,7 @@ test("start publishes an initial worker and one JSON success document through th
 			.flatMap(({ operation }) => ["beforeWrite", operation]),
 	);
 });
-test("show rejects a changed named checkpoint before import with authorized same-scope recovery", async () => {
+test("show rejects a changed named checkpoint before import with authorized same-scope recovery #test-54", async () => {
 	const fixture = await retainedRun({
 		readText: () => Promise.resolve(manifest.replace("1.0.0", "2.0.0")),
 	});
@@ -170,7 +180,7 @@ test("show rejects a changed named checkpoint before import with authorized same
 	await fixture.assertPreserved();
 });
 
-test("discover requires user selection when the saved named folder is absent", async () => {
+test("discover requires user selection when the saved named folder is absent #test-48", async () => {
 	const fixture = await retainedRun({ readDirectory: () => Promise.reject(missing) });
 	const error = await inspect("discover", fixture);
 	expect(error).toBeInstanceOf(BusyBeeError);
@@ -184,7 +194,7 @@ test("discover requires user selection when the saved named folder is absent", a
 	await fixture.assertPreserved();
 });
 
-test("collect releases ownership after restoration refusal without publishing tasks", async () => {
+test("collect releases ownership after restoration refusal without publishing tasks #test-47", async () => {
 	const fixture = await retainedRun({
 		readText: () => Promise.resolve(manifest.replace("1.0.0", "2.0.0")),
 	});
@@ -200,18 +210,18 @@ test("collect releases ownership after restoration refusal without publishing ta
 });
 
 test.each([
-	{ error: missing, name: "missing manifest", operation: "readText" },
-	{ error: denied, name: "manifest permission failure", operation: "readText" },
-	{ error: missing, name: "missing entry", operation: "isFile" },
-	{ error: missing, name: "missing file during fingerprint", operation: "readBytes" },
-	{ error: denied, name: "folder permission failure", operation: "readDirectory" },
+	{ error: missing, name: "missing manifest #test-53", operation: "readText" },
+	{ error: denied, name: "manifest permission failure #test-50", operation: "readText" },
+	{ error: missing, name: "missing entry #test-51", operation: "isFile" },
+	{ error: missing, name: "missing file during fingerprint #test-52", operation: "readBytes" },
+	{ error: denied, name: "folder permission failure #test-49", operation: "readDirectory" },
 ])("restoration preserves the actual $name", async ({ error, operation }) => {
 	const fixture = await retainedRun({ [operation]: () => Promise.reject(error) });
 	expect(await inspect("show", fixture)).toBe(error);
 	await fixture.assertPreserved();
 });
 
-test("an existing malformed manifest remains a parse failure", async () => {
+test("an existing malformed manifest remains a parse failure #test-44", async () => {
 	const fixture = await retainedRun({ readText: () => Promise.resolve('description="Bad"\nrun=') });
 	const error = await inspect("show", fixture);
 	expect(error).toBeInstanceOf(Error);
@@ -219,14 +229,17 @@ test("an existing malformed manifest remains a parse failure", async () => {
 	await fixture.assertPreserved();
 });
 
-test("an unchanged definition's import failure is not a missing workflow", async () => {
+test("an unchanged definition's import failure is not a missing workflow #test-45", async () => {
 	const fixture = await retainedRun({ importModule: () => Promise.reject(missing) });
 	expect(await inspect("show", fixture)).toBe(missing);
 	await fixture.assertPreserved();
 });
 
-test("changed explicit-file runs keep their source-based diagnostic", async () => {
-	const fixture = await retainedRun({}, { kind: "source", source });
+test("changed explicit-file runs keep their source-based diagnostic #test-46", async () => {
+	const fixture = await retainedRun(
+		{ readBytes: () => Promise.resolve(new TextEncoder().encode("edited").buffer) },
+		{ kind: "source", source },
+	);
 	const error = await inspect("show", fixture);
 	expect(error).toBeInstanceOf(BusyBeeError);
 	expect(error).toMatchObject({ reason: "definition_changed" });
@@ -264,6 +277,10 @@ async function retainedRun(
 	const beads = createMemoryBeads({ db });
 	const scope = { actor: "test-agent", cwd: repo, db };
 	const parent = await beads.create(scope, { title: "Run", owner: "ct" });
+	let retainedHash = hash;
+	if (definition.kind === "source") {
+		retainedHash = await fingerprint({ kind: "file", source: definition.source }, services);
+	}
 	const description = JSON.stringify({
 		formatVersion: 1,
 		active: [],
@@ -271,7 +288,7 @@ async function retainedRun(
 			{ bead: "completed", node: "first", parent: parent.id, path: [], request: null, visit: 1 },
 		],
 		definition,
-		hash,
+		hash: retainedHash,
 		history: [{ bead: "completed", command: "next", data: {}, request: null }],
 		id: parent.id,
 		snapshot: {},

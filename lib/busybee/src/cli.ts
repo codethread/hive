@@ -1,8 +1,8 @@
 import { Command, CommanderError } from "commander";
 import type { Options, Services } from "./native.ts";
 import { discover, navigate, start, startNamed } from "./runtime.ts";
+import { importDefinition, validate } from "./definition.ts";
 import { listWorkflows, namedDefinition } from "./catalogue.ts";
-import { load, validate } from "./definition.ts";
 import { BusyBeeError } from "./native.ts";
 import type { PreflightReport } from "./preflight.ts";
 import type { Source } from "./catalogue.ts";
@@ -176,8 +176,8 @@ function registerInspection(invocation: Invocation): void {
 		.command("input-schema [name]")
 		.option("--source <path>", "Inspect an explicit source module instead of a catalogue name")
 		.action(async (name: string | undefined, selection: { source?: string }) => {
-			const source = await schemaSource({ name, path: selection.source }, invocation);
-			const { definition } = await load(source, services);
+			const { source } = await schemaSource({ name, path: selection.source }, invocation);
+			const definition = await importDefinition(source, services);
 			const result = {
 				constraints: definition.inputConstraints ?? "Initial workflow input",
 				schema: z.toJSONSchema(definition.inputSchema, { io: "input" }),

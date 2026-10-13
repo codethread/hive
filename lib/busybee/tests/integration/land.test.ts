@@ -1,24 +1,21 @@
-/* eslint-disable import/no-nodejs-modules -- Land integration deletes only disposable feature checkouts. */
-import { commandSchemas, inputSchema, machine } from "../../../../.workflows/land/workflow.ts";
-import { cp, mkdir } from "node:fs/promises";
 import {
-	createRepository,
-	invoke,
-	issueIds,
-	optionsArgs,
-	useRepositoryFixture,
-} from "./support.ts";
+	commandSchemas,
+	inputSchema,
+	machine,
+	runBrief,
+} from "../../../../.workflows/land/workflow.ts";
 import { describe, expect, test } from "bun:test";
 import { initialTransition, transition } from "xstate";
-import { metadataSchema, resolvedTaskSchema } from "../../src/definition.ts";
+import { metadataSchema, renderTask } from "../../src/definition.ts";
 import type { ResolvedTask } from "../../src/definition.ts";
 import type { SnapshotFrom } from "xstate";
-import { join } from "node:path";
+import { createMemoryBeads } from "@hive/beads";
+import { createServices } from "../../src/native.ts";
+import { invoke } from "./support.ts";
 import manifest from "../../../../.workflows/land/busybee.toml" with { type: "text" };
 
 const FIRST = 0;
 const worktreeTarget = { kind: "worktree", branch: "simulated-work" } as const;
-const renderedTaskSchema = resolvedTaskSchema.partial();
 const evidence = "SIMULATED transport evidence only; no real approval, merge or publication.";
 const outcome = { evidence };
 const review = {
@@ -69,7 +66,7 @@ const completion: TraceStep[] = [
 ];
 const paths: { name: string; target: LandingInput["target"]; steps: TraceStep[] }[] = [
 	{
-		name: "unfinished work, failed checks, review findings, changed commits and retriage",
+		name: "unfinished work, failed checks, review findings, changed commits and retriage #test-27",
 		target: { kind: "worktree", branch: "simulated-work" },
 		steps: [
 			["triage", "implement"],
@@ -92,7 +89,7 @@ const paths: { name: string; target: LandingInput["target"]; steps: TraceStep[] 
 		],
 	},
 	{
-		name: "PR fixes, rebuttals, stale review, late feedback and fresh readiness",
+		name: "PR fixes, rebuttals, stale review, late feedback and fresh readiness #test-23",
 		target: { kind: "pr", url: "https://github.com/example/repo/pull/1" },
 		steps: [
 			["triage", "check"],
@@ -124,17 +121,17 @@ const paths: { name: string; target: LandingInput["target"]; steps: TraceStep[] 
 		],
 	},
 	{
-		name: "reviewed PR already merged remotely",
+		name: "reviewed PR already merged remotely #test-25",
 		target: { kind: "pr", url: "https://github.com/example/repo/pull/2" },
 		steps: [["triage", "reviewed"], ["pr", "integrated"], ...completion],
 	},
 	{
-		name: "worktree already integrated",
+		name: "worktree already integrated #test-28",
 		target: { kind: "worktree", branch: "already-integrated" },
 		steps: [["triage", "integrated"], ...completion],
 	},
 	{
-		name: "checks already passed without local approval",
+		name: "checks already passed without local approval #test-24",
 		target: { kind: "worktree", branch: "checks-already-passed" },
 		steps: [
 			["triage", "review"],
@@ -145,7 +142,7 @@ const paths: { name: string; target: LandingInput["target"]; steps: TraceStep[] 
 		],
 	},
 	{
-		name: "reviewed content not yet committed",
+		name: "reviewed content not yet committed #test-26",
 		target: { kind: "worktree", branch: "reviewed-not-committed" },
 		steps: [["triage", "commit"], ["commit", "next"], ["finish", "next"], ...completion],
 	},
@@ -155,66 +152,79 @@ test.each(paths)(
 	"the actual land chart navigates $name without executing landing effects",
 	({ target, steps }) => {
 		const input = landingInput("/selected/beads.db", "/surviving", target);
-		let [snapshot, effects] = initialTransition(machine, input);
-		expect(effects).toEqual([]);
+		let snapshot = assertPureTransition(initialTransition(machine, input));
+		let task = landingTask(snapshot);
 		for (const [stage, choice] of steps) {
-			assertChartTask(snapshot, { choice, stage }, input);
-			[snapshot, effects] = transition(machine, snapshot, {
-				data: commandSchemas[choice].parse(payload(choice)),
-				type: events[choice],
-			});
-			expect(effects).toEqual([]);
+			assertChartTask(task, { choice, stage }, input);
+			snapshot = advanceChart(snapshot, choice);
 			if (snapshot.status === "active") {
-				expect(landingTask(snapshot).instructions).toContain(evidence);
+				task = landingTask(snapshot);
+				expect(task.instructions).toContain(evidence);
 			}
 		}
 		expect(snapshot.status).toBe("done");
 	},
 );
 
-test("landing briefs keep the passing check gate with the worker before agent review", () => {
+test("landing briefs keep the passing check gate with the worker before agent review #test-22", () => {
 	const input = landingInput("/selected/beads.db", "/surviving", worktreeTarget);
 	const [triage] = initialTransition(machine, input);
 	const [check] = transition(machine, triage, { data: outcome, type: "CHECK" });
-	expect(landingTask(check).instructions).toContain("Run `bun run check` for the complete change");
-	expect(landingTask(check).instructions).toContain(
+	const checkTask = landingTask(check);
+	expect(checkTask.instructions).toContain("Run `bun run check` for the complete change");
+	expect(checkTask.instructions).toContain(
 		"Choose passed only when `bun run check` exits successfully for that revision",
 	);
 	const [reviewing] = transition(machine, check, { data: outcome, type: "PASSED" });
-	expect(landingTask(reviewing).instructions).toContain(
+	const reviewTask = landingTask(reviewing);
+	expect(reviewTask.instructions).toContain(
 		"reviewer consultation only after `bun run check` passes for this revision",
 	);
-	expect(landingTask(reviewing).instructions).toContain(
+	expect(reviewTask.instructions).toContain(
 		"reviewer assesses code and test quality without rerunning checks or auditing test-run evidence",
 	);
 });
 
 describe("land definition loading", () => {
-	const fixture = useRepositoryFixture("busybee-land-");
-
-	test("a land run requires retained input before publishing any tasks", async () => {
-		const feature = join(fixture.root, "feature");
-		await createRepository(fixture, feature);
-		await installDefinition(feature);
-		const before = await issueIds(fixture);
-		await expect(
-			invoke([...optionsArgs(fixture), "--repo", feature, "run", "land"], fixture.services),
-		).resolves.toMatchObject({ document: { ok: false, reason: "invalid_input" } });
-		expect(await issueIds(fixture)).toEqual(before);
-	});
-
-	async function installDefinition(repo: string) {
-		const folder = join(repo, ".workflows/land");
-		await mkdir(folder, { recursive: true });
-		await cp(
-			new URL("../../../../.workflows/land/workflow.ts", import.meta.url),
-			join(folder, "workflow.ts"),
+	test("a land run requires retained input before publishing any tasks #test-21", async () => {
+		const repo = "/land-input";
+		const beads = createMemoryBeads();
+		const scope = { cwd: repo };
+		const selection = { all: true, limit: 0 };
+		const services = {
+			...createServices(),
+			actor: "test-agent",
+			beads,
+			cwd: repo,
+			beforeWrite: () => {
+				throw new Error("Invalid retained input must fail before publication");
+			},
+			execute: () => Promise.resolve(repo),
+			importModule: () => Promise.resolve({ commandSchemas, inputSchema, machine, runBrief }),
+			isFile: () => Promise.resolve(true),
+			readBytes: () => Promise.resolve(new ArrayBuffer(FIRST)),
+			readDirectory: () => Promise.resolve([{ kind: "file" as const, name: "workflow.ts" }]),
+			readText: () => Promise.resolve(manifest),
+		};
+		const before = await beads.list(scope, selection);
+		await expect(invoke(["--owner", "test-human", "run", "land"], services)).resolves.toMatchObject(
+			{ document: { ok: false, reason: "invalid_input" } },
 		);
-		await Bun.write(join(folder, "busybee.toml"), manifest);
-	}
+		expect(await beads.list(scope, selection)).toEqual(before);
+	});
 });
 
 // --- Private helpers ---
+
+function assertPureTransition([snapshot, effects]: [SnapshotFrom<typeof machine>, unknown[]]) {
+	expect(effects).toEqual([]);
+	return snapshot;
+}
+
+function advanceChart(snapshot: SnapshotFrom<typeof machine>, choice: Choice) {
+	const data = commandSchemas[choice].parse(payload(choice));
+	return assertPureTransition(transition(machine, snapshot, { data, type: events[choice] }));
+}
 
 function landingInput(
 	beadsDb: string,
@@ -239,11 +249,10 @@ function payload(choice: Choice) {
 }
 
 function assertChartTask(
-	snapshot: SnapshotFrom<typeof machine>,
+	task: ResolvedTask,
 	{ choice, stage }: { choice: Choice; stage: Stage },
 	input: LandingInput,
 ): void {
-	const task = landingTask(snapshot);
 	expect(task.title).toBe(titles[stage]);
 	expect(task.commands?.[choice]).toBe(events[choice]);
 	assertRetainedContext(task.instructions, input);
@@ -251,8 +260,7 @@ function assertChartTask(
 
 function landingTask(snapshot: SnapshotFrom<typeof machine>): ResolvedTask {
 	const metadata = metadataSchema.parse(Object.values(snapshot.getMeta())[FIRST]);
-	const rendered = renderedTaskSchema.parse(metadata.task!({ context: { ...snapshot.context } }));
-	return resolvedTaskSchema.parse({ ...metadata, ...rendered });
+	return renderTask(metadata, { ...snapshot.context });
 }
 
 function assertRetainedContext(instructions: string, input: LandingInput): void {
