@@ -1,14 +1,12 @@
-import {
-	beforeTrackerWrite,
-	createSpawn,
-	createTask,
-	memoryTracker,
-} from "./tracker.test-support.ts";
+import { beesConfigSchema, readSpawnRequest, readSpawnRequestSummary } from "@hive/shared";
+import { beforeTrackerWrite, createTask, memoryTracker } from "./tracker.test-support.ts";
 import { expect, test } from "bun:test";
-import { retryRequest, spawnRequest } from "./producer.ts";
+import { retryRequest, spawnWorkflowRequest, validateRequestedTasks } from "./producer.ts";
 import type { ProducerCommands } from "./producer.ts";
 import { RequestPublicationError } from "./requests.ts";
-import { beesConfigSchema } from "@hive/shared";
+import type { WorkflowAssignment } from "@hive/shared";
+// eslint-disable-next-line import/no-nodejs-modules -- Captured request host is an observable execution authority.
+import { hostname } from "node:os";
 import { trackerScope } from "./tracker.ts";
 
 const config = beesConfigSchema.parse({
@@ -36,8 +34,11 @@ const task = await createTask(admission);
 const reserved = await createTask(admission, { assignee: "ct" });
 const retry = memoryTracker();
 const unfinished = await createTask(retry);
-const completed = await createTask(retry, { status: "closed" });
-const predecessor = await createSpawn(retry, [unfinished, completed]);
+const predecessorRequest = await spawnWorkflowRequest(
+	{ kind: "worker", assignment: { kind: "driver", runId: unfinished }, options },
+	commands(retry),
+);
+const predecessor = predecessorRequest.request.id;
 await retry.beads.close(trackerScope(retry.repository, "worker"), predecessor, {
 	reason: "exhausted",
 });
@@ -45,9 +46,18 @@ await retry.beads.close(trackerScope(retry.repository, "worker"), predecessor, {
 test("submission rejects human reservations and admits one open request per task", async () => {
 	const context = commands(admission);
 	await expect(
-		spawnRequest({ kind: "worker", requestedIds: [reserved], options }, context),
+		spawnWorkflowRequest(
+			{ kind: "worker", assignment: { kind: "driver", runId: reserved }, options },
+			context,
+		),
 	).rejects.toBeInstanceOf(Error);
-	const created = await spawnRequest({ kind: "worker", requestedIds: [task], options }, context);
+	await expect(
+		validateRequestedTasks({ requestedIds: [reserved], options }, context),
+	).rejects.toBeInstanceOf(Error);
+	const created = await spawnWorkflowRequest(
+		{ kind: "worker", assignment: { kind: "driver", runId: task }, options },
+		context,
+	);
 	const request = await admission.beads.show(
 		trackerScope(admission.repository, "inspector"),
 		created.request.id,
@@ -58,13 +68,112 @@ test("submission rejects human reservations and admits one open request per task
 		{ id: task, dependency_type: "related" },
 	]);
 	await expect(
-		spawnRequest({ kind: "worker", requestedIds: [task], options }, context),
+		spawnWorkflowRequest(
+			{ kind: "worker", assignment: { kind: "driver", runId: task }, options },
+			context,
+		),
+	).rejects.toBeInstanceOf(Error);
+	await expect(
+		validateRequestedTasks({ requestedIds: [task], options }, context),
 	).rejects.toBeInstanceOf(Error);
 });
 
-/* eslint-disable-next-line max-statements --
- * Verify the retained replacement and unchanged predecessor after a partial write.
- */
+const workflowTracker = memoryTracker();
+const run = await createTask(workflowTracker);
+const stage = await createTask(workflowTracker, { parent: run });
+const cases: { assignment: WorkflowAssignment; anchor: string }[] = [
+	{ assignment: { kind: "driver", runId: run }, anchor: run },
+	{ assignment: { kind: "stage", runId: run, stageId: stage }, anchor: stage },
+];
+
+test.each(cases)(
+	"$assignment.kind submission captures its scope and enforces duplicate admission",
+	async ({ assignment, anchor }) => {
+		const context = commands(workflowTracker);
+		const created = await spawnWorkflowRequest({ kind: "worker", assignment, options }, context);
+		const scope = trackerScope(workflowTracker.repository, "inspector");
+		const native = await workflowTracker.beads.show(scope, created.request.id);
+		const request = readSpawnRequest(native);
+		expect(request).toMatchObject({
+			assignment,
+			host: hostname(),
+			identity: created.request.assignee,
+			taskIds: [anchor],
+			recipe: { model: "fixture", system_prompt: "Worker role" },
+		});
+		expect(readSpawnRequestSummary(native).assignment).toEqual(assignment);
+		expect(native.owner).toBe("ct");
+		expect(request.recipe).not.toHaveProperty("workflow");
+		await expect(
+			spawnWorkflowRequest({ kind: "worker", assignment, options }, context),
+		).rejects.toBeInstanceOf(Error);
+	},
+);
+
+const workflowRetry = memoryTracker();
+const retryRun = await createTask(workflowRetry);
+const retryStage = await createTask(workflowRetry, { parent: retryRun });
+const retryCases = await Promise.all(
+	[
+		{ assignment: { kind: "driver", runId: retryRun } as const, anchor: retryRun },
+		{
+			assignment: { kind: "stage", runId: retryRun, stageId: retryStage } as const,
+			anchor: retryStage,
+		},
+	].map(async ({ assignment, anchor }) => {
+		const created = await spawnWorkflowRequest(
+			{ kind: "worker", assignment, options },
+			commands(workflowRetry),
+		);
+		await workflowRetry.beads.close(
+			trackerScope(workflowRetry.repository, "worker"),
+			created.request.id,
+			{ reason: "blocked" },
+		);
+		return { assignment, anchor, predecessor: created.request.id };
+	}),
+);
+
+test.each(retryCases)(
+	"$assignment.kind retry retains its existing anchor with current execution defaults",
+	async ({ assignment, anchor, predecessor: oldId }) => {
+		const context = commands(workflowRetry);
+		const replacement = await retryRequest(oldId, options, {
+			...context,
+			loadBeesConfig: () =>
+				Promise.resolve({
+					config: {
+						...config,
+						kinds: {
+							worker: {
+								...config.kinds["worker"]!,
+								model: "current-model",
+								workflow: "new-default",
+							},
+						},
+					},
+					warnings: [],
+				}),
+		});
+		const retriedNative = await workflowRetry.beads.show(
+			trackerScope(workflowRetry.repository, "inspector"),
+			replacement.request.id,
+		);
+		const retried = readSpawnRequest(retriedNative);
+		expect(retried).toMatchObject({
+			assignment,
+			taskIds: [anchor],
+			recipe: { model: "current-model" },
+		});
+		expect(retried.recipe).not.toHaveProperty("workflow");
+		expect(retriedNative.dependencies).toContainEqual(
+			expect.objectContaining({ id: oldId, dependency_type: "supersedes" }),
+		);
+	},
+);
+
+// Verify the retained replacement and unchanged predecessor after a partial write.
+// eslint-disable-next-line max-statements
 test("retry retains a created replacement when predecessor label publication fails", async () => {
 	const beads = beforeTrackerWrite(retry.beads, () => {
 		throw new Error("publication unavailable");

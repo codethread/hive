@@ -1,0 +1,121 @@
+import { WorkflowCommandError, workflowCommands } from "./workflows.ts";
+import { expect, test } from "bun:test";
+import { CommandError } from "@hive/beads";
+
+const endpoint = { actor: "agent", db: "/tracker/beads.db", repo: "/execution" };
+// Unpublished automatic requests have explicit null identity in the Busybee response.
+// eslint-disable-next-line unicorn/no-null
+const run = { id: "run-1", status: "active", active: [{ bead: "stage-1", request: null }] };
+const output = JSON.stringify({ ok: true, kind: "run", ...run });
+const calls: { argv: string[]; cwd: string }[] = [];
+const commands = workflowCommands({
+	execute: (argv, cwd) => {
+		calls.push({ argv, cwd });
+		return Promise.resolve(output);
+	},
+});
+// Compile the boundary schema outside the measured behavior tests.
+await commands.show(run.id, endpoint);
+calls.length = 0;
+
+test("workflow adapter preserves tracker, execution directory, owner and explicit input paths", async () => {
+	const result = await commands.start({
+		endpoint,
+		owner: "ct",
+		inputFile: "/caller/work.json",
+		selection: { kind: "named", name: "do-work" },
+	});
+	expect(result).toEqual(run);
+	expect(calls).toEqual([
+		{
+			argv: [
+				"busybee",
+				"--repo",
+				"/execution",
+				"--db",
+				"/tracker/beads.db",
+				"--actor",
+				"agent",
+				"--json",
+				"run",
+				"do-work",
+				"--input-file",
+				"/caller/work.json",
+				"--owner",
+				"ct",
+				"--assignee",
+				"",
+			],
+			cwd: "/execution",
+		},
+	]);
+});
+
+const failure = {
+	ok: false,
+	kind: "start",
+	reason: "partial_effects",
+	message: "Inspect retained ownership",
+	checkpoint: "checkpoint-1",
+	owner: "lock-1",
+};
+const failed = workflowCommands({
+	execute: () =>
+		Promise.reject(
+			new CommandError("busybee", {
+				code: 1,
+				stdout: JSON.stringify(failure),
+				stderr: "",
+			}),
+		),
+});
+// Warm the error boundary too.
+await failed.show(run.id, endpoint).catch(() => {});
+
+test("Busybee partial failure retains its checkpoint and lock identity", async () => {
+	const failureResult: unknown = await failed
+		.prepareDriver(run.id, endpoint)
+		.catch((error: unknown) => error);
+	expect(failureResult).toBeInstanceOf(WorkflowCommandError);
+	expect(failureResult).toMatchObject({
+		reason: "partial_effects",
+		context: { checkpoint: "checkpoint-1", owner: "lock-1" },
+	});
+});
+
+test.each([
+	{ context: { runId: "run-1", uncertainOperation: "create_checkpoint" } },
+	{
+		context: { runId: "run-1", checkpoint: "checkpoint-1", uncertainOperation: "link_checkpoint" },
+	},
+])(
+	"initialization failure preserves confirmed identities and uncertain operation: $context",
+	async ({ context }) => {
+		const initialization = workflowCommands({
+			execute: () =>
+				Promise.reject(
+					new CommandError("busybee", {
+						code: 1,
+						stderr: "",
+						stdout: JSON.stringify({
+							ok: false,
+							kind: "run",
+							reason: "partial_effects",
+							message: "Inspect before resubmitting",
+							...context,
+						}),
+					}),
+				),
+		});
+		const failedStart: unknown = await initialization
+			.start({
+				endpoint,
+				owner: "ct",
+				inputFile: "/caller/input.json",
+				selection: { kind: "named", name: "do-work" },
+			})
+			.catch((error: unknown) => error);
+		expect(failedStart).toBeInstanceOf(WorkflowCommandError);
+		expect(failedStart).toMatchObject({ reason: "partial_effects", context });
+	},
+);

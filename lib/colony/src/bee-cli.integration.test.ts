@@ -11,6 +11,7 @@ const PROMPT = "Captured direction. ".repeat(PROMPT_REPETITIONS);
 const ROLE = "Captured role. ".repeat(PROMPT_REPETITIONS);
 const repository = { beadsDb: "/fixture/tracker.db", root: "/fixture" };
 const request: RequestView = {
+	assignment: { kind: "driver", runId: "task-1" },
 	acknowledgment: null,
 	closeReason: null,
 	closedAt: null,
@@ -56,17 +57,30 @@ const native = {
 const { prompt: _prompt, system_prompt: _role, ...metadata } = request.recipe;
 const summary = { ...request, recipe: metadata };
 
-test.each([{ args: ["spawn", "worker", "task-1"] }, { args: ["retry", "request-0"] }])(
-	"$args returns the next-command identifiers without native metadata",
-	async ({ args }) => {
-		const result = await invoke([...args, "--actor", "test", "--json"]);
-		expect(JSON.parse(result.stdout)).toEqual({
-			kind: "spawn_created",
-			ok: true,
-			request: { assignee: "worker", id: "request-1" },
-		});
-	},
-);
+test.each([
+	{ args: ["dispatch-stage", "worker", "task-1", "--run", "run-1"] },
+	{ args: ["retry", "request-0"] },
+])("$args returns the next-command identifiers without native metadata", async ({ args }) => {
+	const result = await invoke([...args, "--actor", "test", "--json"]);
+	expect(JSON.parse(result.stdout)).toEqual({
+		kind: "spawn_created",
+		ok: true,
+		request: { assignee: "worker", id: "request-1" },
+	});
+});
+
+test.each([
+	{ args: ["spawn", "worker", "--input-file", "work.json"] },
+	{ args: ["attach-workflow", "worker", "run-1"] },
+])("$args returns the workflow and driver identities", async ({ args }) => {
+	const result = await invoke([...args, "--actor", "test", "--json"]);
+	expect(JSON.parse(result.stdout)).toEqual({
+		kind: "workflow_spawn_created",
+		ok: true,
+		request: { id: "request-1", identity: "worker" },
+		workflow: { runId: "run-1", status: "active" },
+	});
+});
 
 test("stop preserves closure and resolution facts without reporting process completion", async () => {
 	const result = await invoke(["stop", request.id, "--actor", "test", "--json"]);
@@ -134,13 +148,15 @@ async function invoke(args: readonly string[]) {
 	const deps: BeeDependencies = {
 		ack: unexpected,
 		assess: unexpected,
+		attachWorkflow: workflowResult,
+		dispatchStage: () => Promise.resolve({ kind: "spawn_created", request: native }),
 		finish: unexpected,
 		kinds: unexpected,
 		list: () => Promise.resolve({ kind: "request_list", repository, requests: [request] }),
 		report: unexpected,
 		retry: () => Promise.resolve({ kind: "spawn_created", request: native }),
 		run: unexpected,
-		spawn: () => Promise.resolve({ kind: "spawn_created", request: native }),
+		spawn: workflowResult,
 		status: () => Promise.resolve({ kind: "request_status", repository, request }),
 		stderr: (text) => stderr.push(text),
 		stdout: (text) => stdout.push(text),
@@ -150,6 +166,14 @@ async function invoke(args: readonly string[]) {
 	expect(stderr).toEqual([]);
 	expect(stdout).toHaveLength(SINGLE_DOCUMENT);
 	return { stdout: stdout.join("") };
+}
+
+function workflowResult(): ReturnType<BeeDependencies["spawn"]> {
+	return Promise.resolve({
+		kind: "workflow_spawn_created",
+		request: { id: "request-1", identity: "worker" },
+		workflow: { runId: "run-1", status: "active" },
+	});
 }
 
 function unexpected(): never {

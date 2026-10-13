@@ -66,18 +66,17 @@ Interactive use:
 Agent workflow:
   Use Bee for subagent work: implementation, advice and review use the same flow.
   1. Run bee kinds to discover whom to delegate to and why.
-  2. Define task beads with the assignment, context, deliverable and acceptance criteria.
-  3. Submit: bee spawn <kind> <task-id>... --cwd <directory> --actor <identity> --json
+  2. Write workflow input with the assignment, context and acceptance criteria.
+  3. Submit: bee spawn <kind> --input-file <file> --cwd <directory> --actor <identity> --json
   4. Inspect: bee status <spawn-id> --json
-     Read the delivered report and evidence on the linked tasks with br show.
+     Inspect workflow.runId with busybee show and br show.
   Normally omit --system-prompt and --prompt: the kind supplies its protocol and
-  linked task beads define the work. Colony tells the bee to read those tasks.
+  workflow stages define the work. Colony supplies the workflow driver protocol.
 
 Delegation:
-  Submit unclaimed work; Colony owns dispatch and task claims. For advice/review,
-  create a dedicated report task and put examined task IDs in its context, not
-  among the tasks to claim. A report is complete when findings are recorded,
-  including a negative verdict. Implementation and landing remain separate work.
+  Colony owns dispatch and run claims. For advice/review, put examined task IDs
+  in workflow input as context. The workflow work stage owns the report; examined
+  tasks are not assigned to the reviewer. Implementation and landing remain separate.
 
 Selection and output:
   --beads-db or BEADS_DB selects the tracker; --actor or BD_ACTOR attributes you.
@@ -92,7 +91,9 @@ decisions. Ordinary task completion uses bee finish instead.
 `,
 	retry: `
 Create a replacement for a failed unresolved request after its blocker is fixed.
-Only unfinished tasks are included. Uses current kind defaults and explicit
+Only unfinished work is included. The captured driver/stage role and same workflow
+run are retained; changing kind workflow defaults creates no new run. Uses current
+execution defaults and explicit
 overrides, with a new identity; the original retains its history. --kind selects
 another kind. Normally omit --system-prompt and --prompt; their independent
 replacement semantics match bee spawn --help. Old recipe overrides are not
@@ -116,28 +117,40 @@ Examples:
   bee run librarian --effort high --prompt "Discuss the request lifecycle"
 `,
 	spawn: `
-Submit task beads to the selected kind using canonical .hive configuration defaults.
-Run bee kinds to choose a kind. Put the assignment, context, required result and
-acceptance criteria on the task bead. Normally omit --system-prompt and --prompt:
-the kind already supplies its role/protocol, and Colony tells the bee to read the
-linked tasks. Use an existing suitable checkout for --cwd, following the
-repository's worktree policy.
+Create one Busy Bee workflow assignment and publish a driver request for it.
+Run bee kinds to choose a kind and its default workflow (normally do-work).
+Install the standard catalogue entry with busybee init in a new repository.
+Provide --input-file JSON; do-work requires title, request and acceptance (array
+of verification criteria). Named workflows supply their own initial schema:
+  busybee --repo <execution-checkout> input-schema <name> --json
+Choose --workflow NAME or --source PATH to override the kind's workflow.
+A missing selected definition fails visibly.
 
 Examples:
-  bee spawn worker <task-id> --cwd <worktree> --actor <identity> --json
-  bee spawn reviewer <report-task-id> --cwd <worktree> --actor <identity> --json
+  bee spawn worker --input-file work.json --cwd <worktree> --actor <identity> --json
+  bee spawn worker --workflow land --input-file land.json --cwd <worktree> --actor <identity> --json
 
-Deliberate overrides, for this request only:
-  --system-prompt replaces the reusable role/protocol; --prompt replaces optional
-  execution direction. Each replaces only its matching kind default, never appends;
-  an explicit empty string clears that field. Both are stored on the same spawn
-  bead. Neither replaces the task assignment or Colony's task-reading instruction.
-  The executing bee follows supplied instructions; ordinary callers leave these
-  flags unset. --model, --effort and --harness change execution attributes.
+--repo selects canonical kind configuration; --cwd selects the checkout supplying
+the workflow catalogue and execution. Omitted --cwd uses the canonical root.
+Source/input paths resolve relative to the submitting command's directory.
+The human owner comes from configuration; actor/tracker match Bee options.
+Success returns request.id/identity and workflow.runId/status. Busy Bee owns
+workflow progression and run closure. Submission is separate from execution.
 
-Creation confirms submission, not execution. Requests can be created while
-Colony is unavailable/asleep and wait until it is awake. Blocked tasks wait for
-their dependencies. Use bee status <spawn-id>; see bee status --help if waiting.
+Partial failures return known run/checkpoint/stage request IDs and driver publication
+uncertainty. Inspect native incoming request links before any recovery. Attach
+after confirmed absent driver publication, without creating a second run:
+  bee attach-workflow KIND RUN --cwd <worktree> --actor <identity> --json
+An unsuccessful driver uses bee retry; an open driver uses bee status.
+Automatic visits use dispatch-stage internally, without selecting a workflow.
+Waiting drivers keep consuming normal quota. If workers cannot start because
+drivers exhaust capacity, the user must increase the relevant Colony limits.
+
+--system-prompt and --prompt independently replace their captured kind defaults;
+an empty string clears the field. Keep the actual assignment in workflow input.
+--model, --effort and --harness change execution attributes.
+Requests can be created while Colony is unavailable/asleep and wait for wake.
+Use bee status REQUEST for the driver and busybee show RUN for the workflow.
 `,
 	status: `
 Read request facts and the latest recorded observation, which can be stale.

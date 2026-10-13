@@ -32,6 +32,7 @@ test("folder names do not name kinds, and sibling prompts are captured verbatim"
 			model: "folder-model",
 			prompt: "",
 			system_prompt: "# Review\n\nKeep this text.\n",
+			workflow: "do-work",
 		},
 	});
 	expect(warnings).toEqual([]);
@@ -56,6 +57,7 @@ test("central definitions replace whole duplicate kinds and report every shadowe
 		model: "central-model",
 		prompt: "Central instructions",
 		system_prompt: "",
+		workflow: "do-work",
 	});
 	expect(warnings).toEqual([
 		`${CENTRAL} overrides bee kind reviewer from /repo/.hive/bees/a/bee.toml`,

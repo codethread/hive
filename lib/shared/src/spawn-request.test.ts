@@ -274,6 +274,8 @@ const recipe = {
 	prompt: "captured direction",
 	system_prompt: "captured role",
 };
+const driverAssignment = { kind: "driver", runId: "run-1" };
+const dependencies = [{ id: "run-1", dependency_type: "related" }];
 
 test.each([
 	{ host: "requesting-machine", expected: "requesting-machine" },
@@ -282,14 +284,55 @@ test.each([
 	const bead = {
 		...original,
 		assignee: "friendly-bee",
-		description: JSON.stringify({ ...recipe, host }),
+		description: JSON.stringify({ ...recipe, assignment: driverAssignment, host }),
+		dependencies,
 		labels: spawnRequestLabels(recipe.kind),
 	};
 	expect(readSpawnRequest(bead)).toMatchObject({
+		assignment: driverAssignment,
 		host: expected,
 		identity: "friendly-bee",
 		recipe,
 	});
+});
+
+test.each([
+	{ assignment: { kind: "driver", runId: "run-1" }, anchor: "run-1" },
+	{ assignment: { kind: "stage", runId: "run-1", stageId: "stage-1" }, anchor: "stage-1" },
+])(
+	"native decoding exposes captured $assignment.kind scope separately from recipe",
+	({ assignment, anchor }) => {
+		const bead = {
+			...original,
+			assignee: "friendly-bee",
+			description: JSON.stringify({ ...recipe, assignment, host: "requesting-machine" }),
+			labels: spawnRequestLabels(recipe.kind),
+			dependencies: [{ id: anchor, dependency_type: "related" }],
+		};
+		expect(readSpawnRequest(bead)).toMatchObject({ assignment, recipe, taskIds: [anchor] });
+		expect(readSpawnRequestSummary(bead)).toMatchObject({ assignment });
+		expect(() => readSpawnRequest({ ...bead, dependencies: [] })).toThrow(Error);
+		expect(() =>
+			readSpawnRequest({ ...bead, dependencies: [{ id: "other", dependency_type: "related" }] }),
+		).toThrow(Error);
+	},
+);
+
+test.each([
+	{ kind: "unknown", runId: "run-1" },
+	{ kind: "driver", runId: "" },
+	{ kind: "stage", runId: "run-1" },
+	{ kind: "stage", runId: "run-1", stageId: " " },
+	{ kind: "driver", runId: "run-1", stageId: "stage-1" },
+])("malformed assignment %j fails at the native boundary", (assignment) => {
+	expect(() =>
+		readSpawnRequestSummary({
+			...original,
+			assignee: "friendly-bee",
+			description: JSON.stringify({ ...recipe, assignment }),
+			labels: spawnRequestLabels(recipe.kind),
+		}),
+	).toThrow(Error);
 });
 
 test.each(["", " ", INVALID_HOST_NUMBER, null])(
@@ -298,7 +341,8 @@ test.each(["", " ", INVALID_HOST_NUMBER, null])(
 		const bead = {
 			...original,
 			assignee: "friendly-bee",
-			description: JSON.stringify({ ...recipe, host }),
+			description: JSON.stringify({ ...recipe, assignment: driverAssignment, host }),
+			dependencies,
 			labels: spawnRequestLabels(recipe.kind),
 		};
 		expect(() => readSpawnRequest(bead)).toThrow(Error);
@@ -308,12 +352,16 @@ test.each(["", " ", INVALID_HOST_NUMBER, null])(
 test("request summaries retain validated identity and host without hydrated relations", () => {
 	const bead = {
 		id: original.id,
-		description: JSON.stringify({ ...recipe, host: "requesting-machine" }),
+		description: JSON.stringify({
+			...recipe,
+			assignment: driverAssignment,
+			host: "requesting-machine",
+		}),
 		labels: spawnRequestLabels(recipe.kind),
 		assignee: "friendly-bee",
 	};
 	const summary = readSpawnRequestSummary(bead);
-	const { taskIds: _taskIds, ...detail } = readSpawnRequest({ ...original, ...bead });
+	const { taskIds: _taskIds, ...detail } = readSpawnRequest({ ...original, ...bead, dependencies });
 	expect(summary).toEqual(detail);
 	expect(() => readSpawnRequestSummary({ ...bead, labels: [] })).toThrow(Error);
 	expect(() => readSpawnRequestSummary({ ...bead, assignee: "" })).toThrow(Error);

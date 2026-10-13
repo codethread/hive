@@ -102,7 +102,7 @@ The run and manual tasks are assigned. Grouping and checkpoint beads are unassig
 
 A definition can request a Bee kind for a task. Entering that task submits a Bee request immediately; an awake Colony executes it through the [Bee and Colony interface](../colony/README.md).
 
-The worker writes a JSON result containing `choice` and its payload fields to the task's notes, then closes the task. Run `busybee collect RUN` to process those results. Automatic tasks advance through `collect`; manual `next` and `choice` submissions are rejected. Closure means the work finished: a review result can still request changes.
+The worker follows the [durable result contract](#delegate-a-workflow-to-bee): record the outcome and original payload, then close the stage. Run `busybee collect RUN` to process saved results. Automatic tasks advance through `collect`; manual `next` and `choice` submissions are rejected. Closure means the work finished: a review result can still request changes.
 
 ## Examples
 
@@ -127,7 +127,7 @@ The repository's `land` workflow requires an actual user request to finish and l
 
 Triage chooses implementation, checks, local review, committing approved content, an already-reviewed committed change or already-integrated work. Normal work passes through implementation, checks, local review and commit before integration; passing evidence can skip completed phases. Review findings and verified PR defects return to implementation. PR comments get a brief verify/fix/reply loop; rebuttals return to PR readiness, not directly to merge. Pending external checks, approvals or queue progress leave the active task open rather than creating polling visits.
 
-Every outcome requires `evidence`. Before closing a worker, record that evidence in its bead notes as well as the submitted payload. `approved`, `commit` and `reviewed` additionally require a `review` receipt containing `bead`, `base` and `revision`. Landing workers require a passing `bun run check` before agent review and verify the referenced review bead records local approval for the current cumulative diff; a closed bead alone is insufficient. Busy Bee validates the payload and legal transition, **not the truth or freshness of Git/PR/review evidence**. External commands remain worker instructions, not chart side effects.
+Every outcome requires `evidence`. Before closing a worker, record narrative verification in comments and save the selected outcome and original payload using the [durable result contract](#delegate-a-workflow-to-bee). `approved`, `commit` and `reviewed` additionally require a `review` receipt containing `bead`, `base` and `revision`. Landing workers require a passing `bun run check` before agent review and verify the referenced review bead records local approval for the current cumulative diff; a closed bead alone is insufficient. Busy Bee validates the payload and legal transition, **not the truth or freshness of Git/PR/review evidence**. External commands remain worker instructions, not chart side effects.
 
 Worktree integration uses Honeycomb; PR integration uses the repository's GitHub policy, followed by Honeycomb cleanup with integration proof. Already-merged work skips merging and still verifies main, cleans up and publishes completion. Retain an unchanged definition in the surviving checkout before removing the feature checkout. The workflow finishes with tracker publication and a report; publish final run-closure bookkeeping afterward. The [land integration tests](./tests/integration/land.test.ts) cover simulated navigation and persistence, not real merges or GitHub actions.
 
@@ -144,3 +144,19 @@ For an incompatible named workflow that still exists, a bee may start a fresh ru
 If the saved workflow name no longer exists, **stop and ask the user which workflow to use**. Do not infer a replacement. A missing/malformed manifest in an existing workflow folder, invalid entry or unrelated I/O failure needs diagnosis of that failure. Busy Bee reports these separately from a missing name. It does not create a replacement run or migrate the saved snapshot. Explicit-file runs continue to identify their saved source file; the same-name recovery policy applies to named runs.
 
 Concurrent submissions require one live database. Tracker synchronization does not provide a distributed lock. Invalid submissions fail before publishing task effects. If a write has been attempted and its outcome is uncertain, Busy Bee retains the checkpoint lock for inspection. There is no automatic expiry or partial-write recovery. Inspect the reported checkpoint and native records before recovery; prefer a fresh run after uncertain effects. The [specification](./SPEC.md#checkpoint-and-failure-boundary) explains this boundary.
+
+## Delegate a workflow to Bee
+
+`bee spawn KIND --input-file FILE` creates a workflow run and driver request, using the kind's named workflow (`do-work` by default). Install that versioned default with `busybee init` in the execution checkout. Use Bee's `--workflow NAME` or `--source PATH` for a caller-selected definition; `--cwd` selects the catalogue and execution checkout. See [Bee submission](../colony/README.md#create-requests) for directory, tracker and partial-submission behavior.
+
+For delegated stages, save the outcome before native closure:
+
+```sh
+busybee record-result RUN STAGE CHOICE --data-file result.json --json
+br close STAGE --actor YOUR_IDENTITY
+busybee collect RUN --json
+```
+
+`result.json` supplies only the choice payload. `record-result` validates it against the active visit and stores `{choice,data}` without advancing or closing work. Both manual and automatic stage workers use this result envelope; automatic workers leave collection to the driver. A replacement driver collects already-closed active visits with saved results, retaining nonempty payloads across interruption. Comments hold narrative verification evidence. Missing or malformed saved results fail visibly.
+
+`busybee prepare-driver RUN` prepares an active unassigned run for Bee under its checkpoint lock. It preserves closed runs, human reservations, blocked work and worker assignments. Use `bee attach-workflow KIND RUN` only after inspecting an orphan run and confirming absent driver publication. Existing failed drivers use `bee retry` on their request. These operations retain the same saved workflow input and version compatibility contract.

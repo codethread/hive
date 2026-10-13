@@ -1,14 +1,14 @@
 # Bee and Busy Bee API proposal
 
-Status: paper design, not implemented or adopted architecture. The accepted POC direction is one workflow run per public assignment. The CLI shapes, kind configuration and package alternatives below are proposals.
+Status: historical paper design from the POC. Production follow-on hv-gw9ag implements the separate CLI composition; current commands and contracts live in the [Bee guide](../../lib/colony/README.md#create-requests) and [Busy Bee guide](../../lib/busybee/README.md). Alternative package/surface designs below remain proposals.
 
 Recommend **Bee composing Busy Bee at submission, with two focused CLIs during execution**. Keep one implementation of workflow progression. A single executable can offer both APIs, but it does not remove their distinct identities, lifecycles or authority. Add that façade only if observed agent use warrants it.
 
 ## What the POC establishes
 
-The [workflow-only example](../../lib/busybee/examples/bee-driver/prototype.ts) starts a Busy Bee run and submits exactly that run to Bee. Its default stage contains the actual caller assignment and verification instructions. Colony watches run closure and releases unfinished descendants assigned to a stopped driver. Independent workers retain their assignments.
+The [production submission](../../lib/colony/src/workflow-submission.ts) starts a Busy Bee run and submits exactly that run to Bee. Its default stage contains the actual caller assignment and verification instructions. Colony watches run closure and releases unfinished descendants assigned to a stopped driver. Independent workers retain their assignments.
 
-The current POC calls Busy Bee's runtime inside its own package and invokes Bee through its CLI. Production `bee spawn` still accepts task IDs; it has no workflow flags. Per-kind workflow defaults and automatic-worker coordination are not implemented by the example.
+The original POC called Busy Bee's runtime inside its own package and invokes Bee through its CLI. Its prototype is replaced by production workflow submission, kind defaults and separate automatic-stage dispatch. The remaining paper records the design rationale and alternatives considered.
 
 These responsibilities already have separate implementations:
 

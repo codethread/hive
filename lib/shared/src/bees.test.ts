@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { formulaSchema, recipeSchema, renderFormula, validateFormula } from "./bees.ts";
+import { formulaSchema, kindSchema, recipeSchema, renderFormula, validateFormula } from "./bees.ts";
 
 const HOME = "/users/test home";
 const CONFIG_ARGUMENT = 1;
@@ -23,6 +23,12 @@ const role = 'Review "quotes", \\paths, <tags> and {{literal}}.\nKeep\ttabs and 
 
 // Warm schema/template execution outside unit-test timing.
 validateFormula(formula);
+kindSchema.parse({
+	description: "Warm kind schema",
+	effort: "low",
+	harness: "codex",
+	model: "model",
+});
 
 test.each([
 	{ prompt: "", system_prompt: "" },
@@ -62,6 +68,16 @@ test("native string arguments retain role and direction verbatim", () => {
 
 test("omitted recipe prompts become independent empty defaults", () => {
 	expect(recipe).toMatchObject({ prompt: "", system_prompt: "" });
+});
+
+test.each([
+	{ workflow: undefined, expected: "do-work" },
+	{ workflow: "review-change", expected: "review-change" },
+])("kind workflow $expected is independent of execution recipes", ({ workflow, expected }) => {
+	const { cwd: _cwd, kind: _kind, ...execution } = recipe;
+	const selected = kindSchema.parse({ ...execution, description: "Implement work", workflow });
+	expect(selected.workflow).toBe(expected);
+	expect(recipe).not.toHaveProperty("workflow");
 });
 
 test.each([

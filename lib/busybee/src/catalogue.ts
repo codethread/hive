@@ -1,4 +1,4 @@
-import { BusyBeeError, createServices } from "./native.ts";
+import { BusyBeeError, createServices, repositoryRoot } from "./native.ts";
 // Pure path resolution keeps entries within their authoring folder.
 // eslint-disable-next-line import/no-nodejs-modules
 import { isAbsolute, join, relative, resolve, sep } from "node:path";
@@ -82,14 +82,6 @@ export async function fingerprint(source: Source, services: Services) {
 		hash.update(content);
 	}
 	return hash.digest("hex");
-}
-
-async function repositoryRoot(directory: string, services: Services): Promise<string> {
-	const output = await services.execute(
-		["git", "rev-parse", "--show-toplevel"],
-		resolve(services.cwd, directory),
-	);
-	return output.trim();
 }
 
 async function readManifest(repo: string, name: string, services: Services) {

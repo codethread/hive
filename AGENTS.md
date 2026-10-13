@@ -18,7 +18,7 @@ Explore existing conventions, helpers and modules; plan the approach; then build
 
 ### Specialist delegation
 
-Use Bee for repository subagents. Before delegating, follow the [specialist protocol](docs/agents/specialists.md) for discovery, task briefs and evidence.
+Use Bee for repository subagents. Before delegating, follow the [specialist protocol](docs/agents/specialists.md) for discovery, workflow assignment and evidence.
 
 ## Packages
 
@@ -73,6 +73,8 @@ When terminology or design decisions matter to the task, follow [domain guidance
 Use repo-local Beads (`br`) from the checkout root to track implementation, not harness todos or Markdown task files.
 
 Use `in_review` only for completed work awaiting the user's attention when the user requested review; agent-to-agent review remains `in_progress`, and `blocked` indicates an active blocker.
+
+For workflow stages, record scope, narrative progress and verification in comments. Reserve stage notes for the outcome saved by `busybee record-result`; see its command help.
 
 ### Route the request
 

@@ -271,7 +271,7 @@ export const machine = setup({
 						"Commit scoped changes as coherent conventional commits without " +
 						"bypassing hooks; if already committed, verify there is nothing to " +
 						"commit. Record final source commits and their relation to the " +
-						"reviewed diff in bead notes for integration verification, retaining " +
+						"reviewed diff in bead comments for integration verification, retaining " +
 						"originally expected commits. A commit alone does not change the " +
 						"reviewed content; hook edits, conflict resolution or other content " +
 						"changes do. Choose changed for those changes so checks and local " +

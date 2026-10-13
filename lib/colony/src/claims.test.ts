@@ -21,7 +21,7 @@ async function claimFixture() {
 	const id = await createTask(tracker);
 	const foreign = await createTask(tracker, { assignee: "another-bee", status: "in_progress" });
 	const closed = await createTask(tracker, { status: "closed" });
-	const spawn = await createSpawn(tracker, [id, foreign, closed]);
+	const spawn = await createSpawn(tracker, id);
 	const request = newRequest(
 		await tracker.beads.show(trackerScope(tracker.repository, "worker"), spawn),
 		tracker.repository,
@@ -62,7 +62,7 @@ async function hierarchyClaimFixture() {
 	const scope = trackerScope(tracker.repository, "inspector");
 	const untouched = [foreign, reserved, closed, unrelated];
 	const before = await tracker.beads.showMany(scope, untouched);
-	const spawn = await createSpawn(tracker, [root]);
+	const spawn = await createSpawn(tracker, root);
 	const request = newRequest(await tracker.beads.show(scope, spawn), tracker.repository);
 	return { tracker, root, descendant, untouched, before, scope, request };
 }

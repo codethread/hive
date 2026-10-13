@@ -1,3 +1,6 @@
+/* eslint-disable import/max-dependencies --
+ * CLI composes request, workflow submission, advisory and inspection result contracts.
+ */
 import type {
 	AcknowledgmentResult,
 	RequestListResult,
@@ -5,6 +8,11 @@ import type {
 	RequestView,
 } from "./requests.ts";
 import type { KindOptions, KindsResult } from "./kinds.ts";
+import type {
+	StageOptions,
+	WorkflowSpawnOptions,
+	WorkflowSubmissionResult,
+} from "./workflow-submission.ts";
 import type { AssessmentSubmission } from "./postrun.ts";
 import { Command } from "commander";
 import type { DroneReportResult } from "./drone.ts";
@@ -23,6 +31,7 @@ type BeeResult =
 	| RequestResult
 	| RequestListResult
 	| SpawnResult
+	| WorkflowSubmissionResult
 	| FinishResult
 	| DroneReportResult
 	| KindsResult;
@@ -90,8 +99,16 @@ export interface BeeDependencies {
 	list: (options: ListOptions) => Promise<RequestListResult>;
 	/** Close a validated request without daemon or process access. */
 	stop: (id: string, options: StopOptions) => Promise<RequestResult>;
-	/** Submit an offline request. */
-	spawn: (kind: string, tasks: string[], options: SpawnOptions) => Promise<SpawnResult>;
+	/** Initialize one workflow assignment and submit its driver request. */
+	spawn: (kind: string, options: WorkflowSpawnOptions) => Promise<WorkflowSubmissionResult>;
+	/** Attach a driver to an existing run after inspecting partial submission. */
+	attachWorkflow: (
+		kind: string,
+		runId: string,
+		options: SpawnOptions,
+	) => Promise<WorkflowSubmissionResult>;
+	/** Internal automatic-stage execution without another workflow wrapper. */
+	dispatchStage: (kind: string, stageId: string, options: StageOptions) => Promise<SpawnResult>;
 	/** Replace an unsuccessful request from current kind defaults. */
 	retry: (id: string, options: RetryOptions) => Promise<SpawnResult>;
 	/** Write result and help. */
@@ -143,7 +160,8 @@ export async function runBeeCli(argv: string[], deps: BeeDependencies): Promise<
 		.action(async (name: string | undefined, options: KindOptions & { schema: boolean }) => {
 			if (options.schema) {
 				deps.stdout(
-					`${JSON.stringify({ kind: "bee_kinds_schema", ok: true, schema: kindsJsonSchema(options.verbose) })}\n`,
+					`${JSON.stringify({ kind: "bee_kinds_schema", ok: true, schema: kindsJsonSchema(options.verbose) })}` +
+						"\n",
 				);
 				return;
 			}
@@ -158,16 +176,48 @@ export async function runBeeCli(argv: string[], deps: BeeDependencies): Promise<
 		});
 	submissionOptions(
 		program
-			.command("spawn <kind> <tasks...>")
-			.description("Submit task beads using the selected kind")
+			.command("spawn <kind>")
+			.description("Create one workflow assignment and submit its driver")
 			.addHelpText("after", HELP.spawn),
-	).action(async (kind: string, tasks: string[], options: SpawnOptions) => {
+	)
+		.requiredOption(
+			"--input-file <file>",
+			"Caller workflow input as JSON; default: title, request, acceptance",
+		)
+		.option(
+			"--workflow <name>",
+			"Named workflow in the execution checkout; defaults to the kind workflow",
+		)
+		.option("--source <path>", "Explicit workflow definition instead of a catalogue name")
+		.action(async (kind: string, options: WorkflowSpawnOptions) => {
+			writeResult(await deps.spawn(kind, options), { json: argv.includes("--json") }, deps.stdout);
+		});
+	submissionOptions(
+		program
+			.command("attach-workflow <kind> <run>")
+			.description("Attach a driver to a confirmed orphan workflow run; creates no new workflow"),
+	).action(async (kind: string, runId: string, options: SpawnOptions) => {
 		writeResult(
-			await deps.spawn(kind, tasks, options),
+			await deps.attachWorkflow(kind, runId, options),
 			{ json: argv.includes("--json") },
 			deps.stdout,
 		);
 	});
+	submissionOptions(
+		program
+			.command("dispatch-stage <kind> <stage>")
+			.description(
+				"Workflow integration: execute one existing automatic stage without wrapping it",
+			),
+	)
+		.requiredOption("--run <run>", "Existing workflow run containing the stage")
+		.action(async (kind: string, stageId: string, options: StageOptions) => {
+			writeResult(
+				await deps.dispatchStage(kind, stageId, options),
+				{ json: argv.includes("--json") },
+				deps.stdout,
+			);
+		});
 	submissionOptions(
 		program
 			.command("retry <spawn-id>")
@@ -299,7 +349,7 @@ function writeResult(
 	}
 	if (result.kind === "bee_kinds") {
 		const lines = result.kinds.map((kind) => {
-			const summary = `${kind.name}: ${kind.description}`;
+			const summary = `${kind.name}: ${kind.description} (workflow: ${kind.workflow})`;
 			if ("configuration" in kind) {
 				return `${summary}\n${JSON.stringify(kind.configuration, undefined, JSON_INDENT)}`;
 			}
@@ -333,6 +383,18 @@ function writeResult(
 	}
 	if (result.kind === "spawn_created") {
 		stdout(`Created bee request ${result.request.id} for ${result.request.assignee}.\n`);
+		return;
+	}
+	if (result.kind === "workflow_spawn_created") {
+		stdout(
+			"Created workflow " +
+				`${result.workflow.runId}` +
+				" and driver request " +
+				`${result.request.id}` +
+				" for " +
+				`${result.request.identity}` +
+				".\n",
+		);
 		return;
 	}
 	if (result.kind === "request_list") {
@@ -475,5 +537,12 @@ function formatRequest(request: RequestView, includePrompt = false): string {
 }
 
 function formatAcknowledgment(acknowledgment: NonNullable<RequestView["acknowledgment"]>): string {
-	return `Acknowledged by ${acknowledgment.actor} at ${acknowledgment.acknowledgedAt}: ${acknowledgment.reason}`;
+	return (
+		"Acknowledged by " +
+		`${acknowledgment.actor}` +
+		" at " +
+		`${acknowledgment.acknowledgedAt}` +
+		": " +
+		`${acknowledgment.reason}`
+	);
 }

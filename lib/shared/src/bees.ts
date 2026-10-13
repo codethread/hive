@@ -35,6 +35,8 @@ const kindFields = {
 	description: z.string().trim().min(NONEMPTY),
 	/** Omit from ordinary discovery unless the caller explicitly allows it. */
 	hidden: z.boolean().default(false),
+	/** Workflow selected for new public assignments, separate from execution attributes. */
+	workflow: z.string().trim().min(NONEMPTY).default("do-work"),
 };
 const kindSelectors = z.array(z.string().min(NONEMPTY));
 /** Caller-owned discovery guidance, independent of execution recipes and admission. */

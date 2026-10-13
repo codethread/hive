@@ -1,7 +1,12 @@
 import type { BeadRecord, BeadsScope, BeadsService, UpdateBead } from "@hive/beads";
 import { CommandError, createNativeBeads } from "@hive/beads";
 // eslint-disable-next-line import/no-nodejs-modules -- Filesystem access is injected at this native adapter.
-import { readdir, stat } from "node:fs/promises";
+import { mkdir, readdir, stat, writeFile } from "node:fs/promises";
+import defaultManifest from "../../../.workflows/do-work/busybee.toml" with { type: "text" };
+// @ts-expect-error -- Bun's text loader imports TypeScript source as a string; tsc sees the chart's exports.
+// Bun text imports have a string default export.
+// eslint-disable-next-line import/default
+import defaultSource from "../../../.workflows/do-work/workflow.ts" with { type: "text" };
 import { execute as executeProcess } from "@hive/shared";
 // eslint-disable-next-line import/no-nodejs-modules -- Author modules are trusted and loaded at the I/O seam.
 import { pathToFileURL } from "node:url";
@@ -70,6 +75,12 @@ export interface Services {
 	sleep: (milliseconds: number) => Promise<void>;
 	/** Unique invocation owner. */
 	uuid: () => string;
+	/** Exclusively install a trusted workflow folder in the selected checkout. */
+	installWorkflow: (input: {
+		directory: string;
+		manifest: string;
+		source: string;
+	}) => Promise<void>;
 }
 export interface CreateTask {
 	/** Human-readable work name. */
@@ -95,6 +106,7 @@ export function createServices(): Services {
 		cwd: process.cwd(),
 		execute: (argv, cwd) => executeProcess(argv, cwd, process.env),
 		importModule: (source) => import(pathToFileURL(source).href) as Promise<unknown>,
+		installWorkflow: installWorkflowFiles,
 		isFile: async (path) => {
 			const info = await stat(path);
 			return info.isFile();
@@ -110,17 +122,21 @@ export function createServices(): Services {
 		uuid: randomUUID,
 	};
 }
-async function readEntries(path: string): Promise<DirectoryEntry[]> {
-	const entries = await readdir(path, { withFileTypes: true });
-	return entries.map((entry) => {
-		let kind: DirectoryEntry["kind"] = "other";
-		if (entry.isDirectory()) {
-			kind = "directory";
-		} else if (entry.isFile()) {
-			kind = "file";
-		}
-		return { kind, name: entry.name };
-	});
+
+/** Resolve the catalogue checkout using the same Git root for discovery and installation. */
+export async function repositoryRoot(directory: string, services: Services): Promise<string> {
+	const output = await services.execute(
+		["git", "rev-parse", "--show-toplevel"],
+		resolve(services.cwd, directory),
+	);
+	return output.trim();
+}
+
+export async function installDefaultWorkflow(options: Options, services: Services) {
+	const repo = await repositoryRoot(options.repo ?? services.cwd, services);
+	const directory = resolve(repo, ".workflows/do-work");
+	await services.installWorkflow({ directory, manifest: defaultManifest, source: defaultSource });
+	return { name: "do-work", repo, source: resolve(directory, "workflow.ts"), version: "1.0.0" };
 }
 
 export async function resolveEndpoint(options: Options, services: Services): Promise<Endpoint> {
@@ -218,4 +234,39 @@ export class BusyBeeError extends Error {
 		this.reason = reason;
 		this.context = details.context ?? {};
 	}
+}
+
+// --- Private functions ---
+
+async function installWorkflowFiles(input: {
+	directory: string;
+	manifest: string;
+	source: string;
+}): Promise<void> {
+	await mkdir(resolve(input.directory, ".."), { recursive: true });
+	await mkdir(input.directory);
+	try {
+		await writeFile(resolve(input.directory, "busybee.toml"), input.manifest, { flag: "wx" });
+		await writeFile(resolve(input.directory, "workflow.ts"), input.source, { flag: "wx" });
+	} catch (error) {
+		throw new BusyBeeError(
+			"workflow_install_partial",
+			"Workflow installation failed after creating " +
+				`${input.directory}` +
+				"; inspect the retained files before retrying.",
+			{ cause: error, context: { directory: input.directory } },
+		);
+	}
+}
+async function readEntries(path: string): Promise<DirectoryEntry[]> {
+	const entries = await readdir(path, { withFileTypes: true });
+	return entries.map((entry) => {
+		let kind: DirectoryEntry["kind"] = "other";
+		if (entry.isDirectory()) {
+			kind = "directory";
+		} else if (entry.isFile()) {
+			kind = "file";
+		}
+		return { kind, name: entry.name };
+	});
 }

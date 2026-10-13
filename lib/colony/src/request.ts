@@ -13,7 +13,12 @@ import { assign, createActor, setup } from "xstate";
 import { cancelDroneReview, reviewInactivity } from "./drone.ts";
 import { observeExecution, resumeExecution, stopExecution } from "./processes.ts";
 import { publishObservation, publishStdoutActivity } from "./observations.ts";
-import { readSpawnRequest, requestOutcomeSchema, requestStateSchema } from "@hive/shared";
+import {
+	readSpawnRequest,
+	requestOutcomeSchema,
+	requestStateSchema,
+	workflowAssignmentSchema,
+} from "@hive/shared";
 import type { Bead } from "@hive/beads";
 import type { OperationEvidence } from "./history.ts";
 import type { TrackerContext } from "./tracker.ts";
@@ -45,6 +50,8 @@ const contextSchema = z.strictObject({
 	taskIds: z.array(z.string()),
 });
 export const requestRecordSchema = z.strictObject({
+	/** Immutable workflow role and completion scope captured before any claim or launch. */
+	assignment: workflowAssignmentSchema,
 	/** Selected tracker authority retained independently of membership and attempts. */
 	beadsDb: z.string(),
 	/** Missing historical provenance stays unbound and cannot be reconciled. */
@@ -179,10 +186,11 @@ const machine = setup({
 	},
 });
 
-/** A request keeps its captured identity and task relationships across every attempt. */
+/** A request keeps its captured workflow scope, identity and tasks across every attempt. */
 export function newRequest(spawn: Bead, repository: RepositoryEndpoint): RequestRecord {
 	const request = readSpawnRequest(spawn);
 	return {
+		assignment: request.assignment,
 		beadsDb: repository.beadsDb,
 		host: request.host,
 		context: {
@@ -214,15 +222,27 @@ export function transitionRequest(record: RequestRecord, event: RequestEvent): R
 /** External spawn edits cannot change the authority already used for claims and retries. */
 export function assertRequestAuthority(
 	record: RequestRecord,
-	{ identity, taskIds, host }: Pick<SpawnRequest, "identity" | "taskIds" | "host">,
+	{
+		assignment,
+		identity,
+		taskIds,
+		host,
+	}: Pick<SpawnRequest, "assignment" | "identity" | "taskIds" | "host">,
 ): void {
 	if (
+		assignment.kind !== record.assignment.kind ||
+		assignment.runId !== record.assignment.runId ||
+		(assignment.kind === "stage" &&
+			record.assignment.kind === "stage" &&
+			assignment.stageId !== record.assignment.stageId) ||
 		host !== record.host ||
 		identity !== record.context.identity ||
 		taskIds.length !== record.context.taskIds.length ||
 		!taskIds.every((id) => record.context.taskIds.includes(id))
 	) {
-		throw new Error(`Request ${record.id} changed its captured host, identity or related tasks`);
+		throw new Error(
+			`Request ${record.id} changed its captured workflow assignment, host, identity or related tasks`,
+		);
 	}
 }
 
@@ -336,10 +356,12 @@ async function reconcileRequest(
 	const spawn = await beads.show(trackerScope(repository, record.context.identity), record.id);
 	const request = readSpawnRequest(spawn);
 	assertRequestAuthority(record, request);
-	const inventory = await store.inventory(repository.root, new Set([record.id]));
-	if (inventory.some(({ receipt }) => receipt.host !== record.host)) {
-		throw new Error(`Request ${record.id} has an attempt on a different or unbound host`);
+	for (const { receipt } of store
+		.retainedInventory(repository.root)
+		.filter(({ spawnId }) => spawnId === record.id)) {
+		assertRequestAuthority(record, receipt);
 	}
+	const inventory = await store.inventory(repository.root, new Set([record.id]));
 	if (record.state === "claiming") {
 		if (record.context.pendingClaim !== null) {
 			throw new Error(

@@ -18,6 +18,7 @@ const ONE = 1;
 const EXIT_FAILURE = 6;
 const repository = { beadsDb: "/fixture/beads.db", root: "/fixture" };
 const request: RequestRecord = {
+	assignment: { kind: "driver", runId: "task-a" },
 	beadsDb: repository.beadsDb,
 	host: "fixture-host",
 	context: {

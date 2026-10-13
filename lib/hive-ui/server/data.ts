@@ -339,10 +339,6 @@ async function readTasks(
 			inventory.bees.find((item) => item.id === filter.request) ??
 			bee(await show(context, filter.request));
 		({ taskIds } = request);
-		// An empty request membership must never become an unrestricted task query.
-		if (taskIds.length === 0) {
-			return { query: [], tasks: [] };
-		}
 	}
 	const selection = taskSelection(filter, taskIds, {
 		limit: PAGE_SIZE + 1,

@@ -12,6 +12,8 @@ import type { HistoryResult } from "./history.ts";
 import type { InitializedResult } from "./producer.ts";
 import type { LaunchedResult } from "./output.ts";
 import { RequestPublicationError } from "./requests.ts";
+import { WorkflowCommandError } from "./workflows.ts";
+import { WorkflowSubmissionError } from "./workflow-submission.ts";
 import { assessmentLimitSchema } from "./assessments.ts";
 import { assessmentReportSchema } from "./postrun.ts";
 import { writeColonyResult } from "./output.ts";
@@ -319,6 +321,10 @@ export function reportFailure(
 	if (error instanceof RequestPublicationError) {
 		failure.requestId = error.requestId;
 		failure.replacementIds = error.replacementIds;
+	}
+	if (error instanceof WorkflowCommandError || error instanceof WorkflowSubmissionError) {
+		Object.assign(failure, error.context);
+		failure.reason = error.reason;
 	}
 	writeFailure(failure, json, deps);
 	if (error instanceof CommanderError) {

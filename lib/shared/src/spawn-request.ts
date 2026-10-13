@@ -53,6 +53,29 @@ export const requestOutcomeSchema = z.enum([
 	"blocked",
 ]);
 
+/** Workflow execution scope is captured independently of the harness recipe. */
+export const workflowAssignmentSchema = z.discriminatedUnion("kind", [
+	z.strictObject({
+		/** Coordinates an existing run; Busy Bee owns its closure. */
+		kind: z.literal("driver"),
+		/** Native run bead serving as the completion anchor. */
+		runId: z.string().trim().min(NONEMPTY),
+	}),
+	z.strictObject({
+		/** Performs one automatic visit without navigating the workflow. */
+		kind: z.literal("stage"),
+		/** Native run containing the visit. */
+		runId: z.string().trim().min(NONEMPTY),
+		/** Native visit bead whose work this execution performs. */
+		stageId: z.string().trim().min(NONEMPTY),
+	}),
+]);
+const capturedRequestSchema = recipeSchema.extend({
+	host: z.string().trim().min(NONEMPTY).optional(),
+	assignment: workflowAssignmentSchema,
+});
+export type WorkflowAssignment = z.infer<typeof workflowAssignmentSchema>;
+
 /** Queryable request facts, independent of attempt and checkpoint states. */
 export type SpawnDisposition =
 	| {
@@ -75,6 +98,8 @@ export type SpawnDisposition =
 	  };
 
 export interface SpawnRequest {
+	/** Captured coordination or work scope, independent of execution defaults. */
+	assignment: WorkflowAssignment;
 	/** Native identifier of the bead representing this request. */
 	id: string;
 	/** Friendly identity preserved across all attempts to fulfil the request. */
@@ -129,23 +154,29 @@ export function spawnRequestLabels(kind: string): string[] {
 
 /** Interpret the Beads representation once, before request-specific decisions. */
 export function readSpawnRequest(bead: Bead): SpawnRequest {
-	return {
+	const request = {
 		...readSpawnRequestSummary(bead),
 		taskIds: bead.dependencies
 			.filter(({ dependency_type }) => dependency_type === "related")
 			.map(({ id }) => id),
 	};
+	let anchor = request.assignment.runId;
+	if (request.assignment.kind === "stage") {
+		anchor = request.assignment.stageId;
+	}
+	if (request.taskIds.length !== NONEMPTY || request.taskIds.at(FIRST) !== anchor) {
+		throw new Error(
+			`Request ${bead.id} does not link exactly its ${request.assignment.kind} anchor`,
+		);
+	}
+	return request;
 }
 
 /** Decode list-visible request facts without pretending relationship detail was loaded. */
 export function readSpawnRequestSummary(
 	bead: Pick<Bead, "id" | "description" | "labels" | "assignee">,
 ): Omit<SpawnRequest, "taskIds"> {
-	const { host, ...capturedRecipe } = z
-		.object({ host: z.string().trim().min(NONEMPTY).optional() })
-		.passthrough()
-		.parse(JSON.parse(bead.description));
-	const recipe = recipeSchema.parse(capturedRecipe);
+	const { host, assignment, ...recipe } = capturedRequestSchema.parse(JSON.parse(bead.description));
 	if (
 		![...SPAWN_REQUEST_LABELS, `agent:${recipe.kind}`].every((label) => bead.labels.includes(label))
 	) {
@@ -155,6 +186,7 @@ export function readSpawnRequestSummary(
 		throw new Error(`Request ${bead.id} has no friendly identity`);
 	}
 	return {
+		assignment,
 		id: bead.id,
 		identity: bead.assignee,
 		// Missing provenance remains explicitly unbound for historical inspection.

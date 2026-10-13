@@ -1,9 +1,9 @@
+import { BusyBeeError, installDefaultWorkflow } from "./native.ts";
 import { Command, CommanderError } from "commander";
 import type { Options, Services } from "./native.ts";
-import { discover, navigate, start, startNamed } from "./runtime.ts";
+import { discover, navigate, prepareDriver, recordResult, start, startNamed } from "./runtime.ts";
 import { importDefinition, validate } from "./definition.ts";
 import { listWorkflows, namedDefinition } from "./catalogue.ts";
-import { BusyBeeError } from "./native.ts";
 import type { PreflightReport } from "./preflight.ts";
 import type { Source } from "./catalogue.ts";
 import { preflight } from "./preflight.ts";
@@ -145,6 +145,12 @@ function configure(invocation: Invocation): void {
 function registerCreation(invocation: Invocation): void {
 	const { cli, services } = invocation;
 	const options = (): CliOptions => cli.opts<CliOptions>();
+	cli
+		.command("init")
+		.description("Install bundled do-work 1.0.0 in this checkout; fails if its folder exists")
+		.action(async () => {
+			writeResult(await installDefaultWorkflow(options(), services), invocation);
+		});
 	cli.command("run <name>").action(async (name: string) => {
 		writeResult(await startNamed(name, options(), services), invocation);
 	});
@@ -221,6 +227,24 @@ function registerPreflight(invocation: Invocation): void {
 function registerNavigation(invocation: Invocation): void {
 	const { cli, services } = invocation;
 	const options = (): CliOptions => cli.opts<CliOptions>();
+	cli
+		.command("record-result <run> <task> <choice>")
+		.description(
+			"Validate and save original {choice,data} result notes before native task closure; does not advance",
+		)
+		.action(async (id: string, bead: string, choice: string) => {
+			const data = await payload(options(), services);
+			writeResult(await recordResult({ id, bead, choice, data }, options(), services), invocation);
+		});
+	cli
+		.command("prepare-driver <run>")
+		.description(
+			"Validate and open an active run for driver admission under its checkpoint lock; " +
+				"preserve manual reservations and completed runs",
+		)
+		.action(async (id: string) => {
+			writeResult(await prepareDriver(id, options(), services), invocation);
+		});
 	for (const operation of ["show", "collect"] as const) {
 		cli.command(`${operation} <run>`).action(async (id: string) => {
 			writeResult(await navigate({ id, operation }, options(), services), invocation);

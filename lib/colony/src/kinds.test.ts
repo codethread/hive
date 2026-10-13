@@ -11,6 +11,7 @@ const base: BeeKind = {
 	model: "model",
 	prompt: "Private execution instructions.",
 	system_prompt: "Private role instructions.",
+	workflow: "do-work",
 };
 const config: BeesConfig = {
 	formulas: {},
@@ -95,7 +96,9 @@ test.each([
 		options.as = caller;
 	}
 	const result = discoverKinds(current, undefined, options);
-	expect(result.kinds).toEqual(expected.map((name) => ({ description: base.description, name })));
+	expect(result.kinds).toEqual(
+		expected.map((name) => ({ description: base.description, name, workflow: "do-work" })),
+	);
 });
 
 test("explicit inspection reveals a hidden kind while full prompts remain opt-in", () => {
@@ -103,7 +106,7 @@ test("explicit inspection reveals a hidden kind while full prompts remain opt-in
 	expect(summary).toEqual({
 		detail: "summary",
 		kind: "bee_kinds",
-		kinds: [{ description: base.description, name: "internal" }],
+		kinds: [{ description: base.description, name: "internal", workflow: "do-work" }],
 		warnings: [],
 	});
 	const full = discoverKinds(config, "internal", { all: false, verbose: true });
@@ -111,10 +114,26 @@ test("explicit inspection reveals a hidden kind while full prompts remain opt-in
 		detail: "full",
 		kind: "bee_kinds",
 		kinds: [
-			{ configuration: { ...base, hidden: true }, description: base.description, name: "internal" },
+			{
+				configuration: { ...base, hidden: true },
+				description: base.description,
+				name: "internal",
+				workflow: "do-work",
+			},
 		],
 		warnings: [],
 	});
+});
+
+test("discovery exposes a kind's selected workflow in its concise guidance", () => {
+	const result = discoverKinds(
+		{ ...config, kinds: { reviewer: { ...base, workflow: "review-change" } } },
+		undefined,
+		{ all: false, verbose: false },
+	);
+	expect(result.kinds).toEqual([
+		{ description: base.description, name: "reviewer", workflow: "review-change" },
+	]);
 });
 
 test.each([

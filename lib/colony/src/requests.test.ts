@@ -29,6 +29,7 @@ const cancellation = await requestFixture();
 const acknowledgment = await requestFixture();
 const conflict = await requestFixture();
 const supersession = memoryTracker();
+const supersessionTask = await createTask(supersession);
 const waiting = await inspectRequest(inspection.id, options, inspection.tracker);
 await acknowledgment.tracker.beads.close(
 	trackerScope(acknowledgment.tracker.repository, "worker"),
@@ -48,7 +49,7 @@ async function requestFixture() {
 	const tracker = memoryTracker();
 	const dependency = await createTask(tracker);
 	const task = await createTask(tracker, { deps: [{ id: dependency, type: "blocks" }] });
-	const id = await createSpawn(tracker, [task]);
+	const id = await createSpawn(tracker, task);
 	return { tracker, dependency, task, id };
 }
 
@@ -67,7 +68,7 @@ test("offline inspection derives dependency readiness from the injected tracker"
 
 test("offline stop publishes cancellation and default listing retains only unresolved requests", async () => {
 	const { tracker, task, id } = cancellation;
-	const pending = await createSpawn(tracker, [task]);
+	const pending = await createSpawn(tracker, task);
 	const result = await stopRequest(id, options, tracker);
 	expect(result.request.disposition).toEqual({ outcome: "cancelled", resolution: "resolved" });
 	expect(result.request.labelPublication).toBe("current");
@@ -134,12 +135,15 @@ test("publication rebases a revision conflict while retaining unrelated labels",
 
 test("publication repairs superseded predecessors from native relationship facts", async () => {
 	const tracker = supersession;
-	const predecessor = await createSpawn(tracker, []);
+	const predecessor = await createSpawn(tracker, supersessionTask);
 	await tracker.beads.close(trackerScope(tracker.repository, "worker"), predecessor, {
 		reason: "exhausted",
 	});
-	const replacement = await createSpawn(tracker, [], {
-		deps: [{ id: predecessor, type: "supersedes" }],
+	const replacement = await createSpawn(tracker, supersessionTask, {
+		deps: [
+			{ id: supersessionTask, type: "related" },
+			{ id: predecessor, type: "supersedes" },
+		],
 	});
 	await publishRequestLabels(tracker, "worker", replacement);
 	const old = await tracker.beads.show(trackerScope(tracker.repository, "inspector"), predecessor);

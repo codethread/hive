@@ -33,13 +33,14 @@ export async function createTask(
 
 export function createSpawn(
 	context: TrackerContext,
-	taskIds: string[],
+	runId: string,
 	input: Partial<CreateBead> = {},
 ): Promise<string> {
 	return createTask(context, {
 		assignee: "worker",
 		labels: spawnRequestLabels("worker"),
 		description: JSON.stringify({
+			assignment: { kind: "driver", runId },
 			cwd: null,
 			effort: "low",
 			harness: "fixture",
@@ -49,7 +50,7 @@ export function createSpawn(
 			prompt: "Complete assigned tasks",
 			system_prompt: "Worker role",
 		}),
-		deps: taskIds.map((id) => ({ id, type: "related" })),
+		deps: [{ id: runId, type: "related" }],
 		...input,
 	});
 }

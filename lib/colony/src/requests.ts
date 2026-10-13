@@ -24,6 +24,7 @@ import type {
 	RequestResolution,
 	SpawnDisposition,
 	StdoutActivity,
+	WorkflowAssignment,
 } from "@hive/shared";
 import type { TrackerCommands, TrackerContext } from "./tracker.ts";
 import type { Bead } from "@hive/beads";
@@ -78,6 +79,8 @@ export interface RecordedObservation {
 	author: string;
 }
 export interface RequestView {
+	/** Captured execution role and its durable workflow anchor. */
+	assignment: WorkflowAssignment;
 	/** Native spawn request identifier. */
 	id: string;
 	/** Friendly execution identity captured by the request. */
@@ -436,6 +439,7 @@ async function requestView(
 		disposition: requestDisposition(bead),
 		id: request.id,
 		identity: request.identity,
+		assignment: request.assignment,
 		host: request.host,
 		labelPublication,
 		lastObservation,

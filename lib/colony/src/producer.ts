@@ -1,7 +1,7 @@
 /* eslint-disable import/max-dependencies --
  * Submission composes tracker admission, configuration and native recipe capture.
  */
-import type { BeesConfig, Recipe } from "@hive/shared";
+import type { BeesConfig, Recipe, WorkflowAssignment } from "@hive/shared";
 import { RequestPublicationError, publishRequestLabels } from "./requests.ts";
 import type { RetryOptions, SpawnOptions } from "./bee-cli.ts";
 import {
@@ -64,16 +64,35 @@ export async function initRepository(options: InitOptions): Promise<InitializedR
 	}
 	return { kind: "initialized", path };
 }
-export async function spawnRequest(
-	{ kind, requestedIds, options }: { kind: string; requestedIds: string[]; options: SpawnOptions },
+/** Submit one existing run or automatic visit without selecting or starting a workflow. */
+export async function spawnWorkflowRequest(
+	{
+		kind,
+		assignment,
+		options,
+	}: { kind: string; assignment: WorkflowAssignment; options: SpawnOptions },
 	{ beads, resolveRepository, loadBeesConfig }: ProducerCommands,
 ): Promise<SpawnResult> {
 	const endpoint = await resolveRepository(options.repo, options.beadsDb);
+	let anchor = assignment.runId;
+	if (assignment.kind === "stage") {
+		anchor = assignment.stageId;
+	}
 	return createRequest(
 		{ beads, repository: endpoint, loadBeesConfig },
-		{ kind, requestedIds },
+		{ assignment, kind, requestedIds: [anchor] },
 		options,
 	);
+}
+
+/** Read-only admission precheck before a caller mutates an existing workflow handoff. */
+export async function validateRequestedTasks(
+	{ requestedIds, options }: { requestedIds: string[]; options: SpawnOptions },
+	{ beads, resolveRepository, loadBeesConfig }: ProducerCommands,
+): Promise<void> {
+	const repository = await resolveRepository(options.repo, options.beadsDb);
+	const { config } = await loadBeesConfig(repository.root);
+	await admitTasks({ beads, repository }, { actor: options.actor, ids: requestedIds }, config);
 }
 
 /** Replace a terminal failure using current defaults and unfinished work only. */
@@ -102,7 +121,12 @@ export async function retryRequest(
 	}
 	const replacement = await createRequest(
 		{ beads, repository: endpoint, loadBeesConfig },
-		{ kind: options.kind ?? old.recipe.kind, requestedIds: ids, supersedes: old.id },
+		{
+			assignment: old.assignment,
+			kind: options.kind ?? old.recipe.kind,
+			requestedIds: ids,
+			supersedes: old.id,
+		},
 		options,
 	);
 	try {
@@ -122,10 +146,15 @@ export async function retryRequest(
  */
 async function createRequest(
 	{ beads, repository: endpoint, loadBeesConfig }: ProducerContext,
-	input: { kind: string; requestedIds: string[]; supersedes?: string },
+	input: {
+		assignment: WorkflowAssignment;
+		kind: string;
+		requestedIds: string[];
+		supersedes?: string;
+	},
 	options: SpawnOptions,
 ): Promise<SpawnResult> {
-	const { kind, requestedIds, supersedes } = input;
+	const { assignment, kind, requestedIds, supersedes } = input;
 	const { config } = await loadBeesConfig(endpoint.root);
 	const ids = await admitTasks(
 		{ beads, repository: endpoint },
@@ -143,7 +172,7 @@ async function createRequest(
 		owner: config.owner,
 		assignee: identity,
 		labels: spawnRequestLabels(kind),
-		description: JSON.stringify({ ...recipe, host: hostname() }),
+		description: JSON.stringify({ ...recipe, assignment, host: hostname() }),
 		deps: dependencies,
 	});
 	return {

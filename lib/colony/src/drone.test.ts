@@ -14,6 +14,7 @@ const START = Date.parse("2026-10-04T10:00:00.000Z");
 const BEFORE = 1;
 const FIVE_MINUTES_MS = 300_000;
 const receipt: LaunchReceipt = {
+	assignment: { kind: "driver", runId: "run-1" },
 	attemptNumber: 1,
 	beadsDb: "/tracker.db",
 	host: "fixture-host",
@@ -36,7 +37,7 @@ const receipt: LaunchReceipt = {
 		system_prompt: "Inspector role",
 	},
 	spawnId: "spawn",
-	taskIds: [],
+	taskIds: ["run-1"],
 	token: "00000000-0000-4000-8000-000000000002",
 };
 const review: Extract<DroneReview, { phase: "reviewing" }> = {
@@ -56,6 +57,7 @@ const active: DroneReview = {
 	phase: "finished",
 };
 const request: RequestRecord = {
+	assignment: { kind: "driver", runId: "task" },
 	beadsDb: receipt.beadsDb,
 	host: "fixture-host",
 	context: {

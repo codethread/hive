@@ -3,7 +3,7 @@
  * ownership.
  */
 import type { Bead, BeadsService } from "@hive/beads";
-import type { Formula, RepositoryEndpoint } from "@hive/shared";
+import type { Formula, RepositoryEndpoint, SpawnRequest } from "@hive/shared";
 import { colonyEntry, entryCommand } from "./executables.ts";
 import {
 	formulaSchema,
@@ -11,6 +11,7 @@ import {
 	readSpawnRequest,
 	recipeSchema,
 	renderFormula,
+	workflowAssignmentSchema,
 } from "@hive/shared";
 // eslint-disable-next-line import/no-nodejs-modules -- Supply the host home at the native invocation boundary.
 import { homedir, hostname } from "node:os";
@@ -35,6 +36,8 @@ const JSON_INDENT = 2;
 const FIRST_ATTEMPT = 1;
 const NONEMPTY = 1;
 export const launchReceiptSchema = z.strictObject({
+	/** Work scope captured with the invocation, independent of its recipe. */
+	assignment: workflowAssignmentSchema,
 	attemptNumber: z.number().int().positive(),
 	beadsDb: z.string(),
 	bucket: z.string(),
@@ -158,7 +161,8 @@ export async function prepareLaunch(
 	if (spawn.status !== "open") {
 		throw new Error(`Request ${spawn.id} is ${spawn.status}, expected open`);
 	}
-	const { recipe, identity, taskIds, host } = readSpawnRequest(spawn);
+	const assignmentRequest = readSpawnRequest(spawn);
+	const { recipe, identity, taskIds, host, assignment } = assignmentRequest;
 	if (host !== hostname()) {
 		throw new Error(`Request ${spawn.id} belongs to host ${host ?? "unbound"}, not ${hostname()}`);
 	}
@@ -174,26 +178,7 @@ export async function prepareLaunch(
 	if (!formula) {
 		throw new Error(`No formula named ${recipe.harness}`);
 	}
-	const prompt = [
-		recipe.prompt,
-		`Read the full instructions and acceptance criteria on the related ` +
-			`task beads. They define the assignment and completion requirements.
-
-Before ending this Colony execution:
-1. Comment on each assigned task with your deliverable and verification ` +
-			`evidence.
-2. Close only assigned tasks whose acceptance criteria are satisfied.
-3. When every assigned task is complete, call bee finish success.
-
-If blocked, complete all possible work, record the blocker and required ` +
-			`next action on unfinished tasks, leave them unclosed, then call bee ` +
-			`finish blocked --reason "<unfinished task, blocker and required next ` +
-			`action>".
-
-Related tasks: ${taskIds.join(", ")}`,
-	]
-		.filter(Boolean)
-		.join("\n\n");
+	const prompt = renderExecutionPrompt(assignmentRequest);
 	const invocation = renderFormula(formula, { ...recipe, prompt }, "headless", homedir());
 	let executionDirectory = request.root;
 	if (recipe.cwd !== null) {
@@ -203,6 +188,7 @@ Related tasks: ${taskIds.join(", ")}`,
 	return {
 		kind: "prepared",
 		receipt: {
+			assignment,
 			attemptNumber,
 			beadsDb: request.beadsDb,
 			bucket: await launchBucket(cwd),
@@ -226,6 +212,88 @@ Related tasks: ${taskIds.join(", ")}`,
 			taskIds: tasks.map((task) => task.id),
 		},
 	};
+}
+
+/** Materialize the captured role's delivery protocol without changing the stored recipe. */
+export function renderExecutionPrompt({
+	assignment: scope,
+	recipe,
+	taskIds,
+}: Pick<SpawnRequest, "assignment" | "recipe" | "taskIds">): string {
+	const blocked =
+		"If blocked, complete all possible work, record the blocker and required next " +
+		"action on unfinished tasks, leave them unclosed, then call bee finish blocked " +
+		'--reason "<unfinished task, blocker and required next action>".';
+	const protocol = match(scope)
+		.with(
+			{ kind: "driver" },
+			(assignment) =>
+				"Coordinate the existing Busy Bee workflow run " +
+				`${assignment.runId}` +
+				". Read its instructions and acceptance criteria, then use busybee show " +
+				`${assignment.runId}` +
+				" --json and busybee discover " +
+				`${assignment.runId}` +
+				" --json to inspect the active visits, choices and payload schemas. Resume this " +
+				"run; do not start another run on retry.\n\nClaim, perform and verify the active " +
+				"manual stages. Before closing each manual stage, use busybee record-result " +
+				`${assignment.runId}` +
+				" STAGE CHOICE --data-file FILE to validate and persist its selected outcome and " +
+				'original payload as {"choice":"<outcome>","data":{...}}. Comment on that stage ' +
+				"with your deliverable and verification evidence, then close it only when its " +
+				"acceptance criteria and child work are satisfied. Use busybee collect " +
+				`${assignment.runId}` +
+				" --json to consume saved closed-stage results, including interrupted manual " +
+				"deliveries and automatic worker results. Standalone explicit navigation is " +
+				"available through busybee next " +
+				`${assignment.runId}` +
+				" STAGE and busybee choice " +
+				`${assignment.runId}` +
+				" STAGE CHOICE --data-file FILE. Do not redo closed work. Automatic workers own " +
+				"their assigned stages; collect their results without taking their " +
+				"claims.\n\nRemain running while automatic work is pending; waiting consumes " +
+				"ordinary quota. If waiting drivers starve the pool, the user must increase the " +
+				"relevant limits.\n\nBusy Bee alone closes grouping beads and the run. Never " +
+				"manually close run " +
+				`${assignment.runId}` +
+				". Comment on the run with your delivery and verification evidence, and call bee " +
+				"finish success only after Busy Bee reports status done.\n\nAdditional task beads " +
+				"for work within this workflow must have " +
+				`${assignment.runId}` +
+				" as their native parent. Independent delegation remains separate; obtain any " +
+				"required delegated results before completing the workflow.",
+		)
+		.with(
+			{ kind: "stage" },
+			(assignment) =>
+				"Perform only the assigned automatic visit " +
+				`${assignment.stageId}` +
+				" in Busy Bee run " +
+				`${assignment.runId}` +
+				". Read its full instructions, acceptance criteria and result schema. Do and " +
+				"verify that work, then use busybee record-result " +
+				`${assignment.runId}` +
+				" " +
+				`${assignment.stageId}` +
+				" CHOICE --data-file FILE to validate and save the selected choice and original " +
+				'payload as {"choice":"<outcome>","data":{...}}, before closing the stage. ' +
+				"Comment on " +
+				`${assignment.stageId}` +
+				" with your deliverable and verification evidence. Close only your assigned stage " +
+				"after satisfying its acceptance criteria and child work, then call bee finish " +
+				"success.\n\nNever navigate the workflow: do not call busybee next, choice or " +
+				"collect, do not create another run, and do not close grouping beads or run " +
+				`${assignment.runId}` +
+				". The workflow driver collects your saved result and Busy Bee advances the " +
+				"run.\n\nAdditional task beads for work within this workflow must have " +
+				`${assignment.runId}` +
+				" as their native parent. Independent delegation remains separate; obtain any " +
+				"required delegated results before closing your stage.",
+		)
+		.exhaustive();
+	return [recipe.prompt, protocol, blocked, `Related tasks: ${taskIds.join(", ")}`]
+		.filter(Boolean)
+		.join("\n\n");
 }
 
 export async function writeReceipt(receipt: LaunchReceipt): Promise<void> {

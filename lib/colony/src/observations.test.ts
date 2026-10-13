@@ -1,11 +1,11 @@
 /* eslint-disable unicorn/no-null -- Tests distinguish no output from observed stdout. */
-import { createSpawn, memoryTracker } from "./tracker.test-support.ts";
+import { createSpawn, createTask, memoryTracker } from "./tracker.test-support.ts";
 import { expect, test } from "bun:test";
 import { publishObservation, stdoutActivityDue } from "./observations.ts";
 import { trackerScope } from "./tracker.ts";
 
 const observationTracker = memoryTracker();
-const observationId = await createSpawn(observationTracker, []);
+const observationId = await createSpawn(observationTracker, await createTask(observationTracker));
 await observationTracker.beads.show(
 	trackerScope(observationTracker.repository, "inspector"),
 	observationId,

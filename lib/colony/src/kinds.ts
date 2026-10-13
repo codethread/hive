@@ -8,6 +8,8 @@ const summarySchema = z.strictObject({
 	description: z.string(),
 	/** Configured name accepted by bee spawn. */
 	name: z.string(),
+	/** Workflow selected for new assignments of this kind. */
+	workflow: z.string(),
 });
 const summaryResultSchema = z.strictObject({
 	/** Concise selection guidance only. */
@@ -105,6 +107,7 @@ export function discoverKinds(
 				configuration,
 				description: configuration.description,
 				name: target,
+				workflow: configuration.workflow,
 			})),
 			warnings: [],
 		};
@@ -112,7 +115,11 @@ export function discoverKinds(
 	return {
 		detail: "summary",
 		kind: "bee_kinds",
-		kinds: entries.map(([target, kind]) => ({ description: kind.description, name: target })),
+		kinds: entries.map(([target, kind]) => ({
+			description: kind.description,
+			name: target,
+			workflow: kind.workflow,
+		})),
 		warnings: [],
 	};
 }
