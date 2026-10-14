@@ -26,7 +26,12 @@ import {
 	snapshotFor,
 	targetActor,
 } from "./definition.ts";
-import { readSpawnRequest, requestOutcome, requestResolution } from "@hive/shared";
+import {
+	readSpawnRequest,
+	renderResponseInstructions,
+	requestOutcome,
+	requestResolution,
+} from "@hive/shared";
 import type { Snapshot } from "xstate";
 import type { Source } from "./catalogue.ts";
 import { compatibleWorkflowVersion } from "./compatibility.ts";
@@ -1319,7 +1324,7 @@ async function enter(input: EntryInput, services: Services): Promise<ActiveEntry
 		request = await spawnBee(
 			{
 				bead,
-				description: prepared.creation.description,
+				description: taskDescription(prepared.meta, { run, endpoint, bead }),
 				endpoint,
 				meta: prepared.meta,
 				run: run.id,
@@ -1348,7 +1353,7 @@ function entryCreation(input: EntryInput) {
 	const visit = (run.visits[entry.key] ?? FIRST) + ONE;
 	run.visits[entry.key] = visit;
 	const creation = nativeTaskOptions(meta, identity, {
-		description: taskDescription(meta, run, endpoint),
+		description: taskDescription(meta, { run, endpoint }),
 		parent,
 		title: `${meta.title} [${String(entry.context["role"] ?? entry.node)}; visit ${visit}]`,
 	});
@@ -1378,12 +1383,28 @@ function nativeTaskOptions(
 	return creation;
 }
 
-function taskDescription(meta: ActiveEntry["meta"], run: Run, endpoint: MutationEndpoint): string {
+function taskDescription(
+	meta: ActiveEntry["meta"],
+	{ run, endpoint, bead = "TASK_ID" }: { run: Run; endpoint: MutationEndpoint; bead?: string },
+): string {
 	let completion =
 		"The runner closes this grouping bead after processing every worker result; " +
 		"workers must leave it open.";
 	if (meta.commands) {
+		let taskId = run.id;
+		let delivery =
+			`The workflow driver owns the final response for run ${run.id}: a full answer or ` +
+			"meaningful synthesis. Driver-handled stages keep concise progress and verification " +
+			"comments. For a one-stage run, publish the full result before closing the last stage " +
+			"so it can cite the response ID.";
+		if (meta.bee) {
+			taskId = bead;
+			delivery =
+				"Deliver the full authored response for this Bee-dispatched stage before saving " +
+				"its outcome and closing it. TASK_ID refers to this stage's own bead ID.";
+		}
 		completion =
+			`${delivery}\n\n${renderResponseInstructions({ taskId })}\n\n` +
 			"Finish the work and any child tasks, satisfy native acceptance gates, then save " +
 			"your original JSON payload with busybee --db " +
 			`${JSON.stringify(endpoint.db)}` +

@@ -2,6 +2,8 @@
 
 These are removed executable checks, rewritten as restoration scenarios. Remaining tests may cover parts of the same behavior. The record accounts for **44 original cases**: 43 in 23 removed smoke files and one removed history case. Thirty exceeded 1000ms in the baseline; the other 14 were removed with their files. The 23 files used explicit 10–180 second timeouts, which are not approval for replacement tests.
 
+Historical delivery wording below describes those removed checks, not today's response routing. The current [response protocol](../agents/responses.md) separates authored responses from comments and execution reports. Executable response coverage lives in [response-store.test.ts](../../lib/colony/src/response-store.test.ts), [responses.integration.test.ts](../../lib/colony/src/responses.integration.test.ts), [bee-cli.integration.test.ts](../../lib/colony/src/bee-cli.integration.test.ts) and [launch.test.ts](../../lib/colony/src/launch.test.ts).
+
 There are **95 scenarios and 13 scenario outlines (46 example rows)** below. Splitting an overloaded original case does not increase the original-case count. Each section maps its scenarios to the original test titles; table-driven source titles retain their placeholders and expanded case counts. Variants inside a single original test remain part of that one case.
 
 All restoration pointers refer to Git revision `61e736f8e1f4bfad9b7338e140d33938d0426f71`, under `lib/colony/src/`. Restore files with `git show REV:PATH`. Reconciliation sources are removal ledger `hv-luv2v` comment 4466 and Colony scout `hv-hu8eo.1` comment 4404; follow-up work is `hv-luv2v`.

@@ -6,6 +6,49 @@ Each scope permits its role's required reporting/completion writes.
 Markers grant no extra authority; role and assignment limits still apply.`;
 
 export const HELP = {
+	response: `
+Publish complete authored Markdown against a producing task. In managed execution,
+HIVE_SPAWN_ID supplies the request; its captured driver run or dispatched stage
+must equal TASK. Use --standalone for an independent task-scoped artifact.
+--request and --standalone are mutually exclusive. --actor or BD_ACTOR supplies
+authorship; body-file metadata cannot replace it. Publication preserves task state
+and human/HITL/foreign claims, and permits completed targets for interrupted delivery.
+
+Records are immutable closed docs with nonblocking provenance links. A repeat
+reuses its identity. Corrections require repeated --supersedes for every current
+head. An uncertain publication returns known effects; inspect before retrying.
+
+Examples:
+  bee response publish TASK --body-file answer.md --json
+  bee response publish TASK --standalone --body-file correction.md --supersedes RESPONSE --json
+  bee response get RESPONSE --json
+  bee response get --task TASK --request REQUEST --json
+  bee response search QUERY --source responses --limit 20 --offset 0 --json
+  bee response history TASK --source comments --limit 20 --offset 0 --json
+  bee response --schema
+
+Search defaults to response-record matches, including closed records and excluding
+system. It returns metadata, never bodies. Comments search returns candidates:
+native matches may come from titles/descriptions/comments, not verified reports.
+Notes search returns notes candidates. Each source has independent pagination.
+Follow hasMore/nextOffset; get explicitly expands the complete response.
+
+Comment history bounds returned entries but fetches ALL comments for that task;
+coverage and nativeRead disclose this cost. Numeric localCommentId is local only:
+cite taskId plus original author/createdAt/text for portable provenance. Notes is
+one full snapshot (--offset 0); snapshotUpdatedAt is revision time, author and
+authoredAt remain unknown. Workflow notes contain machine {choice,data}, not an
+authored response. Historical sources never become new response authority.
+`,
+	result: `
+Resolve only this request's captured driver run or dispatched stage and exact
+request lineage. Returns the full authored response/provenance plus native
+status, closure and outcome facts. Does not include recipe, prompts, task briefs,
+comments, logs or a ready-list scan. Old request IDs stay historical after retry.
+Missing/ambiguous/malformed responses fail explicitly; there is no legacy fallback.
+A response can document blocked work: availability does not imply success.
+Use bee response --schema for JSON contracts, including failures.
+`,
 	ack: `
 Accept a terminal failure that no longer needs attention. The failed outcome,
 execution evidence and linked tasks stay unchanged. This uses only the selected
@@ -167,7 +210,9 @@ Use bee status REQUEST for the driver and busybee show RUN for the workflow.
 `,
 	status: `
 Read request facts and the latest recorded observation, which can be stale.
-Read the linked task beads with br show <task-id> --json for reports and evidence.
+The compact response summary identifies missing, available or ambiguous delivery.
+Use bee result <spawn-id> for its complete authored response; availability is
+independent of execution success. Read task beads separately for verification.
 
 If execution has not started:
   colony explain <spawn-id> --repo <repository> --beads-db <database> --json

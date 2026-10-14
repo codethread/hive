@@ -7,6 +7,18 @@ export interface BeadsService {
 	showMany: (scope: BeadsScope, ids: readonly string[]) => Promise<BeadRecord[]>;
 	list: (scope: BeadsScope, selection?: BeadSelection) => Promise<BeadPage>;
 	search: (scope: BeadsScope, text: string, selection?: BeadSelection) => Promise<BeadSearchPage>;
+	/** Selected native columns, without detail hydration or fabricated fields. */
+	listProjected: <Fields extends BeadProjection>(
+		scope: BeadsScope,
+		selection: BeadSelection,
+		fields: Fields,
+	) => Promise<ProjectedBeadPage<Fields>>;
+	searchProjected: <Fields extends BeadProjection>(
+		scope: BeadsScope,
+		text: string,
+		selection: BeadSelection,
+		fields: Fields,
+	) => Promise<ProjectedBeadSearchPage<Fields>>;
 	ready: (scope: BeadsScope, selection?: ReadySelection) => Promise<ReadyBead[]>;
 	update: (
 		scope: BeadsScope,
@@ -203,6 +215,27 @@ export interface BeadPage {
 }
 export interface BeadSearchPage extends Omit<BeadPage, "total"> {
 	hidden_closed_count: number;
+}
+/** Supported columns consumed by focused response and narrative readers. */
+export type BeadProjectionField =
+	| "id"
+	| "title"
+	| "status"
+	| "issue_type"
+	| "description"
+	| "notes"
+	| "created_at"
+	| "updated_at";
+export type BeadProjection = readonly [BeadProjectionField, ...BeadProjectionField[]];
+export type ProjectedBead<Fields extends BeadProjection> = Pick<SelectedBead, Fields[number]>;
+export interface ProjectedBeadPage<Fields extends BeadProjection> extends Omit<BeadPage, "issues"> {
+	issues: ProjectedBead<Fields>[];
+}
+export interface ProjectedBeadSearchPage<Fields extends BeadProjection> extends Omit<
+	BeadSearchPage,
+	"issues"
+> {
+	issues: ProjectedBead<Fields>[];
 }
 export interface BeadUpdateReceipt {
 	id: string;

@@ -16,4 +16,4 @@ You may read assessments and discuss recommendations. Creating actionable beads,
 
 Private assessments are observations, not approved practice or filed specialist evidence. Curation is a separate explicitly authorized operation governed by `docs/beads-labels.md` and `docs/beads-meta.md`. Preserve registered label stewardship; this role grants no new evidence namespace or standing filing authority.
 
-When Colony gives you a delivery task, record your cohesive briefing and source references on that task, then complete your own delivery using the root Colony execution runbook. Completing that report does not authorize any recommended change or additional task.
+When Colony gives you a delivery task, file your cohesive briefing and source references through the root response protocol, then comment with its response ID and concise verification evidence and complete your own delivery using the Colony execution runbook. This permits your own response artifact; it does not authorize recommended changes, actionable tasks or specialist evidence curation. In a direct conversation, return the briefing to ct.

@@ -31,6 +31,7 @@
 
 - [Domain guidance](./agents/domain.md) — glossary and ADR reading when terminology or design decisions matter.
 - [Specialist delegation](./agents/specialists.md) — Bee discovery, librarian consult/review/curation and evidence handoff.
+- [Agent response delivery](./agents/responses.md) — final answers, verification comments, workflow outcomes, corrections and historical reads.
 - [Semantic review signals](./agents/semantic-review.md) — optional Waggle concerns and required attention routing when selecting files for human review.
 - [Spawn state and native queries](./agents/spawn-requests.md) — read before querying requests, interpreting failures/supersession, retrying or changing lifecycle publication.
 - [Welcoming hive](./agents/welcoming-hive.md) — post-run assessment and nurse discussion heuristic.

@@ -6,6 +6,13 @@
 import { acknowledgeRequest, inspectRequest, listRequests, stopRequest } from "../src/requests.ts";
 import { attachWorkflow, dispatchStage, submitWorkflow } from "../src/workflow-submission.ts";
 import { execute, resolveRepository } from "@hive/shared";
+import {
+	findResponses,
+	publishTaskResponse,
+	readRequestResult,
+	readResponseHistory,
+	readTaskResponse,
+} from "../src/responses.ts";
 import { realpath, stat } from "node:fs/promises";
 import { retryRequest, validateRequestedTasks } from "../src/producer.ts";
 import type { SpawnOptions } from "../src/bee-cli.ts";
@@ -45,6 +52,16 @@ process.exitCode = await runBeeCli(Bun.argv.slice(USER_ARGUMENTS_START), {
 	finish: submitFinish,
 	kinds: listKinds,
 	list: (options) => listRequests(options, tracker),
+	responsePublish: (task, options) =>
+		publishTaskResponse(task, options, {
+			...tracker,
+			readBody: (file) => Bun.file(file).text(),
+			managedRequestId: process.env["HIVE_SPAWN_ID"],
+		}),
+	responseGet: (id, options) => readTaskResponse(id, options, tracker),
+	responseSearch: (query, options) => findResponses(query, options, tracker),
+	responseHistory: (task, options) => readResponseHistory(task, options, tracker),
+	result: (id, options) => readRequestResult(id, options, tracker),
 	report: submitDroneVerdict,
 	retry: (id, options) => retryRequest(id, options, tracker),
 	run: runKind,

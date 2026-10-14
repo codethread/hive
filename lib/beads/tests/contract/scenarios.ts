@@ -21,6 +21,84 @@ export function contractSession(service: BeadsService, cwd: string, db: string):
 	return { service, scope: { cwd, db, actor: "contract", noAutoImport: true, noAutoFlush: true } };
 }
 
+export async function projectedFiledRecords({ service, scope }: ContractSession): Promise<unknown> {
+	const task = await service.create(scope, { title: "Producer", owner: "ct" });
+	const ready = await service.ready(scope);
+	const before = await service.listProjected(scope, { ids: [task.id] }, ["status", "updated_at"]);
+	const response = await service.create(scope, {
+		title: "Filed needle",
+		type: "docs",
+		status: "closed",
+		owner: "ct",
+		labels: ["response"],
+		description: "Original needle document",
+		deps: [
+			{ id: task.id, type: "replies-to" },
+			{ id: task.id, type: "related" },
+		],
+	});
+	const exact = await service.listProjected(
+		scope,
+		{ ids: [response.id], all: true, labels: ["response"] },
+		["title", "status", "issue_type", "description", "notes"],
+	);
+	expect(exact.issues).toEqual([
+		{
+			title: "Filed needle",
+			status: "closed",
+			issue_type: "docs",
+			description: "Original needle document",
+			notes: "",
+		},
+	]);
+	expect(await service.ready(scope)).toEqual(ready);
+	expect(await service.listProjected(scope, { ids: [task.id] }, ["status", "updated_at"])).toEqual(
+		before,
+	);
+	const edges = await service.dep.list(scope, response.id, { direction: "down" });
+	expect(edges.map(({ type }) => type).toSorted()).toEqual(["related", "replies-to"]);
+	const correction = await service.create(scope, {
+		title: "Correction needle",
+		type: "docs",
+		status: "closed",
+		labels: ["response"],
+		deps: [
+			{ id: task.id, type: "replies-to" },
+			{ id: response.id, type: "supersedes" },
+		],
+	});
+	const correctedEdges = await service.dep.list(scope, correction.id, { direction: "down" });
+	expect(correctedEdges.map(({ type }) => type).toSorted()).toEqual(["replies-to", "supersedes"]);
+	const page = await service.searchProjected(
+		scope,
+		"needle",
+		{ all: true, labels: ["response"], sort: "title", limit: ONE },
+		["title", "created_at"],
+	);
+	expect(page.has_more).toBe(true);
+	const last = await service.searchProjected(
+		scope,
+		"needle",
+		{ all: true, labels: ["response"], sort: "title", limit: ONE, offset: ONE },
+		["title"],
+	);
+	expect(last.has_more).toBe(false);
+	const children = await service.dep.list(scope, task.id, {
+		direction: "up",
+		type: "parent-child",
+	});
+	expect(children).toEqual([]);
+	return {
+		exact,
+		edges: edges
+			.map(({ type, title }) => ({ type, title }))
+			.toSorted((left, right) => left.type.localeCompare(right.type)),
+		titles: page.issues.map(({ title }) => title),
+		last,
+		hiddenClosed: page.hidden_closed_count,
+	};
+}
+
 export async function filtersAndPagination({ service, scope }: ContractSession): Promise<unknown> {
 	const one = await service.create(scope, {
 		title: "Alpha needle",

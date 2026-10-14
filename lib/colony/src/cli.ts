@@ -12,6 +12,7 @@ import type { HistoryResult } from "./history.ts";
 import type { InitializedResult } from "./producer.ts";
 import type { LaunchedResult } from "./output.ts";
 import { RequestPublicationError } from "./requests.ts";
+import { ResponseError } from "./response-store.ts";
 import { WorkflowCommandError } from "./workflows.ts";
 import { WorkflowSubmissionError } from "./workflow-submission.ts";
 import { assessmentLimitSchema } from "./assessments.ts";
@@ -327,6 +328,22 @@ export function reportFailure(
 	if (error instanceof WorkflowCommandError || error instanceof WorkflowSubmissionError) {
 		Object.assign(failure, error.context);
 		failure.reason = error.reason;
+	}
+	if (error instanceof ResponseError) {
+		if (!json && error.responseIds.length > SUCCESS) {
+			failure.message += `\nResponse IDs: ${error.responseIds.join(", ")}`;
+		}
+		if (!json && error.uncertainOperation !== undefined) {
+			failure.message += `\nInspect the ${error.uncertainOperation} effect before retrying.`;
+		}
+		Object.assign(failure, {
+			reason: error.reason,
+			taskId: error.taskId,
+			requestId: error.requestId,
+			responseIds: error.responseIds,
+			confirmedEffects: error.confirmedEffects,
+			uncertainOperation: error.uncertainOperation,
+		});
 	}
 	writeFailure(failure, json, deps);
 	if (error instanceof CommanderError) {

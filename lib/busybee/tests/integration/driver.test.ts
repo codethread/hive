@@ -18,6 +18,7 @@ import { spawnRequestLabels } from "@hive/shared";
 import { z } from "zod";
 
 const FIRST = 0;
+const ONE = 1;
 const FAILURE = 1;
 const INITIAL_RECORDS = 4;
 const DISPATCH_PREFIX = 6;
@@ -143,6 +144,11 @@ test("default author distinguishes the run while preserving the actual stage ass
 	]);
 	const stage = await defaultRun.beads.show(scope, defaultRun.run.active[FIRST]!.bead);
 	expect(stage.dependencies).toMatchObject([{ id: root.id, dependency_type: "parent-child" }]);
+	expect(stage.description).toContain(`bee response publish ${root.id} --body-file FILE --json`);
+	expect(stage.description).toContain("a full answer or meaningful synthesis");
+	expect(stage.description).toContain(
+		"Workflow notes contain only the original machine {choice,data}",
+	);
 });
 
 // Compile the injected chart/checkpoint schemas and CLI boundary once before measured cases.
@@ -212,6 +218,9 @@ const arrayRun = await fixture({
 	...definition,
 	commandSchemas: { selected: arrayPayloadSchema },
 });
+const resumedResponse = await filedResponse(resumed, resumed.run.id);
+await filedResponse(invalidInput, invalidInput.run.id);
+await filedResponse(transformed, transformed.run.id);
 const doneRun = await fixture({
 	...definition,
 	machine: createMachine({
@@ -351,7 +360,7 @@ describe("driver coordination", () => {
 		expect(notes).not.toBe("");
 	});
 
-	test("replacement driver collects a closed driver-handled visit with its arbitrary payload once", async () => {
+	test("replacement driver collects a closed visit once alongside its independent run response", async () => {
 		const { beads, checkpoint, io, run } = resumed;
 		await beads.update(scope, [run.active[FIRST]!.bead], {
 			notes: JSON.stringify({ choice: "selected", data: payload }),
@@ -370,6 +379,11 @@ describe("driver coordination", () => {
 				request: run.active[FIRST]!.request,
 			},
 		]);
+		expect(await beads.show(scope, resumedResponse.id)).toMatchObject({
+			description: resumedResponse.description,
+			status: "closed",
+			updated_at: resumedResponse.updated_at,
+		});
 	});
 
 	test.each(invalidNotes)(
@@ -513,19 +527,29 @@ const ended = new Map(
 );
 const closedStage = await beeFixture();
 await closedStage.beads.close(scope, closedStage.stage.request!, { reason: "blocked" });
+const stageResponse = await filedResponse(
+	closedStage,
+	closedStage.stage.bead,
+	closedStage.stage.request!,
+);
 await recordResult(
 	{ id: closedStage.run.id, bead: closedStage.stage.bead, choice: "selected", data: payload },
 	{},
 	closedStage.io,
 );
 await closedStage.beads.close(scope, closedStage.stage.bead);
+await Promise.all(
+	[...ended.values()].map((current) =>
+		filedResponse(current, current.stage.bead, current.stage.request!),
+	),
+);
 const replacementStage = await replacementFixture();
 // Warm the distinct supersedes decoding path before measuring continuation.
 const retryWarmup = await replacementFixture();
 await navigate({ id: retryWarmup.run.id, operation: "collect" }, {}, retryWarmup.io);
 
 describe("Bee-dispatched stage coordination", () => {
-	test("Bee dispatch uses the stage seam with the existing run and endpoint", () => {
+	test("Bee dispatch uses the stage seam and response target with the existing run and endpoint", async () => {
 		const { calls, run, stage } = dispatch;
 		expect(calls[FIRST]!.slice(FIRST, DISPATCH_PREFIX)).toEqual([
 			"bee",
@@ -548,6 +572,13 @@ describe("Bee-dispatched stage coordination", () => {
 				"--json",
 			]),
 		);
+		const prompt = calls[FIRST]![calls[FIRST]!.indexOf("--prompt") + ONE]!;
+		expect(prompt).toContain(`bee response publish ${stage.bead} --body-file FILE --json`);
+		expect(prompt).not.toContain(`bee response publish ${run.id} `);
+		expect(prompt).toContain("Deliver the full authored response for this Bee-dispatched stage");
+		const task = await dispatch.beads.show(scope, stage.bead);
+		expect(task.description).toContain("bee response publish TASK_ID --body-file FILE --json");
+		expect(task.description).not.toContain(`bee response publish ${run.id} `);
 	});
 
 	test.each(["blocked", "cancelled"])(
@@ -565,13 +596,21 @@ describe("Bee-dispatched stage coordination", () => {
 		},
 	);
 
-	test("closed stage result wins over a blocked request", async () => {
+	test("closed stage result is collected with its response independently of a blocked request", async () => {
 		const { beads, io, run } = closedStage;
 		expect(await navigate({ id: run.id, operation: "collect" }, {}, io)).toMatchObject({
 			status: "done",
 			active: [],
 		});
 		expect(await beads.show(scope, run.id)).toMatchObject({ status: "closed" });
+		expect(await beads.show(scope, closedStage.stage.bead)).toMatchObject({
+			notes: JSON.stringify({ choice: "selected", data: payload }),
+		});
+		expect(await beads.show(scope, stageResponse.id)).toMatchObject({
+			description: stageResponse.description,
+			status: "closed",
+			updated_at: stageResponse.updated_at,
+		});
 	});
 
 	test("collection follows a pending replacement and reports its terminal failure", async () => {
@@ -585,6 +624,41 @@ describe("Bee-dispatched stage coordination", () => {
 		});
 	});
 });
+
+/** Generic filed artifact fixture; Busy Bee consumes machine outcomes, not response storage. */
+async function filedResponse(
+	current: Awaited<ReturnType<typeof fixture>> | Awaited<ReturnType<typeof beeFixture>>,
+	taskId: string,
+	requestId?: string,
+) {
+	let author = scope.actor;
+	const deps = [{ id: taskId, type: "replies-to" }];
+	if (requestId) {
+		const request = await current.beads.show(scope, requestId);
+		author = request.assignee!;
+		deps.push({ id: requestId, type: "related" });
+	}
+	const created = await current.beads.create(
+		{ ...scope, actor: author },
+		{
+			title: "Filed response",
+			owner: "ct",
+			type: "docs",
+			status: "closed",
+			labels: ["response"],
+			description: JSON.stringify({
+				formatVersion: 1,
+				taskId,
+				requestId,
+				author,
+				body: "Complete authored report or blocker with required next action.",
+				supersedes: [],
+			}),
+			deps,
+		},
+	);
+	return current.beads.show(scope, created.id);
+}
 
 async function replacementFixture() {
 	const current = await beeFixture();

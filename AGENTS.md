@@ -78,6 +78,8 @@ Use `in_review` only for completed work awaiting the user's attention when the u
 
 For workflow stages, record scope, narrative progress and verification in comments. Reserve stage notes for the outcome saved by `busybee record-result`; see its command help.
 
+Before delivering or retrieving an agent's final report, follow the [response protocol](docs/agents/responses.md): file the complete answer once, use concise evidence/pointers in comments, and keep workflow outcomes in notes.
+
 ### Route the request
 
 - **Inspect an ID** ("check hv-…"): `br show <id> --json`; report without claiming or changing it. Questions do not need bookkeeping beads.
@@ -98,7 +100,7 @@ Local worktrees and bees share the selected database. Ordinary startup/resume, c
 
 ### Colony executions
 
-- Follow `bee finish --help` for execution identity, delivery and completion. Verify the supplied claims before working. Record final task updates locally before finishing; ordinary bee startup and completion need no Git publication.
+- Follow `bee finish --help` and the [response protocol](docs/agents/responses.md) for execution identity, delivery and completion. Verify the supplied claims before working. Publish and verify your response, then record final task updates locally before finishing; ordinary bee startup and completion need no Git publication.
 - Reading your own spawn through `HIVE_SPAWN_ID` is authorized execution context, not permission to browse unrelated `system` beads. Use the supplied worktree; create another only when the task explicitly requires it.
 - Librarian's role supplies routine evidence-capture scope; architecture-documentation edits need explicit scope. Keep implementation, review and landing acceptance distinct; a completed report is not permission to close the examined work.
 

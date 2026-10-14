@@ -2,6 +2,8 @@
 
 These are removed executable checks, recorded for reconsideration rather than a new behavior contract. Remaining tests may cover portions. The 45 removed original cases measured over 1000ms; faster siblings and the unmeasured repository-default tracker-selection row remain.
 
+Historical delivery wording below is not a new response contract. The current [response protocol](../agents/responses.md) keeps authored answers separate from saved `{choice,data}` outcomes and concise verification comments. Current [driver tests](../../lib/busybee/tests/integration/driver.test.ts) exercise response targeting and collection without treating response artifacts as workflow children.
+
 The record contains 27 scenarios and 7 scenario outlines (46 instances after expanding examples), representing 45 original cases. L5 and L6 split one original case; all other mappings are one-to-one after expansion. Sources: `hv-luv2v` comment 4466 and `hv-hu8eo.4` comments 4393/4402. Follow-up: `hv-luv2v`.
 
 ## Reading and restoration

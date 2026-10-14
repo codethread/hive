@@ -77,10 +77,22 @@ test("driver launch guides existing-run coordination and durable driver-handled 
 	expect(prompt).toContain("run-1 as their native parent");
 	expect(prompt).toContain("Independent delegation remains separate");
 	expect(prompt).toContain("bee finish blocked --reason");
+	expect(prompt).toContain("bee response publish run-1 --body-file FILE --json");
+	expect(prompt).toContain(
+		"Publish one final run response containing your full answer or meaningful synthesis",
+	);
+	expect(prompt).toContain("bee result REQUEST --json");
+	expect(prompt).toContain("publish the full result against the run before closing the last stage");
+	expect(prompt).toContain(
+		"For blocked work, publish and verify a blocker report against the same target",
+	);
+	expect(prompt).toContain("Workflow notes contain only the original machine {choice,data}");
 	expect(prompt).toContain(recipe.prompt);
 	expect(recipe.prompt).toBe("Captured execution direction");
 });
 
+// Verify delivery target, ordering and the worker's workflow authority together.
+// eslint-disable-next-line max-statements
 test("Bee-dispatched stage launch requires result before closure and leaves navigation to the driver", () => {
 	const prompt = renderExecutionPrompt({
 		assignment: { kind: "stage", runId: "run-1", stageId: "stage-1" },
@@ -95,6 +107,15 @@ test("Bee-dispatched stage launch requires result before closure and leaves navi
 	expect(prompt).toContain("run-1 as their native parent");
 	expect(prompt).toContain("Related tasks: stage-1");
 	expect(prompt).toContain("then call bee finish success");
+	expect(prompt).toContain("bee response publish stage-1 --body-file FILE --json");
+	expect(prompt).not.toContain("bee response publish run-1");
+	expect(prompt).toContain(
+		"publish and verify your stage response before using busybee record-result",
+	);
+	expect(prompt).toContain(
+		"For blocked work, publish and verify a blocker report against the same target",
+	);
+	expect(prompt).toContain("Response records are closed linked docs, never executable child tasks");
 });
 
 const readinessCases = await Promise.all(

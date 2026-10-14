@@ -166,6 +166,7 @@ test("explicit JSON status returns both full captured prompt fields", async () =
 	const result = await invoke(["status", request.id, "--include-prompt", "--json"]);
 	expect(JSON.parse(result.stdout)).toEqual({
 		kind: "request_status",
+		response: { state: "missing", responseIds: [] },
 		ok: true,
 		repository,
 		request,
@@ -190,6 +191,11 @@ async function invoke(args: readonly string[], exitCode = SUCCESS) {
 	const stderr: string[] = [];
 	const submissions: { kind: string; options: WorkflowSpawnOptions }[] = [];
 	const deps: BeeDependencies = {
+		responsePublish: unusedResponseCommand,
+		responseGet: unusedResponseCommand,
+		responseSearch: unusedResponseCommand,
+		responseHistory: unusedResponseCommand,
+		result: unusedResponseCommand,
 		ack: unexpected,
 		assess: unexpected,
 		attachWorkflow: workflowResult,
@@ -207,7 +213,13 @@ async function invoke(args: readonly string[], exitCode = SUCCESS) {
 				workflow: { ...result.workflow, parentId: options.parent },
 			}));
 		},
-		status: () => Promise.resolve({ kind: "request_status", repository, request }),
+		status: () =>
+			Promise.resolve({
+				kind: "request_status",
+				repository,
+				request,
+				response: { state: "missing", responseIds: [] },
+			}),
 		stderr: (text) => stderr.push(text),
 		stdout: (text) => stdout.push(text),
 		stop: () => Promise.resolve({ kind: "request_stopped", repository, request: stopped }),
@@ -228,4 +240,8 @@ function workflowResult(): ReturnType<BeeDependencies["spawn"]> {
 
 function unexpected(): never {
 	throw new Error("Unexpected CLI dependency");
+}
+
+function unusedResponseCommand(): Promise<never> {
+	return Promise.reject(new Error("Response command not used by this fixture"));
 }

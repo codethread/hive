@@ -184,7 +184,7 @@ export const machine = setup({
 						"finding dispositions. With no adequate evidence, use check or review " +
 						"rather than guessing. Choose integrated only after proving this " +
 						"exact work already reached the intended main; verification and " +
-						"cleanup still remain. Record the assessment in this bead's notes " +
+						"cleanup still remain. Record a concise assessment and deliverable pointers in this bead's comments " +
 						"before closure. Later uncertainty or changed scope can return here; " +
 						"external blockers leave the current task open, not a polling loop.\n\n" +
 						`${retainedContext(context)}`,
@@ -247,7 +247,7 @@ export const machine = setup({
 						"exact lib/tooling/slow-tests.json allowance and justification for " +
 						"explicit user sign-off before editing it; landing remains blocked " +
 						"until checks pass. Record the exact base/revision, commands and " +
-						"results in bead notes. Choose passed only when `bun run check` exits " +
+						"results concisely in bead comments. Choose passed only when `bun run check` exits " +
 						"successfully for that revision; choose changes with a concrete " +
 						"repair brief for code failures. A known infrastructure failure keeps " +
 						"the task open with a next action rather than inventing a code fix. " +
@@ -275,8 +275,8 @@ export const machine = setup({
 						"auditing test-run evidence. Include staged, unstaged and relevant " +
 						"untracked files, not just committed changes. Inspect previous " +
 						"findings and their fixes. Record base, cumulative diff fingerprint, " +
-						"reviewer identity, findings and dispositions in this worker bead's " +
-						"notes (and link that evidence from the scope beads). A completed " +
+						"reviewer identity and concise dispositions with response-ID pointers in this worker bead's " +
+						"comments (and link that evidence from the scope beads). A completed " +
 						"review may request changes: close this review with changes and a " +
 						"concrete repair brief so implementation can proceed. Choose approved " +
 						"only with no unresolved findings, supplying this bead and the exact " +
@@ -390,8 +390,8 @@ export const machine = setup({
 						"takes changes. Never declare a thread resolved merely because you " +
 						"disagree. An ambiguous product decision or contested blocker stays " +
 						"open for the user/reviewer; retriage only when scope/target needs " +
-						"reassessment. Record reply links and unresolved items in native bead " +
-						"notes. Both non-code outcomes return to fresh PR readiness, not " +
+						"reassessment. Record concise reply links and unresolved items in native bead " +
+						"comments. Both non-code outcomes return to fresh PR readiness, not " +
 						`directly to merge.\n\n${retainedContext(context)}`,
 				}),
 			},
@@ -425,7 +425,7 @@ export const machine = setup({
 						"GitHub confirms the actual merge commit. If the work already " +
 						"integrated, verify that result instead of merging twice. Record the " +
 						"actual integration commit and source-to-integrated correspondence, " +
-						"including squash/rebase evidence, in bead notes. Close with next " +
+						"including concise squash/rebase evidence, in bead comments. Close with next " +
 						"only once integration is proven. Refusals and external blockers stay " +
 						"open with diagnostics.\n\nIf the feature checkout disappears, deliver " +
 						"the saved stage result from the surviving canonical checkout with retained " +

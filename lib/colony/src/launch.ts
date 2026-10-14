@@ -11,6 +11,7 @@ import {
 	readSpawnRequest,
 	recipeSchema,
 	renderFormula,
+	renderResponseInstructions,
 	workflowAssignmentSchema,
 } from "@hive/shared";
 // eslint-disable-next-line import/no-nodejs-modules -- Supply the host home at the native invocation boundary.
@@ -243,7 +244,7 @@ export function renderExecutionPrompt({
 				`${assignment.runId}` +
 				" STAGE CHOICE --data-file FILE to validate and persist its selected outcome and " +
 				'original payload as {"choice":"<outcome>","data":{...}}. Comment on that stage ' +
-				"with your deliverable and verification evidence, then close it only when its " +
+				"with concise deliverable references and verification evidence, then close it only when its " +
 				"acceptance criteria and child work are satisfied. Use busybee collect " +
 				`${assignment.runId}` +
 				" --json to consume saved closed-stage results, including interrupted driver-handled " +
@@ -259,8 +260,13 @@ export function renderExecutionPrompt({
 				"relevant limits.\n\nBusy Bee alone closes grouping beads and the run. Never " +
 				"manually close run " +
 				`${assignment.runId}` +
-				". Comment on the run with your delivery and verification evidence, and call bee " +
-				"finish success only after Busy Bee reports status done.\n\nAdditional task beads " +
+				". Publish one final run response containing your full answer or meaningful synthesis. " +
+				"Read worker responses explicitly with bee result REQUEST --json or bee response get " +
+				"RESPONSE_ID --json; cite their response IDs when synthesizing. For a one-stage run, " +
+				"publish the full result against the run before closing the last stage so it can cite " +
+				"that response ID. Comment on the run with concise delivery and verification evidence " +
+				"and its response ID, and call bee finish success only after Busy Bee reports status " +
+				"done.\n\nAdditional task beads " +
 				"for work within this workflow must have " +
 				`${assignment.runId}` +
 				" as their native parent. Independent delegation remains separate; obtain any " +
@@ -274,7 +280,7 @@ export function renderExecutionPrompt({
 				" in Busy Bee run " +
 				`${assignment.runId}` +
 				". Read its full instructions, acceptance criteria and result schema. Do and " +
-				"verify that work, then use busybee record-result " +
+				"verify that work, then publish and verify your stage response before using busybee record-result " +
 				`${assignment.runId}` +
 				" " +
 				`${assignment.stageId}` +
@@ -282,7 +288,8 @@ export function renderExecutionPrompt({
 				'payload as {"choice":"<outcome>","data":{...}}, before closing the stage. ' +
 				"Comment on " +
 				`${assignment.stageId}` +
-				" with your deliverable and verification evidence. Close only your assigned stage " +
+				" with concise deliverable references, your response ID and verification evidence. " +
+				"Close only your assigned stage " +
 				"after satisfying its acceptance criteria and child work, then call bee finish " +
 				"success.\n\nNever navigate the workflow: do not call busybee next, choice or " +
 				"collect, do not create another run, and do not close grouping beads or run " +
@@ -294,7 +301,17 @@ export function renderExecutionPrompt({
 				"required delegated results before closing your stage.",
 		)
 		.exhaustive();
-	return [recipe.prompt, protocol, blocked, `Related tasks: ${taskIds.join(", ")}`]
+	const taskId = match(scope)
+		.with({ kind: "driver" }, ({ runId }) => runId)
+		.with({ kind: "stage" }, ({ stageId }) => stageId)
+		.exhaustive();
+	return [
+		recipe.prompt,
+		protocol,
+		renderResponseInstructions({ taskId }),
+		blocked,
+		`Related tasks: ${taskIds.join(", ")}`,
+	]
 		.filter(Boolean)
 		.join("\n\n");
 }

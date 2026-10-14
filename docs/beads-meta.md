@@ -91,9 +91,13 @@ br update $bead.id --actor pi --design "Describe the existing behavior alongside
 br show $bead.id --json
 ```
 
-For longer descriptions, use `--description-file <path>` on `create` or `update` to preserve Markdown verbatim. Whole-field updates replace content; do not reach for `--force` to discard accumulated context. Prefer `--add-acceptance "New outcome"`, `--check-acceptance "unique item text"`, and `--uncheck-acceptance "unique item text"` for acceptance edits. Check/uncheck selectors also accept comma-separated 1-based item numbers. `show --json` exposes parsed `acceptance_items`; tick an item only after verification and append the command/result or other evidence to notes. Prerequisites have no equivalent item-edit flags: preserve the rest of the checklist when replacing it with `--prerequisites`.
+For longer descriptions, use `--description-file <path>` on `create` or `update` to preserve Markdown verbatim. Whole-field updates replace content; do not reach for `--force` to discard accumulated context. Prefer `--add-acceptance "New outcome"`, `--check-acceptance "unique item text"`, and `--uncheck-acceptance "unique item text"` for acceptance edits. Check/uncheck selectors also accept comma-separated 1-based item numbers. `show --json` exposes parsed `acceptance_items`; tick an item only after verification and record the command/result or other evidence in comments (ordinary non-workflow tasks may also retain handoff notes). Workflow stage notes contain only the saved machine outcome. Prerequisites have no equivalent item-edit flags: preserve the rest of the checklist when replacing it with `--prerequisites`.
 
 Checklists describe preparation and completion; they do not create dependency edges or enforce transitions by themselves. Record tracked blockers with `br dep add <issue> <depends-on>`. On handoff, append what changed, what remains, the blocker if any, and a concrete next action; update the design if the intended approach changed.
+
+### Filed responses
+
+Final agent answers follow the [response protocol](./agents/responses.md). Bee publishes immutable closed `docs` beads labeled `response`, with complete authored content and nonblocking provenance links. These artifacts have no assignment or parent and never enter executable work. Task comments hold concise progress, verification and pointers; Busy Bee stage notes remain the original `{choice,data}` machine result. Old comments and notes remain explicitly retrievable history without migration or inferred response authority.
 
 ### Filed specialist evidence
 
@@ -102,6 +106,8 @@ A specialist evidence record is an archive, not executable work or authoritative
 Within that scope, create the record with native `--type docs --status closed --owner ct`, the supplied actor (otherwise the harness actor), and the initial sourced entry in its description. This is a narrow exception to claiming executable work: the record starts filed and never enters the ready queue. `closed` means recorded, not that its question is resolved or its advice validated. Append subsequent dated evidence to notes without claiming or reopening the record. Unresolved questions and next evidence can remain in the archive; a concrete authorized investigation or change belongs in a separate actionable task under the normal work lifecycle.
 
 The specialist contract defines relationships and discovery. Verify the saved content, labels and links, then follow the root runbook’s explicit publication checkpoints. Respect native policy failures; do not force creation or closure to file evidence.
+
+Evidence records can cite response IDs and retain compact curation history instead of duplicating complete reports. The general `response` marker grants no evidence-label stewardship; a response and a specialist evidence record retain separate purposes and lifecycles.
 
 ### Inherited agent context
 

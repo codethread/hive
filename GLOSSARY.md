@@ -54,6 +54,10 @@ _To be built_ marks capabilities still planned beyond the Bee and Colony impleme
 
 **Task bead**: The authoritative assignment, context and acceptance criteria for a unit of work, distinct from a request to run a bee.
 
+**Response**: An agent's complete authored answer for its producing task, with independent identity and provenance. A response may describe successful or blocked work; its availability is separate from acceptance and execution outcome.
+
+**Response bead**: A filed, immutable response artifact linked to its producing task, distinct from executable work and specialist evidence. Corrections retain the original artifact and explicitly supersede it with a new response.
+
 **System bead**: An automation-owned record of coordination or execution state, distinct from the work assigned to an agent. Spawn beads and workflow system beads are system beads.
 
 **Blocked**: A bead whose recorded status is `blocked`, distinct from waiting on unresolved prerequisites or an unsuccessful spawn outcome.

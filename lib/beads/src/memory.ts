@@ -5,6 +5,7 @@
 import type {
 	BeadCloseReceipt,
 	BeadPage,
+	BeadProjection,
 	BeadRecord,
 	BeadRow,
 	BeadSearchPage,
@@ -15,6 +16,7 @@ import type {
 	CreateBead,
 	CreatedBead,
 	DependencyReceipt,
+	ProjectedBead,
 	QueryReceipt,
 	ReadyBead,
 	ReadySelection,
@@ -151,6 +153,16 @@ export function createMemoryBeads(options: MemoryBeadsOptions = {}): BeadsServic
 			resolveMemory(() => listIssues(select(scope).store, selection)),
 		search: (scope, text, selection = {}) =>
 			resolveMemory(() => searchIssues(select(scope).store, text, selection)),
+		listProjected: (scope, selection, fields) =>
+			resolveMemory(() => {
+				const page = listIssues(select(scope).store, selection);
+				return { ...page, issues: page.issues.map((row) => projectColumns(row, fields)) };
+			}),
+		searchProjected: (scope, text, selection, fields) =>
+			resolveMemory(() => {
+				const page = searchIssues(select(scope).store, text, selection);
+				return { ...page, issues: page.issues.map((row) => projectColumns(row, fields)) };
+			}),
 		ready: (scope, selection = {}) =>
 			resolveMemory(() => readyIssues(select(scope).store, selection)),
 		update: (scope, ids, input) => resolveMemory(() => updateIssues(select(scope), ids, input)),
@@ -247,6 +259,13 @@ export function createMemoryBeads(options: MemoryBeadsOptions = {}): BeadsServic
 }
 
 // --- Private functions ---
+function projectColumns<Fields extends BeadProjection>(
+	row: BeadRow,
+	fields: Fields,
+): ProjectedBead<Fields> {
+	// Only requested keys escape the adapter; fixture snapshots are already detached.
+	return Object.fromEntries(fields.map((field) => [field, row[field]])) as ProjectedBead<Fields>;
+}
 // eslint-disable-next-line require-await -- Memory operations expose the same rejection boundary as native I/O.
 async function resolveMemory<Result>(operation: () => Result): Promise<Result> {
 	return operation();

@@ -137,7 +137,7 @@ The three instruction sources have distinct responsibilities:
 | Kind `prompt`        | Optional direction for an execution, usually empty              |
 | Workflow stage beads | Caller assignment, context, deliverable and acceptance criteria |
 
-Colony adds the captured driver or stage protocol at launch. Drivers inspect the existing run, claim driver-handled stages, perform and verify work, record results with `busybee record-result RUN STAGE CHOICE`, close completed stages and use `busybee collect RUN`. Busy Bee advances the chart and closes grouping beads and the run. The driver reports `bee finish success` only when the run reports done. Bee-dispatched workers record and close only their assigned stage; the driver collects their results. Narrative evidence belongs in comments, and result notes hold the validated `{choice,data}` envelope. Required additional work has the run as its native parent; independent delegation stays separate.
+Colony adds the captured driver or stage protocol at launch. Drivers inspect the existing run, claim driver-handled stages, perform and verify work, record results with `busybee record-result RUN STAGE CHOICE --data-file FILE`, close completed stages and use `busybee collect RUN`. Busy Bee advances the chart and closes grouping beads and the run. The driver reports `bee finish success` only when the run reports done. Bee-dispatched workers record and close only their assigned stage; the driver collects their results. Complete answers follow the [response protocol](../../docs/agents/responses.md); concise verification belongs in comments, and result notes hold the validated `{choice,data}` envelope. Required additional executable work has the run as its native parent; filed responses use nonblocking links with no parent, and independent delegation stays separate.
 
 A blocked bee completes possible work, records the blocker and next action, leaves unfinished work open and reports `bee finish blocked --reason "…"`. The captured recipe remains unchanged by launch guidance. The finite retry budget and explicit blocked handoff remain Colony's authority.
 
@@ -215,6 +215,16 @@ Inside a Colony-launched execution, use `bee finish success` after closing tasks
 Blocked handoff preserves native task states, records the reason on the spawn, and pauses automatic retries. `bee status` shows the reason and failed/unresolved attention. Once the blocker is resolved and native tasks are ready, `bee retry` creates a linked replacement for unfinished work. See the [self-report contract](../../docs/agents/spawn-requests.md#report-your-own-execution-finished) for completion ownership, injected provenance, durable submission and recovery.
 
 ## Inspect or close requests offline
+
+For the complete authored answer and native outcome of one exact request, use `bee result`. Publish once against the driver's run or dispatched worker's stage, then verify the returned response ID:
+
+```sh
+bee response publish PRODUCING_TASK --body-file answer.md --json
+bee response get RESPONSE_ID --json
+bee result REQUEST_ID --json
+```
+
+These commands use the selected tracker without a daemon. Managed publication uses the captured request; ordinary task delivery uses `--standalone`. Exact `status` adds a compact response availability summary; a response can describe blocked work. Use `bee response --help`, its subcommand help and `bee response --schema` for command options, bounded historical discovery, immutable corrections and JSON contracts. The [response protocol](../../docs/agents/responses.md) explains authorship, retry lineage and the separation from comments, workflow outcomes and specialist evidence.
 
 ```sh
 bun run lib/colony/bin/bee.ts status <spawn-id> --repo /path/to/repo --beads-db /path/to/beads.db
@@ -296,7 +306,7 @@ bee kinds nurse --verbose
 bee spawn nurse --parent REPORT_TASK_ID --input-file nurse.json --cwd RETAINED_WORKTREE --actor REQUESTER --json
 ```
 
-Read the delivered briefing on that task with `br show`. Hidden keeps the nurse out of ordinary discovery, not out of explicit named invocation. She synthesizes coverage, recurring friction and supported improvements for ct; she creates change tasks only with ct's approval. Automatic assessments stay in Colony's private state. Filing selected specialist evidence is a separate authorized operation under the [existing stewardship contract](../../docs/beads-labels.md#specialist-evidence-and-label-stewardship); no new evidence label is granted by this feature.
+Read the delivered briefing with `bee result REQUEST_ID` using the request returned by spawn. Hidden keeps the nurse out of ordinary discovery, not out of explicit named invocation. She synthesizes coverage, recurring friction and supported improvements for ct; she creates change tasks only with ct's approval. Automatic assessments stay in Colony's private state. Filing selected specialist evidence is a separate authorized operation under the [existing stewardship contract](../../docs/beads-labels.md#specialist-evidence-and-label-stewardship); no new evidence label is granted by this feature.
 
 ## Run a colony
 
