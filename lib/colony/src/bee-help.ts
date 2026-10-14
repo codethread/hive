@@ -1,3 +1,10 @@
+const MUTATION_SCOPE_HELP = `Mutation scope in descriptions (prose guidance, not enforced permissions):
+  read-only: inspect and report; leave examined work unchanged.
+  non-destructive: create/update beads for exploration/history; curate scoped docs.
+  mutating: change implementation within the assignment.
+Each scope permits its role's required reporting/completion writes.
+Markers grant no extra authority; role and assignment limits still apply.`;
+
 export const HELP = {
 	ack: `
 Accept a terminal failure that no longer needs attention. The failed outcome,
@@ -34,6 +41,8 @@ Use --as to preview a caller's view, --all to inspect every kind, and --verbose
 to include full configuration. An explicit kind name inspects that kind directly.
 --schema returns a JSON response schema without reading configuration; combine
 it with --verbose for the full-detail schema. Both include the failure shape.
+
+${MUTATION_SCOPE_HELP}
 
 Kinds load from canonical .hive/bees.toml and .hive/bees/*/bee.toml. Optional sibling
 system_prompt.md and prompt.md files supply role/protocol and execution direction
@@ -77,6 +86,8 @@ Delegation:
   Colony owns dispatch and run claims. For advice/review, put examined task IDs
   in workflow input as context. The workflow work stage owns the report; examined
   tasks are not assigned to the reviewer. Implementation and landing remain separate.
+
+${MUTATION_SCOPE_HELP}
 
 Selection and output:
   --beads-db or BEADS_DB selects the tracker; --actor or BD_ACTOR attributes you.

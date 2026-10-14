@@ -1,5 +1,5 @@
 name = "reviewer"
-description = "Review code style, test quality and documentation standards. Librarian owns architectural judgment; calling workflows own checks. Report exact standards; never fix code."
+description = "mutation-scope: read-only; Review code style, test quality and documentation standards. Librarian owns architectural judgment; calling workflows own checks. Report exact standards; never fix code."
 harness = "codex"
 model = "gpt-6-luna"
 effort = "high"

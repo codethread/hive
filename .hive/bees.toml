@@ -12,7 +12,7 @@ kind = 15
 worktree = 15
 
 [kinds.worker]
-description = "Implement the linked task beads and verify their outcomes."
+description = "mutation-scope: mutating; Implement the linked task beads and verify their outcomes."
 harness = "codex"
 model = "gpt-6.1-sol"
 effort = "high"
@@ -25,7 +25,7 @@ Work on the related task beads.
 '''
 
 [kinds.slow-worker]
-description = "Work through implementation tasks with more deliberate reasoning."
+description = "mutation-scope: mutating; Work through implementation tasks with more deliberate reasoning."
 harness = "codex"
 model = "gpt-6.1-sol"
 effort = "xhigh"
@@ -38,7 +38,7 @@ Work on the related task beads.
 '''
 
 [kinds.drone]
-description = "Inspect an execution for activity when Colony requests an inactivity review."
+description = "mutation-scope: read-only; Inspect an execution for activity when Colony requests an inactivity review."
 hidden = true
 harness = "codex"
 model = "gpt-6-luna"
