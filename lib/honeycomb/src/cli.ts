@@ -22,6 +22,7 @@ const registrations = [
 	registerPick,
 	registerShellInit,
 	registerConfig,
+	registerSkills,
 ];
 
 export async function main(
@@ -246,6 +247,40 @@ function registerConfig(program: Command, deps: Deps): void {
 		.addHelpText("after", HELP.explain)
 		.action((_opts, command) =>
 			runAction("config", ["explain", ...optsToArgs(command.optsWithGlobals())], deps),
+		);
+}
+
+function registerSkills(program: Command, deps: Deps): void {
+	const skills = program
+		.command("skills")
+		.summary("Read bundled agent skills")
+		.description(
+			"List or read instructions bundled with this Honeycomb version; works outside a repository.",
+		)
+		.option("--json", "Machine-readable output")
+		.action((_opts, command) =>
+			runAction("skills", ["list", ...optsToArgs(command.optsWithGlobals())], deps),
+		);
+	skills
+		.command("list")
+		.description("List bundled skill names, descriptions, and resource paths")
+		.option("--json", "Machine-readable output")
+		.action((_opts, command) =>
+			runAction("skills", ["list", ...optsToArgs(command.optsWithGlobals())], deps),
+		);
+	skills
+		.command("get <name>")
+		.description("Print a skill's Markdown body without frontmatter")
+		.option("--json", "Machine-readable output")
+		.action((name: string, _opts, command) =>
+			runAction("skills", ["get", name, ...optsToArgs(command.optsWithGlobals())], deps),
+		);
+	const file = skills
+		.command("file <name> <path>")
+		.description("Print a resource using its path relative to the skill directory")
+		.option("--json", "Machine-readable output")
+		.action((name: string, path: string) =>
+			runAction("skills", ["file", name, path, ...optsToArgs(file.optsWithGlobals())], deps),
 		);
 }
 

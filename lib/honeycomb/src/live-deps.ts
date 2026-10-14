@@ -1,7 +1,9 @@
+// oxlint-disable import/max-dependencies -- The composition root assembles the live service adapters.
 import type { Deps, PickerItem, PickerOptions, ProgressReporter } from "./services.ts";
 // oxlint-disable-next-line import/no-nodejs-modules -- Direct terminal IO belongs in the live picker boundary.
 import { closeSync, openSync, readSync, writeFileSync } from "node:fs";
 import { PickerCancelled } from "./errors.ts";
+import { createBundledSkills } from "./bundled-skills.ts";
 import { createFileCdDirective } from "./integrations/cd-directive.ts";
 import { createLiveConfigService } from "./live-config-service.ts";
 import { createLiveGitRunner } from "./git/executor.ts";
@@ -17,6 +19,7 @@ export function createLiveDeps(): Deps {
 	const git = createLiveGitRunner();
 	const files = createLiveWorkspaceFiles();
 	return {
+		skills: createBundledSkills(),
 		cdDirective: createFileCdDirective(process.env.HONEYCOMB_CD_FILE),
 		clock: { now: Date.now },
 		config: createLiveConfigService(files.normalizePath),

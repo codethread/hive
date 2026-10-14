@@ -3,11 +3,10 @@ name: git-workflow
 description: Use when creating, locating or cleaning up Git worktrees.
 ---
 
-Use Honeycomb instead of raw `git worktree` commands. Consult help when needed: `honeycomb -h` for command discovery, or `honeycomb <command> --help` for syntax and effects.
+Load the instructions matching the installed Honeycomb version before managing worktrees:
 
-- Reuse the task's existing worktree; create one when needed.
-- Prefer `--json` where supported; use structured results rather than parsing messages.
-- Run noninteractively: use `list`/`path` for discovery, without `--interactive`.
-- Use `honeycomb config explain --json` when you need to inspect effective repository policy.
+```bash
+honeycomb skills get git-workflow
+```
 
-Read [Pooled slots](references/pooled-slots.md) only for pool allocation, recycling or repair, or when `add` returns `pool_full`.
+Use `honeycomb skills list --json` to discover bundled skills and their supporting files. Read a referenced resource with `honeycomb skills file git-workflow references/pooled-slots.md`.

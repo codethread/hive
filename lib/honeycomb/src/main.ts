@@ -17,6 +17,7 @@ import { finishCommand } from "./commands/finish.ts";
 import { pickCommand } from "./commands/pick.ts";
 import { removeCommand } from "./commands/remove.ts";
 import { shellInitCommand } from "./commands/shell-init.ts";
+import { skillsCommand } from "./commands/skills.ts";
 
 const handlers: Partial<
 	Record<string, (args: string[], deps: Deps) => Promise<CommandResult> | CommandResult>
@@ -32,6 +33,7 @@ const handlers: Partial<
 	remove: removeCommand,
 	root: rootCommand,
 	"shell-init": shellInitCommand,
+	skills: skillsCommand,
 	status: statusCommand,
 	tree: treeCommand,
 };

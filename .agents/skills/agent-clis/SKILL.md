@@ -14,6 +14,7 @@ Keep CLI flags and arguments consistent across tools wherever possible. Before a
 - Put the short workflow and command composition in `--help`, with progressive detail in subcommand help. Keep usage knowledge beside the implementation rather than duplicating it in agent instructions.
 - Document output defaults, filters and explicit expansions where callers discover the command.
 - Expose machine-readable output schemas on demand, separately from routine results. Keep schemas aligned with the actual output.
+- Use [skills-handler](https://github.com/vercel-labs/skills-handler) to power a nested `<cli> skills ...` subcommand for bundled agent instructions. Follow Honeycomb's `skills list`, `skills get <name>`, and `skills file <name> <path>` pattern: list discovery metadata, return only the Markdown body for instructions, and load supporting resources on demand.
 
 ## Return focused defaults
 

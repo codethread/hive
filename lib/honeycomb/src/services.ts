@@ -6,6 +6,7 @@ import type {
 	WorktreeLocation,
 } from "./domain/config.ts";
 import type { Multiplexer } from "./integrations/multiplexer.ts";
+import type { SkillProvider } from "skills-handler";
 
 export interface GitResult {
 	/** Captured standard output. */
@@ -127,6 +128,8 @@ export interface CdDirective {
 }
 
 export interface Deps {
+	/** Bundled instruction catalogue and supporting resource reads. */
+	skills: SkillProvider;
 	/** Git process boundary. */
 	git: GitRunner;
 	/** Configuration loading and canonical path matching. */
