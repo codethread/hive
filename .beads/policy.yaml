@@ -5,7 +5,6 @@ workflow:
     - in_progress
     - in_review
     - blocked
-    - deferred
     - draft
     - closed
     - tombstone
