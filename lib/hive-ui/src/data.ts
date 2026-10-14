@@ -22,12 +22,14 @@ import {
 	provenanceSchema,
 	requestInventorySchema,
 } from "../contracts.ts";
+import { logKey, logQuerySchema, logResponseSchema } from "../log-contracts.ts";
+import type { LogQuery } from "../log-contracts.ts";
 import { beadFamilies } from "../hierarchy.ts";
 import { createStore } from "zustand/vanilla";
 import type { z } from "zod";
 
 const CACHE_MS = 10_000;
-let lastLoadKeys = { page: "", bead: "", ancestry: "" };
+let lastLoadKeys = { page: "", bead: "", ancestry: "", logs: "" };
 export type Resource<Value> =
 	| { kind: "empty" }
 	| { kind: "loading"; previous: Value | null }
@@ -59,6 +61,7 @@ export const details = createResource(detailSchema);
 export const hierarchies = createHierarchyResource();
 export const outlines = createResource(hierarchySchema);
 export const provenance = createResource(provenanceSchema);
+export const logs = createResource(logResponseSchema);
 export const preferences = createStore<Preferences>(() => ({
 	showWorkflowBeads: false,
 	outlineClosed: false,
@@ -152,6 +155,25 @@ export function loadProvenance(colony: string, id: string, fresh = false): Promi
 		fresh,
 	);
 }
+/** Selected-request evidence is read only by route selection and explicit log actions. */
+// eslint-disable-next-line max-params -- Match resource loaders with an explicit freshness action.
+export function loadLogs(
+	colony: string,
+	id: string,
+	query: Partial<LogQuery> = {},
+	fresh = false,
+): Promise<void> {
+	const selection = logQuerySchema.parse(query);
+	const search = new URLSearchParams();
+	for (const [name, value] of Object.entries(selection)) {
+		search.set(name, String(value));
+	}
+	return logs.load(
+		logKey(colony, id, selection),
+		`/api/colonies/${colony}/logs/${encodeURIComponent(id)}?${search}`,
+		fresh,
+	);
+}
 /** Route changes load only changed visible resources; selection never refreshes the board behind it. */
 // eslint-disable-next-line max-statements -- Compare resource identities before dispatching independent visible reads.
 export async function loadView(
@@ -171,11 +193,16 @@ export async function loadView(
 			scope.view === "beads" || navigation.ancestry === undefined
 				? ""
 				: `${colony}/${navigation.ancestry}`,
+		logs:
+			scope.view === "beads" || navigation.request === undefined
+				? ""
+				: logKey(colony, navigation.request, logQuerySchema.parse({})),
 	};
 	const changed = {
 		page: fresh || keys.page !== lastLoadKeys.page,
 		bead: fresh || keys.bead !== lastLoadKeys.bead,
 		ancestry: fresh || keys.ancestry !== lastLoadKeys.ancestry,
+		logs: fresh || keys.logs !== lastLoadKeys.logs,
 	};
 	lastLoadKeys = keys;
 	const work: Promise<void>[] = [];
@@ -197,6 +224,9 @@ export async function loadView(
 	}
 	if (changed.ancestry && keys.ancestry !== "" && navigation.ancestry !== undefined) {
 		work.push(loadProvenance(colony, navigation.ancestry, fresh));
+	}
+	if (changed.logs && keys.logs !== "" && navigation.request !== undefined) {
+		work.push(loadLogs(colony, navigation.request, {}, fresh));
 	}
 	await Promise.all(work);
 }

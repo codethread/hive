@@ -1287,3 +1287,35 @@ body:has(.inspector[open], .filter-drawer[open]) {
 	bottom: -10px;
 	border-left: 1px solid var(--line);
 }
+
+.bee-log-overlay {
+	position: fixed;
+	inset: 0;
+	z-index: 60;
+	background: rgb(0 0 0 / 60%);
+}
+.bee-log-dialog {
+	position: fixed;
+	inset: 4vh max(1rem, calc((100vw - 72rem) / 2));
+	z-index: 61;
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+	border: 1px solid var(--color-line);
+	border-radius: 0.75rem;
+	background: var(--color-canvas);
+	color: var(--color-ink);
+	box-shadow: 0 20px 80px rgb(0 0 0 / 30%);
+}
+.bee-log-raw {
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+	font-size: 0.75rem;
+	line-height: 1.6;
+}
+@media (width <= 760px) {
+	.bee-log-dialog {
+		inset: 0;
+		border-radius: 0;
+	}
+}

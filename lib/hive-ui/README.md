@@ -38,6 +38,18 @@ bun run --cwd lib/hive-ui start --colonies /absolute/path/to/colonies.json
 
 The switcher queries only the selected colony. Filters and card selection are remembered per colony for the browser session. No daemon registration or discovery is required.
 
+## Reading Bee logs
+
+Log viewing also needs the existing `colony` CLI on PATH. The server calls its read-only inspection command for the configured repository/database and reads only the selected attempt’s retained files. With the default Colony server selection, no extra flags are needed. To select existing state explicitly, use `--state /absolute/path/to/colony-state`; an explicit `--socket /absolute/path/to/colony.sock` also requires `--state`. These options select inspection evidence and do not start or wake a daemon.
+
+For `--colonies`, set the inspection target on each entry with `"inspection": { "state": "/absolute/path/to/colony-state", "socket": "/absolute/path/to/colony.sock" }`; omit `socket` to use that state’s default socket, or omit `inspection` for the public defaults. Global `--state` and `--socket` apply to single-colony startup; multi-colony targets come from their entries. Unavailable inspection produces a visible log error while the work board remains available.
+
+Select a Bee to load a compact **Bee log preview** of its last five complete stdout entries. Only the selected request is read. Choose a retained **Attempt** to inspect an earlier retry, or use **Current / latest attempt**. **Refresh preview** rereads that selection; the main **Refresh** also rereads the selected request preview. Nothing polls for new output.
+
+Use **Open full timeline** for the larger accessible timeline. Entries stay in source order and show their native timestamp, or **Time unavailable** when none was recorded. **Load next page** continues through all complete retained entries. **Show raw details** displays inert text; **Load more raw details** continues long entries. Choose **stderr diagnostics** separately from stdout. **Refresh timeline** starts again at the first page; close with **Close** or **Escape**. Changing requests or attempts starts a separate timeline.
+
+No launch, missing files, empty output, unavailable inspection and an incomplete final line are reported visibly. Refresh after a line finishes to read it. Logs are retained evidence, not a process-health probe.
+
 ## Reading the board
 
 Status choices combine the seven standard UI statuses with `workflow.statuses` from `policy.yaml` beside each colony's selected database. The server reads policy at startup; restart it after changing the policy. Custom statuses such as `in_review` appear as readable filter and column names and are retained in URLs and saved views. A missing policy uses the standard UI statuses; malformed YAML or status configuration stops startup with an error.

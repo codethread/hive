@@ -18,6 +18,7 @@ import {
 	inventories,
 	loadColonies,
 	loadView,
+	logs,
 	outlines,
 	preferences,
 	provenance,
@@ -76,6 +77,7 @@ export function resetStoryState(): void {
 	inventories.store.setState({ entries: {} });
 	outlines.store.setState({ entries: {} });
 	provenance.store.setState({ entries: {} });
+	logs.store.setState({ entries: {} });
 	preferences.setState({
 		showWorkflowBeads: false,
 		outlineClosed: false,

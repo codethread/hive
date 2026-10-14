@@ -11,6 +11,8 @@ The nested [Hive UI glossary](../../lib/hive-ui/GLOSSARY.md) owns the canonical 
 | Canonical name | Story title | Key components |
 | --- | --- | --- |
 | Bee graph | `Bees/Bee graph` | `BeeGraph` |
+| Bee log preview | `Bees/Bee log preview` | `BeeLogs` |
+| Bee log timeline | `Bees/Bee log timeline` | `BeeLogTimeline` |
 | Bee workspace | `Bees/Bee workspace` | `BeeWorkspace` |
 | Bead card | `Beads/Bead card` | `BeadCard` |
 | Bead board | `Beads/Bead board` | `BeadBoard` |
@@ -83,13 +85,14 @@ Bees shows requests in an Outline or Graph, defaulting to Outline. Its separate 
 | Bead detail | One selected ID; includes its description, native acceptance criteria, comments and up to 50 relationship summaries per direction with full counts. Native `show` already supplies outgoing dependencies and incoming dependents; the separate hierarchy resource does not block these details. Bee views reuse their scoped inventory for requested-work context. Assignment badges use the open inventory in every view, including Completed, only when the selected task is assigned and in progress. |
 | Native bead hierarchy | Complete families for the visible Beads page or selected inspector; explicit descendant subtree for an outline. Typed edge reads and scoped row batches avoid full-record hydration. The [UI guide](../../lib/hive-ui/README.md#reading-the-board) documents caching, loading states and membership. |
 | Workflow provenance | Board, family and outline card projection each query exact `system` + `busybee-checkpoint` labels with closed records included. One native list reads all retained workflow system descriptions, without a page bound or cache; it projects only Busy Bee's public `id` and `created[].bead` identity slice. |
+| Bee logs | Selected request preview (last five complete stdout entries); explicit attempt, timeline (50 entries/page), raw details (bounded chunks), stderr and refresh reads. Existing read-only Colony inspection binds retained paths server-side. No board-wide reads or polling. |
 | Provenance | Explicit request or bead-inspector action; requester-assignee query includes closed history, at most three ambiguity candidates and eight ancestry steps. |
 
 Native `br list` does not supply related task edges, so each requested inventory page requires one batched `br show` to discover membership and recorded observations. This is a bounded cost on the selected colony, not a full-history hydration. Native results contain more fields than the browser needs; the server projects away recipes/prompts and board descriptions/comments. Measure before adding a new native projection API.
 
 Workflow provenance is a separate producer-owned read contract. The index includes run, visit and grouping identities from retained workflow system JSON, including closed history; it does not interpret actor snapshots. `isWorkflowGenerated` describes broad creation provenance, independently of whether a record is actionable workflow auto work. Agent-created nested tasks remain unmarked. The header's **Show workflow beads** control defaults off and hides generated records after native task pagination, so a visible page can contain fewer than 60 cards. Manual tasks are promoted past hidden ancestors for board presentation; inspector and outline retain the complete native hierarchy. Toggling visibility performs no new native reads.
 
-All reads use the injected `@hive/beads` service, composed with the native adapter in production and auto-import/export disabled. Repeated label groups go straight to `--label`, `--label-any`, and `--exclude-label`; labels are case-sensitive and commas remain literal. `system` and `bee` are always excluded from task results. The label picker contains labels on the loaded page; exact labels can also be entered manually. It never presents whole-tracker label counts as board counts.
+All tracker reads use the injected `@hive/beads` service, composed with the native adapter in production and auto-import/export disabled. Repeated label groups go straight to `--label`, `--label-any`, and `--exclude-label`; labels are case-sensitive and commas remain literal. `system` and `bee` are always excluded from task results. The label picker contains labels on the loaded page; exact labels can also be entered manually. It never presents whole-tracker label counts as board counts.
 
 Acceptance criteria render through `react-markdown` with `remark-gfm`, preserving native source text while displaying semantic lists and disabled task checkboxes. The renderer is mounted on demand when selected detail has criteria; raw HTML remains escaped and the default safe URL transform is retained. This adds no data reads or changes to route/store ownership.
 
@@ -129,8 +132,16 @@ Ordinary-bead footers show native assignment and update time. A shared agent ico
 
 ## Diagnostics and quality
 
-Every browser data call, server API request and native invocation emits a structured sample, including failures. Request IDs connect layers; timing, outcome and payload size reveal waste. Human-mode server logs go to stderr; machine startup requires an explicit log file and keeps stderr silent. Browser logs are visible in developer tools. The UI has no telemetry service, log viewer or rotating storage subsystem.
+Every browser data call, server API request and native invocation emits a structured sample, including failures. Request IDs connect layers; timing, outcome and payload size reveal waste. Human-mode server logs go to stderr; machine startup requires an explicit log file and keeps stderr silent. Browser logs are visible in developer tools. The UI has no telemetry service or rotating storage subsystem.
 
 Oxlint provides React, hooks and JSX accessibility rules as built-in plugins; separate ESLint plugins are unnecessary. Web-specific rule configuration and `oxlint-tsgolint` type-aware checks are scoped to the UI. See [Oxlint plugins](https://oxc.rs/docs/guide/usage/linter/plugins).
 
 Production verification combines focused hierarchy/projection tests, native-versus-memory Beads conformance, the repository check, standalone build, and browser checks for desktop/narrow layouts, navigation, refresh failures and native-call timings. The original prototype had no automated tests; the production handover adds behavior coverage.
+
+## Bee log preview and timeline
+
+Selecting one request loads its last five complete stdout entries into the Bee log preview. The route owns this read independently of board filters and presentation; Outline/Graph and local search do not reread logs. Refresh preview reads only the chosen attempt. The main Refresh also reloads the selected request preview.
+
+Open full timeline uses an accessible dialog with bounded chronological pages. Attempt selection, stream selection, page loading, raw-detail expansion and refresh are explicit event actions; render and effects do not fetch. Timeline and raw resource keys include colony, request, retained attempt, stream and byte range. Changing the selected request or attempt resets the dialog; changing streams or refreshing the timeline resets pages and detail expansion. Latest-preview changes cannot combine attempts in an already open timeline.
+
+Native metadata is decoded one complete source entry at a time, including large entries; only summaries and explicit raw-detail chunks go to the browser. Native timestamps are shown as supplied; absent timestamps say Time unavailable. Missing retained files, no launch, empty logs, unavailable inspection and incomplete final lines have separate visible states. stderr diagnostics remain a separate stream. Raw details are inert text and can be read completely through explicit bounded chunks. Stories exercise both palettes, more than one page, attempt selection, malformed/plain-text evidence and missing/native timestamps using the production resource boundary.

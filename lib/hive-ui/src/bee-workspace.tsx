@@ -5,6 +5,7 @@ import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { ancestryEnding, beeScene } from "./bee-scene.ts";
 import { graphRuntime, loadGraph } from "./graph-loader.ts";
 import { useCallback, useMemo } from "react";
+import { BeeLogs } from "./bee-logs.tsx";
 import type { BeeScene } from "./bee-scene.ts";
 import { BeeSearch } from "./board-search.tsx";
 import type { GraphProps } from "./graph-loader.ts";
@@ -137,7 +138,19 @@ export function BeeWorkspace({
 					aria-label="Selected bee request"
 				>
 					{selected ? (
-						<RequestSummary bee={selected} board={board} colonyId={colonyId} ancestry={ancestry} />
+						<>
+							<RequestSummary
+								bee={selected}
+								board={board}
+								colonyId={colonyId}
+								ancestry={ancestry}
+							/>
+							<BeeLogs
+								key={`${colonyId}/${selected.id}`}
+								colonyId={colonyId}
+								requestId={selected.id}
+							/>
+						</>
 					) : (
 						<div className="py-8 text-sm text-muted">
 							<h2 className="mb-2 font-medium text-ink">Select a bee request</h2>

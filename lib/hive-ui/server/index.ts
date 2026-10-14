@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+/* eslint-disable import/max-dependencies -- Application entry composes native/file adapters and the HTTP contract. */
 import { Command, CommanderError } from "commander";
 import {
 	PAGE_SIZE,
@@ -8,15 +9,19 @@ import {
 } from "../contracts.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Resolve explicitly configured local repository endpoints.
 import { basename, resolve } from "node:path";
+import { createLogData, readRetainedLog } from "./logs.ts";
+import { execute, resolveRepository } from "@hive/shared";
 import type { BeadsService } from "@hive/beads";
 import type { Colony } from "../contracts.ts";
+import type { InspectionTarget } from "./log-inspection.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Explicit machine-mode diagnostics file boundary.
 import { appendFile } from "node:fs/promises";
 import { createBoardData } from "./data.ts";
+import { createColonyInspector } from "./log-inspection.ts";
 import { createNativeBeads } from "@hive/beads";
 import index from "../src/index.html";
+import { logQuerySchema } from "../log-contracts.ts";
 import { readStatuses } from "./statuses.ts";
-import { resolveRepository } from "@hive/shared";
 import { z } from "zod";
 
 const HTTP = {
@@ -28,9 +33,30 @@ const HTTP = {
 };
 const MAX_PORT = 65_535;
 const ENDPOINT_ID_LENGTH = 16;
+const inspectionPathSchema = z
+	.string()
+	.min(1)
+	.transform((path) => resolve(path));
+const inspectionTargetSchema = z
+	.object({ state: inspectionPathSchema.optional(), socket: inspectionPathSchema.optional() })
+	.refine(
+		(value) => value.socket === undefined || value.state !== undefined,
+		"A socket requires explicit state.",
+	);
 const configSchema = z
-	.array(z.object({ beadsDb: z.string().min(1), name: z.string().min(1), root: z.string().min(1) }))
+	.array(
+		z.object({
+			beadsDb: z.string().min(1),
+			name: z.string().min(1),
+			root: z.string().min(1),
+			inspection: inspectionTargetSchema.default({}),
+		}),
+	)
 	.min(1);
+interface ConfiguredColony extends Colony {
+	/** Server-owned inspection selection, never a browser filesystem input. */
+	inspection: InspectionTarget;
+}
 const optionsSchema = z.object({
 	beadsDb: z.string().optional(),
 	colonies: z.string().optional(),
@@ -39,11 +65,14 @@ const optionsSchema = z.object({
 	logFile: z.string().optional(),
 	port: z.coerce.number().int().min(0).max(MAX_PORT),
 	repo: z.string(),
+	state: z.string().min(1).optional(),
+	socket: z.string().min(1).optional(),
 });
 const idSchema = z.string().regex(/^[\da-z][\w.-]*$/iu);
 const apiRoute = new RegExp(
 	/^\/api\/colonies\/(?<colony>[^/]+)\//u.source +
-		/(?<operation>board|beads|provenance|inventory|outline|hierarchy)(?:\/(?<id>[^/]+))?$/u.source,
+		/(?<operation>board|beads|provenance|inventory|outline|hierarchy|logs)(?:\/(?<id>[^/]+))?$/u
+			.source,
 	"u",
 );
 
@@ -66,6 +95,8 @@ async function main(): Promise<void> {
 		.option("--port <number>", "HTTP port (0 chooses a free port)", "4318")
 		.option("--json", "Emit one JSON startup result (requires --log-file)")
 		.option("--log-file <path>", "Write server/native diagnostics to this file instead of stderr")
+		.option("--state <directory>", "Existing Colony state selection for lazy log inspection")
+		.option("--socket <path>", "Existing Colony socket for log inspection (requires --state)")
 		.addHelpText(
 			"after",
 			"\nRun hive-ui, or use bun run start from lib/hive-ui during " +
@@ -143,12 +174,15 @@ async function main(): Promise<void> {
 	}
 }
 
-async function readColonies(options: z.infer<typeof optionsSchema>): Promise<Colony[]> {
+async function readColonies(options: z.infer<typeof optionsSchema>): Promise<ConfiguredColony[]> {
 	if (options.colonies !== undefined) {
 		const entries = configSchema.parse(await Bun.file(resolve(options.colonies)).json());
 		return Promise.all(
 			entries.map(async (entry) =>
-				colony(await resolveRepository(entry.root, entry.beadsDb), entry.name),
+				Object.assign(
+					await colony(await resolveRepository(entry.root, entry.beadsDb), entry.name),
+					{ inspection: entry.inspection },
+				),
 			),
 		);
 	}
@@ -156,7 +190,8 @@ async function readColonies(options: z.infer<typeof optionsSchema>): Promise<Col
 		throw new Error("Select --beads-db (or BEADS_DB), or provide --colonies.");
 	}
 	const endpoint = await resolveRepository(options.repo, options.beadsDb);
-	return [await colony(endpoint, basename(endpoint.root))];
+	const inspection = inspectionTargetSchema.parse({ state: options.state, socket: options.socket });
+	return [{ ...(await colony(endpoint, basename(endpoint.root))), inspection }];
 }
 
 async function colony(endpoint: { root: string; beadsDb: string }, name: string): Promise<Colony> {
@@ -179,7 +214,7 @@ async function api(
 	}: {
 		host: string;
 		beads: BeadsService;
-		colonies: Colony[];
+		colonies: ConfiguredColony[];
 		data: ReturnType<typeof createBoardData>;
 		log: (sample: object) => Promise<void>;
 	},
@@ -212,7 +247,7 @@ async function api(
 			throw new Error("Use the local UI address.");
 		}
 		if (url.pathname === "/api/colonies") {
-			return respond({ colonies });
+			return respond({ colonies: colonies.map(({ inspection: _inspection, ...entry }) => entry) });
 		}
 		const route = apiRoute.exec(url.pathname)?.groups;
 		const selected = colonies.find((entry) => entry.id === route?.["colony"]);
@@ -251,6 +286,19 @@ async function api(
 		}
 		status = HTTP.badRequest;
 		const id = idSchema.parse(decodeURIComponent(route["id"] ?? ""));
+		if (route["operation"] === "logs") {
+			const query = logQuerySchema.parse(Object.fromEntries(url.searchParams));
+			const inspect = createColonyInspector(
+				{
+					execute: (argv, cwd) => execute(argv, cwd, process.env),
+					log: (sample) => log({ ...sample, requestId }),
+				},
+				selected.inspection,
+			);
+			const read = createLogData({ inspect, read: readRetainedLog });
+			status = HTTP.ok;
+			return respond(await read(selected, id, query));
+		}
 		const scope = boardScopeSchema.parse(JSON.parse(url.searchParams.get("scope") ?? "{}"));
 		status = HTTP.ok;
 		if (route["operation"] === "outline") {

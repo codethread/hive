@@ -14,11 +14,12 @@ import {
 	hierarchy,
 } from "./fixtures.ts";
 import { boardFilterSchema, inventoryFilterSchema } from "../../contracts.ts";
-
+import { logHandler } from "./log-fixtures.ts";
 import { z } from "zod";
 
 /** Only fixture responses are served; no Storybook action reaches a native tracker. */
 export const handlers = [
+	logHandler,
 	http.get("/api/colonies", () => HttpResponse.json({ colonies: [colony] })),
 	...beadHandlers(hierarchy, fixtureDetail),
 	http.get("/api/colonies/:colony/inventory", ({ request }) => {

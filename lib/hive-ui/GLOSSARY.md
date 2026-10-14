@@ -4,6 +4,10 @@ Presentation vocabulary nested under the [shared Hive glossary](../../GLOSSARY.m
 
 ## Bees
 
+**Bee log preview**: The selected request’s last five complete stdout entries for one retained attempt.
+
+**Bee log timeline**: The explicit expanded view of one attempt’s chronological retained events, separate stderr diagnostics and inert raw details.
+
 **Bee graph**: A spatial view of loaded Bee requests and requester provenance. _Avoid_: Graph bee view, agent tree.
 
 **Bee workspace**: The request browsing surface with Outline and Graph presentations, a shared selection and linked work.
