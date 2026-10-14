@@ -36,6 +36,7 @@ const titles = {
 	comments: "Verify and act on PR feedback",
 	finish: "Integrate the approved work",
 	verify: "Verify integration and clean up the worktree",
+	"local-update": "Build and update local tools",
 	publish: "Record landing completion evidence",
 	report: "Deliver the landing report to the caller",
 };
@@ -63,6 +64,7 @@ type Choice = keyof typeof events;
 type TraceStep = readonly [Stage, Choice];
 const completion: TraceStep[] = [
 	["verify", "next"],
+	["local-update", "next"],
 	["publish", "next"],
 	["report", "next"],
 ];
@@ -251,11 +253,37 @@ test("Land retains caller scope and failure handoff independently of its final v
 	}
 });
 
+test("Land requires a verified local build and installation before completion evidence", () => {
+	const [triage] = initialTransition(
+		machine,
+		landingInput("/selected/beads.db", "/surviving", worktreeTarget),
+	);
+	const verify = advanceChart(triage, "integrated");
+	const update = advanceChart(verify, "next");
+	expect(update).toMatchObject({ status: "active", value: "local-update" });
+	const task = landingTask(update);
+	expect(task.commands).toEqual({ next: "NEXT" });
+	expect(task.instructions).toMatch(
+		/bun install --frozen-lockfile.*bun run --filter '\*' build.*bun run --filter '\*' install:bin/u,
+	);
+	for (const requirement of [
+		"canonicalRoot on clean synchronized main",
+		"Only after the full build succeeds",
+		"every installed artifact matches its fresh package dist/ build",
+		"user's PATH",
+		"keeps this task open with diagnostics",
+	]) {
+		expect(task.instructions).toContain(requirement);
+	}
+	expect(advanceChart(update, "next").value).toBe("publish");
+});
+
 test("the actual Land completion visits deliver evidence before the caller tail", () => {
 	const input = landingInput("/selected/beads.db", "/surviving", worktreeTarget);
 	const [triage] = initialTransition(machine, input);
 	const verify = advanceChart(triage, "integrated");
-	const publish = advanceChart(verify, "next");
+	const update = advanceChart(verify, "next");
+	const publish = advanceChart(update, "next");
 	expect(landingTask(publish).instructions).toContain(
 		"Keep external tasks open until Busy Bee reports this run done",
 	);
@@ -347,7 +375,7 @@ async function closureFixture({ caller, completeParent }: (typeof closureCases)[
 	);
 	// Each frontier depends on collection of the preceding visit.
 	/* eslint-disable no-await-in-loop */
-	for (const choice of ["integrated", "next", "next"]) {
+	for (const choice of ["integrated", "next", "next", "next"]) {
 		const stage = run.active[FIRST]!.bead;
 		await recordResult({ id: run.id, bead: stage, choice, data: outcome }, {}, io);
 		await beads.close(scope, stage);

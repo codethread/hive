@@ -23,7 +23,7 @@ Triage --> Implement --> Check --> Local review --> Commit
    |                                            |      v
    +-- already integrated ------------------> Verify <- Integrate
                                                  |
-                                        Cleanup, evidence, report
+                                  Cleanup, local update, evidence, report
                                                  |
                                       Busy Bee closes the run
                                                  |
@@ -58,7 +58,9 @@ Recheck explicit authorization, current reviewed content and applicable merge ga
 
 Retain source and actual integration commits; squash/rebase landing needs content/PR correspondence rather than source-SHA ancestry. Verify clean synchronized canonical `main` and required checks. Use Honeycomb for any remaining worktree cleanup, with integration proof; preserve the permanent `tracker/state` checkout. If cleanup removes the source, continue from the surviving checkout with retained `BEADS_DB` and an unchanged named workflow definition. Check that definition is available before removal.
 
-Record source/integration commits, review receipt, passing checks, cleanup and per-task acceptance evidence on the Land run and authorized scope beads before the final stage closes. The retained run brief contains the authorized `completedTasks`, canonical checkout, tracker endpoint and caller completion instructions; its comments retain evidence independently of the final visit.
+After integration verification and cleanup, complete the definition's required local-update stage from canonical `main`: install locked dependencies, build every workspace, then install all artifacts only after the full build succeeds. Follow [CLI artifacts](../../../lib/tooling/README.md#cli-artifacts) for installation and service restart guidance. Verify installed artifacts, executable permissions, the user's PATH resolution and CLI smoke checks. A failed update keeps landing open; record any coordinated service-restart deferral separately from installed-binary verification.
+
+Record source/integration commits, review receipt, passing checks, local build/install verification, cleanup and per-task acceptance evidence on the Land run and authorized scope beads before the final stage closes. The retained run brief contains the authorized `completedTasks`, canonical checkout, tracker endpoint and caller completion instructions; its comments retain evidence independently of the final visit.
 
 The standalone Land caller or Land driver carrying the same explicit user authorization owns the post-done tail:
 
@@ -69,4 +71,4 @@ The standalone Land caller or Land driver carrying the same explicit user author
 
 Local stage handoffs stay local. Tracker publication never substitutes for code integration. If closure or publication fails after done, inspect partial effects and record the exact remaining external task/operation, blocker and required next action on the run and unfinished scope beads. Leave those tasks open and report the blocked handoff (`bee finish blocked --reason "…"` where applicable). Keep the completed run done: it has no unfinished anchor for `bee retry`; do not reopen or blindly replace it. On synchronization conflict stop tracker work and follow repository recovery guidance without forcing claims or publication.
 
-Report what landed, verification, cleanup and publication evidence. Done requires clean synchronized main containing the intended work, passing checks, accepted tracker completion and no leftovers from this work. Failed integration, cleanup or publication remains incomplete; preserve unrelated work. A post-merge defect needs an agreed forward fix or revert, not an automatic rewrite of main.
+Report what landed, verification, cleanup and publication evidence. Done requires clean synchronized main containing the intended work, passing checks, verified local tools, accepted tracker completion and no leftovers from this work. Failed integration, local update, cleanup or publication remains incomplete; preserve unrelated work. A post-merge defect needs an agreed forward fix or revert, not an automatic rewrite of main.

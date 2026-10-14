@@ -118,7 +118,7 @@ export function runBrief(input: LandingInput): { description: string; title: str
 			`${input.canonicalRoot} and selected tracker ` +
 			`${input.beadsDb}. Authorized completedTasks: ` +
 			`${input.completedTasks.join(", ") || "No task closures requested"}. ` +
-			"Record final integration, acceptance, checks and cleanup evidence in this " +
+			"Record final integration, acceptance, checks, local update and cleanup evidence in this " +
 			"run's comments before its final visit closes; retain the source commits " +
 			"and review receipt there too. Starting this workflow is not authorization " +
 			`to land.\n\n${callerCompletion}`,
@@ -469,6 +469,47 @@ export const machine = setup({
 				}),
 			},
 			on: {
+				NEXT: { actions: "recordEvidence", target: "local-update" },
+			},
+		},
+		"local-update": {
+			meta: {
+				title: "Build and update local tools",
+				commands: { next: "NEXT" },
+				task: ({ context }: { context: LandingContext }) => ({
+					title: `Build and update local tools: ${targetTitle(context)}`,
+					instructions:
+						"From the retained canonicalRoot on clean synchronized main, record " +
+						"the integrated HEAD being installed. Refresh dependencies with " +
+						"`bun install --frozen-lockfile`, then run `bun run --filter '*' build` " +
+						"for every workspace, not just changed packages. Only after the full " +
+						"build succeeds, run `bun run --filter '*' install:bin` to replace " +
+						"the installed executables in ~/.local/bin. Use the existing artifact " +
+						"installer described in lib/tooling/README.md; it copies standalone " +
+						"artifacts rather than linking commands to a disposable worktree. " +
+						"Keep all Colony companion executables together. Do not run tracker " +
+						"bootstrap or publish tracker state in this step.\n\nVerify every " +
+						"installed artifact matches its fresh package dist/ build, is " +
+						"executable, and resolves to that installation on the user's PATH " +
+						"rather than an older shadowing command. Smoke-test the public CLIs " +
+						"with their documented help/read-only commands, including Busy Bee " +
+						"loading the land definition from the canonical checkout. Installation " +
+						"updates future invocations, not running processes: inspect running " +
+						"Hive services and follow their documented deliberate restart " +
+						"procedure when needed. Coordinate restarts that affect active work; " +
+						"record any deferred restart and its owner without claiming the " +
+						"running service was refreshed.\n\nA failed dependency install, build, " +
+						"installation or smoke check keeps this task open with diagnostics " +
+						"and the next action; do not continue after a failed command. Inspect " +
+						"partial installation before retrying. A post-merge code defect needs " +
+						"an agreed forward fix or revert, not edits to main. Choose next only " +
+						"after all artifacts are built, installed and verified and canonical " +
+						"main remains clean and synchronized. Record revision, commands, " +
+						"installation paths, artifact comparisons, smoke results and service " +
+						`restart disposition before closure.\n\n${retainedContext(context)}`,
+				}),
+			},
+			on: {
 				NEXT: { actions: "recordEvidence", target: "publish" },
 			},
 		},
@@ -481,7 +522,8 @@ export const machine = setup({
 					instructions:
 						"From a surviving configured code checkout retain beadsDb via " +
 						"BEADS_DB or native --db. Record integration commits, review receipt, " +
-						"passing checks, cleanup and per-task acceptance evidence in comments " +
+						"passing checks, local build/install verification, cleanup and per-task " +
+						"acceptance evidence in comments " +
 						"on this stage, the run and the authorized completedTasks. Identify " +
 						"which task closures are proven and any tasks that must remain open. " +
 						"The structural parent does not expand completedTasks; broader parents " +
@@ -505,7 +547,7 @@ export const machine = setup({
 					title: `Deliver the landing report to the caller: ${targetTitle(context)}`,
 					instructions:
 						"Record what landed, integration/source commits, review receipt, " +
-						"verification, cleanup and unresolved work in comments on this stage " +
+						"verification, local update, cleanup and unresolved work in comments on this stage " +
 						"and the run. State which authorized tasks are proven complete; task " +
 						"closure and final publication remain the caller's post-done work. " +
 						"Distinguish simulated traversal from actual integration. Validate " +
