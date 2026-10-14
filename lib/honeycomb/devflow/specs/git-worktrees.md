@@ -219,18 +219,23 @@ Repositories may resolve an optional `pre_remote_check` Bash snippet from matchi
 - require the target/canonical checkout to be clean and up to date according to the active add freshness policy;
 - never force-push;
 - do not clean up the source worktree unless integration and any configured push both succeed;
-- stop on conflicts and leave resolution to the user.
+- check conflict safety before changing the canonical HEAD, index or worktree, including before `fresh_canonical` advancement;
+- refuse merge conflicts without changing canonical or pushing/cleaning up source work; leave resolution to the user.
 
 Supported strategies mirror common forge merge choices while preserving local determinism:
 
 | Strategy | Contract |
 | --- | --- |
 | `ff_only` | Move the target only if it can fast-forward to the source branch. |
-| `rebase_ff` | Rebase the source onto the target, then fast-forward the target. |
-| `squash` | Apply the source branch changes onto the target as one new commit. `--title` is required; `--body` is optional. |
-| `merge_commit` | Merge the source into the target with an explicit merge commit. |
+| `rebase_ff` | Rebase the source onto the resolved target before advancing canonical, then fast-forward the target. Conflicts remain in the source checkout for native rebase recovery. |
+| `squash` | Preview the merge, then apply the source branch changes onto the target as one new commit. `--title` is required; `--body` is optional. |
+| `merge_commit` | Preview the merge, then merge the source into the target with an explicit merge commit. |
 
 Squash integration is explicit: `--title` is required and `--body` is optional. The squash commit body is composed from the caller's body, the source branch, and every squashed commit message, oldest first, so breaking-change notes and per-commit context survive squashing. Strategies other than `squash` reject `--title` and `--body`.
+
+Merge previews use native `git merge-tree --write-tree` and attributes from the resolved target commit (`git --attr-source`). A conflict returns `blocked` / `conflict`, `integrated=false` and no cleanup actions. Other preview errors fail as Git errors before canonical mutation. To keep preview and integration consistent, `squash` and `merge_commit` refuse nonempty `branch.<target>.mergeOptions`, `pull.twohead` values other than `ort`, and any defined external `merge.<name>.driver`, including unused driver definitions. Remove the reported setting or integrate manually. Built-in merge settings and ordinary Git hooks remain enabled.
+
+This protects canonical from integration conflicts; it does not roll back arbitrary hook side effects or commit-hook failures. A rejected commit can leave cleanly merged changes staged for the user. Finish assumes exclusive use of the source and canonical checkouts during the operation.
 
 `finish` may optionally push the target branch, delete the finished branch, and clean up the worktree after successful integration when enabled by effective finish policy. Push rejection is a blocking result, not a reason to retry with force. Cleanup uses finish-aware safety: once a configured strategy has successfully integrated the source changes into the target, the source branch/worktree may be cleaned up even when the source branch is local-only or was squash-finished. Branch deletion requires cleaning up the source worktree in the same effective finish policy; otherwise finish blocks before integration. Standalone `remove` keeps its upstream-merge safety rules.
 

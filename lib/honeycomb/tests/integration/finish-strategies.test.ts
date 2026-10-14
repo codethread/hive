@@ -1,21 +1,25 @@
 import { EXIT_CODES, UsageError, dispatch } from "../../src/index";
+// oxlint-disable-next-line import/no-nodejs-modules -- Integration fixtures exercise real filesystem IO.
+import { chmod, readFile, writeFile } from "node:fs/promises";
 import {
 	commitFile,
 	commitOnRemoteDefault,
 	deps,
 	pathExists,
+	testDeps,
 	useOriginFixture,
 	writeConfig,
 } from "./support.ts";
 import { expect, test } from "bun:test";
+import { finishArgs, finishPolicy, readCheckoutState, readFinishState } from "./finish-helpers.ts";
 import { gitOut, gitSucceeds, gitText, useTmpHome } from "./lifecycle-helpers.ts";
+import { GitError } from "../../src/git/error.ts";
 // oxlint-disable-next-line import/no-nodejs-modules -- Integration fixtures exercise real filesystem IO.
 import { join } from "node:path";
-// oxlint-disable-next-line import/no-nodejs-modules -- Integration fixtures exercise real filesystem IO.
-import { readFile } from "node:fs/promises";
 
 const MERGE_COMMIT_AND_PARENTS = 3;
 const COMMIT_AND_PARENT = 2;
+const EXECUTABLE_MODE = 0o755;
 
 const tmp = useTmpHome("honeycomb-finish-strategies-test-");
 const { initRepoWithOrigin } = useOriginFixture();
@@ -24,7 +28,7 @@ async function prepareFinish(branch: string, policy = "") {
 	const { remote, root } = await initRepoWithOrigin(tmp.dir);
 	writeConfig({ command: "echo ready", copyToml: policy, root, tmp: tmp.dir });
 	await dispatch("add", ["--cwd", root, "--branch", branch, "--json"], deps);
-	return { remote, root, worktreePath: `${root}__${branch.replaceAll("/", "--")}` };
+	return { branch, remote, root, worktreePath: `${root}__${branch.replaceAll("/", "--")}` };
 }
 
 async function assertRebasedHistory(root: string, targetHead: string) {
@@ -52,18 +56,24 @@ async function assertConflictPreserved({
 }) {
 	expect(result.exitCode).toBe(EXIT_CODES.BLOCKED);
 	expect(JSON.parse(result.stdout ?? "{}")).toMatchObject({
+		cleanup_actions: [],
+		integrated: false,
 		kind: "blocked",
 		reason: "conflict",
 	});
 	expect(await gitOut(root, "rev-parse", "HEAD")).toBe(targetHead);
+	expect(await gitOut(root, "status", "--porcelain=v1")).toBe("");
+	expect(await gitOut(root, "write-tree")).toBe(await gitOut(root, "rev-parse", "HEAD^{tree}"));
+	expect(await gitOut(root, "ls-files", "--unmerged")).toBe("");
 	expect(await gitOut(root, "rev-parse", "refs/heads/feature/squash-conflict")).toBe(sourceHead);
 	expect(await pathExists(worktreePath)).toBe(true);
+	expect(await gitSucceeds(root, "rev-parse", "--verify", "MERGE_HEAD")).toBe(false);
 }
 
 test("merge_commit integrates source with an explicit merge commit", async () => {
 	const { root, worktreePath } = await prepareFinish(
 		"feature/merge-finish",
-		'[project.finish]\nstrategy = "merge_commit"\n',
+		finishPolicy("merge_commit"),
 	);
 	await commitFile({
 		content: "source\n",
@@ -71,72 +81,75 @@ test("merge_commit integrates source with an explicit merge commit", async () =>
 		path: "merge-source.txt",
 		repo: worktreePath,
 	});
-
-	const result = await dispatch("finish", ["--cwd", worktreePath, "--json"], deps);
-
+	const evidence = await installSuccessfulHook(root, "pre-merge-commit");
+	await configureBuiltinMerge(root);
+	const result = await dispatch("finish", finishArgs(worktreePath, "merge_commit"), deps);
 	expect(result.exitCode).toBe(EXIT_CODES.SUCCESS);
 	expect(JSON.parse(result.stdout ?? "{}")).toMatchObject({ strategy: "merge_commit" });
-	expect(await gitOut(root, "log", "-1", "--format=%s")).toBe("chore: merge worktree");
-	expect(await gitText(root, "log", "-1", "--format=%B")).toContain(
-		"Source branch:\nfeature/merge-finish",
-	);
-	const parents = await gitOut(root, "rev-list", "--parents", "-n", "1", "HEAD");
-	expect(parents.split(" ")).toHaveLength(MERGE_COMMIT_AND_PARENTS);
-	expect(await readFile(join(root, "merge-source.txt"), "utf8")).toBe("source\n");
+	await assertMergeHistory(root);
+	const hookCwd = await readFile(evidence, "utf8");
+	expect(hookCwd.trim()).toBe(root);
 });
-test("rebase_ff rebases source onto target then fast-forwards target", async () => {
-	const { root, worktreePath } = await prepareFinish(
-		"feature/rebase-finish",
-		'[project.finish]\nstrategy = "rebase_ff"\n',
-	);
-	await commitFile({
-		content: "source\n",
-		message: "source work",
-		path: "source-rebased.txt",
-		repo: worktreePath,
-	});
-	await commitFile({
-		content: "target\n",
-		message: "target work",
-		path: "target-base.txt",
-		repo: root,
-	});
-	const targetHead = await gitOut(root, "rev-parse", "HEAD");
-
-	const result = await dispatch("finish", ["--cwd", worktreePath, "--json"], deps);
-
-	expect(result.exitCode).toBe(EXIT_CODES.SUCCESS);
-	expect(JSON.parse(result.stdout ?? "{}")).toMatchObject({ strategy: "rebase_ff" });
-	await assertRebasedHistory(root, targetHead);
-});
-test("non-ff strategy conflict emits structured refusal", async () => {
-	const { root, worktreePath } = await prepareFinish(
-		"feature/squash-conflict",
-		'[project.finish]\nstrategy = "squash"\n',
-	);
-	await commitFile({
-		content: "source\n",
-		message: "source change",
-		path: "README.md",
-		repo: worktreePath,
-	});
-	await commitFile({
-		content: "target\n",
-		message: "target change",
-		path: "README.md",
-		repo: root,
-	});
-	const targetHead = await gitOut(root, "rev-parse", "HEAD");
-	const sourceHead = await gitOut(worktreePath, "rev-parse", "HEAD");
-
-	const result = await dispatch(
-		"finish",
-		["--cwd", worktreePath, "--title", "chore: squash conflicting work", "--json"],
-		deps,
-	);
-
-	await assertConflictPreserved({ result, root, sourceHead, targetHead, worktreePath });
-});
+test.each([{ fresh: false }, { fresh: true }])(
+	"rebase_ff rebases source before advancing target (fresh=$fresh)",
+	async ({ fresh }) => {
+		const fixture = await prepareFinish("feature/rebase-finish", finishPolicy("rebase_ff", fresh));
+		await commitFile({
+			content: "source\n",
+			message: "source work",
+			path: "source-rebased.txt",
+			repo: fixture.worktreePath,
+		});
+		const targetHead = await commitTargetChange(fixture, fresh, "target-base.txt");
+		const result = await dispatch("finish", finishArgs(fixture.worktreePath, "rebase_ff"), deps);
+		expect(result.exitCode).toBe(EXIT_CODES.SUCCESS);
+		expect(JSON.parse(result.stdout ?? "{}")).toMatchObject({ strategy: "rebase_ff" });
+		await assertRebasedHistory(fixture.root, targetHead);
+	},
+);
+test.each([{ fresh: false }, { fresh: true }])(
+	"rebase_ff replay conflict leaves canonical unchanged (fresh=$fresh)",
+	async ({ fresh }) => {
+		const fixture = await prepareReplayConflict(fresh);
+		const before = await readFinishState(fixture);
+		const sourceBefore = await readCheckoutState(fixture.worktreePath);
+		const result = await dispatch("finish", finishArgs(fixture.worktreePath, "rebase_ff"), deps);
+		await assertConflictPreserved({
+			...fixture,
+			result,
+			sourceHead: before.sourceBranchHead,
+			targetHead: before.canonical.head,
+		});
+		expect(await readFinishState(fixture)).toEqual(before);
+		expect(await gitOut(fixture.worktreePath, "ls-files", "--unmerged")).not.toBe("");
+		await gitOut(fixture.worktreePath, "rebase", "--abort");
+		expect(await readCheckoutState(fixture.worktreePath)).toEqual(sourceBefore);
+	},
+);
+test.each([
+	{ fresh: false, strategy: "squash" },
+	{ fresh: true, strategy: "squash" },
+	{ fresh: false, strategy: "merge_commit" },
+	{ fresh: true, strategy: "merge_commit" },
+])(
+	"$strategy modify/delete conflict protects canonical (fresh=$fresh)",
+	async ({ fresh, strategy }) => {
+		const fixture = await prepareModifyDeleteConflict(fresh, strategy);
+		const before = await readFinishState(fixture);
+		const sourceBefore = await readCheckoutState(fixture.worktreePath);
+		const result = await dispatch("finish", finishArgs(fixture.worktreePath, strategy), deps);
+		await assertConflictPreserved({
+			...fixture,
+			result,
+			sourceHead: before.sourceBranchHead,
+			targetHead: before.canonical.head,
+		});
+		expect(await readFinishState(fixture)).toEqual(before);
+		expect(await readCheckoutState(fixture.worktreePath)).toEqual(sourceBefore);
+		expect(await pathExists(join(fixture.root, "README.md"))).toBe(false);
+		expect(await readFile(join(fixture.worktreePath, "README.md"), "utf8")).toBe("source\n");
+	},
+);
 test("finish rejects CLI policy overrides before fresh_canonical mutates target", async () => {
 	const { remote, root, worktreePath } = await prepareFinish(
 		"feature/cli-policy-override",
@@ -154,7 +167,7 @@ test("finish rejects CLI policy overrides before fresh_canonical mutates target"
 		path: "remote-before-usage.txt",
 		remote,
 	});
-	const originalHead = await gitOut(root, "rev-parse", "HEAD");
+	const originalState = await readCheckoutState(root);
 
 	const { failure } = await dispatch(
 		"finish",
@@ -162,7 +175,7 @@ test("finish rejects CLI policy overrides before fresh_canonical mutates target"
 		deps,
 	);
 	expect(failure).toBeInstanceOf(UsageError);
-	expect(await gitOut(root, "rev-parse", "HEAD")).toBe(originalHead);
+	expect(await readCheckoutState(root)).toEqual(originalState);
 });
 test("configured finish strategy is not overridden by CLI", async () => {
 	const { root, worktreePath } = await prepareFinish(
@@ -175,6 +188,7 @@ test("configured finish strategy is not overridden by CLI", async () => {
 		path: "configured.txt",
 		repo: worktreePath,
 	});
+	const evidence = await installSuccessfulHook(root, "pre-commit");
 
 	const result = await dispatch(
 		"finish",
@@ -185,6 +199,38 @@ test("configured finish strategy is not overridden by CLI", async () => {
 	expect(result.exitCode).toBe(EXIT_CODES.SUCCESS);
 	expect(JSON.parse(result.stdout ?? "{}")).toMatchObject({ strategy: "squash" });
 	expect(await gitOut(root, "log", "-1", "--format=%s")).toBe("chore: configured squash");
+	const hookCwd = await readFile(evidence, "utf8");
+	expect(hookCwd.trim()).toBe(root);
+});
+test("merge preview errors fail loudly before fresh_canonical advancement", async () => {
+	const fixture = await prepareFinish("feature/preview-error", finishPolicy("squash", true));
+	await commitFile({
+		content: "source\n",
+		message: "source work",
+		path: "source.txt",
+		repo: fixture.worktreePath,
+	});
+	await commitTargetChange(fixture, true, "remote.txt");
+	const before = await readFinishState(fixture);
+	const failingDeps = testDeps({
+		git: {
+			run: deps.git.run,
+			runRaw: async (args, options) => {
+				if (args.includes("merge-tree")) {
+					return { exitCode: 129, stderr: "merge preview unavailable", stdout: "" };
+				}
+				return await deps.git.runRaw(args, options);
+			},
+		},
+	});
+	const result = await dispatch("finish", finishArgs(fixture.worktreePath, "squash"), failingDeps);
+	expect(result.failure).toBeInstanceOf(GitError);
+	expect(JSON.parse(result.stdout ?? "{}")).toMatchObject({
+		reason: "git_failed",
+		integrated: false,
+		cleanup_actions: [],
+	});
+	expect(await readFinishState(fixture)).toEqual(before);
 });
 test("fresh_canonical conflict refuses without first fast-forwarding target", async () => {
 	const { remote, root, worktreePath } = await prepareFinish(
@@ -203,7 +249,7 @@ test("fresh_canonical conflict refuses without first fast-forwarding target", as
 		path: "remote-fresh.txt",
 		remote,
 	});
-	const originalHead = await gitOut(root, "rev-parse", "HEAD");
+	const originalState = await readCheckoutState(root);
 
 	const result = await dispatch("finish", ["--cwd", worktreePath, "--json"], deps);
 
@@ -212,7 +258,7 @@ test("fresh_canonical conflict refuses without first fast-forwarding target", as
 		kind: "blocked",
 		reason: "conflict",
 	});
-	expect(await gitOut(root, "rev-parse", "HEAD")).toBe(originalHead);
+	expect(await readCheckoutState(root)).toEqual(originalState);
 	expect(await gitSucceeds(root, "show", "HEAD:remote-fresh.txt")).toBe(false);
 });
 test("non-fast-forward ff_only refuses without target modification", async () => {
@@ -229,7 +275,7 @@ test("non-fast-forward ff_only refuses without target modification", async () =>
 		path: "target-only.txt",
 		repo: root,
 	});
-	const targetHead = await gitOut(root, "rev-parse", "HEAD");
+	const targetState = await readCheckoutState(root);
 
 	const result = await dispatch("finish", ["--cwd", worktreePath, "--json"], deps);
 
@@ -238,7 +284,7 @@ test("non-fast-forward ff_only refuses without target modification", async () =>
 		kind: "blocked",
 		reason: "conflict",
 	});
-	expect(await gitOut(root, "rev-parse", "HEAD")).toBe(targetHead);
+	expect(await readCheckoutState(root)).toEqual(targetState);
 });
 
 test("fresh_canonical advances the target before squash integration", async () => {
@@ -271,3 +317,104 @@ test("fresh_canonical advances the target before squash integration", async () =
 	);
 	expect(await readFile(join(root, "source.txt"), "utf8")).toBe("source\n");
 });
+
+// --- Private functions ---
+
+async function installSuccessfulHook(root: string, name: string): Promise<string> {
+	const hook = join(root, ".git", "hooks", name);
+	const evidence = join(tmp.dir, name);
+	await writeFile(hook, `#!/bin/sh\npwd > "${evidence}"\n`);
+	await chmod(hook, EXECUTABLE_MODE);
+	return evidence;
+}
+
+async function configureBuiltinMerge(root: string): Promise<void> {
+	await gitOut(root, "config", "--add", "pull.twohead", "resolve");
+	await gitOut(root, "config", "--add", "branch.main.mergeOptions", "-s resolve");
+	await gitOut(root, "config", "--add", "pull.twohead", "ort");
+	await gitOut(root, "config", "--add", "branch.main.mergeOptions", "");
+	await gitOut(root, "config", "merge.renormalize", "true");
+	await gitOut(root, "config", "branch.feature/merge-finish.mergeOptions", "-s resolve");
+}
+
+async function assertMergeHistory(root: string): Promise<void> {
+	expect(await gitOut(root, "log", "-1", "--format=%s")).toBe("chore: merge worktree");
+	expect(await gitText(root, "log", "-1", "--format=%B")).toContain(
+		"Source branch:\nfeature/merge-finish",
+	);
+	const parents = await gitOut(root, "rev-list", "--parents", "-n", "1", "HEAD");
+	expect(parents.split(" ")).toHaveLength(MERGE_COMMIT_AND_PARENTS);
+	expect(await readFile(join(root, "merge-source.txt"), "utf8")).toBe("source\n");
+}
+
+async function commitTargetChange(
+	fixture: Awaited<ReturnType<typeof prepareFinish>>,
+	fresh: boolean,
+	path: string,
+): Promise<string> {
+	const change = { content: "target change\n", message: "target work", path };
+	if (fresh) {
+		await commitOnRemoteDefault({ ...change, remote: fixture.remote });
+		return await gitOut(fixture.remote, "rev-parse", "HEAD");
+	}
+	await commitFile({ ...change, repo: fixture.root });
+	return await gitOut(fixture.root, "rev-parse", "HEAD");
+}
+
+async function prepareReplayConflict(fresh: boolean) {
+	const fixture = await prepareFinish(
+		"feature/squash-conflict",
+		finishPolicy("rebase_ff", fresh, true),
+	);
+	await commitFile({
+		content: "temporary source change\n",
+		message: "source change",
+		path: "README.md",
+		repo: fixture.worktreePath,
+	});
+	await commitFile({
+		content: "hello\n",
+		message: "restore source file",
+		path: "README.md",
+		repo: fixture.worktreePath,
+	});
+	await commitFile({
+		content: "source\n",
+		message: "source addition",
+		path: "source-only.txt",
+		repo: fixture.worktreePath,
+	});
+	const targetHead = await commitTargetChange(fixture, fresh, "README.md");
+	await gitOut(fixture.root, "fetch", "origin");
+	// A tip merge is clean, but replaying the first source commit conflicts.
+	expect(
+		await gitSucceeds(fixture.root, "merge-tree", "--write-tree", targetHead, fixture.branch),
+	).toBe(true);
+	return fixture;
+}
+
+async function prepareModifyDeleteConflict(fresh: boolean, strategy: string) {
+	const fixture = await prepareFinish(
+		"feature/squash-conflict",
+		finishPolicy(strategy, fresh, true),
+	);
+	await commitFile({
+		content: "source\n",
+		message: "source change",
+		path: "README.md",
+		repo: fixture.worktreePath,
+	});
+	await commitFile({
+		content: "staged by a conflicted merge\n",
+		message: "source addition",
+		path: "source-only.txt",
+		repo: fixture.worktreePath,
+	});
+	await gitOut(fixture.root, "rm", "README.md");
+	await gitOut(fixture.root, "commit", "-m", "delete target file");
+	await gitOut(fixture.root, "push", "origin", "main");
+	if (fresh) {
+		await commitTargetChange(fixture, true, "remote.txt");
+	}
+	return fixture;
+}

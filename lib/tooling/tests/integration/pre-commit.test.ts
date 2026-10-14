@@ -87,13 +87,13 @@ test.each([
 		typecheckExit: success,
 	},
 ])(
-	"commit quality gates on $branch with lint=$lintExit and typecheck=$typecheckExit",
+	"pre-commit quality gates on $branch with lint=$lintExit and typecheck=$typecheckExit",
 	async ({ branch, commands, lintExit, typecheckExit }) => {
 		const root = await mkdtemp(join(tmpdir(), "hive commit hook "));
 		const env = environment(root, lintExit, typecheckExit);
 		try {
 			await prepare(root, branch, env);
-			const result = await run(["git", "commit", "-m", "checkpoint"], root, env);
+			const result = await run(["sh", ".git/hooks/pre-commit"], root, env);
 			expect(result.exitCode === success).toBe(lintExit === success && typecheckExit === success);
 			const log = await Bun.file(env.HOOK_LOG).text();
 			expect(log.trim().split("\n")).toEqual([...commands]);
@@ -142,7 +142,7 @@ test.each([
 	try {
 		await prepare(root, branch, env);
 		await stageSnapshot(root, env, { snapshot, mixed });
-		const result = await run(["git", "commit", "-m", "checkpoint"], root, env);
+		const result = await run(["sh", ".git/hooks/pre-commit"], root, env);
 		expect(result.exitCode === success).toBe(accepted);
 		const log = await Bun.file(env.HOOK_LOG).text();
 		expect(log.trim().split("\n")).toEqual([...commands]);

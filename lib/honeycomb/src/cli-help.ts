@@ -80,12 +80,19 @@ Use when:
 
 Notes:
   finish refuses the canonical root, requires a clean source worktree, fetches,
-  requires a clean/fresh target, and stops on conflicts. Strategy, push, worktree
+  requires a clean/fresh target, and checks conflicts before changing canonical,
+  including before fresh_canonical advancement. Conflicts prevent push/cleanup;
+  rebase_ff leaves conflicts in the source checkout for resolution or rebase --abort.
+  Strategy, push, worktree
   cleanup, and branch deletion all come from finish policy in config; use config
   explain to inspect the effective values. Valid strategies are ff_only,
   rebase_ff, squash, and merge_commit. The squash strategy requires --title and
   writes a commit body from --body, the source branch, and every source commit
   message; other strategies reject --title and --body.
+  Squash/merge previews require built-in ort: nonempty target branch mergeOptions,
+  pull.twohead other than ort, or any external merge driver definition are refused.
+  Remove the reported setting or integrate manually. Git hooks remain enabled;
+  commit-hook failures can leave cleanly merged changes staged.
 
 Cleanup:
   Configured remove_worktree removes regular worktrees or frees pooled slots only

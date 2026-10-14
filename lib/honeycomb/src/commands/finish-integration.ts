@@ -1,14 +1,21 @@
 import type { AddPolicy, FinishStrategy } from "../domain/config.ts";
 import {
+	BlockedError,
 	DirtyWorktreeError,
 	EXIT_CODES,
 	FinishConflictError,
 	TargetNotFreshError,
 	UsageError,
 } from "../errors.ts";
+import { GitError } from "../git/error.ts";
 import type { GitRunner } from "../services.ts";
 import type { Worktree } from "../domain/worktree.ts";
 import { assertCanonicalCanFastForward } from "../application/branches.ts";
+
+const MERGE_CONFLICT = 1;
+const CONFIG_NOT_FOUND = 1;
+const CONFIG_VALUE_OFFSET = 1;
+const CONFIG_KEY_START = 0;
 
 interface IntegrateOptions {
 	/** Canonical checkout receiving integrated changes. */
@@ -19,8 +26,10 @@ interface IntegrateOptions {
 	sourceBranch: string;
 	/** Source checkout used by the rebase strategy. */
 	sourcePath: string;
-	/** Ref that integration must update. */
+	/** Immutable target commit checked before canonical advancement. */
 	targetRef: string;
+	/** Canonical branch whose merge options affect integration. */
+	targetBranch: string;
 }
 
 /** Validated integration inputs: squash needs a caller title, other strategies none. */
@@ -48,22 +57,25 @@ export async function assertCleanSource(git: GitRunner, source: Worktree): Promi
 	}
 }
 
-export async function assertSourceCanFastForwardTarget(options: {
-	canonicalPath: string;
-	git: GitRunner;
-	sourceBranch: string;
-	targetRef: string;
-}): Promise<void> {
-	const canFastForward = await options.git.runRaw([
-		"-C",
-		options.canonicalPath,
-		"merge-base",
-		"--is-ancestor",
-		options.targetRef,
-		`refs/heads/${options.sourceBranch}`,
-	]);
-	if (canFastForward.exitCode !== EXIT_CODES.SUCCESS) {
-		throw new FinishConflictError("source branch cannot fast-forward target branch");
+/** Establish conflict safety before canonical advancement, rebasing only the source. */
+export async function prepareSourceIntegration(
+	options: IntegrateOptions,
+	integration: IntegrationPlan,
+): Promise<void> {
+	switch (integration.strategy) {
+		case "ff_only": {
+			await assertSourceCanFastForwardTarget(options);
+			return;
+		}
+		case "squash":
+		case "merge_commit": {
+			await assertPreviewableMergeConfig(options);
+			await previewMerge(options);
+			return;
+		}
+		case "rebase_ff": {
+			await rebaseSource(options);
+		}
 	}
 }
 
@@ -72,7 +84,8 @@ export async function integrateSource(
 	integration: IntegrationPlan,
 ): Promise<void> {
 	switch (integration.strategy) {
-		case "ff_only": {
+		case "ff_only":
+		case "rebase_ff": {
 			await integrateFastForward(options);
 			return;
 		}
@@ -82,10 +95,6 @@ export async function integrateSource(
 		}
 		case "merge_commit": {
 			await integrateMergeCommit(options);
-			return;
-		}
-		case "rebase_ff": {
-			await integrateRebase(options);
 		}
 	}
 }
@@ -131,6 +140,89 @@ export function parseIntegrationPlan(
 }
 // --- Private functions ---
 
+async function assertSourceCanFastForwardTarget(options: IntegrateOptions): Promise<void> {
+	const args = [
+		"-C",
+		options.canonicalPath,
+		"merge-base",
+		"--is-ancestor",
+		options.targetRef,
+		`refs/heads/${options.sourceBranch}`,
+	];
+	const canFastForward = await options.git.runRaw(args);
+	if (canFastForward.exitCode === MERGE_CONFLICT) {
+		throw new FinishConflictError("source branch cannot fast-forward target branch");
+	}
+	if (canFastForward.exitCode !== EXIT_CODES.SUCCESS) {
+		throw new GitError(args, canFastForward.stderr, canFastForward.exitCode);
+	}
+}
+
+async function previewMerge(options: IntegrateOptions): Promise<void> {
+	const args = [
+		"-C",
+		options.canonicalPath,
+		`--attr-source=${options.targetRef}`,
+		"merge-tree",
+		"--write-tree",
+		"--name-only",
+		options.targetRef,
+		`refs/heads/${options.sourceBranch}`,
+	];
+	const preview = await options.git.runRaw(args);
+	if (preview.exitCode === MERGE_CONFLICT) {
+		throw new FinishConflictError(`merge preview found conflicts:\n${preview.stdout.trim()}`);
+	}
+	if (preview.exitCode !== EXIT_CODES.SUCCESS) {
+		throw new GitError(args, preview.stderr, preview.exitCode);
+	}
+}
+
+async function assertPreviewableMergeConfig(options: IntegrateOptions): Promise<void> {
+	const args = [
+		"-C",
+		options.canonicalPath,
+		"config",
+		"--null",
+		"--get-regexp",
+		String.raw`^(branch\..*\.mergeoptions|pull\.twohead|merge\..*\.driver)$`,
+	];
+	const config = await options.git.runRaw(args);
+	if (config.exitCode === CONFIG_NOT_FOUND) {
+		return;
+	}
+	if (config.exitCode !== EXIT_CODES.SUCCESS) {
+		throw new GitError(args, config.stderr, config.exitCode);
+	}
+	assertMergeConfigSettings(config.stdout, options.targetBranch);
+}
+
+function assertMergeConfigSettings(records: string, targetBranch: string): void {
+	const settings = new Map(
+		records
+			.split("\0")
+			.filter((record) => record !== "")
+			.map((setting) => {
+				const separator = setting.indexOf("\n");
+				return [
+					setting.slice(CONFIG_KEY_START, separator),
+					setting.slice(separator + CONFIG_VALUE_OFFSET).trim(),
+				] as const;
+			}),
+	);
+	for (const [key, value] of settings) {
+		if (
+			(key === `branch.${targetBranch}.mergeoptions` && value !== "") ||
+			(key === "pull.twohead" && value !== "ort") ||
+			(key.startsWith("merge.") && key.endsWith(".driver"))
+		) {
+			throw new BlockedError(
+				`cannot safely preview finish with Git setting ${key}; remove it or integrate manually`,
+			);
+		}
+	}
+}
+
 async function integrateFastForward(options: IntegrateOptions): Promise<void> {
 	await options.git.run(["-C", options.canonicalPath, "merge", "--ff-only", options.sourceBranch]);
 }
@@ -145,24 +237,12 @@ async function integrateSquash(
 		sourceBranch: options.sourceBranch,
 		title: integration.title,
 	});
-	const merge = await options.git.runRaw([
-		"-C",
-		options.canonicalPath,
-		"merge",
-		"--squash",
-		options.sourceBranch,
-	]);
-	if (merge.exitCode !== EXIT_CODES.SUCCESS) {
-		throw new FinishConflictError("squash merge stopped with conflicts");
-	}
-	const commit = await options.git.runRaw(["-C", options.canonicalPath, "commit", "-m", message]);
-	if (commit.exitCode !== EXIT_CODES.SUCCESS) {
-		throw new FinishConflictError("squash commit failed");
-	}
+	await options.git.run(["-C", options.canonicalPath, "merge", "--squash", options.sourceBranch]);
+	await options.git.run(["-C", options.canonicalPath, "commit", "-m", message]);
 }
 
 async function integrateMergeCommit(options: IntegrateOptions): Promise<void> {
-	const merge = await options.git.runRaw([
+	await options.git.run([
 		"-C",
 		options.canonicalPath,
 		"merge",
@@ -171,17 +251,20 @@ async function integrateMergeCommit(options: IntegrateOptions): Promise<void> {
 		mergeCommitMessage(options.sourceBranch),
 		options.sourceBranch,
 	]);
-	if (merge.exitCode !== EXIT_CODES.SUCCESS) {
-		throw new FinishConflictError("merge stopped with conflicts");
-	}
 }
 
-async function integrateRebase(options: IntegrateOptions): Promise<void> {
-	const rebase = await options.git.runRaw(["-C", options.sourcePath, "rebase", options.targetRef]);
+async function rebaseSource(options: IntegrateOptions): Promise<void> {
+	const args = ["-C", options.sourcePath, "rebase", options.targetRef];
+	const rebase = await options.git.runRaw(args);
 	if (rebase.exitCode !== EXIT_CODES.SUCCESS) {
-		throw new FinishConflictError("rebase stopped with conflicts");
+		const unmerged = await options.git.run(["-C", options.sourcePath, "ls-files", "--unmerged"]);
+		if (unmerged.stdout !== "") {
+			throw new FinishConflictError(
+				`source rebase stopped with conflicts:\n${rebase.stderr.trim()}`,
+			);
+		}
+		throw new GitError(args, rebase.stderr, rebase.exitCode);
 	}
-	await options.git.run(["-C", options.canonicalPath, "merge", "--ff-only", options.sourceBranch]);
 }
 
 async function assertCanonicalFresh(

@@ -16,15 +16,16 @@ import type {
 import {
 	assertCleanSource,
 	assertFinishTargetReady,
-	assertSourceCanFastForwardTarget,
 	integrateSource,
 	parseIntegrationPlan,
+	prepareSourceIntegration,
 } from "./finish-integration.ts";
-import { detectOriginDefaultBranch, fastForwardCanonicalDefault } from "../application/branches.ts";
 import { finalizeReadyResult, parseOptions, parseOutputMode, requireOption } from "../protocol.ts";
 import { listWorktrees, resolveWorktreeContainingPath } from "../application/repository.ts";
 import type { Deps } from "../services.ts";
+import type { IntegrationPlan } from "./finish-integration.ts";
 import type { Worktree } from "../domain/worktree.ts";
+import { detectOriginDefaultBranch } from "../application/branches.ts";
 import { pushAndCleanup } from "./finish-cleanup.ts";
 import { runPreRemoteCheck } from "../application/hooks.ts";
 
@@ -74,7 +75,7 @@ interface FinishTargetInfo {
 	plan: FinishPolicyPlan;
 	/** Origin default branch name. */
 	targetBranch: string;
-	/** Ref that integration must update. */
+	/** Immutable target commit checked before canonical advancement. */
 	targetRef: string;
 }
 
@@ -196,20 +197,20 @@ async function prepareFinishTarget(
 	await assertCleanSource(deps.git, source.source);
 	await deps.git.run(["-C", source.canonical.path, "fetch", "origin"]);
 	const targetBranch = await detectOriginDefaultBranch(deps.git, source.canonical.path);
-	const targetRef = await assertFinishTargetReady({
+	const readyRef = await assertFinishTargetReady({
 		git: deps.git,
 		policy: source.explanation.addPolicy,
 		root: source.canonical.path,
 		targetBranch,
 	});
-	if (plan.strategy === "ff_only") {
-		await assertSourceCanFastForwardTarget({
-			canonicalPath: source.canonical.path,
-			git: deps.git,
-			sourceBranch: source.sourceBranch,
-			targetRef,
-		});
-	}
+	const targetCommit = await deps.git.run([
+		"-C",
+		source.canonical.path,
+		"rev-parse",
+		"--verify",
+		`${readyRef}^{commit}`,
+	]);
+	const targetRef = targetCommit.stdout.trim();
 	return { plan, targetBranch, targetRef };
 }
 
@@ -252,19 +253,7 @@ async function executeFinish(
 		request.body,
 	);
 	const target = await prepareFinishTarget(source, deps);
-	if (source.explanation.addPolicy === "fresh_canonical") {
-		await fastForwardCanonicalDefault(deps.git, source.canonical.path, target.targetBranch);
-	}
-	await integrateSource(
-		{
-			canonicalPath: source.canonical.path,
-			git: deps.git,
-			sourceBranch: source.sourceBranch,
-			sourcePath: source.source.path,
-			targetRef: target.targetRef,
-		},
-		integration,
-	);
+	await integratePreparedSource({ source, target, integration, deps });
 	state.integrated = true;
 	const afterOutput = await pushAndCleanup({
 		cleanupActions: state.cleanupActions,
@@ -287,4 +276,26 @@ async function executeFinish(
 		strategy: target.plan.strategy,
 		targetBranch: target.targetBranch,
 	});
+}
+
+async function integratePreparedSource(options: {
+	source: FinishSourceInfo;
+	target: FinishTargetInfo;
+	integration: IntegrationPlan;
+	deps: Deps;
+}): Promise<void> {
+	const { source, target, integration, deps } = options;
+	const integrationOptions = {
+		canonicalPath: source.canonical.path,
+		git: deps.git,
+		sourceBranch: source.sourceBranch,
+		sourcePath: source.source.path,
+		targetBranch: target.targetBranch,
+		targetRef: target.targetRef,
+	};
+	await prepareSourceIntegration(integrationOptions, integration);
+	if (source.explanation.addPolicy === "fresh_canonical") {
+		await deps.git.run(["-C", source.canonical.path, "merge", "--ff-only", target.targetRef]);
+	}
+	await integrateSource(integrationOptions, integration);
 }
