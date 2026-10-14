@@ -1,6 +1,6 @@
 {
 	"name": "@hive/busybee",
-	"version": "0.0.0",
+	"version": "0.5.0",
 	"private": true,
 	"bin": {
 		"busybee": "./bin/busybee.ts"
@@ -9,7 +9,7 @@
 	"exports": "./src/runtime.ts",
 	"scripts": {
 		"typecheck": "tsc --noEmit",
-		"build": "bun build ./bin/busybee.ts --compile --compile-autoload-package-json --compile-autoload-tsconfig --outfile ./dist/busybee",
+		"build": "bun build ./bin/busybee.ts --compile --target=${HIVE_BUILD_TARGET:-bun} --compile-autoload-package-json --compile-autoload-tsconfig --outfile ./dist/busybee",
 		"install:bin": "bun run ../tooling/src/install-artifacts.ts busybee"
 	},
 	"dependencies": {

@@ -1,0 +1,3 @@
+description = "Release one explicit Hive suite version and update its Homebrew tap"
+version = "1.0.0"
+run = "./workflow.ts"

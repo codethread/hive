@@ -1,5 +1,6 @@
 {
 	"name": "hive",
+	"version": "0.5.0",
 	"private": true,
 	"keywords": [
 		"pi-package"
@@ -24,7 +25,8 @@
 		"beads:sync": "bun run ./lib/tooling/src/beads-publish.ts",
 		"prepare": "husky && bun run ./scripts/setup-git.ts && bun run ./lib/tooling/src/beads-setup-auto.ts",
 		"waggle": "bun run ./lib/waggle/bin/waggle.ts",
-		"busybee": "bun run ./lib/busybee/bin/busybee.ts"
+		"busybee": "bun run ./lib/busybee/bin/busybee.ts",
+		"release": "bun run ./lib/tooling/src/release-cli.ts"
 	},
 	"devDependencies": {
 		"@commitlint/cli": "^21.2.3",

@@ -12,6 +12,8 @@ Tools for running coding agents, managing Git worktrees and coordinating Beads w
 
 [Hive plugins](./plugins/README.md) provide Git worktree and merge queue guidance for Claude Code, Codex and Pi.
 
+For the versioned Homebrew distribution and its publication status, see [installation and releases](./docs/releases.md). Homebrew installation is separate from the source-checkout setup below.
+
 For a new clone:
 
 ```sh

@@ -10,6 +10,8 @@
 
 ## Workflows
 
+- [Hive releases](./releases.md) — versioned Homebrew installation and the separately invoked Release workflow.
+
 - [Busy Bee](../lib/busybee/README.md) — run workflows as Beads tasks.
 - [Busy Bee specification](../lib/busybee/SPEC.md) — read before changing workflow projection or completion.
 - [Authoring Busy Bee workflows](./busybee-workflows.md) — read before authoring or refactoring definitions; explicit charts and visualizer visibility.

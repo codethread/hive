@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+/* eslint-disable import/max-dependencies -- Foreground boundary composes server, CLI and package identity. */
 import { Command, CommanderError } from "commander";
 import {
 	PAGE_SIZE,
@@ -17,6 +18,7 @@ import { createNativeBeads } from "@hive/beads";
 import index from "../src/index.html";
 import { readStatuses } from "./statuses.ts";
 import { resolveRepository } from "@hive/shared";
+import { version } from "../package.json";
 import { z } from "zod";
 
 const HTTP = {
@@ -55,6 +57,7 @@ await main();
 async function main(): Promise<void> {
 	const program = new Command()
 		.name("hive-ui")
+		.version(version)
 		.description("Serve the local read-only Beads and Bees work board")
 		.option("--repo <directory>", "Repository discovery directory", ".")
 		.option("--beads-db <path>", "Selected native Beads database", process.env["BEADS_DB"])

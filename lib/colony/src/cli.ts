@@ -16,6 +16,7 @@ import { WorkflowCommandError } from "./workflows.ts";
 import { WorkflowSubmissionError } from "./workflow-submission.ts";
 import { assessmentLimitSchema } from "./assessments.ts";
 import { assessmentReportSchema } from "./postrun.ts";
+import { version } from "../package.json";
 import { writeColonyResult } from "./output.ts";
 import { z } from "zod";
 
@@ -115,6 +116,7 @@ export interface ColonyDependencies {
 export async function runCli(argv: string[], deps: ColonyDependencies): Promise<number> {
 	const program = new Command()
 		.name("colony")
+		.version(version)
 		.description("Launch captured bee requests")
 		.option("--json", "Emit errors as JSON too")
 		.configureOutput({ writeErr: () => {}, writeOut: deps.stdout })

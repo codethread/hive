@@ -1,6 +1,6 @@
 {
 	"name": "@hive/qlock",
-	"version": "0.0.0",
+	"version": "0.5.0",
 	"private": true,
 	"bin": {
 		"qlock": "./bin/qlock.ts"
@@ -10,7 +10,7 @@
 		"install:bin": "bun run ../tooling/src/install-artifacts.ts qlock",
 		"typecheck": "tsc --noEmit",
 		"test": "bun test ./tests",
-		"build": "bun build ./bin/qlock.ts --compile --outfile ./dist/qlock"
+		"build": "bun build ./bin/qlock.ts --compile --target=${HIVE_BUILD_TARGET:-bun} --outfile ./dist/qlock"
 	},
 	"dependencies": {
 		"commander": "^15.0.0",

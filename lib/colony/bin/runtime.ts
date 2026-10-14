@@ -4,9 +4,16 @@ import { launch } from "../src/launch.ts";
 import { match } from "ts-pattern";
 import { resolveRepository } from "@hive/shared";
 import { serve } from "../src/server.ts";
+import { version } from "../package.json";
 import { z } from "zod";
 
 const USER_ARGUMENTS_START = 2;
+const VERSION_ARGUMENT_COUNT = 3;
+const SUCCESS = 0;
+if (Bun.argv.length === VERSION_ARGUMENT_COUNT && Bun.argv[USER_ARGUMENTS_START] === "--version") {
+	console.log(version);
+	process.exit(SUCCESS);
+}
 const beads = createNativeBeads();
 const SOCKET_ARGUMENT = 2;
 const STATE_ARGUMENT = 4;

@@ -22,6 +22,7 @@ import type { RunOptions } from "./run.ts";
 import type { SpawnResult } from "./producer.ts";
 import { kindsJsonSchema } from "./kinds.ts";
 import { reportFailure } from "./cli.ts";
+import { version } from "../package.json";
 
 const SUCCESS = 0;
 const JSON_INDENT = 2;
@@ -120,6 +121,7 @@ export interface BeeDependencies {
 export async function runBeeCli(argv: string[], deps: BeeDependencies): Promise<number> {
 	const program = new Command()
 		.name("bee")
+		.version(version)
 		.description("Delegate work to configured bees and inspect their requests")
 		.addHelpText("after", HELP.overview)
 		.option("--json", "Emit one JSON result or error")

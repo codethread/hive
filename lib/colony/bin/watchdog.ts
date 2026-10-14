@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-/* eslint-disable max-dependencies -- Foreground watcher composes status, notification and checkpoint IO. */
 import { DaemonUnavailableError, requestServer } from "../src/client.ts";
 import { WATCHDOG_POLL_MS, pollWatchdog, watchdogCheckpointSchema } from "../src/watchdog.ts";
 import type { WatchdogCheckpoint, WatchdogObservation } from "../src/watchdog.ts";
@@ -11,11 +10,13 @@ import { colonyEntry } from "../src/executables.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Watcher checkpoint location.
 import { join } from "node:path";
 import { resolveServerTarget } from "../src/server-target.ts";
+import { version } from "../package.json";
 
 const NOTIFY_TIMEOUT_MS = 10_000;
 const SUCCESS = 0;
 const program = new Command()
 	.name("colony-watchdog")
+	.version(version)
 	.description(
 		"Observe Colony every 30s; failure alerts have a 30-minute cooldown, " +
 			"recovery notifies immediately; never wake or repair it",

@@ -3,6 +3,7 @@ import type { Dependencies, Outcome, Request, TicketRequest } from "./run.ts";
 import { EXIT, QlockError, READY_WINDOW_MS } from "./queue.ts";
 import { normalizeError, runRequest } from "./run.ts";
 import type { Ticket } from "./queue.ts";
+import { version } from "../package.json";
 
 const FIRST = 0;
 const AFTER_FIRST = 1;
@@ -82,6 +83,7 @@ function createProgram(
 ): Command {
 	const program = new Command()
 		.name("qlock")
+		.version(version)
 		.description("Ticketed local command queues for agents and shells")
 		.enablePositionalOptions()
 		.addHelpText("after", EXEC_HELP + HELP)

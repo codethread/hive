@@ -15,7 +15,7 @@
 		"schema:generate": "bun run ./scripts/config-schema.ts",
 		"schema:stage": "bun run schema:generate && git add -- honeycomb.schema.json honeycomb.local.schema.json",
 		"schema:check": "bun run ./scripts/config-schema.ts --check",
-		"build": "bun build ./bin/honeycomb.ts --compile --outfile ./dist/honeycomb",
+		"build": "bun build ./bin/honeycomb.ts --compile --target=${HIVE_BUILD_TARGET:-bun} --outfile ./dist/honeycomb",
 		"test:unit": "bun test --parallel --parallel-delay=0 --timeout=5000 --only-failures ./tests/unit",
 		"test:integration": "bun test --parallel --parallel-delay=0 --timeout=5000 --only-failures ./tests/integration",
 		"install:bin": "bun run ../tooling/src/install-artifacts.ts honeycomb"

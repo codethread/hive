@@ -7,6 +7,7 @@ import { HELP } from "./cli-help.ts";
 import { createLiveDeps } from "./live-deps.ts";
 import { dispatch } from "./main.ts";
 import tab from "@bomb.sh/tab/commander";
+import { version } from "../package.json";
 
 const registrations = [
 	registerRoot,
@@ -44,7 +45,7 @@ function createProgram(json: boolean): Command {
 	const program = new Command();
 	program
 		.name("honeycomb")
-		.version("0.5.0")
+		.version(version)
 		.summary("Manage git worktrees deterministically")
 		.description(
 			"Deterministic git worktree lifecycle engine for humans, agents, shells, and tmux wrappers.",
@@ -64,7 +65,7 @@ function createProgram(json: boolean): Command {
 					process.stderr.write(str);
 				}
 			},
-			writeOut: (str) => process.stderr.write(str),
+			writeOut: (str) => process.stdout.write(str),
 		})
 		.addHelpText("after", HELP.overview)
 		.exitOverride();

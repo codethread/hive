@@ -9,6 +9,7 @@ import type { Source } from "./catalogue.ts";
 import { preflight } from "./preflight.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Explicit source paths resolve against the invoking directory.
 import { resolve } from "node:path";
+import { version as suiteVersion } from "../package.json";
 import { z } from "zod";
 
 const SUCCESS = 0;
@@ -113,6 +114,7 @@ export async function runCli(
 function commandOptions(): Command {
 	return new Command()
 		.name("busybee")
+		.version(suiteVersion)
 		.option("--db <path>", "Override native br database selection (otherwise BEADS_DB/discovery)")
 		.option("--repo <path>", "Repository/execution directory; defaults to current directory")
 		.option("--actor <identity>", "Mutation audit actor; defaults to BD_ACTOR")
@@ -315,10 +317,7 @@ function writeResult(result: object, invocation: Invocation, readable?: string):
 }
 
 function reportFailure(error: unknown, invocation: Invocation): number {
-	if (
-		error instanceof CommanderError &&
-		(error.code === "commander.helpDisplayed" || error.code === "commander.help")
-	) {
+	if (error instanceof CommanderError && error.exitCode === SUCCESS) {
 		writeResult({ help: invocation.help }, invocation, invocation.help);
 		return SUCCESS;
 	}
