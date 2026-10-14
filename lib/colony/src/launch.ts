@@ -236,22 +236,25 @@ export function renderExecutionPrompt({
 				`${assignment.runId}` +
 				" --json to inspect the active visits, choices and payload schemas. Resume this " +
 				"run; do not start another run on retry.\n\nClaim, perform and verify the active " +
-				"manual stages. Before closing each manual stage, use busybee record-result " +
+				"driver-handled stages. On retry, reacquire unfinished driver-handled visits under your current " +
+				"identity, claiming only unassigned visits or your own claims. Preserve other " +
+				"identities and human/HITL reservations; record a blocker instead of replacing " +
+				"their assignments. Before closing each driver-handled stage, use busybee record-result " +
 				`${assignment.runId}` +
 				" STAGE CHOICE --data-file FILE to validate and persist its selected outcome and " +
 				'original payload as {"choice":"<outcome>","data":{...}}. Comment on that stage ' +
 				"with your deliverable and verification evidence, then close it only when its " +
 				"acceptance criteria and child work are satisfied. Use busybee collect " +
 				`${assignment.runId}` +
-				" --json to consume saved closed-stage results, including interrupted manual " +
-				"deliveries and automatic worker results. Standalone explicit navigation is " +
+				" --json to consume saved closed-stage results, including interrupted driver-handled " +
+				"deliveries and Bee-dispatched worker results. Standalone explicit navigation is " +
 				"available through busybee next " +
 				`${assignment.runId}` +
 				" STAGE and busybee choice " +
 				`${assignment.runId}` +
-				" STAGE CHOICE --data-file FILE. Do not redo closed work. Automatic workers own " +
+				" STAGE CHOICE --data-file FILE. Do not redo closed work. Bee-dispatched workers own " +
 				"their assigned stages; collect their results without taking their " +
-				"claims.\n\nRemain running while automatic work is pending; waiting consumes " +
+				"claims.\n\nRemain running while Bee-dispatched work is pending; waiting consumes " +
 				"ordinary quota. If waiting drivers starve the pool, the user must increase the " +
 				"relevant limits.\n\nBusy Bee alone closes grouping beads and the run. Never " +
 				"manually close run " +
@@ -266,7 +269,7 @@ export function renderExecutionPrompt({
 		.with(
 			{ kind: "stage" },
 			(assignment) =>
-				"Perform only the assigned automatic visit " +
+				"Perform only the assigned Bee-dispatched visit " +
 				`${assignment.stageId}` +
 				" in Busy Bee run " +
 				`${assignment.runId}` +

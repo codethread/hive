@@ -20,7 +20,7 @@ Use Shared when actual consumers need the same contract. Spawn-request represent
 
 Beads services are supplied through consumer contexts. Named operations accept typed arguments and return typed records; the native adapter owns CLI arguments and output parsing. Application entry points compose the native adapter; behavior tests supply isolated in-memory adapters implementing those same operations directly. Native conformance tests belong to `lib/beads`, so consumer tests share a validated contract without spawning `br`. Filesystem, Git and process-boundary tests remain with the modules owning those effects.
 
-Hive UI owns its browser/API schemas and bounded read models. It neither imports Colony nor reads its private store; native Beads is its source. See the [UI design](design/hive-ui.md) for fetch ownership and the [UI guide](../lib/hive-ui/README.md) for startup.
+Hive UI owns its browser/API schemas and read models. It neither imports Colony nor reads its private store; native Beads is its source. Workflow provenance consumes only Busy Bee's producer-owned public identity slice, `id` and `created[].bead`, from workflow system bead JSON, including retained closed runs and grouping records. The UI does not interpret saved actor state or scheduling authority. This identity query reads all retained workflow system descriptions; task and request pages remain bounded separately. See the [UI design](design/hive-ui.md) for fetch ownership and read demand and the [UI guide](../lib/hive-ui/README.md) for startup.
 
 ## Bee and Colony request flow
 
@@ -49,7 +49,7 @@ Colony: awake colony -> prepare -> rank -> claim -> reserve attempt
                 minimal native Beads observations and closure
 ```
 
-Public Bee submission starts one Busy Bee workflow, prepares its active unassigned run through the Busy Bee CLI, and captures a driver request linked to that run. Kind workflow defaults select the named definition only at initialization; the execution recipe remains separate. Automatic visits use the stage-dispatch primitive to capture one stage request without another workflow. Shared owns the driver/stage assignment union and exact related completion anchor; launch receipts retain that role, and explicit retries retain the same run or stage.
+Public Bee submission starts one Busy Bee workflow, prepares its active unassigned run through the Busy Bee CLI, and captures a driver request linked to that run. Kind workflow defaults select the named definition only at initialization; the execution recipe remains separate. Bee-dispatched visits use the stage-dispatch primitive to capture one stage request without another workflow. Shared owns the driver/stage assignment union and exact related completion anchor; launch receipts retain that role, and explicit retries retain the same run or stage.
 
 Workflow drivers consume ordinary capacity while waiting for independent workers. If drivers starve the pool, the user must increase the relevant quotas. Colony does not suspend drivers or reserve additional worker capacity.
 

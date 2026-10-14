@@ -1,6 +1,6 @@
 # Specialist delegation
 
-Use Bee for repository subagents. Run `bee --help`, then `bee kinds` before delegating. Put the assignment, context and acceptance in workflow input; normally use the kind's workflow and omit prompt overrides. `bee spawn KIND --input-file FILE` creates the run and work stage the specialist completes. The [Bee and Colony guide](../../lib/colony/README.md#create-requests) documents request creation and inspection.
+Use Bee for repository subagents. Run `bee --help`, then `bee kinds` before delegating. Put the assignment, context and acceptance in workflow input; normally use the kind's workflow and omit prompt overrides. `bee spawn KIND --parent ID --input-file FILE` creates the run beneath existing ordinary work and the work stage the specialist completes. The [Bee and Colony guide](../../lib/colony/README.md#create-requests) documents request creation and inspection.
 
 ## Architectural intent
 

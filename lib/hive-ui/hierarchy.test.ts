@@ -10,6 +10,8 @@ import { expect, test } from "bun:test";
 
 const COMPONENT_COUNT = 2;
 const SHARED_INDEX = 2;
+const RUN_DEPTH = 2;
+const VISIT_DEPTH = 3;
 
 function makeNode(id: string, status = "open", parentIds: string[] = []): HierarchyNode {
 	return {
@@ -20,6 +22,7 @@ function makeNode(id: string, status = "open", parentIds: string[] = []): Hierar
 		priority: 2,
 		assignee: null,
 		beeAssignments: [],
+		isWorkflowGenerated: false,
 		labels: [],
 		updatedAt: "2026-10-12T00:00:00Z",
 	};
@@ -126,6 +129,52 @@ test("dotted bridges through non-root members join whole native families transit
 			visible: [root.id, leaf.id],
 		},
 	]);
+});
+
+test.each([
+	{
+		name: "loaded native parent",
+		loaded: true,
+		expected: [
+			[
+				["hv-scope", 0],
+				["hv-work", 1],
+				["hv-other.1", RUN_DEPTH],
+				["hv-visit", VISIT_DEPTH],
+			],
+			[["hv-other", 0]],
+		],
+	},
+	{
+		name: "unloaded native parent",
+		loaded: false,
+		expected: [
+			[
+				["hv-other.1", 0],
+				["hv-visit", 1],
+			],
+			[["hv-other", 0]],
+		],
+	},
+])("explicit parents override conflicting dotted ancestry: $name", ({ loaded, expected }) => {
+	let nodes = [
+		makeNode("hv-scope", "in_progress"),
+		makeNode("hv-work", "in_progress", ["hv-scope"]),
+		makeNode("hv-other.1", "in_progress", ["hv-work"]),
+		makeNode("hv-visit", "in_progress", ["hv-other.1"]),
+		makeNode("hv-other", "open"),
+	];
+	if (!loaded) {
+		nodes = nodes.filter((node) => node.id !== "hv-scope" && node.id !== "hv-work");
+	}
+	const hierarchy = { nodes, fetchedAt: nodes[0]!.updatedAt };
+	const families = boardFamilies(board(nodes), hierarchy);
+	expect(families.map((family) => family.rows.map(({ node, depth }) => [node.id, depth]))).toEqual(
+		expected.map((family) => family.map((row) => [...row])),
+	);
+	expect(families.flatMap((family) => family.rows.map(({ node }) => node.parentIds))).toEqual(
+		nodes.map((node) => node.parentIds),
+	);
 });
 
 test("native shared children and rootless components appear once without truncating descendants", () => {

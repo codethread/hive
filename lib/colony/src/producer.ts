@@ -64,7 +64,7 @@ export async function initRepository(options: InitOptions): Promise<InitializedR
 	}
 	return { kind: "initialized", path };
 }
-/** Submit one existing run or automatic visit without selecting or starting a workflow. */
+/** Submit one existing run or Bee-dispatched visit without selecting or starting a workflow. */
 export async function spawnWorkflowRequest(
 	{
 		kind,

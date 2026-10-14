@@ -6,6 +6,8 @@ import {
 	latestStdoutActivity,
 	projectedRequestLabels,
 	readSpawnRequest,
+	readSpawnRequestAttribution,
+	readSpawnRequestHost,
 	readSpawnRequestSummary,
 	requestAcknowledgment,
 	requestDisposition,
@@ -365,4 +367,46 @@ test("request summaries retain validated identity and host without hydrated rela
 	expect(summary).toEqual(detail);
 	expect(() => readSpawnRequestSummary({ ...bead, labels: [] })).toThrow(Error);
 	expect(() => readSpawnRequestSummary({ ...bead, assignee: "" })).toThrow(Error);
+});
+
+test.each([
+	{ host: "foreign-host", expected: "foreign-host" },
+	{ host: undefined, expected: null },
+])(
+	"host routing projection reads $expected without decoding workflow execution",
+	({ host, expected }) => {
+		const bead = { description: JSON.stringify({ host }) };
+		expect(readSpawnRequestHost(bead)).toBe(expected);
+	},
+);
+
+test.each(["", " ", INVALID_HOST_NUMBER, null])(
+	"host routing projection rejects malformed provenance %j",
+	(host) => {
+		expect(() => readSpawnRequestHost({ description: JSON.stringify({ host }) })).toThrow(Error);
+	},
+);
+
+test("read-only attribution retains task links independently of workflow execution authority", () => {
+	const bead = {
+		...original,
+		description: JSON.stringify({
+			harness: "codex",
+			kind: "worker",
+			model: "gpt-6-astra",
+			host: "another-host",
+		}),
+		labels: spawnRequestLabels("worker"),
+		assignee: "friendly-bee",
+		dependencies: [{ id: "work", dependency_type: "related", title: "Work", status: "open" }],
+	};
+	expect(readSpawnRequestAttribution(bead)).toEqual({
+		id: bead.id,
+		identity: "friendly-bee",
+		recipe: { harness: "codex", kind: "worker", model: "gpt-6-astra" },
+		taskIds: ["work"],
+	});
+	expect(() => readSpawnRequest(bead)).toThrow(Error);
+	expect(() => readSpawnRequestAttribution({ ...bead, labels: [] })).toThrow(Error);
+	expect(() => readSpawnRequestAttribution({ ...bead, assignee: "" })).toThrow(Error);
 });

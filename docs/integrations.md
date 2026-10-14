@@ -127,4 +127,4 @@ br list --label system --json
 br ready --label system --json
 ```
 
-For explicitly authorized maintenance work, submit the particular task IDs with `bee spawn <kind> <task-id>...` and an execution directory. This requests execution, not inspection: an awake Colony can claim the linked tasks and launch a bee. Native readiness and human reservations still apply. A `system` label does not itself authorize execution; see the [Bee and Colony guide](../lib/colony/README.md#create-requests).
+For explicitly authorized maintenance work, put the assignment and particular system bead IDs in workflow input. Submit with `bee spawn <kind> --parent <ordinary-work-id> --input-file FILE` and an execution directory; the existing ordinary parent records the maintenance scope. This requests execution: an awake Colony can claim the workflow run and launch a bee. Native readiness and human reservations still apply. A `system` label does not itself authorize execution; see the [Bee and Colony guide](../lib/colony/README.md#create-requests).

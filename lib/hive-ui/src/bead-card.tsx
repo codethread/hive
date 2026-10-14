@@ -1,4 +1,4 @@
-import { BeeActivity, BeeAssignment, Label, WorkStatus, time } from "./ui.tsx";
+import { BeeActivity, BeeAssignment, Label, WorkStatus, WorkflowIndicator, time } from "./ui.tsx";
 import { Link, useSearch } from "@tanstack/react-router";
 import type { Card } from "../contracts.ts";
 import { FilterableLabel } from "./filter-controls.tsx";
@@ -37,6 +37,7 @@ export function BeadCard({
 						className="hover:text-accent"
 						aria-current={search.bead === card.id ? "true" : undefined}
 					>
+						<WorkflowIndicator isWorkflowGenerated={card.isWorkflowGenerated} />
 						{card.title}
 					</Link>
 				</h3>

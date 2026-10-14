@@ -19,7 +19,7 @@ const CONFLICT = 6;
 export interface Options {
 	/** Audit identity, otherwise BD_ACTOR. */
 	actor?: string;
-	/** Initial run/manual worker assignment. */
+	/** Initial run/driver-handled worker assignment. */
 	assignee?: string;
 	/** Explicit native database override. */
 	db?: string;
@@ -27,6 +27,8 @@ export interface Options {
 	inputFile?: string;
 	/** Accountable human, required at start. */
 	owner?: string;
+	/** Existing ordinary work containing a new root workflow; required at start. */
+	parent?: string;
 	/** Execution checkout, separate from tracker storage. */
 	repo?: string;
 }

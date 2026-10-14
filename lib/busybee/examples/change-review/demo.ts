@@ -119,7 +119,7 @@ await Bun.write(
 	JSON.stringify(
 		{
 			base,
-			execution: { mode: "manual" },
+			execution: { mode: "driver-handled" },
 			request:
 				"Add an optional non-negative integer --limit. Filter by --status " +
 				"before applying the limit and preserve input order. A limit of 0 " +
@@ -132,13 +132,18 @@ await Bun.write(
 		INDENT,
 	),
 );
+const parent = await services.beads.create(
+	{ actor: identity.actor, cwd: repo, db },
+	{ title: "Add --limit to the task list CLI", owner: identity.owner },
+);
 const run = await start(new URL("workflow.ts", import.meta.url).pathname, {
 	actor: identity.actor,
 	db,
 	inputFile,
 	owner: identity.owner,
+	parent: parent.id,
 	repo,
 });
-const evidence = { db, inputFile, repo, root, run };
+const evidence = { db, inputFile, parent: parent.id, repo, root, run };
 await Bun.write(join(root, "run.json"), JSON.stringify(evidence, undefined, INDENT));
 console.log(JSON.stringify(evidence, undefined, INDENT));

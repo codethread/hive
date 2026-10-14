@@ -31,10 +31,13 @@ colony init --repo "$REPO" --owner operator --model YOUR_MODEL
 bee kinds --repo "$REPO"
 bun add --cwd "$REPO" xstate@5 zod@4
 busybee --repo "$REPO" init
+# Create the original work and retain its native ID as WORK_ID.
+br create --title "Write smoke result" --owner operator --actor operator --db "$DB" --json
+WORK_ID=YOUR_WORK_ID
 cat > "$REPO/work.json" <<'JSON'
 {"title":"Write smoke result","request":"Write a short smoke-result.txt","acceptance":["The file exists and explains what ran"]}
 JSON
-bee spawn worker --input-file "$REPO/work.json" --repo "$REPO" --beads-db "$DB" --actor operator --json
+bee spawn worker --parent "$WORK_ID" --input-file "$REPO/work.json" --repo "$REPO" --beads-db "$DB" --actor operator --json
 # Copy the returned request.id into SPAWN_ID.
 SPAWN_ID=YOUR_SPAWN_ID
 colony wake --repo "$REPO" --beads-db "$DB" --state "$STATE"
@@ -104,7 +107,7 @@ Each harness uses one [formula](#harness-formulas). `bee run` renders its shared
 
 ## Create requests
 
-Run `bee kinds` to choose a kind and its default workflow. Provide caller input as JSON; the standard `do-work` input has `title`, `request` and an `acceptance` array of verification criteria. The actual assignment is rendered beneath one durable workflow run. For advice or review, include examined IDs as context in the input; the specialist completes its report stage and leaves the examined work unchanged.
+Run `bee kinds` to choose a kind and its default workflow. Provide caller input as JSON; the standard `do-work` input has `title`, `request` and an `acceptance` array of verification criteria. Use `--parent ID` for existing nonclosed ordinary work in the selected tracker. Busy Bee validates that parent and creates the hierarchy `original work -> workflow run -> stages`; it leaves the original work's claim and owner unchanged. The actual assignment comes from workflow input. The default author titles the run `Do work: <title>` and uses the supplied title on its work stage; named and explicit-source definitions own their titles. For advice or review, include examined IDs as context in the input; the specialist completes its report stage and leaves the examined work unchanged.
 
 Initialize configuration and install the default workflow in an execution checkout:
 
@@ -112,7 +115,7 @@ Initialize configuration and install the default workflow in an execution checko
 colony init --repo /path/to/repository --owner ct --model YOUR_MODEL
 bun add --cwd /path/to/repository xstate@5 zod@4
 busybee --repo /path/to/repository init
-bee spawn worker --input-file work.json --cwd /path/to/repository \
+bee spawn worker --parent EXISTING_WORK_ID --input-file work.json --cwd /path/to/repository \
   --beads-db "$BEADS_DB" --actor REQUESTER --json
 ```
 
@@ -120,11 +123,11 @@ bee spawn worker --input-file work.json --cwd /path/to/repository \
 
 Override selection with `--workflow NAME` or `--source PATH`. Inspect named input with `busybee --repo EXECUTION_CHECKOUT input-schema NAME --json`, or explicit input with `input-schema --source PATH`. `--repo` selects canonical Bee configuration; `--cwd` selects the execution checkout and workflow catalogue, defaulting to the canonical root. Input/source paths resolve from the submitting command's directory. A missing selected definition fails visibly.
 
-Success identifies `request.id`, `request.identity`, `workflow.runId` and `workflow.status`. `bee status REQUEST` inspects execution; `busybee show RUN` inspects assignment and progression. The request can wait while Colony is asleep. Changing kind defaults affects future submissions, not saved workflow input or a captured recipe. Retries retain the same run and driver/stage role.
+Initial submission identifies `request.id`, `request.identity`, `workflow.parentId`, `workflow.runId` and `workflow.status`. The driver's completion anchor remains the run; the external parent has its own completion policy. `bee status REQUEST` inspects execution; `busybee show RUN` inspects assignment and progression. The request can wait while Colony is asleep. Changing kind defaults affects future submissions, not saved workflow input or a captured recipe. Retries retain the same run and driver/stage role.
 
-Initialization and driver publication are separate effects. An initially complete run stays closed and returns `workflow_already_done` without a driver. Partial failures expose known run/checkpoint/stage request identifiers and driver-publication uncertainty. Inspect native incoming request links before recovery; never repeat initialization blindly. After confirming a run has no driver, use `bee attach-workflow KIND RUN` with the same tracker and execution checkout. An existing unsuccessful driver uses `bee retry`; an existing open request uses `bee status`. Attachment admission is read-then-create, not an atomic or distributed uniqueness guarantee. Busy Bee retains its uncertain-write locks for explicit inspection.
+Initialization and driver publication are separate effects. An initially complete run stays closed and returns `workflow_already_done` without a driver. Partial failures preserve the parent and confirmed run/checkpoint/stage request identifiers and driver-publication uncertainty. Inspect native incoming request links before recovery; never repeat initialization blindly. After confirming a run has no driver, use `bee attach-workflow KIND RUN` with the same tracker and execution checkout. An existing unsuccessful driver uses `bee retry`; an existing open request uses `bee status`. Attachment admission is read-then-create, not an atomic or distributed uniqueness guarantee. Busy Bee retains its uncertain-write locks for explicit inspection.
 
-Automatic stages use `bee dispatch-stage KIND STAGE --run RUN` internally, creating a stage execution request without a second workflow. Drivers remain running and consume their normal Colony, kind and worktree quota while waiting for automatic results. If waiting drivers exhaust capacity and workers cannot start, increase the relevant quota. Colony does not suspend drivers or reserve extra worker slots. `bee stop` stops the selected execution; independent automatic workers and the workflow remain available for continuation.
+Bee-dispatched stages use `bee dispatch-stage KIND STAGE --run RUN` internally, creating a stage execution request without a second workflow. Drivers remain running and consume their normal Colony, kind and worktree quota while waiting for Bee-dispatched results. If waiting drivers exhaust capacity and workers cannot start, increase the relevant quota. Colony does not suspend drivers or reserve extra worker slots. `bee stop` stops the selected execution; independent Bee-dispatched workers and the workflow remain available for continuation.
 
 The three instruction sources have distinct responsibilities:
 
@@ -134,7 +137,7 @@ The three instruction sources have distinct responsibilities:
 | Kind `prompt`        | Optional direction for an execution, usually empty              |
 | Workflow stage beads | Caller assignment, context, deliverable and acceptance criteria |
 
-Colony adds the captured driver or stage protocol at launch. Drivers inspect the existing run, claim manual stages, perform and verify work, record results with `busybee record-result RUN STAGE CHOICE`, close completed stages and use `busybee collect RUN`. Busy Bee advances the chart and closes grouping beads and the run. The driver reports `bee finish success` only when the run reports done. Automatic workers record and close only their assigned stage; the driver collects their results. Narrative evidence belongs in comments, and result notes hold the validated `{choice,data}` envelope. Required additional work has the run as its native parent; independent delegation stays separate.
+Colony adds the captured driver or stage protocol at launch. Drivers inspect the existing run, claim driver-handled stages, perform and verify work, record results with `busybee record-result RUN STAGE CHOICE`, close completed stages and use `busybee collect RUN`. Busy Bee advances the chart and closes grouping beads and the run. The driver reports `bee finish success` only when the run reports done. Bee-dispatched workers record and close only their assigned stage; the driver collects their results. Narrative evidence belongs in comments, and result notes hold the validated `{choice,data}` envelope. Required additional work has the run as its native parent; independent delegation stays separate.
 
 A blocked bee completes possible work, records the blocker and next action, leaves unfinished work open and reports `bee finish blocked --reason "…"`. The captured recipe remains unchanged by launch guidance. The finite retry budget and explicit blocked handoff remain Colony's authority.
 
@@ -184,6 +187,8 @@ bun run lib/colony/bin/bee.ts retry <spawn-id> \
 ```
 
 `retry` accepts an unresolved request closed as `exhausted`, `claim_failed` or `blocked`. It carries only unfinished related tasks and the old kind choice into a new request. The entire recipe comes from [current canonical kind defaults](#kind-files), including both prompt fields, followed by explicit overrides with the same semantics as [spawn](#create-requests). Normally keep those defaults; use `--kind` to select another kind. No captured old recipe values are merged, including execution directory or either prompt. The new request gets a new automatically generated friendly identity and its own fresh automatic retry budget under Colony policy.
+
+Retry retains the captured driver/run or worker/visit role and its native parent. After the previous execution is verified stopped, claim cleanup walks downward from the driver's run or the worker's visit, preserving the external parent, sibling runs, closed results, other identities, human/HITL reservations and checkpoint locks. The replacement driver claims only unfinished unassigned driver-handled visits or its own visits, then collects saved closed results. Ordinary task/epic containment does not itself block admission; real ancestor prerequisites still apply. Put supporting prerequisite-resolution work under an actionable parent rather than beneath the blocked ancestor. For incompatible or abandoned runs, follow the [workflow disposition guidance](../busybee/README.md#resume-and-failures); retry does not detach history or complete old unfinished siblings.
 
 Human reservations and overlapping open requests still refuse admission. No unfinished tasks also refuses retry. Creation records a native `supersedes` relationship from replacement to original, separately from `related` task links. A failed submission leaves the original unresolved. The old closure reason, recipe, identity, observations and execution history remain unchanged.
 
@@ -288,7 +293,7 @@ Ask for a nurse briefing through an explicit report task describing the question
 
 ```nu
 bee kinds nurse --verbose
-bee spawn nurse --input-file nurse.json --cwd RETAINED_WORKTREE --actor REQUESTER --json
+bee spawn nurse --parent REPORT_TASK_ID --input-file nurse.json --cwd RETAINED_WORKTREE --actor REQUESTER --json
 ```
 
 Read the delivered briefing on that task with `br show`. Hidden keeps the nurse out of ordinary discovery, not out of explicit named invocation. She synthesizes coverage, recurring friction and supported improvements for ct; she creates change tasks only with ct's approval. Automatic assessments stay in Colony's private state. Filing selected specialist evidence is a separate authorized operation under the [existing stewardship contract](../../docs/beads-labels.md#specialist-evidence-and-label-stewardship); no new evidence label is granted by this feature.
@@ -508,7 +513,7 @@ argv = ["--model", "{{model}}", "--thinking", "{{effort}}", "{{#if system_prompt
 Codex receives the role through a JSON-quoted `developer_instructions` configuration value, replacing any existing value for that field. Pi receives raw role text through `--append-system-prompt`. These are different native instruction mechanisms, not a promise of identical system-role precedence. The headless Pi profile deliberately isolates extensions and context files and limits tools to the probe's Bash/read path. It does not demonstrate Scent or a general-purpose production context setup. Submit with the matching native model syntax, for example:
 
 ```sh
-bee spawn worker --input-file "$REPO/work.json" --repo "$REPO" --beads-db "$DB" --actor operator \
+bee spawn worker --parent "$WORK_ID" --input-file "$REPO/work.json" --repo "$REPO" --beads-db "$DB" --actor operator \
   --harness pi-native --model openai-codex/gpt-6-astra --effort low
 ```
 

@@ -7,13 +7,14 @@ import {
 import { beesConfigSchema, readSpawnRequest } from "@hive/shared";
 import { createTask, memoryTracker } from "./tracker.test-support.ts";
 import { expect, test } from "bun:test";
+import type { BeadsScope } from "@hive/beads";
 import type { WorkflowSubmissionCommands } from "./workflow-submission.ts";
 import { reportFailure } from "./cli.ts";
 import { trackerScope } from "./tracker.ts";
 import { validateRequestedTasks } from "./producer.ts";
 
 const ONE = 1;
-const RUN_AND_REQUEST = 2;
+const INITIAL_RECORDS = 4;
 const config = beesConfigSchema.parse({
 	owner: "ct",
 	humans: ["ct"],
@@ -29,8 +30,10 @@ const options = {
 	inputFile: "work.json",
 };
 
-function fixture() {
+async function fixture() {
 	const tracker = memoryTracker();
+	const parent = await createTask(tracker, { title: "Original task", assignee: "ct" });
+	const submission = { ...options, parent };
 	const selected: unknown[] = [];
 	let runId = "";
 	let handoffs = 0;
@@ -45,8 +48,11 @@ function fixture() {
 		workflows: {
 			start: async (input) => {
 				selected.push(input);
-				runId = await createTask(tracker, { title: "Caller assignment" });
-				return { id: runId, status: "active", active: [] };
+				runId = await createTask(tracker, { title: "Author workflow", parent: input.parent });
+				const stage = await createTask(tracker, { title: "Actual assignment", parent: runId });
+				// Unpublished Bee dispatch request identity is explicitly absent in Busybee output.
+				// eslint-disable-next-line unicorn/no-null
+				return { id: runId, status: "active", active: [{ bead: stage, request: null }] };
 			},
 			show: (id) => Promise.resolve({ id, status: "active", active: [] }),
 			prepareDriver: (id) => {
@@ -55,19 +61,36 @@ function fixture() {
 			},
 		},
 	};
-	return { commands, selected, tracker, handoffs: () => handoffs, runId: () => runId };
+	return {
+		commands,
+		selected,
+		tracker,
+		parent,
+		submission,
+		handoffs: () => handoffs,
+		runId: () => runId,
+	};
 }
 
 // Warm request/config boundary schemas outside the measured tests.
-await submitWorkflow("worker", options, fixture().commands);
+const warmed = await fixture();
+const warmedResult = await submitWorkflow("worker", warmed.submission, warmed.commands);
+readSpawnRequest(
+	await warmed.tracker.beads.show(
+		trackerScope(warmed.tracker.repository, "inspect"),
+		warmedResult.request.id,
+	),
+);
+const defaultSubmission = await fixture();
 
 test("default workflow submission captures one driver and the actual run anchor", async () => {
-	const { commands, selected, tracker } = fixture();
-	const result = await submitWorkflow("worker", options, commands);
+	const { commands, selected, tracker, parent, submission } = defaultSubmission;
+	const result = await submitWorkflow("worker", submission, commands);
 	expect(selected).toEqual([
 		{
 			endpoint: { actor: "requester", db: "/fixture/tracker.db", repo: "/fixture" },
 			owner: "ct",
+			parent,
 			inputFile: "/caller/work.json",
 			selection: { kind: "named", name: "do-work" },
 		},
@@ -77,6 +100,8 @@ test("default workflow submission captures one driver and the actual run anchor"
 	);
 	expect(request.assignment).toEqual({ kind: "driver", runId: result.workflow.runId });
 	expect(request.taskIds).toEqual([result.workflow.runId]);
+	expect(result.workflow.parentId).toBe(parent);
+	await assertInitialHierarchy(tracker, parent, result.workflow.runId);
 });
 
 test.each([
@@ -88,15 +113,16 @@ test.each([
 ])(
 	"caller selector $selector is resolved before subprocess execution",
 	async ({ selector, selection }) => {
-		const { commands, selected } = fixture();
-		await submitWorkflow("worker", { ...options, ...selector }, commands);
-		expect(selected).toMatchObject([{ selection }]);
+		const { commands, selected, submission, parent } = await fixture();
+		const result = await submitWorkflow("worker", { ...submission, ...selector }, commands);
+		expect(selected).toMatchObject([{ selection, parent, inputFile: "/caller/work.json" }]);
+		expect(result.workflow.parentId).toBe(parent);
 	},
 );
 
 test("same-run attachment rejects duplicate drivers before mutating the handoff", async () => {
-	const { commands, handoffs, tracker } = fixture();
-	const result = await submitWorkflow("worker", options, commands);
+	const { commands, handoffs, tracker, selected, submission } = await fixture();
+	const result = await submitWorkflow("worker", submission, commands);
 	await expect(
 		attachWorkflow({ kind: "worker", runId: result.workflow.runId, options }, commands),
 	).rejects.toBeInstanceOf(Error);
@@ -104,60 +130,107 @@ test("same-run attachment rejects duplicate drivers before mutating the handoff"
 	const issues = await tracker.beads.list(trackerScope(tracker.repository, "inspect"), {
 		limit: 0,
 	});
-	expect(issues.issues).toHaveLength(RUN_AND_REQUEST);
+	expect(issues.issues).toHaveLength(INITIAL_RECORDS);
+	expect(selected).toHaveLength(ONE);
+});
+
+// Confirm absence of publication, then attach without recreating the ordinary hierarchy.
+// eslint-disable-next-line max-statements
+test("confirmed orphan attachment retains its native parent and unfinished driver-handled visit", async () => {
+	const { commands, tracker, selected, handoffs, submission, parent } = await fixture();
+	const run = await commands.workflows.start({
+		parent,
+		endpoint: { actor: options.actor, repo: options.repo, db: options.beadsDb },
+		owner: "ct",
+		selection: { kind: "named", name: "do-work" },
+		inputFile: submission.inputFile,
+	});
+	const ids = [parent, run.id, ...run.active.map((entry) => entry.bead)];
+	const scope = trackerScope(tracker.repository, "inspect");
+	const before = await tracker.beads.showMany(scope, ids);
+	const result = await attachWorkflow({ kind: "worker", runId: run.id, options }, commands);
+	expect(result.workflow.runId).toBe(run.id);
+	expect(selected).toHaveLength(ONE);
+	expect(handoffs()).toBe(ONE);
+	const retained = await tracker.beads.showMany(scope, ids);
+	const runRecord = retained.find((record) => record.id === run.id)!;
+	expect(
+		retained.map(({ dependencies: _dependencies, dependents: _dependents, ...record }) => record),
+	).toEqual(
+		before.map(({ dependencies: _dependencies, dependents: _dependents, ...record }) => record),
+	);
+	expect(runRecord.dependencies).toContainEqual(
+		expect.objectContaining({ id: parent, dependency_type: "parent-child" }),
+	);
+	expect(readSpawnRequest(await tracker.beads.show(scope, result.request.id))).toMatchObject({
+		assignment: { kind: "driver", runId: run.id },
+		taskIds: [run.id],
+	});
 });
 
 test("driver publication failure reports the existing run and uncertain request creation", async () => {
-	const current = fixture();
+	const current = await fixture();
 	const beads = {
 		...current.commands.beads,
 		create: () => Promise.reject(new Error("create interrupted")),
 	};
 	const commands = { ...current.commands, beads };
-	const failureResult: unknown = await submitWorkflow("worker", options, commands).catch(
+	const failureResult: unknown = await submitWorkflow("worker", current.submission, commands).catch(
 		(error: unknown) => error,
 	);
 	expect(failureResult).toBeInstanceOf(WorkflowSubmissionError);
 	expect(failureResult).toMatchObject({
 		reason: "workflow_driver_failed",
 		context: {
+			parentId: current.parent,
 			runId: current.runId(),
 			checkpoint: "checkpoint-1",
 			driverPublication: "uncertain",
 			stageRequestIds: [],
+			stageIds: [expect.any(String)],
+			nextAction: `br show ${current.runId()} --json`,
 		},
 	});
 });
 
-const automatic = fixture();
-const automaticRun = await createTask(automatic.tracker);
-const group = await createTask(automatic.tracker, { parent: automaticRun });
-const stage = await createTask(automatic.tracker, { parent: group });
+const dispatched = await fixture();
+const dispatchedRun = await createTask(dispatched.tracker, { parent: dispatched.parent });
+const group = await createTask(dispatched.tracker, { parent: dispatchedRun });
+const stage = await createTask(dispatched.tracker, { parent: group });
 
 test("stage dispatch uses native ancestry during initial frontier publication", async () => {
+	const beads = {
+		...dispatched.commands.beads,
+		show: (scope: BeadsScope, id: string) => {
+			if (id === dispatched.parent) {
+				throw new Error("External parent is outside stage admission");
+			}
+			return dispatched.commands.beads.show(scope, id);
+		},
+	};
 	const workflows = {
-		...automatic.commands.workflows,
+		...dispatched.commands.workflows,
 		show: () => {
 			throw new Error("checkpoint is not yet published");
 		},
 	};
 	const result = await dispatchStage(
-		{ kind: "worker", stageId: stage, options: { ...options, run: automaticRun } },
-		{ ...automatic.commands, workflows },
+		{ kind: "worker", stageId: stage, options: { ...options, run: dispatchedRun } },
+		{ ...dispatched.commands, beads, workflows },
 	);
 	const request = readSpawnRequest(
-		await automatic.tracker.beads.show(
-			trackerScope(automatic.tracker.repository, "inspect"),
+		await dispatched.tracker.beads.show(
+			trackerScope(dispatched.tracker.repository, "inspect"),
 			result.request.id,
 		),
 	);
-	expect(request.assignment).toEqual({ kind: "stage", runId: automaticRun, stageId: stage });
+	expect(request.assignment).toEqual({ kind: "stage", runId: dispatchedRun, stageId: stage });
 	expect(request.taskIds).toEqual([stage]);
 });
 
 test("unknown kind preserves the CLI failure envelope and creates no workflow", async () => {
-	const { commands, selected } = fixture();
-	const failure: unknown = await submitWorkflow("missing", options, commands).catch(
+	const { commands, selected, submission } = await fixture();
+	const failure: unknown = await submitWorkflow("missing", submission, commands).catch(
 		(error: unknown) => error,
 	);
 	const stdout: string[] = [];
@@ -177,3 +250,26 @@ test("unknown kind preserves the CLI failure envelope and creates no workflow", 
 	expect(stderr).toEqual([]);
 	expect(selected).toEqual([]);
 });
+
+async function assertInitialHierarchy(
+	tracker: ReturnType<typeof memoryTracker>,
+	parent: string,
+	runId: string,
+) {
+	const scope = trackerScope(tracker.repository, "inspect");
+	const run = await tracker.beads.show(scope, runId);
+	expect(run.dependencies).toMatchObject([{ id: parent, dependency_type: "parent-child" }]);
+	const visit = run.dependents.find((edge) => edge.dependency_type === "parent-child")!;
+	expect(await tracker.beads.show(scope, visit.id)).toMatchObject({
+		title: "Actual assignment",
+		dependencies: [{ id: run.id, dependency_type: "parent-child" }],
+	});
+	expect(await tracker.beads.show(scope, parent)).toMatchObject({
+		assignee: "ct",
+		owner: "ct",
+		status: "open",
+		title: "Original task",
+	});
+	const issues = await tracker.beads.list(scope, { limit: 0 });
+	expect(issues.issues).toHaveLength(INITIAL_RECORDS);
+}

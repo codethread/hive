@@ -2,7 +2,7 @@
  * Compose existing runtime boundaries with the independent advisory assessment
  * lifecycle.
  */
-import { SPAWN_REQUEST_LABELS, readSpawnRequest, readSpawnRequestSummary } from "@hive/shared";
+import { SPAWN_REQUEST_LABELS, readSpawnRequest, readSpawnRequestHost } from "@hive/shared";
 import { assertRequestAuthority, claimRequest, newRequest, reconcileRequests } from "./request.ts";
 import { compareCandidates, hasCapacity, hasContention } from "./scheduler.ts";
 import { prepareLaunch, startSupervisor, writeReceipt } from "./launch.ts";
@@ -91,9 +91,7 @@ async function prepareCandidates(
 	});
 	const candidates: Candidate[] = [];
 	const records = new Map(store.requests(repository.root).map((record) => [record.id, record]));
-	for (const request of issues.filter(
-		(issue) => readSpawnRequestSummary(issue).host === hostname(),
-	)) {
+	for (const request of issues.filter((issue) => readSpawnRequestHost(issue) === hostname())) {
 		// eslint-disable-next-line no-await-in-loop -- Retain each request's preparation boundary independently.
 		await store.history.run(
 			{

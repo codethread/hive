@@ -8,7 +8,7 @@ Recommend **Bee composing Busy Bee at submission, with two focused CLIs during e
 
 The [production submission](../../lib/colony/src/workflow-submission.ts) starts a Busy Bee run and submits exactly that run to Bee. Its default stage contains the actual caller assignment and verification instructions. Colony watches run closure and releases unfinished descendants assigned to a stopped driver. Independent workers retain their assignments.
 
-The original POC called Busy Bee's runtime inside its own package and invokes Bee through its CLI. Its prototype is replaced by production workflow submission, kind defaults and separate automatic-stage dispatch. The remaining paper records the design rationale and alternatives considered.
+The original POC called Busy Bee's runtime inside its own package and invokes Bee through its CLI. Its prototype is replaced by production workflow submission, kind defaults and separate stage dispatch. The remaining paper records the design rationale and alternatives considered.
 
 These responsibilities already have separate implementations:
 
@@ -47,7 +47,7 @@ Preserve directory meanings: Bee's `--repo` discovers canonical configuration; `
 Submission order:
 
 1. Resolve kind defaults and overrides, execution checkout and tracker.
-2. Start the selected workflow once through Busy Bee, with the run and initial manual stages unassigned.
+2. Start the selected workflow once through Busy Bee, with the run and initial driver-handled stages unassigned.
 3. Ask Busy Bee to prepare the active run for delegation; make it ready and append driver instructions using the existing POC handoff until that interface exists.
 4. Create one driver request linked to the run.
 5. Return both identities, without implying dispatch or completion.
@@ -63,20 +63,20 @@ Keep the existing workflow API and command meanings:
 | Operation | Command shape | Meaning |
 | --- | --- | --- |
 | Catalogue and initialization schema | `busybee list`, `busybee input-schema NAME` | Discover definitions and caller requirements |
-| Start without a Bee driver | `busybee run NAME --input-file FILE --owner HUMAN` | Create a standalone run; automatic stages may still delegate |
+| Start without a Bee driver | `busybee run NAME --input-file FILE --owner HUMAN` | Create a standalone run; Bee-dispatched stages may still delegate |
 | Inspect a saved run | `busybee show RUN` | Read active visits and workflow status |
 | Discover valid outcomes | `busybee discover RUN` | Read current stage IDs, choices and payload schemas |
 | Submit a completed stage | `busybee next RUN STAGE` | Submit the declared `next` outcome of a closed active stage |
 | Submit another outcome | `busybee choice RUN STAGE OUTCOME --data-file FILE` | Validate and apply a declared choice |
-| Collect automatic workers | `busybee collect RUN` | Read worker results and advance their visits |
+| Collect Bee-dispatched workers | `busybee collect RUN` | Read worker results and advance their visits |
 
-Workers read and claim their manual stages, do the work, record verification and close those stages through `br`. Busy Bee advances from accepted results and closes grouping beads and the run. The driver calls `bee finish success` only after the run reports done. A blocked driver records the blocker and reports `bee finish blocked`.
+Workers read and claim their driver-handled stages, do the work, record verification and close those stages through `br`. Busy Bee advances from accepted results and closes grouping beads and the run. The driver calls `bee finish success` only after the run reports done. A blocked driver records the blocker and reports `bee finish blocked`.
 
 The Luna probe confused the task argument to `next` once. Regardless of CLI prefix, help and discovery must clearly identify **RUN and STAGE** and distinguish them from an outcome name. Putting all commands under `bee` would not itself fix this argument contract.
 
-## Automatic stages need a separate execution primitive
+## Bee-dispatched stages need a separate execution primitive
 
-If public `bee spawn` always creates a workflow, Busy Bee's current call to `bee spawn` for automatic stages would recursively wrap each stage. Changing public submission therefore also requires changing that internal call.
+If public `bee spawn` always creates a workflow, Busy Bee's current call to `bee spawn` for Bee-dispatched stages would recursively wrap each stage. Changing public submission therefore also requires changing that internal call.
 
 Propose a single-bead execution primitive, with an explicit CLI seam for Busy Bee:
 
@@ -89,7 +89,7 @@ This reuses Bee's request creation, admission, identity, supervision and finish 
 
 Persist the distinction in the shared request contract: a driver request names its run; a stage request names its run and stage. This lets Colony materialize the correct execution instructions without guessing from titles or relying on a prompt-only convention. It is proposed request representation, requiring coordinated consumer updates, not a CLI-only edit.
 
-Automatic workers do and verify the work, save JSON notes containing `choice` and its schema payload, close their stage, then finish their execution. They must not call `next` or `choice`; the driver collects their results. A replacement driver resumes coordination without reassigning those workers. An alive driver consumes capacity while waiting for workers, and collection reads closed-stage notes rather than failed spawn disposition. Capacity and blocked-result propagation need explicit workflow policies before productization.
+Bee-dispatched workers do and verify the work, save JSON notes containing `choice` and its schema payload, close their stage, then finish their execution. They must not call `next` or `choice`; the driver collects their results. A replacement driver resumes coordination without reassigning those workers. An alive driver consumes capacity while waiting for workers, and collection reads closed-stage notes rather than failed spawn disposition. Capacity and blocked-result propagation need explicit workflow policies before productization.
 
 ## Compare the surfaces
 
@@ -126,13 +126,13 @@ For the recommended composition, reuse the existing runtime operations. A small 
 ## Failure and completion contracts
 
 - Invalid initial input creates no run or driver request. A run that finishes during initialization stays closed and creates no driver; retain the POC's visible `workflow_already_done` outcome unless a separate no-work success policy is chosen.
-- Workflow creation and request creation remain separate effects. Report every known run, checkpoint and request ID on partial failure, including any automatic-stage requests created during initialization. Distinguish confirmed absence of a driver request, a known created request and uncertain publication; inspection precedes any retry.
+- Workflow creation and request creation remain separate effects. Report every known run, checkpoint and request ID on partial failure, including any stage dispatch requests created during initialization. Distinguish confirmed absence of a driver request, a known created request and uncertain publication; inspection precedes any retry.
 - A run with no driver request needs a same-run driver-attachment operation that performs native admission without initializing another workflow. Its spelling and authorization remain unresolved. Public `bee spawn` would create another run, and `bee retry` requires an existing eligible request, so neither is an orphan-run recovery contract. Do not promise automatic recovery, rollback or idempotency before that seam is designed; preserve uncertain-publication locks.
 - Busy Bee alone decides workflow completion. Colony decides execution settlement by observing the assigned run or stage and validated finish reports.
 - Stopped-driver cleanup follows native parent-child links beneath its recorded claims and clears only unfinished assignments held by that identity. Closed work, human reservations, native blocked states and independent identities remain intact.
-- `bee stop REQUEST` stops that execution after verified reconciliation. It is not a promise to cancel the entire workflow and all automatic workers. Whole-workflow cancellation is a separate unresolved operation.
+- `bee stop REQUEST` stops that execution after verified reconciliation. It is not a promise to cancel the entire workflow and all Bee-dispatched workers. Whole-workflow cancellation is a separate unresolved operation.
 - Checkpoints persist the XState snapshot and versioned definition locator, not a copy of source code. Named definitions resolve in the continuation checkout and must satisfy the forward SemVer caret range from the saved manifest version; their folder hashes record provenance. Explicit sources retain their original path and require the saved entry-file hash to match. Authors own imported dependencies and compatibility of persisted state and frozen task commands. Existing uncertain-publication locks and finite retry limits remain; consolidating CLI names changes none of them.
-- A manual stage's selected outcome and payload need durable evidence before closure for interruption recovery. The POC's empty-payload `next` continuation does not establish arbitrary-payload recovery; the exact durable delivery contract remains to be designed.
+- A driver-handled stage's selected outcome and payload need durable evidence before closure for interruption recovery. The POC's empty-payload `next` continuation does not establish arbitrary-payload recovery; the exact durable delivery contract remains to be designed.
 
 ## Agent guidance and discovery
 
@@ -143,15 +143,15 @@ This is an instruction-derived map, not a measured trace of every harness. Root 
 | Agent situation | Small guidance needed | Material reached on demand |
 | --- | --- | --- |
 | Delegating caller | Choose kind, provide workflow input, submit and inspect both returned identities | `bee spawn --help`, kind discovery, Busy Bee input schema in the execution checkout |
-| Workflow driver | Read run; discover active stages; claim/do/verify/close manual work; advance or collect; finish only when done | `busybee discover RUN`, relevant outcome schema and command help |
-| Automatic stage worker | Work only on assigned stage; save JSON notes before closing stage, then finish | Stage brief, result schema, `bee finish --help` |
+| Workflow driver | Read run; discover active stages; claim/do/verify/close driver-handled work; advance or collect; finish only when done | `busybee discover RUN`, relevant outcome schema and command help |
+| Bee-dispatched stage worker | Work only on assigned stage; save JSON notes before closing stage, then finish | Stage brief, result schema, `bee finish --help` |
 | Workflow author | Definition and ownership contract | Busy Bee specification and workflow authoring guide |
 | Operator investigating execution | Request outcome and process evidence are separate from workflow status | Bee status, Colony inspection/explanation, workflow show |
 
 Proposed driver loop:
 
 ```text
-read run -> discover stages -> do and verify manual work -> close stage
+read run -> discover stages -> do and verify driver-handled work -> close stage
          -> advance / collect -> repeat until run done -> finish execution
 ```
 
@@ -163,7 +163,7 @@ Update the existing locations when implementing the chosen design:
 - Busy Bee discovery and generated task briefs: put required stage IDs, choices, schemas and closure authority beside the current work. Match the chosen canonical command spelling.
 - Bee and Busy Bee user guides: keep delegation lifecycle and workflow operation reference in their owning guides, with links at the seam. Workflow-related skills use those commands and carry their domain-specific work, not a duplicate engine runbook.
 
-Under a façade, the driver substitutes `bee workflow` for the Busy Bee prefix; the work loop and two identities stay the same. Standalone Busy Bee remains available for workflow authors and manually driven workflows. Document one canonical spelling for delegated agents, rather than teaching interchangeable aliases at startup.
+Under a façade, the driver substitutes `bee workflow` for the Busy Bee prefix; the work loop and two identities stay the same. Standalone Busy Bee remains available for workflow authors and workflows without a Bee driver. Document one canonical spelling for delegated agents, rather than teaching interchangeable aliases at startup.
 
 ## Recommendation and next proof
 

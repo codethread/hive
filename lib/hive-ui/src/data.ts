@@ -40,6 +40,8 @@ interface ResourceState<Value> {
 	entries: Record<string, Resource<Value>>;
 }
 interface Preferences {
+	/** Workflow-generated cards are hidden on the board until explicitly shown. */
+	showWorkflowBeads: boolean;
 	/** Closed visibility shared by outline views, independent of the Kanban predicate. */
 	outlineClosed: boolean;
 	/** Sidebar width preference, independent of URL filters and native data reads. */
@@ -58,6 +60,7 @@ export const hierarchies = createHierarchyResource();
 export const outlines = createResource(hierarchySchema);
 export const provenance = createResource(provenanceSchema);
 export const preferences = createStore<Preferences>(() => ({
+	showWorkflowBeads: false,
 	outlineClosed: false,
 	sidebarCollapsed: false,
 	theme: "moss",

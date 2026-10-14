@@ -21,6 +21,8 @@ const NONE = 0;
 const actorSchema = z.compile(z.string().trim().min(NONEMPTY));
 
 export interface WorkflowSpawnOptions extends SpawnOptions {
+	/** Existing ordinary work containing the new workflow; Busybee validates it. */
+	parent: string;
 	/** Caller-owned JSON input, validated by the selected workflow. */
 	inputFile: string;
 	/** Named workflow override from the execution checkout. */
@@ -29,7 +31,7 @@ export interface WorkflowSpawnOptions extends SpawnOptions {
 	source?: string;
 }
 export interface StageOptions extends SpawnOptions {
-	/** Existing workflow containing this automatic visit. */
+	/** Existing workflow containing this Bee-dispatched visit. */
 	run: string;
 }
 export interface WorkflowSubmissionCommands extends ProducerCommands {
@@ -47,8 +49,8 @@ export interface WorkflowSubmissionResult {
 	kind: "workflow_spawn_created";
 	/** Driver identity used to inspect execution. */
 	request: { id: string; identity: string };
-	/** Durable assignment and completion anchor. */
-	workflow: { runId: string; status: string };
+	/** Run completion anchor, with parent evidence on initial submission. */
+	workflow: { runId: string; status: string; parentId?: string };
 }
 
 /** Create one workflow assignment and delegate its existing run to Colony. */
@@ -66,12 +68,16 @@ export async function submitWorkflow(
 		selection = { kind: "source", path: resolve(commands.cwd, options.source) };
 	}
 	const run = await commands.workflows.start({
+		parent: options.parent,
 		endpoint,
 		owner,
 		selection,
 		inputFile: resolve(commands.cwd, options.inputFile),
 	});
-	return attachPrepared({ kind, run, endpoint, options }, commands);
+	return attachPrepared(
+		{ kind, run, endpoint, options, initialization: { parentId: options.parent } },
+		commands,
+	);
 }
 
 /** Attach to a confirmed orphan run without creating or replaying a workflow. */
@@ -83,10 +89,10 @@ export async function attachWorkflow(
 	await assertOrphanRun(runId, endpoint, commands);
 	await commands.admit(runId, options);
 	const run = await commands.workflows.show(runId, endpoint);
-	return attachPrepared({ kind, run, endpoint, options }, commands);
+	return attachPrepared({ kind, run, endpoint, options, initialization: {} }, commands);
 }
 
-/** Execute an existing automatic visit without selecting or creating a workflow. */
+/** Execute an existing Bee-dispatched visit without selecting or creating a workflow. */
 export async function dispatchStage(
 	{ kind, stageId, options }: { kind: string; stageId: string; options: StageOptions },
 	commands: WorkflowSubmissionCommands,
@@ -213,7 +219,7 @@ async function assertStageParent(
 			stageId,
 		});
 	}
-	// Initial automatic dispatch occurs before Busybee saves the published frontier.
+	// Initial Bee dispatch occurs before Busybee saves the published frontier.
 	// Native parentage is available here; reading the checkpoint frontier would be stale.
 	while (task.id !== runId) {
 		const parent = task.dependencies.find((edge) => edge.dependency_type === "parent-child");
@@ -241,11 +247,21 @@ async function attachPrepared(
 		run,
 		endpoint,
 		options,
-	}: { kind: string; run: WorkflowRun; endpoint: WorkflowEndpoint; options: SpawnOptions },
+		initialization,
+	}: {
+		kind: string;
+		run: WorkflowRun;
+		endpoint: WorkflowEndpoint;
+		options: SpawnOptions;
+		initialization: { parentId: string } | Record<string, never>;
+	},
 	commands: WorkflowSubmissionCommands,
 ): Promise<WorkflowSubmissionResult> {
 	const context = {
+		...initialization,
 		runId: run.id,
+		stageIds: run.active.map((entry) => entry.bead),
+		nextAction: `br show ${run.id} --json`,
 		stageRequestIds: run.active.flatMap((entry) => {
 			if (entry.request === null) {
 				return [];
@@ -276,7 +292,11 @@ async function attachPrepared(
 		return {
 			kind: "workflow_spawn_created",
 			request: { id: request.id, identity: request.assignee },
-			workflow: { runId: run.id, status: handoff.status },
+			workflow: {
+				runId: run.id,
+				status: handoff.status,
+				...initialization,
+			},
 		};
 	} catch (error) {
 		throw new WorkflowSubmissionError(

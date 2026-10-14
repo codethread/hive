@@ -25,7 +25,7 @@ import {
 	COLONY_OBSERVATION_PREFIX,
 	latestColonyObservation,
 	latestStdoutActivity,
-	readSpawnRequest,
+	readSpawnRequestAttribution,
 	requestNeedsAttention,
 	requestOutcome,
 } from "@hive/shared";
@@ -34,11 +34,18 @@ import { beadFamilies, branchRows } from "../hierarchy.ts";
 import { formatBeadsQuery } from "@hive/beads";
 import { readHierarchy } from "./hierarchy.ts";
 import { taskSelection } from "./query.ts";
+import { z } from "zod";
 
 const MAX_REQUESTS = 100;
 const TASK_MATCH_BATCH = 100;
 const MAX_ANCESTORS = 8;
 const INVENTORY_TTL_MS = 10_000;
+// Read only the published identity index, independent of Busy Bee actor-state internals.
+const workflowVisitSchema = z.object({ bead: z.string() });
+const workflowSystemSchema = z.object({
+	id: z.string(),
+	created: z.array(workflowVisitSchema),
+});
 type Inventory = Extract<RequestInventory, { kind: "loaded" }>;
 interface InventorySnapshot {
 	/** Native lookup start, used to satisfy a refresh cutoff independently of response completion. */
@@ -103,7 +110,7 @@ export function createBoardData() {
 	};
 	const cards = async (
 		context: ReadContext,
-		tasks: BeadRow[],
+		tasks: (SelectedBead | BeadRecord)[],
 		refreshAfter: number,
 	): Promise<Card[]> => {
 		let assignments: Bee[] = [];
@@ -113,7 +120,8 @@ export function createBoardData() {
 				assignments = open.bees;
 			}
 		}
-		return tasks.map((task) => card(task, assignments));
+		const workflows = await workflowGeneratedBeads(context);
+		return tasks.map((task) => card(task, assignments, workflows.has(task.id)));
 	};
 	// Coalesce overlapping family reads and reuse only complete, fresh components.
 	// eslint-disable-next-line max-statements
@@ -311,6 +319,25 @@ export function createBoardData() {
 }
 
 // --- Native I/O and projections ---
+/** Index workflow-generated identities from workflow system beads in one native read. */
+async function workflowGeneratedBeads(context: ReadContext): Promise<Set<string>> {
+	const systems = await list(context, {
+		all: true,
+		labels: ["system", "busybee-checkpoint"],
+		limit: 0,
+	});
+	const beads = new Set<string>();
+	for (const system of systems) {
+		// Busy Bee owns this JSON; projection reads its published identities, never its actor state.
+		const workflow = workflowSystemSchema.parse(JSON.parse(system.description));
+		beads.add(workflow.id);
+		for (const visit of workflow.created) {
+			beads.add(visit.bead);
+		}
+	}
+	return beads;
+}
+
 function relations(edges: BeadRecord["dependencies"]): Detail["dependencies"] {
 	return {
 		items: edges.slice(0, RELATION_LIMIT).map((edge) => ({
@@ -329,7 +356,7 @@ async function readTasks(
 	context: ReadContext,
 	filter: BoardFilter,
 	inventory: RequestInventory,
-): Promise<{ tasks: BeadRow[]; query: string[] }> {
+): Promise<{ tasks: SelectedBead[]; query: string[] }> {
 	let taskIds: string[] = [];
 	if (inventory.kind === "loaded") {
 		if (filter.request === undefined) {
@@ -497,7 +524,7 @@ async function readInventory(context: ReadContext, scope: BoardScope): Promise<I
 }
 
 function bee(bead: BeadRecord): Bee {
-	const request = readSpawnRequest(bead);
+	const request = readSpawnRequestAttribution(bead);
 	const observed = latestColonyObservation(bead);
 	let observation: Bee["observation"] = null;
 	if (observed) {
@@ -524,7 +551,7 @@ function bee(bead: BeadRecord): Bee {
 	};
 }
 
-function card(bead: BeadRow, requests: Bee[]): Card {
+function card(bead: BeadRow, requests: Bee[], isWorkflowGenerated: boolean): Card {
 	return {
 		assignee: bead.assignee ?? null,
 		beeAssignments: requests
@@ -537,6 +564,7 @@ function card(bead: BeadRow, requests: Bee[]): Card {
 			)
 			.map(({ id, kind, stdout }) => ({ id, kind, stdout })),
 		id: bead.id,
+		isWorkflowGenerated,
 		labels: bead.labels,
 		priority: bead.priority,
 		status: bead.status,

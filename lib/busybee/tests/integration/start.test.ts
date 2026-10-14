@@ -1,10 +1,10 @@
 /* eslint-disable unicorn/no-null -- Saved checkpoints encode absent requests as null. */
 import type { BeadsScope, UpdateBead } from "@hive/beads";
 import { BusyBeeError, createServices, readBead } from "../../src/native.ts";
+import { captureCli, invoke } from "./support.ts";
 import { discover, navigate, runViewSchema } from "../../src/runtime.ts";
 import { expect, test } from "bun:test";
 import type { Services } from "../../src/native.ts";
-import { captureCli } from "./support.ts";
 import { createMachine } from "xstate";
 import { createMemoryBeads } from "@hive/beads";
 import { fingerprint } from "../../src/catalogue.ts";
@@ -40,6 +40,10 @@ test("start publishes an initial worker and one JSON success document through th
 	const root = "/busybee-start";
 	const startDb = `${root}/.beads/beads.startDb`;
 	const beads = createMemoryBeads({ db: startDb });
+	const parent = await beads.create(
+		{ actor: "original-agent", cwd: root, db: startDb },
+		{ title: "Original work", owner: "responsible-human" },
+	);
 	const calls: { operation: string; scope: BeadsScope }[] = [];
 	const writes: string[] = [];
 	const definition = {
@@ -108,6 +112,8 @@ test("start publishes an initial worker and one JSON success document through th
 			"starting-agent",
 			"--owner",
 			"responsible-human",
+			"--parent",
+			parent.id,
 			"start",
 			`${root}/workflow.ts`,
 			"--json",
@@ -124,12 +130,16 @@ test("start publishes an initial worker and one JSON success document through th
 		{ commands: ["next"], context: {}, instructions: "Complete work", path: [], title: "Worker" },
 	]);
 	const endpoint = { db: startDb, repo: root };
-	await expect(readBead(endpoint, started.id, startServices)).resolves.toMatchObject({
+	const run = await readBead(endpoint, started.id, startServices);
+	expect(run).toMatchObject({
 		assignee: "starting-agent",
 		created_by: "starting-agent",
 		owner: "responsible-human",
 		status: "in_progress",
 	});
+	expect(run.dependencies.filter((edge) => edge.dependency_type === "parent-child")).toEqual([
+		expect.objectContaining({ id: parent.id }),
+	]);
 	await expect(
 		readBead(endpoint, started.active[FIRST]!.bead, startServices),
 	).resolves.toMatchObject({
@@ -163,6 +173,8 @@ test("start publishes an initial worker and one JSON success document through th
 			.flatMap(({ operation }) => ["beforeWrite", operation]),
 	);
 });
+// Inspect the complete recovery diagnostic and preservation proof together.
+// eslint-disable-next-line max-statements
 test("show rejects a changed named checkpoint before import with authorized same-scope recovery #test-54", async () => {
 	const fixture = await retainedRun({
 		readText: () => Promise.resolve(manifest.replace("1.0.0", "2.0.0")),
@@ -170,7 +182,16 @@ test("show rejects a changed named checkpoint before import with authorized same
 	const error = await inspect("show", fixture);
 	expect(error).toBeInstanceOf(BusyBeeError);
 	expect(error).toMatchObject({
-		context: { db, name: "example", repo, run: fixture.id },
+		context: {
+			db,
+			name: "example",
+			repo,
+			runId: fixture.id,
+			stageIds: ["completed"],
+			stageRequestIds: ["completed-request"],
+			acceptedResults: [{ bead: "completed", command: "next", request: "completed-request" }],
+			nextAction: `br show ${fixture.id} --json`,
+		},
 		reason: "definition_changed",
 	});
 	expect(error.message).toContain("same already-authorized scope without asking the user again");
@@ -178,6 +199,19 @@ test("show rejects a changed named checkpoint before import with authorized same
 	expect(error.message).toContain("busybee run example");
 	expect(error.message).toContain("Inspect completed and uncertain effects");
 	expect(error.message).toContain("Retain the old run as history");
+	expect(error.message).toContain("--parent ORIGINAL_PARENT");
+	expect(error.message).toContain("replacement completion does not complete them");
+	const response = await invoke(["show", fixture.id], fixture.io);
+	expect(response.document).toMatchObject({
+		ok: false,
+		kind: "show",
+		reason: "definition_changed",
+		runId: fixture.id,
+		stageIds: ["completed"],
+		stageRequestIds: ["completed-request"],
+		nextAction: `br show ${fixture.id} --json`,
+	});
+	expect(response.stderr).toBe("");
 	await fixture.assertPreserved();
 });
 
@@ -186,7 +220,7 @@ test("discover requires user selection when the saved named folder is absent #te
 	const error = await inspect("discover", fixture);
 	expect(error).toBeInstanceOf(BusyBeeError);
 	expect(error).toMatchObject({
-		context: { db, name: "example", repo, run: fixture.id },
+		context: { db, name: "example", repo, runId: fixture.id },
 		reason: "workflow_missing",
 	});
 	expect(error.message).toMatchInlineSnapshot(
@@ -248,7 +282,9 @@ test("changed explicit-file runs keep their source-based diagnostic #test-46", a
 	expect(error).toMatchObject({ reason: "definition_changed" });
 	expect(error.message).toMatchInlineSnapshot(
 		'"Workflow definition changed; inspect the current source at ' +
-			'/repo/.workflows/example/entry.ts and start a fresh run."',
+			"/repo/.workflows/example/entry.ts and start a fresh run. Inspect br show mem-1 --json " +
+			"and retained visits first; preserve their evidence and native parent when handing off " +
+			'remaining work. Leave unfinished old work open; replacement completion does not complete it."',
 	);
 	await fixture.assertPreserved();
 });
@@ -290,11 +326,18 @@ async function retainedRun(
 		formatVersion: 1,
 		active: [],
 		created: [
-			{ bead: "completed", node: "first", parent: parent.id, path: [], request: null, visit: 1 },
+			{
+				bead: "completed",
+				node: "first",
+				parent: parent.id,
+				path: [],
+				request: "completed-request",
+				visit: 1,
+			},
 		],
 		definition,
 		hash: retainedHash,
-		history: [{ bead: "completed", command: "next", data: {}, request: null }],
+		history: [{ bead: "completed", command: "next", data: {}, request: "completed-request" }],
 		id: parent.id,
 		snapshot: {},
 		visits: { first: 1 },

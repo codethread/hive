@@ -128,6 +128,8 @@ export const cardSchema = z.object({
 	beeAssignments: z.array(beeSchema.pick({ id: true, kind: true, stdout: true })),
 	/** Native task bead ID used for selection and detail reads. */
 	id: z.string(),
+	/** Workflow-generated record (run, group or work visit) indexed by a workflow system bead. */
+	isWorkflowGenerated: z.boolean(),
 	/** Exact native labels retained for display and filter actions. */
 	labels: z.array(z.string()),
 	/** Native numeric task priority; lower values are more urgent. */

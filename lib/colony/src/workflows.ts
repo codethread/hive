@@ -32,6 +32,7 @@ export type WorkflowHandoff = z.infer<typeof handoffSchema>;
 export interface WorkflowCommands {
 	/** Validate caller input and initialize one durable workflow. */
 	start: (input: {
+		parent: string;
 		selection: WorkflowSelection;
 		inputFile: string;
 		owner: string;
@@ -50,11 +51,21 @@ export interface WorkflowProcess {
 /** Translate the Busybee command contract once at the process boundary. */
 export function workflowCommands(process: WorkflowProcess): WorkflowCommands {
 	return {
-		start: async ({ selection, inputFile, owner, endpoint }) => {
+		start: async ({ parent, selection, inputFile, owner, endpoint }) => {
 			const command = startArguments(selection);
 			return runSchema.parse(
 				await invoke(
-					[...command, "--input-file", inputFile, "--owner", owner, "--assignee", ""],
+					[
+						...command,
+						"--parent",
+						parent,
+						"--input-file",
+						inputFile,
+						"--owner",
+						owner,
+						"--assignee",
+						"",
+					],
 					endpoint,
 					process,
 				),

@@ -8,6 +8,7 @@ import {
 import { expect, test } from "bun:test";
 import { CommandError } from "@hive/beads";
 import type { OperationEvidence } from "./history.ts";
+import type { WorkflowAssignment } from "@hive/shared";
 import { newRequest } from "./request.ts";
 import { trackerScope } from "./tracker.ts";
 
@@ -15,6 +16,69 @@ const FIRST = 0;
 // Seed the isolated release fixture outside behavior timing, following config.test.ts.
 const releaseFixture = await claimFixture();
 const hierarchyFixture = await hierarchyClaimFixture();
+const parentedFixtures = await Promise.all(
+	["driver", "stage"].map((role) => parentedClaimFixture(role)),
+);
+
+// Seed independent role hierarchies before measuring the cleanup boundary.
+// eslint-disable-next-line max-statements
+async function parentedClaimFixture(role: string) {
+	const tracker = memoryTracker();
+	const scope = trackerScope(tracker.repository, "inspector");
+	const parent = await createTask(tracker, { assignee: "ct", status: "in_progress" });
+	const run = await createTask(tracker, { parent, assignee: "worker", status: "in_progress" });
+	const visit = await createTask(tracker, {
+		parent: run,
+		assignee: "worker",
+		status: "in_progress",
+	});
+	let root = run;
+	if (role === "stage") {
+		root = visit;
+	}
+	const child = await createTask(tracker, {
+		parent: root,
+		assignee: "worker",
+		status: "in_progress",
+	});
+	const sibling = await createTask(tracker, { parent, assignee: "worker", status: "in_progress" });
+	const otherVisit = await createTask(tracker, {
+		parent: run,
+		assignee: "another-bee",
+		status: "in_progress",
+	});
+	const hitl = await createTask(tracker, { parent: root, assignee: "worker", labels: ["hitl"] });
+	const human = await createTask(tracker, { parent: root, assignee: "ct" });
+	const saved = await createTask(tracker, {
+		parent: root,
+		assignee: "worker",
+		status: "closed",
+	});
+	await tracker.beads.update(scope, [saved], {
+		notes: JSON.stringify({ choice: "next", data: { proof: "retained" } }),
+	});
+	const checkpoint = await createTask(tracker, {
+		labels: ["system", "busybee-checkpoint"],
+	});
+	await tracker.beads.update(scope, [checkpoint], {
+		notes: JSON.stringify({ owner: "retained-lock", pid: 22 }),
+	});
+	await tracker.beads.dep.add(scope, run, checkpoint, "related");
+	const spawn = await createSpawn(tracker, root);
+	const native = await tracker.beads.show(scope, spawn);
+	let assignment: WorkflowAssignment = { kind: "driver", runId: run };
+	if (role === "stage") {
+		assignment = { kind: "stage", runId: run, stageId: visit };
+	}
+	native.description = JSON.stringify({ ...JSON.parse(native.description), assignment });
+	const request = newRequest(native, tracker.repository);
+	const untouched = [parent, sibling, otherVisit, hitl, human, saved, checkpoint];
+	if (role === "stage") {
+		untouched.push(run);
+	}
+	const before = await tracker.beads.showMany(scope, untouched);
+	return { tracker, root, child, visit, role, scope, untouched, before, request };
+}
 
 async function claimFixture() {
 	const tracker = memoryTracker();
@@ -137,8 +201,47 @@ test("stopped root releases owned descendants while preserving protected and rel
 	expect(evidence.effects).toEqual([`tracker.released:${root}`, `tracker.released:${descendant}`]);
 });
 
+test.each(parentedFixtures)(
+	"$role cleanup stays beneath its captured claim in a parented workflow",
+	// Verify release, preserved records and the next identity's role-scoped reacquisition.
+	// eslint-disable-next-line max-statements
+	async ({ tracker, root, child, visit, role, scope, untouched, before, request }) => {
+		await releaseClaims(
+			tracker,
+			{ ...request, context: { ...request.context, claims: [root] } },
+			operationEvidence(),
+		);
+		const released = [root, child];
+		if (role === "driver") {
+			released.push(visit);
+		}
+		const releasedRecords = await tracker.beads.showMany(scope, released);
+		const preserved = await tracker.beads.showMany(scope, untouched);
+		expect(
+			releasedRecords.map(({ status, assignee }) => ({
+				status,
+				assignee,
+			})),
+		).toEqual(released.map(() => ({ status: "open", assignee: undefined })));
+		expect(
+			preserved.map(
+				({ dependencies: _dependencies, dependents: _dependents, ...record }) => record,
+			),
+		).toEqual(
+			before.map(({ dependencies: _dependencies, dependents: _dependents, ...record }) => record),
+		);
+		expect(await acquireClaim(tracker, "replacement", root, operationEvidence())).toBe("claimed");
+		if (role === "driver") {
+			expect(await acquireClaim(tracker, "replacement", visit, operationEvidence())).toBe(
+				"claimed",
+			);
+		}
+	},
+);
+
 test.each([
 	{ input: { assignee: "ct" }, outcome: "conflict" },
+	{ input: { assignee: "another-driver" }, outcome: "conflict" },
 	{ input: { labels: ["hitl"] }, outcome: "conflict" },
 	{ input: { status: "closed" }, outcome: "closed" },
 ])(

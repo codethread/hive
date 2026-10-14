@@ -117,9 +117,10 @@ function commandOptions(): Command {
 		.option("--repo <path>", "Repository/execution directory; defaults to current directory")
 		.option("--actor <identity>", "Mutation audit actor; defaults to BD_ACTOR")
 		.option("--owner <human>", "Accountable human; required when starting")
+		.option("--parent <id>", "Existing nonclosed non-system work bead; required by run/start")
 		.option(
 			"-a, --assignee <agent>",
-			"Initial run/manual-task assignee; defaults to starting actor",
+			"Initial assignee for the run and driver-handled tasks; defaults to starting actor",
 		)
 		.option("--json", "One machine-readable success or failure document")
 		.option("--input-file <path>", "Initial actor input as JSON; defaults to an empty object")
@@ -151,12 +152,18 @@ function registerCreation(invocation: Invocation): void {
 		.action(async () => {
 			writeResult(await installDefaultWorkflow(options(), services), invocation);
 		});
-	cli.command("run <name>").action(async (name: string) => {
-		writeResult(await startNamed(name, options(), services), invocation);
-	});
-	cli.command("start <source>").action(async (source: string) => {
-		writeResult(await start(source, options(), services), invocation);
-	});
+	cli
+		.command("run <name>")
+		.description("Start a named workflow beneath --parent work")
+		.action(async (name: string) => {
+			writeResult(await startNamed(name, options(), services), invocation);
+		});
+	cli
+		.command("start <source>")
+		.description("Start an explicit definition beneath --parent work")
+		.action(async (source: string) => {
+			writeResult(await start(source, options(), services), invocation);
+		});
 	cli.command("validate <source>").action(async (source: string) => {
 		const result = await validate(resolve(services.cwd, source), options().inputFile, services);
 		writeResult(result, invocation);
@@ -240,7 +247,7 @@ function registerNavigation(invocation: Invocation): void {
 		.command("prepare-driver <run>")
 		.description(
 			"Validate and open an active run for driver admission under its checkpoint lock; " +
-				"preserve manual reservations and completed runs",
+				"preserve driver-handled reservations and completed runs",
 		)
 		.action(async (id: string) => {
 			writeResult(await prepareDriver(id, options(), services), invocation);

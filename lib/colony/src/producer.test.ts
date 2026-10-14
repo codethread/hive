@@ -111,8 +111,28 @@ test.each(cases)(
 );
 
 const workflowRetry = memoryTracker();
-const retryRun = await createTask(workflowRetry);
+const retryParent = await createTask(workflowRetry, { assignee: "ct", status: "in_progress" });
+const retryRun = await createTask(workflowRetry, { parent: retryParent });
 const retryStage = await createTask(workflowRetry, { parent: retryRun });
+const retrySaved = await createTask(workflowRetry, {
+	parent: retryRun,
+	status: "closed",
+});
+await workflowRetry.beads.update(
+	trackerScope(workflowRetry.repository, "inspector"),
+	[retrySaved],
+	{ notes: JSON.stringify({ choice: "next", data: { evidence: "saved" } }) },
+);
+const retrySibling = await createTask(workflowRetry, {
+	parent: retryParent,
+	assignee: "old-driver",
+	status: "in_progress",
+});
+const retryWorkIds = [retryParent, retryRun, retryStage, retrySaved, retrySibling];
+const retryWorkBefore = await workflowRetry.beads.showMany(
+	trackerScope(workflowRetry.repository, "inspector"),
+	retryWorkIds,
+);
 const retryCases = await Promise.all(
 	[
 		{ assignment: { kind: "driver", runId: retryRun } as const, anchor: retryRun },
@@ -136,6 +156,8 @@ const retryCases = await Promise.all(
 
 test.each(retryCases)(
 	"$assignment.kind retry retains its existing anchor with current execution defaults",
+	// Preserve request role and the containing work while recording replacement provenance.
+	// eslint-disable-next-line max-statements
 	async ({ assignment, anchor, predecessor: oldId }) => {
 		const context = commands(workflowRetry);
 		const replacement = await retryRequest(oldId, options, {
@@ -168,6 +190,21 @@ test.each(retryCases)(
 		expect(retried.recipe).not.toHaveProperty("workflow");
 		expect(retriedNative.dependencies).toContainEqual(
 			expect.objectContaining({ id: oldId, dependency_type: "supersedes" }),
+		);
+		const retained = await workflowRetry.beads.showMany(
+			trackerScope(workflowRetry.repository, "inspector"),
+			retryWorkIds,
+		);
+		const runRecord = retained.find((record) => record.id === retryRun)!;
+		expect(
+			retained.map(({ dependencies: _dependencies, dependents: _dependents, ...record }) => record),
+		).toEqual(
+			retryWorkBefore.map(
+				({ dependencies: _dependencies, dependents: _dependents, ...record }) => record,
+			),
+		);
+		expect(runRecord.dependencies).toContainEqual(
+			expect.objectContaining({ id: retryParent, dependency_type: "parent-child" }),
 		);
 	},
 );

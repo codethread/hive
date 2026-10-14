@@ -8,6 +8,7 @@ import {
 	Timer,
 	TriangleAlert,
 	UserRound,
+	Workflow,
 } from "lucide-react";
 import { beeActivity, outputAge } from "./activity.ts";
 import { Badge } from "./primitives.tsx";
@@ -53,6 +54,18 @@ export function BeeActivity({ bee }: { bee: Pick<Bee, "outcome" | "stdout"> }) {
 				</span>
 			</Badge>
 			{at !== null && <span className="bee-output-age">Output {outputAge(at, now)}</span>}
+		</span>
+	);
+}
+
+export function WorkflowIndicator({ isWorkflowGenerated }: { isWorkflowGenerated: boolean }) {
+	if (!isWorkflowGenerated) {
+		return null;
+	}
+	return (
+		<span className="mr-1 inline-flex align-middle text-muted" title="Workflow">
+			<Workflow aria-hidden="true" className="size-4 shrink-0" />
+			<span className="sr-only">Workflow</span>
 		</span>
 	);
 }

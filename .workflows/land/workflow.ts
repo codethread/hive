@@ -2,6 +2,24 @@ import { assign, setup } from "xstate";
 import { z } from "zod";
 
 const text = z.string().trim().nonempty();
+const callerCompletion =
+	"Post-done tail owner: the standalone Land caller or Land driver carrying the " +
+	"same explicit user authorization. After Busy Bee reports status done, " +
+	"inspect the retained run evidence and close only proven completedTasks " +
+	"bottom-up, after their child work and workflows finish. Leave broader " +
+	"parents open when unrelated children or acceptance remain; structural " +
+	"containment grants no closure permission. Then publish once with " +
+	"bun run beads:sync from the retained canonical checkout and BEADS_DB. " +
+	"Verify the accepted tracker/state snapshot includes task and workflow " +
+	"completion, then report closure/publication evidence and bee finish success " +
+	"where applicable. Bee-dispatched stage workers do not perform this tail. " +
+	"Generic driver success requires only its run anchor done. If post-done " +
+	"closure or publication fails, inspect actual effects, record the exact " +
+	"unfinished external task/operation, blocker and next action on the run and " +
+	"unfinished scope beads, then report the blocked handoff (bee finish blocked " +
+	"--reason where applicable). The completed run stays done; neither reopen " +
+	"or replace it nor rely on bee retry of its closed anchor. On tracker conflict " +
+	"stop tracker work and follow documented recovery without forcing claims or publication.";
 const evidenceSchema = z.object({
 	evidence: text.describe(
 		"Observed result, supporting commands/links and the next task's " +
@@ -29,7 +47,7 @@ export const inputSchema = z.object({
 	completedTasks: z
 		.array(text)
 		.describe(
-			"Only the task IDs this landing is intended to complete; they may still need implementation.",
+			"Only task IDs authorized for caller closure after the run is done; containment grants no closure permission.",
 		),
 	expectedCommits: z
 		.array(text)
@@ -98,8 +116,13 @@ export function runBrief(input: LandingInput): { description: string; title: str
 			`user request: ${input.request}. Target: ` +
 			`${JSON.stringify(input.target)}. Retain canonical checkout ` +
 			`${input.canonicalRoot} and selected tracker ` +
-			`${input.beadsDb}. Starting this workflow is not authorization to land.`,
-		title: "Finish and land agreed work",
+			`${input.beadsDb}. Authorized completedTasks: ` +
+			`${input.completedTasks.join(", ") || "No task closures requested"}. ` +
+			"Record final integration, acceptance, checks and cleanup evidence in this " +
+			"run's comments before its final visit closes; retain the source commits " +
+			"and review receipt there too. Starting this workflow is not authorization " +
+			`to land.\n\n${callerCompletion}`,
+		title: `Land ${targetTitle(input)}`,
 	};
 }
 
@@ -136,6 +159,7 @@ export const machine = setup({
 					integrated: "INTEGRATED",
 				},
 				task: ({ context }: { context: LandingContext }) => ({
+					title: `Triage the authorized landing: ${targetTitle(context)}`,
 					instructions:
 						"Verify the recorded request is an actual user instruction to finish " +
 						'and land this scope. An early "land it" authorizes remaining agreed ' +
@@ -181,6 +205,7 @@ export const machine = setup({
 				title: "Complete implementation or repair findings",
 				commands: { next: "NEXT", retriage: "RETRIAGE" },
 				task: ({ context }: { context: LandingContext }) => ({
+					title: `Complete implementation or repair findings: ${targetTitle(context)}`,
 					instructions:
 						"Implement the remaining agreed acceptance or the verified findings " +
 						"in the preceding evidence. Read the relevant task beads, surrounding " +
@@ -208,6 +233,7 @@ export const machine = setup({
 				title: "Tidy and check the complete change",
 				commands: { passed: "PASSED", changes: "CHANGES" },
 				task: ({ context }: { context: LandingContext }) => ({
+					title: `Tidy and check the complete change: ${targetTitle(context)}`,
 					instructions:
 						"Remove only this work's scratch/debug/generated leftovers and dead " +
 						"code; inspect git status and the cumulative diff for secrets, local " +
@@ -239,6 +265,7 @@ export const machine = setup({
 				title: "Review the current change locally",
 				commands: { approved: "APPROVED", changes: "CHANGES" },
 				task: ({ context }: { context: LandingContext }) => ({
+					title: `Review the current change locally: ${targetTitle(context)}`,
 					instructions:
 						"Run a local code review of the complete change against its task " +
 						"acceptance and repository standards, using the required reviewer " +
@@ -267,6 +294,7 @@ export const machine = setup({
 				title: "Commit the reviewed change",
 				commands: { next: "NEXT", changed: "CHANGED" },
 				task: ({ context }: { context: LandingContext }) => ({
+					title: `Commit the reviewed change: ${targetTitle(context)}`,
 					instructions:
 						"Commit scoped changes as coherent conventional commits without " +
 						"bypassing hooks; if already committed, verify there is nothing to " +
@@ -299,6 +327,7 @@ export const machine = setup({
 					retriage: "RETRIAGE",
 				},
 				task: ({ context }: { context: LandingContext }) => ({
+					title: `Check PR readiness: ${targetTitle(context)}`,
 					instructions:
 						"Use gh to inspect this PR's actual base/head, draft/open/merged " +
 						"state, CI, review decisions and unresolved review threads as well as " +
@@ -345,6 +374,7 @@ export const machine = setup({
 					retriage: "RETRIAGE",
 				},
 				task: ({ context }: { context: LandingContext }) => ({
+					title: `Verify and act on PR feedback: ${targetTitle(context)}`,
 					instructions:
 						"Read the actual PR comments and linked code; verify each claim " +
 						"against the current revision, reproduce it when useful and record " +
@@ -377,6 +407,7 @@ export const machine = setup({
 				title: "Integrate the approved work",
 				commands: { next: "NEXT", feedback: "FEEDBACK", changes: "CHANGES", retriage: "RETRIAGE" },
 				task: ({ context }: { context: LandingContext }) => ({
+					title: `Integrate the approved work: ${targetTitle(context)}`,
 					instructions:
 						"Reconfirm explicit authorization, unchanged reviewed content and " +
 						"landing coordination immediately before integration. Retain " +
@@ -396,8 +427,8 @@ export const machine = setup({
 						"actual integration commit and source-to-integrated correspondence, " +
 						"including squash/rebase evidence, in bead notes. Close with next " +
 						"only once integration is proven. Refusals and external blockers stay " +
-						"open with diagnostics.\n\nIf the feature checkout disappears, close " +
-						"and advance from the surviving canonical checkout with retained " +
+						"open with diagnostics.\n\nIf the feature checkout disappears, deliver " +
+						"the saved stage result from the surviving canonical checkout with retained " +
 						"BEADS_DB using the installed busybee or bun run --silent busybee. " +
 						"The same named land definition must exist unchanged there; " +
 						"changed-definition resumption is unsupported. Verify that " +
@@ -417,6 +448,7 @@ export const machine = setup({
 				title: "Verify integration and clean up the worktree",
 				commands: { next: "NEXT" },
 				task: ({ context }: { context: LandingContext }) => ({
+					title: `Verify integration and clean up the worktree: ${targetTitle(context)}`,
 					instructions:
 						"From the surviving canonical checkout and retained tracker endpoint, " +
 						"fetch and verify clean synchronized main contains the intended " +
@@ -442,20 +474,23 @@ export const machine = setup({
 		},
 		publish: {
 			meta: {
-				title: "Record completed task state",
+				title: "Record landing completion evidence",
 				commands: { next: "NEXT" },
 				task: ({ context }: { context: LandingContext }) => ({
+					title: `Record landing completion evidence: ${targetTitle(context)}`,
 					instructions:
 						"From a surviving configured code checkout retain beadsDb via " +
-						"BEADS_DB or native --db. Record landing evidence and close only " +
-						"completedTasks whose acceptance is proven; leave unfinished or " +
-						"unrelated tasks open. Do not close this workflow run or grouping " +
-						"beads: Busy Bee owns them. Native br updates, automatic JSONL export " +
-						"and worker handoffs stay local. Record completion evidence now; the " +
-						"final report step publishes once after Busy Bee closes its run. " +
-						"Verify completed task evidence in the selected tracker and canonical " +
-						"main is clean and synchronized. A refused task update leaves this " +
-						`task open.\n\n${retainedContext(context)}`,
+						"BEADS_DB or native --db. Record integration commits, review receipt, " +
+						"passing checks, cleanup and per-task acceptance evidence in comments " +
+						"on this stage, the run and the authorized completedTasks. Identify " +
+						"which task closures are proven and any tasks that must remain open. " +
+						"The structural parent does not expand completedTasks; broader parents " +
+						"with unrelated children or unfinished acceptance remain open. " +
+						"Keep external tasks open until Busy Bee reports this run done. " +
+						"Updates and stage handoffs stay local; final publication belongs to " +
+						"the caller afterward. Verify this evidence in the selected tracker " +
+						"and canonical main is clean and synchronized. A refused evidence " +
+						`update keeps this task open.\n\n${retainedContext(context)}`,
 				}),
 			},
 			on: {
@@ -464,25 +499,22 @@ export const machine = setup({
 		},
 		report: {
 			meta: {
-				title: "Report landing and publish final bookkeeping",
+				title: "Deliver the landing report to the caller",
 				commands: { next: "NEXT" },
 				task: ({ context }: { context: LandingContext }) => ({
+					title: `Deliver the landing report to the caller: ${targetTitle(context)}`,
 					instructions:
-						"Tell the user what landed, what was cleaned up, verification results " +
-						"and anything unresolved, noting that final tracker publication " +
-						"follows workflow closure. Distinguish simulated traversal from " +
-						"actual landing. Close this task and submit next only after that " +
-						"report. Busy Bee then closes its run; publish all completion and " +
-						"workflow bookkeeping updates once with bun run beads:sync from the " +
-						"surviving checkout and retained endpoint. Verify the accepted " +
-						"tracker/state snapshot includes completed task evidence and report " +
-						"publication success. A refused final publication still leaves " +
-						"landing incomplete and must be reported. On record/claim conflict " +
-						"stop tracker work, retain evidence and follow documented human " +
-						"recovery; never force sync/push or overwrite a published claim. Done " +
-						"means main contains the intended change with passing checks, the " +
-						"accepted tracker snapshot includes completed tasks, canonical main " +
-						"is clean/synchronized and this work has no stray leftovers.\n\n" +
+						"Record what landed, integration/source commits, review receipt, " +
+						"verification, cleanup and unresolved work in comments on this stage " +
+						"and the run. State which authorized tasks are proven complete; task " +
+						"closure and final publication remain the caller's post-done work. " +
+						"Distinguish simulated traversal from actual integration. Validate " +
+						"and save the next outcome with busybee record-result before closing " +
+						"this stage. A Bee-dispatched stage worker reports its own completion " +
+						"and leaves collection to the driver; it neither navigates nor closes " +
+						"the run. The standalone caller or Land driver collects the saved result; " +
+						"Busy Bee then closes its run. The caller reads the retained run " +
+						"brief and comments to perform the post-done tail and final report.\n\n" +
 						`${retainedContext(context)}`,
 				}),
 			},
@@ -503,6 +535,15 @@ Canonical checkout: ${context.canonicalRoot}
 Selected BEADS_DB: ${context.beadsDb}
 Known starting commits: ${context.expectedCommits.join(", ") || "None yet; record final commits before integration"}
 Authorized task scope: ${context.completedTasks.join(", ") || "No task closures requested"}
+Stage delivery: comment with evidence, record-result, then close only the assigned visit.
+The caller/driver collects; Bee-dispatched stage workers leave navigation and run closure to the driver and Busy Bee.
 Local review receipt: ${JSON.stringify(context.review ?? "No current approval")}
 Previous assessment (full evidence remains on preceding task beads): ${context.evidence}`;
+}
+
+function targetTitle(input: LandingInput): string {
+	if (input.target.kind === "worktree") {
+		return `worktree ${input.target.branch}`;
+	}
+	return `PR ${input.target.url}`;
 }

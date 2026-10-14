@@ -1,18 +1,28 @@
+// Board composition combines column preferences, visibility and native family layout.
+/* eslint-disable import/max-dependencies */
 import type { Board, Hierarchy } from "../contracts.ts";
 import { DEFAULT_COLUMN_ORDER, columnOrders } from "./column-settings.tsx";
+import { OutlineLink, WorkflowIndicator } from "./ui.tsx";
 import { useId, useState } from "react";
 import { useParams, useSearch } from "@tanstack/react-router";
 import { BeadCard } from "./bead-card.tsx";
 import type { BoardFamily } from "../hierarchy.ts";
-import { OutlineLink } from "./ui.tsx";
 import { boardFamilies } from "../hierarchy.ts";
 import { boardStatuses } from "./column-order.ts";
+import { preferences } from "./data.ts";
 import { statusName } from "./filter-controls.tsx";
 import { useStore } from "zustand";
 
 const RAIL_STEP = 18;
+const RAIL_INSET = 10;
 
+// eslint-disable-next-line max-statements -- Visibility and status columns share the same presented board snapshot.
 export function BeadBoard({ board, hierarchy }: { board: Board; hierarchy: Hierarchy | null }) {
+	const showWorkflowBeads = useStore(preferences, (state) => state.showWorkflowBeads);
+	if (!showWorkflowBeads) {
+		board = { ...board, cards: board.cards.filter((card) => !card.isWorkflowGenerated) };
+		hierarchy = hierarchy === null ? null : withoutWorkflowBeads(hierarchy);
+	}
 	const search = useSearch({ from: "/colonies/$colonyId" });
 	const { colonyId } = useParams({ from: "/colonies/$colonyId" });
 	const preferred = useStore(
@@ -77,12 +87,26 @@ function ColumnFamily({ family, status }: { family: BoardFamily; status: string 
 			data-family-id={family.root.id}
 			data-layout={family.layout}
 		>
-			{rows.map(({ node, depth }) => (
+			{rows.map(({ node, depth }, index) => (
 				<div
 					key={node.id}
 					className={family.layout === "rails" && depth > 0 ? "bead-rail-child" : ""}
+					data-continues={rows.slice(index + 1).find((row) => row.depth <= depth)?.depth === depth}
 					style={family.layout === "rails" ? { marginLeft: depth * RAIL_STEP } : undefined}
 				>
+					{family.layout === "rails" &&
+						Array.from({ length: Math.max(0, depth - 1) }, (_value, offset) => offset + 1)
+							.filter(
+								(level) => rows.slice(index + 1).find((row) => row.depth <= level)?.depth === level,
+							)
+							.map((level) => (
+								<span
+									key={level}
+									aria-hidden="true"
+									className="bead-rail-ancestor"
+									style={{ left: (level - depth) * RAIL_STEP - RAIL_INSET }}
+								/>
+							))}
 					<BeadCard
 						card={node}
 						compact={family.layout === "rails" && node.id !== family.root.id}
@@ -126,6 +150,7 @@ function FamilyLane({ family, statuses }: { family: BoardFamily; statuses: strin
 						</svg>
 						<span className="family-id">{family.root.id}</span>
 						<span className="family-title" title={family.root.title}>
+							<WorkflowIndicator isWorkflowGenerated={family.root.isWorkflowGenerated} />
 							{family.root.title}
 						</span>
 						{collapsed && hiddenCount > 0 && (
@@ -151,4 +176,33 @@ function FamilyLane({ family, statuses }: { family: BoardFamily; statuses: strin
 			))}
 		</section>
 	);
+}
+
+/** Promote visible tasks past hidden workflow ancestors for board presentation only. */
+function withoutWorkflowBeads(hierarchy: Hierarchy): Hierarchy {
+	const byId = new Map(hierarchy.nodes.map((node) => [node.id, node]));
+	return {
+		...hierarchy,
+		nodes: hierarchy.nodes
+			.filter((node) => !node.isWorkflowGenerated)
+			// eslint-disable-next-line max-statements, oxc/no-map-spread -- Preserve cached native data.
+			.map((node) => {
+				const pending = [...node.parentIds];
+				const seen = new Set<string>();
+				const parentIds: string[] = [];
+				while (pending.length > 0) {
+					const id = pending.pop()!;
+					if (!seen.has(id)) {
+						seen.add(id);
+						const parent = byId.get(id);
+						if (parent?.isWorkflowGenerated === true) {
+							pending.push(...parent.parentIds);
+						} else {
+							parentIds.push(id);
+						}
+					}
+				}
+				return { ...node, parentIds };
+			}),
+	};
 }

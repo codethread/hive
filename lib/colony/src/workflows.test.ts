@@ -1,9 +1,10 @@
 import { WorkflowCommandError, workflowCommands } from "./workflows.ts";
 import { expect, test } from "bun:test";
 import { CommandError } from "@hive/beads";
+import { reportFailure } from "./cli.ts";
 
 const endpoint = { actor: "agent", db: "/tracker/beads.db", repo: "/execution" };
-// Unpublished automatic requests have explicit null identity in the Busybee response.
+// Unpublished Bee dispatch requests have explicit null identity in the Busybee response.
 // eslint-disable-next-line unicorn/no-null
 const run = { id: "run-1", status: "active", active: [{ bead: "stage-1", request: null }] };
 const output = JSON.stringify({ ok: true, kind: "run", ...run });
@@ -18,12 +19,21 @@ const commands = workflowCommands({
 await commands.show(run.id, endpoint);
 calls.length = 0;
 
-test("workflow adapter preserves tracker, execution directory, owner and explicit input paths", async () => {
+test.each([
+	{ selection: { kind: "named" as const, name: "do-work" }, command: ["run", "do-work"] },
+	{ selection: { kind: "named" as const, name: "land" }, command: ["run", "land"] },
+	{
+		selection: { kind: "source" as const, path: "/caller/workflow.ts" },
+		command: ["start", "/caller/workflow.ts"],
+	},
+])("workflow adapter forwards parent and endpoint for $command", async ({ selection, command }) => {
+	calls.length = 0;
 	const result = await commands.start({
+		parent: "original-1",
 		endpoint,
 		owner: "ct",
 		inputFile: "/caller/work.json",
-		selection: { kind: "named", name: "do-work" },
+		selection,
 	});
 	expect(result).toEqual(run);
 	expect(calls).toEqual([
@@ -37,8 +47,9 @@ test("workflow adapter preserves tracker, execution directory, owner and explici
 				"--actor",
 				"agent",
 				"--json",
-				"run",
-				"do-work",
+				...command,
+				"--parent",
+				"original-1",
 				"--input-file",
 				"/caller/work.json",
 				"--owner",
@@ -84,9 +95,15 @@ test("Busybee partial failure retains its checkpoint and lock identity", async (
 });
 
 test.each([
-	{ context: { runId: "run-1", uncertainOperation: "create_checkpoint" } },
+	{ context: { parentId: "original-1", uncertainOperation: "create_run" } },
+	{ context: { parentId: "original-1", runId: "run-1", uncertainOperation: "create_checkpoint" } },
 	{
-		context: { runId: "run-1", checkpoint: "checkpoint-1", uncertainOperation: "link_checkpoint" },
+		context: {
+			parentId: "original-1",
+			runId: "run-1",
+			checkpoint: "checkpoint-1",
+			uncertainOperation: "link_checkpoint",
+		},
 	},
 ])(
 	"initialization failure preserves confirmed identities and uncertain operation: $context",
@@ -109,6 +126,7 @@ test.each([
 		});
 		const failedStart: unknown = await initialization
 			.start({
+				parent: "original-1",
 				endpoint,
 				owner: "ct",
 				inputFile: "/caller/input.json",
@@ -117,5 +135,18 @@ test.each([
 			.catch((error: unknown) => error);
 		expect(failedStart).toBeInstanceOf(WorkflowCommandError);
 		expect(failedStart).toMatchObject({ reason: "partial_effects", context });
+		const stdout: string[] = [];
+		const stderr: string[] = [];
+		reportFailure(failedStart, true, {
+			command: "bee",
+			stdout: (value) => stdout.push(value),
+			stderr: (value) => stderr.push(value),
+		});
+		expect(JSON.parse(stdout.join(""))).toMatchObject({
+			ok: false,
+			reason: "partial_effects",
+			...context,
+		});
+		expect(stderr).toEqual([]);
 	},
 );

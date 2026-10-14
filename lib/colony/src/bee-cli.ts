@@ -107,7 +107,7 @@ export interface BeeDependencies {
 		runId: string,
 		options: SpawnOptions,
 	) => Promise<WorkflowSubmissionResult>;
-	/** Internal automatic-stage execution without another workflow wrapper. */
+	/** Internal Bee-dispatched stage execution without another workflow wrapper. */
 	dispatchStage: (kind: string, stageId: string, options: StageOptions) => Promise<SpawnResult>;
 	/** Replace an unsuccessful request from current kind defaults. */
 	retry: (id: string, options: RetryOptions) => Promise<SpawnResult>;
@@ -180,6 +180,7 @@ export async function runBeeCli(argv: string[], deps: BeeDependencies): Promise<
 			.description("Create one workflow assignment and submit its driver")
 			.addHelpText("after", HELP.spawn),
 	)
+		.requiredOption("--parent <id>", "Existing ordinary work containing the new workflow")
 		.requiredOption(
 			"--input-file <file>",
 			"Caller workflow input as JSON; default: title, request, acceptance",
@@ -207,7 +208,7 @@ export async function runBeeCli(argv: string[], deps: BeeDependencies): Promise<
 		program
 			.command("dispatch-stage <kind> <stage>")
 			.description(
-				"Workflow integration: execute one existing automatic stage without wrapping it",
+				"Workflow integration: execute one existing Bee-dispatched stage without wrapping it",
 			),
 	)
 		.requiredOption("--run <run>", "Existing workflow run containing the stage")

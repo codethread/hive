@@ -1,5 +1,6 @@
 /* eslint-disable no-magic-numbers -- Fixtures deliberately span native priorities and states. */
 import type { Bee, Board, Card, Detail, Hierarchy, Provenance } from "../../contracts.ts";
+import { beadFamilies, branchRows } from "../../hierarchy.ts";
 import { DEFAULT_BEAD_STATUSES } from "../../contracts.ts";
 
 export const COLONY_ID = "storybook";
@@ -180,18 +181,21 @@ export function fixtureDetail(id: string): Detail {
 	};
 }
 
-export function fixtureFamily(id: string): Hierarchy {
-	const root = id.split(".")[0]!;
+export function fixtureFamily(id: string, source = hierarchy): Hierarchy {
+	const family = beadFamilies(source).find((entry) =>
+		entry.rows.some((row) => row.node.id === id),
+	)!;
 	return {
-		...hierarchy,
-		nodes: hierarchy.nodes.filter((entry) => entry.id === root || entry.parentIds.includes(root)),
+		...source,
+		nodes: family.rows.map((row) => row.node),
 	};
 }
 
-export function fixtureOutline(id: string): Hierarchy {
+export function fixtureOutline(id: string, source = hierarchy): Hierarchy {
+	const root = source.nodes.find((entry) => entry.id === id)!;
 	return {
-		...hierarchy,
-		nodes: hierarchy.nodes.filter((entry) => entry.id === id || entry.parentIds.includes(id)),
+		...source,
+		nodes: branchRows(source, root).map((row) => row.node),
 	};
 }
 
@@ -203,6 +207,7 @@ function card(id: string, title: string, status: string, patch: Partial<Card> = 
 		status,
 		assignee: null,
 		beeAssignments: [],
+		isWorkflowGenerated: false,
 		priority: 2,
 		labels: ["ui", "graph"],
 		updatedAt: OBSERVED_AT,

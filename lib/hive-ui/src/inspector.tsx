@@ -1,5 +1,13 @@
 import type { Bee, Detail, Provenance, Relation } from "../contracts.ts";
-import { BeeAssignment, Label, OutlineLink, ResourceNotice, outcomeName, time } from "./ui.tsx";
+import {
+	BeeAssignment,
+	Label,
+	OutlineLink,
+	ResourceNotice,
+	WorkflowIndicator,
+	outcomeName,
+	time,
+} from "./ui.tsx";
 import {
 	EMPTY,
 	details,
@@ -142,7 +150,10 @@ export function Inspector({ colonyId, id }: { colonyId: string; id: string }) {
 						<ResourceNotice resource={resource} />
 						{detail && (
 							<>
-								<h2 className="mt-6 text-2xl leading-snug font-medium">{detail.card.title}</h2>
+								<h2 className="mt-6 text-2xl leading-snug font-medium">
+									<WorkflowIndicator isWorkflowGenerated={detail.card.isWorkflowGenerated} />
+									{detail.card.title}
+								</h2>
 								<div className="my-3 flex flex-wrap items-center gap-1">
 									<Label>{detail.card.status}</Label>
 									<Label>P{detail.card.priority}</Label>

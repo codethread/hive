@@ -121,7 +121,7 @@ Scenario: Concurrent collectors consume scripted Bee results once
   Then both succeed and the run has four created entries including three requests
   When reviewers close with scripted approvals and two collectors collect together
   Then both succeed with done and the native run is closed
-  And every automatic task has no assignee
+  And every Bee-dispatched task has no assignee
 ```
 
 ### N11

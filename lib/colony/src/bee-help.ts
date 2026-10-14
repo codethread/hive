@@ -67,7 +67,7 @@ Agent workflow:
   Use Bee for subagent work: implementation, advice and review use the same flow.
   1. Run bee kinds to discover whom to delegate to and why.
   2. Write workflow input with the assignment, context and acceptance criteria.
-  3. Submit: bee spawn <kind> --input-file <file> --cwd <directory> --actor <identity> --json
+  3. Submit: bee spawn <kind> --parent <work-id> --input-file <file> --cwd <directory> --actor <identity> --json
   4. Inspect: bee status <spawn-id> --json
      Inspect workflow.runId with busybee show and br show.
   Normally omit --system-prompt and --prompt: the kind supplies its protocol and
@@ -120,6 +120,8 @@ Examples:
 Create one Busy Bee workflow assignment and publish a driver request for it.
 Run bee kinds to choose a kind and its default workflow (normally do-work).
 Install the standard catalogue entry with busybee init in a new repository.
+Require --parent ID for existing nonclosed ordinary work in the selected tracker.
+Busy Bee validates containment and leaves that work's claim and owner unchanged.
 Provide --input-file JSON; do-work requires title, request and acceptance (array
 of verification criteria). Named workflows supply their own initial schema:
   busybee --repo <execution-checkout> input-schema <name> --json
@@ -127,22 +129,22 @@ Choose --workflow NAME or --source PATH to override the kind's workflow.
 A missing selected definition fails visibly.
 
 Examples:
-  bee spawn worker --input-file work.json --cwd <worktree> --actor <identity> --json
-  bee spawn worker --workflow land --input-file land.json --cwd <worktree> --actor <identity> --json
+  bee spawn worker --parent <work-id> --input-file work.json --cwd <worktree> --actor <identity> --json
+  bee spawn worker --parent <work-id> --workflow land --input-file land.json --cwd <worktree> --actor <identity> --json
 
 --repo selects canonical kind configuration; --cwd selects the checkout supplying
 the workflow catalogue and execution. Omitted --cwd uses the canonical root.
 Source/input paths resolve relative to the submitting command's directory.
 The human owner comes from configuration; actor/tracker match Bee options.
-Success returns request.id/identity and workflow.runId/status. Busy Bee owns
+Initial submission returns request.id/identity and workflow.parentId/runId/status. Busy Bee owns
 workflow progression and run closure. Submission is separate from execution.
 
-Partial failures return known run/checkpoint/stage request IDs and driver publication
+Partial failures retain parent and confirmed run/checkpoint/stage request IDs and driver publication
 uncertainty. Inspect native incoming request links before any recovery. Attach
 after confirmed absent driver publication, without creating a second run:
   bee attach-workflow KIND RUN --cwd <worktree> --actor <identity> --json
 An unsuccessful driver uses bee retry; an open driver uses bee status.
-Automatic visits use dispatch-stage internally, without selecting a workflow.
+Bee-dispatched visits use dispatch-stage internally, without selecting a workflow.
 Waiting drivers keep consuming normal quota. If workers cannot start because
 drivers exhaust capacity, the user must increase the relevant Colony limits.
 

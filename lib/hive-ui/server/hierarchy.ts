@@ -1,10 +1,10 @@
-import type { BeadRow, DependencyEdge, SelectedBead } from "@hive/beads";
+import type { DependencyEdge, SelectedBead } from "@hive/beads";
 
 const READ_BATCH = 100;
 const EDGE_CONCURRENCY = 4;
 export interface HierarchyRecord {
 	/** Unhydrated native fields; comments and relationship bodies are not read. */
-	bead: BeadRow;
+	bead: SelectedBead;
 	/** Native parent links, independent of board filters. */
 	parentIds: string[];
 }

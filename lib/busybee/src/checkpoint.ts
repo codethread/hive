@@ -43,7 +43,7 @@ export interface ActiveEntry {
 	parent?: string;
 	/** Child actor route. */
 	path: string[];
-	/** Automatic Bee request, absent for manual tasks. */
+	/** Bee dispatch request, absent for driver-handled tasks. */
 	request: string | null;
 }
 export interface Visit {
@@ -55,7 +55,7 @@ export interface Visit {
 	parent: string;
 	/** Child actor route. */
 	path: string[];
-	/** Automatic Bee request. */
+	/** Bee dispatch request, absent for visits without Bee dispatch. */
 	request: string | null;
 	/** Monotonic visit number for this state. */
 	visit: number;

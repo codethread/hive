@@ -2,10 +2,12 @@
 import { expect, test } from "bun:test";
 import type { BeeDependencies } from "./bee-cli.ts";
 import type { RequestView } from "./requests.ts";
+import type { WorkflowSpawnOptions } from "./workflow-submission.ts";
 import { runBeeCli } from "./bee-cli.ts";
 
 const PROMPT_REPETITIONS = 500;
 const SUCCESS = 0;
+const USAGE_ERROR = 2;
 const SINGLE_DOCUMENT = 1;
 const PROMPT = "Captured direction. ".repeat(PROMPT_REPETITIONS);
 const ROLE = "Captured role. ".repeat(PROMPT_REPETITIONS);
@@ -70,16 +72,57 @@ test.each([
 });
 
 test.each([
-	{ args: ["spawn", "worker", "--input-file", "work.json"] },
-	{ args: ["attach-workflow", "worker", "run-1"] },
-])("$args returns the workflow and driver identities", async ({ args }) => {
+	{
+		args: ["spawn", "worker", "--parent", "work-1", "--input-file", "work.json"],
+		creation: { parentId: "work-1" },
+	},
+	{ args: ["attach-workflow", "worker", "run-1"], creation: {} },
+])("$args returns the workflow and driver identities", async ({ args, creation }) => {
 	const result = await invoke([...args, "--actor", "test", "--json"]);
 	expect(JSON.parse(result.stdout)).toEqual({
 		kind: "workflow_spawn_created",
 		ok: true,
 		request: { id: "request-1", identity: "worker" },
-		workflow: { runId: "run-1", status: "active" },
+		workflow: { runId: "run-1", status: "active", ...creation },
 	});
+});
+
+test.each([
+	{ selector: [] },
+	{ selector: ["--workflow", "land"] },
+	{ selector: ["--source", "custom/workflow.ts"] },
+])(
+	"spawn forwards required parent independently of workflow selector $selector",
+	async ({ selector }) => {
+		const result = await invoke([
+			"spawn",
+			"worker",
+			"--parent",
+			"work-1",
+			"--input-file",
+			"work.json",
+			...selector,
+			"--actor",
+			"test",
+			"--json",
+		]);
+		expect(result.submissions).toMatchObject([
+			{ kind: "worker", options: { parent: "work-1", inputFile: "work.json" } },
+		]);
+	},
+);
+
+test("spawn without a parent reports the required flag before submission", async () => {
+	const result = await invoke(
+		["spawn", "worker", "--input-file", "work.json", "--actor", "test", "--json"],
+		USAGE_ERROR,
+	);
+	expect(JSON.parse(result.stdout)).toMatchObject({
+		ok: false,
+		reason: "commander.missingMandatoryOptionValue",
+		message: expect.stringContaining("--parent"),
+	});
+	expect(result.submissions).toEqual([]);
 });
 
 test("stop preserves closure and resolution facts without reporting process completion", async () => {
@@ -142,9 +185,10 @@ test.each([
 	},
 );
 
-async function invoke(args: readonly string[]) {
+async function invoke(args: readonly string[], exitCode = SUCCESS) {
 	const stdout: string[] = [];
 	const stderr: string[] = [];
+	const submissions: { kind: string; options: WorkflowSpawnOptions }[] = [];
 	const deps: BeeDependencies = {
 		ack: unexpected,
 		assess: unexpected,
@@ -156,16 +200,22 @@ async function invoke(args: readonly string[]) {
 		report: unexpected,
 		retry: () => Promise.resolve({ kind: "spawn_created", request: native }),
 		run: unexpected,
-		spawn: workflowResult,
+		spawn: (kind, options) => {
+			submissions.push({ kind, options });
+			return workflowResult().then((result) => ({
+				...result,
+				workflow: { ...result.workflow, parentId: options.parent },
+			}));
+		},
 		status: () => Promise.resolve({ kind: "request_status", repository, request }),
 		stderr: (text) => stderr.push(text),
 		stdout: (text) => stdout.push(text),
 		stop: () => Promise.resolve({ kind: "request_stopped", repository, request: stopped }),
 	};
-	expect(await runBeeCli([...args], deps)).toBe(SUCCESS);
+	expect(await runBeeCli([...args], deps)).toBe(exitCode);
 	expect(stderr).toEqual([]);
 	expect(stdout).toHaveLength(SINGLE_DOCUMENT);
-	return { stdout: stdout.join("") };
+	return { stdout: stdout.join(""), submissions };
 }
 
 function workflowResult(): ReturnType<BeeDependencies["spawn"]> {

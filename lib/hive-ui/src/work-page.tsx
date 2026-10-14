@@ -104,6 +104,7 @@ export function Welcome() {
 
 // eslint-disable-next-line max-statements -- Select the board and inventory resources together for one route.
 export function WorkPage() {
+	const showWorkflowBeads = useStore(preferences, (state) => state.showWorkflowBeads);
 	const { colonyId } = useParams({ from: "/colonies/$colonyId" });
 	const search = useSearch({ from: "/colonies/$colonyId" });
 	const filter = boardFilterSchema.parse(search);
@@ -130,7 +131,9 @@ export function WorkPage() {
 	let summary = "Bee provenance";
 	let readAt: string | null = null;
 	if (search.view === "beads") {
-		summary = board ? `${board.cards.length} beads on this page` : "Beads";
+		summary = board
+			? `${board.cards.filter((card) => showWorkflowBeads || !card.isWorkflowGenerated).length} beads on this page`
+			: "Beads";
 		if (search.outline !== undefined) {
 			summary = `Outline · ${search.outline}`;
 		}

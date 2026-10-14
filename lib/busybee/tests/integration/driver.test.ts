@@ -1,6 +1,13 @@
+/* eslint-disable import/max-dependencies -- Driver contracts also exercise the bundled author definition. */
 import { BusyBeeError, createServices } from "../../src/native.ts";
 import { assign, createMachine } from "xstate";
 import { describe, expect, test } from "bun:test";
+import {
+	runBrief as doWorkBrief,
+	commandSchemas as doWorkCommands,
+	machine as doWorkMachine,
+	inputSchema as doWorkSchema,
+} from "../../../../.workflows/do-work/workflow.ts";
 import { navigate, prepareDriver, recordResult, start } from "../../src/runtime.ts";
 import type { Definition } from "../../src/definition.ts";
 import type { Services } from "../../src/native.ts";
@@ -12,7 +19,7 @@ import { z } from "zod";
 
 const FIRST = 0;
 const FAILURE = 1;
-const INITIAL_RECORDS = 3;
+const INITIAL_RECORDS = 4;
 const DISPATCH_PREFIX = 6;
 const RECIPE_RUN_ARG = 5;
 const RECIPE_STAGE_ARG = 3;
@@ -70,11 +77,11 @@ const transformedDefinition: Definition = {
 	},
 };
 
-const automaticDefinition = {
+const beeDefinition = {
 	...definition,
 	commandSchemas: { selected: payloadSchema },
 	machine: createMachine({
-		id: "automatic-test",
+		id: "bee-dispatch-test",
 		initial: "work",
 		states: {
 			work: { meta: { ...meta, bee: { kind: "worker" } }, on: { SELECTED: "done" } },
@@ -83,7 +90,7 @@ const automaticDefinition = {
 	}),
 };
 
-async function fixture(selected: Definition = definition) {
+async function fixture(selected: unknown = definition, input: unknown = {}) {
 	const beads = createMemoryBeads({ db });
 	const io: Services = {
 		...createServices(),
@@ -92,13 +99,51 @@ async function fixture(selected: Definition = definition) {
 		cwd: repo,
 		importModule: () => Promise.resolve(selected),
 		readBytes: () => Promise.resolve(new ArrayBuffer(FIRST)),
+		readText: () => Promise.resolve(JSON.stringify(input)),
 		execute: () => Promise.reject(new Error("Unexpected process execution")),
 	};
-	const run = await start("workflow.ts", { owner: "ct", assignee: "" }, io);
+	const parent = await beads.create(scope, { title: "Original work", owner: "ct" });
+	const run = await start(
+		"workflow.ts",
+		{ owner: "ct", assignee: "", parent: parent.id, inputFile: "input.json" },
+		io,
+	);
 	const root = await beads.show(scope, run.id);
 	const checkpoint = root.dependencies.find((edge) => edge.dependency_type === "related")!.id;
 	return { beads, checkpoint, io, run };
 }
+
+const doWorkInput = {
+	title: "Implement assigned scope",
+	request: "Complete the actual caller assignment",
+	acceptance: ["Verify the requested change"],
+};
+const defaultRun = await fixture(
+	{
+		commandSchemas: doWorkCommands,
+		inputSchema: doWorkSchema,
+		machine: doWorkMachine,
+		runBrief: doWorkBrief,
+	},
+	doWorkInput,
+);
+
+test("default author distinguishes the run while preserving the actual stage assignment", async () => {
+	const root = await defaultRun.beads.show(scope, defaultRun.run.id);
+	expect(root).toMatchObject({
+		title: "Do work: Implement assigned scope",
+		description: doWorkInput.request,
+	});
+	expect(defaultRun.run.active).toMatchObject([
+		{
+			title: doWorkInput.title,
+			context: doWorkInput,
+			instructions: expect.stringContaining(doWorkInput.request),
+		},
+	]);
+	const stage = await defaultRun.beads.show(scope, defaultRun.run.active[FIRST]!.bead);
+	expect(stage.dependencies).toMatchObject([{ id: root.id, dependency_type: "parent-child" }]);
+});
 
 // Compile the injected chart/checkpoint schemas and CLI boundary once before measured cases.
 const warmup = await fixture();
@@ -110,21 +155,21 @@ await recordResult(
 );
 await warmup.beads.close(scope, warmup.run.active[FIRST]!.bead);
 await navigate({ id: warmup.run.id, operation: "collect" }, {}, warmup.io);
-const automaticWarmup = await automaticFixture();
-await automaticWarmup.beads.close(scope, automaticWarmup.stage.request!, { reason: "blocked" });
-await invoke(["collect", automaticWarmup.run.id], automaticWarmup.io);
+const beeWarmup = await beeFixture();
+await beeWarmup.beads.close(scope, beeWarmup.stage.request!, { reason: "blocked" });
+await invoke(["collect", beeWarmup.run.id], beeWarmup.io);
 await recordResult(
 	{
-		id: automaticWarmup.run.id,
-		bead: automaticWarmup.stage.bead,
+		id: beeWarmup.run.id,
+		bead: beeWarmup.stage.bead,
 		choice: "selected",
 		data: payload,
 	},
 	{},
-	automaticWarmup.io,
+	beeWarmup.io,
 );
-await automaticWarmup.beads.close(scope, automaticWarmup.stage.bead);
-await navigate({ id: automaticWarmup.run.id, operation: "collect" }, {}, automaticWarmup.io);
+await beeWarmup.beads.close(scope, beeWarmup.stage.bead);
+await navigate({ id: beeWarmup.run.id, operation: "collect" }, {}, beeWarmup.io);
 await invoke(["init"], {
 	...warmup.io,
 	execute: () => Promise.resolve(repo),
@@ -178,10 +223,10 @@ const doneRun = await fixture({
 
 // Register coherent handoff and durable result scenarios against independently prepared runs.
 // eslint-disable-next-line max-statements
-describe("manual driver coordination", () => {
+describe("driver coordination", () => {
 	// Verify the whole handoff through its public CLI envelope and native reservations.
 	// eslint-disable-next-line max-statements
-	test("driver handoff opens only the run and preserves manual stage reservation", async () => {
+	test("driver handoff opens only the run and preserves driver-handled stage reservation", async () => {
 		const { beads, checkpoint, io, run } = handoff;
 		await beads.update(scope, [run.active[FIRST]!.bead], { assignee: "caller" });
 		const result = await prepareDriver(run.id, {}, io);
@@ -306,7 +351,7 @@ describe("manual driver coordination", () => {
 		expect(notes).not.toBe("");
 	});
 
-	test("replacement driver collects a closed manual visit with its arbitrary payload once", async () => {
+	test("replacement driver collects a closed driver-handled visit with its arbitrary payload once", async () => {
 		const { beads, checkpoint, io, run } = resumed;
 		await beads.update(scope, [run.active[FIRST]!.bead], {
 			notes: JSON.stringify({ choice: "selected", data: payload }),
@@ -328,7 +373,7 @@ describe("manual driver coordination", () => {
 	});
 
 	test.each(invalidNotes)(
-		"closed manual result fails visibly with stage identity: %s",
+		"closed driver-handled result fails visibly with stage identity: %s",
 		async (notes) => {
 			const { beads, checkpoint, io, run } = invalidRuns.get(notes)!;
 			const { bead } = run.active[FIRST]!;
@@ -414,7 +459,7 @@ describe("manual driver coordination", () => {
 		expect(readCheckpoint(await beads.show(scope, checkpoint)).history).toEqual([]);
 	});
 
-	test("record-result supports an array payload through manual collection", async () => {
+	test("record-result supports an array payload through driver collection", async () => {
 		const { beads, io, run } = arrayRun;
 		const { bead } = run.active[FIRST]!;
 		const data = ["standalone", "array"];
@@ -425,7 +470,7 @@ describe("manual driver coordination", () => {
 	});
 });
 
-async function automaticFixture() {
+async function beeFixture() {
 	const beads = createMemoryBeads({ db });
 	const calls: string[][] = [];
 	const io: Services = {
@@ -433,12 +478,12 @@ async function automaticFixture() {
 		actor: "caller",
 		beads,
 		cwd: repo,
-		importModule: () => Promise.resolve(automaticDefinition),
+		importModule: () => Promise.resolve(beeDefinition),
 		readBytes: () => Promise.resolve(new ArrayBuffer(FIRST)),
 		execute: async (argv) => {
 			calls.push(argv);
 			const request = await beads.create(scope, {
-				title: "Automatic request",
+				title: "Bee dispatch request",
 				owner: "ct",
 				assignee: "stage-worker",
 				labels: spawnRequestLabels("worker"),
@@ -455,17 +500,18 @@ async function automaticFixture() {
 			return JSON.stringify({ ok: true, request: { id: request.id } });
 		},
 	};
-	const run = await start("workflow.ts", { owner: "ct", assignee: "" }, io);
+	const parent = await beads.create(scope, { title: "Original work", owner: "ct" });
+	const run = await start("workflow.ts", { owner: "ct", assignee: "", parent: parent.id }, io);
 	return { beads, calls, io, run, stage: run.active[FIRST]! };
 }
 
-const dispatch = await automaticFixture();
+const dispatch = await beeFixture();
 const ended = new Map(
 	await Promise.all(
-		["blocked", "cancelled"].map(async (reason) => [reason, await automaticFixture()] as const),
+		["blocked", "cancelled"].map(async (reason) => [reason, await beeFixture()] as const),
 	),
 );
-const closedStage = await automaticFixture();
+const closedStage = await beeFixture();
 await closedStage.beads.close(scope, closedStage.stage.request!, { reason: "blocked" });
 await recordResult(
 	{ id: closedStage.run.id, bead: closedStage.stage.bead, choice: "selected", data: payload },
@@ -478,8 +524,8 @@ const replacementStage = await replacementFixture();
 const retryWarmup = await replacementFixture();
 await navigate({ id: retryWarmup.run.id, operation: "collect" }, {}, retryWarmup.io);
 
-describe("automatic stage coordination", () => {
-	test("automatic dispatch uses the stage seam with the existing run and endpoint", () => {
+describe("Bee-dispatched stage coordination", () => {
+	test("Bee dispatch uses the stage seam with the existing run and endpoint", () => {
 		const { calls, run, stage } = dispatch;
 		expect(calls[FIRST]!.slice(FIRST, DISPATCH_PREFIX)).toEqual([
 			"bee",
@@ -505,14 +551,14 @@ describe("automatic stage coordination", () => {
 	});
 
 	test.each(["blocked", "cancelled"])(
-		"automatic request ending %s without a closed stage fails visibly",
+		"Bee dispatch request ending %s without a closed stage fails visibly",
 		async (reason) => {
 			const { beads, io, run, stage } = ended.get(reason)!;
 			await beads.close(scope, stage.request!, { reason });
 			const result = await invoke(["collect", run.id], io);
 			expect(result.code).toBe(FAILURE);
 			expect(result.document).toMatchObject({
-				reason: "automatic_execution_unsuccessful",
+				reason: "bee_execution_unsuccessful",
 				bead: stage.bead,
 				request: stage.request,
 			});
@@ -534,14 +580,14 @@ describe("automatic stage coordination", () => {
 		await beads.close(scope, replacement, { reason: "exhausted" });
 		const result = await invoke(["collect", run.id], io);
 		expect(result.document).toMatchObject({
-			reason: "automatic_execution_unsuccessful",
+			reason: "bee_execution_unsuccessful",
 			request: replacement,
 		});
 	});
 });
 
 async function replacementFixture() {
-	const current = await automaticFixture();
+	const current = await beeFixture();
 	const { beads, run, stage } = current;
 	await beads.close(scope, stage.request!, { reason: "blocked" });
 	const replacement = await beads.create(scope, {

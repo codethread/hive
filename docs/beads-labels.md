@@ -25,7 +25,7 @@ Use exact lowercase values. The area vocabulary follows Hive's package names; `a
 
 Keep issue type, status, priority, owner, assignee, dependencies, and acceptance criteria in their native fields. Do not add parallel labels such as `bug`, `blocked`, or `P1`. Labels do not grant permission to claim work or override workflow policy.
 
-For example, a Honeycomb picker bug is type `bug` with `area:honeycomb`. Choose its execution kind when submitting `bee spawn <kind> <task-id>`, not through an ordinary-task label. A repository-wide formatting task can have no labels at all. If a reserved system bead blocks ordinary work, report the blocker on the permitted bead and request a maintenance handoff without opening the reserved bead.
+For example, a Honeycomb picker bug is type `bug` with `area:honeycomb`. Choose its execution kind when submitting `bee spawn <kind> --parent <work-id> --input-file FILE`, not through an ordinary-task label. A repository-wide formatting task can have no labels at all. If a reserved system bead blocks ordinary work, report the blocker on the permitted bead and request a maintenance handoff without opening the reserved bead.
 
 ## Specialist evidence and label stewardship
 

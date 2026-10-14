@@ -30,7 +30,7 @@ const initializationDefinition = {
 	runBrief: () => ({ title: "Example", description: "Example workflow" }),
 };
 
-function initializationFixture() {
+async function initializationFixture() {
 	const beads = createMemoryBeads({ db: `${repo}/beads.db` });
 	const services: Services = {
 		...createServices(),
@@ -41,13 +41,17 @@ function initializationFixture() {
 		importModule: () => Promise.resolve(initializationDefinition),
 		readBytes: () => Promise.resolve(new ArrayBuffer(EMPTY)),
 	};
-	return { beads, services };
+	const parent = await beads.create(
+		{ actor: "test-agent", cwd: repo },
+		{ title: "Original work", owner: "test-human" },
+	);
+	return { beads, parent, services };
 }
 
 // Warm definition/checkpoint schemas and the public command before measured failure cases.
-const warmup = initializationFixture();
-await invoke(["start", source, "--owner", "test-human"], warmup.services);
-await invoke(["start", source, "--owner", "test-human"], {
+const warmup = await initializationFixture();
+await invoke(["start", source, "--owner", "test-human", "--parent", "mem-1"], warmup.services);
+await invoke(["start", source, "--owner", "test-human", "--parent", "mem-1"], {
 	...warmup.services,
 	beads: {
 		...warmup.beads,
@@ -62,14 +66,14 @@ const initializationFailures = [
 		operation: "create_checkpoint",
 		creates: CHECKPOINT_CREATE,
 		links: EMPTY,
-		confirmed: { runId: "mem-1" },
+		confirmed: { runId: "mem-1.2" },
 		records: NEXT,
 	},
 	{
 		operation: "link_checkpoint",
 		creates: CHECKPOINT_CREATE,
 		links: NEXT,
-		confirmed: { runId: "mem-1", checkpoint: "mem-2" },
+		confirmed: { runId: "mem-1.2", checkpoint: "mem-3" },
 		records: CHECKPOINT_CREATE,
 	},
 ];
@@ -83,11 +87,11 @@ test.each(
 	"initialization reports confirmed identities when $operation fails (after write: $afterWrite)",
 	// eslint-disable-next-line max-statements -- Verify the public failure envelope and retained native effects together.
 	async ({ operation, creates, links, confirmed, records, afterWrite }) => {
-		const { beads, services } = initializationFixture();
+		const { beads, parent, services } = await initializationFixture();
 		let createCalls = EMPTY;
 		let linkCalls = EMPTY;
 		const diagnostic = new Error(`${operation} response interrupted`);
-		const result = await invoke(["start", source, "--owner", "test-human"], {
+		const result = await invoke(["start", source, "--owner", "test-human", "--parent", "mem-1"], {
 			...services,
 			beads: {
 				...beads,
@@ -119,6 +123,7 @@ test.each(
 		expect(result.code).toBe(FAILURE);
 		expect(result.document).toEqual({
 			...confirmed,
+			parentId: "mem-1",
 			kind: "start",
 			message: expect.any(String),
 			ok: false,
@@ -126,7 +131,7 @@ test.each(
 			target: source,
 			uncertainOperation: operation,
 		});
-		const identities = Object.entries(confirmed)
+		const identities = Object.entries({ parentId: "mem-1", ...confirmed })
 			.map(([key, value]) => `${key} ${value}`)
 			.join(", ");
 		expect(result.document).toMatchObject({
@@ -134,18 +139,19 @@ test.each(
 				"Workflow initialization failed during " +
 				`${operation}` +
 				"; native effects may be retained. Confirmed identities: " +
-				`${identities || "none"}` +
+				`${identities}` +
 				". Inspect the tracker for completed and uncertain effects before resubmitting.\n" +
 				`${diagnostic.message}`,
 		});
 		const retained = await beads.list({ cwd: repo }, { all: true, limit: EMPTY });
+		const effects = retained.issues.filter(({ id }) => id !== parent.id);
 		const uncertainCreate = afterWrite && operation !== "link_checkpoint";
-		expect(retained.issues).toHaveLength(records + Number(uncertainCreate));
+		expect(effects).toHaveLength(records + Number(uncertainCreate));
 		expect(createCalls).toBe(creates);
 		expect(linkCalls).toBe(links);
-		for (const record of retained.issues) {
+		for (const record of effects) {
 			let status = "open";
-			if (record.id === "mem-1") {
+			if (record.id === "mem-1.2") {
 				status = "in_progress";
 			}
 			expect(record).toMatchObject({
@@ -154,21 +160,51 @@ test.each(
 			});
 		}
 		if (operation === "link_checkpoint") {
-			const root = await beads.show({ cwd: repo }, "mem-1");
+			const root = await beads.show({ cwd: repo }, "mem-1.2");
 			if (afterWrite) {
 				expect(root.dependencies).toEqual([
-					expect.objectContaining({ id: "mem-2", dependency_type: "related" }),
+					expect.objectContaining({ id: "mem-1", dependency_type: "parent-child" }),
+					expect.objectContaining({ id: "mem-3", dependency_type: "related" }),
 				]);
 			} else {
-				expect(root.dependencies).toEqual([]);
+				expect(root.dependencies).toEqual([
+					expect.objectContaining({ id: "mem-1", dependency_type: "parent-child" }),
+				]);
 			}
 		}
 	},
 );
 
+test("initial visit publication failure retains parent, run and checkpoint identities", async () => {
+	const { beads, parent, services } = await initializationFixture();
+	const result = await invoke(["start", source, "--owner", "test-human", "--parent", parent.id], {
+		...services,
+		beads: {
+			...beads,
+			create: (scope, input) => {
+				if (input.parent && input.parent !== parent.id) {
+					throw new Error("Visit publication interrupted");
+				}
+				return beads.create(scope, input);
+			},
+		},
+	});
+	expect(result.code).toBe(FAILURE);
+	expect(result.document).toMatchObject({
+		ok: false,
+		reason: "partial_effects",
+		parentId: parent.id,
+		runId: "mem-1.2",
+		checkpoint: "mem-3",
+		owner: expect.any(String),
+	});
+	const checkpoint = await beads.show({ cwd: repo }, "mem-3");
+	expect(checkpoint.notes).not.toBe("");
+});
+
 test("start rejects invalid input without attempting native writes", async () => {
-	const { beads, services } = initializationFixture();
-	const result = await invoke(["start", source, "--owner", "test-human"], {
+	const { beads, parent, services } = await initializationFixture();
+	const result = await invoke(["start", source, "--owner", "test-human", "--parent", "mem-1"], {
 		...services,
 		beforeWrite: () => {
 			throw new Error("Invalid input must not attempt writes");
@@ -188,9 +224,10 @@ test("start rejects invalid input without attempting native writes", async () =>
 		target: source,
 	});
 	const retained = await beads.list({ cwd: repo }, { all: true, limit: EMPTY });
-	expect(retained.issues).toEqual([]);
+	expect(retained.issues.map(({ id }) => id)).toEqual([parent.id]);
 });
 
+// eslint-disable-next-line max-statements -- Verify actor failure and unchanged records through the CLI.
 test("an initial actor failure returns JSON without creating tasks #test-20", async () => {
 	const beads = createMemoryBeads({ db: "/busybee-failure/beads.db" });
 	const definition = {
@@ -224,9 +261,22 @@ test("an initial actor failure returns JSON without creating tasks #test-20", as
 	};
 	const scope = { cwd: services.cwd };
 	const selection = { all: true, limit: 0 };
+	const parent = await beads.create(
+		{ ...scope, actor: "test-agent" },
+		{ title: "Original work", owner: "test-human" },
+	);
 	const before = await beads.list(scope, selection);
 	const result = await invoke(
-		["--actor", "test-agent", "--owner", "test-human", "start", "/busybee-failure/workflow.ts"],
+		[
+			"--actor",
+			"test-agent",
+			"--owner",
+			"test-human",
+			"--parent",
+			parent.id,
+			"start",
+			"/busybee-failure/workflow.ts",
+		],
 		services,
 	);
 	expect(result.code).toBe(FAILURE);

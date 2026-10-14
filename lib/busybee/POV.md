@@ -10,10 +10,10 @@ Assume `busybee` and `br` are on `PATH`, both use the repository's selected data
 export BD_ACTOR=codex
 busybee list
 busybee input-schema parallel
-busybee run parallel --owner ct --json
+busybee run parallel --parent EXISTING_CHANGE_ID --owner ct --json
 ```
 
-The parallel example accepts `{}`, so it needs no input file. The run response starts with one worker task:
+The parent IDs name existing nonclosed ordinary work in the selected tracker. Each run becomes its native child and leaves that parent open. The parallel example accepts `{}`, so it needs no input file. The run response starts with one worker task:
 
 ```json
 {
@@ -74,7 +74,7 @@ Submitting an open worker task exits nonzero with `reason: "task_not_closed"`; t
 The groceries definition starts with “Read the week ahead”:
 
 ```sh
-busybee run groceries --owner ct --json
+busybee run groceries --parent EXISTING_MEAL_PLAN_ID --owner ct --json
 busybee discover busy-8fp
 ```
 
@@ -113,11 +113,11 @@ The [land definition](../../.workflows/land/workflow.ts) records an existing use
 ```
 
 ```sh
-busybee run land --owner ct --input-file /tmp/land-input.json --json
+busybee run land --parent hv-widget --owner ct --input-file /tmp/land-input.json --json
 ```
 
-The first task is “Triage the authorized landing.” Inspect `discover` and its brief, then choose the outcome matching the actual work: `implement`, `check`, `review`, `commit`, `reviewed` or `integrated`. Later tasks can return to implementation, review or PR readiness rather than advancing in a fixed sequence.
+The run is “Land worktree feature/widget” and the first task is “Triage the authorized landing: worktree feature/widget.” Inspect `discover` and its brief, then choose the outcome matching the actual work: `implement`, `check`, `review`, `commit`, `reviewed` or `integrated`. Later tasks can return to implementation, review or PR readiness rather than advancing in a fixed sequence.
 
 Every landing outcome, including `next`, requires an `evidence` payload describing the observed result and next brief. Put narrative verification in comments. Use the [durable result contract](./README.md#delegate-a-workflow-to-bee) to record the chosen outcome and payload before closing the stage, then collect the saved result. Outcomes `approved`, `commit` and `reviewed` also require the current local-review receipt (`bead`, `base`, `revision`); see [landing from the current state](./README.md#landing-from-the-current-state). Leave unresolved blockers open rather than inventing evidence to advance.
 
-If landing removes the feature checkout, continue from the retained canonical root with the same database and unchanged named definition. The briefs retain the paths, commits and task scope. After the final `next` closes the run, publish its completion bookkeeping as the final brief directs.
+If landing removes the feature checkout, continue from the retained canonical root with the same database and unchanged named definition. Before the final visit closes, comment on the run with integration, acceptance and verification evidence. Its brief retains the authorized `completedTasks`, paths and caller instructions. Collect the final saved `next` result and verify `status: done`; only then does the authorized standalone caller or Land driver close proven `hv-widget` and publish once with `bun run beads:sync`. The parent edge does not add closure permission for other tasks. See [landing from the current state](./README.md#landing-from-the-current-state) for the post-done failure handoff.

@@ -130,13 +130,16 @@ interface InitializeRun extends RunTarget {
 	checkpoint: string;
 	/** Validated creation definition, retained only for this invocation. */
 	definition: Definition;
+	/** Validated ordinary parent, known before initialization publishes anything. */
+	parentId: string;
 }
 type Mutation = WorkRequest | InitializeRun;
 /** Attempted initialization write and identities confirmed by prior native responses. */
-type InitializationAttempt =
+type InitializationAttempt = { parentId: string } & (
 	| { uncertainOperation: "create_run" }
 	| { uncertainOperation: "create_checkpoint"; runId: string }
-	| { uncertainOperation: "link_checkpoint"; runId: string; checkpoint: string };
+	| { uncertainOperation: "link_checkpoint"; runId: string; checkpoint: string }
+);
 interface Submission {
 	/** Active native visit being completed. */
 	entry: ActiveEntry;
@@ -325,6 +328,7 @@ async function initialize(
 			"Starting a run requires --owner identifying the accountable human.",
 		);
 	}
+	const parentId = await readCreationParent(options.parent, endpoint, services);
 	const { definition, hash } = await load(source, services);
 	const { actor, brief } = await initialDefinition(definition, options.inputFile, services);
 	try {
@@ -336,6 +340,7 @@ async function initialize(
 				endpoint,
 				hash,
 				identity: { assignee: options.assignee ?? endpoint.actor, owner: options.owner },
+				parentId,
 				snapshot: snapshotFor(actor),
 			},
 			services,
@@ -355,6 +360,28 @@ async function initialDefinition(
 	return { actor: initialActor(definition, input), brief };
 }
 
+async function readCreationParent(
+	id: string | undefined,
+	endpoint: MutationEndpoint,
+	services: Services,
+): Promise<string> {
+	if (!id) {
+		throw new BusyBeeError(
+			"missing_parent",
+			"Starting a run requires --parent identifying existing ordinary work in the selected tracker.",
+		);
+	}
+	const parent = await readBead(endpoint, id, services);
+	if (parent.status === "closed" || parent.labels.includes("system")) {
+		throw new BusyBeeError(
+			"invalid_parent",
+			`Workflow parent ${parent.id} must be nonclosed ordinary work without the system label.`,
+			{ context: { parentId: parent.id } },
+		);
+	}
+	return parent.id;
+}
+
 // Keep confirmed identities and the failed write in one initialization error boundary.
 // eslint-disable-next-line max-statements
 async function createRun(
@@ -365,12 +392,13 @@ async function createRun(
 		endpoint: MutationEndpoint;
 		hash: string;
 		identity: { owner: string; assignee: string };
+		parentId: string;
 		snapshot: Snapshot<unknown>;
 	},
 	services: Services,
 ): Promise<RunView> {
-	const { brief, definition, locator, endpoint, hash, identity, snapshot } = input;
-	let attempt: InitializationAttempt = { uncertainOperation: "create_run" };
+	const { brief, definition, locator, endpoint, hash, identity, parentId, snapshot } = input;
+	let attempt: InitializationAttempt = { parentId, uncertainOperation: "create_run" };
 	try {
 		const id = await createTask(
 			endpoint,
@@ -379,11 +407,12 @@ async function createRun(
 				assignee: identity.assignee,
 				labels: [],
 				owner: identity.owner,
+				parent: parentId,
 				status: "in_progress",
 			},
 			services,
 		);
-		attempt = { runId: id, uncertainOperation: "create_checkpoint" };
+		attempt = { parentId, runId: id, uncertainOperation: "create_checkpoint" };
 		const state: Run = {
 			formatVersion: 1,
 			active: [],
@@ -406,7 +435,7 @@ async function createRun(
 			},
 			services,
 		);
-		attempt = { runId: id, checkpoint, uncertainOperation: "link_checkpoint" };
+		attempt = { parentId, runId: id, checkpoint, uncertainOperation: "link_checkpoint" };
 		services.beforeWrite();
 		await services.beads.dep.add(
 			{ actor: endpoint.actor, cwd: endpoint.repo, db: endpoint.db },
@@ -424,13 +453,17 @@ async function createRun(
 			"Workflow initialization failed during " +
 				`${attempt.uncertainOperation}` +
 				"; native effects may be retained. Confirmed identities: " +
-				`${known || "none"}` +
+				`${known}` +
 				". Inspect the tracker for completed and uncertain effects before resubmitting.",
 			{ cause: error, context: attempt },
 		);
 	}
 	const { runId: id, checkpoint } = attempt;
-	return mutate({ checkpoint, definition, id, operation: "initialize" }, endpoint, services);
+	return mutate(
+		{ checkpoint, definition, id, parentId, operation: "initialize" },
+		endpoint,
+		services,
+	);
 }
 
 async function readRun(
@@ -480,27 +513,57 @@ async function restoreDefinition(run: Run, endpoint: Endpoint, services: Service
 		return await loadRetainedDefinition(run, endpoint, services);
 	} catch (error) {
 		if (
-			run.definition.kind !== "named" ||
 			!(error instanceof BusyBeeError) ||
 			(error.reason !== "definition_changed" && error.reason !== "workflow_missing")
 		) {
 			throw error;
+		}
+		const context = {
+			...error.context,
+			...endpoint,
+			runId: run.id,
+			stageIds: run.created.map((visit) => visit.bead),
+			stageRequestIds: run.created.flatMap((visit) => {
+				if (visit.request) {
+					return [visit.request];
+				}
+				return [];
+			}),
+			acceptedResults: run.history.map(({ bead, command, request }) => ({
+				bead,
+				command,
+				request,
+			})),
+			nextAction: `br show ${run.id} --json`,
+		};
+		if (run.definition.kind === "source") {
+			throw new BusyBeeError(
+				error.reason,
+				`${error.message} Inspect ${context.nextAction} and retained visits first; ` +
+					"preserve their evidence and native parent when handing off remaining work. " +
+					"Leave unfinished old work open; replacement completion does not complete it.",
+				{ cause: error, context },
+			);
 		}
 		const { name } = run.definition;
 		const recovery = {
 			definition_changed: {
 				state: "changed",
 				guidance:
+					`Inspect br show ${run.id} --json and its visits before deciding disposition. ` +
 					`You may create a fresh run of ${name}` +
 					" for the same already-authorized scope without asking the user " +
 					`again. Inspect busybee input-schema ${name}, then use busybee run ` +
-					`${name} with the current input schema. Preserve the original request and ` +
+					`${name} --parent ORIGINAL_PARENT with the current input schema. Reuse the ` +
+					"old run's native parent. Preserve the original request and " +
 					"authorization, source/target, scope, owner/assignment, selected " +
 					"tracker and old run/task/evidence references. Inspect completed and " +
 					"uncertain effects and use the current workflow's triage to continue " +
 					"remaining work without blindly replaying completed effects. Retain " +
 					"the old run as history; do not migrate its snapshot or bypass " +
-					"current checks and reviews.",
+					"current checks and reviews. Leave unfinished old visits and their run open " +
+					"with a documented blocker and next operator action; replacement completion " +
+					"does not complete them or permit their parent to close.",
 			},
 			workflow_missing: {
 				state: "is missing",
@@ -510,7 +573,10 @@ async function restoreDefinition(run: Run, endpoint: Endpoint, services: Service
 		throw new BusyBeeError(
 			error.reason,
 			`Cannot restore run ${run.id}: named workflow ${name} ${recovery.state}. ${recovery.guidance}`,
-			{ cause: error, context: { ...error.context, ...endpoint, name, run: run.id } },
+			{
+				cause: error,
+				context: { ...context, name },
+			},
 		);
 	}
 }
@@ -639,7 +705,11 @@ function mutateOwned(
 	services: Services,
 ): Promise<RunView> {
 	const { lock, request, endpoint } = input;
-	return withCheckpointOwner({ endpoint, lock, runId: request.id }, services, async (writes) => {
+	const identity: { runId: string; parentId?: string } = { runId: request.id };
+	if (request.operation === "initialize") {
+		identity.parentId = request.parentId;
+	}
+	return withCheckpointOwner({ endpoint, lock, ...identity }, services, async (writes) => {
 		const prepared = await prepareMutation({ endpoint, lock, request }, services);
 		try {
 			await publish({ actor: prepared.actor, endpoint, locked: prepared.locked }, writes);
@@ -651,11 +721,11 @@ function mutateOwned(
 }
 
 async function withCheckpointOwner<Result>(
-	input: { lock: Lock; endpoint: MutationEndpoint; runId: string },
+	input: { lock: Lock; endpoint: MutationEndpoint; runId: string; parentId?: string },
 	services: Services,
 	operation: (writes: Services) => Promise<Result>,
 ): Promise<Result> {
-	const { lock, endpoint, runId } = input;
+	const { lock, endpoint, runId, parentId } = input;
 	let effects = false;
 	try {
 		const result = await operation({
@@ -676,7 +746,16 @@ async function withCheckpointOwner<Result>(
 					" remains locked by " +
 					`${lock.owner}` +
 					". Inspect partial effects before recovery.",
-				{ cause: error, context: { checkpoint: lock.checkpoint, owner: lock.owner, runId } },
+				{
+					cause: error,
+					context: {
+						checkpoint: lock.checkpoint,
+						owner: lock.owner,
+						runId,
+						parentId,
+						nextAction: `br show ${runId} ${lock.checkpoint} --json`,
+					},
+				},
 			);
 		}
 		await updateOwned({ input: { notes: "" }, endpoint, locked: lock }, services);
@@ -692,7 +771,7 @@ async function handoffActiveRun(
 	const identity = await readBead(endpoint, run.id, services);
 	assertUnassignedRun(identity);
 	for (const entry of run.active.filter((item) => item.meta.commands && !item.request)) {
-		// eslint-disable-next-line no-await-in-loop -- Validate manual reservations before any handoff effect.
+		// eslint-disable-next-line no-await-in-loop -- Validate driver-handled reservations before any handoff effect.
 		assertAgentReservation(await readBead(endpoint, entry.bead, services));
 	}
 	if (
@@ -874,22 +953,18 @@ async function collectSubmissions(input: Preparation, services: Services): Promi
 		}
 	}
 	if (input.request.operation === "collect" && submissions.length === FIRST) {
-		await assertAutomaticRequests(
-			{ entries: selected, runId: input.run.id },
-			input.endpoint,
-			services,
-		);
+		await assertBeeRequests({ entries: selected, runId: input.run.id }, input.endpoint, services);
 	}
 	return submissions;
 }
 
-async function assertAutomaticRequests(
+async function assertBeeRequests(
 	input: { entries: ActiveEntry[]; runId: string },
 	endpoint: Endpoint,
 	services: Services,
 ): Promise<void> {
 	for (const entry of input.entries.filter((item) => item.request)) {
-		// eslint-disable-next-line no-await-in-loop -- Diagnose the first unsuccessful automatic request in frontier order.
+		// eslint-disable-next-line no-await-in-loop -- Diagnose unsuccessful Bee requests in frontier order.
 		const request = await currentStageRequest(
 			{ id: entry.request!, stageId: entry.bead, runId: input.runId },
 			endpoint,
@@ -897,8 +972,8 @@ async function assertAutomaticRequests(
 		);
 		if (requestOutcome(request) !== "pending") {
 			throw new BusyBeeError(
-				"automatic_execution_unsuccessful",
-				"Automatic task " +
+				"bee_execution_unsuccessful",
+				"Bee-dispatched task " +
 					`${entry.bead}` +
 					" has no closed result; request " +
 					`${request.id}` +
@@ -1003,7 +1078,7 @@ function savedSubmission(task: BeadRecord, entry: ActiveEntry): { choice: string
 function validateSubmission(entry: ActiveEntry, task: BeadRecord, input: Preparation): Submission {
 	const { request, definition, endpoint } = input;
 	if (entry.request && request.operation !== "collect") {
-		throw new BusyBeeError("automatic_task", "Use collect for automatic tasks");
+		throw new BusyBeeError("bee_dispatched_task", "Use collect for Bee-dispatched tasks");
 	}
 	const payload = submissionPayload(request, task, entry);
 	if (!entry.meta.commands?.[payload.choice]) {

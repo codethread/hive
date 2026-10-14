@@ -11,7 +11,7 @@ export const inputSchema = z.object({
 export const commandSchemas = { next: z.object({}) };
 
 interface Work {
-	/** Caller title used on the run and work stage. */
+	/** Assignment title used by the work stage and contextual run title. */
 	title: string;
 	/** The actual assignment performed in this workflow. */
 	request: string;
@@ -21,7 +21,7 @@ interface Work {
 
 export function runBrief(input: Work) {
 	return {
-		title: input.title,
+		title: `Do work: ${input.title}`,
 		description: input.request,
 	};
 }

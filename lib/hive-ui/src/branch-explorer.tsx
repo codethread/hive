@@ -2,6 +2,7 @@ import type { Hierarchy, HierarchyNode } from "../contracts.ts";
 import { Link, useSearch } from "@tanstack/react-router";
 import { beadFamilies, hierarchyChildren, outlineHierarchy } from "../hierarchy.ts";
 import { OutlineClosedToggle } from "./outline-controls.tsx";
+import { WorkflowIndicator } from "./ui.tsx";
 import { preferences } from "./data.ts";
 import { statusName } from "./filter-controls.tsx";
 import { useState } from "react";
@@ -30,7 +31,10 @@ export function BranchExplorer({
 					<div key={family.root.id}>
 						<header className="branch-explorer-heading">
 							<p>{family.root.id}</p>
-							<h3>{family.root.title}</h3>
+							<h3>
+								<WorkflowIndicator isWorkflowGenerated={family.root.isWorkflowGenerated} />
+								{family.root.title}
+							</h3>
 						</header>
 						<ul className="branch-explorer-tree" aria-label={`Hierarchy of ${family.root.id}`}>
 							{family.rows
@@ -99,7 +103,10 @@ function BranchNode({
 					onClick={onSelect}
 				>
 					<span className="branch-node-id">{node.id}</span>
-					<span className="branch-node-title">{node.title}</span>
+					<span className="branch-node-title">
+						<WorkflowIndicator isWorkflowGenerated={node.isWorkflowGenerated} />
+						{node.title}
+					</span>
 					<span className="branch-node-meta">
 						<span className={`status-dot status-${node.status}`} />
 						{statusName(node.status)}

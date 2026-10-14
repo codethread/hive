@@ -76,7 +76,12 @@ export function resetStoryState(): void {
 	inventories.store.setState({ entries: {} });
 	outlines.store.setState({ entries: {} });
 	provenance.store.setState({ entries: {} });
-	preferences.setState({ outlineClosed: false, sidebarCollapsed: false, views: {} });
+	preferences.setState({
+		showWorkflowBeads: false,
+		outlineClosed: false,
+		sidebarCollapsed: false,
+		views: {},
+	});
 	columnOrders.store.setState({ byColony: {}, error: "" });
 	localStorage.removeItem("hive-ui.column-order");
 	savedViews.setState({ active: {}, byColony: {}, notice: { kind: "none" } });

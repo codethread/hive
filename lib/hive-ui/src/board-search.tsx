@@ -1,9 +1,12 @@
 import { useEffect, useId, useRef } from "react";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { editFilters } from "./filter-controls.tsx";
+import { preferences } from "./data.ts";
+import { useStore } from "zustand";
 import { z } from "zod";
 
 export function HeaderSearch() {
+	const showWorkflowBeads = useStore(preferences, (state) => state.showWorkflowBeads);
 	const search = useSearch({ from: "/colonies/$colonyId" });
 	const navigate = useNavigate({ from: "/colonies/$colonyId" });
 	const input = useRef<HTMLInputElement>(null);
@@ -55,6 +58,18 @@ export function HeaderSearch() {
 					Search
 				</button>
 			</form>
+			{search.view === "beads" && search.outline === undefined && (
+				<label className="flex shrink-0 items-center gap-2 text-xs text-muted">
+					<input
+						type="checkbox"
+						checked={showWorkflowBeads}
+						onChange={(event) => {
+							preferences.setState({ showWorkflowBeads: event.target.checked });
+						}}
+					/>
+					Show workflow beads
+				</label>
+			)}
 		</search>
 	);
 }

@@ -62,7 +62,7 @@ export const workflowAssignmentSchema = z.discriminatedUnion("kind", [
 		runId: z.string().trim().min(NONEMPTY),
 	}),
 	z.strictObject({
-		/** Performs one automatic visit without navigating the workflow. */
+		/** Performs one Bee-dispatched visit without navigating the workflow. */
 		kind: z.literal("stage"),
 		/** Native run containing the visit. */
 		runId: z.string().trim().min(NONEMPTY),
@@ -74,6 +74,10 @@ const capturedRequestSchema = recipeSchema.extend({
 	host: z.string().trim().min(NONEMPTY).optional(),
 	assignment: workflowAssignmentSchema,
 });
+const attributionRecipeSchema = recipeSchema
+	.pick({ harness: true, kind: true, model: true })
+	.strip();
+const requestHostSchema = capturedRequestSchema.pick({ host: true }).strip();
 export type WorkflowAssignment = z.infer<typeof workflowAssignmentSchema>;
 
 /** Queryable request facts, independent of attempt and checkpoint states. */
@@ -110,6 +114,12 @@ export interface SpawnRequest {
 	recipe: Recipe;
 	/** Related task beads whose completion determines the request's success. */
 	taskIds: string[];
+}
+
+/** Read-only attribution facts, without admitting the request for execution. */
+export interface SpawnRequestAttribution extends Pick<SpawnRequest, "id" | "identity" | "taskIds"> {
+	/** Only recipe fields used by read-only viewers. */
+	recipe: Pick<Recipe, "harness" | "kind" | "model">;
 }
 
 /** Failure attention is independent of the retained native outcome. */
@@ -152,13 +162,29 @@ export function spawnRequestLabels(kind: string): string[] {
 	];
 }
 
+/** Read routing provenance before validating execution authority for eligible requests. */
+export function readSpawnRequestHost(bead: Pick<Bead, "description">): string | null {
+	const { host } = requestHostSchema.parse(JSON.parse(bead.description));
+	// eslint-disable-next-line unicorn/no-null -- Missing provenance is unbound, never inferred local authority.
+	return host ?? null;
+}
+
+/** Decode display facts without interpreting host ownership or workflow execution authority. */
+export function readSpawnRequestAttribution(bead: Bead): SpawnRequestAttribution {
+	const recipe = attributionRecipeSchema.parse(JSON.parse(bead.description));
+	return {
+		id: bead.id,
+		identity: requestIdentity(bead, recipe.kind),
+		recipe,
+		taskIds: relatedTaskIds(bead),
+	};
+}
+
 /** Interpret the Beads representation once, before request-specific decisions. */
 export function readSpawnRequest(bead: Bead): SpawnRequest {
 	const request = {
 		...readSpawnRequestSummary(bead),
-		taskIds: bead.dependencies
-			.filter(({ dependency_type }) => dependency_type === "related")
-			.map(({ id }) => id),
+		taskIds: relatedTaskIds(bead),
 	};
 	let anchor = request.assignment.runId;
 	if (request.assignment.kind === "stage") {
@@ -177,18 +203,10 @@ export function readSpawnRequestSummary(
 	bead: Pick<Bead, "id" | "description" | "labels" | "assignee">,
 ): Omit<SpawnRequest, "taskIds"> {
 	const { host, assignment, ...recipe } = capturedRequestSchema.parse(JSON.parse(bead.description));
-	if (
-		![...SPAWN_REQUEST_LABELS, `agent:${recipe.kind}`].every((label) => bead.labels.includes(label))
-	) {
-		throw new Error(`Request ${bead.id} lacks exact spawn labels`);
-	}
-	if (!bead.assignee) {
-		throw new Error(`Request ${bead.id} has no friendly identity`);
-	}
 	return {
 		assignment,
 		id: bead.id,
-		identity: bead.assignee,
+		identity: requestIdentity(bead, recipe.kind),
 		// Missing provenance remains explicitly unbound for historical inspection.
 		// eslint-disable-next-line unicorn/no-null
 		host: host ?? null,
@@ -347,4 +365,20 @@ function compareComments(left: BeadComment, right: BeadComment): number {
 
 function isStateLabel(label: string): boolean {
 	return label.startsWith("bee-outcome:") || label.startsWith("bee-resolution:");
+}
+
+function requestIdentity(bead: Pick<Bead, "id" | "labels" | "assignee">, kind: string): string {
+	if (![...SPAWN_REQUEST_LABELS, `agent:${kind}`].every((label) => bead.labels.includes(label))) {
+		throw new Error(`Request ${bead.id} lacks exact spawn labels`);
+	}
+	if (!bead.assignee) {
+		throw new Error(`Request ${bead.id} has no friendly identity`);
+	}
+	return bead.assignee;
+}
+
+function relatedTaskIds(bead: Bead): string[] {
+	return bead.dependencies
+		.filter(({ dependency_type }) => dependency_type === "related")
+		.map(({ id }) => id);
 }

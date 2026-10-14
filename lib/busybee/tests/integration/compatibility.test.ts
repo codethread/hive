@@ -122,7 +122,8 @@ test.each([
 			readText: () => Promise.resolve(manifest.replace("1.0.0", version)),
 			readBytes: () => Promise.resolve(contents),
 		};
-		let view = await startNamed("example", { owner: "ct" }, io);
+		const parent = await beads.create(scope, { title: "Original work", owner: "ct" });
+		let view = await startNamed("example", { owner: "ct", parent: parent.id }, io);
 		if (position === "review") {
 			await beads.close(scope, view.active[FIRST]!.bead);
 			view = await navigate(
@@ -211,7 +212,8 @@ test(
 			importModule: () => Promise.resolve(parallelDefinition),
 			sleep: () => Promise.resolve(),
 		};
-		const view = await startNamed("example", { owner: "ct" }, io);
+		const parent = await beads.create(scope, { title: "Original work", owner: "ct" });
+		const view = await startNamed("example", { owner: "ct", parent: parent.id }, io);
 		const left = view.active.find((entry) => entry.title === "Left")!;
 		await beads.close(scope, left.bead);
 		concurrentSave = true;

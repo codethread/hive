@@ -1,5 +1,13 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import {
+	multipleWorkflows,
+	nestedWorkflows,
+	singleWorkflow,
+	workflowDetail,
+	workflowHierarchy,
+} from "./workflow-fixtures.ts";
 import { WorkPage } from "../work-page.tsx";
+import { beadHandlers } from "./handlers.ts";
 import { worker } from "./fixtures.ts";
 
 const meta = {
@@ -24,3 +32,24 @@ export const Filtered: Story = {
 };
 export const Empty: Story = { parameters: { navigation: { query: "no-such-bead" } } };
 export const Paper: Story = { globals: { theme: "paper" } };
+export const SingleWorkflow: Story = {
+	parameters: { msw: beadHandlers(singleWorkflow, workflowDetail) },
+};
+export const MultipleWorkflows: Story = {
+	parameters: { msw: beadHandlers(multipleWorkflows, workflowDetail) },
+};
+export const NestedWorkflows: Story = {
+	parameters: { msw: beadHandlers(nestedWorkflows, workflowDetail) },
+};
+export const WorkflowFamilies: Story = {
+	parameters: { msw: beadHandlers(workflowHierarchy, workflowDetail) },
+};
+export const WorkflowInspector: Story = {
+	...NestedWorkflows,
+	parameters: { ...NestedWorkflows.parameters, navigation: { bead: "hv-release.4.1.1" } },
+};
+export const WorkflowOutline: Story = {
+	...NestedWorkflows,
+	parameters: { ...NestedWorkflows.parameters, navigation: { outline: "hv-release.4" } },
+};
+export const WorkflowPaper: Story = { ...WorkflowFamilies, globals: { theme: "paper" } };

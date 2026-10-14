@@ -17,9 +17,11 @@ Export the following from a JavaScript or TypeScript module:
 | `inputConstraints` (optional) | Readable initial-input constraints |
 | `describe(entry)` (optional) | Adds per-task discovery fields, such as constraints or an assigned revision |
 
-[definition.ts](../lib/busybee/src/definition.ts) defines the types and boundary schemas. For library callers, `@hive/busybee` exports the operations in [runtime.ts](../lib/busybee/src/runtime.ts); these return plain result objects, and the CLI adds the terminal envelope.
+[definition.ts](../lib/busybee/src/definition.ts) defines the types and boundary schemas. For library callers, `@hive/busybee` exports the operations in [runtime.ts](../lib/busybee/src/runtime.ts); these return plain result objects, and the CLI adds the terminal envelope. Root creation through `start` or `startNamed` requires `options.parent` naming existing nonclosed ordinary work in the selected tracker, separately from definition input. Nested actors use their containing group; they do not initialize another root run. Bee transports the parent separately from initial input. Definitions own run titles through `runBrief`; the default `do-work` author uses `Do work: <title>` for the run and the caller title for its work stage. Other definitions keep their own title and assignment rendering.
 
 A non-final state with `meta.title` creates a bead. Every such state supplies `meta.task({context})`, returning instructions and optional metadata overrides such as title or `bee: {kind}`. Worker states map outcome names to events in `meta.commands`; containers omit commands. Final states create no worker beads, even when titled. Runner command names such as `show` and `collect` are valid author outcomes too.
+
+Creation provenance and dispatch are separate. Generated worker visits are workflow auto beads whether driver-handled (no `bee`) or Bee-dispatched (`bee: {kind}`). Agent-created supporting work is manual even when nested beneath the run; parent-child links alone do not establish workflow generation. The related workflow system bead stores the run's checkpoint. See the [shared vocabulary](../GLOSSARY.md#workflows).
 
 Spawned actors set their input/context `group` to the containing state node ID. Keep actor references in `workers`, which Busy Bee excludes from task context; keep other exposed context JSON-serializable. Persistence includes child-actor state. Use branch-specific events so one parallel worker's `next` does not advance another branch.
 

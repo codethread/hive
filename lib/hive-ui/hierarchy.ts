@@ -132,16 +132,18 @@ function boardParents(hierarchy: Hierarchy): Map<string, string[]> {
 	const ids = new Set(hierarchy.nodes.map((node) => node.id));
 	return new Map(
 		hierarchy.nodes.map((node) => {
+			if (node.parentIds.length > 0) {
+				return [node.id, node.parentIds];
+			}
 			const parts = node.id.split(".");
 			const ancestor = parts
 				.map((_part, index) => parts.slice(0, index).join("."))
 				.toReversed()
 				.find((id) => ids.has(id));
-			const parents = new Set(node.parentIds);
-			if (ancestor !== undefined) {
-				parents.add(ancestor);
+			if (ancestor === undefined) {
+				return [node.id, []];
 			}
-			return [node.id, [...parents]];
+			return [node.id, [ancestor]];
 		}),
 	);
 }

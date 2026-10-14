@@ -7,8 +7,8 @@ const ZERO = 0;
 const text = z.string().trim().min(ONE);
 
 const executionSchema = z.discriminatedUnion("mode", [
-	z.object({ mode: z.literal("manual") }),
-	z.object({ kind: text, mode: z.literal("bee") }),
+	z.object({ mode: z.literal("driver-handled") }),
+	z.object({ kind: text, mode: z.literal("bee-dispatched") }),
 ]);
 export const inputSchema = z.object({
 	base: z
@@ -359,7 +359,7 @@ function changeBrief(change: Change) {
 }
 
 function assignment(execution: Change["execution"]): { bee?: { kind: string } } {
-	if (execution.mode === "bee") {
+	if (execution.mode === "bee-dispatched") {
 		return { bee: { kind: execution.kind } };
 	}
 	return {};

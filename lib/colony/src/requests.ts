@@ -9,7 +9,7 @@ import {
 	latestStdoutActivity,
 	projectedRequestLabels,
 	readSpawnRequest,
-	readSpawnRequestSummary,
+	readSpawnRequestHost,
 	requestAcknowledgment,
 	requestDisposition,
 	requestLabelsCurrent,
@@ -297,7 +297,8 @@ export async function publishRequestLabels(
 		 * Finish each predecessor's projection before admitting its replacement.
 		 */
 		const old = await beads.show(trackerScope(repository, actor), predecessor.id);
-		if (host === undefined || readSpawnRequest(old).host === host) {
+		if (host === undefined || readSpawnRequestHost(old) === host) {
+			assertPublicationHost(old, host);
 			/* eslint-disable-next-line no-await-in-loop --
 			 * Native provenance already exists; repair only predecessors belonging to this
 			 * publisher.
@@ -319,7 +320,7 @@ export async function reconcileClosedRequestLabels({
 		limit: 0,
 	});
 	for (const issue of issues.filter(
-		(candidate) => readSpawnRequestSummary(candidate).host === hostname(),
+		(candidate) => readSpawnRequestHost(candidate) === hostname(),
 	)) {
 		/* eslint-disable-next-line no-await-in-loop --
 		 * Bounded native publications complete before the next closed request is repaired.

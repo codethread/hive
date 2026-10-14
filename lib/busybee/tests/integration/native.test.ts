@@ -113,7 +113,16 @@ describe("definition discovery without a tracker", () => {
 			});
 			expect({ commands, writes }).toEqual({ commands: [], writes: FIRST });
 			const start = await invoke(
-				["--actor", fixture.options.actor, "--owner", fixture.options.owner, "start", source],
+				[
+					"--actor",
+					fixture.options.actor,
+					"--owner",
+					fixture.options.owner,
+					"--parent",
+					"existing-work",
+					"start",
+					source,
+				],
 				services,
 			);
 			expect(errors[FIRST]).toMatchObject({ nativeError: { code: "NOT_INITIALIZED" } });

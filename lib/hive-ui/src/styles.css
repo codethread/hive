@@ -983,7 +983,7 @@ body:has(.inspector[open], .filter-drawer[open]) {
 	border-bottom: 1px solid var(--line);
 	border-bottom-left-radius: 3px;
 }
-.bead-rail-child:not(:last-child)::after {
+.bead-rail-child[data-continues="true"]::after {
 	content: "";
 	position: absolute;
 	left: -10px;
@@ -1279,4 +1279,11 @@ body:has(.inspector[open], .filter-drawer[open]) {
 	.inspector {
 		width: 100%;
 	}
+}
+
+.bead-rail-ancestor {
+	position: absolute;
+	top: -10px;
+	bottom: -10px;
+	border-left: 1px solid var(--line);
 }

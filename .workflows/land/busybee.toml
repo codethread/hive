@@ -1,3 +1,4 @@
-description = "Triage and finish authorized work or a PR, loop through review and feedback, then integrate, verify and publish completion."
-version = "1.0.1"
+description = "Triage and finish authorized work or a PR, integrate and record evidence; the caller closes proven tasks and publishes after the run is done."
+# Frozen 1.x publish/report visits require the old closure order, so this is incompatible.
+version = "2.0.1"
 run = "./workflow.ts"
