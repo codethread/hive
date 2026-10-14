@@ -11,12 +11,12 @@ Run from the Hive checkout root, preserving the caller's scope, supplied IDs and
 | Next ready bead | Follow the next-pick recipe below |
 | Compare priorities or find high-impact blockers | `bv --recipe work --robot-triage --brief --robot-not-ready-labels hitl --format json` |
 | Plan parallel work | `bv --recipe work --robot-plan --format json` |
-| Current WIP | `br list --status in_progress --exclude-label system --json` |
-| Topic search | `br search "topic" --exclude-label system --json` |
-| Closed work/history | `br list --status closed --exclude-label system --json`, adding requested type/assignee filters |
+| Current WIP | `br list --status in_progress --exclude-label system --json --fields id,title,status,priority,assignee,owner,updated_at` |
+| Topic search | `br search "topic" --exclude-label system --json --fields id,title,status,priority,assignee,owner` |
+| Closed work/history | `br list --status closed --exclude-label system --json --fields id,title,status,priority,issue_type,assignee,owner,closed_at`, adding requested type/assignee filters |
 | Supplied bead or its blockers | `br show <id> --json` for the permitted bead |
 
-Hydrate only relevant permitted results with `br show`. For history, filter by `closed_at`, not `updated_at`; for exhaustive searches, check pagination and `hidden_closed_count`, using `--all` when closed matches are in scope. Ranking and plans are not readiness or permission to claim. `br ready --unassigned --exclude-label system --exclude-label hitl --brief --json` is the canonical readiness query when a ready list or confirmation is needed.
+Request summaries first. For progress/handoff questions, fetch notes for relevant permitted IDs with `br list --id <id> --all --json --fields id,notes,updated_at`; use `br show` when task context, relationships or comment evidence are needed. For history, filter by `closed_at`, not `updated_at`; for exhaustive searches, check pagination and `hidden_closed_count`, using `--all` when closed matches are in scope. Ranking and plans are not readiness or permission to claim. `br ready --unassigned --exclude-label system --exclude-label hitl --brief --json` is the canonical readiness query when a ready list or confirmation is needed.
 
 ## Next-pick recipe
 
@@ -48,7 +48,7 @@ Read only the reference matching the unresolved question, relative to the Hive c
 
 - `docs/beads-labels.md` — label advice or routing semantics.
 - `docs/beads-integration.md` — endpoint, publication or synchronization questions. A synchronization failure requires a stop and handoff, not repair.
-- `docs/beads-meta.md` — task authoring, graph semantics, workflow policy or complex queries.
+- `docs/beads-meta.md` — task authoring, graph semantics, workflow policy or complex queries; its progressive-disclosure section covers native projection and safe `jq` receipt/history recipes.
 - `docs/beads-command-source-map.md` — explicitly requested CLI/source investigations. Verify uncertain installed flags with focused help/capabilities; external `beads_rust` source may be a different version.
 
 ## Authority and return

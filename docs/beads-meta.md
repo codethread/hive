@@ -226,6 +226,61 @@ br capabilities --format json --command "ready"
 - `br schema` is explicitly unstable. Generate or validate against the running binary rather than copying an old schema.
 - `serve` is available only with the `mcp` build feature. It exposes local stdio tools, resources, and prompts backed by the same storage and policy paths.
 
+### Progressive disclosure and output cost
+
+Verified against `br 0.7.4`, build commit `3956ebb`, on 2026-10-13. Check the installed command's capabilities/help when these examples differ from its behavior; in this build, `--fields` help says CSV-only despite also selecting JSON/TOON fields.
+
+Prefer native projection before caller-side `jq`: select only the fields needed for the next decision. Selection changes columns, not matching, readiness or page boundaries. Keep pagination/completeness metadata and hydrate relevant permitted beads when scope, blockers, instructions or evidence are missing. Full inspection and implementation still need the relevant task context; a summary is not a substitute.
+
+| Surface | Disclosure and controls |
+| --- | --- |
+| `list`, `search`, `query run` | Default JSON/TOON rows include long issue fields, including accumulated notes, but not comments. `--fields` selects columns; `--limit`/`--offset` bound rows. |
+| `ready` | `--brief` omits long free-text fields without changing readiness or order. |
+| `show` | Full issue fields, all comments and relationship details. No `--fields`, `--brief` or `--no-comments`; use selected `list --id` reads for summaries. |
+| `comments list` | All comment records, with author/time. No native limit or projection. Caller-side slices must report omitted history. |
+| `create` | `--silent` prints only the created ID, even with `--json`; ordinary JSON echoes the created issue. Use when the ID alone confirms the needed result. |
+| `update`, `close` | Normally compact confirmation receipts. `update --append-notes --json` additionally echoes the appended block **and the entire resulting notes field**; acceptance edits return the resulting checklist. No receipt field-selection flag. |
+| `--quiet` | Suppresses successful human output, not explicit JSON/TOON. Silencing a receipt also loses confirmation evidence. |
+
+For a known permitted ID, retrieve the brief separately from its history. `list` returns an `issues` envelope, not `show`'s array; it does not provide hydrated relationships, parsed checklist items or inherited context:
+
+```nu
+let id = "hv-…"
+br list --id $id --all --json --fields id,title,status,priority,assignee,owner,description,updated_at
+br list --id $id --all --json --fields id,notes,updated_at
+br comments list $id --json
+```
+
+`br list --fields` supports only the columns listed by `br list --help`; use `br show $id --json` when design, acceptance checklists or relationship details are needed.
+
+Use `--fields id,title,status,priority,assignee,owner` for topic-search summaries. Add `closed_at` for history, notes for progress/handoff questions, and relationship counts only when they inform selection. Preserve ordinary `--exclude-label system` filtering; projection is not permission to inspect reserved beads.
+
+#### Caller-side jq recipes
+
+Use `jq` for transformations native flags cannot express, not to discard a full list after fetching it. Filtering before the shell tool returns reduces agent context, but does not reduce `br`'s own hydration/serialization. Neither projection nor these recipes changes where evidence is recorded: follow the root runbook's notes/handoff policy.
+
+A plain `br ... | jq ...` pipeline can hide `br`'s exit status, and projecting only success fields can erase structured errors or partial effects. This Nushell helper checks the producer first, preserves diagnostics, and exposes raw failure output before failing. Keep identifiers, assignment/status, warnings and confirmation fields in successful receipts:
+
+```nu
+def br-output [args: list<string>] {
+    let result = (^br ...$args | complete)
+    if $result.stderr != "" { print --stderr $result.stderr }
+    if $result.exit_code != 0 {
+        print $result.stdout
+        error make {msg: $"br failed (exit ($result.exit_code)); inspect raw output before retrying."}
+    }
+    $result.stdout
+}
+
+# Recent comments with explicit history coverage; fetch all when older evidence matters.
+br-output [comments list $id --json] | jq '{total: length, omitted: ([length - 3, 0] | max), comments: .[-3:]}'
+
+# After an authorized notes append, omit only the repeated complete notes body.
+br-output [update $id --actor pi --append-notes "Verified: focused checks passed" --json] | jq 'walk(if type == "object" and (.notes | type) == "object" then del(.notes.text) else . end)'
+```
+
+The append recipe retains `notes.appended`, `notes.applied`, before/after lengths and the rest of the receipt, including wrapped warnings. Substitute the supplied execution actor when present. A non-zero producer result is never filtered into a success-shaped acknowledgement; inspect its raw receipt before retrying a mutation that may already have taken effect.
+
 ## Investigation workflow
 
 1. Preserve the delegated scope and selected `BEADS_DB`; use `br where` to confirm the endpoint when needed, not to initialize a workspace.
