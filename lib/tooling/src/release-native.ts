@@ -73,6 +73,9 @@ async function prepare(root: string, version: string) {
 	await mkdir(join(root, "releases"), { recursive: true });
 	await writeFile(join(root, notes), releaseNotes(version, previous, packages));
 	await run(root, ["bun", "install", "--lockfile-only", "--ignore-scripts"]);
+	if (await Bun.file(join(root, ".hive/beeswax/config.toml")).exists()) {
+		await run(root, ["bun", "run", "beeswax", "lock"]);
+	}
 	return { version, previous, notes };
 }
 

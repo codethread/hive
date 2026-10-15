@@ -1,0 +1,29 @@
+{
+	"name": "@hive/beeswax",
+	"version": "0.5.0",
+	"private": true,
+	"bin": {
+		"beeswax": "./bin/beeswax.ts"
+	},
+	"type": "module",
+	"scripts": {
+		"build": "bun build ./bin/beeswax.ts --compile --target=${HIVE_BUILD_TARGET:-bun} --outfile ./dist/beeswax",
+		"install:bin": "beeswax artifacts install beeswax",
+		"typecheck": "tsc --noEmit",
+		"test": "bun test --parallel --parallel-delay=0 --timeout=5000 --only-failures ./src ./tests"
+	},
+	"dependencies": {
+		"@clack/prompts": "^1.8.1",
+		"@hive/beads": "workspace:*",
+		"@hive/shared": "workspace:*",
+		"commander": "^14.0.3",
+		"gray-matter": "^4.0.3",
+		"proper-lockfile": "^4.1.2",
+		"skills-handler": "^0.1.2",
+		"smol-toml": "^1.9.0",
+		"zod": "^4.6.5"
+	},
+	"devDependencies": {
+		"@types/proper-lockfile": "^4.1.4"
+	}
+}

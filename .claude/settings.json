@@ -5,7 +5,7 @@
 				"hooks": [
 					{
 						"type": "command",
-						"command": "bun run \"$(git rev-parse --show-toplevel)/lib/tooling/src/beads-hook.ts\""
+						"command": "beeswax beads session-start"
 					}
 				]
 			}

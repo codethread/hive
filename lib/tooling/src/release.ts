@@ -9,6 +9,7 @@ export const platformSchema = z.enum(platforms);
 export const versionSchema = z.string().regex(/^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)$/u);
 export const repositorySchema = z.string().regex(/^[\w.-]+\/[\w.-]+$/u);
 export const artifacts = {
+	beeswax: ["beeswax"],
 	honeycomb: ["honeycomb"],
 	colony: ["bee", "colony", "colony-runtime", "colony-worker", "colony-watchdog"],
 	busybee: ["busybee"],

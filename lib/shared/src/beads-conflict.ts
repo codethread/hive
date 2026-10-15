@@ -53,7 +53,7 @@ export function formatBeadsConflict(error: Error, context: BeadsConflictContext)
 		`Repository: ${context.root}`,
 		`Tracker: ${context.beadsDb}`,
 		error.message,
-		"Action: stop tracker work, resolve the tracker conflict, then run bun run beads:sync before resuming.",
+		"Action: stop tracker work, resolve the tracker conflict, then run beeswax beads sync before resuming.",
 	].join("\n");
 }
 

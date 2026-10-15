@@ -18,7 +18,7 @@
 		"build": "bun build ./bin/honeycomb.ts --compile --target=${HIVE_BUILD_TARGET:-bun} --outfile ./dist/honeycomb",
 		"test:unit": "bun test --parallel --parallel-delay=0 --timeout=5000 --only-failures ./tests/unit",
 		"test:integration": "bun test --parallel --parallel-delay=0 --timeout=5000 --only-failures ./tests/integration",
-		"install:bin": "bun run ../tooling/src/install-artifacts.ts honeycomb"
+		"install:bin": "beeswax artifacts install honeycomb"
 	},
 	"dependencies": {
 		"@bomb.sh/tab": "0.0.22",

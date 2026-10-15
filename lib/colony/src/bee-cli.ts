@@ -7,6 +7,7 @@ import type {
 	RequestResult,
 	RequestView,
 } from "./requests.ts";
+import type { BeeSetupOptions, BeeSetupResult } from "./setup.ts";
 import type { KindOptions, KindsResult } from "./kinds.ts";
 import type {
 	PublishOptions,
@@ -35,6 +36,7 @@ import { version } from "../package.json";
 const SUCCESS = 0;
 const JSON_INDENT = 2;
 type BeeResult =
+	| BeeSetupResult
 	| AcknowledgmentResult
 	| AssessmentSubmission
 	| RequestResult
@@ -91,6 +93,8 @@ export interface AckOptions extends InspectionOptions {
 	reason: string;
 }
 export interface BeeDependencies {
+	/** Install the Bee-owned saved query in the selected tracker. */
+	setup: (options: BeeSetupOptions) => Promise<BeeSetupResult>;
 	/** File one authored response against its task and optional exact request. */
 	responsePublish: (task: string, options: PublishOptions) => Promise<ResponseCommandResult>;
 	/** Expand an exact record or resolve a task/request lineage. */
@@ -151,6 +155,28 @@ export async function runBeeCli(argv: string[], deps: BeeDependencies): Promise<
 		.exitOverride();
 	responseCommands(program, argv, deps);
 	registerSkills(program, "bee", deps.stdout);
+	inspectionOptions(
+		program.command("setup").description("Install or refresh the Bee attention preset"),
+	)
+		.requiredOption(
+			"--actor <identity>",
+			"Setup actor; overrides BD_ACTOR",
+			process.env["BD_ACTOR"],
+		)
+		.addHelpText(
+			"after",
+			`
+Installs bee-attention for failed, unresolved spawn requests, including closed ones.
+Saved queries are local to the selected database; run setup for each tracker clone.
+Replaces only this preset. If interrupted, rerun setup to restore it.
+No daemon or bee-kind configuration is needed.
+
+Use --json for a machine-readable result. Read br query --help to run saved queries.
+`,
+		)
+		.action(async (options: BeeSetupOptions) => {
+			writeResult(await deps.setup(options), { json: argv.includes("--json") }, deps.stdout);
+		});
 	program
 		.command("run <kind>")
 		.description("Open an interactive bee in this terminal (users only; agents must not run)")
@@ -482,6 +508,10 @@ function writeResult(
 		result.kind === "request_result"
 	) {
 		stdout(formatResponseResult(result));
+		return;
+	}
+	if (result.kind === "bee_setup") {
+		stdout(`Installed ${result.preset} in ${result.repository.beadsDb}.\n`);
 		return;
 	}
 	if (result.kind === "bee_kinds") {

@@ -10,7 +10,7 @@
 		"build": "bun run ./scripts/build.ts",
 		"storybook": "storybook dev --host 0.0.0.0 --port 6006 --disable-telemetry",
 		"storybook:build": "storybook build --output-dir dist/storybook --disable-telemetry",
-		"install:bin": "bun run ../tooling/src/install-artifacts.ts hive-ui",
+		"install:bin": "beeswax artifacts install hive-ui",
 		"storybook:check": "bun ./scripts/check-story-catalogue.ts"
 	},
 	"dependencies": {

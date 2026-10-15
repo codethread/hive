@@ -4,7 +4,7 @@
 	"private": true,
 	"type": "module",
 	"scripts": {
-		"install:bin": "bun run ../tooling/src/install-artifacts.ts bee colony colony-runtime colony-worker colony-watchdog",
+		"install:bin": "beeswax artifacts install bee colony colony-runtime colony-worker colony-watchdog",
 		"test": "bun test --parallel --parallel-delay=0 --timeout=5000 --only-failures ./src",
 		"typecheck": "tsc --noEmit",
 		"build": "bun build ./bin/bee.ts --compile --target=${HIVE_BUILD_TARGET:-bun} --outfile ./dist/bee && bun build ./bin/colony.ts --compile --target=${HIVE_BUILD_TARGET:-bun} --outfile ./dist/colony && bun build ./bin/runtime.ts --compile --target=${HIVE_BUILD_TARGET:-bun} --outfile ./dist/colony-runtime && bun build ./bin/worker.ts --compile --target=${HIVE_BUILD_TARGET:-bun} --outfile ./dist/colony-worker && bun build ./bin/watchdog.ts --compile --target=${HIVE_BUILD_TARGET:-bun} --outfile ./dist/colony-watchdog"

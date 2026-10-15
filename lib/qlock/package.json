@@ -7,7 +7,7 @@
 	},
 	"type": "module",
 	"scripts": {
-		"install:bin": "bun run ../tooling/src/install-artifacts.ts qlock",
+		"install:bin": "beeswax artifacts install qlock",
 		"typecheck": "tsc --noEmit",
 		"test": "bun test ./tests",
 		"build": "bun build ./bin/qlock.ts --compile --target=${HIVE_BUILD_TARGET:-bun} --outfile ./dist/qlock"

@@ -70,7 +70,7 @@ Host: test-host
 Repository: /repo
 Tracker: /tracker/.beads/beads.db
 BEADS CONFLICT: unresolved tracker merge: .beads/issues.jsonl
-Action: stop tracker work, resolve the tracker conflict, then run bun run beads:sync before resuming.`,
+Action: stop tracker work, resolve the tracker conflict, then run beeswax beads sync before resuming.`,
 	]);
 });
 
