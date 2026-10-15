@@ -111,7 +111,7 @@ For a selected tracker outside the project environment, replace `"$BEADS_DB"` wi
 
 ## Saved presets
 
-`bun run beads:setup --db "$BEADS_DB"` installs or refreshes the Hive-owned native preset `bee-attention` along with the existing checkout setup. Saved queries live in the selected local Beads database's configuration, not issue JSONL; setup must run for each separate tracker clone. Setup overwrites this named preset and preserves other presets.
+`beeswax beads setup --beads-db "$BEADS_DB"` installs or refreshes the Hive-owned native preset `bee-attention` along with the existing checkout setup. Saved queries live in the selected local Beads database's configuration, not issue JSONL; setup must run for each separate tracker clone. Setup overwrites this named preset and preserves other presets.
 
 To install it directly using your harness actor (replace `codex` with `claude` or `pi` when applicable):
 

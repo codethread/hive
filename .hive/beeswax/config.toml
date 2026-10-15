@@ -1,0 +1,12 @@
+[bootstrap]
+hooks = "husky"
+
+[hooks]
+pre_commit = ".husky/pre-commit"
+pre_merge_commit = ".husky/pre-merge-commit"
+
+# Preserve the permanent tracker's existing application entrypoints.
+[tracker.hooks]
+pre_commit = ".husky/_/pre-commit"
+pre_merge_commit = ".husky/_/pre-merge-commit"
+commit_msg = ".husky/_/commit-msg"

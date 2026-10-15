@@ -8,7 +8,8 @@ run = '''
 bun install
 bun run --filter '*' build
 bun run --filter '*' install:bin
-bun run beads:bootstrap
+beeswax beads bootstrap --environment mise
+beeswax sync
 '''
 
 [tasks.fmt]

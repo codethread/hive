@@ -2,6 +2,7 @@
 
 ## Tool guides
 
+- [Beeswax](../lib/beeswax/README.md) — repository setup, tracker plumbing and Git hook adapters.
 - [Bee and Colony](../lib/colony/README.md) — installation, quickstart, configuration and verification.
 - [Honeycomb](../lib/honeycomb/README.md) — worktree commands and shell integration.
 - [Scent](../lib/scent/README.md) — native Pi identity and Codex hook installation.

@@ -2,7 +2,9 @@ import type { ExtensionAPI, ToolResultEvent } from "@earendil-works/pi-coding-ag
 import { z } from "zod";
 
 const environmentSchema = z.strictObject({
-	BEADS_DB: z.string(),
+	ok: z.literal(true),
+	kind: z.literal("environment"),
+	environment: z.strictObject({ BEADS_DB: z.string() }),
 });
 const successExitCode = 0;
 const statusKey = "beads";
@@ -53,8 +55,8 @@ export default function beadsExtension(pi: ExtensionAPI): void {
 		ctx.ui.setStatus(statusKey, undefined);
 		try {
 			const cwd = await command("git", ["rev-parse", "--show-toplevel"], ctx.cwd);
-			const output = await command("bun", ["run", "beads:env", "--json"], cwd);
-			Object.assign(process.env, environmentSchema.parse(JSON.parse(output)));
+			const output = await command("beeswax", ["beads", "env", "--json"], cwd);
+			Object.assign(process.env, environmentSchema.parse(JSON.parse(output)).environment);
 		} catch (error) {
 			ctx.ui.notify(String(error), "error");
 		}

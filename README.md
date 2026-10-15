@@ -30,6 +30,6 @@ bun run --filter '*' build
 bun run --filter '*' install:bin
 ```
 
-Use `install:bin --directory /path/to/bin` to select another destination. See [CLI artifacts](./lib/tooling/README.md#cli-artifacts) for the layout and runtime requirements.
+Use `install:bin --directory /path/to/bin` to select another destination. See [Beeswax](./lib/beeswax/README.md) for repository setup and [CLI artifacts](./lib/tooling/README.md#cli-artifacts) for the layout and runtime requirements.
 
 The [documentation index](./docs/README.md) covers architecture, terminology and integration contracts. [Philosophy](./docs/PHILOSOPHY.md) explains the project's scope.

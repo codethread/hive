@@ -15,14 +15,14 @@ mise run
 
 The default task installs dependencies, builds project-local CLI executables, explicitly installs their artifacts, then runs the idempotent `bun run beads:bootstrap` step. Rerun `mise run` for setup after a pull; run `bun run beads:bootstrap` directly when only tracker setup is needed. Dependency installation alone does not create the tracker.
 
-`beads:bootstrap` invokes Honeycomb's CLI from this checkout through Bun; no installed Honeycomb executable or global installation is required. It uses a temporary, isolated Honeycomb configuration to create the permanent tracker as a nested, non-pooled worktree at `.worktrees/tracker--state`, on `tracker/state`, from `origin/tracker/state`. If `origin/tracker/state` is unavailable, Git's fetch fails; arrange for the accepted tracker branch and its existing `.beads/issues.jsonl` snapshot to be available, then retry. Bootstrap does not create a private tracker in a feature worktree.
+`beads:bootstrap` delegates to `beeswax beads bootstrap --environment mise`, which invokes installed Honeycomb. The default setup builds and installs both executables before bootstrap. It uses a temporary, isolated Honeycomb configuration to create the permanent tracker as a nested, non-pooled worktree at `.worktrees/tracker--state`, on `tracker/state`, from `origin/tracker/state`. If `origin/tracker/state` is unavailable, Git's fetch fails; arrange for the accepted tracker branch and its existing `.beads/issues.jsonl` snapshot to be available, then retry. Bootstrap does not create a private tracker in a feature worktree.
 
-Bootstrap imports the tracker's existing `.beads/issues.jsonl` only when `.beads/beads.db` does not exist, then flushes to establish the local merge base. It installs the tracker checkout's tooling and reuses `beads:setup` to configure the canonical checkout, permanent tracker checkout, and invoking checkout to use the selected tracker.
+Bootstrap imports the tracker's existing `.beads/issues.jsonl` only when `.beads/beads.db` does not exist, then flushes to establish the local merge base. It reuses Beeswax environment setup to configure the canonical checkout, permanent tracker checkout, and invoking checkout to use the selected tracker.
 
 Bootstrap is deliberately local. Repeating it does not re-import an existing database and does not publish, merge, or push tracker state. An incompatible existing tracker checkout, an unhealthy database, unreconciled JSONL or missing tracker snapshot, or a selected nonstandard `BEADS_DB` endpoint fails visibly rather than being reset or migrated. For an existing custom endpoint, use `beads:setup` directly:
 
 ```nu
-bun run beads:setup --db /absolute/path/to/tracker/.beads/beads.db
+beeswax beads setup --beads-db /absolute/path/to/tracker/.beads/beads.db
 ```
 
 Use `--source <configured-checkout>` when adopting the environment from an already configured checkout. Bootstrap is for the canonical tracker layout; setup is the path for an explicitly selected custom endpoint.
@@ -60,7 +60,7 @@ Tracked `mise.toml` selects the canonical checkout's `.worktrees/tracker--state/
 To explicitly configure an existing tracker endpoint, including Codex's generated environment:
 
 ```nu
-bun run beads:setup --db /absolute/hive/.worktrees/tracker--state/.beads/beads.db
+beeswax beads setup --beads-db /absolute/hive/.worktrees/tracker--state/.beads/beads.db
 ```
 
 Setup preserves unrelated TOML settings and writes `BEADS_DB` to ignored `mise.local.toml` and `.codex/config.toml`. The local mise selection overrides the tracked default. `bun install` inherits the canonical checkout's selection for new Honeycomb worktrees only when that checkout has `mise.local.toml`; with only the tracked default, run `bun run beads:setup --source <canonical-root>` explicitly when generated Codex configuration is needed. Consumers honor the selected endpoint rather than deriving another database from their working directory.
@@ -68,8 +68,6 @@ Setup preserves unrelated TOML settings and writes `BEADS_DB` to ignored `mise.l
 Setup also refreshes the Hive-owned native `bee-attention` saved query in the selected database. It is local configuration rather than issue JSONL. See the [spawn query contract](./agents/spawn-requests.md#saved-presets) for its exact filters, direct installation command and history queries.
 
 Mise supplies the project environment. Direnv projects the selection after normal local approval; Claude's SessionStart hook exports it; Pi's extension sets it at session start; Codex reads its generated shell-environment configuration. Codex needs no Beads SessionStart hook. Claude and Pi startup integrations do not synchronize. Remote exchange follows the explicit checkpoints above; a failed synchronization stops tracker work under the recovery procedure below.
-
-When updating from the former wrapper setup, rerun setup in existing configured checkouts, including the permanent tracker checkout, and restart shells and agents. Setup removes generated wrapper PATH and shell-adapter overrides. Keep the tracker checkout's tooling current with the relevant changes, without merging the entire code branch into `tracker/state`.
 
 For a fresh clone, follow [Bootstrap a clone](#bootstrap-a-clone). Do not initialize a private tracker in a feature worktree.
 
@@ -93,4 +91,4 @@ Manual recovery takes place in a separate human terminal with tracker writers pa
 
 The tracker checkout is permanent: keep it out of worktree pools and ordinary finish/remove cleanup. Its database, history and pending work must survive feature checkout deletion. Preserve older private databases until their unpublished state is reconciled; selecting a new endpoint does not migrate them.
 
-The full checkout supplies the relative JSONL merge-driver script and Husky tooling. Maintain these deliberately with reviewed, narrowly scoped tooling commits that also exist on main; do not routinely merge main into the tracker branch because code branches carry no live tracker snapshot. Preserve pending JSONL and the database, and finish the maintenance commit before publication so the publisher sees only snapshot changes.
+The full checkout preserves the tracker's accepted code history and application hook policy. [Beeswax](../lib/beeswax/README.md#commit-the-project-contract) supplies the installed JSONL merge driver and, when needed, a tracker-only hook runtime with explicit application delegates. This integration does not rewrite tracker history. Changes to tracked application policy still require reviewed, narrowly scoped tooling commits that also exist on main; do not routinely merge main into the tracker branch because code branches carry no live tracker snapshot. Preserve pending JSONL and the database, and finish any maintenance commit before publication so the publisher sees only snapshot changes.

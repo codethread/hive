@@ -114,6 +114,10 @@ _To be built_ marks capabilities still planned beyond the Bee and Colony impleme
 
 **Away-from-keyboard (AFK) work**: Work planned by a human with an agent, then carried out autonomously without ongoing human participation. This is the intended default mode for bees.
 
+## Repository setup
+
+**Beeswax**: Hive's repository plumbing tool for setup, tracker integration, Git hooks and executable installation.
+
 ## Repositories and worktrees
 
 **Honeycomb**: Hive's Git worktree manager.

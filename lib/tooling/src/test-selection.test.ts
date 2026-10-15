@@ -25,7 +25,7 @@ test.each([
 test.each([
 	{ paths: [] },
 	{ paths: ["lib/colony/src/requests.ts", "lib/busybee/src/runtime.ts"] },
-	{ paths: ["lib/tooling/src/beads-setup.ts", "lib/hive-ui/server/index.ts"] },
+	{ paths: ["lib/beeswax/src/beads/setup.ts", "lib/hive-ui/server/index.ts"] },
 	{ paths: ["lib/beads/README.md", "lib/beads/src-other/native.ts"] },
 	{ paths: ["lib/shared/src/index.ts"] },
 ])(

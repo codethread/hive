@@ -42,7 +42,7 @@ The [guide](../lib/colony/README.md) records setup and real smoke commands. The 
 - The remote is assumed to be named `origin`; the default branch is read from `refs/remotes/origin/HEAD`.
 - Failures surface as `GitError` (`reason: "git_failed"`) carrying args, stderr and exit code.
 
-The repository itself also depends on Git hooks (Husky) and a custom merge driver for `.beads/issues.jsonl`, registered by [`scripts/setup-git.ts`](../scripts/setup-git.ts).
+The repository uses Husky hooks and a custom merge driver for `.beads/issues.jsonl`. [Beeswax](../lib/beeswax/README.md#commit-the-project-contract) installs the merge driver and configured validation sections; application checks remain in repository-owned hooks.
 
 ## Bash
 

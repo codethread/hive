@@ -2,7 +2,7 @@
 
 ## Beads contract tests
 
-Run `bun test ./lib/tooling/tests/contract/` from the checkout root to verify tracker bootstrap across real Git, filesystem, `br` and `mise` boundaries. These checks retain their existing explicit timeouts. Tooling setup and Hive UI behavior tests inject the in-memory Beads service.
+Tracker bootstrap belongs to [Beeswax](../beeswax/README.md). Run `bun test ./lib/beeswax/src/beads/bootstrap.contract.test.ts` from the checkout root to verify its Git, filesystem, `br` and `mise` boundaries.
 
 Native/in-memory Beads API conformance lives in [`lib/beads/tests/contract/`](../beads/tests/contract/). Run `bun run test:contracts` to execute that complete suite explicitly. Ordinary all/changed runs exclude these contracts, then select them separately when adapter, contract or native dependency inputs change; see [repository commands](../../docs/repository-commands.md#test-selection) for the selection policy.
 
@@ -50,6 +50,7 @@ From the Hive root, `bun run --filter '*' build` compiles host executables using
 
 | Package   | Artifacts in its `dist/` directory                                    |
 | --------- | --------------------------------------------------------------------- |
+| Beeswax   | `beeswax`                                                             |
 | Honeycomb | `honeycomb`                                                           |
 | Colony    | `bee`, `colony`, `colony-runtime`, `colony-worker`, `colony-watchdog` |
 | qlock     | `qlock`                                                               |
@@ -59,7 +60,7 @@ From the Hive root, `bun run --filter '*' build` compiles host executables using
 
 Shared and Tooling expose no executable build contract. Ordinary builds target the host. The separately invoked [Release workflow](../../docs/releases.md) uses these same builders with `HIVE_BUILD_TARGET` to create one versioned suite from an immutable revision. Standalone executables embed Bun and static dependencies; they do not need the producing checkout at runtime. Native external tools remain required by each command. Busy Bee loads trusted workflow modules from the selected checkout, whose own dependencies must be installed. Its build explicitly enables Bun package and TypeScript configuration loading (`--compile-autoload-package-json --compile-autoload-tsconfig`): without package metadata, Bun 1.4.2 cannot resolve external workflow package imports; without TypeScript configuration, workflow path aliases fail. Both cases were verified against source execution. Waggle reads classifiers from the caller-selected directory. Neither catalog is baked into the executable.
 
-`bun run --filter '*' install:bin` installs the already-built artifacts through the shared Tooling installer. Its `--directory <path>` option defaults to `~/.local/bin`; a missing artifact fails installation. Each executable is copied into destination-local staging, made executable, and renamed over the destination, replacing symlinks without modifying their targets. Colony's five executables must remain together. Stop and restart an existing daemon deliberately after updating its installed runtime.
+`bun run --filter '*' install:bin` installs the already-built artifacts through `beeswax artifacts install`. Its `--directory <path>` option defaults to `~/.local/bin`; a missing artifact fails installation. Each executable is copied into destination-local staging, made executable, and renamed over the destination, replacing symlinks without modifying their targets. Colony's five executables must remain together. Stop and restart an existing daemon deliberately after updating its installed runtime.
 
 `mise run` orders dependency installation, local builds, explicit installation and tracker bootstrap. `bun install` alone prepares a new worktree and never installs global commands.
 

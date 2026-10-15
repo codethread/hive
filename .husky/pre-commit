@@ -1,8 +1,8 @@
-branch="$(git branch --show-current)" || exit $?
-staged="$(git diff --cached --name-only --no-renames)" || exit $?
-if [ "$branch" = "tracker/state" ] && [ "$staged" = ".beads/issues.jsonl" ]; then
-	exec bun run scripts/beads-validate.ts
-fi
+# beeswax:begin tracker-validation v1
+"$(git rev-parse --git-path beeswax/cli)" hooks validate || exit $?
+# beeswax:end tracker-validation
 
+# Hive application policy: tracker snapshots do not run code checks.
+if "$(git rev-parse --git-path beeswax/cli)" hooks is-tracker-snapshot; then exit 0; fi
 bunx lint-staged || exit $?
 bun run typecheck || exit $?

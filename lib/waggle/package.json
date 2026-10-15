@@ -10,7 +10,7 @@
 		"typecheck": "tsc --noEmit",
 		"test": "bun test --parallel --parallel-delay=0 --timeout=5000 --only-failures ./tests",
 		"build": "bun build ./bin/waggle.ts --compile --outfile ./dist/waggle",
-		"install:bin": "bun run ../tooling/src/install-artifacts.ts waggle"
+		"install:bin": "beeswax artifacts install waggle"
 	},
 	"dependencies": {
 		"@typesafe-ai/sdk": "0.6.0",

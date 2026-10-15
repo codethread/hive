@@ -28,7 +28,8 @@ Delegate repository prose writing and review to `bookworm`, supplying the contex
 - `lib/shared` — utilities and models common to all packages. Not a grab bag: only add what consumers clearly need.
 - `lib/colony` — Bee and Colony CLIs, offline requests, daemon ownership, colony/request lifecycles, dispatch, supervision and private persistence.
 - `lib/honeycomb` — the Git worktree manager and shell picker integrations.
-- `lib/tooling` — repository maintenance commands.
+- `lib/beeswax` — reusable repository setup, tracker publication, Git/harness adapters and artifact installation.
+- `lib/tooling` — repository test selection and release maintenance.
 - `lib/waggle` — repo-owned JEV classifier discovery and execution.
 - `lib/busybee` — workflow discovery, execution and Beads task projection; repository definitions live in `.workflows/`.
 
