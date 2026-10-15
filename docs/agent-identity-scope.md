@@ -1,6 +1,6 @@
 # Agent identity: MVP scope
 
-This preserves the native identity scope agreed on 2026-10-03 for `hv-3x8`, while distinguishing the implemented Bee/Colony system from the remaining Scent work. Scent implements native Pi 1.2.0 session attribution; Claude/Codex and native-child hooks remain planned. Bee and Colony are implemented under `hv-e8i`; their current commands, scheduling and recovery behavior are documented in the [guide](../lib/colony/README.md) and [architecture](./architecture.md).
+This preserves the native identity scope agreed on 2026-10-03 for `hv-3x8`, while distinguishing the implemented Bee/Colony system from the remaining Scent work. Scent implements a native Pi 1.2.0 extension and Codex session/child command hooks; Claude remains planned. Bee and Colony are implemented under `hv-e8i`; their current commands, scheduling and recovery behavior are documented in the [guide](../lib/colony/README.md) and [architecture](./architecture.md).
 
 The [harness capability contract](./harness-capabilities.md) keeps dated upstream observations separate from current Hive verification. Terms follow the [glossary](../GLOSSARY.md). Repository contributors continue to follow the root `AGENTS.md` actor rules; Colony workers receive their captured friendly identity through the launcher.
 
@@ -20,7 +20,7 @@ Pi's per-run prompt composition is ordinary supported API behavior. It can keep 
 
 ## Lifecycle boundary
 
-These rows describe the shared lifecycle contract. Native Pi is implemented; other adapters remain planned. A changed session ID alone is insufficient to classify an event as a nested child.
+These rows describe the shared lifecycle contract, not proof of adapter conformance. A changed session ID alone is insufficient to classify an event as a nested child.
 
 | Transition | Meaning | MVP behavior |
 | --- | --- | --- |
@@ -64,7 +64,7 @@ Colony owns the CLI and runtime in one package. Bee remains the request interfac
 | `lib/beads` | Consumed native Beads contract and injected native/in-memory adapters |
 | `lib/shared` | Shared recipes, formulas, spawn-request representation and protocol |
 | `lib/honeycomb` | Git worktree manager and canonical-root discovery |
-| `lib/scent` | Reusable identity resolver and native Pi 1.2.0 extension; independent of `.hive/bees.toml`. Other adapters and child hooks remain planned |
+| `lib/scent` | Reusable identity resolver and explicit-actor prompt, native Pi 1.2.0 extension and Codex session/child command hooks; independent of `.hive/bees.toml` |
 
 The following bindings define the shared identity direction; Pi implements name, actor, current session and best-effort metadata. Parent attribution remains outside the Pi slice. Current Bee names are minted at submission or supplied by the requester; execution attempts retain that name.
 
@@ -88,10 +88,12 @@ Spawn beads carry the exact labels `system`, `bee` and `agent:<kind>`, a friendl
 
 ## Evidence and remaining work
 
-- `hv-3x8.2`: versioned identity-hook and lifecycle findings. Claude/Codex clear and compact were source-verified, not captured live; Pi transitions were observed through RPC.
-- `hv-3x8.14`: stable Pi composition verified with two handlers over three independent runs; final explicit-attribution decision for native Claude/Codex subagents. End-to-end child tracker attribution remains unimplemented.
+- `hv-3x8.2`: original versioned identity-hook and lifecycle findings. That spike source-verified Claude/Codex clear and compact without capturing them live; Pi transitions were observed through RPC.
+- `hv-3x8.14`: stable Pi composition verified with two handlers over three independent runs; final explicit-attribution decision for native Claude/Codex subagents. That probe did not establish end-to-end child tracker attribution.
 - `hv-3x8.1` and `hv-3x8.3`: database discovery and detached-launch findings. Current repository tracker setup is documented in [Beads integration](./beads-integration.md); older spike recommendations are historical evidence, not current configuration instructions.
 
-Native Pi now has a [focused installation path](../lib/scent/README.md) for attribution, lifecycle and prompt composition. Claude/Codex adapters and parent/child attribution isolation remain implementation work. Colony recovery and observed-descendant ownership are implemented and tested separately; their limitations are documented in the guide. Expanding scope requires updating this reference and the capability matrix with the reason and evidence; it does not silently turn an unverified path into a supported one.
+The [Scent guide](../lib/scent/README.md) covers Pi extension and Codex command-hook installation. Codex CLI/app-server 0.162.1 now passes the [exercised native identity, lifecycle and child-attribution cases](./harness-capabilities.md#codex-scent-evidence); the Claude adapter and parent tracking remain outstanding. Colony recovery and observed-descendant ownership are implemented and tested separately; their limitations are documented in the guide. Expanding scope requires updating this reference and the capability matrix with the reason and evidence; it does not silently turn an unverified path into a supported one.
 
 Native Pi adopts a supplied `HIVE_AGENT_NAME` when there is no inherited Scent session binding. Bee clears `HIVE_AGENT_SESSION` while supplying its own name, for both interactive and managed launch paths. Scent records `HIVE_AGENT_SOURCE=bee` and rebinds that supplied identity on conversation changes, including when Pi recreates extensions. Native resolution records `HIVE_AGENT_SOURCE=native`. A populated inherited binding without Bee provenance is native Scent state and is replaced from the actual target session key. `HIVE_AGENT_SOURCE=bee` takes precedence over that binding and preserves the supplied name and kind when extensions are recreated. Native Pi adds no parent or ancestry inference.
+
+Codex SessionStart uses the same supplied-name rule: adopt `HIVE_AGENT_NAME` when `HIVE_AGENT_SOURCE=bee` or no `HIVE_AGENT_SESSION` is inherited. SubagentStart always derives the child's name from its distinct `agent_id`. Both return the shared explicit-actor prompt as hook context, without environment writes or persistent state.

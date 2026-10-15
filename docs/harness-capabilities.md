@@ -101,13 +101,20 @@ Bee/Colony now implements captured recipes, named formulas, task claims, bounded
 | Profile | Native identity / Scent | Current Colony verification |
 | --- | --- | --- |
 | Claude Code | Planned: `hv-3x8.7.1`, including explicit native-child attribution | Subscription unavailable for this build; current native run unverified. Earlier `L` observations remain historical evidence |
-| Codex CLI 0.160.0 | Planned: `hv-3x8.7.3`, including explicit native-child attribution | **O**, 2026-10-04: native probe passed with `gpt-6-astra`, low effort, workspace-write; see current probe evidence below |
+| Codex CLI 0.160.0 (historical launch profile) | Scent conformance unverified for this version | **O**, 2026-10-04: native probe passed with `gpt-6-astra`, low effort, workspace-write; see current probe evidence below |
+| Codex CLI/app-server 0.162.1, macOS arm64 | **O**, 2026-10-15: Scent passes `I1/I3/I4/I5/B1/T1–T3` on the [exercised entry paths](#codex-scent-evidence) | Supplied launcher-input adoption verified with active hooks; no new complete Colony/native lifecycle probe for this version |
 | Native Pi 1.0.0 (historical launch profile) | Scent conformance unverified for this version | **O**, 2026-10-04: native probe passed with `openai-codex/gpt-6-astra`, low effort; see current probe evidence below |
 | Native Pi 1.2.0 | **O**, 2026-10-14: Scent passes native CLI/RPC `I1/I2/I4/B1/T1–T3`; tracked in `hv-3x8.7.2`. Third-party subagent tools need separate profiles | No new complete Colony/native 1.2.0 lifecycle probe; supplied launcher-input adoption is verified by Scent |
 | Pies / other wrappers | No dedicated Hive conformance | No selected wrapper integration; `W` does not authorize native-process ownership assumptions |
 | Other GUI or hosted runtimes | Unknown until profiled | Unknown until profiled |
 
 The historical Colony launch probe alone does not establish Scent context continuity, native-child attribution or arbitrary detached-descendant capture. Retain the exact profile, selected model, report and task mutation evidence for each run. A failed or skipped native probe remains explicit; a successful scripted fixture cannot replace it.
+
+### Codex Scent evidence
+
+The 2026-10-15 receipt in `hv-3x8.7.3`, comment 13190, records Codex CLI/app-server 0.162.1 on macOS arm64, Bun 1.4.2, br 0.7.4 and `gpt-6.1-sol` at low effort. App-server startup, successive turns, clear/new, target resume, manual compact plus the next turn, and fresh/history-inheriting native children passed actor checks; separate CLI exec resume also passed. All eleven disposable tasks' native `created_by` values were independently reread. Direct tools retained a conflicting inherited `BD_ACTOR`, confirming explicit attribution; children used distinct actors and the parent retained its actor afterward.
+
+CLI startup/resume with the actual Bee/Colony `agentEnvironment` output preserved the supplied identity and worker/harness/model metadata, including resume with an old session binding. Direct hooks inject no `BR_*` metadata; supplied metadata is inherited. Hooks ran in an isolated temporary Codex home with an invocation-local trust bypass; installed configuration was unchanged. TUI and desktop surfaces remain unverified. User forks, cache migration, parent ancestry, Claude and wrappers remain outside this profile.
 
 ### Current native probe evidence
 

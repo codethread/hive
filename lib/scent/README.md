@@ -1,8 +1,12 @@
 # Scent
 
-Scent gives native Pi 1.2.0 a stable Hive identity in its prompt and tool environment.
+Scent supplies Hive identity through a native Pi extension or Codex command hooks.
 
-From a Hive checkout, install the workspace dependencies with `bun install`. Load the extension by its absolute path, from any working directory:
+From a Hive checkout, install the workspace dependencies with `bun install`.
+
+## Native Pi 1.2.0
+
+Load the extension by its absolute path, from any working directory:
 
 ```sh
 ~/.pi/agent/bin/pi --extension /absolute/path/to/hive/lib/scent/pi.ts
@@ -20,6 +24,40 @@ Native identities come from the actual session key through a seeded name generat
 
 Scent sets `BD_ACTOR`, `BR_HARNESS=pi`, `HIVE_AGENT_NAME`, `HIVE_AGENT_SESSION` and `HIVE_AGENT_SOURCE`. It refreshes `BR_MODEL` and `BR_EFFORT` from Pi when known and deletes them when unknown. `BR_AGENT_NAME` retains a supplied Bee kind; native names do not imply a kind. `BR_EFFORT` is tool environment metadata, not a new Beads field. Other environment variables, including `BEADS_DB`, stay as supplied. Select the tracker before launching Pi; code cwd never selects it.
 
-The reusable resolver lives in `src/identity.ts`. Pi event mapping and environment publication live in `src/pi.ts`; `pi.ts` is the native loader entry point. There is no identity service, registry, database or workspace gate.
+## Native Codex
 
-Only native Pi is implemented. Claude, Codex, Pies, user-fork migration, parent tracking and third-party subagent extensions remain outside this slice. See the [capability contract](../../docs/harness-capabilities.md) for supported surfaces.
+Add these entries to `~/.codex/hooks.json` or the project's `.codex/hooks.json`, merging with any existing hooks. Replace the absolute path with your checkout path and load Scent from one location:
+
+```json
+{
+	"hooks": {
+		"SessionStart": [
+			{
+				"matcher": "^(startup|resume|clear|compact)$",
+				"hooks": [
+					{
+						"type": "command",
+						"command": "bun '/absolute/path/to/hive/lib/scent/codex.ts'"
+					}
+				]
+			}
+		],
+		"SubagentStart": [
+			{
+				"hooks": [
+					{
+						"type": "command",
+						"command": "bun '/absolute/path/to/hive/lib/scent/codex.ts'"
+					}
+				]
+			}
+		]
+	}
+}
+```
+
+In native Codex, open `/hooks` to review and trust the new or changed definitions. Project hooks also require a trusted project configuration. See the [Codex hooks reference](https://learn.chatgpt.com/docs/hooks).
+
+The hooks supply identity context requiring `--actor <own-friendly-name>` on every `br` mutation. Session hooks use the session key or adopt a supplied Bee identity; child hooks derive their own name from `agent_id`. The adapter leaves the tool environment unchanged and stores no identity state.
+
+The [capability contract](../../docs/harness-capabilities.md#codex-scent-evidence) records verified Codex profiles, entry paths and limitations.

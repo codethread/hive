@@ -7,6 +7,13 @@ export interface Identity {
 	name: string;
 }
 
+export function buildExplicitIdentityPrompt(name: string): string {
+	return (
+		`Your Hive identity is ${name}. Use --actor ${name} on every br mutation, ` +
+		"even when BD_ACTOR or inherited conversation instructions name another identity."
+	);
+}
+
 /** Resolve attribution without a registry, workspace or lifecycle-event reason. */
 export function resolveIdentity(session: string, suppliedName?: string): Identity {
 	return {

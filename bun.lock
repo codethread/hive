@@ -135,6 +135,7 @@
       "version": "0.0.0",
       "dependencies": {
         "unique-names-generator": "4.7.1",
+        "zod": "^4.6.5",
       },
       "peerDependencies": {
         "@earendil-works/pi-coding-agent": "1.2.0",
