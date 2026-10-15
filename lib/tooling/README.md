@@ -4,7 +4,9 @@
 
 Tracker bootstrap belongs to [Beeswax](../beeswax/README.md). Run `bun test ./lib/beeswax/src/beads/bootstrap.contract.test.ts` from the checkout root to verify its Git, filesystem, `br` and `mise` boundaries.
 
-Native/in-memory Beads API conformance lives in [`lib/beads/tests/contract/`](../beads/tests/contract/). Run `bun run test:contracts` to execute that complete suite explicitly. Ordinary all/changed runs exclude these contracts, then select them separately when adapter, contract or native dependency inputs change; see [repository commands](../../docs/repository-commands.md#test-selection) for the selection policy.
+Native/in-memory Beads API conformance lives in [`lib/beads/tests/contract/`](../beads/tests/contract/). Run `bun run test:contracts` to execute that complete suite explicitly, including after changing the installed `br` executable outside Git.
+
+Ordinary `test:all` and `test:changed` runs exclude these contracts from Bun's discovery, then select them separately when Beads source, contract files or dependency/runtime configuration changes. Consumer-only changes do not select them. Selected contracts run in full regardless of ordinary-suite file/name filters. Exact inputs live in [`test-selection.ts`](src/test-selection.ts); comparison references and argument handling live in [`test-runner.ts`](src/test-runner.ts).
 
 Contract tests verify behavior at a third-party boundary; integration tests verify cooperation between Hive components.
 

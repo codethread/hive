@@ -40,8 +40,8 @@
 
 ## Development and automation
 
-- [Repository commands](./repository-commands.md) — catalog discovery, test arguments and recipe ownership.
-- [Testing commands](../lib/tooling/README.md) — changed-test selection, timing reports and approved allowances. During iteration, use focused files or package test scripts; run changed tests at subtask boundaries.
+- [Repository commands](./repository-commands.md) — task discovery, recipe ownership and setup routes.
+- [Repository tooling](../lib/tooling/README.md) — contract-test selection, timing reports and approved allowances.
 - [Development toolchain](./integrations.md#development-toolchain) — runtime, hooks, environment setup and explicit tracker publication responsibilities.
 - [Beads integration](./beads-integration.md) — selected tracker, exchange checkpoints and conflict recovery.
 - [Automation bead maintenance](./integrations.md#automation-bead-maintenance-and-debugging) — reference for explicitly authorized `system` work.
