@@ -110,7 +110,7 @@ function createProgram(
 		.exitOverride()
 		.addHelpText(
 			"after",
-			"\nStart: beeswax setup --help\nAgents: provide flags in one call; JSON and non-TTY runs never prompt.\n",
+			"\nStart: beeswax setup --help\nAgents: provide explicit flags; JSON and non-TTY runs never prompt.\n",
 		);
 	program
 		.command("schema")
@@ -136,10 +136,14 @@ function createProgram(
 	)
 		.addHelpText(
 			"after",
-			"\nHeadless example:\n" +
+			"\nFirst tracker with versioned hooks (headless; run in the canonical checkout):\n" +
+				"  beeswax setup --tracker none --hooks husky --environment none --no-codex --yes --json\n" +
+				"  # Review and commit the generated project contract and hook sections before init.\n" +
 				"  beeswax setup --tracker init --prefix app --owner operator --hooks husky " +
 				"--environment none --no-codex --yes --json\n" +
-				"Existing clone: --tracker bootstrap. Existing endpoint: --tracker adopt --beads-db PATH.\n" +
+				"Init checks configured versioned hooks in the canonical checkout's HEAD before setup changes.\n" +
+				"Paths under .git/ use shared Git metadata and need no commit.\n" +
+				"Published tracker history: --tracker bootstrap. Existing database: --tracker adopt --beads-db PATH.\n" +
 				"No tracker changes: --tracker none. Remote publication is a separate beads sync operation.\n",
 		)
 		.action(async function setup(this: Command) {

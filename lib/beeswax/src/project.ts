@@ -148,9 +148,7 @@ export function requireProjectConfig(lock: ProjectLock, config: ProjectConfig): 
 }
 
 export function digestConfig(config: ProjectConfig): string {
-	return digest(
-		JSON.stringify({ bootstrap: config.bootstrap, hooks: config.hooks, tracker: config.tracker }),
-	);
+	return digest(JSON.stringify({ bootstrap: config.bootstrap, hooks: config.hooks }));
 }
 
 // --- Private functions ---

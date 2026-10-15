@@ -2,13 +2,14 @@
 import { BeeswaxError, EXIT } from "../../src/errors.ts";
 import { expect, test } from "bun:test";
 import { fixture } from "../support.ts";
+import { hookSection } from "../../src/templates.ts";
 import { runCli } from "../../src/cli.ts";
 
 const SINGLE = 1;
 const EMPTY = 0;
 
 test("headless setup uses explicit flags, shared defaults and one silent JSON receipt", async () => {
-	const fx = fixture();
+	const fx = preparedHead();
 	fx.deps.context.tty = true;
 	const code = await runCli(
 		[
@@ -87,6 +88,8 @@ test("existing endpoint is adopted by default without creating tracker history",
 	const fx = fixture();
 	fx.deps.context.beadsDb = "/custom/.beads/beads.db";
 	fx.files.set("/custom/.beads/beads.db", "database");
+	fx.files.set("/custom/.husky/pre-commit", hookSection);
+	fx.files.set("/custom/.husky/pre-merge-commit", hookSection);
 	expect(await runCli(["setup", "--hooks", "none", "--json"], fx.deps)).toBe(EXIT.success);
 	expect(fx.trackers.at(EMPTY)).toMatchObject({
 		tracker: "adopt",
@@ -95,7 +98,7 @@ test("existing endpoint is adopted by default without creating tracker history",
 });
 
 test("setup failure retains confirmed phases and never claims completion", async () => {
-	const fx = fixture();
+	const fx = preparedHead();
 	fx.files.set("/repo/.husky/pre-commit", "custom hook\n");
 	expect(await runCli(["setup", "--tracker", "init", "--json"], fx.deps)).toBe(EXIT.failure);
 	expect(JSON.parse(fx.output.join(""))).toMatchObject({
@@ -157,3 +160,29 @@ test("hook migration prints user-guided outcomes without performing repository o
 	expect(fx.commands).toEqual([]);
 	expect(fx.files.size).toBe(EMPTY);
 });
+
+test("initialization refuses an unprepared canonical HEAD before any setup effects", async () => {
+	const fx = fixture();
+	expect(await runCli(["setup", "--tracker", "init", "--json"], fx.deps)).toBe(EXIT.failure);
+	expect(JSON.parse(fx.output.join(""))).toMatchObject({
+		nextCommand: "beeswax migrate hooks",
+		requiresUser: true,
+		completed: [],
+	});
+	expect(fx.trackers).toEqual([]);
+	expect(fx.files.size).toBe(EMPTY);
+});
+
+function preparedHead() {
+	const fx = fixture();
+	fx.files.set("/repo/.worktrees/tracker--state/.husky/pre-commit", hookSection);
+	fx.files.set("/repo/.worktrees/tracker--state/.husky/pre-merge-commit", hookSection);
+	const { exec } = fx.deps;
+	fx.deps.exec = async (argv, cwd) => {
+		if (argv.includes("show")) {
+			return { exitCode: EXIT.success, stdout: hookSection, stderr: "" };
+		}
+		return await exec(argv, cwd);
+	};
+	return fx;
+}

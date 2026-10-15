@@ -1,7 +1,7 @@
 {
 	"format": 1,
 	"beeswaxVersion": "0.5.0",
-	"configDigest": "aba768f830dcc8796559a3cefc56c45ca1c4744b0fcc91dad63d124e11aec994",
+	"configDigest": "280499f7b474420f8b8474499709c267084b9b87b9268d26b80f463539d701de",
 	"hooks": {
 		".husky/pre-commit": "a11e58c7c8203220f5cc3aa3f615f97293df4b9b16dc7759d12fe468248f7a25",
 		".husky/pre-merge-commit": "a11e58c7c8203220f5cc3aa3f615f97293df4b9b16dc7759d12fe468248f7a25"

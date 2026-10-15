@@ -1,36 +1,51 @@
-/* eslint-disable no-await-in-loop -- Preflight and activate the permanent tracker's narrow integration in order. */
-import type { HookAdapter, ProjectConfig } from "./config.ts";
-import { bootstrapHooks, installHuskyRuntime } from "./husky.ts";
-// eslint-disable-next-line import/no-nodejs-modules -- Tracker and shared Git administration paths.
-import { dirname, join, resolve } from "node:path";
-import { hookMigration, shellQuote, updateHookSection } from "./hooks.ts";
+// eslint-disable-next-line import/no-nodejs-modules -- Resolve canonical roots and configured hook paths.
+import { dirname, resolve } from "node:path";
+import { hookMigration, updateHookSection } from "./hooks.ts";
 import { EXIT } from "./errors.ts";
+import type { ProjectConfig } from "./config.ts";
 import type { WorkspaceIO } from "./services.ts";
 import { bindCheckout } from "./binding.ts";
+import { bootstrapHooks } from "./husky.ts";
 import { parseDatabase } from "./beads/environment.ts";
-import { z } from "zod";
 
-const FORMAT = 1;
-const mode = 0o755;
-const receiptSchema = z.strictObject({
-	format: z.literal(FORMAT),
-	files: z.record(z.string(), z.string()),
-});
-const hookNames = {
-	pre_commit: "pre-commit",
-	pre_merge_commit: "pre-merge-commit",
-	commit_msg: "commit-msg",
-} as const;
+/** Require exact sections in canonical HEAD for checkout-resident hooks before setup effects. */
+export async function verifyTrackerInitialization(
+	repository: string,
+	config: ProjectConfig,
+	io: WorkspaceIO,
+): Promise<void> {
+	const common = await io.command(
+		["git", "rev-parse", "--path-format=absolute", "--git-common-dir"],
+		repository,
+	);
+	const root = dirname(common);
+	const paths = Object.values(config.hooks).filter((path) => !path.startsWith(".git/"));
+	const bodies = await Promise.all(
+		paths.map(async (path) => {
+			const result = await io.exec(["git", "show", `HEAD:${path}`], root);
+			if (result.exitCode !== EXIT.success || result.stdout === "") {
+				throw hookMigration(
+					`Canonical HEAD at ${root} has a missing or empty configured hook: ${path}. ` +
+						"Run beeswax setup --tracker none there, then review and commit the project contract " +
+						"and hook sections before retrying init.",
+				);
+			}
+			return result.stdout;
+		}),
+	);
+	for (const body of bodies) {
+		updateHookSection(body);
+	}
+}
 
-/** Support a tracker whose accepted HEAD predates the tooling, without rewriting its history or app policy. */
-// eslint-disable-next-line max-statements -- Keep this preflight and worktree-only activation together.
+/** Bind the same declared hooks without rewriting the permanent tracker's accepted files. */
+// eslint-disable-next-line max-statements -- Check tracker identity and configured sections before local activation.
 export async function installTrackerHooks(
 	options: { repository: string; database: string; executable: string; config: ProjectConfig },
 	io: WorkspaceIO,
 ): Promise<void> {
 	const { executable, config } = options;
-	const database = parseDatabase(options.database);
-	const root = dirname(dirname(database));
+	const root = dirname(dirname(parseDatabase(options.database)));
 	const branch = await io.command(["git", "branch", "--show-current"], root);
 	if (branch !== "tracker/state") {
 		throw hookMigration(`The selected tracker must be on tracker/state; found ${branch}.`);
@@ -44,175 +59,26 @@ export async function installTrackerHooks(
 		options.repository,
 	);
 	if (common !== projectCommon) {
-		throw hookMigration(
-			"The selected tracker belongs to another Git repository. " +
-				"Preserve the endpoint and agree hook ownership with the user.",
-		);
+		throw hookMigration("The selected tracker belongs to another Git repository.");
 	}
-	const directory = join(common, "beeswax/tracker-hooks");
-	const existing = await gitConfig(root, ["--get", "core.hooksPath"], io);
 	const bodies = await Promise.all(
-		Object.values(config.hooks).map((path) => io.read(resolveHook(root, common, path))),
-	);
-	if (!config.tracker && bodies.every(Boolean)) {
-		for (const body of bodies) {
-			updateHookSection(body);
-		}
-		if (existing === directory) {
-			throw hookMigration(
-				"The tracker acquired application hooks. Agree how to retire its private integration.",
-			);
-		}
-		await bindCheckout(root, executable, io);
-		await bootstrapHooks(root, config.bootstrap.hooks, io);
-		return;
-	}
-	const active = resolve(root, existing || join(common, "hooks"));
-	const activeFiles = await io.list(active);
-	const activeNames = activeFiles.filter(
-		(name) => !name.endsWith(".sample") && !["h", ".gitignore"].includes(name),
-	);
-	if (
-		existing !== directory &&
-		activeNames.some(
-			(name) =>
-				!config.tracker ||
-				!Object.values(hookNames).includes(name as (typeof hookNames)[keyof typeof hookNames]),
-		)
-	) {
-		throw hookMigration(
-			"The tracker has other active hooks. Agree how to preserve them before installing validation.",
-		);
-	}
-	if (!config.tracker && bodies.some(Boolean)) {
-		throw hookMigration(
-			"The tracker contains application hooks without an agreed integration. Configure tracker.hooks with the user.",
-		);
-	}
-	const huskyFiles = await io.list(join(root, ".husky"));
-	if (!config.tracker && huskyFiles.some((name) => name !== "_")) {
-		throw hookMigration(
-			"The tracker has application-owned Husky hooks. Configure tracker.hooks with the user.",
-		);
-	}
-	if (
-		(await gitConfig(root, ["--local", "--get", "core.worktree"], io)) ||
-		(await gitConfig(root, ["--local", "--get", "core.bare"], io)) === "true"
-	) {
-		throw hookMigration(
-			"Git core.worktree/core.bare requires an agreed worktree-configuration migration.",
-		);
-	}
-	const plans = new Map<string, string>();
-	const entries = Object.entries(hookNames).filter(
-		([key, name]) => name !== "commit-msg" || config.tracker?.hooks[key as keyof typeof hookNames],
-	);
-	for (const [key, name] of entries) {
-		const delegate = config.tracker?.hooks[key as keyof typeof hookNames];
-		if (delegate) {
-			await verifyDelegate({ root, name, delegate, bootstrap: config.bootstrap.hooks }, io);
-		}
-	}
-	if (config.tracker && config.bootstrap.hooks === "husky") {
-		await installHuskyRuntime(root, io);
-	}
-	for (const [key, name] of entries) {
-		const delegate = config.tracker?.hooks[key as keyof typeof hookNames];
-		let body = `#!/usr/bin/env sh\n# Generated by Beeswax: tracker integration v1\n`;
-		if (name !== "commit-msg") {
-			body += `${shellQuote(executable)} hooks validate || exit $?\n`;
-			if (delegate) {
-				body += `if ${shellQuote(executable)} hooks is-tracker-snapshot; then exit 0; fi\n`;
+		Object.values(config.hooks).map((path) => {
+			let target = resolve(root, path);
+			if (path.startsWith(".git/")) {
+				target = resolve(common, path.slice(".git/".length));
 			}
-		}
-		if (delegate) {
-			body += `exec sh ${shellQuote(resolve(root, delegate))} "$@"\n`;
-		}
-		plans.set(name, body);
-	}
-	const receiptPath = join(directory, "receipt.json");
-	const previous = await readReceipt(receiptPath, io);
-	for (const name of await io.list(directory)) {
-		if (name !== "receipt.json" && !plans.has(name)) {
+			return io.read(target);
+		}),
+	);
+	for (const body of bodies) {
+		if (body === "") {
 			throw hookMigration(
-				`The tracker integration still contains ${name}. Agree its removal with the user.`,
+				"The tracker is missing a configured hook. " +
+					"Prepare the same configured hook files in the tracker with the user.",
 			);
 		}
-	}
-	for (const [name, body] of plans) {
-		const current = await io.read(join(directory, name));
-		if (current !== "" && current !== body && digest(current) !== previous[name]) {
-			throw hookMigration(`The generated tracker hook was edited: ${name}.`);
-		}
+		updateHookSection(body);
 	}
 	await bindCheckout(root, executable, io);
-	const files: Record<string, string> = {};
-	for (const [name, body] of plans) {
-		const path = join(directory, name);
-		if ((await io.read(path)) !== body) {
-			await io.write(path, body);
-		}
-		await io.chmod(path, mode);
-		files[name] = digest(body);
-	}
-	await io.write(receiptPath, `${JSON.stringify({ format: FORMAT, files }, undefined, "\t")}\n`);
-	if (existing !== directory) {
-		await io.command(["git", "config", "--local", "extensions.worktreeConfig", "true"], root);
-		await io.command(["git", "config", "--worktree", "core.hooksPath", directory], root);
-	}
-}
-
-// --- Private functions ---
-
-async function verifyDelegate(
-	options: { root: string; name: string; delegate: string; bootstrap: HookAdapter },
-	io: WorkspaceIO,
-): Promise<void> {
-	const { root, name, delegate, bootstrap } = options;
-	if (resolve(root, delegate) === join(root, ".husky/_", name)) {
-		if (!(await io.exists(join(root, ".husky", name)))) {
-			throw hookMigration(
-				`Missing tracker application policy: .husky/${name}. Restore it with the user before continuing.`,
-			);
-		}
-		if (bootstrap === "husky") {
-			return;
-		}
-	}
-	if (!(await io.exists(resolve(root, delegate)))) {
-		throw hookMigration(
-			`Missing tracker application entrypoint: ${delegate}. Restore it with the user before continuing.`,
-		);
-	}
-}
-
-function resolveHook(root: string, common: string, path: string): string {
-	if (path.startsWith(".git/")) {
-		return resolve(common, path.slice(".git/".length));
-	}
-	return resolve(root, path);
-}
-
-async function gitConfig(root: string, args: string[], io: WorkspaceIO): Promise<string> {
-	const result = await io.exec(["git", "config", ...args], root);
-	if (result.exitCode !== EXIT.success && result.exitCode !== EXIT.failure) {
-		throw hookMigration(result.stderr || result.stdout);
-	}
-	return result.stdout.trim();
-}
-
-async function readReceipt(path: string, io: WorkspaceIO): Promise<Record<string, string>> {
-	const contents = await io.read(path);
-	if (contents === "") {
-		return {};
-	}
-	try {
-		return receiptSchema.parse(JSON.parse(contents)).files;
-	} catch {
-		throw hookMigration(`Can't establish the tracker runtime upgrade path from ${path}.`);
-	}
-}
-
-function digest(contents: string): string {
-	return new Bun.CryptoHasher("sha256").update(contents).digest("hex");
+	await bootstrapHooks(root, config.bootstrap.hooks, io);
 }

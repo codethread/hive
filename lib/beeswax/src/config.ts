@@ -19,15 +19,6 @@ const hooksSchema = z.strictObject({ pre_commit: pathSchema, pre_merge_commit: p
 export const configSchema = z.strictObject({
 	bootstrap: z.strictObject({ hooks: hookAdapterSchema }),
 	hooks: hooksSchema,
-	tracker: z
-		.strictObject({
-			hooks: z.strictObject({
-				pre_commit: pathSchema,
-				pre_merge_commit: pathSchema,
-				commit_msg: pathSchema,
-			}),
-		})
-		.optional(),
 });
 export type ProjectConfig = z.infer<typeof configSchema>;
 export const configPath = ".hive/beeswax/config.toml";
@@ -75,7 +66,7 @@ export function defaultProjectConfig(adapter: HookAdapter): ProjectConfig {
 	};
 }
 
-/** Preserve tracker policy; reset hook paths only when switching to Husky or Git. */
+/** Reset hook paths only when switching to Husky or Git. */
 export function selectHookConfig(config: ProjectConfig, adapter?: HookAdapter): ProjectConfig {
 	if (adapter === undefined || adapter === config.bootstrap.hooks) {
 		return config;

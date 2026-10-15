@@ -10,6 +10,7 @@ import {
 	writeProjectConfig,
 } from "./config.ts";
 import { installHooks, installMergeDriver } from "./hooks.ts";
+import { installTrackerHooks, verifyTrackerInitialization } from "./tracker-hooks.ts";
 import {
 	readProjectLock,
 	requireProjectConfig,
@@ -21,7 +22,6 @@ import {
 import type { WorkspaceIO } from "./services.ts";
 import { bindCheckout } from "./binding.ts";
 import { bootstrapHooks } from "./husky.ts";
-import { installTrackerHooks } from "./tracker-hooks.ts";
 import { z } from "zod";
 
 const NONEMPTY = 1;
@@ -80,7 +80,7 @@ export interface SetupOptions {
 	codex: boolean;
 	/** Hook adapter for Beeswax requirements; application hook bodies stay application-owned. */
 	hooks: HookAdapter;
-	/** Configured hook files, bootstrap preset and optional tracker delegates. */
+	/** One hook-file pair shared by application and tracker checkouts, plus its bootstrap preset. */
 	config: ProjectConfig;
 }
 
@@ -171,6 +171,9 @@ export async function setupRepository(options: SetupOptions, deps: SetupDependen
 			requireProjectVersion(lock);
 			requireProjectConfig(lock, options.config);
 			requireProjectGeneration(lock, options.config);
+		}
+		if (options.tracker === "init") {
+			await verifyTrackerInitialization(options.repo, options.config, deps);
 		}
 		await verifyExecutable(options.repo, options.executable, deps);
 		await installLocalExcludes(options.repo, deps);

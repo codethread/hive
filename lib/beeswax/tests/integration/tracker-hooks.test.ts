@@ -11,12 +11,11 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 
 const success = 0;
-const absent = 1;
 const policyFailure = 7;
 const mode = 0o755;
 
-// eslint-disable-next-line max-statements -- Verify worktree configuration and generated shell delegation together.
-test("tracker adapter preserves application policy, hook arguments and checkout isolation", async () => {
+// eslint-disable-next-line max-statements -- Verify shared hook paths, application policy and checkout isolation.
+test("declared hooks preserve application policy and tracker checkout isolation", async () => {
 	const root = await mkdtemp(join(tmpdir(), "beeswax tracker "));
 	const io = createLiveDependencies();
 	const environment = { ...process.env, GIT_CONFIG_GLOBAL: "/dev/null", GIT_CONFIG_NOSYSTEM: "1" };
@@ -39,6 +38,19 @@ test("tracker adapter preserves application policy, hook arguments and checkout 
 	const tracker = join(root, "tracker");
 	try {
 		await io.command(["git", "init", "--initial-branch=main"], root);
+		const paths = {
+			pre_commit: "app/pre-commit",
+			pre_merge_commit: "app/pre-merge-commit",
+		};
+		const hook = `#!/bin/sh\n${hookSection}\nprintf '%s\\n' "$1" >> app.log\nexit 7\n`;
+		await Promise.all(
+			Object.values(paths).map(async (path) => {
+				await io.write(join(root, path), hook);
+				await chmod(join(root, path), mode);
+			}),
+		);
+		await io.write(join(root, "app/commit-msg"), "echo application message policy\n");
+		await io.command(["git", "add", "app"], root);
 		await io.command(
 			[
 				"git",
@@ -47,66 +59,51 @@ test("tracker adapter preserves application policy, hook arguments and checkout 
 				"-c",
 				"user.email=test@example.test",
 				"commit",
-				"--allow-empty",
 				"-m",
-				"initial",
+				"hooks",
 			],
 			root,
 		);
+		await io.command(["git", "config", "--local", "core.hooksPath", "app"], root);
 		await io.command(["git", "worktree", "add", "-b", "tracker/state", tracker], root);
 		const executable = join(root, "installed beeswax");
-		await io.write(
-			executable,
-			[
-				"#!/bin/sh",
-				'case "$2" in',
-				'validate) exit "$VALIDATION_EXIT";;',
-				'is-tracker-snapshot) exit "$SNAPSHOT_STATUS";;',
-				"esac",
-				"exit 9",
-				"",
-			].join("\n"),
-		);
+		await io.write(executable, '#!/bin/sh\nexit "$VALIDATION_EXIT"\n');
 		await chmod(executable, mode);
-		const delegates = {
-			pre_commit: "app/pre-commit",
-			pre_merge_commit: "app/pre-merge-commit",
-			commit_msg: "app/commit-msg",
+		const config = { ...defaultProjectConfig("none"), hooks: paths };
+		const options = {
+			repository: root,
+			database: join(tracker, ".beads/beads.db"),
+			executable,
+			config,
 		};
-		await Promise.all(
-			Object.values(delegates).map((path) =>
-				io.write(join(tracker, path), 'printf "%s\\n" "$1" >> app.log\nexit 7\n'),
+		await installTrackerHooks(options, io);
+		await installTrackerHooks(options, io);
+		const selections = await Promise.all(
+			[root, tracker].map((checkout) =>
+				io.command(["git", "config", "--get", "core.hooksPath"], checkout),
 			),
 		);
-		await io.write(
-			join(tracker, delegates.pre_commit),
-			`${hookSection}\n${await io.read(join(tracker, delegates.pre_commit))}`,
+		expect(selections).toEqual(["app", "app"]);
+		expect(await io.command(["git", "status", "--porcelain"], tracker)).toBe("");
+		expect(await io.read(join(tracker, paths.pre_commit))).toBe(hook);
+		expect(await io.read(join(tracker, "app/commit-msg"))).toBe(
+			"echo application message policy\n",
 		);
-		const config = { ...defaultProjectConfig("none"), tracker: { hooks: delegates } };
-		await installTrackerHooks(
-			{ repository: root, database: join(tracker, ".beads/beads.db"), executable, config },
-			io,
-		);
-		const directory = await io.command(["git", "config", "--get", "core.hooksPath"], tracker);
-		const mainConfiguration = await io.exec(["git", "config", "--get", "core.hooksPath"], root);
-		expect(mainConfiguration.exitCode).toBe(absent);
-		const run = async (name: string, snapshot: string, validation: string) => {
-			const child = Bun.spawn(["sh", join(directory, name), "message with spaces"], {
+
+		const run = async (name: string, validation: string) => {
+			const child = Bun.spawn(["git", "hook", "run", name, "--", "message with spaces"], {
 				cwd: tracker,
-				env: { ...process.env, SNAPSHOT_STATUS: snapshot, VALIDATION_EXIT: validation },
+				env: { ...process.env, VALIDATION_EXIT: validation },
 				stdout: "pipe",
 				stderr: "pipe",
 			});
 			return await child.exited;
 		};
-		expect(await run("pre-commit", "0", "0")).toBe(success);
-		expect(await io.exists(join(tracker, "app.log"))).toBe(false);
-		expect(await run("pre-merge-commit", "0", "7")).toBe(policyFailure);
-		expect(await run("pre-commit", "1", "0")).toBe(policyFailure);
-		expect(await run("commit-msg", "0", "0")).toBe(policyFailure);
-		expect(await io.read(join(tracker, "app.log"))).toBe(
-			"message with spaces\nmessage with spaces\n",
-		);
+		expect(await run("pre-commit", "0")).toBe(policyFailure);
+		expect(await io.read(join(tracker, "app.log"))).toBe("message with spaces\n");
+		expect(await run("pre-merge-commit", "7")).toBe(policyFailure);
+		expect(await io.read(join(tracker, "app.log"))).toBe("message with spaces\n");
+
 		expect(await io.exists(join(tracker, ".hive/beeswax/config.toml"))).toBe(false);
 	} finally {
 		await rm(root, { recursive: true, force: true });

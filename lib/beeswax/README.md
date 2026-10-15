@@ -29,7 +29,9 @@ beeswax setup --tracker adopt --beads-db /absolute/tracker/.beads/beads.db \
   --hooks husky --environment none --no-codex --yes --json
 ```
 
-Use `--tracker bootstrap` for a clone with accepted `origin/tracker/state` history. It imports an absent database and preserves an existing one. For the first tracker, use `--tracker init --prefix app --owner operator`; retain its receipt and deliberately establish the first snapshot and upstream before publication. `--tracker none` configures Git integration without tracker changes.
+Use `--tracker bootstrap` for a clone with accepted `origin/tracker/state` history. It imports an absent database and preserves an existing one. `--tracker none` configures Git integration without tracker changes.
+
+First initialization starts from the canonical checkout's `HEAD`. For versioned hooks, run `--tracker none` first, review the generated project contract and hook sections, and commit them into that checkout's history before `--tracker init --prefix app --owner operator`. Retain the initialization receipt and deliberately establish the first snapshot and upstream before publication.
 
 `--beads-db` overrides `BEADS_DB`; otherwise setup looks for the canonical checkout's tracker. `--actor` or `BD_ACTOR` supplies tracker attribution. Setup stays local; publication is a separate `beeswax beads sync` operation.
 
@@ -64,16 +66,7 @@ Hive's release preparation runs `bun run beeswax lock` after bumping package man
 
 Each checkout gets a launcher and observation receipt under `git rev-parse --git-path beeswax`. The launcher binds to an absolute installed Beeswax command whose version setup verifies. Receipts describe local outputs; the committed contract remains authoritative. Run sync in each checkout to bind it locally, and again after relocating a clone.
 
-A permanent tracker can predate these committed files. Beeswax can install validation entrypoints under shared Git metadata, selected only for the tracker with `git config --worktree core.hooksPath`. Existing application policy requires explicit tracker-relative delegates. Hive declares:
-
-```toml
-[tracker.hooks]
-pre_commit = ".husky/_/pre-commit"
-pre_merge_commit = ".husky/_/pre-merge-commit"
-commit_msg = ".husky/_/commit-msg"
-```
-
-Snapshot-only tracker commits validate staged JSONL; other commits delegate to the declared application entrypoint. The commit-message delegate runs for both, preserving arguments and exit status. Missing delegates or additional active hooks require migration. Tracker history and tracked hook files remain untouched.
+The permanent tracker uses the same `[hooks]` pair. Its files must already contain the exact validation section before Beeswax binds the installed CLI and bootstraps the configured framework. Setup leaves tracked tracker hooks unchanged. If the tracker predates those hooks, use `beeswax migrate hooks` to agree changes that preserve its application policy and accepted history.
 
 ## Operate the tracker
 

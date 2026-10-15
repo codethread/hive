@@ -53,13 +53,10 @@ test("unrecognized project metadata asks an agent to establish the migration pat
 	});
 });
 
-test("framework defaults preserve pinned paths and tracker policy when bootstrap is retained or disabled", () => {
+test("framework defaults preserve pinned paths when bootstrap is retained or disabled", () => {
 	const custom = {
 		...config,
 		hooks: { pre_commit: "custom/commit", pre_merge_commit: "custom/merge" },
-		tracker: {
-			hooks: { pre_commit: "old/commit", pre_merge_commit: "old/merge", commit_msg: "old/message" },
-		},
 	};
 	expect(selectHookConfig(custom, "husky")).toBe(custom);
 	expect(selectHookConfig(custom, "none")).toEqual({ ...custom, bootstrap: { hooks: "none" } });
