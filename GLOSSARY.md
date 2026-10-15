@@ -22,7 +22,7 @@ _To be built_ marks capabilities still planned beyond the Bee and Colony impleme
 
 **Agent attributes**: Best-effort observations of how an agent runs, such as its harness, model and reasoning effort. They describe an identity's execution, not the identity itself, and are not guaranteed to remain unchanged or accurate.
 
-**Scent**: Hive's per-harness integration for agent identity attribution and context, independent of bee-kind configuration. _To be built — hv-3x8.7._
+**Scent**: Hive's per-harness integration for agent identity attribution and context, independent of bee-kind configuration.
 
 ## Bees
 

@@ -102,11 +102,12 @@ Bee/Colony now implements captured recipes, named formulas, task claims, bounded
 | --- | --- | --- |
 | Claude Code | Planned: `hv-3x8.7.1`, including explicit native-child attribution | Subscription unavailable for this build; current native run unverified. Earlier `L` observations remain historical evidence |
 | Codex CLI 0.160.0 | Planned: `hv-3x8.7.3`, including explicit native-child attribution | **O**, 2026-10-04: native probe passed with `gpt-6-astra`, low effort, workspace-write; see current probe evidence below |
-| Native Pi 1.0.0 | Planned: `hv-3x8.7.2`; third-party subagent tools need separate profiles | **O**, 2026-10-04: native probe passed with `openai-codex/gpt-6-astra`, low effort; see current probe evidence below |
+| Native Pi 1.0.0 (historical launch profile) | Scent conformance unverified for this version | **O**, 2026-10-04: native probe passed with `openai-codex/gpt-6-astra`, low effort; see current probe evidence below |
+| Native Pi 1.2.0 | **O**, 2026-10-14: Scent passes native CLI/RPC `I1/I2/I4/B1/T1–T3`; tracked in `hv-3x8.7.2`. Third-party subagent tools need separate profiles | No new complete Colony/native 1.2.0 lifecycle probe; supplied launcher-input adoption is verified by Scent |
 | Pies / other wrappers | No dedicated Hive conformance | No selected wrapper integration; `W` does not authorize native-process ownership assumptions |
 | Other GUI or hosted runtimes | Unknown until profiled | Unknown until profiled |
 
-A passing native launch does not establish Scent context continuity, native-child attribution or arbitrary detached-descendant capture. Retain the exact profile, selected model, report and task mutation evidence for each run. A failed or skipped native probe remains explicit; a successful scripted fixture cannot replace it.
+The historical Colony launch probe alone does not establish Scent context continuity, native-child attribution or arbitrary detached-descendant capture. Retain the exact profile, selected model, report and task mutation evidence for each run. A failed or skipped native probe remains explicit; a successful scripted fixture cannot replace it.
 
 ### Current native probe evidence
 

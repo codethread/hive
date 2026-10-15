@@ -13,6 +13,7 @@ Hive's product packages are independently replaceable. They cooperate through co
 | `lib/waggle` | Classifier discovery and execution | Independent `waggle` CLI; it does not decide runtime scheduling or mutate requests |
 | `lib/busybee` | Workflow navigation, task visits and per-run checkpoints | XState chooses transitions; native `br` stores work and checkpoints; optional Bee requests delegate execution to Colony |
 | `lib/hive-ui` | Read-only work-board HTTP projections, route-driven browser snapshots and presentation | Imports Beads services and Shared spawn decoding; reads explicitly configured repository/database pairs |
+| `lib/scent` | Native harness identity resolver and Pi event/environment/prompt adapter | Resolves actual session keys or adopts supplied Bee identity; preserves the selected tracker and imports no product package |
 | `lib/tooling` | Repository maintenance commands | Development tooling, independent of the Bee execution path |
 | `lib/qlock` | Ticketed local command admission, private SQLite queue state and foreground child execution | TypeScript/Bun CLI with pure ticket policy and injected native I/O; only merge-target queues call `honeycomb root` for repository identity |
 

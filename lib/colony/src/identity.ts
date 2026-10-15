@@ -20,5 +20,7 @@ export function agentEnvironment(identity: string, recipe: Recipe): Record<strin
 		BR_HARNESS: recipe.harness,
 		BR_MODEL: recipe.model,
 		HIVE_AGENT_NAME: identity,
+		HIVE_AGENT_SESSION: "",
+		HIVE_AGENT_SOURCE: "bee",
 	};
 }
