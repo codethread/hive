@@ -22,7 +22,7 @@ _To be built_ marks capabilities still planned beyond the Bee and Colony impleme
 
 **Agent attributes**: Best-effort observations of how an agent runs, such as its harness, model and reasoning effort. They describe an identity's execution, not the identity itself, and are not guaranteed to remain unchanged or accurate.
 
-**Scent**: Hive's per-harness integration for agent identity attribution and context, independent of bee-kind configuration. _To be built — hv-3x8.7._
+**Scent**: Hive's per-harness integration for agent identity attribution and context, independent of bee-kind configuration.
 
 ## Bees
 
@@ -57,6 +57,8 @@ _To be built_ marks capabilities still planned beyond the Bee and Colony impleme
 **Response**: An agent's complete authored answer for its producing task, with independent identity and provenance. A response may describe successful or blocked work; its availability is separate from acceptance and execution outcome.
 
 **Response bead**: A filed, immutable response artifact linked to its producing task, distinct from executable work and specialist evidence. Corrections retain the original artifact and explicitly supersede it with a new response.
+
+**Merge bead**: A reference record for a provider-hosted merge request and the tasks it delivers. _Avoid_: PR bead; the term is provider-neutral.
 
 **System bead**: An automation-owned record of coordination or execution state, distinct from the work assigned to an agent. Spawn beads and workflow system beads are system beads.
 

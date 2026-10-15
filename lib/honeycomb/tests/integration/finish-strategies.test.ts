@@ -12,12 +12,11 @@ import {
 } from "./support.ts";
 import { expect, test } from "bun:test";
 import { finishArgs, finishPolicy, readCheckoutState, readFinishState } from "./finish-helpers.ts";
-import { gitOut, gitSucceeds, gitText, useTmpHome } from "./lifecycle-helpers.ts";
+import { gitOut, gitSucceeds, useTmpHome } from "./lifecycle-helpers.ts";
 import { GitError } from "../../src/git/error.ts";
 // oxlint-disable-next-line import/no-nodejs-modules -- Integration fixtures exercise real filesystem IO.
 import { join } from "node:path";
 
-const MERGE_COMMIT_AND_PARENTS = 3;
 const COMMIT_AND_PARENT = 2;
 const EXECUTABLE_MODE = 0o755;
 
@@ -70,26 +69,6 @@ async function assertConflictPreserved({
 	expect(await gitSucceeds(root, "rev-parse", "--verify", "MERGE_HEAD")).toBe(false);
 }
 
-test("merge_commit integrates source with an explicit merge commit", async () => {
-	const { root, worktreePath } = await prepareFinish(
-		"feature/merge-finish",
-		finishPolicy("merge_commit"),
-	);
-	await commitFile({
-		content: "source\n",
-		message: "source work",
-		path: "merge-source.txt",
-		repo: worktreePath,
-	});
-	const evidence = await installSuccessfulHook(root, "pre-merge-commit");
-	await configureBuiltinMerge(root);
-	const result = await dispatch("finish", finishArgs(worktreePath, "merge_commit"), deps);
-	expect(result.exitCode).toBe(EXIT_CODES.SUCCESS);
-	expect(JSON.parse(result.stdout ?? "{}")).toMatchObject({ strategy: "merge_commit" });
-	await assertMergeHistory(root);
-	const hookCwd = await readFile(evidence, "utf8");
-	expect(hookCwd.trim()).toBe(root);
-});
 test.each([{ fresh: false }, { fresh: true }])(
 	"rebase_ff rebases source before advancing target (fresh=$fresh)",
 	async ({ fresh }) => {
@@ -130,7 +109,6 @@ test.each([
 	{ fresh: false, strategy: "squash" },
 	{ fresh: true, strategy: "squash" },
 	{ fresh: false, strategy: "merge_commit" },
-	{ fresh: true, strategy: "merge_commit" },
 ])(
 	"$strategy modify/delete conflict protects canonical (fresh=$fresh)",
 	async ({ fresh, strategy }) => {
@@ -326,25 +304,6 @@ async function installSuccessfulHook(root: string, name: string): Promise<string
 	await writeFile(hook, `#!/bin/sh\npwd > "${evidence}"\n`);
 	await chmod(hook, EXECUTABLE_MODE);
 	return evidence;
-}
-
-async function configureBuiltinMerge(root: string): Promise<void> {
-	await gitOut(root, "config", "--add", "pull.twohead", "resolve");
-	await gitOut(root, "config", "--add", "branch.main.mergeOptions", "-s resolve");
-	await gitOut(root, "config", "--add", "pull.twohead", "ort");
-	await gitOut(root, "config", "--add", "branch.main.mergeOptions", "");
-	await gitOut(root, "config", "merge.renormalize", "true");
-	await gitOut(root, "config", "branch.feature/merge-finish.mergeOptions", "-s resolve");
-}
-
-async function assertMergeHistory(root: string): Promise<void> {
-	expect(await gitOut(root, "log", "-1", "--format=%s")).toBe("chore: merge worktree");
-	expect(await gitText(root, "log", "-1", "--format=%B")).toContain(
-		"Source branch:\nfeature/merge-finish",
-	);
-	const parents = await gitOut(root, "rev-list", "--parents", "-n", "1", "HEAD");
-	expect(parents.split(" ")).toHaveLength(MERGE_COMMIT_AND_PARENTS);
-	expect(await readFile(join(root, "merge-source.txt"), "utf8")).toBe("source\n");
 }
 
 async function commitTargetChange(

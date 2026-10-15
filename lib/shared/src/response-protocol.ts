@@ -1,11 +1,7 @@
-/** Render communication guidance; the caller chooses the producing run or stage. */
+/** Identify the delivery target for a workflow visit or managed execution. */
 export function renderResponseInstructions({ taskId }: { taskId: string }): string {
 	return (
-		`Publish your complete authored response with bee response publish ${taskId} ` +
-		"--body-file FILE --json, then verify it with bee response get RESPONSE_ID --json. " +
-		"For blocked work, publish and verify a blocker report against the same target. " +
-		"Put concise progress and verification evidence, including response IDs, in task comments. " +
-		"Workflow notes contain only the original machine {choice,data}; keep response prose in " +
-		"the filed response. Response records are closed linked docs, never executable child tasks."
+		`File and verify your complete answer or blocker against ${taskId}. ` +
+		"Read bee response --help for delivery and correction instructions."
 	);
 }

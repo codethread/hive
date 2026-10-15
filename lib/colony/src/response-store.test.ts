@@ -25,7 +25,7 @@ beforeEach(async () => {
 	context = await fixture();
 });
 
-test("publication files an independent record preserving body, links and producer state", async () => {
+test("publication files an independent record preserving body, links and producer state #test-65", async () => {
 	const before = await context.beads.listProjected(scope, { ids: [context.taskId] }, [
 		"status",
 		"updated_at",
@@ -63,7 +63,7 @@ test("publication files an independent record preserving body, links and produce
 	});
 });
 
-test("repeats reuse identity and corrections preserve exact historical reads", async () => {
+test("repeats reuse identity and corrections preserve exact historical reads #test-66", async () => {
 	const input = { taskId: context.taskId, body: "Original" };
 	const first = await publishResponse(context, input);
 	expect(await publishResponse(context, input)).toEqual({ ...first, effect: "existing" });
@@ -83,7 +83,7 @@ test("repeats reuse identity and corrections preserve exact historical reads", a
 	expect(docs.issues).toHaveLength(TWO);
 });
 
-test("simultaneous publications remain ambiguous until an explicit correction names every head", async () => {
+test("simultaneous publications remain ambiguous until an explicit correction names every head #test-67", async () => {
 	const gate = Promise.withResolvers<void>();
 	let arrived = ZERO;
 	const beads = {
@@ -210,7 +210,7 @@ test.each([
 );
 
 test.each(["driver", "stage"] as const)(
-	"managed %s validates identity and exact completion anchor",
+	"managed %s validates identity and exact completion anchor #test-68",
 	async (kind) => {
 		const request = await managedRequest(context, kind);
 		await context.beads.close(scope, context.taskId, { reason: "done" });

@@ -98,6 +98,8 @@ export function workflowDetail(id: string): Detail {
 	const selected = workflowHierarchy.nodes.find((entry) => entry.id === id)!;
 	return {
 		card: { ...selected, bees: [] },
+		design: "",
+		notes: "",
 		description:
 			"Original work, workflow runs and generated visits are ordinary native beads. " +
 			"Use the branch explorer to follow the containing work and higher ancestors, " +
@@ -136,6 +138,7 @@ function node(
 		priority: 2,
 		assignee: status === "in_progress" ? "amber-quiet-otter" : null,
 		beeAssignments: [],
+		merges: [],
 		labels: ["ui"],
 		updatedAt: OBSERVED_AT,
 	};

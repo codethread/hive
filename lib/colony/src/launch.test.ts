@@ -2,8 +2,8 @@
 import { createSpawn, createTask, memoryTracker } from "./tracker.test-support.ts";
 import { eligibility, prepareLaunch, renderExecutionRecipe } from "./launch.ts";
 import { expect, test } from "bun:test";
+import { recipeSchema, renderResponseInstructions } from "@hive/shared";
 import { RESPONSE_PROTOCOL } from "./response-protocol.ts";
-import { recipeSchema } from "@hive/shared";
 import { trackerScope } from "./tracker.ts";
 
 const tracker = memoryTracker();
@@ -60,7 +60,7 @@ test.each([
 	({ assignment, target }) => {
 		const captured = structuredClone(recipe);
 		const rendered = renderExecutionRecipe({ assignment, recipe, taskIds: [target] });
-		expect(rendered.prompt).toContain(`bee response publish ${target} --body-file FILE --json`);
+		expect(rendered.prompt).toContain(renderResponseInstructions({ taskId: target }));
 		expect(rendered.prompt).toContain(recipe.prompt);
 		expect(rendered.system_prompt).toBe(`${recipe.system_prompt}\n\n${RESPONSE_PROTOCOL}`);
 		expect(recipe).toEqual(captured);

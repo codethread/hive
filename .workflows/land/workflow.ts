@@ -161,33 +161,18 @@ export const machine = setup({
 				task: ({ context }: { context: LandingContext }) => ({
 					title: `Triage the authorized landing: ${targetTitle(context)}`,
 					instructions:
-						"Verify the recorded request is an actual user instruction to finish " +
-						'and land this scope. An early "land it" authorizes remaining agreed ' +
-						"implementation, not skipping gates or widening scope. Workflow " +
-						"creation, conversion, a PR URL and test traversal are not " +
-						"authorization; if absent, leave this task open and ask. Inspect task " +
-						"acceptance/notes, git status and the complete diff, branch/base and " +
-						"any PR via gh. Verify the target belongs to this repository, " +
-						"canonicalRoot survives cleanup and beadsDb is the selected permanent " +
-						"tracker endpoint. Respect claims and other agents' edits; resolve " +
-						"tracker conflicts before proceeding.\n\nChoose implement for " +
-						"unfinished acceptance, known defects or unresolved review findings; " +
-						"check for completed work without a current passing `bun run check`; " +
-						"review only when that gate passes but local review evidence is " +
-						"missing or stale. Choose commit for current checked and approved " +
-						"content that still needs committing, supplying its review receipt. " +
-						"Choose reviewed only for clean committed work with current checks " +
-						"and an approved local-review receipt read from br show on the " +
-						"relevant bead. A closed review bead, an old approval or a GitHub " +
-						"approval alone is not that evidence: match base and cumulative diff, " +
-						"including staged/unstaged/relevant untracked files, and verify " +
-						"finding dispositions. With no adequate evidence, use check or review " +
-						"rather than guessing. Choose integrated only after proving this " +
-						"exact work already reached the intended main; verification and " +
-						"cleanup still remain. Record a concise assessment and deliverable pointers in this bead's comments " +
-						"before closure. Later uncertainty or changed scope can return here; " +
-						"external blockers leave the current task open, not a polling loop.\n\n" +
-						`${retainedContext(context)}`,
+						"Verify input.request is an explicit user instruction to land this scope. An early request " +
+						"includes unfinished agreed implementation; workflow creation or a PR URL alone grants no " +
+						"authority. Inspect acceptance, Git status/diff, base/head and any PR. Verify the target " +
+						"repository, surviving canonicalRoot and permanent beadsDb. Preserve claims and unrelated edits. " +
+						"Choose implement for unfinished acceptance or findings; check when full checks are " +
+						"missing/stale; review when checks pass but local approval is absent/stale; commit for checked, " +
+						"approved uncommitted content; reviewed for clean committed content with a current local review " +
+						"receipt; integrated only with proof this exact change reached main. Verify review receipts " +
+						"against the base and cumulative diff, including relevant uncommitted files, and resolved " +
+						"findings. A closed review or GitHub approval alone is insufficient. Record the assessment and " +
+						"pointers in comments. External blockers keep this task open; changed scope returns to triage. " +
+						`\n\n${retainedContext(context)}`,
 				}),
 			},
 			on: {
@@ -207,19 +192,12 @@ export const machine = setup({
 				task: ({ context }: { context: LandingContext }) => ({
 					title: `Complete implementation or repair findings: ${targetTitle(context)}`,
 					instructions:
-						"Implement the remaining agreed acceptance or the verified findings " +
-						"in the preceding evidence. Read the relevant task beads, surrounding " +
-						"code and repository instructions; use required librarian " +
-						"consultations. Make the smallest coherent change, add meaningful " +
-						"regression coverage, update truthful docs and preserve unrelated " +
-						"work. For PR feedback retain thread URLs and explain which fix " +
-						"addresses each finding. Do not silently expand scope; ask for a " +
-						"decision if the requested fix changes the plan. This step also " +
-						"handles CI failures and merge-conflict repairs. Record changes, " +
-						"outstanding constraints and focused verification on this bead. " +
-						"Choose next when implementation is ready for full checks, or " +
-						"retriage if the target/scope assumption changed. An unresolved " +
-						`external blocker keeps this task open.\n\n${retainedContext(context)}`,
+						"Complete the agreed acceptance or verified findings, including CI/conflict repairs. Follow " +
+						"repository implementation and consultation rules. Preserve unrelated work; scope changes need a " +
+						"user decision. For PR feedback retain thread URLs and map fixes to findings. Record changes, " +
+						"constraints and focused verification. Choose next when ready for full checks, retriage if " +
+						"target/scope changed, or leave the task open with an external blocker and next action. " +
+						`\n\n${retainedContext(context)}`,
 				}),
 			},
 			on: {
@@ -238,7 +216,10 @@ export const machine = setup({
 						"Remove only this work's scratch/debug/generated leftovers and dead " +
 						"code; inspect git status and the cumulative diff for secrets, local " +
 						"configuration and unintended files. Keep the diff scoped and " +
-						"documentation truthful. Run `bun run check` for the complete change; " +
+						"documentation truthful. Have bookworm write/review changed prose, including embedded prompts " +
+						"and help, using docs/agents/specialists.md for the context handoff. Retain its coverage and " +
+						"edits in the review evidence; reuse a completed pass only while its scope and content remain " +
+						"current. Run `bun run check` for the complete change; " +
 						"its full suite prints the complete timing report and fails on " +
 						"unapproved DANGER. Return timing failures through changes with a " +
 						"concrete brief to refactor meaningful tests, setup or dependency " +
@@ -296,17 +277,11 @@ export const machine = setup({
 				task: ({ context }: { context: LandingContext }) => ({
 					title: `Commit the reviewed change: ${targetTitle(context)}`,
 					instructions:
-						"Commit scoped changes as coherent conventional commits without " +
-						"bypassing hooks; if already committed, verify there is nothing to " +
-						"commit. Record final source commits and their relation to the " +
-						"reviewed diff in bead comments for integration verification, retaining " +
-						"originally expected commits. A commit alone does not change the " +
-						"reviewed content; hook edits, conflict resolution or other content " +
-						"changes do. Choose changed for those changes so checks and local " +
-						"review run again. Choose next only when the tree is clean and the " +
-						"committed content matches the approved review receipt. Failed hooks " +
-						"or unrelated dirty work block completion; preserve other agents' " +
-						`work.\n\n${retainedContext(context)}`,
+						"Commit the scoped approved content using conventional commits and normal hooks. Record final " +
+						"source commits alongside expectedCommits and their relation to the review receipt. Choose " +
+						"changed if hooks, conflict repair or other edits alter reviewed content; choose next only for a " +
+						"clean tree matching the approved receipt. Failed hooks or unrelated dirty work block completion. " +
+						`\n\n${retainedContext(context)}`,
 				}),
 			},
 			on: {
@@ -329,29 +304,16 @@ export const machine = setup({
 				task: ({ context }: { context: LandingContext }) => ({
 					title: `Check PR readiness: ${targetTitle(context)}`,
 					instructions:
-						"Use gh to inspect this PR's actual base/head, draft/open/merged " +
-						"state, CI, review decisions and unresolved review threads as well as " +
-						"conversation comments. Publish only the authorized reviewed branch " +
-						"commits if the PR needs updating; never force-push or rewrite " +
-						"others' work. Confirm the remote head matches the local reviewed " +
-						"content and current base; stale checks go to check, missing/stale " +
-						"local approval goes to review after passing checks. Check the " +
-						"referenced Beads review receipt, not just the PR review status. Read " +
-						"newly arrived feedback before deciding readiness. Choose feedback " +
-						"for comments needing verification/disposition; changes for a " +
-						"diagnosed CI failure or conflict needing implementation; integrated " +
-						"if this exact PR has already merged. A closed-unmerged PR or changed " +
-						"target needs retriage and a user decision, not automatic " +
-						"reopening.\n\nChoose ready only for the intended non-draft open PR " +
-						"with current local approval, passing required checks, required " +
-						"GitHub approvals and no blocking unresolved threads. No configured " +
-						"reviews/checks means no invented requirement. Pending CI, approval, " +
-						"queue progress or an unresolved disagreement keeps this task open " +
-						"with the blocker and next action. Re-fetch when resumed; do not poll " +
-						"by repeatedly closing/recreating tasks. After fixes, link commits " +
-						"and verification on the original threads. A rebuttal is a response, " +
-						"not permission to dismiss a requested change or mark somebody else's " +
-						`thread resolved.\n\n${retainedContext(context)}`,
+						"Inspect the PR base/head, state, CI, approvals, unresolved threads and conversation comments " +
+						"with gh. Publish authorized reviewed commits if needed without rewriting others' work. Match the " +
+						"remote head and base to the local review receipt. Route stale checks to check, stale/missing " +
+						"approval to review after checks, feedback to feedback, diagnosed failures/conflicts to changes, " +
+						"and a proven merge to integrated. A closed-unmerged PR or changed target needs retriage and a " +
+						"user decision. Choose ready only for the intended open non-draft PR with current local approval, " +
+						"configured required checks/approvals and no blocking threads. Pending external conditions keep " +
+						"this task open; reread on resume. Link fixes and verification to original threads. A rebuttal " +
+						"does not resolve another reviewer's requested change. " +
+						`\n\n${retainedContext(context)}`,
 				}),
 			},
 			on: {
@@ -376,23 +338,14 @@ export const machine = setup({
 				task: ({ context }: { context: LandingContext }) => ({
 					title: `Verify and act on PR feedback: ${targetTitle(context)}`,
 					instructions:
-						"Read the actual PR comments and linked code; verify each claim " +
-						"against the current revision, reproduce it when useful and record " +
-						"thread URLs, evidence and disposition. Batch the small set of " +
-						"outstanding comments rather than making a workflow task per comment. " +
-						"For a valid actionable defect choose changes with a precise repair " +
-						"brief; implementation, checks and local review must run again before " +
-						"readiness. For an unsupported claim, post a concise evidence-backed " +
-						"rebuttal or clarification on that PR and choose rebutted. Choose " +
-						"addressed for already-fixed/outdated/informational comments only " +
-						"after explaining the disposition on the PR where useful. Mixed " +
-						"feedback may include replies now but any remaining valid defect " +
-						"takes changes. Never declare a thread resolved merely because you " +
-						"disagree. An ambiguous product decision or contested blocker stays " +
-						"open for the user/reviewer; retriage only when scope/target needs " +
-						"reassessment. Record concise reply links and unresolved items in native bead " +
-						"comments. Both non-code outcomes return to fresh PR readiness, not " +
-						`directly to merge.\n\n${retainedContext(context)}`,
+						"Read outstanding PR comments and current code; verify claims and record thread URLs, evidence " +
+						"and dispositions. Choose changes for any remaining actionable defect with a repair brief. " +
+						"Otherwise reply with an evidenced rebuttal/clarification and choose rebutted, or explain an " +
+						"already-fixed/outdated/informational disposition and choose addressed. Batch related comments. " +
+						"Both non-code outcomes return to fresh readiness. Disagreement does not authorize resolving " +
+						"another reviewer's thread; contested product decisions remain open. Use retriage when " +
+						"target/scope changes. " +
+						`\n\n${retainedContext(context)}`,
 				}),
 			},
 			on: {
@@ -409,31 +362,18 @@ export const machine = setup({
 				task: ({ context }: { context: LandingContext }) => ({
 					title: `Integrate the approved work: ${targetTitle(context)}`,
 					instructions:
-						"Reconfirm explicit authorization, unchanged reviewed content and " +
-						"landing coordination immediately before integration. Retain " +
-						"canonicalRoot, beadsDb, run/task IDs, source commits, review receipt " +
-						"and integration evidence outside the feature checkout. Preserve " +
-						"unpublished tracker data. Recheck base/head, checks and review " +
-						"freshness; new content or a moved base requires retriage, diagnosed " +
-						"defects/conflicts require changes, and new PR feedback requires " +
-						"feedback. Never integrate tracker/state.\n\nFor a worktree target, run " +
-						"honeycomb -h and follow its configured finish policy; do not bypass " +
-						"a refusal with raw merging. For a PR target, re-fetch readiness and " +
-						"merge via gh using the repository's configured strategy/queue and an " +
-						"expected-head check. Never use admin bypass. An enqueued/auto-merge " +
-						"request is not completed integration: keep this task open until " +
-						"GitHub confirms the actual merge commit. If the work already " +
-						"integrated, verify that result instead of merging twice. Record the " +
-						"actual integration commit and source-to-integrated correspondence, " +
-						"including concise squash/rebase evidence, in bead comments. Close with next " +
-						"only once integration is proven. Refusals and external blockers stay " +
-						"open with diagnostics.\n\nIf the feature checkout disappears, deliver " +
-						"the saved stage result from the surviving canonical checkout with retained " +
-						"BEADS_DB using the installed busybee or bun run --silent busybee. " +
-						"The same named land definition must exist unchanged there; " +
-						"changed-definition resumption is unsupported. Verify that " +
-						"availability before an operation that removes the source checkout.\n\n" +
-						`${retainedContext(context)}`,
+						"Reconfirm user authorization, reviewed content, current base/head, checks and landing " +
+						"coordination. Retain canonicalRoot, beadsDb, source commits, review receipt and evidence outside " +
+						"the feature checkout. Never integrate tracker/state. Changed content/base needs retriage, " +
+						"defects/conflicts need changes, and new PR feedback needs feedback. For worktrees, read " +
+						"honeycomb finish --help and follow its policy without bypassing refusals. For PRs, merge through " +
+						"gh with the configured strategy/queue and expected-head check; no admin bypass. Wait for the " +
+						"actual merge commit: enqueuing is not completion. If already integrated, verify instead of " +
+						"repeating it. Record integration and source correspondence, including squash/rebase proof, " +
+						"before next. Before removing the checkout, verify the same Land definition remains available in " +
+						"canonicalRoot; deliver subsequent results there using the retained BEADS_DB. External blockers " +
+						"remain open with diagnostics. " +
+						`\n\n${retainedContext(context)}`,
 				}),
 			},
 			on: {
@@ -450,22 +390,14 @@ export const machine = setup({
 				task: ({ context }: { context: LandingContext }) => ({
 					title: `Verify integration and clean up the worktree: ${targetTitle(context)}`,
 					instructions:
-						"From the surviving canonical checkout and retained tracker endpoint, " +
-						"fetch and verify clean synchronized main contains the intended " +
-						"change. Use recorded source commits, final commit evidence and the " +
-						"actual integration commit; squash/rebase landing requires content/PR " +
-						"correspondence, not ancestry of source SHAs. Run `bun run check` on " +
-						"the integrated result. A defect after integration is not permission " +
-						"to rewrite main: keep this task open, record it and agree a forward " +
-						"fix or revert.\n\nVerify Honeycomb feature cleanup; if it remains " +
-						"after PR merge or a finish policy retains it, use honeycomb remove " +
-						"with integration proof (including --integrated-into origin/main for " +
-						"squash merges) rather than finishing again or force-deleting. If " +
-						"already removed, verify that fact. Preserve the permanent tracker " +
-						"checkout/branch, unrelated worktrees and others' dirty files. " +
-						"Missing work, failed checks, dirty canonical state or incomplete " +
-						"intended cleanup blocks closure. Record commands, integration and " +
-						`cleanup evidence before next.\n\n${retainedContext(context)}`,
+						"From the retained canonical checkout/tracker, fetch and verify clean synchronized main contains " +
+						"the change. Use recorded commits and content/PR correspondence for squash/rebase integration. " +
+						"Run bun run check on the integrated result. A defect requires an agreed forward fix or revert; " +
+						"leave this task open. Verify feature-worktree cleanup, using honeycomb remove --help with " +
+						"integration proof if needed, including --integrated-into origin/main for squash merges. Preserve " +
+						"the permanent tracker, unrelated worktrees and dirty files. Record integration/check/cleanup " +
+						"proof before next; incomplete verification or cleanup blocks closure. " +
+						`\n\n${retainedContext(context)}`,
 				}),
 			},
 			on: {
@@ -520,19 +452,13 @@ export const machine = setup({
 				task: ({ context }: { context: LandingContext }) => ({
 					title: `Record landing completion evidence: ${targetTitle(context)}`,
 					instructions:
-						"From a surviving configured code checkout retain beadsDb via " +
-						"BEADS_DB or native --db. Record integration commits, review receipt, " +
-						"passing checks, local build/install verification, cleanup and per-task " +
-						"acceptance evidence in comments " +
-						"on this stage, the run and the authorized completedTasks. Identify " +
-						"which task closures are proven and any tasks that must remain open. " +
-						"The structural parent does not expand completedTasks; broader parents " +
-						"with unrelated children or unfinished acceptance remain open. " +
-						"Keep external tasks open until Busy Bee reports this run done. " +
-						"Updates and stage handoffs stay local; final publication belongs to " +
-						"the caller afterward. Verify this evidence in the selected tracker " +
-						"and canonical main is clean and synchronized. A refused evidence " +
-						`update keeps this task open.\n\n${retainedContext(context)}`,
+						"Record integration commits, review receipt, checks, local build/install, cleanup and per-task " +
+						"acceptance in comments on this stage, the run and the authorized completedTasks. Verify the " +
+						"saved evidence through retained beadsDb and clean synchronized canonical main. Identify proven " +
+						"closures and work that must remain open; containment does not expand authorization. Keep " +
+						"external tasks open until Busy Bee reports this run done. Follow the run brief for the caller's " +
+						"later closure/publication. A refused evidence update keeps this task open. " +
+						`\n\n${retainedContext(context)}`,
 				}),
 			},
 			on: {
@@ -546,18 +472,12 @@ export const machine = setup({
 				task: ({ context }: { context: LandingContext }) => ({
 					title: `Deliver the landing report to the caller: ${targetTitle(context)}`,
 					instructions:
-						"Record what landed, integration/source commits, review receipt, " +
-						"verification, local update, cleanup and unresolved work in comments on this stage " +
-						"and the run. State which authorized tasks are proven complete; task " +
-						"closure and final publication remain the caller's post-done work. " +
-						"Distinguish simulated traversal from actual integration. Validate " +
-						"and save the next outcome with busybee record-result before closing " +
-						"this stage. A Bee-dispatched stage worker reports its own completion " +
-						"and leaves collection to the driver; it neither navigates nor closes " +
-						"the run. The standalone caller or Land driver collects the saved result; " +
-						"Busy Bee then closes its run. The caller reads the retained run " +
-						"brief and comments to perform the post-done tail and final report.\n\n" +
-						`${retainedContext(context)}`,
+						"Deliver a concise landing report citing the retained evidence: what landed, source/integration " +
+						"commits, review, checks, local installation, cleanup and unresolved work. Distinguish simulation " +
+						"from actual integration. A dispatched worker leaves collection to the driver; it neither " +
+						"navigates nor closes the run. The caller reads the retained run brief and comments to perform " +
+						"the post-done tail and final report. " +
+						`\n\n${retainedContext(context)}`,
 				}),
 			},
 			on: {
@@ -577,8 +497,6 @@ Canonical checkout: ${context.canonicalRoot}
 Selected BEADS_DB: ${context.beadsDb}
 Known starting commits: ${context.expectedCommits.join(", ") || "None yet; record final commits before integration"}
 Authorized task scope: ${context.completedTasks.join(", ") || "No task closures requested"}
-Stage delivery: comment with evidence, record-result, then close only the assigned visit.
-The caller/driver collects; Bee-dispatched stage workers leave navigation and run closure to the driver and Busy Bee.
 Local review receipt: ${JSON.stringify(context.review ?? "No current approval")}
 Previous assessment (full evidence remains on preceding task beads): ${context.evidence}`;
 }

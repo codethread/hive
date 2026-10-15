@@ -1,6 +1,6 @@
 # Beads labels
 
-Use labels for classification and supported routing, not as a second issue schema. This is Hive's label vocabulary for ordinary tasks and specialist evidence records; `br` accepts other strings, but that does not give them behavior or write authority in Hive. Spawn requests have the separate representation described below; do not add those labels to ordinary beads.
+Use labels for classification and supported routing, not as a second issue schema. This is Hive's label vocabulary for ordinary tasks, merge beads and specialist evidence records; `br` accepts other strings, but that does not give them behavior or write authority in Hive. Spawn requests have the separate representation described below; do not add those labels to ordinary beads.
 
 ## Spawn request representation
 
@@ -12,13 +12,14 @@ Timestamped `Colony observation:` comments record minimal last-observed facts; l
 
 ## Taxonomy
 
-> [!info] For ordinary tasks and evidence records, use only the labels below within their stated scope and authority.
+> [!info] For ordinary tasks, merge beads and evidence records, use only the labels below within their stated scope and authority.
 
 | Labels | Cardinality | Meaning and consumer |
 | --- | --- | --- |
 | `system` | Reserved marker | Automation-owned beads excluded from ordinary work by the `work` viewer recipe. Ordinary agents must not read, claim, modify, or execute these beads; access requires an explicit Bee/Colony operation or system-maintenance/debugging assignment. |
 | `hitl` | Marker | Human in the loop: the bead must be worked in tandem with the user, such as design work that needs their decisions. Bee refuses these tasks for autonomous execution; an agent works them only in a session with the user, confirming decisions as it goes. This is not a handoff: assigning `ct` hands work to the user, while `hitl` keeps an agent working with them. |
-| `response` | Filed response records only | Immutable closed `docs` artifacts published by an authorized producer through Bee, linked nonblockingly to their producing task and managed request when present. No assignment or parent; never executable work. Any authorized producer may file its own response; this marker grants no `evidence:*` stewardship. See the [response protocol](./agents/responses.md). |
+| `response` | Filed response records only | Marks [filed responses](./agents/responses.md). Any authorized producer may publish its own; this grants no `evidence:*` stewardship. |
+| `merge` | Merge beads only | Identifies a provider-neutral merge-request reference for task lookup and linked UI presentation. Ordinary agents authorized to create or maintain the merge bead may apply this label; it is not specialist-owned or automation-reserved. Follow the [merge bead contract](./beads-meta.md#merge-beads). |
 | `area:shared`, `area:colony`, `area:honeycomb`, `area:tooling` | Zero or more | Classify affected Hive packages for filtering; these labels do not select a runner, block work, or enforce policy. Use multiple only for genuinely cross-package work; omit for repository-wide work without a package scope. |
 | `evidence:architecture` | Evidence records only | Index structured architectural history for librarian retrieval and review. Only the registered specialist below may add or remove it; it is not a runner, approval, or work-status label. |
 

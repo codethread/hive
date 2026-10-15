@@ -20,6 +20,8 @@ Explore existing conventions, helpers and modules; plan the approach; then build
 
 Use Bee for repository subagents. Before delegating, follow the [specialist protocol](docs/agents/specialists.md) for discovery, workflow assignment and evidence.
 
+Delegate repository prose writing and review to `bookworm`, supplying the context required by that protocol.
+
 ## Packages
 
 - `lib/beads` — the consumed Beads contract, native adapter and in-memory test adapter.
@@ -73,6 +75,8 @@ When terminology or design decisions matter to the task, follow [domain guidance
 Use repo-local Beads (`br`) from the checkout root to track implementation, not harness todos or Markdown task files.
 
 Request only fields needed for the next decision; prefer native `--fields`/`--brief` over `jq` for summaries. See [low-noise reads and receipts](docs/beads-meta.md#progressive-disclosure-and-output-cost) when composing output filters.
+
+When creating a draft/open merge request, finding a task's merge request, or recording its resolution, follow the [merge bead contract](docs/beads-meta.md#merge-beads). Merge beads are reference records, exempt from the task claim/execute lifecycle below; exclude `merge` when selecting executable work.
 
 Use `in_review` only for completed work awaiting the user's attention when the user requested review; agent-to-agent review remains `in_progress`, and `blocked` indicates an active blocker.
 

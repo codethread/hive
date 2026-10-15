@@ -89,9 +89,11 @@ Notes:
   rebase_ff, squash, and merge_commit. The squash strategy requires --title and
   writes a commit body from --body, the source branch, and every source commit
   message; other strategies reject --title and --body.
-  Squash/merge previews require built-in ort: nonempty target branch mergeOptions,
-  pull.twohead other than ort, or any external merge driver definition are refused.
-  Remove the reported setting or integrate manually. Git hooks remain enabled;
+  Squash/merge previews require built-in ort: nonempty target branch mergeOptions
+  and pull.twohead other than ort are refused. Preview replaces custom merge driver
+  commands with a fatal refusal: unused drivers are allowed, but a merge needing
+  a custom driver returns blocked without running it, including recursive bases. Integration retains the
+  configured drivers. Git hooks remain enabled;
   commit-hook failures can leave cleanly merged changes staged.
 
 Cleanup:

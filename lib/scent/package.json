@@ -1,0 +1,25 @@
+{
+	"name": "@hive/scent",
+	"version": "0.0.0",
+	"private": true,
+	"type": "module",
+	"exports": {
+		".": "./src/identity.ts",
+		"./pi": "./pi.ts"
+	},
+	"scripts": {
+		"typecheck": "tsc --noEmit",
+		"test": "bun test ./tests"
+	},
+	"dependencies": {
+		"unique-names-generator": "4.7.1"
+	},
+	"peerDependencies": {
+		"@earendil-works/pi-coding-agent": "1.2.0"
+	},
+	"pi": {
+		"extensions": [
+			"./pi.ts"
+		]
+	}
+}

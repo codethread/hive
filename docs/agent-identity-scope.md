@@ -1,14 +1,14 @@
 # Agent identity: MVP scope
 
-This preserves the native identity scope agreed on 2026-10-03 for `hv-3x8`, while distinguishing the implemented Bee/Colony system from the remaining Scent work. Scent's native session and child hooks are still planned. Bee and Colony are implemented under `hv-e8i`; their current commands, scheduling and recovery behavior are documented in the [guide](../lib/colony/README.md) and [architecture](./architecture.md).
+This preserves the native identity scope agreed on 2026-10-03 for `hv-3x8`, while distinguishing the implemented Bee/Colony system from the remaining Scent work. Scent implements native Pi 1.2.0 session attribution; Claude/Codex and native-child hooks remain planned. Bee and Colony are implemented under `hv-e8i`; their current commands, scheduling and recovery behavior are documented in the [guide](../lib/colony/README.md) and [architecture](./architecture.md).
 
 The [harness capability contract](./harness-capabilities.md) keeps dated upstream observations separate from current Hive verification. Terms follow the [glossary](../GLOSSARY.md). Repository contributors continue to follow the root `AGENTS.md` actor rules; Colony workers receive their captured friendly identity through the launcher.
 
-## Planned native identity paths
+## Native identity paths
 
-| Runtime surface | Planned attribution | Boundary |
+| Runtime surface | Attribution | Boundary |
 | --- | --- | --- |
-| Native Pi session | Extension sets identity environment variables and composes identity into the system prompt on every agent run | Each handler preserves the prompt it receives; a base-prompt renderer runs before appenders |
+| Native Pi 1.2.0 session | Scent exports identity to tool environment and contributes one named `scent` prompt section on each agent run | Uses `systemPromptOptions.sections`; preserves other named sections |
 | Primary Claude Code session | SessionStart writes quoted identity exports to the session environment file and adds identity context | These exports are shared with native subagent Bash calls |
 | Native Codex session | Identity context directs every tracker mutation to use `--actor <own-friendly-name>` | Hooks cannot export dynamically minted identity into later tool shells |
 | Native Claude Code or Codex subagent | Child identity context uses the same explicit actor guidance as native Codex | Use the distinct `agent_id`, not the shared parent/root `session_id`; leave the parent's environment unchanged |
@@ -20,7 +20,7 @@ Pi's per-run prompt composition is ordinary supported API behavior. It can keep 
 
 ## Lifecycle boundary
 
-These rows describe intended Hive behavior, not completed adapter verification. A changed session ID alone is insufficient to classify an event as a nested child.
+These rows describe the shared lifecycle contract. Native Pi is implemented; other adapters remain planned. A changed session ID alone is insufficient to classify an event as a nested child.
 
 | Transition | Meaning | MVP behavior |
 | --- | --- | --- |
@@ -64,9 +64,9 @@ Colony owns the CLI and runtime in one package. Bee remains the request interfac
 | `lib/beads` | Consumed native Beads contract and injected native/in-memory adapters |
 | `lib/shared` | Shared recipes, formulas, spawn-request representation and protocol |
 | `lib/honeycomb` | Git worktree manager and canonical-root discovery |
-| Scent (planned) | Native session/child identity hooks and Pi extension; independent of `.hive/bees.toml` |
+| `lib/scent` | Reusable identity resolver and native Pi 1.2.0 extension; independent of `.hive/bees.toml`. Other adapters and child hooks remain planned |
 
-The following session-based identity bindings remain Scent design requirements. Current Bee names are minted at submission or supplied by the requester; execution attempts retain that name.
+The following bindings define the shared identity direction; Pi implements name, actor, current session and best-effort metadata. Parent attribution remains outside the Pi slice. Current Bee names are minted at submission or supplied by the requester; execution attempts retain that name.
 
 Friendly names are recorded as actors. Native sessions use their harness session ID as the mint seed; native subagents use a distinct child key; bees receive a name minted at spawn. A separately launched nested CLI, such as `pi --print` run by Claude, gets its own friendly name and records its parent. Claude Code and Codex native children expose a distinct agent ID while retaining the parent/root session ID, so their attribution uses explicit actor guidance.
 
@@ -92,4 +92,6 @@ Spawn beads carry the exact labels `system`, `bee` and `agent:<kind>`, a friendl
 - `hv-3x8.14`: stable Pi composition verified with two handlers over three independent runs; final explicit-attribution decision for native Claude/Codex subagents. End-to-end child tracker attribution remains unimplemented.
 - `hv-3x8.1` and `hv-3x8.3`: database discovery and detached-launch findings. Current repository tracker setup is documented in [Beads integration](./beads-integration.md); older spike recommendations are historical evidence, not current configuration instructions.
 
-The adapters still need to demonstrate stale-state cleanup, target-session resume, compaction continuity and parent/child attribution isolation. Production Scent hook trust and installation remain implementation work. Colony recovery and observed-descendant ownership are implemented and tested separately; their limitations are documented in the guide. Expanding scope requires updating this reference and the capability matrix with the reason and evidence; it does not silently turn an unverified path into a supported one.
+Native Pi now has a [focused installation path](../lib/scent/README.md) for attribution, lifecycle and prompt composition. Claude/Codex adapters and parent/child attribution isolation remain implementation work. Colony recovery and observed-descendant ownership are implemented and tested separately; their limitations are documented in the guide. Expanding scope requires updating this reference and the capability matrix with the reason and evidence; it does not silently turn an unverified path into a supported one.
+
+Native Pi adopts a supplied `HIVE_AGENT_NAME` when there is no inherited Scent session binding. Bee clears `HIVE_AGENT_SESSION` while supplying its own name, for both interactive and managed launch paths. Scent records `HIVE_AGENT_SOURCE=bee` and rebinds that supplied identity on conversation changes, including when Pi recreates extensions. Native resolution records `HIVE_AGENT_SOURCE=native`. A populated inherited binding without Bee provenance is native Scent state and is replaced from the actual target session key. `HIVE_AGENT_SOURCE=bee` takes precedence over that binding and preserves the supplied name and kind when extensions are recreated. Native Pi adds no parent or ancestry inference.

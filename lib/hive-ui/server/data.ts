@@ -10,6 +10,7 @@ import type {
 	Detail,
 	Hierarchy,
 	InventoryFilter,
+	MergeLink,
 	Provenance,
 	RequestInventory,
 } from "../contracts.ts";
@@ -32,6 +33,7 @@ import {
 import { PAGE_SIZE, RELATION_LIMIT, REQUEST_PAGE_SIZE } from "../contracts.ts";
 import { beadFamilies, branchRows } from "../hierarchy.ts";
 import { formatBeadsQuery } from "@hive/beads";
+import { mergeLink } from "./merges.ts";
 import { readHierarchy } from "./hierarchy.ts";
 import { taskSelection } from "./query.ts";
 import { z } from "zod";
@@ -120,8 +122,14 @@ export function createBoardData() {
 				assignments = open.bees;
 			}
 		}
-		const workflows = await workflowGeneratedBeads(context);
-		return tasks.map((task) => card(task, assignments, workflows.has(task.id)));
+		const [workflows, merges] = await Promise.all([
+			workflowGeneratedBeads(context),
+			taskMerges(context, tasks),
+		]);
+		return tasks.map((task) => ({
+			...card(task, assignments, workflows.has(task.id)),
+			merges: merges.get(task.id) ?? [],
+		}));
 	};
 	// Coalesce overlapping family reads and reuse only complete, fresh components.
 	// eslint-disable-next-line max-statements
@@ -293,12 +301,22 @@ export function createBoardData() {
 					text: comment.text,
 				})),
 				dependencies: relations(
-					bead.dependencies.filter((edge) => edge.dependency_type !== "parent-child"),
+					bead.dependencies.filter(
+						(edge) =>
+							edge.dependency_type !== "parent-child" &&
+							!summary!.merges.some((merge) => merge.id === edge.id),
+					),
 				),
 				dependents: relations(
-					bead.dependents.filter((edge) => edge.dependency_type !== "parent-child"),
+					bead.dependents.filter(
+						(edge) =>
+							edge.dependency_type !== "parent-child" &&
+							!summary!.merges.some((merge) => merge.id === edge.id),
+					),
 				),
 				description: bead.description,
+				design: bead.design,
+				notes: bead.notes,
 				fetchedAt: new Date().toISOString(),
 			};
 		},
@@ -336,6 +354,69 @@ async function workflowGeneratedBeads(context: ReadContext): Promise<Set<string>
 		}
 	}
 	return beads;
+}
+
+/** Discover only references attached to this page; never enumerate the repository's merge history. */
+// eslint-disable-next-line max-statements -- Batch relationship hydration and candidate reads together.
+async function taskMerges(
+	context: ReadContext,
+	tasks: (SelectedBead | BeadRecord)[],
+): Promise<Map<string, MergeLink[]>> {
+	const hydrated = tasks.filter((task): task is BeadRecord => "dependencies" in task);
+	const ids = tasks
+		.filter(
+			(task) =>
+				!("dependencies" in task) && (task.dependency_count > 0 || task.dependent_count > 0),
+		)
+		.map((task) => task.id);
+	for (let offset = 0; offset < ids.length; offset += TASK_MATCH_BATCH) {
+		const batch = ids.slice(offset, offset + TASK_MATCH_BATCH);
+		// eslint-disable-next-line no-await-in-loop -- Bound native argv and process concurrency.
+		const records = await read(context, ["show", ...batch], () =>
+			context.beads.showMany(readScope(context), batch),
+		);
+		hydrated.push(...records);
+	}
+	const related = new Map(
+		hydrated.map((task) => [
+			task.id,
+			new Set(
+				[task.dependencies, task.dependents]
+					.flat()
+					.filter((edge) => edge.dependency_type === "relates-to")
+					.map((edge) => edge.id),
+			),
+		]),
+	);
+	const candidates = [
+		...new Set(Array.from(related.values(), (entries) => [...entries]).flat()),
+	].toSorted();
+	const merges = new Map<string, MergeLink>();
+	for (let offset = 0; offset < candidates.length; offset += TASK_MATCH_BATCH) {
+		const batch = candidates.slice(offset, offset + TASK_MATCH_BATCH);
+		// eslint-disable-next-line no-await-in-loop -- Read only labelled records among explicit relationship targets.
+		const records = await list(context, {
+			ids: batch,
+			labels: ["merge"],
+			all: true,
+			limit: batch.length,
+		});
+		for (const record of records) {
+			merges.set(record.id, mergeLink(record));
+		}
+	}
+	return new Map(
+		Array.from(related, ([id, entries]) => [
+			id,
+			[...entries].toSorted().flatMap((entry) => {
+				const merge = merges.get(entry);
+				if (merge === undefined) {
+					return [];
+				}
+				return [merge];
+			}),
+		]),
+	);
 }
 
 function relations(edges: BeadRecord["dependencies"]): Detail["dependencies"] {
@@ -565,6 +646,7 @@ function card(bead: BeadRow, requests: Bee[], isWorkflowGenerated: boolean): Car
 			.map(({ id, kind, stdout }) => ({ id, kind, stdout })),
 		id: bead.id,
 		isWorkflowGenerated,
+		merges: [],
 		labels: bead.labels,
 		priority: bead.priority,
 		status: bead.status,

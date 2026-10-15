@@ -9,12 +9,12 @@ import {
 	inputSchema as doWorkSchema,
 } from "../../../../.workflows/do-work/workflow.ts";
 import { navigate, prepareDriver, recordResult, start } from "../../src/runtime.ts";
+import { renderResponseInstructions, spawnRequestLabels } from "@hive/shared";
 import type { Definition } from "../../src/definition.ts";
 import type { Services } from "../../src/native.ts";
 import { createMemoryBeads } from "@hive/beads";
 import { invoke } from "./support.ts";
 import { readCheckpoint } from "../../src/checkpoint.ts";
-import { spawnRequestLabels } from "@hive/shared";
 import { z } from "zod";
 
 const FIRST = 0;
@@ -144,7 +144,7 @@ test("default author distinguishes the run while preserving the actual stage ass
 	]);
 	const stage = await defaultRun.beads.show(scope, defaultRun.run.active[FIRST]!.bead);
 	expect(stage.dependencies).toMatchObject([{ id: root.id, dependency_type: "parent-child" }]);
-	expect(stage.description).toContain(`bee response publish ${root.id} --body-file FILE --json`);
+	expect(stage.description).toContain(renderResponseInstructions({ taskId: root.id }));
 });
 
 // Compile the injected chart/checkpoint schemas and CLI boundary once before measured cases.
@@ -569,11 +569,11 @@ describe("Bee-dispatched stage coordination", () => {
 			]),
 		);
 		const prompt = calls[FIRST]![calls[FIRST]!.indexOf("--prompt") + ONE]!;
-		expect(prompt).toContain(`bee response publish ${stage.bead} --body-file FILE --json`);
-		expect(prompt).not.toContain(`bee response publish ${run.id} `);
+		expect(prompt).toContain(renderResponseInstructions({ taskId: stage.bead }));
+		expect(prompt).not.toContain(renderResponseInstructions({ taskId: run.id }));
 		const task = await dispatch.beads.show(scope, stage.bead);
-		expect(task.description).toContain("bee response publish TASK_ID --body-file FILE --json");
-		expect(task.description).not.toContain(`bee response publish ${run.id} `);
+		expect(task.description).toContain(renderResponseInstructions({ taskId: "TASK_ID" }));
+		expect(task.description).not.toContain(renderResponseInstructions({ taskId: run.id }));
 	});
 
 	test.each(["blocked", "cancelled"])(

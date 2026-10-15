@@ -391,7 +391,7 @@ The `squash` strategy requires `--title` and accepts an optional `--body`. The s
 
 Finish checks conflicts before changing canonical, including before `fresh_canonical` advancement. Merge conflicts preserve canonical HEAD, index and worktree and prevent push/cleanup. With `rebase_ff`, conflicts remain in the source checkout; resolve them there or run `git rebase --abort`.
 
-Squash and merge previews require Git's built-in `ort` strategy: nonempty target `branch.<name>.mergeOptions`, `pull.twohead` other than `ort`, and any external `merge.<name>.driver` definition are refused, even if the driver is unused. Remove the reported setting or integrate manually. Git hooks still run; a commit-hook failure can leave cleanly merged changes staged. See the [finish contract](devflow/specs/git-worktrees.md#finish-lifecycle).
+Squash and merge previews require Git's built-in `ort` strategy: nonempty target `branch.<name>.mergeOptions` and `pull.twohead` other than `ort` are refused. During preview, configured custom merge driver commands are replaced by a diagnostic and fatal shell exit using per-invocation Git configuration. Unused drivers are allowed; a merge that needs a custom driver returns `blocked` without executing that driver, including during recursive merge-base calculation. Repository configuration and the drivers used by actual integration remain unchanged. Git hooks still run; a commit-hook failure can leave cleanly merged changes staged. See the [finish contract](devflow/specs/git-worktrees.md#finish-lifecycle).
 
 ## Shell picker
 

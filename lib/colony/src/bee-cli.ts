@@ -365,7 +365,8 @@ function responseCommands(program: Command, argv: string[], deps: BeeDependencie
 	inspectionOptions(
 		response
 			.command("publish <task>")
-			.description("File complete Markdown as an immutable response"),
+			.description("File complete Markdown as an immutable response")
+			.addHelpText("after", HELP.responsePublish),
 	)
 		.requiredOption("--body-file <file>", "Complete authored Markdown, preserved verbatim")
 		.requiredOption(
@@ -386,7 +387,10 @@ function responseCommands(program: Command, argv: string[], deps: BeeDependencie
 			write(await deps.responsePublish(task, options)),
 		);
 	inspectionOptions(
-		response.command("get [response]").description("Read a full exact response or resolve --task"),
+		response
+			.command("get [response]")
+			.description("Read a full exact response or resolve --task")
+			.addHelpText("after", HELP.responseGet),
 	)
 		.option("--task <id>", "Resolve this producing task instead of an exact response ID")
 		.option("--request <id>", "Resolve only this exact request lineage (requires --task)")
@@ -396,7 +400,8 @@ function responseCommands(program: Command, argv: string[], deps: BeeDependencie
 	responsePageOptions(
 		response
 			.command("search <query>")
-			.description("Bounded response-record or legacy-source candidates"),
+			.description("Bounded response-record or historical-source candidates")
+			.addHelpText("after", HELP.responseSearch),
 	)
 		.option(
 			"--source <source>",
@@ -409,7 +414,8 @@ function responseCommands(program: Command, argv: string[], deps: BeeDependencie
 	responsePageOptions(
 		response
 			.command("history <task>")
-			.description("Explicit original comments or notes; never inferred final results"),
+			.description("Explicit original comments or notes; never inferred final results")
+			.addHelpText("after", HELP.responseHistory),
 	)
 		.option(
 			"--source <source>",

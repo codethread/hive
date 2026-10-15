@@ -108,7 +108,8 @@ export function loadInventory(
 		refreshAfter > 0,
 	);
 }
-export function loadDetail(
+/** Selected detail identifies reference records before any ordinary-task family read. */
+export async function loadBead(
 	colony: string,
 	id: string,
 	options: { scope: BoardScope; refreshAfter?: number },
@@ -117,11 +118,16 @@ export function loadDetail(
 		refreshAfter: String(options.refreshAfter ?? 0),
 		scope: JSON.stringify(options.scope),
 	});
-	return details.load(
-		detailKey(colony, id, options.scope),
+	const key = detailKey(colony, id, options.scope);
+	await details.load(
+		key,
 		`/api/colonies/${colony}/beads/${encodeURIComponent(id)}?${search}`,
 		(options.refreshAfter ?? 0) > 0,
 	);
+	const resource = details.store.getState().entries[key];
+	if (resource?.kind === "ready" && !resource.data.card.labels.includes("merge")) {
+		await loadHierarchy(colony, [id], options.refreshAfter ?? 0);
+	}
 }
 export function loadHierarchy(colony: string, ids: string[], refreshAfter = 0): Promise<void> {
 	const key = hierarchyKey(colony, ids);
@@ -190,10 +196,7 @@ export async function loadView(
 		}
 	}
 	if (changed.bead && navigation.bead !== undefined) {
-		work.push(
-			loadHierarchy(colony, [navigation.bead], refreshAfter),
-			loadDetail(colony, navigation.bead, { refreshAfter, scope }),
-		);
+		work.push(loadBead(colony, navigation.bead, { refreshAfter, scope }));
 	}
 	if (changed.ancestry && keys.ancestry !== "" && navigation.ancestry !== undefined) {
 		work.push(loadProvenance(colony, navigation.ancestry, fresh));

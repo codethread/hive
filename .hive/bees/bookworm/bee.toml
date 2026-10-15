@@ -1,0 +1,5 @@
+name = "bookworm"
+description = "mutation-scope: mutating; Own all repository prose writing and review, including docs, prompts, CLI help and prose embedded in code. Delegate prose changes here with the original request, exact files, verified facts and constraints. Edits within scope during review."
+harness = "codex"
+model = "gpt-6-astra"
+effort = "xhigh"

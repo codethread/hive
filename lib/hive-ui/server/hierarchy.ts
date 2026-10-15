@@ -39,7 +39,10 @@ export async function readHierarchy(
 			visited.add(id);
 		}
 		const ordinary = rows.filter(
-			(row) => !row.labels.includes("system") && !row.labels.includes("bee"),
+			(row) =>
+				!row.labels.includes("system") &&
+				!row.labels.includes("bee") &&
+				!row.labels.includes("merge"),
 		);
 		for (let offset = 0; offset < ordinary.length; offset += EDGE_CONCURRENCY) {
 			const group = ordinary.slice(offset, offset + EDGE_CONCURRENCY);

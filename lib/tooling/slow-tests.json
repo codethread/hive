@@ -248,6 +248,22 @@
 		"#test-64": {
 			"threshold": "SLOW",
 			"justification": "ct approved retaining the measured Busy Bee slow cases after the per-file pyramid refactor on 2026-10-13. lib/busybee/tests/unit/compatibility.test.ts: 1.2.3+old can resume 1.2.3+new: true. Three fresh-process cold samples measured median 0.706ms, maximum 1.464ms. Retains this coherent behavior at its assessed cheapest faithful surface; real XState/native/import contracts are not mocked away. No timeout or global cutoff change."
+		},
+		"#test-65": {
+			"threshold": "SLOW",
+			"justification": "Preserves the complete immutable publication/readback, nonblocking links and unchanged producer/readiness trace against the validated in-memory Beads adapter. Fresh isolated post-fixture-refactor samples: 2.14/3.87/1.91ms; changed suite 3.183ms; full check 1.458ms. Producer setup is outside the test; schemas and publication remain cold. SLOW allows only through 5ms."
+		},
+		"#test-66": {
+			"threshold": "SLOW",
+			"justification": "Preserves repeat identity, rejected implicit correction, explicit immutable correction and exact historical reads as one coherent storage-policy trace. Fresh isolated samples: 1.79/0.93/0.89ms after fresh producer setup; repeated real parsing, readback and correction selection remain under test. SLOW allows only through 5ms."
+		},
+		"#test-67": {
+			"threshold": "SLOW",
+			"justification": "Preserves deterministic concurrent publication, explicit ambiguity, rejected partial correction and complete-head correction through the public storage boundary. Fresh isolated samples: 1.27/0.56/0.48ms after fresh producer setup. No sleeps, warming or artificial splitting. SLOW allows only through 5ms."
+		},
+		"#test-68": {
+			"threshold": "SLOW",
+			"justification": "Preserves the table-driven driver/stage publication trace with closed completion anchor, actor validation and rejection of a different anchor through the captured-request contract. Fresh isolated driver samples: 1.41/1.23/1.14ms; stage samples: 0.28/0.28/0.27ms. The marker covers both rows of this shared test template. Request parsing remains real and cold. SLOW allows only through 5ms."
 		}
 	}
 }

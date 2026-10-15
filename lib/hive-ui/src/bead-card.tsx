@@ -2,6 +2,7 @@ import { BeeActivity, BeeAssignment, Label, WorkStatus, WorkflowIndicator, time 
 import { Link, useSearch } from "@tanstack/react-router";
 import type { Card } from "../contracts.ts";
 import { FilterableLabel } from "./filter-controls.tsx";
+import { MergeLinks } from "./merge-links.tsx";
 import { Card as SurfaceCard } from "./primitives.tsx";
 
 export function BeadCard({
@@ -26,7 +27,10 @@ export function BeadCard({
 			<div className="bead-card-content">
 				<div className="flex items-center justify-between gap-2">
 					<span className="font-mono text-[11px] text-muted">{card.id}</span>
-					{!compact && <Label>P{card.priority}</Label>}
+					<div className="flex items-center gap-1">
+						<MergeLinks merges={card.merges} />
+						{!compact && <Label>P{card.priority}</Label>}
+					</div>
 				</div>
 				{showStatus && <WorkStatus status={card.status} />}
 				<h3 className="bead-card-title">

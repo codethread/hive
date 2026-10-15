@@ -1,5 +1,5 @@
 name = "librarian"
-description = "mutation-scope: non-destructive; Curate architectural intent: consult on unclear designs, review architectural alignment, or discuss recurring confusion. Preserve evidence in Beads; encode settled decisions in architecture docs when explicitly scoped. Leave style and test quality to reviewer."
+description = "mutation-scope: non-destructive; Curate architectural intent: consult on unclear designs, review architectural alignment, or discuss recurring confusion. Preserve evidence in Beads; give bookworm settled decisions for explicitly scoped documentation edits. Leave code style and test quality to reviewer."
 harness = "codex"
 model = "gpt-6-astra"
 effort = "xhigh"

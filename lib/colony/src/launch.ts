@@ -226,84 +226,30 @@ export function renderExecutionRecipe({
 	recipe,
 	taskIds,
 }: Pick<SpawnRequest, "assignment" | "recipe" | "taskIds">): Recipe {
-	const blocked =
-		"If blocked, complete all possible work, record the blocker and required next " +
-		"action on unfinished tasks, leave them unclosed, then call bee finish blocked " +
-		'--reason "<unfinished task, blocker and required next action>".';
 	const protocol = match(scope)
 		.with(
 			{ kind: "driver" },
-			(assignment) =>
-				"Coordinate the existing Busy Bee workflow run " +
-				`${assignment.runId}` +
-				". Read its instructions and acceptance criteria, then use busybee show " +
-				`${assignment.runId}` +
-				" --json and busybee discover " +
-				`${assignment.runId}` +
-				" --json to inspect the active visits, choices and payload schemas. Resume this " +
-				"run; do not start another run on retry.\n\nClaim, perform and verify the active " +
-				"driver-handled stages. On retry, reacquire unfinished driver-handled visits under your current " +
-				"identity, claiming only unassigned visits or your own claims. Preserve other " +
-				"identities and human/HITL reservations; record a blocker instead of replacing " +
-				"their assignments. Before closing each driver-handled stage, use busybee record-result " +
-				`${assignment.runId}` +
-				" STAGE CHOICE --data-file FILE to validate and persist its selected outcome and " +
-				'original payload as {"choice":"<outcome>","data":{...}}. Comment on that stage ' +
-				"with concise deliverable references and verification evidence, then close it only when its " +
-				"acceptance criteria and child work are satisfied. Use busybee collect " +
-				`${assignment.runId}` +
-				" --json to consume saved closed-stage results, including interrupted driver-handled " +
-				"deliveries and Bee-dispatched worker results. Standalone explicit navigation is " +
-				"available through busybee next " +
-				`${assignment.runId}` +
-				" STAGE and busybee choice " +
-				`${assignment.runId}` +
-				" STAGE CHOICE --data-file FILE. Do not redo closed work. Bee-dispatched workers own " +
-				"their assigned stages; collect their results without taking their " +
-				"claims.\n\nRemain running while Bee-dispatched work is pending; waiting consumes " +
-				"ordinary quota. If waiting drivers starve the pool, the user must increase the " +
-				"relevant limits.\n\nBusy Bee alone closes grouping beads and the run. Never " +
-				"manually close run " +
-				`${assignment.runId}` +
-				". Publish one final run response containing your full answer or meaningful synthesis. " +
-				"Read worker responses explicitly with bee result REQUEST --json or bee response get " +
-				"RESPONSE_ID --json; cite their response IDs when synthesizing. For a one-stage run, " +
-				"publish the full result against the run before closing the last stage so it can cite " +
-				"that response ID. Comment on the run with concise delivery and verification evidence " +
-				"and its response ID, and call bee finish success only after Busy Bee reports status " +
-				"done.\n\nAdditional task beads " +
-				"for work within this workflow must have " +
-				`${assignment.runId}` +
-				" as their native parent. Independent delegation remains separate; obtain any " +
-				"required delegated results before completing the workflow.",
+			({ runId }) =>
+				`Coordinate existing Busy Bee run ${runId}; resume it on retry. Read its brief, ` +
+				`busybee show ${runId} --json and busybee discover ${runId} --json. ` +
+				"Follow the active stage briefs. Claim only unassigned or self-owned driver-handled " +
+				"visits; preserve other identities and human/HITL reservations. Collect saved " +
+				`closed-stage results with busybee collect ${runId} --json, including interrupted ` +
+				"deliveries. Read busybee --help for options. Bee-dispatched workers own " +
+				"their stage claims; read their responses for your final synthesis.\n\n" +
+				"Remain running while workers are pending. Waiting uses ordinary quota; ask the " +
+				"user to raise limits if drivers starve workers. Busy Bee alone closes groups and " +
+				"the run. Follow any caller completion instructions in the run brief before " +
+				"bee finish success; the run must report done.",
 		)
 		.with(
 			{ kind: "stage" },
-			(assignment) =>
-				"Perform only the assigned Bee-dispatched visit " +
-				`${assignment.stageId}` +
-				" in Busy Bee run " +
-				`${assignment.runId}` +
-				". Read its full instructions, acceptance criteria and result schema. Do and " +
-				"verify that work, then publish and verify your stage response before using busybee record-result " +
-				`${assignment.runId}` +
-				" " +
-				`${assignment.stageId}` +
-				" CHOICE --data-file FILE to validate and save the selected choice and original " +
-				'payload as {"choice":"<outcome>","data":{...}}, before closing the stage. ' +
-				"Comment on " +
-				`${assignment.stageId}` +
-				" with concise deliverable references, your response ID and verification evidence. " +
-				"Close only your assigned stage " +
-				"after satisfying its acceptance criteria and child work, then call bee finish " +
-				"success.\n\nNever navigate the workflow: do not call busybee next, choice or " +
-				"collect, do not create another run, and do not close grouping beads or run " +
-				`${assignment.runId}` +
-				". The workflow driver collects your saved result and Busy Bee advances the " +
-				"run.\n\nAdditional task beads for work within this workflow must have " +
-				`${assignment.runId}` +
-				" as their native parent. Independent delegation remains separate; obtain any " +
-				"required delegated results before closing your stage.",
+			({ stageId, runId }) =>
+				`Perform only Bee-dispatched stage ${stageId} in run ${runId}. Read its full ` +
+				"brief, acceptance criteria and result schema; follow its delivery and closure " +
+				"instructions. The driver collects your saved result and Busy Bee advances the " +
+				"workflow; leave navigation and group/run closure to them. Report bee finish " +
+				"success only after your stage and its required child work are complete.",
 		)
 		.exhaustive();
 	const taskId = match(scope)
@@ -316,7 +262,8 @@ export function renderExecutionRecipe({
 			recipe.prompt,
 			protocol,
 			renderResponseInstructions({ taskId }),
-			blocked,
+			`Additional work within this workflow belongs beneath run ${scope.runId}. ` +
+				"Independent delegation stays separate; obtain required results before completion.",
 			`Related tasks: ${taskIds.join(", ")}`,
 		]
 			.filter(Boolean)

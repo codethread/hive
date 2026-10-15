@@ -10,6 +10,7 @@
 	--color-ink: var(--ink);
 	--color-muted: var(--muted);
 	--color-accent: var(--accent);
+	--color-merged: var(--merged);
 	--color-tint: var(--tint);
 	--color-alert: var(--alert);
 	--color-active: var(--active);
@@ -26,6 +27,7 @@
 	--ink: #e3ece1;
 	--muted: #a3b29f;
 	--accent: #c0e88c;
+	--merged: #c4a5f5;
 	--tint: #2d3d23;
 	--alert: #e3bb78;
 	--active: #f5a35c;
@@ -42,6 +44,7 @@
 	--ink: #25322b;
 	--muted: #566454;
 	--accent: #2f684a;
+	--merged: #7543a5;
 	--tint: #dce9d8;
 	--alert: #805719;
 	--active: #a94d10;
