@@ -480,7 +480,7 @@ async function readRun(
 	return readCheckpoint(record);
 }
 
-async function checkpointBead(
+export async function checkpointBead(
 	endpoint: { repo: string; db: string },
 	id: string,
 	services: Services,
@@ -513,7 +513,7 @@ async function restore(
 	return { actor, definition };
 }
 
-async function restoreDefinition(run: Run, endpoint: Endpoint, services: Services) {
+export async function restoreDefinition(run: Run, endpoint: Endpoint, services: Services) {
 	try {
 		return await loadRetainedDefinition(run, endpoint, services);
 	} catch (error) {

@@ -4,7 +4,8 @@
 	"private": true,
 	"type": "module",
 	"exports": {
-		".": "./src/index.ts"
+		".": "./src/index.ts",
+		"./workflow-preview": "./src/workflow-preview.ts"
 	},
 	"scripts": {
 		"test": "bun test --parallel --parallel-delay=0 --timeout=5000 --only-failures ./src",

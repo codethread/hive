@@ -1,14 +1,6 @@
-/* eslint-disable import/max-dependencies -- The inspector composes task resources and their metadata presentation. */
 import type { Bee, Detail, Provenance, Relation } from "../contracts.ts";
-import {
-	BeeAssignment,
-	Label,
-	OutlineLink,
-	ResourceNotice,
-	WorkflowIndicator,
-	outcomeName,
-	time,
-} from "./ui.tsx";
+/* eslint-disable import/max-dependencies -- The inspector composes task resources and their metadata presentation. */
+import { BeeAssignment, Label, OutlineLink, ResourceNotice, outcomeName, time } from "./ui.tsx";
 import {
 	EMPTY,
 	details,
@@ -25,6 +17,7 @@ import { boardScopeSchema, detailKey, hierarchyKey } from "../contracts.ts";
 import { BranchExplorer } from "./branch-explorer.tsx";
 import { FilterableLabel } from "./filter-controls.tsx";
 import { MergeLinks } from "./merge-links.tsx";
+import { WorkflowIndicator } from "./workflow-preview.tsx";
 import { hasHierarchy } from "../hierarchy.ts";
 import { useStore } from "zustand";
 
@@ -152,7 +145,10 @@ export function Inspector({ colonyId, id }: { colonyId: string; id: string }) {
 						{detail && (
 							<>
 								<h2 className="mt-6 text-2xl leading-snug font-medium">
-									<WorkflowIndicator isWorkflowGenerated={detail.card.isWorkflowGenerated} />
+									<WorkflowIndicator
+										id={detail.card.id}
+										isWorkflowGenerated={detail.card.isWorkflowGenerated}
+									/>
 									{detail.card.title}
 								</h2>
 								<div className="my-3 flex flex-wrap items-center gap-1">

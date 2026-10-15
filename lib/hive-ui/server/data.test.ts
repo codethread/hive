@@ -1,5 +1,6 @@
 import { boardFilterSchema, boardScopeSchema, inventoryFilterSchema } from "../contracts.ts";
 import { expect, test } from "bun:test";
+import { samplePreview, workflowSamples } from "../src/stories/workflow-samples.ts";
 import type { BeadsService } from "@hive/beads";
 import type { Card } from "../contracts.ts";
 import { colony } from "../src/stories/fixtures.ts";
@@ -47,12 +48,13 @@ async function workflowFixture() {
 		),
 	);
 	const visit = await beads.create(scope, { title: "Generated visit", parent: roots[0]!.id });
+	const group = await beads.create(scope, { title: "Generated group", parent: roots[0]!.id });
 	const manual = await beads.create(scope, { title: "Agent-created child", parent: roots[0]!.id });
 	await Promise.all(
 		roots.map(async (root) => {
 			const created: { bead: string }[] = [];
 			if (root.id === roots[0]!.id) {
-				created.push({ bead: visit.id });
+				created.push({ bead: visit.id }, { bead: group.id });
 			}
 			const checkpoint = await beads.create(scope, {
 				title: "Workflow system bead",
@@ -75,8 +77,9 @@ async function workflowFixture() {
 		source,
 		roots,
 		visit,
+		group,
 		manual,
-		expected: [...roots.map((root) => root.id), visit.id].toSorted(),
+		expected: [...roots.map((root) => root.id), visit.id, group.id].toSorted(),
 		context: { beads, colony, requestId: "test", log: async () => {} },
 	};
 }
@@ -146,4 +149,37 @@ test("board and inventory project cross-host attribution without requiring execu
 	if (inventory.kind === "loaded") {
 		expect(inventory.bees.map((bee) => bee.id)).toEqual([request.id]);
 	}
+});
+
+test("workflow actions resolve runs, stages and groups including closed runs", async () => {
+	const data = createBoardData();
+	const calls: string[] = [];
+	const preview = samplePreview(workflowSamples[0]!);
+	const readPreview = (selected: typeof colony, runId: string) => {
+		expect(selected).toBe(colony);
+		calls.push(runId);
+		return Promise.resolve(preview);
+	};
+	for (const bead of [...seeded.roots, seeded.visit, seeded.group]) {
+		// eslint-disable-next-line no-await-in-loop -- Preserve the public request order for distinct bead aliases.
+		expect(await data.workflow(seeded.context, bead.id, readPreview)).toBe(preview);
+	}
+	expect(calls).toEqual([
+		...seeded.roots.map((root) => root.id),
+		seeded.roots[0]!.id,
+		seeded.roots[0]!.id,
+	]);
+});
+
+test("ordinary children cannot open an ancestor workflow", async () => {
+	let calls = 0;
+	const readPreview = () => {
+		calls++;
+		return Promise.resolve(samplePreview(workflowSamples[0]!));
+	};
+	const result = await createBoardData()
+		.workflow(seeded.context, seeded.manual.id, readPreview)
+		.catch((error: unknown) => error);
+	expect(result).toBeInstanceOf(Error);
+	expect(calls).toBe(0);
 });

@@ -1,12 +1,13 @@
+import type { Board, Hierarchy } from "../contracts.ts";
 // Board composition combines column preferences, visibility and native family layout.
 /* eslint-disable import/max-dependencies */
-import type { Board, Hierarchy } from "../contracts.ts";
 import { DEFAULT_COLUMN_ORDER, columnOrders } from "./column-settings.tsx";
-import { OutlineLink, WorkflowIndicator } from "./ui.tsx";
 import { useId, useState } from "react";
 import { useParams, useSearch } from "@tanstack/react-router";
 import { BeadCard } from "./bead-card.tsx";
 import type { BoardFamily } from "../hierarchy.ts";
+import { OutlineLink } from "./ui.tsx";
+import { WorkflowIndicator } from "./workflow-preview.tsx";
 import { boardFamilies } from "../hierarchy.ts";
 import { boardStatuses } from "./column-order.ts";
 import { preferences } from "./data.ts";
@@ -150,7 +151,6 @@ function FamilyLane({ family, statuses }: { family: BoardFamily; statuses: strin
 						</svg>
 						<span className="family-id">{family.root.id}</span>
 						<span className="family-title" title={family.root.title}>
-							<WorkflowIndicator isWorkflowGenerated={family.root.isWorkflowGenerated} />
 							{family.root.title}
 						</span>
 						{collapsed && hiddenCount > 0 && (
@@ -159,6 +159,10 @@ function FamilyLane({ family, statuses }: { family: BoardFamily; statuses: strin
 							</span>
 						)}
 					</button>
+					<WorkflowIndicator
+						id={family.root.id}
+						isWorkflowGenerated={family.root.isWorkflowGenerated}
+					/>
 					<OutlineLink id={family.root.id} />
 				</h3>
 			</header>

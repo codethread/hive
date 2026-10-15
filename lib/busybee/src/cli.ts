@@ -7,6 +7,7 @@ import { listWorkflows, namedDefinition } from "./catalogue.ts";
 import type { PreflightReport } from "./preflight.ts";
 import type { Source } from "./catalogue.ts";
 import { preflight } from "./preflight.ts";
+import { preview } from "./preview.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Explicit source paths resolve against the invoking directory.
 import { resolve } from "node:path";
 import { version as suiteVersion } from "../package.json";
@@ -175,6 +176,18 @@ function registerCreation(invocation: Invocation): void {
 function registerInspection(invocation: Invocation): void {
 	const { cli, services } = invocation;
 	const options = (): CliOptions => cli.opts<CliOptions>();
+	cli
+		.command("preview <run>")
+		.description("Read saved workflow structure and state without starting actors or writing beads")
+		.addHelpText(
+			"after",
+			"\nImports trusted workflow code. Returns structural graphs, saved state and source provenance; " +
+				"excludes context, task bodies and implementations.",
+		)
+		.action(async (id: string) => {
+			invocation.kind = "workflow_preview";
+			writeResult(await preview(id, options(), services), invocation);
+		});
 	cli.command("list").action(async () => {
 		const result = await listWorkflows(options().repo, services);
 		let readable = "";

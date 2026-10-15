@@ -3,7 +3,7 @@ import { Link, useSearch } from "@tanstack/react-router";
 import { beadFamilies, hierarchyChildren, outlineHierarchy } from "../hierarchy.ts";
 import { MergeLinks } from "./merge-links.tsx";
 import { OutlineClosedToggle } from "./outline-controls.tsx";
-import { WorkflowIndicator } from "./ui.tsx";
+import { WorkflowIndicator } from "./workflow-preview.tsx";
 import { preferences } from "./data.ts";
 import { statusName } from "./filter-controls.tsx";
 import { useState } from "react";
@@ -33,7 +33,10 @@ export function BranchExplorer({
 						<header className="branch-explorer-heading">
 							<p>{family.root.id}</p>
 							<h3>
-								<WorkflowIndicator isWorkflowGenerated={family.root.isWorkflowGenerated} />
+								<WorkflowIndicator
+									id={family.root.id}
+									isWorkflowGenerated={family.root.isWorkflowGenerated}
+								/>
 								{family.root.title}
 							</h3>
 						</header>
@@ -104,10 +107,7 @@ function BranchNode({
 					onClick={onSelect}
 				>
 					<span className="branch-node-id">{node.id}</span>
-					<span className="branch-node-title">
-						<WorkflowIndicator isWorkflowGenerated={node.isWorkflowGenerated} />
-						{node.title}
-					</span>
+					<span className="branch-node-title">{node.title}</span>
 					<span className="branch-node-meta">
 						<span className={`status-dot status-${node.status}`} />
 						{statusName(node.status)}
@@ -115,6 +115,7 @@ function BranchNode({
 					</span>
 				</Link>
 				<span className="flex shrink-0">
+					<WorkflowIndicator id={node.id} isWorkflowGenerated={node.isWorkflowGenerated} />
 					<MergeLinks merges={node.merges} />
 				</span>
 			</div>

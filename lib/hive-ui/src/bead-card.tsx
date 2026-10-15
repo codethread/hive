@@ -1,9 +1,10 @@
-import { BeeActivity, BeeAssignment, Label, WorkStatus, WorkflowIndicator, time } from "./ui.tsx";
+import { BeeActivity, BeeAssignment, Label, WorkStatus, time } from "./ui.tsx";
 import { Link, useSearch } from "@tanstack/react-router";
 import type { Card } from "../contracts.ts";
 import { FilterableLabel } from "./filter-controls.tsx";
 import { MergeLinks } from "./merge-links.tsx";
 import { Card as SurfaceCard } from "./primitives.tsx";
+import { WorkflowIndicator } from "./workflow-preview.tsx";
 
 export function BeadCard({
 	card,
@@ -28,6 +29,7 @@ export function BeadCard({
 				<div className="flex items-center justify-between gap-2">
 					<span className="font-mono text-[11px] text-muted">{card.id}</span>
 					<div className="flex items-center gap-1">
+						<WorkflowIndicator id={card.id} isWorkflowGenerated={card.isWorkflowGenerated} />
 						<MergeLinks merges={card.merges} />
 						{!compact && <Label>P{card.priority}</Label>}
 					</div>
@@ -41,7 +43,6 @@ export function BeadCard({
 						className="hover:text-accent"
 						aria-current={search.bead === card.id ? "true" : undefined}
 					>
-						<WorkflowIndicator isWorkflowGenerated={card.isWorkflowGenerated} />
 						{card.title}
 					</Link>
 				</h3>
