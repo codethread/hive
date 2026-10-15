@@ -6,16 +6,18 @@ From a Hive checkout, install the workspace dependencies with `bun install`.
 
 ## Native Pi 1.2.0
 
-Load the extension by its absolute path, from any working directory:
+Hive's [project settings](../../.pi/settings.json) load Scent when you start native Pi at the checkout root. No user installation is needed for that checkout.
+
+Outside Hive, load the extension for one invocation by its absolute path:
 
 ```sh
-~/.pi/agent/bin/pi --extension /absolute/path/to/hive/lib/scent/pi.ts
+~/.pi/agent/bin/pi --extension /absolute/path/to/hive/lib/scent/src/bin/pi.ts
 ```
 
-To keep loading it in native Pi, explicitly install that same entry point:
+For optional user-wide loading in native Pi, install that same entry point:
 
 ```sh
-~/.pi/agent/bin/pi install /absolute/path/to/hive/lib/scent/pi.ts
+~/.pi/agent/bin/pi install /absolute/path/to/hive/lib/scent/src/bin/pi.ts
 ```
 
 The installation command changes Pi settings; the one-off `--extension` command does not. Use the native executable: a PATH `pi` wrapper can run another runtime. Load Scent once. Extensions that replace the entire system prompt must preserve its named `scent` section themselves.
@@ -26,7 +28,34 @@ Scent sets `BD_ACTOR`, `BR_HARNESS=pi`, `HIVE_AGENT_NAME`, `HIVE_AGENT_SESSION` 
 
 ## Native Codex
 
-Add these entries to `~/.codex/hooks.json` or the project's `.codex/hooks.json`, merging with any existing hooks. Replace the absolute path with your checkout path and load Scent from one location:
+Choose the local plugin or manual hooks below. Load Scent once: remove any manual Scent hooks when switching to the plugin.
+
+After setup, start a new Codex session and open `/hooks` to review and trust the definitions. Installing or enabling the plugin does not trust its hooks. Project configuration also requires a trusted project. See the [Codex plugin guide](https://developers.openai.com/plugins/build/plugins) and [hooks reference](https://learn.chatgpt.com/docs/hooks).
+
+### Local plugin
+
+With workspace dependencies installed, build and install from the Hive checkout:
+
+```sh
+bun run --filter @hive/scent build:plugin
+codex plugin marketplace add .
+codex plugin add scent@hive
+```
+
+Codex needs `bun` on `PATH` to run the hooks. The build creates `plugins/scent/dist/codex.js`, including its dependencies; Codex copies it into the installed plugin cache. Rebuild and reinstall after changing Scent. The bundle is ignored by Git, so a Git checkout or marketplace without this local build is not ready to install.
+
+`codex plugin add` enables Scent in user configuration. For Hive-only activation, set `enabled = false` under `[plugins."scent@hive"]` in `~/.codex/config.toml`, then merge this entry into the checkout's existing `.codex/config.toml`:
+
+```toml
+[plugins."scent@hive"]
+enabled = true
+```
+
+Preserve the existing configuration, including Hive's generated tracker environment. The plugin handles session startup, resume, clear and compact, plus subagent startup.
+
+### Manual hooks (optional)
+
+Add these entries to either `~/.codex/hooks.json` or the project's `.codex/hooks.json`, merging with any existing hooks. Replace the absolute path with your checkout path:
 
 ```json
 {
@@ -37,7 +66,7 @@ Add these entries to `~/.codex/hooks.json` or the project's `.codex/hooks.json`,
 				"hooks": [
 					{
 						"type": "command",
-						"command": "bun '/absolute/path/to/hive/lib/scent/codex.ts'"
+						"command": "bun '/absolute/path/to/hive/lib/scent/src/bin/codex.ts'"
 					}
 				]
 			}
@@ -47,7 +76,7 @@ Add these entries to `~/.codex/hooks.json` or the project's `.codex/hooks.json`,
 				"hooks": [
 					{
 						"type": "command",
-						"command": "bun '/absolute/path/to/hive/lib/scent/codex.ts'"
+						"command": "bun '/absolute/path/to/hive/lib/scent/src/bin/codex.ts'"
 					}
 				]
 			}
@@ -56,7 +85,7 @@ Add these entries to `~/.codex/hooks.json` or the project's `.codex/hooks.json`,
 }
 ```
 
-In native Codex, open `/hooks` to review and trust the new or changed definitions. Project hooks also require a trusted project configuration. See the [Codex hooks reference](https://learn.chatgpt.com/docs/hooks).
+### Identity behavior
 
 The hooks supply identity context requiring `--actor <own-friendly-name>` on every `br` mutation. Session hooks use the session key or adopt a supplied Bee identity; child hooks derive their own name from `agent_id`. The adapter leaves the tool environment unchanged and stores no identity state.
 

@@ -1,5 +1,5 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { installPiIdentity } from "./src/pi.ts";
+import { installPiIdentity } from "../pi.ts";
 
 // Pi's extension loader requires a default factory export.
 export default function scent(pi: ExtensionAPI): void {

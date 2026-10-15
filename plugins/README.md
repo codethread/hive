@@ -2,9 +2,11 @@
 
 The Honeycomb plugin provides Git worktree and merge queue guidance for Claude Code, Codex and Pi. All three harnesses load the same content; installing it does not install the executables or grant permission to commit, push or merge.
 
-First install [Honeycomb](../lib/honeycomb/README.md#install-from-hive) and [qlock](../lib/qlock/README.md#install), and ensure both are on `PATH`.
+For agent identity in native Pi or Codex, follow [Scent installation](../lib/scent/README.md). Scent has a separate Pi extension and a Codex plugin that requires a local build before installation.
 
-## Install from a local checkout
+## Install Honeycomb from a local checkout
+
+First install [Honeycomb](../lib/honeycomb/README.md#install-from-hive) and [qlock](../lib/qlock/README.md#install), and ensure both are on `PATH`.
 
 Run the following commands from the Hive checkout you want to use. They register that checkout in the harness's personal settings.
 
@@ -34,7 +36,7 @@ Pi resolves duplicate skill names by load order. If you also use `codethread/age
 
 Restart the harness after installation. Claude Code and Codex cache plugins; refresh their marketplace and installed plugin after updating the source checkout. Pi loads a local package directly.
 
-## Distribution
+## Honeycomb distribution
 
 Claude Code reads the root `.claude-plugin/marketplace.json`; Codex reads `.agents/plugins/marketplace.json`. Both expose `honeycomb@hive`. Pi reads the explicit `pi.skills` paths in the root `package.json`, keeping Hive's repository-only contribution guidance out of the installed package.
 

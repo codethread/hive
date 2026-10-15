@@ -1,0 +1,10 @@
+{
+	"name": "scent",
+	"version": "0.1.0",
+	"description": "Hive identity for Codex sessions and subagents.",
+	"extensions": {
+		"com.openai": {
+			"hooks": "./hooks/hooks.json"
+		}
+	}
+}
