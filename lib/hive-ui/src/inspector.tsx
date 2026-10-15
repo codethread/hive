@@ -201,6 +201,19 @@ export function Inspector({ colonyId, id }: { colonyId: string; id: string }) {
 										)}
 									</>
 								)}
+								{[
+									{ title: "Design", text: detail.design },
+									{ title: "Notes", text: detail.notes },
+								].map(({ title, text }) =>
+									text.trim() ? (
+										<details key={title} className="mt-6 border-t border-line pt-3">
+											<summary className="text-xs text-muted">{title}</summary>
+											<p className="mt-4 whitespace-pre-wrap break-words text-sm leading-relaxed">
+												{text}
+											</p>
+										</details>
+									) : null,
+								)}
 								<details className="mt-6 border-t border-line pt-3">
 									<summary className="text-xs text-muted">
 										Comments · {detail.comments.length}

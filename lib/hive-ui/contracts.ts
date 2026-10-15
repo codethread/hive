@@ -221,6 +221,10 @@ export const detailSchema = z.object({
 	dependents: relationsSchema,
 	/** Native bead description displayed as plain text in the inspector. */
 	description: z.string(),
+	/** Verbatim native design; empty when no design was recorded. */
+	design: z.string(),
+	/** Verbatim native notes; empty when no notes were recorded. */
+	notes: z.string(),
 	/** Server timestamp when this selected-bead read completed. */
 	fetchedAt: z.string(),
 });

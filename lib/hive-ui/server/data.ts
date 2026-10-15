@@ -299,6 +299,8 @@ export function createBoardData() {
 					bead.dependents.filter((edge) => edge.dependency_type !== "parent-child"),
 				),
 				description: bead.description,
+				design: bead.design,
+				notes: bead.notes,
 				fetchedAt: new Date().toISOString(),
 			};
 		},

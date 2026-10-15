@@ -167,6 +167,15 @@ export function fixtureDetail(id: string): Detail {
 		description:
 			"Make the provenance graph easy to read without confusing historical observations with current process health.",
 		acceptanceCriteria: criteria,
+		design:
+			id === "hv-ui.1"
+				? "Keep recorded requester links solid and inferred ancestry dashed.\n\n" +
+					"Use the existing graph layout and selected-bead inspector."
+				: "",
+		notes:
+			id === "hv-ui.1"
+				? "Checked the graph in Moss and Paper.\nNext: verify keyboard selection and the narrow-screen outline."
+				: "",
 		comments: [
 			{
 				id: 1,

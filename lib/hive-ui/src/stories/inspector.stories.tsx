@@ -14,6 +14,10 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 export const WithFamily: Story = {};
+export const WithDesignAndNotes: Story = {};
+export const WithoutDesignAndNotes: Story = {
+	parameters: { navigation: { bead: "hv-review" } },
+};
 export const Standalone: Story = { parameters: { navigation: { bead: "hv-review" } } };
 export const BeeContext: Story = {
 	parameters: { navigation: { view: "open", request: worker.id, bead: "hv-ui.1" } },

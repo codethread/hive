@@ -98,6 +98,8 @@ export function workflowDetail(id: string): Detail {
 	const selected = workflowHierarchy.nodes.find((entry) => entry.id === id)!;
 	return {
 		card: { ...selected, bees: [] },
+		design: "",
+		notes: "",
 		description:
 			"Original work, workflow runs and generated visits are ordinary native beads. " +
 			"Use the branch explorer to follow the containing work and higher ancestors, " +
