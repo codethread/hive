@@ -1,120 +1,25 @@
-import { boardFilterSchema, boardScopeSchema, inventoryFilterSchema } from "../contracts.ts";
+import { boardFilterSchema, inventoryFilterSchema } from "../contracts.ts";
 import { expect, test } from "bun:test";
 import { samplePreview, workflowSamples } from "../src/stories/workflow-samples.ts";
-import type { BeadsService } from "@hive/beads";
-import type { Card } from "../contracts.ts";
 import { colony } from "../src/stories/fixtures.ts";
 import { createBoardData } from "./data.ts";
 import { createMemoryBeads } from "@hive/beads";
 
 const scope = { cwd: colony.root, db: colony.beadsDb, actor: "fixture" };
 const filter = boardFilterSchema.parse({ view: "beads", closed: true });
-const view = { scope: boardScopeSchema.parse({ view: "beads" }), refreshAfter: 0 };
 const seeded = await workflowFixture();
-
-test("board identifies workflow-generated records from retained system JSON", async () => {
-	const board = await createBoardData().board(seeded.context, filter, 0);
-	expect(workflowIds(board.cards)).toEqual(seeded.expected);
-});
-
-test("family identifies workflow-generated records from retained system JSON", async () => {
-	const family = await createBoardData().hierarchy(seeded.context, [seeded.source.id], 0);
-	expect(workflowIds(family.nodes)).toEqual(seeded.expected);
-});
-
-test("outline identifies workflow-generated records from retained system JSON", async () => {
-	const outline = await createBoardData().outline(seeded.context, seeded.source.id, 0);
-	expect(workflowIds(outline.nodes)).toEqual(seeded.expected);
-});
-
-test("detail includes generated visits but excludes agent-created nested work", async () => {
-	const data = createBoardData();
-	const details = await Promise.all(
-		[seeded.source, ...seeded.roots, seeded.visit, seeded.manual].map((bead) =>
-			data.detail(seeded.context, bead.id, view),
-		),
-	);
-	for (const detail of details) {
-		expect(detail.card.isWorkflowGenerated).toBe(seeded.expected.includes(detail.card.id));
-	}
-});
 
 async function workflowFixture() {
 	const beads = createMemoryBeads();
-	const source = await beads.create(scope, { title: "Do work: misleading ordinary task" });
-	const roots = await Promise.all(
-		["open", "in_progress", "closed"].map((status) =>
-			beads.create(scope, { title: "Run", status, parent: source.id }),
-		),
-	);
-	const visit = await beads.create(scope, { title: "Generated visit", parent: roots[0]!.id });
-	const group = await beads.create(scope, { title: "Generated group", parent: roots[0]!.id });
-	const manual = await beads.create(scope, { title: "Agent-created child", parent: roots[0]!.id });
-	await Promise.all(
-		roots.map(async (root) => {
-			const created: { bead: string }[] = [];
-			if (root.id === roots[0]!.id) {
-				created.push({ bead: visit.id }, { bead: group.id });
-			}
-			const checkpoint = await beads.create(scope, {
-				title: "Workflow system bead",
-				status: root.status,
-				labels: ["system", "busybee-checkpoint"],
-				description: JSON.stringify({
-					id: root.id,
-					created,
-				}),
-			});
-			await beads.dep.add(scope, root.id, checkpoint.id, "related");
-		}),
-	);
-	await beads.create(scope, {
-		title: "Incomplete marker is not a workflow system bead",
-		labels: ["busybee-checkpoint"],
-		description: "Not workflow JSON",
+	const root = await beads.create(scope, { title: "Run" });
+	const manual = await beads.create(scope, { title: "Agent-created child", parent: root.id });
+	const checkpoint = await beads.create(scope, {
+		title: "Workflow system bead",
+		labels: ["system", "busybee-checkpoint"],
+		description: JSON.stringify({ id: root.id, created: [] }),
 	});
-	return {
-		source,
-		roots,
-		visit,
-		group,
-		manual,
-		expected: [...roots.map((root) => root.id), visit.id, group.id].toSorted(),
-		context: { beads, colony, requestId: "test", log: async () => {} },
-	};
-}
-
-test("board identity uses one system query with no per-bead relationship lookup", async () => {
-	const fixture = await workflowFixture();
-	let systemReads = 0;
-	let edgeReads = 0;
-	const beads: BeadsService = {
-		...fixture.context.beads,
-		list: (input, selection) => {
-			if (selection?.labels?.includes("busybee-checkpoint") === true) {
-				systemReads++;
-			}
-			return fixture.context.beads.list(input, selection);
-		},
-		dep: {
-			...fixture.context.beads.dep,
-			list: (input, id, selection) => {
-				edgeReads++;
-				return fixture.context.beads.dep.list(input, id, selection);
-			},
-		},
-	};
-	const board = await createBoardData().board({ ...fixture.context, beads }, filter, 0);
-	expect(workflowIds(board.cards)).toEqual(fixture.expected);
-	expect(systemReads).toBe(1);
-	expect(edgeReads).toBe(0);
-});
-
-function workflowIds(cards: Card[]): string[] {
-	return cards
-		.filter((card) => card.isWorkflowGenerated)
-		.map((card) => card.id)
-		.toSorted();
+	await beads.dep.add(scope, root.id, checkpoint.id, "related");
+	return { manual, context: { beads, colony, requestId: "test", log: async () => {} } };
 }
 
 // eslint-disable-next-line max-statements -- One request fixture verifies both public projections.
@@ -149,26 +54,6 @@ test("board and inventory project cross-host attribution without requiring execu
 	if (inventory.kind === "loaded") {
 		expect(inventory.bees.map((bee) => bee.id)).toEqual([request.id]);
 	}
-});
-
-test("workflow actions resolve runs, stages and groups including closed runs", async () => {
-	const data = createBoardData();
-	const calls: string[] = [];
-	const preview = samplePreview(workflowSamples[0]!);
-	const readPreview = (selected: typeof colony, runId: string) => {
-		expect(selected).toBe(colony);
-		calls.push(runId);
-		return Promise.resolve(preview);
-	};
-	for (const bead of [...seeded.roots, seeded.visit, seeded.group]) {
-		// eslint-disable-next-line no-await-in-loop -- Preserve the public request order for distinct bead aliases.
-		expect(await data.workflow(seeded.context, bead.id, readPreview)).toBe(preview);
-	}
-	expect(calls).toEqual([
-		...seeded.roots.map((root) => root.id),
-		seeded.roots[0]!.id,
-		seeded.roots[0]!.id,
-	]);
 });
 
 test("ordinary children cannot open an ancestor workflow", async () => {

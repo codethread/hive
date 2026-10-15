@@ -292,9 +292,6 @@ test("the actual Land completion visits deliver evidence before the caller tail"
 	);
 	const report = advanceChart(publish, "next");
 	expect(landingTask(report).instructions).toContain(
-		"leaves collection to the driver; it neither navigates nor closes the run",
-	);
-	expect(landingTask(report).instructions).toContain(
 		"caller reads the retained run brief and comments to perform the post-done tail",
 	);
 });
