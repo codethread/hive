@@ -3,7 +3,7 @@
 ## Tool guides
 
 - [Beeswax](../lib/beeswax/README.md) — repository setup, tracker plumbing and Git hook adapters.
-- [Bee and Colony](../lib/colony/README.md) — installation, quickstart, configuration and verification.
+- [Bee and Colony](../lib/colony/README.md) — agent requests and execution.
 - [Honeycomb](../lib/honeycomb/README.md) — worktree commands and shell integration.
 - [Scent](../lib/scent/README.md) — native Pi identity and Codex hook installation.
 - [Waggle](../lib/waggle/README.md) — semantic classifiers.
@@ -13,7 +13,6 @@
 ## Workflows
 
 - [Hive releases](./releases.md) — versioned Homebrew installation and the separately invoked Release workflow.
-
 - [Busy Bee](../lib/busybee/README.md) — run workflows as Beads tasks.
 - [Busy Bee specification](../lib/busybee/SPEC.md) — read before changing workflow projection or completion.
 - [Authoring Busy Bee workflows](./busybee-workflows.md) — read before authoring or refactoring definitions; explicit charts and visualizer visibility.
@@ -32,7 +31,7 @@
 ## Agent task reference
 
 - [Domain guidance](./agents/domain.md) — glossary and ADR reading when terminology or design decisions matter.
-- [Specialist delegation](./agents/specialists.md) — Bee discovery, librarian consult/review/curation and evidence handoff.
+- [Specialist delegation](./agents/specialists.md) — role selection, assignment and evidence handoff.
 - [Agent response delivery](./agents/responses.md) — content ownership and runtime guidance; commands live in Bee help.
 - [Semantic review signals](./agents/semantic-review.md) — optional Waggle concerns and required attention routing when selecting files for human review.
 - [Spawn state and native queries](./agents/spawn-requests.md) — read before querying requests, interpreting failures/supersession, retrying or changing lifecycle publication.
@@ -43,12 +42,11 @@
 - [Repository commands](./repository-commands.md) — task discovery, recipe ownership and setup routes.
 - [Repository tooling](../lib/tooling/README.md) — contract-test selection, timing reports and approved allowances.
 - [Development toolchain](./integrations.md#development-toolchain) — runtime, hooks, environment setup and explicit tracker publication responsibilities.
-- [Beads integration](./beads-integration.md) — selected tracker, exchange checkpoints and conflict recovery.
 - [Automation bead maintenance](./integrations.md#automation-bead-maintenance-and-debugging) — reference for explicitly authorized `system` work.
 
 ## Beads
 
-- [Integration](./beads-integration.md) — shared storage, synchronization and recovery.
+- [Integration](./beads-integration.md) — setup, selected tracker, exchange checkpoints and recovery.
 - [Labels](./beads-labels.md) — classifications and routing.
 - [Agent issue operations](./agents/issue-tracker.md) — ticket and readiness conventions.
 - [Specialist reference](./beads-meta.md) — tracker investigation, with a [command/source map](./beads-command-source-map.md).

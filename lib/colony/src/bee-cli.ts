@@ -166,10 +166,10 @@ export async function runBeeCli(argv: string[], deps: BeeDependencies): Promise<
 		.addHelpText(
 			"after",
 			`
-Installs bee-attention in the selected tracker to find failed, unresolved spawn
-requests, including closed requests. No daemon or bee-kind configuration is needed.
-Replaces this preset and preserves other saved queries. If interrupted between
-deleting and saving the preset, rerun setup to restore it.
+Installs bee-attention for failed, unresolved spawn requests, including closed ones.
+Saved queries are local to the selected database; run setup for each tracker clone.
+Replaces only this preset. If interrupted, rerun setup to restore it.
+No daemon or bee-kind configuration is needed.
 
 Use --json for a machine-readable result. Read br query --help to run saved queries.
 `,

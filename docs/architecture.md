@@ -1,6 +1,6 @@
 # Architecture
 
-Hive's product packages are independently replaceable. They cooperate through commands and protocols; `@hive/shared` and `@hive/beads` are the permitted cross-package imports. Shared may consume Beads; Beads imports no Hive package, and Shared imports no product package. `.oxlintrc.json` enforces this direction.
+Hive's product packages are independently replaceable. They cooperate through commands and protocols; `@hive/shared` and `@hive/beads` are the permitted cross-package imports. Shared may consume Beads; Beads imports no Hive package, and Shared imports no product package. [Import rules](../.oxlintrc.json) enforce this direction and prohibit cross-package relative imports.
 
 ## Package responsibilities and seams
 
@@ -13,22 +13,20 @@ Hive's product packages are independently replaceable. They cooperate through co
 | `lib/waggle` | Classifier discovery and execution | Independent `waggle` CLI; it does not decide runtime scheduling or mutate requests |
 | `lib/busybee` | Workflow navigation, task visits and per-run checkpoints | XState chooses transitions; native `br` stores work and checkpoints; optional Bee requests delegate execution to Colony |
 | `lib/hive-ui` | Read-only work-board HTTP projections, route-driven browser snapshots and presentation | Imports Beads services and Shared contracts; reads configured repository/database pairs and calls Busy Bee's public preview command |
-| `lib/scent` | Identity resolver, explicit-actor prompt, Pi extension and Codex command hooks | Resolves session or child keys or adopts supplied Bee identity; preserves the selected tracker and imports no product package |
+| `lib/scent` | Harness identity attribution and context | Resolves native identity or adopts supplied Bee identity; preserves the selected tracker |
 | `lib/beeswax` | Consumer repository setup, Beads environment/publication, JSONL merging/validation, Git/harness adapters and executable installation | Installed CLI; imports Shared/Beads contracts and invokes installed Honeycomb |
 | `lib/tooling` | Repository test selection and release maintenance | Development tooling, independent of the Bee execution path |
-| `lib/qlock` | Ticketed local command admission, private SQLite queue state and foreground child execution | TypeScript/Bun CLI with pure ticket policy and injected native I/O; only merge-target queues call `honeycomb root` for repository identity |
+| `lib/qlock` | Ticketed local command admission, queue state and foreground child execution | Independent CLI; merge-target queues obtain repository identity through `honeycomb root` |
 
 Use Shared when actual consumers need the same contract. Spawn-request representation belongs there because submission, offline inspection and execution must agree; scheduling and terminal formatting stay in Colony. Busy Bee's workflow rules remain independent of Colony execution; its [specification](../lib/busybee/SPEC.md) defines progression and checkpoint authority.
 
-Beads services are supplied through consumer contexts. Named operations accept typed arguments and return typed records; the native adapter owns CLI arguments and output parsing. Application entry points compose the native adapter; behavior tests supply isolated in-memory adapters implementing those same operations directly. Native conformance tests belong to `lib/beads`, so consumer tests share a validated contract without spawning `br`. Filesystem, Git and process-boundary tests remain with the modules owning those effects.
+Beads' native adapter owns CLI arguments and output parsing. Consumer entry points inject that adapter; behavior tests inject its in-memory counterpart. Native conformance tests belong to Beads; filesystem, Git and process-boundary tests stay with the modules owning those effects.
 
-Hive UI owns its browser/API schemas and read models. It neither imports Colony nor reads its private store; native Beads is its source. Workflow provenance consumes Busy Bee's public identity slice, `id` and `created[].bead`, from workflow system bead JSON to map runs, generated visits and groups to their owning run. This identity query includes all retained closed runs; task and request pages remain bounded separately.
-
-Workflow previews call `busybee preview RUN --json` with the server-selected repository/database pair. Busy Bee owns definition resolution, checkpoint interpretation and structural projection; Shared holds the [wire schema](../lib/shared/src/workflow-preview.ts) consumed by both products. Hive UI presents that projection without interpreting saved actor state or importing Busy Bee. The [preview contract](../lib/busybee/SPEC.md#saved-state-preview) owns its execution and provenance limits; the [UI design](design/hive-ui.md#workflow-preview) owns fetch and presentation behavior. See the [UI guide](../lib/hive-ui/README.md) for startup.
+Hive UI owns browser/API schemas and read models. Native Beads supplies task/request facts; Busy Bee's public checkpoint identity supplies workflow provenance. The UI calls Busy Bee's preview command with the server-selected repository/database pair, consuming the Shared [wire schema](../lib/shared/src/workflow-preview.ts) without interpreting actor state or reading Colony's private store. The [preview contract](../lib/busybee/SPEC.md#saved-state-preview) owns projection limits; the [UI design](design/hive-ui.md#workflow-preview) owns presentation.
 
 ## Bee and Colony request flow
 
-Bee's [interactive launcher](../lib/colony/src/run.ts) composes a kind role and delivery protocol, mints an identity and renders a Shared harness formula before replacing its process with the native harness. Direct runs have no request, claim, attempt or Colony authority. See `bee run --help` for usage.
+Bee's [interactive launcher](../lib/colony/src/run.ts) composes a kind role and delivery protocol, mints an identity and renders a Shared harness formula. Direct runs have no request, claim, attempt or Colony authority; see `bee run --help`.
 
 Managed delegation follows the separate request flow below:
 
@@ -53,25 +51,23 @@ Colony: awake colony -> prepare -> rank -> claim -> reserve attempt
                 minimal native Beads observations and closure
 ```
 
-Public Bee submission starts one Busy Bee workflow, prepares its active unassigned run through the Busy Bee CLI, and captures a driver request linked to that run. Kind workflow defaults select the named definition only at initialization; the execution recipe remains separate. Bee-dispatched visits use the stage-dispatch primitive to capture one stage request without another workflow. Shared owns the driver/stage assignment union and exact related completion anchor; launch receipts retain that role, and explicit retries retain the same run or stage.
+Bee submission starts a Busy Bee workflow and captures its driver request. Bee-dispatched visits create stage requests within that run. Shared owns the driver/stage assignment contract; launch receipts and explicit retries retain the assigned run or stage. Workflow definitions own work and acceptance, while captured recipes describe execution.
 
-Workflow drivers consume ordinary capacity while waiting for independent workers. If drivers starve the pool, the user must increase the relevant quotas. Colony does not suspend drivers or reserve additional worker capacity.
+Workflow drivers consume ordinary capacity while waiting for workers. Colony neither suspends them nor reserves extra worker capacity; the user must raise quotas if drivers starve workers.
 
-Bee captures the requesting hostname with each spawn. Colony routes only requests bound to its local hostname before preparation, claims, reconciliation or automatic label publication. Durable request checkpoints and attempt receipts retain that host; replay validates it against native provenance. Missing host provenance remains unbound history rather than being inferred from local state.
+Bee binds each request to the submitting host. Only that host's Colony may execute or automatically reconcile it. Missing host provenance confers no execution authority. The [spawn state contract](./agents/spawn-requests.md) owns request states, query projections, retries and recovery.
 
-The [spawn-request model](../lib/shared/src/spawn-request.ts) owns the Beads representation: labels, captured recipe, friendly assignee and task links. Consumers decode it before making decisions. The [glossary](../GLOSSARY.md) distinguishes requests, running bees, attempts and historical observations.
+The Shared [spawn-request model](../lib/shared/src/spawn-request.ts) owns native representation and decoding. Query labels project native facts; scheduling uses those facts and private checkpoints. The [glossary](../GLOSSARY.md) distinguishes requests, bees, attempts and observations.
 
-Outcome and resolution labels project native closure, explicit acknowledgment comments and supersession for native Beads queries. The [spawn state contract](./agents/spawn-requests.md) defines their finite values, authority, saved presets and recovery when publication is interrupted. Scheduling continues to use native lifecycle facts and private checkpoints.
+Colony owns [configuration discovery and precedence](../lib/colony/src/config.ts); Shared owns shape and effective-configuration validation. Canonical configuration supplies defaults for new recipes and runtime policy.
 
-Colony's [configuration loader](../lib/colony/src/config.ts) reads canonical `.hive/bees.toml` and `.hive/bees/*/bee.toml` with optional sibling `system_prompt.md` and `prompt.md` files. Central definitions take precedence; discovery diagnostics are data for the CLI, not runtime logging. Shared owns shape and effective-configuration validation, while Colony owns filesystem discovery and precedence.
+Bee captures role and execution direction separately. Colony composes the [delivery protocol](../lib/colony/src/response-protocol.ts) and assignment instructions at launch; Shared supplies the producing-task pointer used by Colony and Busy Bee. [Response delivery](./agents/responses.md) owns the distinction between authored answers, progress and machine outcomes. Private drones retain separate protocols.
 
-Bee captures role (`system_prompt`) and execution direction (`prompt`) separately. Workflow stages own assignment and acceptance. At launch, Colony composes the [system delivery protocol](../lib/colony/src/response-protocol.ts) and driver/stage instructions; the receipt retains the actual invocation. Shared supplies the producing-task pointer used by both Colony and Busy Bee. [Response delivery](./agents/responses.md) maps authored answers, task comments and machine outcomes; private drones retain separate protocols.
+Bee inspection and closure use only the selected Beads endpoint. Closure records intent for an awake Colony to reconcile; it does not directly signal a process.
 
-Bee inspection and closure need only the selected Beads endpoint, not configuration or a daemon. Closing the request does not directly signal a process: an awake colony reconciles the closure, while an asleep colony waits for wake. Last-recorded observations are deliberately separate from native request state and are never used as execution authority.
+Colony's [client](../lib/colony/src/client.ts) uses the [Shared protocol](../lib/shared/src/colony-protocol.ts) to reach its [server](../lib/colony/src/server.ts), which owns registration, awake intent and policy changes. Detached [supervisors](../lib/colony/bin/worker.ts) outlive CLI calls and daemon exits.
 
-Colony control commands cross a different seam. The [client](../lib/colony/src/client.ts) selects a socket and state directory and speaks the [Shared protocol](../lib/shared/src/colony-protocol.ts). The [Colony server](../lib/colony/src/server.ts) owns registration, awake intent and policy changes. Only `add` and `wake` start an absent server. The CLI launches [`runtime.ts`](../lib/colony/bin/runtime.ts) as a separate process communicating over a Unix socket. Detached supervisors start through [`worker.ts`](../lib/colony/bin/worker.ts) and outlive CLI calls and daemon exits.
-
-[Colony's machine](../lib/colony/src/colony.ts) owns awake, draining and asleep states. [Dispatch](../lib/colony/src/dispatch.ts) performs one preparation, ranking and launch pass; the [request machine](../lib/colony/src/request.ts) owns claims, execution, settlement and bounded retries across passes. Sleeping drains the current pass without cancelling its effects, then disables polling and reconciliation while detached workers continue.
+[Colony's machine](../lib/colony/src/colony.ts) owns awake, draining and asleep states; [dispatch](../lib/colony/src/dispatch.ts) prepares, ranks and launches; the [request machine](../lib/colony/src/request.ts) owns claims, execution, settlement and retries. Sleeping disables reconciliation after the current pass while detached workers continue.
 
 ## Authority and persistence
 
@@ -92,9 +88,17 @@ The supervisor owns only its process tree and local artifacts; it does not recon
 
 ## Post-run advice
 
-Colony enrolls launched requests for configured post-run inspection at terminal settlement. The auxiliary queue reuses detached supervision and verified process ownership, but owns separate report authority and a bounded lifecycle. Assessment failure does not change the target request, release its claims or spend its retry budget. Auxiliary inspections are not task requests and cannot recursively enroll themselves.
+Post-run assessments reuse detached supervision but have separate report authority and lifecycle. Assessment failure does not alter the target request, claims or retry budget; auxiliary inspections cannot enroll themselves.
 
-The nurse reads retained assessments through Colony's offline inspection interface and discusses patterns with ct. Both roles use the [welcoming-hive heuristic](agents/welcoming-hive.md). Their observations are not accepted practices or actionable work: ct authorizes change tasks, and filed specialist evidence remains subject to the existing label-stewardship and curation contract. The [operator guide](../lib/colony/README.md#inspect-finished-bees) covers selection and retrieval.
+The nurse discusses retained assessments with ct using the [welcoming-hive heuristic](agents/welcoming-hive.md). Advice grants no authority to change practices or create work; ct authorizes change tasks. The [operator guide](../lib/colony/README.md#inspect-finished-bees) covers retrieval, and the [stewardship registry](beads-labels.md#specialist-evidence-and-label-stewardship) governs filed evidence.
+
+## Beeswax's setup boundary
+
+Beeswax owns reusable setup and tracker publication. Product policy stays with its product: Bee owns its attention-query preset, and Hive's setup recipe composes the two CLIs.
+
+The committed Beeswax configuration and lock are accepted project intent; machine receipts only record local observations. Application policy stays in application hook files. Beeswax owns its marked validation sections, using the same configured actual hook pair in the application and permanent tracker checkout. Setup preserves the tracker's accepted files and history.
+
+The [Beeswax guide](../lib/beeswax/README.md) owns setup, synchronization and migration routes. [Beads integration](beads-integration.md) owns Hive's tracker exchange checkpoints and recovery.
 
 ## Honeycomb's execution boundary
 
@@ -121,15 +125,15 @@ The canonical checkout anchors configuration and default-branch decisions and is
 
 ## Engine and shell responsibilities
 
-The engine owns worktree policy and lifecycle mutations. `shell-init zsh` and `shell-init nu` generate a single `wk` function that runs `honeycomb --interactive pick` with a temporary `HONEYCOMB_CD_FILE` and changes the shell's directory when the engine writes one; it holds no worktree, git, multiplexer, or prompt logic. Agents call the CLI directly and never pass `--interactive`, so they cannot move the user's focus or close sessions.
+The engine owns worktree policy and mutations. Shell integration changes directory from the engine's result; worktree, Git and multiplexer decisions stay in the engine. Agents call the CLI without `--interactive`, leaving user focus and sessions untouched. See `honeycomb shell-init --help` for integration.
 
 Configured setup and its rollback run inside the engine, so every caller gets the same ready-or-rolled-back result. Multiplexer state never determines whether a worktree exists or is safe to remove; sessions are an integration that only `--interactive` may touch.
 
 ## Waggle's classification boundary
 
-[Waggle](../lib/waggle/README.md) discovers checkout-owned `classifiers/*.toml`. Each definition contains a when-to-use description, required string inputs and named choice questions. Discovery is local; execution validates supplied evidence before a single Typesafe SDK request. Filesystem, environment, transport and terminal access are injected at the CLI boundary. It imports no other Hive product package.
+[Waggle](../lib/waggle/README.md) discovers repository-owned classifiers and validates supplied evidence before a Typesafe SDK request. Filesystem, environment, transport and terminal access are injected at the CLI boundary.
 
-Waggle does not collect code context, publish PR comments or enforce review thresholds. Its answers direct review attention; the caller verifies findings. Its readable mode prints JSON; `--json` follows the output contract below.
+The caller supplies context and verifies findings; Waggle's answers direct review attention without enforcing thresholds or publishing comments.
 
 ## CLI output contract
 

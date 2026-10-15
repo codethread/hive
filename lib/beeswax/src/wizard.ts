@@ -59,10 +59,10 @@ export async function setupWizard(flags: SetupFlags, defaults: SetupOptions): Pr
 		flags.hooks ??
 		take(
 			await select<HookAdapter>({
-				message: "Git hook adapter",
+				message: "Git hook bootstrap",
 				initialValue: defaults.hooks,
 				options: [
-					{ value: "husky", label: "Husky", hint: "default; bundled runner, no app dependency" },
+					{ value: "husky", label: "Husky", hint: "bundled runner, no app dependency" },
 					{ value: "git", label: "Git hooks directly" },
 					{ value: "none", label: "Use configured hook paths without framework bootstrap" },
 				],

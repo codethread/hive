@@ -47,13 +47,13 @@ Classify by subject, not by the contributing agent. One record may serve multipl
 
 `create --labels` sets the initial labels. For an existing permitted bead, inspect its current labels and use `update --add-label` / `--remove-label` for targeted changes. `update --labels` is an alias of `--set-labels` and replaces the entire set; do not use it for an incremental edit.
 
-For an ordinary task, add a supported area label without replacing its other labels. For a Pi agent, replacing `hv-example` with the assigned bead ID:
+Follow the [actor policy](../AGENTS.md#beads--br) for attribution. For an ordinary task, add a supported area label without replacing its other labels, substituting the assigned bead ID:
 
 ```nu
-br update hv-example --add-label area:honeycomb --actor pi --json
+br update hv-example --add-label area:honeycomb --json
 ```
 
-Use your own harness identity for attribution. Verify the returned labels with `br show <id> --json` for the permitted bead. Do not remove `system` to make a reserved bead appear in ordinary work.
+Verify the returned labels with `br show <id> --json` for the permitted bead. Do not remove `system` to make a reserved bead appear in ordinary work.
 
 ## Extend the vocabulary deliberately
 

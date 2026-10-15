@@ -1,131 +1,68 @@
 # Integration boundaries
 
-Hive relies on external programs it does not ship. This document records, for each one, what we use it for, why, and the contract a replacement must satisfy. To evaluate a swap (skim for fzf, Zellij for tmux), check the candidate against the contract here, then change only the adapter named for that tool.
-
-[Architecture](./architecture.md) covers how packages and layers fit together; this document covers only the edges where Hive calls out of process.
+External dependencies and the contracts a replacement must satisfy. [Architecture](./architecture.md) owns package boundaries; adapters below own subprocess details.
 
 ## Summary
 
-| Tool | Role | Required | Adapter |
+| Tool | Role | Required | Boundary |
 | --- | --- | --- | --- |
-| Git | Worktree, branch and status state for Honeycomb; hooks and merge driver for the repo | Always | [`git/executor.ts`](../lib/honeycomb/src/git/executor.ts) |
-| Bash | Configured Honeycomb setup and preflight snippets | Config with `command` / `pre_remote_check` | [`hooks.ts`](../lib/honeycomb/src/hooks.ts) |
-| fzf | Interactive single selection with live preview | For `pick` and interactive slot recycling | [`fzf.ts`](../lib/honeycomb/src/fzf.ts), used by `LivePickerService` in [`live-deps.ts`](../lib/honeycomb/src/live-deps.ts) |
-| tmux | Session per worktree for human wrappers | Optional; only under `--interactive` inside tmux | [`integrations/tmux.ts`](../lib/honeycomb/src/integrations/tmux.ts) behind [`Multiplexer`](../lib/honeycomb/src/integrations/multiplexer.ts) |
-| zsh, Nushell | Host the `wk` picker wrapper | Optional | [`commands/shell-init.ts`](../lib/honeycomb/src/commands/shell-init.ts) |
-| POSIX `sh` | Runs picker preview commands | With fzf | Preview builders in [`pick.ts`](../lib/honeycomb/src/commands/pick.ts), [`add.ts`](../lib/honeycomb/src/commands/add.ts) and the multiplexer |
-| Bun | Embedded CLI runtime, compiler, package manager, test runner and script shell | Separate installation for development and builds | None; see [Development toolchain](#development-toolchain) |
-| br (Beads) | Native tasks, spawn requests, claims and observations; repository work tracking | Bee/Colony runtime and development | [`@hive/beads` usage](../lib/beads/README.md), [tracker operations](./beads-integration.md) |
-| bv (Beads Viewer) | PageRank scheduling and read-only work selection | Default Colony ranking; optional with FIFO | [`ranking.ts`](../lib/colony/src/ranking.ts), [viewer recipes](../.bv/recipes.yaml) |
+| Git | Worktree, branch and status authority; repository hooks and merge driver | Always | Honeycomb's [`git/executor.ts`](../lib/honeycomb/src/git/executor.ts); [Beeswax](../lib/beeswax/README.md) for repository plumbing |
+| Bash | Honeycomb setup and preflight snippets | Config with `command` / `pre_remote_check` | [`hooks.ts`](../lib/honeycomb/src/hooks.ts) |
+| fzf | Interactive selection with live preview | `pick` and interactive slot recycling | [`fzf.ts`](../lib/honeycomb/src/fzf.ts) |
+| tmux | Human worktree sessions | Optional, under `--interactive` inside tmux | [`tmux.ts`](../lib/honeycomb/src/integrations/tmux.ts) |
+| zsh, Nushell | `wk` picker wrapper | Optional | [`shell-init.ts`](../lib/honeycomb/src/commands/shell-init.ts) |
+| POSIX `sh` | Picker previews, using `git`, `awk` and `head` | With fzf | Preview builders in [`pick.ts`](../lib/honeycomb/src/commands/pick.ts), [`add.ts`](../lib/honeycomb/src/commands/add.ts) and the multiplexer |
+| Bun | Development runtime, compiler, package manager and test runner | Development and builds; embedded in installed CLIs | [CLI artifacts](../lib/tooling/README.md#cli-artifacts) |
+| br (Beads) | Native task and request authority | Bee/Colony and development | [`@hive/beads`](../lib/beads/README.md) |
+| bv (Beads Viewer) | PageRank scheduling | Default Colony ranking; optional with FIFO | [`ranking.ts`](../lib/colony/src/ranking.ts) |
 
-Honeycomb reaches every runtime tool through a service in [`services.ts`](../lib/honeycomb/src/services.ts) (`GitRunner`, `HookRunner`, `PickerService`, `Multiplexer`, `CdDirective`), composed once in `createLiveDeps`. Commands and domain code never spawn processes directly, so a replacement is a new service implementation, not a change to lifecycle logic. Preview strings are the one leak: they are shell text the picker executes, and they reference picker and multiplexer syntax (see below).
+Honeycomb composes its subprocess services in [`live-deps.ts`](../lib/honeycomb/src/live-deps.ts). Replace implementations of [`services.ts`](../lib/honeycomb/src/services.ts) without changing lifecycle logic. Picker preview strings also couple shell, picker and multiplexer syntax.
 
 ## Bee and Colony runtime
 
-- **Bun** compiles standalone Bee/Colony executables with an embedded runtime. Installation copies built artifacts; Colony’s daemon and worker companions remain beside the public commands. Development still executes TypeScript directly. Installation does not create or start a service.
-- **Honeycomb** resolves the canonical root through its CLI. **br** supplies authoritative task and spawn-request lifecycle state through the injected, typed `@hive/beads` dependency; consumers must respect native Beads semantics. Tracker selection is explicit: `--beads-db` overrides inherited `BEADS_DB`.
-- **BV** supplies complete PageRank insights for the selected tracker through an isolated snapshot. Colony's [ranking boundary](../lib/colony/src/ranking.ts) owns that export; it does not mutate the canonical database. `ranking = "fifo"` removes this runtime dependency.
-- **Native harness executables** receive rendered formula tokens directly, execution cwd, friendly identity and tracker environment. The launcher does not evaluate recipe text as shell syntax. Model access and authentication belong to the harness installation.
-- **Process ownership** uses supervisor artifacts and observed process fingerprints. A native CLI owning its work differs from a wrapper dispatching to an external daemon. Wrappers need their own ownership contract; process exit alone does not prove task completion.
+- **Honeycomb** resolves the canonical root. **br** supplies native task and request facts through the typed `@hive/beads` boundary. Tracker selection is explicit; see [Beads integration](./beads-integration.md).
+- **BV** reads the selected SQLite database directly in read-only mode and returns the complete visible graph's PageRank scores. The adapter verifies source authority and completeness. It neither exports nor reconciles the tracker. [Scheduling](../lib/colony/README.md#scheduling) explains when ranking runs and the FIFO alternative.
+- **Native harnesses** receive formula tokens directly, with the execution directory, identity and tracker environment. Recipe text is not evaluated as shell syntax. Model access and authentication belong to the harness installation.
+- **Process ownership** requires supervisor artifacts and observed process fingerprints. A wrapper dispatching to an external daemon needs its own ownership contract; process exit alone does not prove task completion.
 
-The [guide](../lib/colony/README.md) records setup and real smoke commands. The [capability reference](./harness-capabilities.md) separates historical native launch observations from current implementation evidence and remaining Scent work.
+The [Colony guide](../lib/colony/README.md) owns runtime operations. The [harness capability reference](./harness-capabilities.md) distinguishes dated launch evidence from implemented behavior and remaining Scent work.
 
 ## Git
 
-**Why:** Git is the source of truth. Honeycomb keeps no database; registered worktrees, branches and working-tree status are the state it reads and mutates. Not swappable in practice, but the contract bounds which Git features we depend on.
+Git is Honeycomb's state store. Registered worktrees, branches and status remain authoritative; Honeycomb keeps no parallel database. Calls run from a neutral directory with `git -C`, so deleting the original working directory does not strand subsequent operations. Git adapters parse porcelain worktree/status output and single-value queries, preserving args, stderr and exit status on failure.
 
-**Contract:**
-
-- `git` on `PATH`. Every call uses `git -C <path> …` from a neutral cwd (`/`), so commands keep working after the process's original directory is removed.
-- Machine-readable output is parsed from `worktree list --porcelain` and `status --porcelain=v1`; nothing else is parsed beyond single-value results such as `rev-parse` and `branch --show-current`.
-- Commands used: `worktree add|remove|list`, `branch`, `checkout`, `status`, `rev-parse`, `show-ref`, `symbolic-ref`, `merge-base`, `merge --ff-only|--squash`, `rebase`, `reset --hard`, `clean -fd`, `fetch`/`push origin`, `remote show`, `log`, `diff`, `ls-files`.
-- The remote is assumed to be named `origin`; the default branch is read from `refs/remotes/origin/HEAD`.
-- Failures surface as `GitError` (`reason: "git_failed"`) carrying args, stderr and exit code.
-
-The repository uses Husky hooks and a custom merge driver for `.beads/issues.jsonl`. [Beeswax](../lib/beeswax/README.md#commit-the-project-contract) installs the merge driver and configured validation sections; application checks remain in repository-owned hooks.
+Honeycomb assumes remote `origin` and reads the default branch from `refs/remotes/origin/HEAD`. [Beeswax](../lib/beeswax/README.md#commit-the-project-contract) owns hook installation and the `.beads/issues.jsonl` merge driver; application checks remain repository-owned.
 
 ## Bash
 
-**Why:** Honeycomb users write setup (`command`) and preflight (`pre_remote_check`) snippets in config; Bash is a predictable, ubiquitous interpreter for them.
-
-**Contract:**
-
-- `bash` on `PATH`. Setup runs as `bash <script-file>`; preflight runs as `bash -c <snippet>`.
-- Runs in the worktree directory with the process environment plus Honeycomb's additions.
-- stdout and stderr are streamed line by line to progress output and captured for `--json` payloads.
-- Nonzero exit fails the operation (`HookError`) and triggers rollback.
-
-Changing the interpreter changes the meaning of existing user config, so treat it as a config-format change, not an adapter swap.
+Honeycomb's configured setup and preflight snippets are Bash programs. They run in the worktree with the inherited environment plus Honeycomb's additions. Output is streamed and retained for results; a nonzero exit fails the operation and triggers rollback. Changing the interpreter changes the configuration language, not merely the adapter.
 
 ## Fuzzy picker (fzf)
 
-**Why:** a fast, familiar selection UI with live previews that draws on `/dev/tty` itself, so Honeycomb can keep stdout clean for the result.
+The picker must return an unchanged candidate row on stdout while drawing its UI directly on the terminal. Tab-delimited rows keep the worktree path in the hidden first field; visible fields drive matching. Cancellation must remain distinguishable from failure.
 
-**Contract** (what `PickerService.pick` needs from the tool):
-
-- Reads candidate rows from stdin, one per line; writes the chosen row, unmodified, to stdout. Honeycomb maps the row back to an item by exact string match.
-- Draws its UI on the terminal directly, not on stdout; stderr is inherited.
-- Rows are tab-delimited. The first field is a hidden key (a worktree path); only fields 2+ are shown and matched (`--delimiter '\t' --with-nth 2..`).
-- Runs a preview shell command per highlighted row with field substitution: `{1}` expands to the first field, shell-quoted. Previews are POSIX `sh` and use `git`, `awk` and `head`.
-- Preview pane below the list (`--preview-window down,70%,wrap`) and a header line (`--header`).
-- Exit status distinguishes cancellation from failure: fzf's `1` (no match) and `130` (Esc or Ctrl-C) become `PickerCancelled`; other nonzero codes are errors.
-- Optional: when `--interactive`, render as a popup inside the multiplexer (`--tmux center,80%,70%`); outside tmux fzf ignores this and runs inline. A replacement without popup support may simply run inline.
-
-**Swap checklist:** a replacement such as skim needs equivalents for stdin/stdout selection, delimiter plus visible-field selection, `{1}` substitution in previews, preview window placement, and distinguishable cancel exit codes. Change `fzf.ts` (flag mapping and exit codes) and the `WORKTREE_PATH_FIELD` placeholder in [`multiplexer.ts`](../lib/honeycomb/src/integrations/multiplexer.ts) plus the `{1}` in `add.ts`'s recycle preview.
-
-Yes/no confirmation does not use the picker; `confirm` reads one key from `/dev/tty` directly.
+A replacement must support field substitution in POSIX-shell previews and visible-field selection. Update [`fzf.ts`](../lib/honeycomb/src/fzf.ts), the [`WORKTREE_PATH_FIELD`](../lib/honeycomb/src/integrations/multiplexer.ts) placeholder and `add.ts`'s recycle preview together. Popup support is optional; inline selection remains valid. Yes/no confirmation reads `/dev/tty` independently of the picker.
 
 ## Terminal multiplexer (tmux)
 
-**Why:** each worktree gets its own session, so a human can jump between branches with their shells, editors and running processes intact. It is a convenience for people, never a source of truth: sessions are derived from worktree paths and a missing session is never an error.
+Sessions are a human convenience derived from worktree paths, never repository authority. A missing session is normal. Only interactive invocations may change focus or close sessions.
 
-**Contract** (the [`Multiplexer`](../lib/honeycomb/src/integrations/multiplexer.ts) interface):
-
-- `attached` — whether Honeycomb runs inside the multiplexer. For tmux, detected from `TMUX`; outside it, `createNoMultiplexer()` supplies no-op session operations.
-- `open({ name, title, path })` — create a detached session named `name`, rooted at `path`, with a first window titled `title`, if none exists; then move the invoking client's focus to it. tmux resolves the client from `TMUX_PANE` so focus moves in the terminal that ran the command.
-- `closeUnder(path)` — close every session whose root is `path` or beneath it. "No server" or "no sessions" means nothing to close, not an error.
-- `previewCommand()` — shell text for the picker preview: show the live contents of a pane whose working directory is in the worktree, falling back to `git log`.
-- Session lookup and kill use exact name matching (tmux `=name`), so one name never matches another's prefix.
-- Only `--interactive` invocations may call `open` or `closeUnder`; agents never move a user's focus or close sessions.
-
-**Session names** are part of Honeycomb's public output (the `session` field in `--json` payloads), computed by `sessionNameForWorktreePath`: the worktree directory name, prefixed with the repository name for nested worktrees, with `.` replaced by `_` because tmux rejects dots in session names. A replacement must accept these names or the naming rule must change for all consumers.
-
-**Swap checklist:** a replacement such as Zellij needs create-if-missing by name with a working directory, switch the current client to a named session, list sessions with their root directories, kill by exact name, and (for previews) capture a pane's visible contents by working directory. Add an implementation beside `tmux.ts` and select it in `selectMultiplexer`; no command code changes. If the tool cannot capture panes, return `gitLogPreviewCommand()` from `previewCommand`.
+The [`Multiplexer`](../lib/honeycomb/src/integrations/multiplexer.ts) contract requires create-if-missing and focus, removal by working-directory subtree, and preview text. A replacement needs exact-name matching and current-client selection; it may use Git history when pane capture is unavailable. Session names also appear in public JSON output: preserve [`sessionNameForWorktreePath`](../lib/honeycomb/src/domain/worktree.ts) semantics across adapters.
 
 ## Shell integration (zsh, Nushell)
 
-**Why:** a child process cannot change its parent shell's directory, so a thin shell function is needed to `cd` after picking.
-
-**Contract:**
-
-- `honeycomb shell-init <shell>` prints a `wk` function and nothing else; it holds no worktree, Git or multiplexer logic.
-- `wk` creates a temporary file, runs `honeycomb --interactive pick` with `HONEYCOMB_CD_FILE` set to it, `cd`s to the path Honeycomb wrote there if any, and always deletes the file. Arguments are forwarded to `pick`.
-- The engine side is `CdDirective`, which only writes a path to the named file.
-
-Supporting another shell means adding one more template that honours the same `HONEYCOMB_CD_FILE` handshake.
+A child cannot change its parent's directory. `honeycomb shell-init` therefore prints a thin `wk` wrapper: it forwards arguments to interactive `pick`, reads the path written through `HONEYCOMB_CD_FILE`, changes directory, and removes the temporary file. New shell templates must preserve that handshake; worktree and multiplexer logic stay in Honeycomb.
 
 ## Development toolchain
 
-These are the contributor uses of the tools. Bun and br also have the product runtime roles described above.
+Bun-specific process and test APIs make a runtime replacement broader than a launcher change. Build/install behavior belongs to [Repository tooling](../lib/tooling/README.md#cli-artifacts); pinned development dependencies and their recipes live in [`package.json`](../package.json).
 
-- **Bun** runs development TypeScript directly, compiles standalone CLI executables, installs dependencies, runs tests (`bun test`) and provides the `$` shell in scripts. Code uses `Bun.spawn` and Bun's test runner, so moving runtimes means replacing those calls, not just the launcher.
-- **br (Beads)** tracks work durably in the selected SQLite `BEADS_DB`, normally `.worktrees/tracker--state/.beads/beads.db`, shared by local worktrees. Native calls and automatic JSONL import/export stay local. Separate clones exchange `.beads/issues.jsonl` snapshots on `tracker/state` through `bun run beads:sync`, independently of code integration. [Beads integration](./beads-integration.md) covers setup, publication checkpoints, coordination and recovery.
-- **mise** supplies the checkout's project environment, including the portable `BEADS_DB` default in tracked [`mise.toml`](../mise.toml). An ignored `mise.local.toml` can override that default. `bun run beads:setup` records an explicit local selection and generates matching ignored Codex shell-environment configuration without replacing unrelated settings. Actor identity stays process-local and is not part of this shared project selection.
-- **Pi's [Beads extension](../.pi/extensions/beads.ts)** shows `bead: <id>` for the last successful Bash claim whose output is only the JSON update response. This session-local indicator clears on session start or switch; it is not live tracker state.
-- **Husky, lint-staged, commitlint, oxlint, oxfmt and TypeScript** are npm dev dependencies pinned in [`package.json`](../package.json) and configured in the repository root; they need no separate installation.
+Tracked [`mise.toml`](../mise.toml) selects Hive's canonical tracker through `BEADS_DB`. Ignored `mise.local.toml` may override it. `beeswax beads setup --help` covers explicit endpoint selection and matching ignored Codex environment configuration; unrelated settings are preserved. Actor identity remains process-local. [Beads integration](./beads-integration.md) owns storage and publication policy.
+
+Pi's [Beads extension](../.pi/extensions/beads.ts) displays the last successful Bash claim whose output contains only its JSON update response. The indicator clears on session start/switch; it is not live tracker state.
 
 ### Automation bead maintenance and debugging
 
-This section is for maintainers explicitly working on the automation-owned `system` workstream, not day-to-day agent task selection. Ordinary agents must avoid these beads. A normal implementation task does not become a system bead merely because an agent performs it or it changes automation code.
+Access to automation-owned records follows the [system-label authority](./beads-labels.md#taxonomy). The [`work` and `system` viewer recipes](../.bv/recipes.yaml) filter BV views; they do not authorize execution or filter `br` calls.
 
-When maintaining automation records, use the lowercase `system` label (`create --labels system` or `update --add-label system`), not a custom type or status. Label each system child explicitly too. A task's `system` marker does not select its bee kind.
-
-The project [viewer recipes](../.bv/recipes.yaml) provide `work` (exclude `system`) and `system` (require `system`) views. They affect `bv`, not `br` or worker execution, and are not automatically selected on startup. For read-only investigation, run from the repository root:
-
-```nu
-bv --recipe system --robot-triage
-br list --label system --json
-br ready --label system --json
-```
-
-For explicitly authorized maintenance work, put the assignment and particular system bead IDs in workflow input. Submit with `bee spawn <kind> --parent <ordinary-work-id> --input-file FILE` and an execution directory; the existing ordinary parent records the maintenance scope. This requests execution: an awake Colony can claim the workflow run and launch a bee. Native readiness and human reservations still apply. A `system` label does not itself authorize execution; see the [Bee and Colony guide](../lib/colony/README.md#create-requests).
+For an authorized maintenance assignment, put its scope and system bead IDs in workflow input beneath an ordinary work parent. Use `bee spawn --help` for submission. [Spawn state and native queries](./agents/spawn-requests.md) owns lifecycle inspection and recovery.

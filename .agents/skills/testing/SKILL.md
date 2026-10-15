@@ -25,13 +25,13 @@ Run `bun run test:changed` at intervals, such as completing a subtask, to check 
 
 Check runner-reported durations when adding or editing unit tests. New unit tests must run within 1ms; slower tests require explicit user authorisation, up to 5s.
 
-`bun run test:changed` reports failures and unapproved slow tests using JUnit timings. Its timing warnings are advisory; inspect the output. The full suite used by `bun run check` prints the complete timing report and fails on unapproved `DANGER`, blocking landing. Return these failures to the refactoring process below. Every change to [`lib/tooling/slow-tests.json`](../../../lib/tooling/slow-tests.json) requires explicit user sign-off on the exact proposed edit.
+Use the [timing report guide](../../../lib/tooling/README.md#test-timing-report-and-landing-gate) to interpret runner warnings and failures. Address slow tests through the refactoring process below.
 
 ### Addressing slow tests
 
 1. Re-read this skill's writing and integration guidance. Ask: "What is the value of this test?" and "What isolated behaviour is under test here?"
 2. First reduce runtime by refactoring the test, its setup or the code's dependency seams while preserving meaningful coverage. Keep tests focused on coherent behaviours; do not split a slow test into artificial pieces merely to get each piece below the threshold.
-3. Rerun and inspect the duration. If the test genuinely requires more time, discuss the measured cost, why it is necessary and the proposed allowance or timeout with the user. Obtain explicit approval before changing the allowance registry or increasing the timeout, then record the approved exception using the [allowance registry guide](../../../lib/tooling/README.md#allowed-slow-tests).
+3. Rerun and inspect the duration. If the test requires more time, discuss the measured cost, why it is necessary and the proposed allowance or timeout with the user. Obtain explicit approval before increasing a timeout; follow the [allowance registry guide](../../../lib/tooling/README.md#allowed-slow-tests) for approved exceptions.
 
 ## Integration testing
 

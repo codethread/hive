@@ -13,11 +13,11 @@ mise trust
 mise run
 ```
 
-The [setup recipe](./repository-commands.md#setup-and-automation) owns installation and tracker bootstrap. Bootstrap requires accepted `origin/tracker/state` history and its `.beads/issues.jsonl`; arrange for these to be available if missing. Preserve existing state when setup fails and follow [recovery](#conflicts-and-recovery).
+The [setup recipe](../mise.toml) installs the tools and bootstraps accepted `origin/tracker/state` history and its `.beads/issues.jsonl`. If that history is unavailable or setup fails, preserve existing state and follow [recovery](#conflicts-and-recovery).
 
 ## Selecting storage
 
-Use the selected `BEADS_DB`; do not initialize a private tracker in a feature worktree. Tracked [`mise.toml`](../mise.toml) selects the canonical worktree's tracker by default. [Environment setup](./integrations.md#development-toolchain) covers local overrides and generated Codex configuration.
+Use the selected `BEADS_DB`; do not initialize a private tracker in a feature worktree. [Environment setup](./integrations.md#development-toolchain) covers Hive's default, local overrides and generated Codex configuration.
 
 For an existing custom endpoint or inheritance from a configured checkout, use `beeswax beads setup --help`. For canonical bootstrap options, use `beeswax beads bootstrap --help`. Selecting an endpoint does not migrate older databases; retain them until their unpublished state is reconciled.
 
@@ -27,7 +27,7 @@ For an existing custom endpoint or inheritance from a configured checkout, use `
 bun run beads:sync
 ```
 
-This receives and publishes tracker changes; it is not receive-only. [Beeswax](../lib/beeswax/README.md#operate-the-tracker) owns publication and reconciliation. Setup, session hooks and Git hooks do not publish.
+This receives and publishes tracker changes through [Beeswax](../lib/beeswax/README.md#operate-the-tracker). Setup, session hooks and Git hooks stay local.
 
 Synchronize at these boundaries:
 
@@ -35,9 +35,9 @@ Synchronize at these boundaries:
 - **Landing/merge:** the landing actor publishes once after integration and all final task/workflow updates, from a surviving configured checkout.
 - **Deliberate remote handoff/checkpoint:** the responsible actor publishes valuable tracker-only or unlanded work when handing it to another clone, switching/retiring hosts, or requesting a remote checkpoint. Ordinary local handoffs and recording new tasks stay local.
 
-Worktrees sharing the selected database see claims and updates immediately. Routine startup/resume, child completion, progress and local commits need no publication. Independent clones may remain stale until exchange; local-only work has no remote backup or bounded publication delay.
+Routine startup/resume, child completion, progress and local commits need no publication. Independent clones may remain stale until exchange; local-only work has no remote backup or bounded publication delay.
 
-For cross-clone shared work, prefer agreed task allocation. Otherwise refresh, claim, successfully publish and verify reservations before execution. Claims remain provisional until publication succeeds; publish release/handoff before another clone takes over. Neither local locks nor Git exchange provide distributed leases or fencing; identical actor claims do not prove exclusivity. Never force competing claims. Autonomous shared-queue dispatch across clones requires an agreed pre-execution coordination protocol.
+For cross-clone shared work, agree task allocation or refresh, claim, successfully publish and verify reservations before execution. Publish release/handoff before another clone takes over. Local locks and Git exchange provide no distributed lease; identical actor claims do not prove exclusivity. Never force competing claims. Autonomous shared-queue dispatch requires an agreed pre-execution coordination protocol.
 
 ## Conflicts and recovery
 

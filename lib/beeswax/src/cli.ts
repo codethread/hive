@@ -110,7 +110,8 @@ function createProgram(
 		.exitOverride()
 		.addHelpText(
 			"after",
-			"\nStart: beeswax setup --help\nAgents: provide explicit flags; JSON and non-TTY runs never prompt.\n",
+			"\nStart: beeswax setup --help. Agent decisions: beeswax skills get repository-setup.\n" +
+				"JSON commands emit one success/error document with silent stderr; help stays text.\n",
 		);
 	program
 		.command("schema")
@@ -136,15 +137,21 @@ function createProgram(
 	)
 		.addHelpText(
 			"after",
-			"\nFirst tracker with versioned hooks (headless; run in the canonical checkout):\n" +
+			"\nJSON, non-TTY and --yes runs never prompt. Without a known database, choose --tracker explicitly.\n" +
+				"Adopt uses the selected database; bootstrap imports accepted origin/tracker/state history only\n" +
+				"when its database is absent. Init creates the first tracker; none skips tracker changes.\n" +
+				"\nFirst tracker with versioned hooks (run in the canonical checkout):\n" +
 				"  beeswax setup --tracker none --hooks husky --environment none --no-codex --yes --json\n" +
 				"  # Review and commit the generated project contract and hook sections before init.\n" +
 				"  beeswax setup --tracker init --prefix app --owner operator --hooks husky " +
 				"--environment none --no-codex --yes --json\n" +
 				"Init checks configured versioned hooks in the canonical checkout's HEAD before setup changes.\n" +
 				"Paths under .git/ use shared Git metadata and need no commit.\n" +
-				"Published tracker history: --tracker bootstrap. Existing database: --tracker adopt --beads-db PATH.\n" +
-				"No tracker changes: --tracker none. Remote publication is a separate beads sync operation.\n",
+				"Retain the init receipt; deliberately establish the first snapshot and upstream before publication.\n" +
+				"\nHooks: husky bootstraps the bundled runner; git retains Git's default hook lookup.\n" +
+				"None skips framework bootstrap but still installs validation sections. Custom frameworks must invoke\n" +
+				"the --pre-commit/--pre-merge-commit files. Inspect formats with beeswax schema.\n" +
+				"Setup stays local; beads sync publishes. On failure, inspect completed phases before retrying.\n",
 		)
 		.action(async function setup(this: Command) {
 			const options = await resolveSetup(
@@ -282,8 +289,8 @@ export function setupOptions(command: Command): Command {
 			"--executable <path>",
 			"Absolute installed CLI; default running binary or ~/.local/bin/beeswax",
 		)
-		.option("--pre-commit <path>", "Commit hook file; saved in .hive/beeswax/config.toml")
-		.option("--pre-merge-commit <path>", "Merge hook file; saved in .hive/beeswax/config.toml")
+		.option("--pre-commit <path>", "POSIX-shell commit hook; saved in project configuration")
+		.option("--pre-merge-commit <path>", "POSIX-shell merge hook; saved in project configuration")
 		.option("-y, --yes", "Accept inferred defaults; never prompt");
 }
 

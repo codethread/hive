@@ -1,28 +1,22 @@
 ---
 name: repository-setup
-description: Configure or refresh a repository's Beads tracker, merge driver and Git hook adapters through Beeswax.
+description: Configure or refresh a repository's Beads tracker, merge driver and Git hooks through Beeswax.
 ---
 
-Use `beeswax setup --help` to discover setup options. Supply explicit flags when running as an agent; `--json` and non-TTY invocations never prompt.
-
-Choose the tracker operation from observed repository state:
+Use `beeswax setup --help` for options and first-initialization prerequisites. Supply explicit choices as an agent. Preserve the selected database and accepted tracker history:
 
 ```text
-Existing selected database -> --tracker adopt --beads-db PATH
-Published tracker/state   -> --tracker bootstrap
-First tracker, authorized -> --tracker init --prefix PREFIX --owner HUMAN
-Git integration only      -> --tracker none
+Existing selected database -> adopt
+Published tracker/state   -> bootstrap
+First tracker, authorized -> init
+Git integration only      -> none
 ```
 
-Before first initialization, read the [hook migration task](references/hook-migration.md) for hook preparation. Preserve the selected database and accepted history. Initialization leaves the first snapshot and upstream for deliberate establishment before publication.
+For an existing project contract, use `beeswax sync --help` to reproduce it locally or `beeswax update --help` for a reviewed change. Use `beeswax schema` for configuration and lock formats. Keep machine paths and actors out of the committed contract.
 
-Use `beeswax schema` when preparing `.hive/beeswax/config.toml`; name the actual hook files, with application policy outside the generated sections. Commit the config and `.hive/beeswax/meta/lock.json`. Use `beeswax sync --help` to reproduce the accepted setup locally and `beeswax update --help` for a reviewed configuration or release change.
+On failure, use the completed-phase receipt to identify remaining work. Follow the reported migration task, retaining already agreed policy:
 
-Verify the reported effects and affected hooks before reporting completion. On failure, use the completed-phase receipt to identify remaining work and follow the reported migration command:
+- Hook insertion, edited sections or missing tracker hooks: [hook migration](references/hook-migration.md), also printed by `beeswax migrate hooks`.
+- Changed hook paths or unsupported project metadata: [setup migration](references/setup-migration.md), also printed by `beeswax migrate setup`.
 
-- Missing tracker hooks, hook insertion, edited sections or displaced application hooks: `beeswax migrate hooks` prints the [hook migration task](references/hook-migration.md).
-- Changed hook paths or unsupported project metadata: `beeswax migrate setup` prints the [setup migration task](references/setup-migration.md).
-
-These commands only supply instructions. Resolve remaining decisions with the user; preserve already agreed policy, including the permanent tracker's application hooks.
-
-At an authorized remote exchange or integration checkpoint, read [publication guidance](references/publication.md) with `beeswax skills file repository-setup references/publication.md`. Setup and local sync do not publish tracker changes.
+At an authorized remote exchange or integration checkpoint, read [publication guidance](references/publication.md). Retrieve linked resources with `beeswax skills file repository-setup PATH`.

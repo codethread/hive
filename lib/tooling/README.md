@@ -2,70 +2,38 @@
 
 ## Beads contract tests
 
-Tracker bootstrap belongs to [Beeswax](../beeswax/README.md). Run `bun test ./lib/beeswax/src/beads/bootstrap.contract.test.ts` from the checkout root to verify its Git, filesystem, `br` and `mise` boundaries.
+Tracker bootstrap checks exercise real Git, filesystem, `br` and `mise` boundaries in [`bootstrap.contract.test.ts`](../beeswax/src/beads/bootstrap.contract.test.ts). Native/in-memory Beads API conformance lives in [`lib/beads/tests/contract/`](../beads/tests/contract/).
 
-Native/in-memory Beads API conformance lives in [`lib/beads/tests/contract/`](../beads/tests/contract/). Run `bun run test:contracts` to execute that complete suite explicitly, including after changing the installed `br` executable outside Git.
-
-Ordinary `test:all` and `test:changed` runs exclude these contracts from Bun's discovery, then select them separately when Beads source, contract files or dependency/runtime configuration changes. Consumer-only changes do not select them. Selected contracts run in full regardless of ordinary-suite file/name filters. Exact inputs live in [`test-selection.ts`](src/test-selection.ts); comparison references and argument handling live in [`test-runner.ts`](src/test-runner.ts).
-
-Contract tests verify behavior at a third-party boundary; integration tests verify cooperation between Hive components.
+Run `bun run test:contracts` for the complete conformance suite, including after changing the installed `br` outside Git. Ordinary `test:all` and `test:changed` runs select those contracts separately from Bun's discovery when Beads source, contract files or dependency/runtime configuration changes. Consumer-only changes do not select them. Selected contracts run in full regardless of ordinary-suite file/name filters. [`test-selection.ts`](src/test-selection.ts) owns the exact inputs; [`test-runner.ts`](src/test-runner.ts) owns comparison references and argument handling.
 
 ## Test timing report and landing gate
 
-From the checkout root, run `bun run test:changed`. Extra Bun test arguments are forwarded, for example `bun run test:changed --changed=main` or `bun run test:changed ./lib/shared/src/bees.test.ts`.
-
-The full suite (`bun run test:all`, also used by `bun run check`) and changed tests share a runner with the same parallelism and timeout. Changed tests select `--changed=main`. Both use a temporary JUnit report, parsed with Bun's built-in XML parser (Bun 1.4+), and print unapproved slow tests, slowest first:
+`bun run test:changed` forwards Bun test arguments and defaults to changes from `main`. Full, changed and contract runs share parallelism and timeout settings. The runner parses a temporary JUnit report and prints passing tests above their allowed severity, slowest first:
 
 ```text
 lib/example.test.ts:42 XSLOW 12.345ms suite > test description
 ```
 
-Severity is the highest cutoff strictly exceeded: `SLOW` above 1ms, `XSLOW` above 5ms, `DANGER` above 1000ms. Exactly 1ms is quiet. Ordinary changed-test timing warnings do not change Bun's exit code; a run with no selected changed tests is quiet. Selected Beads conformance contracts enforce the full timing gate, including when invoked through `test:changed`.
+[`slow-tests.json`](./slow-tests.json) owns cutoffs and approved allowances. Severity is the highest cutoff strictly exceeded. Ordinary changed-test timing warnings are advisory; full and contract runs fail on unapproved `DANGER`, even when all assertions pass. Selected contracts enforce that gate during `test:changed` too. Refactor while preserving meaningful coverage; necessary measured costs use the allowance process below.
 
-The full suite prints Bun's diagnostics and the complete timing report, then fails if any unapproved `DANGER` remains. `SLOW` and `XSLOW` are advisory. This gate blocks landing even when all tests pass. Refactor meaningful tests, setup or dependency seams while preserving coverage, then rerun checks. When a measured cost is necessary, propose the exact allowance and justification for explicit user sign-off before editing the registry.
-
-Failed runs replay Bun's native diagnostics and retain its failure exit code, including errors outside individual tests that JUnit may omit. Failed and skipped tests do not get additional timing lines. Missing or malformed required reports fail loudly. The temporary report is removed after the run.
+Bun failures retain native diagnostics and exit status, including errors JUnit omits. Failed/skipped tests add no timing lines; an empty changed selection is quiet. Missing or malformed required reports fail visibly. Temporary reports are removed after execution.
 
 ### Allowed slow tests
 
-[`slow-tests.json`](./slow-tests.json) holds the cutoffs and approved allowances. Each entry requires a justification and the highest permitted severity:
+Each registry entry pairs a stable `#test-N` ID with a justification and maximum permitted severity. Put the ID in the test or enclosing suite title; retain it across moves. Matching uses the complete numeric ID. Allocate the next unused ID.
 
-```json
-{
-	"thresholdMs": { "SLOW": "1", "XSLOW": "5", "DANGER": "1000" },
-	"tests": {
-		"#test-1": {
-			"threshold": "SLOW",
-			"justification": "Approved filesystem fixture"
-		}
-	}
-}
-```
-
-Put the ID anywhere in the test description, such as `test('manages pool slots #test-1', ...)`. IDs in enclosing `describe` titles also apply. The complete numeric ID is matched, so `#test-1` does not allow `#test-10`; file moves and other title changes do not affect the allowance.
-
-With the default cutoffs, `SLOW` suppresses timing lines through 5ms, `XSLOW` through 1000ms, and `DANGER` has no timing-report ceiling and suppresses the matching landing gate failure. Allowances never suppress failures or change test timeouts. Allocate the next unused incrementing ID and retain it when moving the test. Every registry edit requires explicit user approval of the exact change.
+An allowance suppresses timing output through its permitted severity; `DANGER` also suppresses that test's timing gate failure. It never suppresses assertion failures or changes timeouts. Every registry edit requires explicit user approval of the exact change and its measured-cost justification.
 
 ## CLI artifacts
 
-From the Hive root, `bun run --filter '*' build` compiles host executables using [Bun's standalone compiler](https://bun.com/docs/bundler/executables). Builds write only package-local `dist/` artifacts. `tsc --noEmit` remains the independent typechecking gate.
+From the Hive root, `bun run --filter '*' build` writes package-local `dist/` executables. Workspace manifests own the artifact names and build flags. `tsc --noEmit` remains the separate typechecking gate.
 
-| Package   | Artifacts in its `dist/` directory                                    |
-| --------- | --------------------------------------------------------------------- |
-| Beeswax   | `beeswax`                                                             |
-| Honeycomb | `honeycomb`                                                           |
-| Colony    | `bee`, `colony`, `colony-runtime`, `colony-worker`, `colony-watchdog` |
-| qlock     | `qlock`                                                               |
-| Waggle    | `waggle`                                                              |
-| Busy Bee  | `busybee`                                                             |
-| Hive UI   | `hive-ui` (embedded browser assets)                                   |
+Standalone executables embed Bun and static dependencies; native external tools remain required. Busy Bee loads trusted workflows and their dependencies from the selected checkout, with package metadata and TypeScript configuration loading enabled for imports and path aliases. Waggle reads classifiers from the selected directory. Neither catalog is baked into its executable.
 
-Shared and Tooling expose no executable build contract. Ordinary builds target the host. The separately invoked [Release workflow](../../docs/releases.md) uses these same builders with `HIVE_BUILD_TARGET` to create one versioned suite from an immutable revision. Standalone executables embed Bun and static dependencies; they do not need the producing checkout at runtime. Native external tools remain required by each command. Busy Bee loads trusted workflow modules from the selected checkout, whose own dependencies must be installed. Its build explicitly enables Bun package and TypeScript configuration loading (`--compile-autoload-package-json --compile-autoload-tsconfig`): without package metadata, Bun 1.4.2 cannot resolve external workflow package imports; without TypeScript configuration, workflow path aliases fail. Both cases were verified against source execution. Waggle reads classifiers from the caller-selected directory. Neither catalog is baked into the executable.
+`bun run --filter '*' install:bin` installs already-built artifacts through Beeswax; see `beeswax artifacts install --help` for source/destination options. Installation replaces destination symlinks without modifying their targets. Keep Colony's daemon, worker and watchdog companions beside `bee` and `colony`; deliberately restart an existing daemon after updating its runtime.
 
-`bun run --filter '*' install:bin` installs the already-built artifacts through `beeswax artifacts install`. Its `--directory <path>` option defaults to `~/.local/bin`; a missing artifact fails installation. Each executable is copied into destination-local staging, made executable, and renamed over the destination, replacing symlinks without modifying their targets. Colony's five executables must remain together. Stop and restart an existing daemon deliberately after updating its installed runtime.
-
-`mise run` orders dependency installation, local builds, explicit installation and tracker bootstrap. `bun install` alone prepares a new worktree and never installs global commands.
+[`mise.toml`](../../mise.toml) owns setup ordering. `bun install` prepares a worktree without installing global commands. The [release guide](../../docs/releases.md) owns cross-platform builds from immutable revisions.
 
 ## Release tooling
 
-`bun run release --help` describes version/changelog preparation, immutable revision builds and checksum-verified Homebrew formula generation. The [release guide](../../docs/releases.md) covers the platform matrix, dependency contract, first-release decisions and explicit publication workflow. The commands prepare local artifacts; the workflow owns verified GitHub publication and the tap update. Ordinary Land never publishes a release.
+`bun run release --help` describes local version/changelog preparation, revision builds and checksum-verified formula generation. The [release workflow](../../docs/releases.md) owns GitHub publication and the tap update. Ordinary Land does not publish a release.
