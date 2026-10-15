@@ -1,5 +1,13 @@
 import { BeeAssignment, ResourceNotice, time } from "./ui.tsx";
-import { EMPTY, outlines, preferences, snapshot } from "./data.ts";
+import {
+	EMPTY,
+	annotateHierarchy,
+	annotationStatus,
+	annotations,
+	outlines,
+	preferences,
+	snapshot,
+} from "./data.ts";
 import type { Hierarchy, HierarchyNode } from "../contracts.ts";
 import { Link, useSearch } from "@tanstack/react-router";
 import { branchRows, outlineHierarchy, unclosed } from "../hierarchy.ts";
@@ -13,7 +21,8 @@ const INDENT = 24;
 export function BeadOutline({ colonyId, id }: { colonyId: string; id: string }) {
 	const includeClosed = useStore(preferences, (state) => state.outlineClosed);
 	const resource = useStore(outlines.store, (state) => state.entries[`${colonyId}/${id}`] ?? EMPTY);
-	const hierarchy = snapshot(resource);
+	const annotationEntries = useStore(annotations.store, (state) => state.entries);
+	const hierarchy = annotateHierarchy(snapshot(resource), colonyId, annotationEntries);
 	const root = hierarchy?.nodes.find((node) => node.id === id);
 	return (
 		<section className="bead-outline-page" aria-label={`Descendant outline for ${id}`}>
@@ -29,6 +38,14 @@ export function BeadOutline({ colonyId, id }: { colonyId: string; id: string }) 
 				← Back to board
 			</Link>
 			<ResourceNotice resource={resource} />
+			<ResourceNotice
+				resource={annotationStatus(
+					colonyId,
+					[hierarchy?.nodes.map((node) => node.id) ?? []],
+					annotationEntries,
+				)}
+				label="Card icons"
+			/>
 			{hierarchy && root && (
 				<>
 					<header className="bead-outline-heading">

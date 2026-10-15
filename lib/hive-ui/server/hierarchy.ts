@@ -1,16 +1,29 @@
-import type { DependencyEdge, SelectedBead } from "@hive/beads";
+import type { DependencyEdge, ProjectedBead } from "@hive/beads";
+
+export const SUMMARY_FIELDS = [
+	"id",
+	"title",
+	"status",
+	"priority",
+	"assignee",
+	"updated_at",
+	"labels",
+	"dependency_count",
+	"dependent_count",
+] as const;
+export type SummaryBead = ProjectedBead<typeof SUMMARY_FIELDS>;
 
 const READ_BATCH = 100;
 const EDGE_CONCURRENCY = 4;
 export interface HierarchyRecord {
 	/** Unhydrated native fields; comments and relationship bodies are not read. */
-	bead: SelectedBead;
+	bead: SummaryBead;
 	/** Native parent links, independent of board filters. */
 	parentIds: string[];
 }
 interface HierarchyReads {
 	/** Batch summaries for explicit IDs, including every status. */
-	rows: (ids: string[]) => Promise<SelectedBead[]>;
+	rows: (ids: string[]) => Promise<SummaryBead[]>;
 	/** Only native parent-child edges, in both directions. */
 	edges: (id: string) => Promise<DependencyEdge[]>;
 }

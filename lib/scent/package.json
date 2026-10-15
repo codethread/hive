@@ -5,9 +5,10 @@
 	"type": "module",
 	"exports": {
 		".": "./src/identity.ts",
-		"./pi": "./pi.ts"
+		"./pi": "./src/bin/pi.ts"
 	},
 	"scripts": {
+		"build:plugin": "bun build ./src/bin/codex.ts --target=bun --minify --outfile=../../plugins/scent/dist/codex.js",
 		"typecheck": "tsc --noEmit",
 		"test": "bun test ./tests"
 	},
@@ -20,7 +21,7 @@
 	},
 	"pi": {
 		"extensions": [
-			"./pi.ts"
+			"./src/bin/pi.ts"
 		]
 	}
 }

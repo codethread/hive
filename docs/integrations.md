@@ -57,7 +57,7 @@ A child cannot change its parent's directory. `honeycomb shell-init` therefore p
 
 Bun-specific process and test APIs make a runtime replacement broader than a launcher change. Build/install behavior belongs to [Repository tooling](../lib/tooling/README.md#cli-artifacts); pinned development dependencies and their recipes live in [`package.json`](../package.json).
 
-Tracked [`mise.toml`](../mise.toml) selects Hive's canonical tracker through `BEADS_DB`. Ignored `mise.local.toml` may override it. `beeswax beads setup --help` covers explicit endpoint selection and matching ignored Codex environment configuration; unrelated settings are preserved. Actor identity remains process-local. [Beads integration](./beads-integration.md) owns storage and publication policy.
+Beeswax writes the selected `BEADS_DB` to ignored `mise.local.toml` when Mise integration is enabled. `beeswax beads setup --help` covers explicit endpoint selection and matching ignored Codex environment configuration; unrelated settings are preserved. Actor identity remains process-local. [Beads integration](./beads-integration.md) owns storage and publication policy.
 
 Pi's [Beads extension](../.pi/extensions/beads.ts) displays the last successful Bash claim whose output contains only its JSON update response. The indicator clears on session start/switch; it is not live tracker state.
 

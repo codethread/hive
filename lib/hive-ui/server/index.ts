@@ -1,12 +1,13 @@
 #!/usr/bin/env bun
 /* eslint-disable import/max-dependencies -- Foreground boundary composes server, CLI and package identity. */
-import { Command, CommanderError } from "commander";
 import {
+	ANNOTATION_BATCH,
 	PAGE_SIZE,
 	boardFilterSchema,
 	boardScopeSchema,
 	inventoryFilterSchema,
 } from "../contracts.ts";
+import { Command, CommanderError } from "commander";
 // eslint-disable-next-line import/no-nodejs-modules -- Resolve explicitly configured local repository endpoints.
 import { basename, resolve } from "node:path";
 import { execute, resolveRepository } from "@hive/shared";
@@ -46,7 +47,7 @@ const optionsSchema = z.object({
 const idSchema = z.string().regex(/^[\da-z][\w.-]*$/iu);
 const apiRoute = new RegExp(
 	/^\/api\/colonies\/(?<colony>[^/]+)\//u.source +
-		/(?<operation>board|beads|provenance|inventory|outline|hierarchy|workflow)(?:\/(?<id>[^/]+))?$/u
+		/(?<operation>board|beads|provenance|inventory|outline|hierarchy|annotations|workflow)(?:\/(?<id>[^/]+))?$/u
 			.source,
 	"u",
 );
@@ -112,8 +113,10 @@ async function main(): Promise<void> {
 			port: options.port,
 			routes: {
 				"/*": index,
-				"/api/*": (request) =>
-					api(request, { beads, colonies, data, log, preview, host: options.host }),
+				"/api/*": (request, listener) => {
+					listener.timeout(request, 0);
+					return api(request, { beads, colonies, data, log, preview, host: options.host });
+				},
 			},
 		});
 		const ready = {
@@ -250,13 +253,20 @@ async function api(
 			status = HTTP.ok;
 			return respond(await data.inventory(context, filter, refreshAfter));
 		}
-		if (route["operation"] === "hierarchy") {
+		if (route["operation"] === "hierarchy" || route["operation"] === "annotations") {
+			let limit = ANNOTATION_BATCH;
+			if (route["operation"] === "hierarchy") {
+				limit = PAGE_SIZE;
+			}
 			const ids = z
 				.array(idSchema)
-				.max(PAGE_SIZE)
+				.max(limit)
 				.parse(JSON.parse(url.searchParams.get("ids") ?? "[]"));
 			status = HTTP.ok;
-			return respond(await data.hierarchy(context, ids, refreshAfter));
+			if (route["operation"] === "hierarchy") {
+				return respond(await data.hierarchy(context, ids, refreshAfter));
+			}
+			return respond(await data.annotations(context, ids, refreshAfter));
 		}
 		status = HTTP.badRequest;
 		const id = idSchema.parse(decodeURIComponent(route["id"] ?? ""));

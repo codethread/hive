@@ -3,6 +3,10 @@
 import { BeeHistory, BoardTabs } from "./board-navigation.tsx";
 import {
 	EMPTY,
+	annotateCards,
+	annotateHierarchy,
+	annotationStatus,
+	annotations,
 	boards,
 	colonies,
 	hierarchies,
@@ -110,7 +114,9 @@ export function WorkPage() {
 	const filter = boardFilterSchema.parse(search);
 	const key = boardKey(colonyId, filter);
 	const resource = useStore(boards.store, (state) => state.entries[key] ?? EMPTY);
-	const board = snapshot(resource);
+	const annotationEntries = useStore(annotations.store, (state) => state.entries);
+	const base = snapshot(resource);
+	const board = base && { ...base, cards: annotateCards(base.cards, colonyId, annotationEntries) };
 	const hierarchyResource = useStore(
 		hierarchies.store,
 		(state) =>
@@ -201,7 +207,25 @@ export function WorkPage() {
 								board && (
 									<>
 										<ResourceNotice resource={hierarchyResource} label="Hierarchy" />
-										<BeadBoard board={board} hierarchy={snapshot(hierarchyResource)} />
+										<ResourceNotice
+											resource={annotationStatus(
+												colonyId,
+												[
+													board.cards.map((card) => card.id),
+													snapshot(hierarchyResource)?.nodes.map((node) => node.id) ?? [],
+												],
+												annotationEntries,
+											)}
+											label="Card icons"
+										/>
+										<BeadBoard
+											board={board}
+											hierarchy={annotateHierarchy(
+												snapshot(hierarchyResource),
+												colonyId,
+												annotationEntries,
+											)}
+										/>
 										<Pagination hasMore={board.hasMore} />
 									</>
 								)
@@ -212,6 +236,16 @@ export function WorkPage() {
 					) : (
 						inventory?.kind === "loaded" && (
 							<div className="min-w-0">
+								{search.request !== undefined && board && (
+									<ResourceNotice
+										resource={annotationStatus(
+											colonyId,
+											[board.cards.map((card) => card.id)],
+											annotationEntries,
+										)}
+										label="Card icons"
+									/>
+								)}
 								<BeeWorkspace colonyId={colonyId} inventory={inventory} board={board} />
 								{search.request !== undefined && board && <Pagination hasMore={board.hasMore} />}
 							</div>

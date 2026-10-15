@@ -99,7 +99,9 @@ export async function writeProjectLock(root: string, io: WorkspaceIO): Promise<s
 		},
 	};
 	const path = join(root, ".hive/beeswax/meta/lock.json");
-	await io.write(path, `${JSON.stringify(lock, undefined, "\t")}\n`);
+	if (!Bun.deepEquals(await readProjectLock(root, io), lock)) {
+		await io.write(path, `${JSON.stringify(lock, undefined, "\t")}\n`);
+	}
 	return path;
 }
 

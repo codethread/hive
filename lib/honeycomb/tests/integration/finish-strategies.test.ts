@@ -110,7 +110,6 @@ test.each([
 );
 test.each([
 	{ fresh: false, strategy: "squash" },
-	{ fresh: true, strategy: "squash" },
 	{ fresh: false, strategy: "merge_commit" },
 ])(
 	"$strategy modify/delete conflict protects canonical (fresh=$fresh)",

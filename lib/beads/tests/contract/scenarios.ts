@@ -83,6 +83,16 @@ export async function projectedFiledRecords({ service, scope }: ContractSession)
 		["title"],
 	);
 	expect(last.has_more).toBe(false);
+	const summary = await service.listProjected(scope, { ids: [task.id] }, [
+		"priority",
+		"assignee",
+		"labels",
+		"dependency_count",
+		"dependent_count",
+	]);
+	expect(summary.issues).toEqual([
+		{ priority: 2, assignee: undefined, labels: [], dependency_count: 0, dependent_count: 3 },
+	]);
 	const children = await service.dep.list(scope, task.id, {
 		direction: "up",
 		type: "parent-child",
@@ -90,6 +100,7 @@ export async function projectedFiledRecords({ service, scope }: ContractSession)
 	expect(children).toEqual([]);
 	return {
 		exact,
+		summary,
 		edges: edges
 			.map(({ type, title }) => ({ type, title }))
 			.toSorted((left, right) => left.type.localeCompare(right.type)),

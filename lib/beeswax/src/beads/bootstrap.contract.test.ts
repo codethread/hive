@@ -11,10 +11,6 @@ import { tmpdir } from "node:os";
 
 const timeout = 15_000;
 const success = 0;
-const trackedEnvironment =
-	"[env]\nBEADS_DB = \"{{ exec(command='git rev-parse " +
-	"--path-format=absolute --git-common-dir') | dirname " +
-	'}}/.worktrees/tracker--state/.beads/beads.db"\n';
 
 type History = "present" | "missing-snapshot" | "missing-branch";
 
@@ -76,7 +72,7 @@ async function fixture(tmp: string, history: History = "present") {
 	await mkdir(seed);
 	await command(["git", "init", "--initial-branch=main"], seed);
 	await Bun.write(join(seed, "package.json"), '{"name":"bootstrap-fixture","private":true}\n');
-	await Bun.write(join(seed, "mise.toml"), trackedEnvironment);
+	await Bun.write(join(seed, "mise.toml"), "");
 	await Bun.write(
 		join(seed, ".gitignore"),
 		".beads/\n.worktrees/\nnode_modules/\nmise.local.toml\n.codex/config.toml\n",

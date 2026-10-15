@@ -44,6 +44,20 @@ test("configuration drift and release drift fail before implicit upgrades", () =
 	);
 });
 
+test("repeated lock generation preserves the formatting of an unchanged contract", async () => {
+	const fx = fixture();
+	for (const [path, contents] of files) {
+		fx.files.set(path, contents);
+	}
+	const path = "/repo/.hive/beeswax/meta/lock.json";
+	const formatted = `${JSON.stringify(JSON.parse(fx.files.get(path) ?? ""))}\n`;
+	fx.files.set(path, formatted);
+
+	await writeProjectLock(root, fx.deps);
+
+	expect(fx.files.get(path)).toBe(formatted);
+});
+
 test("unrecognized project metadata asks an agent to establish the migration path", async () => {
 	const fx = fixture();
 	fx.files.set("/repo/.hive/beeswax/meta/lock.json", '{"format":99}');

@@ -1,17 +1,14 @@
 /* eslint-disable unicorn/no-null -- Resource states retain an explicit last-known snapshot. */
-import type {
-	BoardFilter,
-	BoardScope,
-	Hierarchy,
-	InventoryFilter,
-	Navigation,
-} from "../contracts.ts";
+
 import {
+	ANNOTATION_BATCH,
+	annotationKey,
 	apiErrorSchema,
 	boardFilterSchema,
 	boardKey,
 	boardSchema,
 	boardScopeSchema,
+	cardAnnotationsSchema,
 	coloniesSchema,
 	detailKey,
 	detailSchema,
@@ -22,6 +19,15 @@ import {
 	provenanceSchema,
 	requestInventorySchema,
 	workflowPreviewSchema,
+} from "../contracts.ts";
+import type {
+	BoardFilter,
+	BoardScope,
+	Card,
+	CardAnnotations,
+	Hierarchy,
+	InventoryFilter,
+	Navigation,
 } from "../contracts.ts";
 import { beadFamilies } from "../hierarchy.ts";
 import { createStore } from "zustand/vanilla";
@@ -56,6 +62,7 @@ interface Preferences {
 export const colonies = createResource(coloniesSchema);
 export const boards = createResource(boardSchema);
 export const inventories = createResource(requestInventorySchema);
+export const annotations = createCardAnnotationsResource();
 export const details = createResource(detailSchema);
 export const hierarchies = createHierarchyResource();
 export const outlines = createResource(hierarchySchema);
@@ -96,12 +103,12 @@ export async function loadBoard(
 		refreshAfter > 0,
 	);
 	const resource = boards.store.getState().entries[boardKey(colony, filter)];
-	if (filter.view === "beads" && resource?.kind === "ready") {
-		await loadHierarchy(
-			colony,
-			resource.data.cards.map((card) => card.id),
-			refreshAfter,
-		);
+	if (resource?.kind === "ready") {
+		const ids = resource.data.cards.map((card) => card.id);
+		await Promise.all([
+			loadAnnotations(colony, ids, refreshAfter),
+			...(filter.view === "beads" ? [loadHierarchy(colony, ids, refreshAfter)] : []),
+		]);
 	}
 }
 export function loadInventory(
@@ -136,17 +143,114 @@ export async function loadBead(
 		(options.refreshAfter ?? 0) > 0,
 	);
 	const resource = details.store.getState().entries[key];
-	if (resource?.kind === "ready" && !resource.data.card.labels.includes("merge")) {
-		await loadHierarchy(colony, [id], options.refreshAfter ?? 0);
+	if (resource?.kind === "ready") {
+		const work = [loadAnnotations(colony, [id], options.refreshAfter ?? 0)];
+		if (!resource.data.card.labels.includes("merge")) {
+			work.push(loadHierarchy(colony, [id], options.refreshAfter ?? 0));
+		}
+		await Promise.all(work);
 	}
 }
-export function loadHierarchy(colony: string, ids: string[], refreshAfter = 0): Promise<void> {
+export async function loadHierarchy(
+	colony: string,
+	ids: string[],
+	refreshAfter = 0,
+): Promise<void> {
 	const key = hierarchyKey(colony, ids);
 	const search = new URLSearchParams({
 		ids: JSON.stringify(ids),
 		refreshAfter: String(refreshAfter),
 	});
-	return hierarchies.load(key, `/api/colonies/${colony}/hierarchy?${search}`, refreshAfter > 0);
+	await hierarchies.load(key, `/api/colonies/${colony}/hierarchy?${search}`, refreshAfter > 0);
+	const resource = hierarchies.store.getState().entries[key];
+	if (resource?.kind === "ready") {
+		await loadAnnotations(
+			colony,
+			resource.data.nodes.map((node) => node.id),
+			refreshAfter,
+		);
+	}
+}
+
+export async function loadAnnotations(
+	colony: string,
+	ids: string[],
+	refreshAfter = 0,
+): Promise<void> {
+	for (const batch of annotationBatches(ids)) {
+		const search = new URLSearchParams({
+			ids: JSON.stringify(batch),
+			refreshAfter: String(refreshAfter),
+		});
+		// eslint-disable-next-line no-await-in-loop -- Bound optional metadata reads independently of primary resources.
+		await annotations.load(
+			annotationKey(colony, batch),
+			`/api/colonies/${colony}/annotations?${search}`,
+			refreshAfter > 0,
+		);
+	}
+}
+
+export function createCardAnnotationsResource(
+	read: (path: string) => Promise<CardAnnotations> = (path) => request(path, cardAnnotationsSchema),
+) {
+	return createResource(cardAnnotationsSchema, read, (entries, key, resource) => {
+		const colony = key.slice(0, key.indexOf("/"));
+		const next = { ...entries };
+		const cards = resource.data.cards.map((card) => {
+			const alias = hierarchyKey(colony, [card.id]);
+			const previous = snapshot(entries[alias] ?? EMPTY);
+			const current = previous?.cards[0];
+			const fetchedAt =
+				previous && previous.fetchedAt > resource.data.fetchedAt
+					? previous.fetchedAt
+					: resource.data.fetchedAt;
+			const value = current ? reconcileAnnotation(current, card) : card;
+			next[alias] = { ...resource, data: { ...resource.data, fetchedAt, cards: [value] } };
+			return value;
+		});
+		const previous = snapshot(next[key] ?? EMPTY);
+		const fetchedAt =
+			previous && previous.fetchedAt > resource.data.fetchedAt
+				? previous.fetchedAt
+				: resource.data.fetchedAt;
+		next[key] = { ...resource, data: { ...resource.data, fetchedAt, cards } };
+		return next;
+	});
+}
+
+export function annotationStatus(
+	colony: string,
+	groups: string[][],
+	entries: ResourceState<CardAnnotations>["entries"],
+): Resource<CardAnnotations> {
+	const resources = groups.flatMap((ids) =>
+		annotationBatches(ids).map((batch) => entries[annotationKey(colony, batch)] ?? EMPTY),
+	);
+	return (
+		resources.find((resource) => resource.kind === "failed") ??
+		resources.find((resource) => resource.kind === "loading") ??
+		resources.find((resource) => resource.kind === "stale") ??
+		EMPTY
+	);
+}
+
+export function annotateCards<Value extends Card>(
+	cards: Value[],
+	colony: string,
+	entries: ResourceState<CardAnnotations>["entries"],
+): Value[] {
+	return cards.map((card) => {
+		const value = snapshot(entries[hierarchyKey(colony, [card.id])] ?? EMPTY)?.cards[0];
+		return value?.updatedAt === card.updatedAt ? { ...card, ...value } : card;
+	});
+}
+export function annotateHierarchy(
+	hierarchy: Hierarchy | null,
+	colony: string,
+	entries: ResourceState<CardAnnotations>["entries"],
+): Hierarchy | null {
+	return hierarchy && { ...hierarchy, nodes: annotateCards(hierarchy.nodes, colony, entries) };
 }
 
 /** Complete families and aliases share one publication boundary, including out-of-order responses. */
@@ -155,12 +259,20 @@ export function createHierarchyResource(
 ) {
 	return createResource(hierarchySchema, read, publishHierarchy);
 }
-export function loadOutline(colony: string, id: string, refreshAfter = 0): Promise<void> {
-	return outlines.load(
+export async function loadOutline(colony: string, id: string, refreshAfter = 0): Promise<void> {
+	await outlines.load(
 		`${colony}/${id}`,
 		`/api/colonies/${colony}/outline/${encodeURIComponent(id)}?refreshAfter=${refreshAfter}`,
 		refreshAfter > 0,
 	);
+	const resource = outlines.store.getState().entries[`${colony}/${id}`];
+	if (resource?.kind === "ready") {
+		await loadAnnotations(
+			colony,
+			resource.data.nodes.map((node) => node.id),
+			refreshAfter,
+		);
+	}
 }
 export function loadProvenance(colony: string, id: string, fresh = false): Promise<void> {
 	return provenance.load(
@@ -228,6 +340,33 @@ export function snapshot<Value>(resource: Resource<Value>): Value | null {
 }
 
 // --- Resource and HTTP ownership ---
+function annotationBatches(ids: string[]): string[][] {
+	const batches: string[][] = [];
+	for (let offset = 0; offset < ids.length; offset += ANNOTATION_BATCH) {
+		batches.push(ids.slice(offset, offset + ANNOTATION_BATCH));
+	}
+	return batches;
+}
+
+function reconcileAnnotation(
+	current: CardAnnotations["cards"][number],
+	incoming: CardAnnotations["cards"][number],
+): CardAnnotations["cards"][number] {
+	const task = current.updatedAt > incoming.updatedAt ? current : incoming;
+	const merges = incoming.sources.merges >= current.sources.merges ? incoming : current;
+	// Assignments depend on task status and assignee; compare source versions within that context.
+	let assignments = task;
+	if (current.status === incoming.status && current.assignee === incoming.assignee) {
+		assignments = incoming.sources.assignments >= current.sources.assignments ? incoming : current;
+	}
+	return {
+		...task,
+		merges: merges.merges,
+		beeAssignments: assignments.beeAssignments,
+		sources: { merges: merges.sources.merges, assignments: assignments.sources.assignments },
+	};
+}
+
 /** Routes and event actions load; components subscribe. No effects or duplicate Router cache. */
 function createResource<Value>(
 	schema: z.ZodType<Value>,

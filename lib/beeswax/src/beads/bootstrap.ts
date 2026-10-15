@@ -242,8 +242,8 @@ async function importDatabase(
 	) {
 		throw new Error(
 			`Tracker at ${tracker} is unhealthy or has unreconciled JSONL. Inspect br --db ` +
-				`${database} sync --status --json and follow docs/beads-integration.md recovery ` +
-				"before bootstrap.",
+				`${database} sync --status --json and resolve the reported issues before bootstrap. ` +
+				"Read publication guidance with beeswax skills file repository-setup references/publication.md.",
 		);
 	}
 }
