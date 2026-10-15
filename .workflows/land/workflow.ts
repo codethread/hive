@@ -474,8 +474,7 @@ export const machine = setup({
 					instructions:
 						"Deliver a concise landing report citing the retained evidence: what landed, source/integration " +
 						"commits, review, checks, local installation, cleanup and unresolved work. Distinguish simulation " +
-						"from actual integration. A dispatched worker leaves collection to the driver; it neither " +
-						"navigates nor closes the run. The caller reads the retained run brief and comments to perform " +
+						"from actual integration. The caller reads the retained run brief and comments to perform " +
 						"the post-done tail and final report. " +
 						`\n\n${retainedContext(context)}`,
 				}),

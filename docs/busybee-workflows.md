@@ -131,7 +131,7 @@ task: ({ context }: { context: ReviewContext }) => ({
 }),
 ```
 
-Here `ReviewContext` contains `revision`. Put any title override first in the returned object. Busy Bee calls `task` once per published visit and freezes its brief; the callback renders instructions, not work or transitions. Check interpolated values with `busybee show RUN`.
+Here `ReviewContext` contains `revision`. Put any title override first in the returned object. Busy Bee calls `task` once per published visit and freezes its brief; the callback renders instructions, not work or transitions. Check interpolated values with `busybee show RUN`, then read the generated bead with `br show TASK --json` to audit the complete brief. Busy Bee appends result discovery, delivery and closure instructions; keep those shared procedures out of author task callbacks.
 
 A helper can produce the same runtime machine while hiding its meaning from a source extractor. In the land workflow, Stately exposed an inline arrow's returned fields and instruction template, while a `landingTask(...)` helper or block-bodied function appeared as an opaque reference. Keep chart structure and task meaning explicit by default. Extract a helper only when hiding those details is deliberate, document the reason near the call, and verify the intended visualizer. A duplicate static instructions field is unnecessary.
 

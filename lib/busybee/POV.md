@@ -32,10 +32,11 @@ The parent IDs name existing nonclosed ordinary work in the selected tracker. Ea
 }
 ```
 
-The run ID identifies the workflow; the task ID identifies the work to submit. Inspect instructions and the current input contract:
+The run ID identifies the workflow; the task ID identifies the work to submit. Inspect active work, its native brief and its outcome schemas:
 
 ```sh
 busybee show busy-2rm --json
+br show busy-2rm.1 --json
 busybee discover busy-2rm
 ```
 
@@ -46,13 +47,14 @@ Choice: next
 
 No fields follow `next`, so it needs no payload. Use `discover --json` for complete schemas.
 
-## Close the task, then submit
+## Save the result, close the task, then collect
 
 After identifying the change and completing any subtasks:
 
 ```sh
+busybee record-result busy-2rm busy-2rm.1 next --json
 br close busy-2rm.1 --reason "Completed: identified API and documentation scope"
-busybee next busy-2rm busy-2rm.1 --json
+busybee collect busy-2rm --json
 ```
 
 The returned `active` work now contains these groups and workers:
@@ -65,9 +67,9 @@ The returned `active` work now contains these groups and workers:
 | `busy-2rm.2.2`   | Documentation  | None     |
 | `busy-2rm.2.2.1` | Write docs     | `next`   |
 
-API and documentation work can proceed concurrently. Each worker closes and submits its own task; Busy Bee closes the groups once their work finishes. These tasks belong to open groups, not the closed preparation task.
+API and documentation work can proceed concurrently. Each worker saves its outcome and closes its own task; the driver collects results. Busy Bee closes the groups once their work finishes. These tasks belong to open groups, not the closed preparation task.
 
-Submitting an open worker task exits nonzero with `reason: "task_not_closed"`; the message supplies its close command. Finish any children blocking native closure, close the task, then submit. The workflow remains unchanged until the result is accepted.
+Driver-handled visits also support direct `next` and `choice` submission after closure; see `busybee choice --help`. Bee-dispatched visits require saved results and collection.
 
 ## Submit a structured outcome
 
@@ -91,11 +93,12 @@ meals (required, integer)  {"exclusiveMinimum":0,"maximum":9007199254740991}
 After checking the calendar:
 
 ```sh
+busybee record-result busy-8fp busy-8fp.1 busy --data '{"meals":4}' --json
 br close busy-8fp.1 --reason "Completed: four meals at home with limited cooking time"
-busybee choice busy-8fp busy-8fp.1 busy --data '{"meals":4}' --json
+busybee collect busy-8fp --json
 ```
 
-The next task is “Choose quick recipes,” with context including `busyWeek: true` and `plannedMeals: 4`. Repeat the inspect, work, close and submit cycle until `status` is `done`.
+The next task is “Choose quick recipes,” with context including `busyWeek: true` and `plannedMeals: 4`. Repeat the inspect, work, save, close and collect cycle until `status` is `done`.
 
 ## Run Hive's landing workflow
 
@@ -118,6 +121,6 @@ busybee run land --parent hv-widget --owner ct --input-file /tmp/land-input.json
 
 The run is “Land worktree feature/widget” and the first task is “Triage the authorized landing: worktree feature/widget.” Inspect `discover` and its brief, then choose the outcome matching the actual work: `implement`, `check`, `review`, `commit`, `reviewed` or `integrated`. Later tasks can return to implementation, review or PR readiness rather than advancing in a fixed sequence.
 
-Every landing outcome, including `next`, requires an `evidence` payload describing the observed result and next brief. Put narrative verification in comments. Use the [durable result contract](./README.md#delegate-a-workflow-to-bee) to record the chosen outcome and payload before closing the stage, then collect the saved result. Outcomes `approved`, `commit` and `reviewed` also require the current local-review receipt (`bead`, `base`, `revision`); see [landing from the current state](./README.md#landing-from-the-current-state). Leave unresolved blockers open rather than inventing evidence to advance.
+Every landing outcome, including `next`, requires an `evidence` payload describing the observed result and next brief. Put narrative verification in comments. Follow `busybee record-result --help` to save the chosen outcome and payload before closing the stage, then collect the saved result. Outcomes `approved`, `commit` and `reviewed` also require the current local-review receipt (`bead`, `base`, `revision`); see [landing from the current state](./README.md#landing-from-the-current-state). Leave unresolved blockers open rather than inventing evidence to advance.
 
 If landing removes the feature checkout, continue from the retained canonical root with the same database and unchanged named definition. Before the final visit closes, comment on the run with integration, acceptance and verification evidence. Its brief retains the authorized `completedTasks`, paths and caller instructions. Collect the final saved `next` result and verify `status: done`; only then does the authorized standalone caller or Land driver close proven `hv-widget` and publish once with `bun run beads:sync`. The parent edge does not add closure permission for other tasks. See [landing from the current state](./README.md#landing-from-the-current-state) for the post-done failure handoff.

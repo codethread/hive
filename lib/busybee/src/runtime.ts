@@ -272,11 +272,10 @@ export async function discover(
 	return {
 		active: run.active.map((entry) => discoveryEntry(entry, definition)),
 		constraints:
-			"Use record-result RUN TASK CHOICE --data-file FILE to validate and save the " +
-			"original JSON payload before closing the task; collect consumes closed saved " +
-			"results. Task must still be active in the workflow and already closed through " +
-			"native br when submitted. Workers close their own tasks; the runner closes " +
-			"grouping and workflow beads. Discovery is a snapshot, not a reservation.",
+			"Save the original payload with record-result before native task closure; " +
+			"the driver then collects closed saved results. Read busybee record-result --help. " +
+			"Direct next/choice submissions require an already-closed driver-handled visit. " +
+			"Discovery is a snapshot, not a reservation.",
 		id,
 	};
 }

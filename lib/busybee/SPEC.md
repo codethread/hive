@@ -42,6 +42,8 @@ Partial-effect creation errors retain the known `parentId`, even when the run cr
 
 ## Saved-state preview
 
+`show` exposes active work, frozen task instructions and run status; `discover` exposes its outcome choices, payload schemas and author constraints. Both perform no native writes, but restore, start and stop an XState actor; discovery also calls author discovery/schema code. Preview has the narrower execution boundary below and supplies diagrams/state rather than actionable task briefs or result schemas. See focused command help for usage.
+
 `preview RUN --json` reads an active or completed run's latest checkpoint and resolves its definition under the [existing version and hash rules](#contracts-and-authority). The producer-owned [Shared wire schema](../shared/src/workflow-preview.ts) carries source fingerprints and structural diagrams with original saved state value/status for the root and retained child machine actors. `savedAt` is the native checkpoint's update time, including lock or result writes; it is not a state-entry timestamp.
 
 The structural allowlist preserves hierarchy, initial/final/history states and event, eventless, delayed, completion and invocation-result transitions. Guards are descriptive labels. Context, input/output, task bodies, prompts, result history, metadata, actions and guard parameters stay out of the payload. Actors absent from the saved checkpoint are not reconstructed as historical visits. Missing or unsupported child logic, invalid state paths and incomplete parallel state fail explicitly; preview never substitutes a normalized state or recalculates the saved status.
