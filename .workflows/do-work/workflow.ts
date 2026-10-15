@@ -42,9 +42,7 @@ export const machine = setup({ types: {} as { context: Work; input: Work } }).cr
 						"\n\nAcceptance criteria:\n" +
 						`${context.acceptance.map((criterion) => `- [ ] ${criterion}`).join("\n")}` +
 						"\n\nPerform this assignment, verify every criterion and record evidence on this " +
-						"stage. Use busybee record-result with choice next and an empty payload before " +
-						"closing this stage, then collect the completed result with Busy Bee. Busy Bee " +
-						"closes the run.",
+						"stage in comments.",
 				}),
 			},
 			on: { COMPLETED: "done" },

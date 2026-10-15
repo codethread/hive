@@ -1,6 +1,8 @@
 /* eslint-disable unicorn/max-nested-calls -- Boundary schemas keep complete discriminated variants visible together. */
 import { z } from "zod";
 
+export { workflowPreviewSchema, type WorkflowPreview } from "@hive/shared/workflow-preview";
+
 export const PAGE_SIZE = 60;
 export const REQUEST_PAGE_SIZE = 50;
 export const RELATION_LIMIT = 50;

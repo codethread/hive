@@ -1,0 +1,262 @@
+{
+	"id": "land",
+	"type": "compound",
+	"initial": "triage",
+	"states": {
+		"triage": {
+			"id": "land.triage",
+			"type": "atomic",
+			"on": {
+				"IMPLEMENT": [
+					{
+						"target": ["#land.implement"]
+					}
+				],
+				"CHECK": [
+					{
+						"target": ["#land.check"]
+					}
+				],
+				"REVIEW": [
+					{
+						"target": ["#land.review"]
+					}
+				],
+				"REVIEWED": [
+					{
+						"target": ["#land.route"]
+					}
+				],
+				"COMMIT": [
+					{
+						"target": ["#land.commit"]
+					}
+				],
+				"INTEGRATED": [
+					{
+						"target": ["#land.verify"]
+					}
+				]
+			}
+		},
+		"implement": {
+			"id": "land.implement",
+			"type": "atomic",
+			"on": {
+				"NEXT": [
+					{
+						"target": ["#land.check"]
+					}
+				],
+				"RETRIAGE": [
+					{
+						"target": ["#land.triage"]
+					}
+				]
+			}
+		},
+		"check": {
+			"id": "land.check",
+			"type": "atomic",
+			"on": {
+				"PASSED": [
+					{
+						"target": ["#land.review"]
+					}
+				],
+				"CHANGES": [
+					{
+						"target": ["#land.implement"]
+					}
+				]
+			}
+		},
+		"review": {
+			"id": "land.review",
+			"type": "atomic",
+			"on": {
+				"APPROVED": [
+					{
+						"target": ["#land.commit"]
+					}
+				],
+				"CHANGES": [
+					{
+						"target": ["#land.implement"]
+					}
+				]
+			}
+		},
+		"commit": {
+			"id": "land.commit",
+			"type": "atomic",
+			"on": {
+				"NEXT": [
+					{
+						"target": ["#land.route"]
+					}
+				],
+				"CHANGED": [
+					{
+						"target": ["#land.check"]
+					}
+				]
+			}
+		},
+		"pr": {
+			"id": "land.pr",
+			"type": "atomic",
+			"on": {
+				"READY": [
+					{
+						"target": ["#land.finish"]
+					}
+				],
+				"FEEDBACK": [
+					{
+						"target": ["#land.comments"]
+					}
+				],
+				"CHANGES": [
+					{
+						"target": ["#land.implement"]
+					}
+				],
+				"CHECK": [
+					{
+						"target": ["#land.check"]
+					}
+				],
+				"REVIEW": [
+					{
+						"target": ["#land.review"]
+					}
+				],
+				"INTEGRATED": [
+					{
+						"target": ["#land.verify"]
+					}
+				],
+				"RETRIAGE": [
+					{
+						"target": ["#land.triage"]
+					}
+				]
+			}
+		},
+		"comments": {
+			"id": "land.comments",
+			"type": "atomic",
+			"on": {
+				"CHANGES": [
+					{
+						"target": ["#land.implement"]
+					}
+				],
+				"REBUTTED": [
+					{
+						"target": ["#land.pr"]
+					}
+				],
+				"ADDRESSED": [
+					{
+						"target": ["#land.pr"]
+					}
+				],
+				"RETRIAGE": [
+					{
+						"target": ["#land.triage"]
+					}
+				]
+			}
+		},
+		"finish": {
+			"id": "land.finish",
+			"type": "atomic",
+			"on": {
+				"NEXT": [
+					{
+						"target": ["#land.verify"]
+					}
+				],
+				"FEEDBACK": [
+					{
+						"target": ["#land.comments"],
+						"guard": "isPr"
+					}
+				],
+				"CHANGES": [
+					{
+						"target": ["#land.implement"]
+					}
+				],
+				"RETRIAGE": [
+					{
+						"target": ["#land.triage"]
+					}
+				]
+			}
+		},
+		"verify": {
+			"id": "land.verify",
+			"type": "atomic",
+			"on": {
+				"NEXT": [
+					{
+						"target": ["#land.local-update"]
+					}
+				]
+			}
+		},
+		"local-update": {
+			"id": "land.local-update",
+			"type": "atomic",
+			"on": {
+				"NEXT": [
+					{
+						"target": ["#land.publish"]
+					}
+				]
+			}
+		},
+		"publish": {
+			"id": "land.publish",
+			"type": "atomic",
+			"on": {
+				"NEXT": [
+					{
+						"target": ["#land.report"]
+					}
+				]
+			}
+		},
+		"report": {
+			"id": "land.report",
+			"type": "atomic",
+			"on": {
+				"NEXT": [
+					{
+						"target": ["#land.done"]
+					}
+				]
+			}
+		},
+		"route": {
+			"id": "land.route",
+			"type": "atomic",
+			"always": [
+				{
+					"target": ["#land.pr"],
+					"guard": "isPr"
+				},
+				{
+					"target": ["#land.finish"]
+				}
+			]
+		},
+		"done": {
+			"id": "land.done",
+			"type": "final"
+		}
+	}
+}

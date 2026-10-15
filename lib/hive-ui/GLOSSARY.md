@@ -26,6 +26,8 @@ Presentation vocabulary nested under the [shared Hive glossary](../../GLOSSARY.m
 
 **Branch explorer**: The foldable native family tree beside a selected bead. _Avoid_: Bead outline when referring to the inspector tree.
 
+**Workflow preview**: A read-only diagram of a workflow run with its latest saved state highlighted, opened from the run or one of its generated beads.
+
 **Bead inspector**: The selected bead's detail surface, including acceptance criteria, relationships, comments and its branch explorer.
 
 **Family lane**: A horizontal board group for a bead family spanning statuses or containing many active descendants.

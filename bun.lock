@@ -71,6 +71,7 @@
         "@radix-ui/react-dropdown-menu": "^2.1.25",
         "@radix-ui/react-slot": "^1.5.0",
         "@radix-ui/react-tabs": "^1.2.0",
+        "@statelyai/sdk": "0.38.2",
         "@tanstack/react-router": "^1.170.35",
         "@xyflow/react": "^12.12.0",
         "class-variance-authority": "^0.7.1",
@@ -779,6 +780,10 @@
     "@smithy/types": ["@smithy/types@4.19.0", "", { "dependencies": { "tslib": "^2.6.2" } }, "sha512-r7jh49VJxGerfAcTQA6gXcKc+98zOp/tqRwzYjgOE+iSQsP6cEU1hq2QzbuipmP68QtYdY9wKEhiCQZIzHgZ4Q=="],
 
     "@stablelib/base64": ["@stablelib/base64@1.0.1", "", {}, "sha512-1bnPQqSxSuc3Ii6MhBysoWCg58j97aUjuCSZrGSmDxNqtytIi0k8utUenAwTZN4V5mXXYGsVUI9zeBqy+jBOSQ=="],
+
+    "@statelyai/graph": ["@statelyai/graph@2.6.0", "", { "peerDependencies": { "@dagrejs/dagre": "^3.0.0 || ^4.0.0", "@hpcc-js/wasm-graphviz": "^1.0.0", "cytoscape": "^3.0.0", "d3-force": "^3.0.0", "d3-hierarchy": "^3.0.0", "dotparser": "^1.0.0", "elkjs": "^0.9.0 || ^0.10.0 || ^0.11.0 || ^0.12.0", "fast-xml-parser": "^5.0.0", "fflate": "0.8.3", "graphology": "^0.26.0", "graphology-layout-forceatlas2": "^0.10.0", "webcola": "^3.4.0", "xstate": "^5.19.0", "zod": "^4.0.0" }, "optionalPeers": ["@dagrejs/dagre", "@hpcc-js/wasm-graphviz", "cytoscape", "d3-force", "d3-hierarchy", "dotparser", "elkjs", "fast-xml-parser", "fflate", "graphology", "graphology-layout-forceatlas2", "webcola", "xstate", "zod"] }, "sha512-0TotB7OIQDnmKIWrBR5hDgv85IwoLSfYbDhdYd/Yd5N9qePBNApR9tcR8agICBSX16Fb2Q5FM52CpVoFmHHbxg=="],
+
+    "@statelyai/sdk": ["@statelyai/sdk@0.38.2", "", { "dependencies": { "@statelyai/graph": "^2.1.0" }, "peerDependencies": { "ws": "^8.19.0" }, "optionalPeers": ["ws"], "bin": { "stately-sdk": "./dist/bin.mjs" } }, "sha512-HeNE9PTi0vq63S7pLPkLbfzLCXlwaYpUjY9yfaX8L74RX0N9IuHjgTsIyviUHr4KIse6jqiUAtWjqg71KA7cMw=="],
 
     "@storybook/addon-a11y": ["@storybook/addon-a11y@10.6.2", "", { "dependencies": { "@storybook/global": "^5.0.0", "axe-core": "^4.2.0" }, "peerDependencies": { "storybook": "^10.6.2" } }, "sha512-zleS+btwrTRcUf3opbZntKsEt6PTqAtxsek08tx5jh5fRvd6wWmtnwW3uaBcypfIKnheTB3KGljJwFX+Mc+Umg=="],
 

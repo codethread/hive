@@ -21,6 +21,7 @@ import {
 	inventoryKey,
 	provenanceSchema,
 	requestInventorySchema,
+	workflowPreviewSchema,
 } from "../contracts.ts";
 import { beadFamilies } from "../hierarchy.ts";
 import { createStore } from "zustand/vanilla";
@@ -58,6 +59,7 @@ export const inventories = createResource(requestInventorySchema);
 export const details = createResource(detailSchema);
 export const hierarchies = createHierarchyResource();
 export const outlines = createResource(hierarchySchema);
+export const workflows = createResource(workflowPreviewSchema);
 export const provenance = createResource(provenanceSchema);
 export const preferences = createStore<Preferences>(() => ({
 	showWorkflowBeads: false,
@@ -66,6 +68,15 @@ export const preferences = createStore<Preferences>(() => ({
 	theme: "moss",
 	views: {},
 }));
+
+/** Opening or refreshing always reads a new saved checkpoint. */
+export function loadWorkflow(colony: string, id: string): Promise<void> {
+	return workflows.load(
+		`${colony}/${id}`,
+		`/api/colonies/${colony}/workflow/${encodeURIComponent(id)}`,
+		true,
+	);
+}
 
 export function loadColonies(): Promise<void> {
 	return colonies.load("colonies", "/api/colonies");

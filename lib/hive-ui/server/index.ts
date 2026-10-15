@@ -9,15 +9,16 @@ import {
 } from "../contracts.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Resolve explicitly configured local repository endpoints.
 import { basename, resolve } from "node:path";
+import { execute, resolveRepository } from "@hive/shared";
 import type { BeadsService } from "@hive/beads";
 import type { Colony } from "../contracts.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Explicit machine-mode diagnostics file boundary.
 import { appendFile } from "node:fs/promises";
 import { createBoardData } from "./data.ts";
 import { createNativeBeads } from "@hive/beads";
+import { createWorkflowReader } from "./workflow.ts";
 import index from "../src/index.html";
 import { readStatuses } from "./statuses.ts";
-import { resolveRepository } from "@hive/shared";
 import { version } from "../package.json";
 import { z } from "zod";
 
@@ -45,7 +46,8 @@ const optionsSchema = z.object({
 const idSchema = z.string().regex(/^[\da-z][\w.-]*$/iu);
 const apiRoute = new RegExp(
 	/^\/api\/colonies\/(?<colony>[^/]+)\//u.source +
-		/(?<operation>board|beads|provenance|inventory|outline|hierarchy)(?:\/(?<id>[^/]+))?$/u.source,
+		/(?<operation>board|beads|provenance|inventory|outline|hierarchy|workflow)(?:\/(?<id>[^/]+))?$/u
+			.source,
 	"u",
 );
 
@@ -103,13 +105,15 @@ async function main(): Promise<void> {
 		const colonies = await readColonies(options);
 		const data = createBoardData();
 		const beads = createNativeBeads();
+		const preview = createWorkflowReader((argv, cwd) => execute(argv, cwd, process.env));
 		const server = Bun.serve({
 			development,
 			hostname: options.host,
 			port: options.port,
 			routes: {
 				"/*": index,
-				"/api/*": (request) => api(request, { beads, colonies, data, log, host: options.host }),
+				"/api/*": (request) =>
+					api(request, { beads, colonies, data, log, preview, host: options.host }),
 			},
 		});
 		const ready = {
@@ -179,7 +183,9 @@ async function api(
 		data,
 		log,
 		host,
+		preview,
 	}: {
+		preview: ReturnType<typeof createWorkflowReader>;
 		host: string;
 		beads: BeadsService;
 		colonies: Colony[];
@@ -256,6 +262,9 @@ async function api(
 		const id = idSchema.parse(decodeURIComponent(route["id"] ?? ""));
 		const scope = boardScopeSchema.parse(JSON.parse(url.searchParams.get("scope") ?? "{}"));
 		status = HTTP.ok;
+		if (route["operation"] === "workflow") {
+			return respond(await data.workflow(context, id, preview));
+		}
 		if (route["operation"] === "outline") {
 			return respond(await data.outline(context, id, refreshAfter));
 		}

@@ -1,6 +1,6 @@
 # Busy Bee
 
-Busy Bee runs XState workflows as native Beads tasks. Agents do the work, close their tasks and submit outcomes; the chart decides what happens next. Workflows can branch, loop, nest tasks and join parallel work.
+Busy Bee runs XState workflows as native Beads tasks. Agents do the work, save outcomes and close their tasks; the driver collects those results and the chart decides what happens next. Workflows can branch, loop, nest tasks and join parallel work.
 
 ## Install
 
@@ -52,20 +52,30 @@ busybee discover "$RUN"
 br show "$TASK" --json
 ```
 
-The groceries example first asks about the week ahead. After doing that work and completing any child tasks, close the task and submit its outcome:
+The groceries example first asks about the week ahead. After doing that work and completing any child tasks, save the original outcome payload before closing the task, then collect it:
 
 ```sh
+busybee record-result "$RUN" "$TASK" busy --data '{"meals":4}' --json
 br close "$TASK" --reason "Completed: four meals at home with limited cooking time"
-busybee choice "$RUN" "$TASK" busy --data '{"meals":4}' --json
+busybee collect "$RUN" --json
 ```
 
-For a task offering `next`, use `busybee next "$RUN" "$TASK"`. Commands with an empty-object schema need no payload; larger payloads can use `--data-file FILE` instead of `--data`.
+Read `busybee record-result --help` for payload options and `busybee choice --help` for direct submission of driver-handled work. A choice named `next` can require data; use its discovered schema.
 
 Repeat until `status` is `done`. A closed task stays active until Busy Bee accepts its result. Workers close their own tasks after satisfying native Beads acceptance and child-completion gates; Busy Bee closes grouping beads and the run. [The walkthrough](./POV.md) shows parallel tasks and example responses.
 
 ## Commands
 
-Use `busybee --help` and subcommand help for command arguments, tracker/actor requirements and output formats. `input-schema` discovers workflow inputs; `discover` returns active choice schemas. These read-only snapshots are not reservations. The [authoring guide](../../docs/busybee-workflows.md) covers definitions and validation limits.
+Use `busybee --help` for the command flow and global options, then focused help to choose a read:
+
+| Need                                                  | Help                          |
+| ----------------------------------------------------- | ----------------------------- |
+| Creation input                                        | `busybee input-schema --help` |
+| Active task briefs and run status                     | `busybee show --help`         |
+| Outcome choices and payload schemas                   | `busybee discover --help`     |
+| Saved diagrams and state for active or completed runs | `busybee preview --help`      |
+
+The [preview contract](./SPEC.md#saved-state-preview) defines its payload, source-matching limits and execution boundary; [Hive UI](../hive-ui/README.md#workflow-preview) displays it in a modal. The [authoring guide](../../docs/busybee-workflows.md) covers definitions and validation limits.
 
 Before updating a named workflow, check the selected tracker's existing unfinished runs:
 
@@ -89,7 +99,7 @@ Both driver-handled and Bee-dispatched worker visits are workflow auto beads: Bu
 
 A definition can request a Bee kind for a task. Entering that task submits a Bee request immediately; an awake Colony executes it through the [Bee and Colony interface](../colony/README.md).
 
-The worker follows the [durable result contract](#delegate-a-workflow-to-bee): record the outcome and original payload, then close the stage. Run `busybee collect RUN` to process saved results. Bee-dispatched tasks advance through `collect`; explicit `next` and `choice` submissions are rejected. Closure means the work finished: a review result can still request changes.
+The worker follows the [delegation and result flow](#delegate-a-workflow-to-bee). Closure means the work finished: a review result can still request changes.
 
 ## Examples
 
@@ -136,7 +146,7 @@ Concurrent submissions require one live database. Tracker synchronization does n
 
 Read `bee spawn --help` to submit a workflow assignment. Drivers coordinate the run; Bee-dispatched workers own their assigned stage. [Response delivery](../../docs/agents/responses.md) routes complete answers separately from workflow outcomes.
 
-Before closing a stage, use `busybee record-result` to save its original outcome payload. The driver uses `busybee collect` to consume saved results, including closed visits from interrupted executions. Read `busybee --help` for syntax/options and the [work and progression contract](./SPEC.md#work-and-progression) for lifecycle rules. Bee-dispatched workers leave collection/navigation to the driver; Busy Bee closes groups and the run.
+Follow `busybee record-result --help` for durable stage results and `busybee collect --help` for driver progression, including interrupted deliveries. The [work and progression contract](./SPEC.md#work-and-progression) owns lifecycle rules. Bee-dispatched workers leave collection/navigation to the driver.
 
 `busybee prepare-driver RUN` prepares an active unassigned run for Bee under its checkpoint lock. It preserves closed runs, human reservations, blocked work and worker assignments. Use `bee attach-workflow KIND RUN` only after inspecting an orphan run and confirming absent driver publication. Existing failed drivers use `bee retry` on their request. These operations retain the same saved workflow input and version compatibility contract.
 

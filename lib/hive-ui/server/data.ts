@@ -1,4 +1,3 @@
-/* eslint-disable unicorn/no-null -- API contracts represent absent recorded facts explicitly. */
 import type {
 	BeadFilter,
 	Bee,
@@ -14,6 +13,7 @@ import type {
 	Provenance,
 	RequestInventory,
 } from "../contracts.ts";
+/* eslint-disable unicorn/no-null -- API contracts represent absent recorded facts explicitly. */
 import type {
 	BeadRecord,
 	BeadRow,
@@ -32,6 +32,7 @@ import {
 } from "@hive/shared";
 import { PAGE_SIZE, RELATION_LIMIT, REQUEST_PAGE_SIZE } from "../contracts.ts";
 import { beadFamilies, branchRows } from "../hierarchy.ts";
+import type { WorkflowPreview } from "@hive/shared";
 import { formatBeadsQuery } from "@hive/beads";
 import { mergeLink } from "./merges.ts";
 import { readHierarchy } from "./hierarchy.ts";
@@ -123,7 +124,7 @@ export function createBoardData() {
 			}
 		}
 		const [workflows, merges] = await Promise.all([
-			workflowGeneratedBeads(context),
+			workflowRuns(context),
 			taskMerges(context, tasks),
 		]);
 		return tasks.map((task) => ({
@@ -332,25 +333,37 @@ export function createBoardData() {
 			hierarchy(context, ids, { direction: "family", refreshAfter }),
 		outline: (context: ReadContext, id: string, refreshAfter: number) =>
 			hierarchy(context, [id], { direction: "descendants", refreshAfter }),
+		workflow: async (
+			context: ReadContext,
+			id: string,
+			preview: (colony: Colony, runId: string) => Promise<WorkflowPreview>,
+		): Promise<WorkflowPreview> => {
+			const runs = await workflowRuns(context);
+			const runId = runs.get(id);
+			if (runId === undefined) {
+				throw new Error(`Bead ${id} is not a workflow-generated record.`);
+			}
+			return preview(context.colony, runId);
+		},
 		provenance: readProvenance,
 	};
 }
 
 // --- Native I/O and projections ---
 /** Index workflow-generated identities from workflow system beads in one native read. */
-async function workflowGeneratedBeads(context: ReadContext): Promise<Set<string>> {
+async function workflowRuns(context: ReadContext): Promise<Map<string, string>> {
 	const systems = await list(context, {
 		all: true,
 		labels: ["system", "busybee-checkpoint"],
 		limit: 0,
 	});
-	const beads = new Set<string>();
+	const beads = new Map<string, string>();
 	for (const system of systems) {
 		// Busy Bee owns this JSON; projection reads its published identities, never its actor state.
 		const workflow = workflowSystemSchema.parse(JSON.parse(system.description));
-		beads.add(workflow.id);
+		beads.set(workflow.id, workflow.id);
 		for (const visit of workflow.created) {
-			beads.add(visit.bead);
+			beads.set(visit.bead, workflow.id);
 		}
 	}
 	return beads;

@@ -1,9 +1,10 @@
-import { BeeAssignment, ResourceNotice, WorkflowIndicator, time } from "./ui.tsx";
+import { BeeAssignment, ResourceNotice, time } from "./ui.tsx";
 import { EMPTY, outlines, preferences, snapshot } from "./data.ts";
 import type { Hierarchy, HierarchyNode } from "../contracts.ts";
 import { Link, useSearch } from "@tanstack/react-router";
 import { branchRows, outlineHierarchy, unclosed } from "../hierarchy.ts";
 import { OutlineClosedToggle } from "./outline-controls.tsx";
+import { WorkflowIndicator } from "./workflow-preview.tsx";
 import { statusName } from "./filter-controls.tsx";
 import { useStore } from "zustand";
 
@@ -34,7 +35,7 @@ export function BeadOutline({ colonyId, id }: { colonyId: string; id: string }) 
 						<div>
 							<p className="family-kicker">Outline · {root.id}</p>
 							<h2>
-								<WorkflowIndicator isWorkflowGenerated={root.isWorkflowGenerated} />
+								<WorkflowIndicator id={root.id} isWorkflowGenerated={root.isWorkflowGenerated} />
 								{root.title}
 							</h2>
 							<p>
@@ -79,13 +80,13 @@ function OutlineBranch({ hierarchy, root }: { hierarchy: Hierarchy; root: Hierar
 							{depth === 0 ? "◇" : "↳"}
 						</span>
 						<div>
+							<WorkflowIndicator id={node.id} isWorkflowGenerated={node.isWorkflowGenerated} />
 							<Link
 								from="/colonies/$colonyId"
 								to="."
 								search={(current) => ({ ...current, bead: node.id })}
 								aria-current={search.bead === node.id ? "true" : undefined}
 							>
-								<WorkflowIndicator isWorkflowGenerated={node.isWorkflowGenerated} />
 								{node.title}
 							</Link>
 							<p>{node.id}</p>

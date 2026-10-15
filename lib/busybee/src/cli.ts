@@ -7,6 +7,7 @@ import { listWorkflows, namedDefinition } from "./catalogue.ts";
 import type { PreflightReport } from "./preflight.ts";
 import type { Source } from "./catalogue.ts";
 import { preflight } from "./preflight.ts";
+import { preview } from "./preview.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Explicit source paths resolve against the invoking directory.
 import { resolve } from "node:path";
 import { version as suiteVersion } from "../package.json";
@@ -34,6 +35,26 @@ const constraintKeys = new Set([
 	"minProperties",
 	"maxProperties",
 ]);
+const navigationHelp = {
+	show: {
+		description: "Read run status, active task briefs and generated visit references",
+		details:
+			"\nReturns active task IDs, commands, context, instructions, request IDs and actor paths. " +
+			"Read each native task brief with br show TASK --json for delivery/closure instructions. " +
+			"Use discover --json for outcome payload schemas. " +
+			"Performs no native writes, but restores, starts and stops a workflow actor. " +
+			"For saved diagrams/state without creating actors, use preview --help.",
+	},
+	collect: {
+		description:
+			"Advance from closed active tasks with saved results, including interrupted deliveries",
+		details:
+			"\nThe driver collects results saved with record-result before native task closure. " +
+			"Collection can advance both driver-handled and Bee-dispatched visits and publish new work. " +
+			"Busy Bee closes completed groups and reports status done when it closes the run. " +
+			"Requires --actor or BD_ACTOR; see busybee --help for global options.",
+	},
+};
 interface CliOptions extends Options {
 	/** Inline task payload, mutually exclusive with a file. */
 	data?: string;
@@ -114,6 +135,7 @@ export async function runCli(
 function commandOptions(): Command {
 	return new Command()
 		.name("busybee")
+		.description("Run workflows as Beads tasks and inspect their saved state")
 		.version(suiteVersion)
 		.option("--db <path>", "Override native br database selection (otherwise BEADS_DB/discovery)")
 		.option("--repo <path>", "Repository/execution directory; defaults to current directory")
@@ -127,7 +149,14 @@ function commandOptions(): Command {
 		.option("--json", "One machine-readable success or failure document")
 		.option("--input-file <path>", "Initial actor input as JSON; defaults to an empty object")
 		.option("--data <json>", "Event payload; defaults to an empty object")
-		.option("--data-file <path>", "Event payload as a JSON file");
+		.option("--data-file <path>", "Event payload as a JSON file")
+		.addHelpText(
+			"after",
+			"\nWork: show RUN, discover RUN --json, perform the active task, record-result, " +
+				"br close TASK, then collect RUN. Busy Bee closes groups and the run.\n" +
+				"Inspect saved diagrams/state with preview RUN --json. " +
+				"Use busybee COMMAND --help for each command's purpose and prerequisites.",
+		);
 }
 
 function configure(invocation: Invocation): void {
@@ -175,6 +204,22 @@ function registerCreation(invocation: Invocation): void {
 function registerInspection(invocation: Invocation): void {
 	const { cli, services } = invocation;
 	const options = (): CliOptions => cli.opts<CliOptions>();
+	cli
+		.command("preview <run>")
+		.description("Preview an active or completed run's latest saved workflow state")
+		.addHelpText(
+			"after",
+			"\nRUN is the workflow run ID, not a generated stage or group ID. " +
+				"Use --json for the workflow_preview envelope: structural graphs, original saved " +
+				"root/retained-child state and source provenance.\n" +
+				"Imports trusted workflow code; creates no actors, calls no workflow callbacks " +
+				"and writes no beads. Excludes context, task bodies and implementations. " +
+				"Use show for active work and discover --json for outcome payload schemas.",
+		)
+		.action(async (id: string) => {
+			invocation.kind = "workflow_preview";
+			writeResult(await preview(id, options(), services), invocation);
+		});
 	cli.command("list").action(async () => {
 		const result = await listWorkflows(options().repo, services);
 		let readable = "";
@@ -189,6 +234,7 @@ function registerInspection(invocation: Invocation): void {
 	});
 	cli
 		.command("input-schema [name]")
+		.description("Read creation-input schemas for a named workflow or explicit source")
 		.option("--source <path>", "Inspect an explicit source module instead of a catalogue name")
 		.action(async (name: string | undefined, selection: { source?: string }) => {
 			const { source } = await schemaSource({ name, path: selection.source }, invocation);
@@ -199,10 +245,20 @@ function registerInspection(invocation: Invocation): void {
 			};
 			writeResult(result, invocation, printDiscovery(result));
 		});
-	cli.command("discover <run>").action(async (id: string) => {
-		const result = await discover(id, options(), services);
-		writeResult(result, invocation, printDiscovery(result));
-	});
+	cli
+		.command("discover <run>")
+		.description("Read active outcome choices, payload schemas and author constraints")
+		.addHelpText(
+			"after",
+			"\nUse --json for complete schemas, including nested/conditional fields. " +
+				"Use show for task instructions and record-result --help before saving an outcome. " +
+				"Discovery performs no native writes; it restores, starts and stops a workflow " +
+				"actor and calls author discovery/schema code. It is not a reservation.",
+		)
+		.action(async (id: string) => {
+			const result = await discover(id, options(), services);
+			writeResult(result, invocation, printDiscovery(result));
+		});
 }
 
 function registerPreflight(invocation: Invocation): void {
@@ -241,6 +297,15 @@ function registerNavigation(invocation: Invocation): void {
 		.description(
 			"Validate and save original {choice,data} result notes before native task closure; does not advance",
 		)
+		.addHelpText(
+			"after",
+			"\nTASK must be an active, unclosed worker visit. Read discover RUN --json for " +
+				"CHOICE and its schema. Pass the original payload with --data JSON or --data-file FILE; " +
+				"omission supplies {}. Notes are reserved for this result; put narrative evidence in comments.\n" +
+				"After satisfying acceptance and child work, save the result, close your task through br, " +
+				"then let the driver collect RUN. This supports both driver-handled and Bee-dispatched visits. " +
+				"Mutations require --actor or BD_ACTOR; see busybee --help for global options.",
+		)
 		.action(async (id: string, bead: string, choice: string) => {
 			const data = await payload(options(), services);
 			writeResult(await recordResult({ id, bead, choice, data }, options(), services), invocation);
@@ -255,19 +320,40 @@ function registerNavigation(invocation: Invocation): void {
 			writeResult(await prepareDriver(id, options(), services), invocation);
 		});
 	for (const operation of ["show", "collect"] as const) {
-		cli.command(`${operation} <run>`).action(async (id: string) => {
-			writeResult(await navigate({ id, operation }, options(), services), invocation);
-		});
+		cli
+			.command(`${operation} <run>`)
+			.description(navigationHelp[operation].description)
+			.addHelpText("after", navigationHelp[operation].details)
+			.action(async (id: string) => {
+				writeResult(await navigate({ id, operation }, options(), services), invocation);
+			});
 	}
-	cli.command("next <run> <task>").action(async (id: string, bead: string) => {
-		const data = await payload(options(), services);
-		writeResult(
-			await navigate({ bead, choice: "next", data, id, operation: "submit" }, options(), services),
-			invocation,
-		);
-	});
+	cli
+		.command("next <run> <task>")
+		.description("Submit outcome next for a closed driver-handled task; see choice --help")
+		.action(async (id: string, bead: string) => {
+			const data = await payload(options(), services);
+			writeResult(
+				await navigate(
+					{ bead, choice: "next", data, id, operation: "submit" },
+					options(),
+					services,
+				),
+				invocation,
+			);
+		});
 	cli
 		.command("choice <run> <task> <choice>")
+		.description("Submit a named outcome for a closed driver-handled task")
+		.addHelpText(
+			"after",
+			"\nDirect submission requires a still-active driver-handled visit already closed through br. " +
+				"Read discover RUN --json for its choices and schemas; next is shorthand for choice next " +
+				"and may also require a payload. Use --data JSON or --data-file FILE; omission supplies {}.\n" +
+				"For durable delivery across interruptions, use record-result before closure, then collect. " +
+				"Bee-dispatched visits require that saved-result path. " +
+				"Requires --actor or BD_ACTOR; see busybee --help for global options.",
+		)
 		.action(async (id: string, bead: string, choice: string) => {
 			const data = await payload(options(), services);
 			writeResult(

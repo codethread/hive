@@ -21,6 +21,7 @@ import {
 	outlines,
 	preferences,
 	provenance,
+	workflows,
 } from "../data.ts";
 import { createContext, useContext, useEffect, useState } from "react";
 import { ActivityClock } from "../activity-clock.tsx";
@@ -75,6 +76,7 @@ export function resetStoryState(): void {
 	hierarchies.store.setState({ entries: {} });
 	inventories.store.setState({ entries: {} });
 	outlines.store.setState({ entries: {} });
+	workflows.store.setState({ entries: {} });
 	provenance.store.setState({ entries: {} });
 	preferences.setState({
 		showWorkflowBeads: false,
