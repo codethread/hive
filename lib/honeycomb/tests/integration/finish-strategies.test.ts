@@ -86,8 +86,11 @@ test.each([{ fresh: false }, { fresh: true }])(
 		await assertRebasedHistory(fixture.root, targetHead);
 	},
 );
-test.each([{ fresh: false }, { fresh: true }])(
-	"rebase_ff replay conflict leaves canonical unchanged (fresh=$fresh)",
+test.each([
+	{ fresh: false, allowance: "#test-71" },
+	{ fresh: true, allowance: "" },
+])(
+	"rebase_ff replay conflict leaves canonical unchanged (fresh=$fresh) $allowance",
 	async ({ fresh }) => {
 		const fixture = await prepareReplayConflict(fresh);
 		const before = await readFinishState(fixture);

@@ -264,6 +264,22 @@
 		"#test-68": {
 			"threshold": "SLOW",
 			"justification": "Preserves the table-driven driver/stage publication trace with closed completion anchor, actor validation and rejection of a different anchor through the captured-request contract. Fresh isolated driver samples: 1.41/1.23/1.14ms; stage samples: 0.28/0.28/0.27ms. The marker covers both rows of this shared test template. Request parsing remains real and cold. SLOW allows only through 5ms."
+		},
+		"#test-69": {
+			"threshold": "DANGER",
+			"justification": "ct explicitly approved allowing this existing timing-only blocker through during merges on 2026-10-15: Honeycomb local-only configuration initializes a pool with real Bun bootstrap (observed 1138.439ms). Preserve real integration behavior, assertions, test timeouts and global timing cutoffs."
+		},
+		"#test-70": {
+			"threshold": "DANGER",
+			"justification": "ct explicitly approved allowing this existing timing-only blocker through during merges on 2026-10-15: Honeycomb stale pool commits do not parent an old-base feature stack (observed 1059.348ms). Preserve real integration behavior, assertions, test timeouts and global timing cutoffs."
+		},
+		"#test-71": {
+			"threshold": "DANGER",
+			"justification": "ct explicitly approved allowing this existing timing-only blocker through during merges on 2026-10-15: Honeycomb rebase_ff replay conflict leaves canonical unchanged, fresh=false only (observed 1022.776ms). Preserve real integration behavior, assertions, test timeouts and global timing cutoffs."
+		},
+		"#test-72": {
+			"threshold": "DANGER",
+			"justification": "ct explicitly approved allowing this existing timing-only blocker through during merges on 2026-10-15: qlock timeout retains a new ticket and resumed exec preserves FIFO without allocation. Preserve real integration behavior, assertions, test timeouts and global timing cutoffs."
 		}
 	}
 }

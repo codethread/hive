@@ -52,6 +52,17 @@ colony daemon stop --state "$STATE"
 
 Before sleeping or deleting disposable state, inspect until the request checkpoint has settled and its attempts have stopped. Sleep and daemon stop leave detached workers alive; closing the request while awake is the cancellation path. A task may finish before `bee stop`; stopping an already-closed request preserves its closure reason. The automated native probe below performs bounded cleanup and retains evidence.
 
+## Bundled agent guidance
+
+Each executable includes version-matched guidance, available offline even outside a repository:
+
+```sh
+bee skills --help
+colony skills --help
+```
+
+Discover metadata first, then load instructions and supporting files on demand. Command help covers reads and JSON output. These commands require no configuration, tracker, daemon, credentials or Hive source checkout. Application repository policy and commands remain authoritative.
+
 ## Discover bee kinds
 
 Read `bee --help` for the delegation sequence and `bee kinds --help` for discovery filters, configuration expansion and schemas. Kind descriptions explain when to choose each role; `bee list` lists requests instead.
@@ -324,11 +335,11 @@ History excludes recipes, full prompts, checkpoint free text, raw command output
 
 Without `--json`, successful commands print readable results on stdout and diagnostics on stderr. With `--json`, each finite command emits one JSON object on stdout and leaves stderr empty. Successful payloads retain their fields at the top level with `ok: true` and a `kind`; failures have `ok: false`, `kind: "error"`, `reason` and `message`. Exit status is zero for success, one for operational failure and two for CLI usage errors.
 
-Bee JSON defaults are command-sized: `spawn` and `retry` return `request: {id, assignee}`, not the native Beads creation record. `status` and `list` omit `recipe.prompt` and `recipe.system_prompt`; inspect one request with `status <spawn-id> --include-prompt --json` when those instructions are needed. Stored recipes are unchanged. `stop` returns request identity, host, acknowledgment, closure, outcome/resolution, attention and label-publication facts, without the recipe, tasks or execution observations. That acknowledges native request closure, not process termination; use `status` for subsequent observations. Listing membership is unchanged: the default includes open requests and unresolved failures, and `--all` includes resolved history.
+Bee JSON defaults are command-sized. Workflow submission returns `request: {id, identity}` and `workflow: {runId, status, parentId?}`; stage submission and retry return `request: {id, assignee}`. `status` and `list` omit captured prompts; their help covers expansion and history. `stop` acknowledges native request closure; use `status` for subsequent observations and `colony explain` for live process evidence.
 
 | Command result | `kind` |
 | --- | --- |
-| Bee submission | `spawn_created` |
+| Bee workflow or stage submission | `workflow_spawn_created`, `spawn_created` |
 | Bee self-report | `finish_submitted` |
 | Bee inactivity verdict | `drone_verdict_submitted` |
 | Bee status, list, stop, ack | `request_status`, `request_list`, `request_stopped`, `request_acknowledged` |
@@ -520,6 +531,7 @@ The smoke fixtures use real disposable Git repositories, Beads databases, socket
 
 | Boundary | Focused command |
 | --- | --- |
+| Offline bundled instructions and resources | `bun test lib/colony/src/skills.smoke.test.ts` |
 | Native failure and partial-effect history | `bun test lib/colony/src/history.smoke.test.ts` |
 | Filesystem kind discovery and invalid layout | `bun test lib/colony/src/config-discovery.smoke.test.ts` |
 | Interactive terminal input rejection | `bun test lib/colony/src/run.smoke.test.ts` |

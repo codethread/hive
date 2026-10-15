@@ -11,7 +11,7 @@ const tmp = useTmpHome("honeycomb-local-config-");
 const { initRepoWithOrigin } = useOriginFixture();
 const CANONICAL_WORKTREE_COUNT = 1;
 
-test("local-only configuration initializes a pool with real Bun bootstrap", async () => {
+test("local-only configuration initializes a pool with real Bun bootstrap #test-69", async () => {
 	const { root } = await initRepoWithOrigin(tmp.dir);
 	await writeFile(
 		join(root, "honeycomb.toml"),

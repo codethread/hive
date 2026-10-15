@@ -212,7 +212,7 @@ async function initOldBaseStack() {
 	return { root, parent, child, baseline };
 }
 
-test("stale pool commits do not parent an old-base feature stack", async () => {
+test("stale pool commits do not parent an old-base feature stack #test-70", async () => {
 	const { parent, child, baseline } = await initOldBaseStack();
 	const payload = await treeJson(child.path);
 	expect(payload.default_branch).toMatchObject({ head: baseline, branch: "trunk" });

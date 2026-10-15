@@ -54,7 +54,7 @@ test("exec preserves command arguments, streams and exit status, then frees the 
 });
 
 test(
-	"timeout retains a new ticket and resumed exec preserves FIFO without allocation",
+	"timeout retains a new ticket and resumed exec preserves FIFO without allocation #test-72",
 	// eslint-disable-next-line max-statements -- Verify ticket identity throughout timeout, resumption and completion.
 	async () => {
 		const first = await seedTicket();

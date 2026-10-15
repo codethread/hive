@@ -28,6 +28,7 @@ import { HELP } from "./bee-help.ts";
 import type { RunOptions } from "./run.ts";
 import type { SpawnResult } from "./producer.ts";
 import { kindsJsonSchema } from "./kinds.ts";
+import { registerSkills } from "./skills.ts";
 import { reportFailure } from "./cli.ts";
 import { version } from "../package.json";
 
@@ -149,6 +150,7 @@ export async function runBeeCli(argv: string[], deps: BeeDependencies): Promise<
 		.configureOutput({ writeErr: () => {}, writeOut: deps.stdout })
 		.exitOverride();
 	responseCommands(program, argv, deps);
+	registerSkills(program, "bee", deps.stdout);
 	program
 		.command("run <kind>")
 		.description("Open an interactive bee in this terminal (users only; agents must not run)")
