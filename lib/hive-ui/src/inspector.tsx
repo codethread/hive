@@ -3,6 +3,10 @@ import type { Bee, Detail, Provenance, Relation } from "../contracts.ts";
 import { BeeAssignment, Label, OutlineLink, ResourceNotice, outcomeName, time } from "./ui.tsx";
 import {
 	EMPTY,
+	annotateCards,
+	annotateHierarchy,
+	annotationStatus,
+	annotations,
 	details,
 	hierarchies,
 	loadBead,
@@ -32,12 +36,17 @@ export function Inspector({ colonyId, id }: { colonyId: string; id: string }) {
 	const scope = boardScopeSchema.parse(search);
 	const key = detailKey(colonyId, id, scope);
 	const resource = useStore(details.store, (state) => state.entries[key] ?? EMPTY);
-	const detail = snapshot(resource);
+	const annotationEntries = useStore(annotations.store, (state) => state.entries);
+	const base = snapshot(resource);
+	const detail = base && {
+		...base,
+		card: annotateCards([base.card], colonyId, annotationEntries)[0]!,
+	};
 	const hierarchyResource = useStore(
 		hierarchies.store,
 		(state) => state.entries[hierarchyKey(colonyId, [id])] ?? EMPTY,
 	);
-	const hierarchy = snapshot(hierarchyResource);
+	const hierarchy = annotateHierarchy(snapshot(hierarchyResource), colonyId, annotationEntries);
 	const isMerge = detail?.card.labels.includes("merge") === true;
 	const showOutline = !isMerge && (hierarchy === null || hasHierarchy(hierarchy, id));
 	const navigate = useNavigate({ from: "/colonies/$colonyId" });
@@ -142,6 +151,10 @@ export function Inspector({ colonyId, id }: { colonyId: string; id: string }) {
 						aria-label="Bead"
 					>
 						<ResourceNotice resource={resource} />
+						<ResourceNotice
+							resource={annotationStatus(colonyId, [[id]], annotationEntries)}
+							label="Card icons"
+						/>
 						{detail && (
 							<>
 								<h2 className="mt-6 text-2xl leading-snug font-medium">
@@ -235,6 +248,14 @@ export function Inspector({ colonyId, id }: { colonyId: string; id: string }) {
 					{showOutline && (
 						<TabsContent value="outline" forceMount className="inspector-hierarchy">
 							<ResourceNotice resource={hierarchyResource} label="Outline" />
+							<ResourceNotice
+								resource={annotationStatus(
+									colonyId,
+									[hierarchy?.nodes.map((node) => node.id) ?? []],
+									annotationEntries,
+								)}
+								label="Card icons"
+							/>
 							{hierarchy && (
 								<BranchExplorer
 									hierarchy={hierarchy}

@@ -77,6 +77,25 @@ export function beadHandlers(source: Hierarchy, detail: (id: string) => Detail) 
 			);
 			return HttpResponse.json({ ...board, cards });
 		}),
+		http.get("/api/colonies/:colony/annotations", ({ request }) => {
+			const ids = z
+				.array(z.string())
+				.parse(JSON.parse(new URL(request.url).searchParams.get("ids")!));
+			return HttpResponse.json({
+				cards: source.nodes
+					.filter((card) => ids.includes(card.id))
+					.map((card) => ({
+						id: card.id,
+						updatedAt: card.updatedAt,
+						status: card.status,
+						assignee: card.assignee,
+						beeAssignments: card.beeAssignments,
+						merges: card.merges,
+						sources: { merges: 1, assignments: 1 },
+					})),
+				fetchedAt: OBSERVED_AT,
+			});
+		}),
 		http.get("/api/colonies/:colony/hierarchy", ({ request }) => {
 			const ids = z
 				.array(z.string())

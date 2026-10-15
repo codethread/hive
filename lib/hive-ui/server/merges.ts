@@ -4,7 +4,9 @@ import { mergeDescriptionSchema } from "../contracts.ts";
 
 /** Interpret agent-authored merge records without making malformed content fatal to task reads. */
 // eslint-disable-next-line max-statements -- Keep JSON, shape and lifecycle diagnostics in one interpretation.
-export function mergeLink(bead: BeadRow): MergeLink {
+export function mergeLink(
+	bead: Pick<BeadRow, "id" | "title" | "status" | "description">,
+): MergeLink {
 	const identity = { id: bead.id, title: bead.title };
 	let description: unknown = undefined;
 	try {

@@ -21,6 +21,7 @@ import type {
 	ReadyBead,
 	ReadySelection,
 	SavedQuery,
+	SelectedBead,
 	UpdateBead,
 } from "./service.ts";
 import type { BeadComment } from "./model.ts";
@@ -260,7 +261,7 @@ export function createMemoryBeads(options: MemoryBeadsOptions = {}): BeadsServic
 
 // --- Private functions ---
 function projectColumns<Fields extends BeadProjection>(
-	row: BeadRow,
+	row: SelectedBead,
 	fields: Fields,
 ): ProjectedBead<Fields> {
 	// Only requested keys escape the adapter; fixture snapshots are already detached.

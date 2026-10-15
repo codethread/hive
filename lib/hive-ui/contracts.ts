@@ -4,6 +4,7 @@ import { z } from "zod";
 export { workflowPreviewSchema, type WorkflowPreview } from "@hive/shared/workflow-preview";
 
 export const PAGE_SIZE = 60;
+export const ANNOTATION_BATCH = 100;
 export const REQUEST_PAGE_SIZE = 50;
 export const RELATION_LIMIT = 50;
 export const boardScopeSchema = z.object({
@@ -173,6 +174,25 @@ export const cardSchema = z.object({
 	/** Native last-update timestamp, retained without refreshing its meaning. */
 	updatedAt: z.string(),
 });
+export const cardAnnotationsSchema = z.object({
+	cards: z.array(
+		cardSchema
+			.pick({
+				id: true,
+				updatedAt: true,
+				status: true,
+				assignee: true,
+				beeAssignments: true,
+				merges: true,
+			})
+			.extend({
+				/** Source-read versions retained across cached and overlapping batches. */
+				sources: z.object({ merges: z.number(), assignments: z.number() }),
+			}),
+	),
+	fetchedAt: z.string(),
+});
+export type CardAnnotations = z.infer<typeof cardAnnotationsSchema>;
 export const hierarchySchema = z.object({
 	/** Full summaries in the requested native parent-child branches, including closed beads. */
 	nodes: z.array(
@@ -325,6 +345,10 @@ export function detailKey(colony: string, id: string, scope: BoardScope): string
 
 export function inventoryKey(colony: string, filter: InventoryFilter): string {
 	return JSON.stringify([colony, inventoryFilterSchema.parse(filter)]);
+}
+
+export function annotationKey(colony: string, ids: string[]): string {
+	return `${colony}/annotations/${JSON.stringify([...new Set(ids)].toSorted())}`;
 }
 
 export function hierarchyKey(colony: string, ids: string[]): string {

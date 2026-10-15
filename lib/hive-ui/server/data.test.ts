@@ -1,3 +1,4 @@
+import type { BeadsScope, DependencySelection } from "@hive/beads";
 import { boardFilterSchema, inventoryFilterSchema } from "../contracts.ts";
 import { expect, test } from "bun:test";
 import { samplePreview, workflowSamples } from "../src/stories/workflow-samples.ts";
@@ -8,6 +9,13 @@ import { createMemoryBeads } from "@hive/beads";
 const scope = { cwd: colony.root, db: colony.beadsDb, actor: "fixture" };
 const filter = boardFilterSchema.parse({ view: "beads", closed: true });
 const seeded = await workflowFixture();
+const linked = await mergeFixture();
+const emptyRequest = await linked.beads.create(scope, {
+	title: "Request without tasks",
+	labels: ["system", "bee", "agent:worker"],
+	assignee: "requester",
+	description: JSON.stringify({ harness: "codex", kind: "worker", model: "gpt-6-astra" }),
+});
 
 async function workflowFixture() {
 	const beads = createMemoryBeads();
@@ -20,6 +28,29 @@ async function workflowFixture() {
 	});
 	await beads.dep.add(scope, root.id, checkpoint.id, "related");
 	return { manual, context: { beads, colony, requestId: "test", log: async () => {} } };
+}
+
+async function mergeFixture() {
+	const beads = createMemoryBeads();
+	const task = await beads.create(scope, { title: "Task with a merge" });
+	const merged = await beads.create(scope, {
+		title: "Merged request",
+		status: "closed",
+		labels: ["merge"],
+		description: JSON.stringify({
+			url: "https://github.com/example/repo/pull/1",
+			branch: "work",
+			resolution: "merged",
+		}),
+	});
+	await beads.dep.add(scope, task.id, merged.id, "relates-to");
+	const invalid = await beads.create(scope, {
+		title: "Invalid merge",
+		labels: ["merge"],
+		description: "bad",
+	});
+	await beads.dep.add(scope, invalid.id, task.id, "relates-to");
+	return { beads, task, merged, invalid };
 }
 
 // eslint-disable-next-line max-statements -- One request fixture verifies both public projections.
@@ -46,8 +77,10 @@ test("board and inventory project cross-host attribution without requiring execu
 	const context = { beads, colony, requestId: "test", log: async () => {} };
 	const data = createBoardData();
 	const board = await data.board(context, filter, 0);
+	expect(board.cards.find((card) => card.id === task.id)?.beeAssignments).toEqual([]);
+	const annotations = await data.annotations(context, [task.id], 0);
 	expect(
-		board.cards.find((card) => card.id === task.id)?.beeAssignments.map((bee) => bee.id),
+		annotations.cards.find((card) => card.id === task.id)?.beeAssignments.map((bee) => bee.id),
 	).toEqual([request.id]);
 	const inventory = await data.inventory(context, inventoryFilterSchema.parse({ view: "open" }), 0);
 	expect(inventory.kind).toBe("loaded");
@@ -67,4 +100,64 @@ test("ordinary children cannot open an ancestor workflow", async () => {
 		.catch((error: unknown) => error);
 	expect(result).toBeInstanceOf(Error);
 	expect(calls).toBe(0);
+});
+
+test("primary cards and families never hydrate tasks or wait for merge and assignment icons", async () => {
+	const data = createBoardData();
+	const beads = {
+		...linked.beads,
+		showMany: () => Promise.reject(new Error("Task detail must remain lazy")),
+		dep: {
+			...linked.beads.dep,
+			list: () => Promise.reject(new Error("Merge metadata unavailable")),
+		},
+	};
+	const context = { beads, colony, requestId: "test", log: async () => {} };
+	const board = await data.board(context, filter, 0);
+	expect(board.cards.map((card) => card.id)).toEqual([linked.task.id]);
+	const family = await data.hierarchy({ ...context, beads: linked.beads }, [linked.task.id], 0);
+	expect(family.nodes.map((node) => node.id)).toEqual([linked.task.id]);
+});
+
+test("merge icons read labelled references in both directions, including closed and malformed records", async () => {
+	const calls: string[] = [];
+	const beads = {
+		...linked.beads,
+		showMany: () => Promise.reject(new Error("Task detail must remain lazy")),
+		dep: {
+			...linked.beads.dep,
+			list: (tracker: BeadsScope, id: string, selection: DependencySelection) => {
+				calls.push(id);
+				return linked.beads.dep.list(tracker, id, selection);
+			},
+		},
+	};
+	const data = createBoardData();
+	const context = { beads, colony, requestId: "test", log: async () => {} };
+	const result = await data.annotations(context, [linked.task.id], 0);
+	expect(result.cards[0]?.merges.map(({ id, kind }) => ({ id, kind }))).toEqual([
+		{ id: linked.merged.id, kind: "valid" },
+		{ id: linked.invalid.id, kind: "invalid" },
+	]);
+	await data.annotations(context, [linked.task.id], 0);
+	expect(calls.toSorted()).toEqual([linked.merged.id, linked.invalid.id].toSorted());
+});
+
+test("a request without tasks never falls back to a repository-wide task or workflow query", async () => {
+	const context = {
+		beads: {
+			...linked.beads,
+			listProjected: () => Promise.reject(new Error("No task query expected")),
+		},
+		colony,
+		requestId: "test",
+		log: async () => {},
+	};
+	const board = await createBoardData().board(
+		context,
+		boardFilterSchema.parse({ view: "open", request: emptyRequest.id }),
+		0,
+	);
+	expect(board.cards).toEqual([]);
+	expect(board.query).toEqual([]);
 });
