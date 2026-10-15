@@ -32,6 +32,7 @@ These are the only valid combinations after publication:
 ## Transitions and resolution
 
 - `bee spawn` and a newly created replacement start pending/unresolved. Automatic retries stay on the same pending request and retain its identity.
+- For authored answers, follow the [caller response procedure](./responses.md#retrieve-a-bees-answer): automatic retries retain the result lookup ID; explicit `bee retry` returns a new one. `bee result OLD_ID` preserves the historical delivery.
 - Completion publishes succeeded/resolved. Retry exhaustion, partial claim acquisition failure or explicit blocked handoff publishes failed/unresolved. `bee stop` closes an open request and publishes cancelled/resolved.
 - `bee retry` first admits and creates a new request with `replacement --supersedes--> original`. Only that successful creation resolves the original. Reservation, duplicate, invalid recipe or native creation failure leaves the original unresolved.
 - A replacement failing becomes independently failed/unresolved. Its predecessor stays failed/resolved. Following `related` edges finds work; following `supersedes` finds replacement provenance.

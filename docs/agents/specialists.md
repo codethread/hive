@@ -2,6 +2,8 @@
 
 Use Bee for repository subagents. Run `bee --help`, then `bee kinds` before delegating. Put the assignment, context and acceptance in workflow input; normally use the kind's workflow and omit prompt overrides. `bee spawn KIND --parent ID --input-file FILE` creates the run beneath existing ordinary work and the work stage the specialist completes. The [Bee and Colony guide](../../lib/colony/README.md#create-requests) documents request creation and inspection.
 
+Retain the returned `request.id`. Inspect it with `bee status REQUEST --json`, then read the authored report with `bee result REQUEST --json` and check its native outcome before using it. After explicit `bee retry`, use the replacement's returned request ID. Follow the [caller response procedure](./responses.md#retrieve-a-bees-answer) for automatic retries, historical results and missing delivery.
+
 ## Architectural intent
 
 - **Consult:** use `librarian` when ownership, domain concepts, seams or abstraction choices remain unclear after reading the [architecture](../architecture.md); routine file placement does not need a consultation.

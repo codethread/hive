@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
 import type { Invocation } from "@hive/shared";
+import { RESPONSE_PROTOCOL } from "./response-protocol.ts";
 import type { RunRuntime } from "./run.ts";
 import { parseBeesConfig } from "@hive/shared";
 import { runKind } from "./run.ts";
@@ -46,7 +47,7 @@ test("interactive run inherits the directory and shell with fresh attribution, w
 	const launch = launches.at(FIRST)!;
 	expect(launch.invocation).toEqual({
 		executable: "interactive",
-		argv: ["default-model", "low", "Role instructions", CURRENT_DIRECTORY],
+		argv: ["default-model", "low", `Role instructions\n\n${RESPONSE_PROTOCOL}`, CURRENT_DIRECTORY],
 	});
 	expect(launch.env).toMatchObject({
 		BEADS_DB: inherited.BEADS_DB,
@@ -63,29 +64,39 @@ test("interactive run inherits the directory and shell with fresh attribution, w
 	expect(inherited.HIVE_AGENT_NAME).toBe("old-identity");
 });
 
-test("interactive overrides independently replace kind defaults and need no tracker", async () => {
-	const { runtime, launches } = fixture();
-	runtime.env = {};
-	await runKind(
-		"librarian",
-		{
-			harness: "alternate",
-			model: "other-model",
-			effort: "high",
-			prompt: "Discuss this design",
-			systemPrompt: "Different role",
-		},
-		runtime,
-	);
-	expect(launches.at(FIRST)).toMatchObject({
-		invocation: {
-			executable: "/users/test home/other-interactive",
-			argv: ["other-model", "high", "Different role", "Discuss this design"],
-		},
-		env: { BR_HARNESS: "alternate", BR_MODEL: "other-model" },
-	});
-	expect(launches.at(FIRST)!.env["BEADS_DB"]).toBeUndefined();
-});
+test.each([
+	{
+		systemPrompt: "Different role",
+		expectedSystemPrompt: `Different role\n\n${RESPONSE_PROTOCOL}`,
+	},
+	{ systemPrompt: "", expectedSystemPrompt: RESPONSE_PROTOCOL },
+])(
+	"interactive overrides retain response guidance with role '$systemPrompt' and need no tracker",
+	async ({ systemPrompt, expectedSystemPrompt }) => {
+		const { runtime, launches } = fixture();
+		runtime.env = {};
+		await runKind(
+			"librarian",
+			{
+				harness: "alternate",
+				model: "other-model",
+				effort: "high",
+				prompt: "Discuss this design",
+				systemPrompt,
+			},
+			runtime,
+		);
+		expect(launches.at(FIRST)).toMatchObject({
+			invocation: {
+				executable: "/users/test home/other-interactive",
+				argv: ["other-model", "high", expectedSystemPrompt, "Discuss this design"],
+			},
+			env: { BR_HARNESS: "alternate", BR_MODEL: "other-model" },
+		});
+		expect(launches.at(FIRST)!.env["BEADS_DB"]).toBeUndefined();
+		expect(config.kinds["librarian"]!.system_prompt).toBe("Role instructions");
+	},
+);
 
 test("missing terminal fails before configuration discovery or launch", async () => {
 	const { runtime, launches } = fixture();

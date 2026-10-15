@@ -1,7 +1,8 @@
 /* eslint-disable unicorn/no-null -- Recipes explicitly preserve canonical-default cwd. */
 import { createSpawn, createTask, memoryTracker } from "./tracker.test-support.ts";
-import { eligibility, prepareLaunch, renderExecutionPrompt } from "./launch.ts";
+import { eligibility, prepareLaunch, renderExecutionRecipe } from "./launch.ts";
 import { expect, test } from "bun:test";
+import { RESPONSE_PROTOCOL } from "./response-protocol.ts";
 import { recipeSchema } from "@hive/shared";
 import { trackerScope } from "./tracker.ts";
 
@@ -51,72 +52,20 @@ const recipe = recipeSchema.parse({
 	system_prompt: "Captured specialist role",
 });
 
-// The rendered launch protocol is the complete agent-facing delivery contract.
-// eslint-disable-next-line max-statements
-test("driver launch guides existing-run coordination and durable driver-handled delivery", () => {
-	const prompt = renderExecutionPrompt({
-		assignment: { kind: "driver", runId: "run-1" },
-		recipe,
-		taskIds: ["run-1"],
-	});
-	expect(prompt).toContain("Coordinate the existing Busy Bee workflow run run-1");
-	expect(prompt).toContain("busybee discover run-1 --json");
-	expect(prompt).toContain(
-		"On retry, reacquire unfinished driver-handled visits under your current identity",
-	);
-	expect(prompt).toContain("claiming only unassigned visits or your own claims");
-	expect(prompt).toContain("Preserve other identities and human/HITL reservations");
-	expect(prompt).toContain(
-		"Before closing each driver-handled stage, use busybee record-result run-1 STAGE CHOICE --data-file FILE",
-	);
-	expect(prompt).toContain("busybee next run-1 STAGE");
-	expect(prompt).toContain("busybee choice run-1 STAGE CHOICE --data-file FILE");
-	expect(prompt).toContain("busybee collect run-1 --json");
-	expect(prompt).toContain("Never manually close run run-1");
-	expect(prompt).toContain("bee finish success only after Busy Bee reports status done");
-	expect(prompt).toContain("run-1 as their native parent");
-	expect(prompt).toContain("Independent delegation remains separate");
-	expect(prompt).toContain("bee finish blocked --reason");
-	expect(prompt).toContain("bee response publish run-1 --body-file FILE --json");
-	expect(prompt).toContain(
-		"Publish one final run response containing your full answer or meaningful synthesis",
-	);
-	expect(prompt).toContain("bee result REQUEST --json");
-	expect(prompt).toContain("publish the full result against the run before closing the last stage");
-	expect(prompt).toContain(
-		"For blocked work, publish and verify a blocker report against the same target",
-	);
-	expect(prompt).toContain("Workflow notes contain only the original machine {choice,data}");
-	expect(prompt).toContain(recipe.prompt);
-	expect(recipe.prompt).toBe("Captured execution direction");
-});
-
-// Verify delivery target, ordering and the worker's workflow authority together.
-// eslint-disable-next-line max-statements
-test("Bee-dispatched stage launch requires result before closure and leaves navigation to the driver", () => {
-	const prompt = renderExecutionPrompt({
-		assignment: { kind: "stage", runId: "run-1", stageId: "stage-1" },
-		recipe,
-		taskIds: ["stage-1"],
-	});
-	expect(prompt).toContain("Perform only the assigned Bee-dispatched visit stage-1");
-	expect(prompt).toContain("busybee record-result run-1 stage-1 CHOICE --data-file FILE");
-	expect(prompt).toContain("before closing the stage");
-	expect(prompt).toContain("do not call busybee next, choice or collect");
-	expect(prompt).toContain("do not close grouping beads or run run-1");
-	expect(prompt).toContain("run-1 as their native parent");
-	expect(prompt).toContain("Related tasks: stage-1");
-	expect(prompt).toContain("then call bee finish success");
-	expect(prompt).toContain("bee response publish stage-1 --body-file FILE --json");
-	expect(prompt).not.toContain("bee response publish run-1");
-	expect(prompt).toContain(
-		"publish and verify your stage response before using busybee record-result",
-	);
-	expect(prompt).toContain(
-		"For blocked work, publish and verify a blocker report against the same target",
-	);
-	expect(prompt).toContain("Response records are closed linked docs, never executable child tasks");
-});
+test.each([
+	{ assignment: { kind: "driver", runId: "run-1" }, target: "run-1" },
+	{ assignment: { kind: "stage", runId: "run-1", stageId: "stage-1" }, target: "stage-1" },
+] as const)(
+	"managed $target launch composes delivery without changing the captured recipe",
+	({ assignment, target }) => {
+		const captured = structuredClone(recipe);
+		const rendered = renderExecutionRecipe({ assignment, recipe, taskIds: [target] });
+		expect(rendered.prompt).toContain(`bee response publish ${target} --body-file FILE --json`);
+		expect(rendered.prompt).toContain(recipe.prompt);
+		expect(rendered.system_prompt).toBe(`${recipe.system_prompt}\n\n${RESPONSE_PROTOCOL}`);
+		expect(recipe).toEqual(captured);
+	},
+);
 
 const readinessCases = await Promise.all(
 	["task", "epic"].flatMap((type) =>

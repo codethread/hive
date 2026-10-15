@@ -5,6 +5,7 @@ import type { LoadedBeesConfig } from "./config.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Supply the host home at the native invocation boundary.
 import { homedir } from "node:os";
 import { loadBeesConfig } from "./config.ts";
+import { renderBeeSystemPrompt } from "./response-protocol.ts";
 
 export interface RunOptions {
 	/** Override the kind's model. */
@@ -66,7 +67,12 @@ export async function runKind(
 	if (!formula) {
 		throw new Error(`No formula named ${recipe.harness}`);
 	}
-	const invocation = renderFormula(formula, recipe, "interactive", runtime.home);
+	const invocation = renderFormula(
+		formula,
+		{ ...recipe, system_prompt: renderBeeSystemPrompt(recipe.system_prompt) },
+		"interactive",
+		runtime.home,
+	);
 	for (const warning of warnings) {
 		runtime.warn(warning);
 	}

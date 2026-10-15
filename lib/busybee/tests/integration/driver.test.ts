@@ -145,10 +145,6 @@ test("default author distinguishes the run while preserving the actual stage ass
 	const stage = await defaultRun.beads.show(scope, defaultRun.run.active[FIRST]!.bead);
 	expect(stage.dependencies).toMatchObject([{ id: root.id, dependency_type: "parent-child" }]);
 	expect(stage.description).toContain(`bee response publish ${root.id} --body-file FILE --json`);
-	expect(stage.description).toContain("a full answer or meaningful synthesis");
-	expect(stage.description).toContain(
-		"Workflow notes contain only the original machine {choice,data}",
-	);
 });
 
 // Compile the injected chart/checkpoint schemas and CLI boundary once before measured cases.
@@ -575,7 +571,6 @@ describe("Bee-dispatched stage coordination", () => {
 		const prompt = calls[FIRST]![calls[FIRST]!.indexOf("--prompt") + ONE]!;
 		expect(prompt).toContain(`bee response publish ${stage.bead} --body-file FILE --json`);
 		expect(prompt).not.toContain(`bee response publish ${run.id} `);
-		expect(prompt).toContain("Deliver the full authored response for this Bee-dispatched stage");
 		const task = await dispatch.beads.show(scope, stage.bead);
 		expect(task.description).toContain("bee response publish TASK_ID --body-file FILE --json");
 		expect(task.description).not.toContain(`bee response publish ${run.id} `);

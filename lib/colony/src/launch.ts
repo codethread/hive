@@ -3,7 +3,7 @@
  * ownership.
  */
 import type { Bead, BeadsService } from "@hive/beads";
-import type { Formula, RepositoryEndpoint, SpawnRequest } from "@hive/shared";
+import type { Formula, Recipe, RepositoryEndpoint, SpawnRequest } from "@hive/shared";
 import { colonyEntry, entryCommand } from "./executables.ts";
 import {
 	formulaSchema,
@@ -23,6 +23,7 @@ import { link, mkdir, open, realpath, rename, unlink } from "node:fs/promises";
 import { agentEnvironment } from "./identity.ts";
 import { loadBeesConfig } from "./config.ts";
 import { match } from "ts-pattern";
+import { renderBeeSystemPrompt } from "./response-protocol.ts";
 import { runOwnedExecution } from "./processes.ts";
 /* eslint-disable-next-line import/no-nodejs-modules --
  * Launch the existing detached supervisor for ordinary attempts and drones.
@@ -179,8 +180,12 @@ export async function prepareLaunch(
 	if (!formula) {
 		throw new Error(`No formula named ${recipe.harness}`);
 	}
-	const prompt = renderExecutionPrompt(assignmentRequest);
-	const invocation = renderFormula(formula, { ...recipe, prompt }, "headless", homedir());
+	const invocation = renderFormula(
+		formula,
+		renderExecutionRecipe(assignmentRequest),
+		"headless",
+		homedir(),
+	);
 	let executionDirectory = request.root;
 	if (recipe.cwd !== null) {
 		executionDirectory = resolvePath(request.root, recipe.cwd);
@@ -215,12 +220,12 @@ export async function prepareLaunch(
 	};
 }
 
-/** Materialize the captured role's delivery protocol without changing the stored recipe. */
-export function renderExecutionPrompt({
+/** Compose system delivery rules and the assignment without changing the captured recipe. */
+export function renderExecutionRecipe({
 	assignment: scope,
 	recipe,
 	taskIds,
-}: Pick<SpawnRequest, "assignment" | "recipe" | "taskIds">): string {
+}: Pick<SpawnRequest, "assignment" | "recipe" | "taskIds">): Recipe {
 	const blocked =
 		"If blocked, complete all possible work, record the blocker and required next " +
 		"action on unfinished tasks, leave them unclosed, then call bee finish blocked " +
@@ -305,15 +310,19 @@ export function renderExecutionPrompt({
 		.with({ kind: "driver" }, ({ runId }) => runId)
 		.with({ kind: "stage" }, ({ stageId }) => stageId)
 		.exhaustive();
-	return [
-		recipe.prompt,
-		protocol,
-		renderResponseInstructions({ taskId }),
-		blocked,
-		`Related tasks: ${taskIds.join(", ")}`,
-	]
-		.filter(Boolean)
-		.join("\n\n");
+	return {
+		...recipe,
+		prompt: [
+			recipe.prompt,
+			protocol,
+			renderResponseInstructions({ taskId }),
+			blocked,
+			`Related tasks: ${taskIds.join(", ")}`,
+		]
+			.filter(Boolean)
+			.join("\n\n"),
+		system_prompt: renderBeeSystemPrompt(recipe.system_prompt),
+	};
 }
 
 export async function writeReceipt(receipt: LaunchReceipt): Promise<void> {

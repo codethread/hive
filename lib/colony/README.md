@@ -101,7 +101,7 @@ This is user-invoked, headed interaction. Agents must not invoke `bee run`; use 
 
 The current directory and shell environment are inherited. Bee mints a friendly identity and sets `BD_ACTOR`, `HIVE_AGENT_NAME`, `BR_AGENT_NAME`, `BR_HARNESS` and `BR_MODEL`. An existing `BEADS_DB` is inherited, but no tracker is read or written by the launcher. Colony attempt/report credentials are removed from the inherited environment. The session retains its supplied actor when using Beads.
 
-Kind defaults come from the canonical configuration. `--model`, `--effort`, `--harness`, `--prompt` and `--system-prompt` override only this session; either prompt can be cleared with an empty string. There is no directory or repository override, and `--json` is rejected because the harness owns terminal output.
+Kind defaults come from the canonical configuration. `--model`, `--effort`, `--harness`, `--prompt` and `--system-prompt` override only this session; either kind prompt can be cleared with an empty string. Bee appends its common response protocol to the selected system role, including an empty role override. In a direct conversation that protocol returns the answer to the user. There is no directory or repository override, and `--json` is rejected because the harness owns terminal output.
 
 Each harness uses one [formula](#harness-formulas). `bee run` renders its shared `argv`; Colony prepends its optional `headless` arguments. `colony init` includes a Codex formula supporting both modes. Select the native executable if a local wrapper changes its behavior.
 
@@ -125,19 +125,30 @@ Override selection with `--workflow NAME` or `--source PATH`. Inspect named inpu
 
 Initial submission identifies `request.id`, `request.identity`, `workflow.parentId`, `workflow.runId` and `workflow.status`. The driver's completion anchor remains the run; the external parent has its own completion policy. `bee status REQUEST` inspects execution; `busybee show RUN` inspects assignment and progression. The request can wait while Colony is asleep. Changing kind defaults affects future submissions, not saved workflow input or a captured recipe. Retries retain the same run and driver/stage role.
 
+Retain `request.id` to retrieve the bee's answer:
+
+```sh
+bee status REQUEST_ID --json
+bee result REQUEST_ID --json
+```
+
+`bee result` returns the complete authored `response.body` and native `request.outcome` for that exact request. A blocker report can be available on a failed request; check the outcome before accepting its answer. Automatic retries and Colony recovery keep the same request ID. After explicit `bee retry`, use the returned replacement `request.id`. See the [caller response procedure](../../docs/agents/responses.md#retrieve-a-bees-answer) for historical IDs and missing delivery.
+
 Initialization and driver publication are separate effects. An initially complete run stays closed and returns `workflow_already_done` without a driver. Partial failures preserve the parent and confirmed run/checkpoint/stage request identifiers and driver-publication uncertainty. Inspect native incoming request links before recovery; never repeat initialization blindly. After confirming a run has no driver, use `bee attach-workflow KIND RUN` with the same tracker and execution checkout. An existing unsuccessful driver uses `bee retry`; an existing open request uses `bee status`. Attachment admission is read-then-create, not an atomic or distributed uniqueness guarantee. Busy Bee retains its uncertain-write locks for explicit inspection.
 
 Bee-dispatched stages use `bee dispatch-stage KIND STAGE --run RUN` internally, creating a stage execution request without a second workflow. Drivers remain running and consume their normal Colony, kind and worktree quota while waiting for Bee-dispatched results. If waiting drivers exhaust capacity and workers cannot start, increase the relevant quota. Colony does not suspend drivers or reserve extra worker slots. `bee stop` stops the selected execution; independent Bee-dispatched workers and the workflow remain available for continuation.
 
 The three instruction sources have distinct responsibilities:
 
-| Source               | Responsibility                                                  |
-| -------------------- | --------------------------------------------------------------- |
-| Kind `system_prompt` | Reusable role and protocol: how this kind carries out its work  |
-| Kind `prompt`        | Optional direction for an execution, usually empty              |
-| Workflow stage beads | Caller assignment, context, deliverable and acceptance criteria |
+| Source               | Responsibility                                                    |
+| -------------------- | ----------------------------------------------------------------- |
+| Kind `system_prompt` | Role, expertise and authority: how this kind carries out its work |
+| Kind `prompt`        | Optional direction for an execution, usually empty                |
+| Workflow stage beads | Caller assignment, context, deliverable and acceptance criteria   |
 
-Colony adds the captured driver or stage protocol at launch. Drivers inspect the existing run, claim driver-handled stages, perform and verify work, record results with `busybee record-result RUN STAGE CHOICE --data-file FILE`, close completed stages and use `busybee collect RUN`. Busy Bee advances the chart and closes grouping beads and the run. The driver reports `bee finish success` only when the run reports done. Bee-dispatched workers record and close only their assigned stage; the driver collects their results. Complete answers follow the [response protocol](../../docs/agents/responses.md); concise verification belongs in comments, and result notes hold the validated `{choice,data}` envelope. Required additional executable work has the run as its native parent; filed responses use nonblocking links with no parent, and independent delegation stays separate.
+Bee/Colony appends the common response protocol to the selected kind system role at invocation time. The captured recipe retains the role alone; the invocation in the attempt receipt records the composed system prompt. Kind overrides replace the role while retaining the common protocol. Private inactivity drones and post-run assessments use their own reporting protocols.
+
+Colony adds the captured driver or stage assignment to the execution prompt at launch. Drivers inspect the existing run, claim driver-handled stages, perform and verify work, record results with `busybee record-result RUN STAGE CHOICE --data-file FILE`, close completed stages and use `busybee collect RUN`. Busy Bee advances the chart and closes grouping beads and the run. The driver reports `bee finish success` only when the run reports done. Bee-dispatched workers record and close only their assigned stage; the driver collects their results. Complete answers follow the [response protocol](../../docs/agents/responses.md); concise verification belongs in comments, and result notes hold the validated `{choice,data}` envelope. Required additional executable work has the run as its native parent; filed responses use nonblocking links with no parent, and independent delegation stays separate.
 
 A blocked bee completes possible work, records the blocker and next action, leaves unfinished work open and reports `bee finish blocked --reason "…"`. The captured recipe remains unchanged by launch guidance. The finite retry budget and explicit blocked handoff remain Colony's authority.
 
@@ -193,6 +204,8 @@ Retry retains the captured driver/run or worker/visit role and its native parent
 Human reservations and overlapping open requests still refuse admission. No unfinished tasks also refuses retry. Creation records a native `supersedes` relationship from replacement to original, separately from `related` task links. A failed submission leaves the original unresolved. The old closure reason, recipe, identity, observations and execution history remain unchanged.
 
 `status <old-id>` shows `resolution: {kind: "superseded", replacementIds: [...]}` and the replacement ID in human output. Replacement status exposes `supersedes` IDs. Completed and intentionally cancelled requests resolve automatically; `exhausted`, `claim_failed` and `blocked` requests with unresolved resolution have `needsAttention: true`. A replacement that fails needs attention independently of its resolved predecessor. `--all` retains resolved requests in discovery.
+
+Save the replacement's returned `request.id` for `bee status NEW_ID --json` and `bee result NEW_ID --json`. Its response lineage is separate even though the producing run/stage is unchanged. `bee result OLD_ID` keeps the original delivery; it does not follow supersession. If only the old ID is known, inspect its `resolution.replacementIds` and select the intended replacement explicitly.
 
 For the complete outcome/resolution label values, valid combinations, native attention/history queries and publication recovery, read the [spawn state and query reference](../../docs/agents/spawn-requests.md).
 

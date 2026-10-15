@@ -2,6 +2,25 @@
 
 File the complete authored answer once as a response. Keep task comments for progress, verification and response pointers; workflow stage notes hold only Busy Bee's original `{choice,data}` result. Command syntax, pagination and JSON schemas live in `bee response --help`, its subcommand help, `bee result --help` and `bee response --schema`.
 
+Bee/Colony owns the common runtime instructions in [`RESPONSE_PROTOCOL`](../../lib/colony/src/response-protocol.ts), appended to the selected kind system role for managed task executions and interactive Bee sessions. Kind prompts describe the role and its authority; the managed execution assignment supplies the exact producing run/stage. Private assessments and inactivity verdicts retain their separate protocols.
+
+## Retrieve a bee's answer
+
+1. Retain `request.id` from successful `bee spawn`, `bee attach-workflow`, `bee dispatch-stage` or `bee retry` output. Keep the same repository and selected tracker for subsequent reads. This is the execution request ID; the workflow run, assigned stage and external parent have separate IDs.
+2. Inspect `bee status REQUEST --json`. While `disposition.outcome` is `pending`, execution may still be waiting, running or automatically retrying. Response availability is separate: a published answer can exist before settlement, and a closed request can lack one.
+3. Retrieve the complete authored answer with `bee result REQUEST --json`. Read `response.body` alongside `request.outcome` and closure facts; a failed request can deliver a useful blocker report. This command selects the driver's run response or the dispatched worker's stage response for that exact request. Drivers own the complete synthesis; read individual worker responses explicitly when their evidence is needed.
+
+Choose the request ID by lifecycle:
+
+| Event | Result lookup |
+| --- | --- |
+| Colony recovery adopts a surviving execution, or automatically retries an attempt | Keep the same request ID and use `bee result REQUEST --json`. Attempts share that request's response lineage. |
+| Explicit `bee retry OLD_REQUEST` creates a replacement | Save the returned `request.id`; use `bee status NEW_REQUEST --json` and `bee result NEW_REQUEST --json`. The run/stage is retained, while the response lineage is new. |
+| Only the predecessor ID is known | Read `bee status OLD_REQUEST --json` and inspect `resolution.replacementIds`. Select the intended replacement explicitly; `bee result OLD_REQUEST` retains the predecessor's historical answer. |
+| A response ID is already cited | Use `bee response get RESPONSE_ID --json` for that immutable artifact, including a superseded answer. Use `bee result REQUEST` to resolve the request's current corrected answer. |
+
+Task-only lookup can be ambiguous after replacement requests or standalone deliveries; use the exact request or response ID. A missing, ambiguous or malformed response fails explicitly. Inspect `bee status` and the reported IDs: wait if execution remains pending; report incomplete delivery if a settled request has no response; resolve conflicting heads through an explicit producer correction. Task comments, workflow notes and logs provide supporting evidence. Request success alone does not guarantee an authored answer, and response availability alone does not establish success. Use `bee retry` only when replacing eligible failed work, rather than to recover a missing answer from completed work.
+
 ## Choose the producing task
 
 | Execution | Response target |
@@ -30,7 +49,7 @@ Outgoing nonblocking links connect the response to its producing task (`replies-
 
 Responses are immutable. An identical publication by the same author with the same correction intent reuses its ID. To correct a delivery, publish a new response explicitly superseding every current head in the same task/request scope. Exact-ID reads retain the original body. Concurrent conflicting publications remain ambiguous until an explicit correction; there is no automatic latest-wins rule. If publication is uncertain, inspect the reported known effects and IDs before retrying.
 
-A Bee retry has a distinct request ID and response lineage even when its producing task is unchanged. `bee result REQUEST` selects only that exact request's captured run/stage and returns its response plus native outcome facts. Older request IDs remain historical; task-only resolution can be ambiguous. Missing, ambiguous or malformed responses fail explicitly, without falling back to comments or notes. Exact `bee status` includes a compact availability summary; a broad request list does not expand response bodies.
+Automatic retries and recovery retain the request and response lineage. A resumed producer inspects `bee result REQUEST --json` before publishing: an unchanged delivery can reuse its response ID, while a revised answer explicitly supersedes every current head in that scope. Explicit `bee retry` creates a distinct request ID and response lineage even when its producing task is unchanged; its response cannot supersede the predecessor request's response. A replacement request has no response bead until one is published. Exact `bee status` includes a compact availability summary; a broad request list does not expand response bodies.
 
 ## Retrieve historical evidence
 

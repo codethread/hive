@@ -45,8 +45,14 @@ Resolve only this request's captured driver run or dispatched stage and exact
 request lineage. Returns the full authored response/provenance plus native
 status, closure and outcome facts. Does not include recipe, prompts, task briefs,
 comments, logs or a ready-list scan. Old request IDs stay historical after retry.
+Use request.id returned by spawn or explicit retry. Automatic attempts and Colony
+recovery keep that ID; explicit retry returns a replacement ID. If only the old
+ID is known, inspect bee status OLD --json for resolution.replacementIds and
+select the intended replacement. This command does not follow replacements.
 Missing/ambiguous/malformed responses fail explicitly; there is no legacy fallback.
 A response can document blocked work: availability does not imply success.
+Pending requests can publish before settlement; check bee status REQUEST --json.
+After settlement, missing delivery remains an error, including on success.
 Use bee response --schema for JSON contracts, including failures.
 `,
 	ack: `
@@ -122,6 +128,10 @@ Agent workflow:
   3. Submit: bee spawn <kind> --parent <work-id> --input-file <file> --cwd <directory> --actor <identity> --json
   4. Inspect: bee status <spawn-id> --json
      Inspect workflow.runId with busybee show and br show.
+  5. Read the authored answer: bee result <spawn-id> --json
+     Use request.id from submission; check request.outcome alongside response.body.
+     Automatic retries keep the ID. Explicit bee retry returns a new request.id;
+     use that replacement ID for status/result. Old IDs retain historical answers.
   Normally omit --system-prompt and --prompt: the kind supplies its protocol and
   workflow stages define the work. Colony supplies the workflow driver protocol.
 
@@ -153,6 +163,10 @@ another kind. Normally omit --system-prompt and --prompt; their independent
 replacement semantics match bee spawn --help. Old recipe overrides are not
 carried forward. This does not reopen or resume the previous execution.
 
+Save the returned request.id for bee status NEW --json and bee result NEW --json.
+The replacement has its own response lineage; bee result OLD retains the old
+answer. Automatic retries within a request keep the same result lookup ID.
+
 Example:
   bee retry <spawn-id> --actor <identity> --json
 `,
@@ -165,6 +179,8 @@ No task beads, spawn request or Colony daemon are involved. --json is unsupporte
 Uses canonical kind defaults and [formulas.<harness>], omitting headless arguments.
 Overrides apply only to this session; --prompt and --system-prompt replace their
 respective defaults.
+Bee appends its common response protocol to the selected system role, including
+an empty --system-prompt override. Direct conversations answer the user directly.
 
 Examples:
   bee run librarian
@@ -192,6 +208,10 @@ Source/input paths resolve relative to the submitting command's directory.
 The human owner comes from configuration; actor/tracker match Bee options.
 Initial submission returns request.id/identity and workflow.parentId/runId/status. Busy Bee owns
 workflow progression and run closure. Submission is separate from execution.
+Retain request.id for bee status REQUEST --json, then bee result REQUEST --json
+to read the complete authored answer and native outcome. A response can describe
+blocked work; check the outcome before accepting the answer. After explicit
+bee retry, use its returned replacement request.id for status and result.
 
 Partial failures retain parent and confirmed run/checkpoint/stage request IDs and driver publication
 uncertainty. Inspect native incoming request links before any recovery. Attach
