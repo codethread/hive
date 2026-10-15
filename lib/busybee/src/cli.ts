@@ -178,10 +178,11 @@ function registerInspection(invocation: Invocation): void {
 	const options = (): CliOptions => cli.opts<CliOptions>();
 	cli
 		.command("preview <run>")
-		.description("Read saved workflow structure and state without starting actors or writing beads")
+		.description("Preview an active or completed run's latest saved workflow state")
 		.addHelpText(
 			"after",
-			"\nImports trusted workflow code. Returns structural graphs, saved state and source provenance; " +
+			"\nImports trusted workflow code; creates no actors and writes no beads. " +
+				"Returns structural graphs, saved state and source provenance; " +
 				"excludes context, task bodies and implementations.",
 		)
 		.action(async (id: string) => {

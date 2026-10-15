@@ -1,7 +1,7 @@
 import type { Card, WorkflowPreview } from "../../contracts.ts";
 import land from "./workflow-land.json";
 
-/** Frozen native facts selected by honeybee for hv-pyh6w on 2026-10-15. */
+/** Captured native runs for the workflow preview workshop. */
 export interface WorkflowSample {
 	/** Native run card; labels, relationships and request enrichment omitted from this preview. */
 	card: Card;
@@ -9,7 +9,7 @@ export interface WorkflowSample {
 	label: string;
 	/** Native system record containing this snapshot. */
 	checkpoint: string;
-	/** Native checkpoint update timestamp, formatted in Europe/London. */
+	/** Native checkpoint update timestamp in UTC. */
 	savedAt: string;
 	/** Time the source records were read. */
 	capturedAt: string;
@@ -30,7 +30,7 @@ export interface WorkflowSample {
 const CAPTURED_AT = "2026-10-15T06:19:20.094086Z";
 const DEFINITION_NOTE =
 	"Chart extracted from checkout 1cbebd6dc38368e11acadd5759ea22eb8b3829d5. " +
-	"This POC uses that definition's structure, not a reconstruction of historical source. " +
+	"Samples pair that captured structure with historical saved state. " +
 	"Action implementations, context and task instruction bodies are omitted.";
 const work = {
 	id: "do-work",
@@ -119,7 +119,7 @@ export const workflowSamples: WorkflowSample[] = [
 	},
 ];
 
-/** Frozen saved state paired with the explicitly identified current-source sample chart. */
+/** Pair frozen saved state with the chart captured for these samples. */
 export function samplePreview(sample: WorkflowSample): WorkflowPreview {
 	return {
 		runId: sample.card.id,

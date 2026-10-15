@@ -150,8 +150,8 @@ function WorkflowSnapshot({
 				</div>
 				{preview.definition.sourceMatch === "compatible" && (
 					<p className="mt-3 text-xs text-muted">
-						The chart uses the current compatible definition. Its source differs from the saved
-						checkpoint.
+						The chart uses a compatible definition whose source differs from the checkpoint&apos;s
+						recorded source.
 					</p>
 				)}
 			</header>

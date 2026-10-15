@@ -33,8 +33,6 @@ Storybook lives in the same package, with configuration in `lib/hive-ui/.storybo
 
 Stories render the production components using a memory router, production stores and MSW fixture responses. The workshop never starts the native API or reads a tracker. Navigation, selection, filter changes, refresh and ancestry actions use deterministic responses; timestamps describe fixed observations. Stores, saved views and column preferences reset between stories in the workshop's browser origin. Full-page stories compose the real shell, including the responsive sidebar/drawer and inspector.
 
-Workflow preview's **Modal** and **Unavailable** stories exercise the production action with fixed preview responses. Its diagram uses the hosted Stately Inspector described in the [preview guide](../../lib/hive-ui/README.md#workflow-preview).
-
 Bee graph stories show recorded requesters, inferred ancestry, historical context, all request outcomes, empty results and long identities. Selection updates a visible selected-request readout and records a selection action. The Bee workspace and Work board stories exercise selection, linked work and ancestry end to end. All stories share a Moss/Paper toolbar; Paper also has explicit visual examples. Autodocs, controls, actions and accessibility inspection are available from Storybook's panels.
 
 Launch and static-build commands are in the [usage guide](../../lib/hive-ui/README.md#component-workshop).
@@ -58,7 +56,7 @@ The current reference app differs from the user's recalled data flow: it uses Ta
 
 ## Package and runtime
 
-`hive-ui` is an independent product package. It imports `@hive/beads` for injected tracker I/O and `@hive/shared` for repository resolution, spawn decoding and the workflow preview wire schema. Busy Bee supplies previews through its public command. The UI does not import Colony, inspect its private SQLite schema or call `colony list`: that command currently refreshes persisted attempt state. The earlier librarian consultation `.1` established these read-only constraints; its proposed Colony-hosted UI was superseded by the user's explicit package direction.
+`hive-ui` is an independent product package. It imports `@hive/beads` for injected tracker I/O and `@hive/shared` for repository resolution, spawn decoding and the workflow preview wire schema. The UI does not import Colony, inspect its private SQLite schema or call `colony list`: that command currently refreshes persisted attempt state. The earlier librarian consultation `.1` established these read-only constraints; its proposed Colony-hosted UI was superseded by the user's explicit package direction.
 
 Startup selects one `--repo`/`--beads-db` pair, or an explicit JSON list of named endpoints through `--colonies`. Each endpoint keeps its canonical root and selected absolute database together. A stable endpoint ID keys routes and per-colony views. The switcher lists configured endpoints without querying all their trackers. Automatic discovery and temporary daemon registrations are outside this MVP.
 
@@ -86,7 +84,7 @@ Bees shows requests in an Outline or Graph, defaulting to Outline. Its separate 
 | Bead detail | One selected ID; includes its description, native acceptance criteria, comments and up to 50 relationship summaries per direction with full counts. Native `show` already supplies outgoing dependencies and incoming dependents. Selected detail loads first; only ordinary tasks then request the separate hierarchy resource. Merge reference selection and Refresh read detail without requesting a task family. Bee views reuse their scoped inventory for requested-work context. Assignment badges use the open inventory in every view, including Completed, only when the selected task is assigned and in progress. |
 | Native bead hierarchy | Complete families for the visible Beads page or selected inspector; explicit descendant subtree for an outline. Traversal uses typed parent-child edge reads and scoped row batches. Merge enrichment then batch-hydrates every member with any relationship, including members linked only by parent-child edges; this covers the complete family/subtree, not just visible cards. Native comments are discarded from hierarchy DTOs. The [UI guide](../../lib/hive-ui/README.md#reading-the-board) documents caching, loading states and membership. |
 | Workflow provenance | Board, family, outline and preview reads query exact `system` + `busybee-checkpoint` labels with closed records included. One native list reads all retained workflow system descriptions, without a page bound or cache; it maps Busy Bee's public `id` and `created[].bead` identities to their owning run. |
-| Workflow preview | Opening the modal or explicit Refresh resolves the owning run, then invokes `busybee preview RUN --json` for the selected endpoint. Board projection loads no diagrams. |
+| Workflow preview | Modal open or explicit Refresh only; board projection loads no diagrams. See [preview loading](#workflow-preview). |
 | Provenance | Explicit request or bead-inspector action; requester-assignee query includes closed history, at most three ambiguity candidates and eight ancestry steps. |
 
 Native `br list` does not supply related task edges, so each requested inventory page requires one batched `br show` to discover membership and recorded observations. This is a bounded cost on the selected colony, not a full-history hydration. Native results contain more fields than the browser needs; the server projects away recipes/prompts and board descriptions/comments. Measure before adding a new native projection API.
@@ -101,9 +99,9 @@ Board presentation groups complete native parent-child components, then bridges 
 
 ## Workflow preview
 
-Cards, family headings, outlines and inspector details share `WorkflowIndicator`. The server resolves the owning run through the existing identity index, independently of native ancestry or board grouping.
+Cards, family headings, outlines and inspector details share `WorkflowIndicator`. Its Zustand load action requests the selected colony/bead; the server resolves the owning run through the identity index, independently of native ancestry or board grouping.
 
-Opening or refreshing calls a Zustand load action for the selected colony/bead. The server invokes the public command through an injected process adapter with the configured repository/database pair; browser input supplies only the colony and bead identities. The adapter parses the Shared wire schema. Definition loading and saved-state interpretation remain in Busy Bee under its [preview contract](../../lib/busybee/SPEC.md#saved-state-preview).
+An injected process adapter calls Busy Bee and parses the Shared wire schema. [Architecture](../architecture.md#package-responsibilities-and-seams) owns the endpoint and producer boundary; the [preview contract](../../lib/busybee/SPEC.md#saved-state-preview) defines the payload.
 
 The modal replaces the diagram with loading or failure content during each read, so an old chart cannot appear current after refresh fails. `WorkflowDiagram` registers the returned root and retained child snapshots as manual Inspector actors, replacing actor paths with generic IDs while preserving parent relationships. The iframe uses `readOnly: true` and `bidirectional: false`; no live workflow actor is connected. The [preview guide](../../lib/hive-ui/README.md#workflow-preview) owns hosted-service, payload and source-provenance disclosures.
 

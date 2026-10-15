@@ -26,7 +26,7 @@ export function WorkflowDiagram({
 			theme,
 		});
 		inspector.on("loaded", () => {
-			setNotice("Stately connected · saved state highlighted");
+			setNotice("Stately connected · saved workflow state");
 		});
 		inspector.on("error", (error) => {
 			setNotice(`Stately: ${error.message}`);

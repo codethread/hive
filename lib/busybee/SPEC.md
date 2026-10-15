@@ -44,11 +44,11 @@ Partial-effect creation errors retain the known `parentId`, even when the run cr
 
 `preview RUN --json` reads an active or completed run's latest checkpoint and resolves its definition under the [existing version and hash rules](#contracts-and-authority). The producer-owned [Shared wire schema](../shared/src/workflow-preview.ts) carries source fingerprints and structural diagrams with original saved state value/status for the root and retained child machine actors. `savedAt` is the native checkpoint's update time, including lock or result writes; it is not a state-entry timestamp.
 
-The structural allowlist preserves hierarchy, initial/final/history states and event, eventless, delayed, completion and invocation-result transitions. Guards are descriptive labels. Context, input/output, task bodies, prompts, result history, metadata, action implementations and parameters stay out of the payload. Actors absent from the saved checkpoint are not reconstructed as historical visits. Missing or unsupported child logic, invalid state paths and incomplete parallel state fail explicitly; preview never substitutes a normalized state or recalculates the saved status.
+The structural allowlist preserves hierarchy, initial/final/history states and event, eventless, delayed, completion and invocation-result transitions. Guards are descriptive labels. Context, input/output, task bodies, prompts, result history, metadata, actions and guard parameters stay out of the payload. Actors absent from the saved checkpoint are not reconstructed as historical visits. Missing or unsupported child logic, invalid state paths and incomplete parallel state fail explicitly; preview never substitutes a normalized state or recalculates the saved status.
 
 `definition.sourceMatch` is `exact` when the saved and current fingerprints match, otherwise `compatible` for an allowed named definition. A compatible chart may differ from the chart that produced the snapshot. Preview reports definition-loading failures without replacing the run or updating its provenance.
 
-Preview creates and starts no actors, calls no task renderers, acquires no checkpoint lock and performs no native writes. Importing the trusted definition still executes module code; this read interface is not an I/O sandbox. Consumers present the projection rather than interpreting checkpoint internals or using it to drive workflow progression.
+Preview creates no actors, evaluates no guards, actions or task renderers, acquires no checkpoint lock and performs no native writes. Importing the trusted definition still executes module code; this read interface is not an I/O sandbox. Consumers use the projection for display; Busy Bee retains authority over workflow progression.
 
 ## Validation boundary
 

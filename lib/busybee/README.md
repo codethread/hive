@@ -67,7 +67,7 @@ Repeat until `status` is `done`. A closed task stays active until Busy Bee accep
 
 Use `busybee --help` and subcommand help for command arguments, tracker/actor requirements and output formats. `input-schema` discovers workflow inputs; `discover` returns active choice schemas. These read-only snapshots are not reservations. The [authoring guide](../../docs/busybee-workflows.md) covers definitions and validation limits.
 
-Use `busybee preview RUN --json` for a saved-state diagram, including completed runs. It imports the trusted definition without creating actors or writing beads. The result describes the latest checkpoint against the current compatible definition, with source fingerprints; it is not a live subscription or an archive of historical definitions. See `busybee preview --help`, the [preview contract](./SPEC.md#saved-state-preview) and [Hive UI's modal](../hive-ui/README.md#workflow-preview).
+For saved-state inspection of active or completed runs, use `busybee preview --help`. The [preview contract](./SPEC.md#saved-state-preview) defines the payload and source-matching limits; [Hive UI](../hive-ui/README.md#workflow-preview) displays it in a modal.
 
 Before updating a named workflow, check the selected tracker's existing unfinished runs:
 

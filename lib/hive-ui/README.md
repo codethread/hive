@@ -77,9 +77,9 @@ Click the workflow icon on a run or generated stage/group to open its owning run
 
 Expand **Saved state & diagram source** for checkpoint and source information. The chart uses the definition available in the selected repository; compatible source changes are disclosed. An unavailable or incompatible definition produces an error in the modal. The checkpoint timestamp includes bookkeeping updates, so it does not identify when the workflow entered its state. Busy Bee's [preview contract](../busybee/SPEC.md#saved-state-preview) defines source matching and read limits.
 
-The diagram uses the public-alpha [`@statelyai/sdk` Inspector](https://stately.ai/docs/packages/sdk#inspector), pinned to 0.38.2. Its hosted `https://editor.stately.ai/inspect` viewer and `wss://sky.stately.ai` relay require network access; inspection needs no API key or sign-in. The SDK pin does not freeze those hosted services. Anyone with a room URL can view its replay, which expires after 24 hours without activity.
+The diagram uses the hosted [Stately Inspector](https://stately.ai/docs/packages/sdk#inspector). Its `https://editor.stately.ai/inspect` viewer and `wss://sky.stately.ai` relay require network access; inspection needs no API key or sign-in. Anyone with a room URL can view its replay, which expires after 24 hours without activity.
 
-The workflow payload sent to Stately contains only structural machine configuration, original saved state value/status, generic actor IDs and parent relationships. Checkpoint context, task bodies, prompts, result history, bead identities, assignees and executable implementations stay out of that payload. State names and structural guard labels remain part of the diagram.
+Stately receives the [structural projection and saved state](../busybee/SPEC.md#saved-state-preview), including state/event names and guard labels. Hive adds generic actor IDs and parent relationships; bead identities, titles, assignees, actor paths and source fingerprints stay in Hive.
 
 ## Component workshop
 
@@ -95,7 +95,7 @@ Start with **Bees → Bee graph → Inferred Ancestry** for the graph canvas, or
 
 For task/workflow hierarchy, open **Workspace → Work board → Workflow Families**. Turn on **Show workflow beads** beside search to reveal the generated work. It uses the production BeadBoard with single-run rails, multiple runs including an unfinished older attempt, and nested supporting work beneath a broader scope. Select a visit to follow its native parents in the inspector, fold branches, or open its descendant outline. **Include closed** reveals completed runs and visits. **Single Workflow**, **Multiple Workflows**, **Nested Workflows**, **Workflow Inspector**, **Workflow Outline** and **Workflow Paper** isolate those views.
 
-Open **Beads → Workflow preview → Modal** for the production modal with fixed active and completed checkpoint samples, or **Unavailable** for a failed preview read. Both reuse the production workflow action and mocked HTTP responses. The [hosted diagram](#workflow-preview) still requires network access; these samples read no live tracker.
+Open **Beads → Workflow preview → Modal** for captured active and completed checkpoint samples, **Nested Actors** for a synthetic child actor, or **Unavailable** for a failed preview read. These use the production modal with fixed HTTP responses and no live tracker. The [hosted diagram](#workflow-preview) still requires network access.
 
 The catalogue also covers boards, cards, inspector and outlines, filters, saved views, navigation, column settings, tabs, Markdown and resource notices. Autodocs and the Controls, Actions and Accessibility panels sit beside the examples. Resize the preview to explore the mobile filter drawer and inspector panes.
 
