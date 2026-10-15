@@ -111,26 +111,9 @@ For a selected tracker outside the project environment, replace `"$BEADS_DB"` wi
 
 ## Saved presets
 
-`beeswax beads setup --beads-db "$BEADS_DB"` installs or refreshes the Hive-owned native preset `bee-attention` along with the existing checkout setup. Saved queries live in the selected local Beads database's configuration, not issue JSONL; setup must run for each separate tracker clone. Setup overwrites this named preset and preserves other presets.
+`bee setup` installs or refreshes the Bee-owned `bee-attention` preset; see `bee setup --help`. Saved queries live in the selected local Beads database's configuration, not issue JSONL, so run setup for each separate tracker clone. Hive's [setup task](../repository-commands.md#setup-and-automation) includes this step.
 
-To install it directly using your harness actor (replace `codex` with `claude` or `pi` when applicable):
-
-```sh
-br query save bee-attention \
-  --description 'Failed unresolved spawn requests, including closed requests' \
-  --label system --label bee --label bee-outcome:failed --label bee-resolution:unresolved \
-  --all --limit 0 --db "$BEADS_DB" --actor codex --json
-
-br query run bee-attention --db "$BEADS_DB" --json
-br query list --db "$BEADS_DB" --json
-
-# Optional local history preset, installed explicitly rather than by setup.
-br query save bee-history --label system --label bee --all --limit 0 \
-  --db "$BEADS_DB" --actor codex --json
-br query run bee-history --db "$BEADS_DB" --json
-```
-
-Native `query save` refuses an existing name. To refresh an existing preset manually, first run `br query delete bee-attention --db "$BEADS_DB" --actor codex --json`, then the save command above. Setup performs that replacement. If it is interrupted between delete and save, rerun setup to restore the preset.
+Run the preset with `br query run bee-attention --db "$BEADS_DB" --json`; use `br query --help` for native query management.
 
 Native query-run options override saved filters. In particular, supplying `--label` replaces the saved label group; it does not add another AND condition to that group. To narrow attention to a kind, repeat all four attention labels plus `--label agent:worker`, or use the full `br list` form. An independent `--assignee FRIENDLY_NAME` filter can narrow the saved preset without replacing its labels.
 

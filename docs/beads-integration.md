@@ -65,7 +65,7 @@ beeswax beads setup --beads-db /absolute/hive/.worktrees/tracker--state/.beads/b
 
 Setup preserves unrelated TOML settings and writes `BEADS_DB` to ignored `mise.local.toml` and `.codex/config.toml`. The local mise selection overrides the tracked default. `bun install` inherits the canonical checkout's selection for new Honeycomb worktrees only when that checkout has `mise.local.toml`; with only the tracked default, run `bun run beads:setup --source <canonical-root>` explicitly when generated Codex configuration is needed. Consumers honor the selected endpoint rather than deriving another database from their working directory.
 
-Setup also refreshes the Hive-owned native `bee-attention` saved query in the selected database. It is local configuration rather than issue JSONL. See the [spawn query contract](./agents/spawn-requests.md#saved-presets) for its exact filters, direct installation command and history queries.
+Use `bee setup` to install or refresh the Bee-owned `bee-attention` preset; see `bee setup --help` and [saved presets](./agents/spawn-requests.md#saved-presets).
 
 Mise supplies the project environment. Direnv projects the selection after normal local approval; Claude's SessionStart hook exports it; Pi's extension sets it at session start; Codex reads its generated shell-environment configuration. Codex needs no Beads SessionStart hook. Claude and Pi startup integrations do not synchronize. Remote exchange follows the explicit checkpoints above; a failed synchronization stops tracker work under the recovery procedure below.
 

@@ -32,9 +32,6 @@ test("initialization retains attribution and configures only the dedicated track
 		],
 		cwd: tracker,
 	});
-	expect(await services.beads.query.list({ cwd: root, db: database })).toMatchObject({
-		queries: [{ name: "bee-attention" }],
-	});
 });
 
 test("initialization refuses existing accepted history before creating a checkout", async () => {

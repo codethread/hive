@@ -7,6 +7,7 @@ import { runBeeCli } from "./bee-cli.ts";
 
 const PROMPT_REPETITIONS = 500;
 const SUCCESS = 0;
+const FAILURE = 1;
 const USAGE_ERROR = 2;
 const SINGLE_DOCUMENT = 1;
 const PROMPT = "Captured direction. ".repeat(PROMPT_REPETITIONS);
@@ -186,11 +187,42 @@ test.each([
 	},
 );
 
-async function invoke(args: readonly string[], exitCode = SUCCESS) {
+test("setup forwards tracker selection and actor and returns a concise JSON receipt", async () => {
+	const calls: unknown[] = [];
+	const result = await invoke(
+		["setup", "--repo", "/checkout", "--beads-db", repository.beadsDb, "--actor", "test", "--json"],
+		SUCCESS,
+		(options) => {
+			calls.push(options);
+			return Promise.resolve({ kind: "bee_setup", repository, preset: "bee-attention" });
+		},
+	);
+	expect(calls).toEqual([{ repo: "/checkout", beadsDb: repository.beadsDb, actor: "test" }]);
+	expect(JSON.parse(result.stdout)).toEqual({
+		ok: true,
+		kind: "bee_setup",
+		repository,
+		preset: "bee-attention",
+	});
+});
+
+test("setup reports saved-query failures as a silent-stderr JSON error", async () => {
+	const result = await invoke(["setup", "--actor", "test", "--json"], FAILURE, () =>
+		Promise.reject(new Error("Query write failed")),
+	);
+	expect(JSON.parse(result.stdout)).toMatchObject({ ok: false, message: "Query write failed" });
+});
+
+async function invoke(
+	args: readonly string[],
+	exitCode = SUCCESS,
+	setup: BeeDependencies["setup"] = unexpected,
+) {
 	const stdout: string[] = [];
 	const stderr: string[] = [];
 	const submissions: { kind: string; options: WorkflowSpawnOptions }[] = [];
 	const deps: BeeDependencies = {
+		setup,
 		responsePublish: unusedResponseCommand,
 		responseGet: unusedResponseCommand,
 		responseSearch: unusedResponseCommand,

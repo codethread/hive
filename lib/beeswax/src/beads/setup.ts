@@ -7,14 +7,10 @@ import {
 	runCommand,
 	trackerRoot,
 } from "./environment.ts";
-import type { BeadsService } from "@hive/beads";
-import { createNativeBeads } from "@hive/beads";
 // eslint-disable-next-line import/no-nodejs-modules -- Repository CLI filesystem paths.
 import { join } from "node:path";
 
 export const localSetupServices: SetupServices = {
-	actor: process.env.BD_ACTOR ?? "hive-setup",
-	beads: createNativeBeads({ execute: runCommand }),
 	command: runCommand,
 	exists: (path) => Bun.file(path).exists(),
 	readConfig: async (path) => {
@@ -44,10 +40,6 @@ export type Selection =
 	  };
 
 export interface SetupServices {
-	/** Explicit attribution for tracker operations. */
-	actor: string;
-	/** Selected tracker service, independent of Git and filesystem operations. */
-	beads: BeadsService;
 	/** Read existing local configuration, or an empty document when absent. */
 	readConfig: (path: string) => Promise<string>;
 	/** Check that adoption targets an existing runtime store. */
@@ -67,7 +59,6 @@ export interface SetupIntegrations {
 
 export const defaultSetupIntegrations: SetupIntegrations = { environment: "mise", codex: true };
 
-// Checkout environment and native preset installation share one explicit setup boundary.
 // eslint-disable-next-line max-statements, max-params -- Keep selected endpoint, services and integrations explicit.
 export async function setupBeads(
 	cwd: string,
@@ -88,32 +79,9 @@ export async function setupBeads(
 		const contents = await services.readConfig(path);
 		await services.write(path, renderCodexConfig(contents, environment));
 	}
-	await installAttentionQuery(cwd, environment.BEADS_DB, services);
 	return environment.BEADS_DB;
 }
 
-/** Native list filters are stored by br in the selected tracker, without a Hive query engine. */
-export async function installAttentionQuery(
-	cwd: string,
-	database: string,
-	services: Pick<SetupServices, "beads" | "actor">,
-): Promise<void> {
-	const endpoint = { actor: services.actor, cwd, db: database };
-	const { queries } = await services.beads.query.list(endpoint);
-	if (queries.some(({ name }) => name === "bee-attention")) {
-		await services.beads.query.delete(endpoint, "bee-attention");
-	}
-	await services.beads.query.save(
-		endpoint,
-		"bee-attention",
-		{
-			all: true,
-			labels: ["system", "bee", "bee-outcome:failed", "bee-resolution:unresolved"],
-			limit: 0,
-		},
-		"Failed unresolved spawn requests, including closed requests",
-	);
-}
 // --- Private functions ---
 
 async function selectEnvironment(

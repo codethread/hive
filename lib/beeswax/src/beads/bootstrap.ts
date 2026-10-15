@@ -4,7 +4,9 @@ import { defaultSetupIntegrations, localSetupServices, setupBeads } from "./setu
 import { dirname, join } from "node:path";
 // eslint-disable-next-line import/no-nodejs-modules -- Temporary Honeycomb configuration.
 import { mkdtemp, rm } from "node:fs/promises";
+import type { BeadsService } from "@hive/beads";
 import type { Command } from "./environment.ts";
+import { createNativeBeads } from "@hive/beads";
 import { runCommand } from "./environment.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- System temporary directory.
 import { tmpdir } from "node:os";
@@ -20,12 +22,18 @@ const readySchema = z.object({
 });
 
 export interface BootstrapServices extends SetupServices {
+	/** Explicit attribution for tracker operations. */
+	actor: string;
+	/** Selected tracker service for native initialization and synchronization. */
+	beads: BeadsService;
 	/** Create a regular nested checkout through the installed Honeycomb CLI. */
 	createTracker: (root: string, base?: string) => Promise<string>;
 }
 
 export const localBootstrapServices: BootstrapServices = {
 	...localSetupServices,
+	actor: process.env.BD_ACTOR ?? "hive-setup",
+	beads: createNativeBeads({ execute: runCommand }),
 	createTracker: createTrackerCheckout,
 };
 

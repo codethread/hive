@@ -21,6 +21,7 @@ import { listKinds } from "../src/kinds.ts";
 import { loadBeesConfig } from "../src/config.ts";
 import { runBeeCli } from "../src/bee-cli.ts";
 import { runKind } from "../src/run.ts";
+import { setupBee } from "../src/setup.ts";
 import { submitAssessment } from "../src/postrun.ts";
 import { submitDroneVerdict } from "../src/drone.ts";
 import { submitFinish } from "../src/launch.ts";
@@ -45,6 +46,7 @@ const submission = {
 	},
 };
 process.exitCode = await runBeeCli(Bun.argv.slice(USER_ARGUMENTS_START), {
+	setup: (options) => setupBee(options, tracker),
 	ack: (id, options) => acknowledgeRequest(id, options, tracker),
 	assess: submitAssessment,
 	attachWorkflow: (kind, runId, options) => attachWorkflow({ kind, runId, options }, submission),

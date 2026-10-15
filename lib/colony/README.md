@@ -20,6 +20,8 @@ colony --help
 
 The build writes standalone `bee`, `colony`, `colony-runtime`, `colony-worker` and `colony-watchdog` executables under `lib/colony/dist`. The installer copies all five to `~/.local/bin`; put that directory on `PATH`. Keep the companions together: Colony launches its daemon and supervisors from that directory, and assessment prompts use the matching Bee and Colony. Use `install:bin --directory /path/to/bin` for a separate destination. Building alone leaves installed commands untouched. This installs commands only; it does not install or start a service.
 
+To install the [Bee attention preset](../../docs/agents/spawn-requests.md#saved-presets) in an existing tracker, read `bee setup --help`.
+
 Start with a disposable Git repository that already has an initialized Beads tracker. Select that repository and database explicitly; do not use your working task tracker for an experiment. Choose a model available to your native Codex account:
 
 ```sh
