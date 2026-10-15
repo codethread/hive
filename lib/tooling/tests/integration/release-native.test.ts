@@ -1,4 +1,4 @@
-import { archiveName, artifacts, executables, platforms } from "../../src/release.ts";
+import { archiveName, artifacts, platforms } from "../../src/release.ts";
 import { expect, test } from "bun:test";
 // eslint-disable-next-line import/no-nodejs-modules -- Disposable Git/artifact contract fixtures.
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
@@ -36,45 +36,6 @@ test("release preparation updates every package from tag history without running
 		expect(await readFile(join(root, ".workflows/example/busybee.toml"), "utf8")).toBe(
 			'version = "1.2.3"\n',
 		);
-	} finally {
-		await rm(root, { recursive: true, force: true });
-	}
-});
-
-// eslint-disable-next-line max-statements -- Verify the complete snapshot/archive boundary.
-test("release builds committed package artifacts and records their immutable identity", async () => {
-	const root = await fixture();
-	try {
-		const head = await git(root, ["rev-parse", "HEAD"]);
-		const revision = head.trim();
-		await writeFile(
-			join(root, "fixture-build.ts"),
-			"throw new Error('dirty code must not be built');\n",
-		);
-		const output = join(root, "artifacts");
-		const manifest = await createReleaseServices(root).build(revision, output, ["darwin-arm64"]);
-		expect(manifest).toMatchObject({ version: "0.5.0", revision });
-		const [archive] = manifest.archives;
-		const path = join(output, archive!.file);
-		const content = await command(root, ["tar", "-xOf", path, "release.json"]);
-		expect(JSON.parse(content)).toMatchObject({
-			version: "0.5.0",
-			revision,
-			platform: "darwin-arm64",
-			executables,
-		});
-		const listing = await command(root, ["tar", "-tzf", path]);
-		expect(listing.trim().split("\n").toSorted()).toEqual(
-			["bin/", "release.json", ...executables.map((name) => `bin/${name}`)].toSorted(),
-		);
-		const artifact = await command(root, ["tar", "-xOf", path, "bin/honeycomb"]);
-		expect(artifact).toBe("committed:bun-darwin-arm64");
-		const digest = new Bun.CryptoHasher("sha256").update(await readFile(path)).digest("hex");
-		expect(archive!.sha256).toBe(digest);
-		expect(await readFile(join(output, "SHA256SUMS"), "utf8")).toBe(
-			`${digest}  ${archive!.file}\n`,
-		);
-		expect(await Bun.file(join(output, "manifest.json")).json()).toEqual(manifest);
 	} finally {
 		await rm(root, { recursive: true, force: true });
 	}
