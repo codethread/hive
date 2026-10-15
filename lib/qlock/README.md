@@ -72,7 +72,21 @@ Success has `ok: true`, `kind: "status"`, the resolved `lock`, and the ordered `
 
 Errors have `ok: false`, `kind: "error"`, `reason` and `message`, plus known lock context. Before lock resolution, any parsed `lock`/`mergeTarget` options appear under `target`; a top-level `lock` is always resolved. Branch on `reason`, not message text. Native failures use `execution_failed` or the more specific `repository_lookup_failed` / `queue_busy`. Exit codes keep their meaning in JSON mode.
 
-Only `status` accepts qlock's `--json`; arbitrary child streams cannot form one qlock JSON document. An `exec` wait-timeout diagnostic on stderr includes the retained ticket ID and queue position. Resume with `--ticket ID` before the `--` separator. A child's own `--json` remains untouched.
+`status` and `skills` accept qlock's `--json`; arbitrary child streams cannot form one qlock JSON document. An `exec` wait-timeout diagnostic on stderr includes the retained ticket ID and queue position. Resume with `--ticket ID` before the `--` separator. A child's own `--json` remains untouched.
+
+## Bundled instructions
+
+Read version-matched guidance directly from the executable. Application commands, queue policy and merge authorization remain project-owned.
+
+```sh
+qlock skills --help
+qlock skills
+qlock skills get command-queues
+```
+
+These commands work offline outside a repository without Git, Honeycomb, a tracker or configuration. The standalone build embeds all content; command help explains discovery and resource reads.
+
+With `--json`, discovery returns `ok: true`, `kind: "skills_list"` and `skills`; reads return `ok: true`, `kind: "skills_get"`, `name`, `path` and `content`. Errors use the envelope described above and exit 2 for unknown names, resources or invalid usage. Text errors go to stderr.
 
 ## Serialize merges
 

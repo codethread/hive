@@ -125,6 +125,8 @@
       },
       "dependencies": {
         "commander": "^15.0.0",
+        "gray-matter": "^4.0.3",
+        "skills-handler": "^0.1.2",
         "zod": "^4.6.5",
       },
     },

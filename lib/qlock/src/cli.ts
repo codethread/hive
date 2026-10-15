@@ -3,6 +3,7 @@ import type { Dependencies, Outcome, Request, TicketRequest } from "./run.ts";
 import { EXIT, QlockError, READY_WINDOW_MS } from "./queue.ts";
 import { normalizeError, runRequest } from "./run.ts";
 import type { Ticket } from "./queue.ts";
+import { registerSkills } from "./skills.ts";
 import { version } from "../package.json";
 
 const FIRST = 0;
@@ -64,14 +65,17 @@ export async function runCli(argv: readonly string[], deps: Dependencies): Promi
 		}
 	});
 	let selected = program;
-	program.hook("preSubcommand", (_parent, command) => {
-		selected = command;
-	});
+	const select = (_parent: Command, subcommand: Command) => {
+		selected = subcommand;
+	};
+	for (const command of [program, ...program.commands]) {
+		command.hook("preSubcommand", select);
+	}
 	try {
 		await program.parseAsync(argv, { from: "user" });
 		return exitCode;
 	} catch (error) {
-		return reportFailure(error, selected.opts<StatusOptions>(), deps);
+		return reportFailure(error, selected.optsWithGlobals<StatusOptions>(), deps);
 	}
 }
 
@@ -146,6 +150,7 @@ function createProgram(
 				options.json === true,
 			);
 		});
+	registerSkills(program, deps.stdout);
 	return program;
 }
 
