@@ -121,6 +121,34 @@ export const beeSchema = z.object({
 	/** Related task bead IDs recording requested work, not current claims. */
 	taskIds: z.array(z.string()),
 });
+export const mergeDescriptionSchema = z.object({
+	/** Provider URL opened directly from the linked task. */
+	url: z.url({ protocol: /^https?$/u }),
+	/** Source branch recorded on the merge bead. */
+	branch: z.string().min(1),
+	/** Recorded resolution; draft and open requests are active. */
+	resolution: z.enum(["active", "abandoned", "merged"]),
+});
+export const mergeLinkSchema = z.discriminatedUnion("kind", [
+	mergeDescriptionSchema.extend({
+		/** Successfully parsed merge record. */
+		kind: z.literal("valid"),
+		/** Native merge bead identity. */
+		id: z.string(),
+		/** Merge request title recorded on the merge bead. */
+		title: z.string(),
+	}),
+	z.object({
+		/** Malformed merge record; the task remains browsable. */
+		kind: z.literal("invalid"),
+		/** Native bead to open for inspection and correction. */
+		id: z.string(),
+		/** Recorded title retained even when the description is malformed. */
+		title: z.string(),
+		/** Parse or lifecycle failure displayed on the warning link. */
+		problem: z.string(),
+	}),
+]);
 export const cardSchema = z.object({
 	/** Native task assignee, or null when unassigned. */
 	assignee: z.string().nullable(),
@@ -132,6 +160,8 @@ export const cardSchema = z.object({
 	isWorkflowGenerated: z.boolean(),
 	/** Exact native labels retained for display and filter actions. */
 	labels: z.array(z.string()),
+	/** Merge records connected to this task by nonblocking relates-to edges. */
+	merges: z.array(mergeLinkSchema),
 	/** Native numeric task priority; lower values are more urgent. */
 	priority: z.number().int(),
 	/** Native task status used to group board columns. */
@@ -276,6 +306,7 @@ export type Colony = z.infer<typeof colonySchema>;
 export type BoardFilter = z.infer<typeof boardFilterSchema>;
 export type Navigation = z.infer<typeof navigationSchema>;
 export type Bee = z.infer<typeof beeSchema>;
+export type MergeLink = z.infer<typeof mergeLinkSchema>;
 export type Card = z.infer<typeof cardSchema>;
 export type Board = z.infer<typeof boardSchema>;
 export type Detail = z.infer<typeof detailSchema>;

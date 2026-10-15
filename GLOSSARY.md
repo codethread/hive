@@ -54,6 +54,8 @@ _To be built_ marks capabilities still planned beyond the Bee and Colony impleme
 
 **Task bead**: The authoritative assignment, context and acceptance criteria for a unit of work, distinct from a request to run a bee.
 
+**Merge bead**: A reference record for a provider-hosted merge request and the tasks it delivers. _Avoid_: PR bead; the term is provider-neutral.
+
 **System bead**: An automation-owned record of coordination or execution state, distinct from the work assigned to an agent. Spawn beads and workflow system beads are system beads.
 
 **Blocked**: A bead whose recorded status is `blocked`, distinct from waiting on unresolved prerequisites or an unsuccessful spawn outcome.

@@ -13,6 +13,9 @@ import type { Worktree } from "../domain/worktree.ts";
 import { assertCanonicalCanFastForward } from "../application/branches.ts";
 
 const MERGE_CONFLICT = 1;
+const PREVIEW_DRIVER_REQUIRED = "honeycomb-preview-needs-external-driver";
+// Exit above 128 makes Git abort recursive virtual-base merges instead of absorbing a conflict.
+const PREVIEW_DRIVER_COMMAND = `echo ${PREVIEW_DRIVER_REQUIRED} >&2; exit 129`;
 const CONFIG_NOT_FOUND = 1;
 const CONFIG_VALUE_OFFSET = 1;
 const CONFIG_KEY_START = 0;
@@ -69,8 +72,8 @@ export async function prepareSourceIntegration(
 		}
 		case "squash":
 		case "merge_commit": {
-			await assertPreviewableMergeConfig(options);
-			await previewMerge(options);
+			const overrides = await previewMergeConfig(options);
+			await previewMerge(options, overrides);
 			return;
 		}
 		case "rebase_ff": {
@@ -158,10 +161,11 @@ async function assertSourceCanFastForwardTarget(options: IntegrateOptions): Prom
 	}
 }
 
-async function previewMerge(options: IntegrateOptions): Promise<void> {
+async function previewMerge(options: IntegrateOptions, overrides: string[]): Promise<void> {
 	const args = [
 		"-C",
 		options.canonicalPath,
+		...overrides,
 		`--attr-source=${options.targetRef}`,
 		"merge-tree",
 		"--write-tree",
@@ -170,6 +174,9 @@ async function previewMerge(options: IntegrateOptions): Promise<void> {
 		`refs/heads/${options.sourceBranch}`,
 	];
 	const preview = await options.git.runRaw(args);
+	if (preview.stderr.includes(PREVIEW_DRIVER_REQUIRED)) {
+		throw new BlockedError("merge preview requires an external merge driver; integrate manually");
+	}
 	if (preview.exitCode === MERGE_CONFLICT) {
 		throw new FinishConflictError(`merge preview found conflicts:\n${preview.stdout.trim()}`);
 	}
@@ -178,7 +185,7 @@ async function previewMerge(options: IntegrateOptions): Promise<void> {
 	}
 }
 
-async function assertPreviewableMergeConfig(options: IntegrateOptions): Promise<void> {
+async function previewMergeConfig(options: IntegrateOptions): Promise<string[]> {
 	const args = [
 		"-C",
 		options.canonicalPath,
@@ -189,15 +196,15 @@ async function assertPreviewableMergeConfig(options: IntegrateOptions): Promise<
 	];
 	const config = await options.git.runRaw(args);
 	if (config.exitCode === CONFIG_NOT_FOUND) {
-		return;
+		return [];
 	}
 	if (config.exitCode !== EXIT_CODES.SUCCESS) {
 		throw new GitError(args, config.stderr, config.exitCode);
 	}
-	assertMergeConfigSettings(config.stdout, options.targetBranch);
+	return mergePreviewOverrides(config.stdout, options.targetBranch);
 }
 
-function assertMergeConfigSettings(records: string, targetBranch: string): void {
+function mergePreviewOverrides(records: string, targetBranch: string): string[] {
 	const settings = new Map(
 		records
 			.split("\0")
@@ -210,17 +217,22 @@ function assertMergeConfigSettings(records: string, targetBranch: string): void 
 				] as const;
 			}),
 	);
+	const overrides: string[] = [];
 	for (const [key, value] of settings) {
 		if (
 			(key === `branch.${targetBranch}.mergeoptions` && value !== "") ||
-			(key === "pull.twohead" && value !== "ort") ||
-			(key.startsWith("merge.") && key.endsWith(".driver"))
+			(key === "pull.twohead" && value !== "ort")
 		) {
 			throw new BlockedError(
 				`cannot safely preview finish with Git setting ${key}; remove it or integrate manually`,
 			);
 		}
+		if (key.startsWith("merge.") && key.endsWith(".driver")) {
+			// Unused drivers are harmless. A needed driver must fail preview without running its command.
+			overrides.push("-c", `${key}=${PREVIEW_DRIVER_COMMAND}`);
+		}
 	}
+	return overrides;
 }
 
 async function integrateFastForward(options: IntegrateOptions): Promise<void> {

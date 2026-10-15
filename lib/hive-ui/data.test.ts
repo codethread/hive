@@ -64,6 +64,7 @@ function node(id: string, parentIds: string[] = []): HierarchyNode {
 		priority: 2,
 		assignee: null,
 		beeAssignments: [],
+		merges: [],
 		isWorkflowGenerated: false,
 		labels: [],
 		updatedAt: OLD,

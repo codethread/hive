@@ -33,3 +33,47 @@ export const LongTitle: Story = {
 		},
 	},
 };
+
+export const LinkedMerge: Story = {};
+export const MultipleMerges: Story = {
+	args: {
+		card: {
+			...cards[1]!,
+			merges: [
+				...cards[1]!.merges,
+				{
+					kind: "valid",
+					id: "hv-merge-44",
+					title: "Refine graph layout",
+					url: "https://gitlab.com/example/hive/-/merge_requests/44",
+					branch: "feat/graph-layout",
+					resolution: "merged",
+				},
+				{
+					kind: "valid",
+					id: "hv-merge-45",
+					title: "Explore an alternative layout",
+					url: "https://github.com/example/hive/pull/45",
+					branch: "experiment/graph-layout",
+					resolution: "abandoned",
+				},
+			],
+		},
+	},
+};
+
+export const MalformedMerge: Story = {
+	args: {
+		card: {
+			...cards[1]!,
+			merges: [
+				{
+					kind: "invalid",
+					id: "hv-merge-malformed",
+					title: "Arrange bee provenance graph",
+					problem: "Description is not valid JSON.",
+				},
+			],
+		},
+	},
+};

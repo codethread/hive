@@ -22,6 +22,7 @@ function makeNode(id: string, status = "open", parentIds: string[] = []): Hierar
 		priority: 2,
 		assignee: null,
 		beeAssignments: [],
+		merges: [],
 		isWorkflowGenerated: false,
 		labels: [],
 		updatedAt: "2026-10-12T00:00:00Z",

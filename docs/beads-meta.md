@@ -64,6 +64,66 @@ SQLite runtime state <---- import/export/merge ----> JSONL interchange state
 
 `br` does not expose a general arbitrary issue-metadata field. Dependency edges can store JSON metadata, but current list/show/query projections do not provide a public edge-metadata filter. For Hive automation, use the supported indexed namespaced labels in the [label taxonomy](./beads-labels.md); arbitrary strings do not create new routing behavior.
 
+## Merge beads
+
+A [merge bead](../GLOSSARY.md#beads) records one provider-hosted merge request. Create it once a draft or open merge request exists; first look for an existing record with the same provider URL, including closed records. Its title equals the merge request title, and it carries the registered `merge` label. Keep the title and description current with the provider record.
+
+The description is a JSON object with exactly these fields:
+
+| Field | Value |
+| --- | --- |
+| `url` | String: the provider URL of the merge request. |
+| `branch` | String: the source branch being merged. |
+| `resolution` | Exactly `"active"`, `"abandoned"`, or `"merged"`; always explicit, including at creation. |
+
+For example:
+
+```json
+{
+	"url": "https://github.com/example/repository/pull/42",
+	"branch": "feat/example",
+	"resolution": "active"
+}
+```
+
+Use only these native status/resolution combinations:
+
+| Provider state         | Native status | Description `resolution` |
+| ---------------------- | ------------- | ------------------------ |
+| Draft or open          | `open`        | `active`                 |
+| Closed without merging | `closed`      | `abandoned`              |
+| Merged                 | `closed`      | `merged`                 |
+
+When the merge request resolves, update the JSON resolution and close its merge bead, retaining its task links. Task completion and review status do not determine merge resolution. Keep review states on the linked work tasks.
+
+Merge beads are reference records, exempt from the normal claim/execute lifecycle: leave them unassigned and never claim them or send them to a worker. Ordinary agents authorized to maintain the reference may create it, update its fields and record its resolution without claiming it. Retain the root runbook's actor, `--owner ct` on creation, and publication rules. Exclude `merge` when selecting executable work. This is a documented convention; no merge-schema enforcement tooling is introduced. Hive UI parses references when reading them and presents malformed records as warning links on their tasks.
+
+Keep notes and comments empty on merge beads. Record progress, discussion, review and verification on linked tasks; the merge bead contains only the reference contract, not a discussion protocol or central notice board.
+
+### Link and find merge requests
+
+Use a nonblocking `relates-to` edge from the merge bead to each task it delivers:
+
+```sh
+br dep add MERGE_BEAD_ID TASK_ID --type relates-to
+```
+
+Writers use this direction consistently. Consumers inspect both directions and identify merge beads by their `merge` label; association does not establish a prerequisite or close a task. For a known task, inspect its links, then read the matching merge records:
+
+```sh
+br dep list TASK_ID --direction both --type relates-to --format json
+br show MERGE_BEAD_ID --json
+```
+
+For creation lookup or branch/URL discovery, include closed references so resolved merge requests remain findable:
+
+```sh
+br list --label merge --all --limit 0 --exclude-label system \
+  --fields id,title,status,description --json
+```
+
+Match the JSON `url` for an existing merge request; use `branch` to locate its source branch. Native label/status queries and task relationships provide discovery without encoding another text protocol in task notes.
+
 ## Authoring and handing off work
 
 Separate the task brief from its implementation history. Read the existing bead before editing; preserve relevant context rather than replacing it with the latest progress report.

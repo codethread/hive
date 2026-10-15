@@ -1,6 +1,7 @@
 import type { Hierarchy, HierarchyNode } from "../contracts.ts";
 import { Link, useSearch } from "@tanstack/react-router";
 import { beadFamilies, hierarchyChildren, outlineHierarchy } from "../hierarchy.ts";
+import { MergeLinks } from "./merge-links.tsx";
 import { OutlineClosedToggle } from "./outline-controls.tsx";
 import { WorkflowIndicator } from "./ui.tsx";
 import { preferences } from "./data.ts";
@@ -113,6 +114,9 @@ function BranchNode({
 						<span>{node.assignee ?? "Unassigned"}</span>
 					</span>
 				</Link>
+				<span className="flex shrink-0">
+					<MergeLinks merges={node.merges} />
+				</span>
 			</div>
 			{!folded && children.length > 0 && (
 				<ul>

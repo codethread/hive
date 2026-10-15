@@ -95,6 +95,16 @@ export const cards: Card[] = [
 		assignee: worker.identity,
 		beeAssignments: [{ id: worker.id, kind: worker.kind, stdout: worker.stdout }],
 		priority: 1,
+		merges: [
+			{
+				kind: "valid",
+				id: "hv-merge-43",
+				title: "Arrange bee provenance graph",
+				url: "https://github.com/example/hive/pull/43",
+				branch: "feat/bee-graph",
+				resolution: "active",
+			},
+		],
 	}),
 	card("hv-ui.2", "Inspect linked work and acceptance criteria", "open"),
 	card("hv-ui.3", "Resolve label filter interaction", "blocked", {
@@ -137,6 +147,22 @@ export const criteria =
 	"|\n\nSee the `BeeGraph` story for both palettes.";
 
 export function fixtureDetail(id: string): Detail {
+	if (id === "hv-merge-malformed") {
+		return {
+			card: {
+				...card(id, "Arrange bee provenance graph", "open", { labels: ["merge"] }),
+				bees: [],
+			},
+			description: '{"url":"not a URL","branch":"feat/bee-graph"}',
+			design: "",
+			notes: "",
+			acceptanceCriteria: "",
+			comments: [],
+			dependencies: { items: [], total: 0 },
+			dependents: { items: [], total: 0 },
+			fetchedAt: OBSERVED_AT,
+		};
+	}
 	const selected = cards.find((entry) => entry.id === id)!;
 	const dependencies =
 		id === "hv-ui.1"
@@ -190,6 +216,35 @@ export function fixtureDetail(id: string): Detail {
 	};
 }
 
+/** The malformed merge stays out of task browsing and is reachable through its warning. */
+export const malformedMergeHierarchy: Hierarchy = {
+	...hierarchy,
+	nodes: hierarchy.nodes.map((node) => {
+		if (node.id !== "hv-ui.1") {
+			return node;
+		}
+		return {
+			...node,
+			merges: [
+				{
+					kind: "invalid",
+					id: "hv-merge-malformed",
+					title: node.title,
+					problem: "url: Invalid URL; resolution: required",
+				},
+			],
+		};
+	}),
+};
+
+export function malformedMergeDetail(id: string): Detail {
+	const detail = fixtureDetail(id);
+	if (id === "hv-ui.1") {
+		detail.card.merges = malformedMergeHierarchy.nodes.find((node) => node.id === id)!.merges;
+	}
+	return detail;
+}
+
 export function fixtureFamily(id: string, source = hierarchy): Hierarchy {
 	const family = beadFamilies(source).find((entry) =>
 		entry.rows.some((row) => row.node.id === id),
@@ -216,6 +271,7 @@ function card(id: string, title: string, status: string, patch: Partial<Card> = 
 		status,
 		assignee: null,
 		beeAssignments: [],
+		merges: [],
 		isWorkflowGenerated: false,
 		priority: 2,
 		labels: ["ui", "graph"],

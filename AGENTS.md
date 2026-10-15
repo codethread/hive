@@ -74,6 +74,8 @@ Use repo-local Beads (`br`) from the checkout root to track implementation, not 
 
 Request only fields needed for the next decision; prefer native `--fields`/`--brief` over `jq` for summaries. See [low-noise reads and receipts](docs/beads-meta.md#progressive-disclosure-and-output-cost) when composing output filters.
 
+When creating a draft/open merge request, finding a task's merge request, or recording its resolution, follow the [merge bead contract](docs/beads-meta.md#merge-beads). Merge beads are reference records, exempt from the task claim/execute lifecycle below; exclude `merge` when selecting executable work.
+
 Use `in_review` only for completed work awaiting the user's attention when the user requested review; agent-to-agent review remains `in_progress`, and `blocked` indicates an active blocker.
 
 For workflow stages, record scope, narrative progress and verification in comments. Reserve stage notes for the outcome saved by `busybee record-result`; see its command help.

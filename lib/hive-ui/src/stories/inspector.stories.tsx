@@ -1,7 +1,15 @@
-import { COLONY_ID, board, hierarchy, worker } from "./fixtures.ts";
+import {
+	COLONY_ID,
+	board,
+	hierarchy,
+	malformedMergeDetail,
+	malformedMergeHierarchy,
+	worker,
+} from "./fixtures.ts";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { BeadBoard } from "../bead-board.tsx";
 import { Inspector } from "../inspector.tsx";
+import { beadHandlers } from "./handlers.ts";
 import { useSearch } from "@tanstack/react-router";
 
 const meta = {
@@ -14,6 +22,10 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 export const WithFamily: Story = {};
+export const LinkedMerge: Story = {};
+export const MalformedMerge: Story = {
+	parameters: { msw: beadHandlers(malformedMergeHierarchy, malformedMergeDetail) },
+};
 export const WithDesignAndNotes: Story = {};
 export const WithoutDesignAndNotes: Story = {
 	parameters: { navigation: { bead: "hv-review" } },

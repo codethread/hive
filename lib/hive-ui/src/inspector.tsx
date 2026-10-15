@@ -1,3 +1,4 @@
+/* eslint-disable import/max-dependencies -- The inspector composes task resources and their metadata presentation. */
 import type { Bee, Detail, Provenance, Relation } from "../contracts.ts";
 import {
 	BeeAssignment,
@@ -12,8 +13,7 @@ import {
 	EMPTY,
 	details,
 	hierarchies,
-	loadDetail,
-	loadHierarchy,
+	loadBead,
 	loadProvenance,
 	provenance,
 	snapshot,
@@ -24,6 +24,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "./tabs.tsx";
 import { boardScopeSchema, detailKey, hierarchyKey } from "../contracts.ts";
 import { BranchExplorer } from "./branch-explorer.tsx";
 import { FilterableLabel } from "./filter-controls.tsx";
+import { MergeLinks } from "./merge-links.tsx";
 import { hasHierarchy } from "../hierarchy.ts";
 import { useStore } from "zustand";
 
@@ -44,7 +45,8 @@ export function Inspector({ colonyId, id }: { colonyId: string; id: string }) {
 		(state) => state.entries[hierarchyKey(colonyId, [id])] ?? EMPTY,
 	);
 	const hierarchy = snapshot(hierarchyResource);
-	const showOutline = hierarchy === null || hasHierarchy(hierarchy, id);
+	const isMerge = detail?.card.labels.includes("merge") === true;
+	const showOutline = !isMerge && (hierarchy === null || hasHierarchy(hierarchy, id));
 	const navigate = useNavigate({ from: "/colonies/$colonyId" });
 	const dialogRef = useRef<HTMLDialogElement>(null);
 	const closeRef = useRef<HTMLButtonElement>(null);
@@ -97,15 +99,14 @@ export function Inspector({ colonyId, id }: { colonyId: string; id: string }) {
 					<p className="mt-1 break-all font-mono text-xs text-muted">{id}</p>
 				</div>
 				<div className="flex items-center gap-2">
-					<OutlineLink id={id} />
+					{!isMerge && <OutlineLink id={id} />}
 					<button
 						className="button"
 						type="button"
 						disabled={resource.kind === "loading" || hierarchyResource.kind === "loading"}
 						onClick={() => {
 							const refreshAfter = Date.now();
-							void loadDetail(colonyId, id, { refreshAfter, scope });
-							void loadHierarchy(colonyId, [id], refreshAfter);
+							void loadBead(colonyId, id, { refreshAfter, scope });
 						}}
 					>
 						Refresh
@@ -155,6 +156,7 @@ export function Inspector({ colonyId, id }: { colonyId: string; id: string }) {
 									{detail.card.title}
 								</h2>
 								<div className="my-3 flex flex-wrap items-center gap-1">
+									<MergeLinks merges={detail.card.merges} />
 									<Label>{detail.card.status}</Label>
 									<Label>P{detail.card.priority}</Label>
 									{detail.card.labels.map((label) => (

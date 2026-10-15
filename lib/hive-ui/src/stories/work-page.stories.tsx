@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import { malformedMergeDetail, malformedMergeHierarchy, worker } from "./fixtures.ts";
 import {
 	multipleWorkflows,
 	nestedWorkflows,
@@ -8,7 +9,6 @@ import {
 } from "./workflow-fixtures.ts";
 import { WorkPage } from "../work-page.tsx";
 import { beadHandlers } from "./handlers.ts";
-import { worker } from "./fixtures.ts";
 
 const meta = {
 	title: "Workspace/Work board",
@@ -53,3 +53,7 @@ export const WorkflowOutline: Story = {
 	parameters: { ...NestedWorkflows.parameters, navigation: { outline: "hv-release.4" } },
 };
 export const WorkflowPaper: Story = { ...WorkflowFamilies, globals: { theme: "paper" } };
+
+export const MalformedMerge: Story = {
+	parameters: { msw: beadHandlers(malformedMergeHierarchy, malformedMergeDetail) },
+};

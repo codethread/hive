@@ -138,6 +138,7 @@ function node(
 		priority: 2,
 		assignee: status === "in_progress" ? "amber-quiet-otter" : null,
 		beeAssignments: [],
+		merges: [],
 		labels: ["ui"],
 		updatedAt: OBSERVED_AT,
 	};

@@ -14,7 +14,7 @@ export function taskSelection(
 		...(filter.priorities.length > 0 && { priority: filter.priorities }),
 		...(filter.all.length > 0 && { labels: filter.all }),
 		...(filter.any.length > 0 && { labelAny: filter.any }),
-		excludeLabels: ["system", "bee", ...filter.exclude],
+		excludeLabels: ["system", "bee", "merge", ...filter.exclude],
 		all: filter.closed || filter.statuses.includes("closed"),
 		sort: "priority",
 	};
