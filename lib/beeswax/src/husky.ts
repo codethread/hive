@@ -3,6 +3,7 @@ import { EXIT } from "./errors.ts";
 import type { HookAdapter } from "./config.ts";
 import type { WorkspaceIO } from "./services.ts";
 import { hookMigration } from "./hooks.ts";
+import huskyLicense from "../assets/HUSKY-LICENSE" with { type: "text" };
 import huskyRunner from "../assets/husky.sh" with { type: "text" };
 // eslint-disable-next-line import/no-nodejs-modules -- Concrete Husky bootstrap paths.
 import { join } from "node:path";
@@ -64,6 +65,7 @@ export async function bootstrapHooks(
 export async function installHuskyRuntime(root: string, io: WorkspaceIO): Promise<void> {
 	const files = [
 		{ path: join(root, ".husky/_/h"), contents: huskyRunner },
+		{ path: join(root, ".husky/_/LICENSE"), contents: huskyLicense },
 		{ path: join(root, ".husky/_/.gitignore"), contents: "*" },
 		...names.map((name) => ({ path: join(root, ".husky/_", name), contents: wrapper })),
 	];
