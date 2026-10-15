@@ -20,6 +20,8 @@ Explore existing conventions, helpers and modules; plan the approach; then build
 
 Use Bee for repository subagents. Before delegating, follow the [specialist protocol](docs/agents/specialists.md) for discovery, workflow assignment and evidence.
 
+Delegate repository prose writing and review to `bookworm`, supplying the context required by that protocol.
+
 ## Packages
 
 - `lib/beads` — the consumed Beads contract, native adapter and in-memory test adapter.

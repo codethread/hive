@@ -6,60 +6,92 @@ Each scope permits its role's required reporting/completion writes.
 Markers grant no extra authority; role and assignment limits still apply.`;
 
 export const HELP = {
-	ack: `
-Accept a terminal failure that no longer needs attention. The failed outcome,
-execution evidence and linked tasks stay unchanged. This uses only the selected
-Beads tracker; configuration and a running Colony are not required.
+	response: `
+Delivery: file the complete answer or blocker, verify the returned ID with
+bee response get, then cite it with concise progress/verification in task comments.
+Workflow notes hold only the original {choice,data} saved by busybee record-result.
+Publication does not complete work or advance a workflow; follow bee finish --help.
 
---actor overrides BD_ACTOR; one must supply a nonempty identity. --reason records
-why the failure is accepted. Native Beads records the actor and acknowledgment
-time. Repeating ack preserves the original acknowledgment and repairs its query
-labels if publication was interrupted. Superseded requests already have a
-resolution; use bee status to inspect their replacement provenance.
+The target is the driver's run or the dispatched worker's stage, supplied by the
+execution assignment. Drivers synthesize worker responses into one run answer;
+read worker deliveries with bee result. Direct conversations answer the user.
 
-Example:
-  bee ack <spawn-id> --actor <identity> --reason "Work completed separately" --json
+Use bee response COMMAND --help for operations; --schema exposes JSON contracts.
 `,
-	finish: `
-For the bee executing linked tasks, using the injected execution context.
-Preserve BEADS_DB and BD_ACTOR; use the supplied assignment and working directory.
-Read all linked acceptance criteria, record the deliverable, verify it, close
-completed tasks, and perform cleanup and any explicit repository publication checkpoint.
-Advisory bees change only their report tasks, not the work they examine.
+	responsePublish: `
+Publish with --body-file FILE, then verify the returned ID with bee response get.
+Managed publication uses HIVE_SPAWN_ID and requires its captured run/stage as TASK.
+Use --standalone for an independent task artifact; it excludes --request.
+Preserve supplied BD_ACTOR/BEADS_DB. Publication preserves task state and claims,
+including human/HITL reservations; completed targets permit interrupted delivery.
 
-Then report:
-  bee finish success
-  bee finish blocked --reason "<unfinished task, blocker and required next action>"
-
-Success requires all linked work complete. A blocked report ends automatic
-retries; leave clear next steps on unfinished tasks. The caller can use bee retry
-after resolving the blocker. Colony validates the report and settles execution.
-`,
-	kinds: `
-Start here before choosing a bee. Names and descriptions are shown by default.
-Use --as to preview a caller's view, --all to inspect every kind, and --verbose
-to include full configuration. An explicit kind name inspects that kind directly.
---schema returns a JSON response schema without reading configuration; combine
-it with --verbose for the full-detail schema. Both include the failure shape.
-
-${MUTATION_SCOPE_HELP}
-
-Kinds load from canonical .hive/bees.toml and .hive/bees/*/bee.toml. Optional sibling
-system_prompt.md and prompt.md files supply role/protocol and execution direction
-respectively. Central definitions win duplicates. Warnings go to stderr for people
-or the warnings array in JSON output.
-
-Visibility guides selection only: it never restricts spawning. Caller allow
-lists override hidden; deny lists subtract from non-hidden kinds. #self means
-the caller's kind. Without caller context, all non-hidden kinds are visible.
+Responses are immutable closed docs with nonblocking provenance links. On resume,
+inspect bee result REQUEST first. Identical body, author and correction intent
+reuse the ID. A correction must --supersedes every current head in the same
+task/request scope. Concurrent heads remain ambiguous until corrected. Inspect
+known effects in an uncertain publication receipt before retrying.
 
 Examples:
-  bee kinds
-  bee kinds --as librarian
-  bee kinds reviewer --verbose
-  bee kinds --all --json
-  bee kinds --schema --json | jq '.schema'
-  bee kinds --json | jq -r '.kinds[] | "\\(.name): \\(.description)"'
+  bee response publish TASK --body-file answer.md --json
+  bee response publish TASK --body-file corrected.md --supersedes RESPONSE --json
+`,
+	responseGet: `
+An exact response ID retrieves its immutable body, even after correction.
+--task resolves current heads; add --request to select one request lineage.
+Task-only lookup can be ambiguous across requests or standalone deliveries.
+For a submitted bee's answer and outcome, use bee result REQUEST.
+`,
+	responseSearch: `
+Search returns bounded metadata, including closed responses; use get for bodies.
+Comments/notes sources return candidates: native matching can include titles and
+descriptions. Each source has its own offset; follow hasMore/nextOffset.
+`,
+	responseHistory: `
+Historical evidence retains its original provenance; it is not a filed response.
+Comment history bounds output but fetches ALL task comments (see nativeRead).
+localCommentId is local only; cite taskId plus author/createdAt/text across clones.
+Notes returns one full snapshot at offset 0; snapshotUpdatedAt is revision time,
+and authorship is unknown. Workflow notes contain machine outcomes.
+`,
+	result: `
+Use request.id from submission. Returns its driver's run or dispatched stage
+response.body with native request.outcome and closure facts. Availability alone
+does not imply success; a failed request may deliver a useful blocker report.
+
+Automatic attempts/recovery keep the ID. Explicit bee retry returns a replacement;
+old IDs retain historical answers. Find replacements through bee status OLD --json
+(resolution.replacementIds); this command does not follow them.
+
+Missing, ambiguous or malformed delivery fails explicitly. Inspect bee status and
+reported IDs: wait while pending, report incomplete delivery after settlement,
+or have the producer correct conflicting heads. Task closure is not an answer.
+Use bee response --schema for output and failure contracts.
+`,
+	ack: `
+Accept a closed unresolved failure when no follow-up remains. Outcome, tasks and
+execution evidence stay unchanged. --actor/BD_ACTOR and --reason are required.
+Repeats preserve the first acknowledgment and repair interrupted query labels;
+superseded requests retain their replacement resolution. Use retry before ack
+when replacement work is intended. No configuration or daemon is needed.
+`,
+	finish: `
+Use the injected execution context and assigned working directory. Complete and
+verify acceptance, deliver the answer (bee response --help), close satisfied work,
+and perform required cleanup/caller completion steps before bee finish success.
+
+If blocked, complete possible work, leave unfinished tasks open with next actions,
+then bee finish blocked --reason "TASK: blocker and required next action".
+Blocked ends automatic retries; the caller may retry after resolving the blocker.
+Colony validates submission before settling execution.
+`,
+	kinds: `
+Choose by description. --verbose expands configuration; --schema returns output
+contracts without configuration access (combine for the full-detail schema).
+--as previews caller visibility; --all or an explicit kind bypasses that filter.
+Visibility guides discovery, not spawn authority. Canonical .hive/bees.toml and
+.hive/bees/*/bee.toml supply kinds; the package guide documents configuration.
+
+${MUTATION_SCOPE_HELP}
 `,
 	list: `
 Lists submitted requests, not available kinds (use bee kinds for those).
@@ -68,32 +100,20 @@ This reads recorded facts, not live process or daemon health. Inspect a selected
 request with bee status <spawn-id>; its help includes execution diagnostics.
 `,
 	overview: `
-Interactive use:
-  Users: bee run <kind> opens a harness in the current terminal. Requires a TTY.
-  Agents must not invoke bee run; use bee spawn for delegation.
+Agent delegation:
+  1. Choose a role with bee kinds; read bee spawn --help for workflow input.
+  2. bee spawn KIND --parent WORK_ID --input-file FILE --cwd WORKTREE --actor ACTOR --json
+  3. Retain request.id for bee status REQUEST --json and bee result REQUEST --json.
+     Read bee result --help before consuming the answer.
 
-Agent workflow:
-  Use Bee for subagent work: implementation, advice and review use the same flow.
-  1. Run bee kinds to discover whom to delegate to and why.
-  2. Write workflow input with the assignment, context and acceptance criteria.
-  3. Submit: bee spawn <kind> --parent <work-id> --input-file <file> --cwd <directory> --actor <identity> --json
-  4. Inspect: bee status <spawn-id> --json
-     Inspect workflow.runId with busybee show and br show.
-  Normally omit --system-prompt and --prompt: the kind supplies its protocol and
-  workflow stages define the work. Colony supplies the workflow driver protocol.
+Use workflow input for assignment, context and acceptance. For advice/review,
+examined task IDs are context; the specialist owns its report work.
+Normally keep kind prompt defaults. Colony owns dispatch and run claims.
 
-Delegation:
-  Colony owns dispatch and run claims. For advice/review, put examined task IDs
-  in workflow input as context. The workflow work stage owns the report; examined
-  tasks are not assigned to the reviewer. Implementation and landing remain separate.
-
-${MUTATION_SCOPE_HELP}
-
-Selection and output:
-  --beads-db or BEADS_DB selects the tracker; --actor or BD_ACTOR attributes you.
-  --repo selects repository discovery; --cwd only selects the bee's working directory.
-  --json returns one object on stdout, including failures. Inspect ok, kind and
-  reason. Use bee <command> --help for examples and the relevant next steps.
+Users may open an interactive harness with bee run; agents use bee spawn.
+--repo selects configuration, --cwd execution, --beads-db/BEADS_DB the tracker.
+--actor/BD_ACTOR supplies attribution. --json emits one success/error document;
+inspect ok, kind and reason. Use bee COMMAND --help for details.
 `,
 	report: `
 Only for a Colony-launched inactivity drone with injected review context.
@@ -101,73 +121,47 @@ Report active or inactive for the supplied target. Colony owns cleanup and retry
 decisions. Ordinary task completion uses bee finish instead.
 `,
 	retry: `
-Create a replacement for a failed unresolved request after its blocker is fixed.
-Only unfinished work is included. The captured driver/stage role and same workflow
-run are retained; changing kind workflow defaults creates no new run. Uses current
-execution defaults and explicit
-overrides, with a new identity; the original retains its history. --kind selects
-another kind. Normally omit --system-prompt and --prompt; their independent
-replacement semantics match bee spawn --help. Old recipe overrides are not
-carried forward. This does not reopen or resume the previous execution.
-
-Example:
-  bee retry <spawn-id> --actor <identity> --json
+Replace a failed unresolved request after fixing its blocker. Only unfinished
+work is included; the same workflow run/stage is retained. Current kind defaults
+and explicit overrides supply the recipe; old overrides are not carried forward.
+--kind changes the role; prompt overrides follow bee spawn --help.
+Retain the replacement request.id; see bee result --help for response lineage.
 `,
 	run: `
-For user-invoked, headed interaction. Agents must not invoke this command.
-Requires a TTY on stdin and stdout. Inherits the shell's directory and environment,
-sets a fresh bee identity, and opens the kind's native interactive harness.
-No task beads, spawn request or Colony daemon are involved. --json is unsupported.
+User-only interactive harness; requires terminal stdin/stdout. Agents use spawn.
+Inherits cwd/environment and supplies a fresh identity, without tasks or Colony.
+--json is unsupported. Kind/formula defaults and overrides apply to this session;
+prompt overrides replace defaults, while Bee retains its common delivery guidance.
 
-Uses canonical kind defaults and [formulas.<harness>], omitting headless arguments.
-Overrides apply only to this session; --prompt and --system-prompt replace their
-respective defaults.
-
-Examples:
-  bee run librarian
-  bee run librarian --effort high --prompt "Discuss the request lifecycle"
+Example: bee run librarian --prompt "Discuss the request lifecycle"
 `,
 	spawn: `
-Create one Busy Bee workflow assignment and publish a driver request for it.
-Run bee kinds to choose a kind and its default workflow (normally do-work).
-Install the standard catalogue entry with busybee init in a new repository.
-Require --parent ID for existing nonclosed ordinary work in the selected tracker.
-Busy Bee validates containment and leaves that work's claim and owner unchanged.
-Provide --input-file JSON; do-work requires title, request and acceptance (array
-of verification criteria). Named workflows supply their own initial schema:
-  busybee --repo <execution-checkout> input-schema <name> --json
-Choose --workflow NAME or --source PATH to override the kind's workflow.
-A missing selected definition fails visibly.
+Create a workflow run beneath nonclosed ordinary --parent work and submit its
+Colony driver. Parent ownership/claims stay unchanged. Requests wait while asleep.
 
-Examples:
-  bee spawn worker --parent <work-id> --input-file work.json --cwd <worktree> --actor <identity> --json
-  bee spawn worker --parent <work-id> --workflow land --input-file land.json --cwd <worktree> --actor <identity> --json
+The kind selects its workflow (default do-work); override with --workflow or --source.
+Install do-work with busybee init. Its JSON input requires title, request and
+acceptance (an array). For other workflows, discover the schema:
+  busybee --repo CHECKOUT input-schema NAME --json
 
---repo selects canonical kind configuration; --cwd selects the checkout supplying
-the workflow catalogue and execution. Omitted --cwd uses the canonical root.
-Source/input paths resolve relative to the submitting command's directory.
-The human owner comes from configuration; actor/tracker match Bee options.
-Initial submission returns request.id/identity and workflow.parentId/runId/status. Busy Bee owns
-workflow progression and run closure. Submission is separate from execution.
+--repo selects canonical kind configuration; --cwd selects the workflow checkout
+and execution directory (default canonical root). Input/source paths resolve from
+submission cwd. --prompt and --system-prompt replace their kind defaults; empty
+strings clear them. Keep assignments in workflow input. Model/effort/harness
+options override execution defaults; human ownership comes from configuration.
 
-Partial failures retain parent and confirmed run/checkpoint/stage request IDs and driver publication
-uncertainty. Inspect native incoming request links before any recovery. Attach
-after confirmed absent driver publication, without creating a second run:
-  bee attach-workflow KIND RUN --cwd <worktree> --actor <identity> --json
-An unsuccessful driver uses bee retry; an open driver uses bee status.
-Bee-dispatched visits use dispatch-stage internally, without selecting a workflow.
-Waiting drivers keep consuming normal quota. If workers cannot start because
-drivers exhaust capacity, the user must increase the relevant Colony limits.
+Retain request.id for status/result (see bee result --help) and workflow.runId for
+busybee show. Submission is separate from execution and workflow completion.
 
---system-prompt and --prompt independently replace their captured kind defaults;
-an empty string clears the field. Keep the actual assignment in workflow input.
---model, --effort and --harness change execution attributes.
-Requests can be created while Colony is unavailable/asleep and wait for wake.
-Use bee status REQUEST for the driver and busybee show RUN for the workflow.
+Partial failures retain confirmed IDs and publication uncertainty. Inspect incoming
+request links before recovery. Attach a confirmed orphan with bee attach-workflow
+KIND RUN; use bee retry for a failed driver or bee status for an open one.
+Waiting drivers consume quota; the user must raise limits if they starve workers.
 `,
 	status: `
 Read request facts and the latest recorded observation, which can be stale.
-Read the linked task beads with br show <task-id> --json for reports and evidence.
+The response summary identifies missing, available or ambiguous delivery.
+Read bee result --help to retrieve the answer and interpret its outcome.
 
 If execution has not started:
   colony explain <spawn-id> --repo <repository> --beads-db <database> --json

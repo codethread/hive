@@ -9,10 +9,17 @@ import type {
 } from "./requests.ts";
 import type { KindOptions, KindsResult } from "./kinds.ts";
 import type {
+	PublishOptions,
+	ResponseCommandResult,
+	ResponseGetOptions,
+	ResponsePageOptions,
+} from "./responses.ts";
+import type {
 	StageOptions,
 	WorkflowSpawnOptions,
 	WorkflowSubmissionResult,
 } from "./workflow-submission.ts";
+import { formatResponseResult, responseJsonSchema } from "./responses.ts";
 import type { AssessmentSubmission } from "./postrun.ts";
 import { Command } from "commander";
 import type { DroneReportResult } from "./drone.ts";
@@ -35,7 +42,8 @@ type BeeResult =
 	| WorkflowSubmissionResult
 	| FinishResult
 	| DroneReportResult
-	| KindsResult;
+	| KindsResult
+	| ResponseCommandResult;
 
 export interface SpawnOptions {
 	/** Repository discovery directory. */
@@ -82,6 +90,19 @@ export interface AckOptions extends InspectionOptions {
 	reason: string;
 }
 export interface BeeDependencies {
+	/** File one authored response against its task and optional exact request. */
+	responsePublish: (task: string, options: PublishOptions) => Promise<ResponseCommandResult>;
+	/** Expand an exact record or resolve a task/request lineage. */
+	responseGet: (
+		id: string | undefined,
+		options: ResponseGetOptions,
+	) => Promise<ResponseCommandResult>;
+	/** Bounded source-specific discovery. */
+	responseSearch: (query: string, options: ResponsePageOptions) => Promise<ResponseCommandResult>;
+	/** Explicit task-local legacy provenance. */
+	responseHistory: (task: string, options: ResponsePageOptions) => Promise<ResponseCommandResult>;
+	/** Read the exact captured request response without readiness or discussion hydration. */
+	result: (id: string, options: InspectionOptions) => Promise<ResponseCommandResult>;
 	/** Hand the current terminal to a user-invoked interactive harness. */
 	run: (kind: string, options: RunOptions) => Promise<void>;
 	/** Submit one advisory assessment using injected execution authority. */
@@ -127,6 +148,7 @@ export async function runBeeCli(argv: string[], deps: BeeDependencies): Promise<
 		.option("--json", "Emit one JSON result or error")
 		.configureOutput({ writeErr: () => {}, writeOut: deps.stdout })
 		.exitOverride();
+	responseCommands(program, argv, deps);
 	program
 		.command("run <kind>")
 		.description("Open an interactive bee in this terminal (users only; agents must not run)")
@@ -323,6 +345,106 @@ export async function runBeeCli(argv: string[], deps: BeeDependencies): Promise<
 }
 
 // --- Private functions ---
+function responseCommands(program: Command, argv: string[], deps: BeeDependencies): void {
+	const response = program
+		.command("response")
+		.description("Publish authored results or explicitly inspect historical sources")
+		.option("--schema", "Print response command JSON output schemas without tracker access")
+		.addHelpText("after", HELP.response)
+		.action((options: { schema?: boolean }) => {
+			if (options.schema) {
+				deps.stdout(
+					`${JSON.stringify({ ok: true, kind: "response_schema", schema: responseJsonSchema() })}\n`,
+				);
+			} else {
+				response.help();
+			}
+		});
+	const write = (result: ResponseCommandResult) =>
+		writeResult(result, { json: argv.includes("--json") }, deps.stdout);
+	inspectionOptions(
+		response
+			.command("publish <task>")
+			.description("File complete Markdown as an immutable response")
+			.addHelpText("after", HELP.responsePublish),
+	)
+		.requiredOption("--body-file <file>", "Complete authored Markdown, preserved verbatim")
+		.requiredOption(
+			"--actor <identity>",
+			"Response author; overrides BD_ACTOR",
+			process.env["BD_ACTOR"],
+		)
+		.option("--request <id>", "Exact request association; defaults to HIVE_SPAWN_ID")
+		.option("--standalone", "Task-scoped artifact without a managed request", false)
+		.option("--title <text>", "Short artifact summary")
+		.option(
+			"--supersedes <id>",
+			"Explicit correction target; repeat for every current head",
+			(id: string, ids: string[]) => [...ids, id],
+			[],
+		)
+		.action(async (task: string, options: PublishOptions) =>
+			write(await deps.responsePublish(task, options)),
+		);
+	inspectionOptions(
+		response
+			.command("get [response]")
+			.description("Read a full exact response or resolve --task")
+			.addHelpText("after", HELP.responseGet),
+	)
+		.option("--task <id>", "Resolve this producing task instead of an exact response ID")
+		.option("--request <id>", "Resolve only this exact request lineage (requires --task)")
+		.action(async (id: string | undefined, options: ResponseGetOptions) =>
+			write(await deps.responseGet(id, options)),
+		);
+	responsePageOptions(
+		response
+			.command("search <query>")
+			.description("Bounded response-record or historical-source candidates")
+			.addHelpText("after", HELP.responseSearch),
+	)
+		.option(
+			"--source <source>",
+			"responses, comments or notes; each uses its own offset",
+			"responses",
+		)
+		.action(async (query: string, options: ResponsePageOptions) =>
+			write(await deps.responseSearch(query, options)),
+		);
+	responsePageOptions(
+		response
+			.command("history <task>")
+			.description("Explicit original comments or notes; never inferred final results")
+			.addHelpText("after", HELP.responseHistory),
+	)
+		.option(
+			"--source <source>",
+			"comments (fetches all task comments) or notes (one snapshot)",
+			"comments",
+		)
+		.action(async (task: string, options: ResponsePageOptions) =>
+			write(await deps.responseHistory(task, options)),
+		);
+	inspectionOptions(
+		program
+			.command("result <request>")
+			.description("Read this exact request's authored response and native outcome"),
+	)
+		.addHelpText("after", HELP.result)
+		.action(async (id: string, options: InspectionOptions) =>
+			write(await deps.result(id, options)),
+		);
+}
+function responsePageOptions(command: Command): Command {
+	return inspectionOptions(command)
+		.option(
+			"--limit <count>",
+			"Returned entries (1–100); notes remains one complete snapshot",
+			"20",
+		)
+		.option("--offset <count>", "Nonnegative source-specific offset; notes requires 0", "0");
+}
+
 function submissionOptions(command: Command): Command {
 	return command
 		.option("--repo <directory>", "Repository discovery directory", ".")
@@ -348,6 +470,16 @@ function writeResult(
 ): void {
 	if (json) {
 		stdout(`${JSON.stringify({ ok: true, ...jsonResult(result, includePrompt) })}\n`);
+		return;
+	}
+	if (
+		result.kind === "response_published" ||
+		result.kind === "response_get" ||
+		result.kind === "response_search" ||
+		result.kind === "response_history" ||
+		result.kind === "request_result"
+	) {
+		stdout(formatResponseResult(result));
 		return;
 	}
 	if (result.kind === "bee_kinds") {
@@ -423,7 +555,11 @@ function writeResult(
 		stdout(`${lines.join("\n")}\n`);
 		return;
 	}
-	stdout(`${formatRequest(result.request, includePrompt)}\n`);
+	let text = formatRequest(result.request, includePrompt);
+	if (result.kind === "request_status") {
+		text += `\nResponse: ${result.response.state}; IDs: ${result.response.responseIds.join(", ") || "none"}`;
+	}
+	stdout(`${text}\n`);
 }
 
 /** Project command-sized JSON without changing native facts or internal inspection results. */

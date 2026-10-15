@@ -32,6 +32,7 @@ These are the only valid combinations after publication:
 ## Transitions and resolution
 
 - `bee spawn` and a newly created replacement start pending/unresolved. Automatic retries stay on the same pending request and retain its identity.
+- For authored answers and retry IDs, read `bee result --help`.
 - Completion publishes succeeded/resolved. Retry exhaustion, partial claim acquisition failure or explicit blocked handoff publishes failed/unresolved. `bee stop` closes an open request and publishes cancelled/resolved.
 - `bee retry` first admits and creates a new request with `replacement --supersedes--> original`. Only that successful creation resolves the original. Reservation, duplicate, invalid recipe or native creation failure leaves the original unresolved.
 - A replacement failing becomes independently failed/unresolved. Its predecessor stays failed/resolved. Following `related` edges finds work; following `supersedes` finds replacement provenance.
@@ -42,13 +43,7 @@ These are the only valid combinations after publication:
 
 ## Acknowledge an accepted failure
 
-```sh
-bee ack SPAWN_ID --actor codex --reason "Work completed separately" --json
-```
-
-The command accepts closed failed requests (`exhausted`, `claim_failed`, or `blocked`). It needs only the selected repository and Beads database; it does not query a daemon or require configuration. `--actor` overrides `BD_ACTOR`; a nonblank actor and `--reason` are required. The actor is the identity accepting the failure, independent of the request's friendly assignee and human owner. Success returns `kind: "request_acknowledged"`, repository selection and compact request resolution facts, including acknowledgment details; it omits recipes and task lists.
-
-Acknowledgment records acceptance, not task completion or proof of stopped execution. It does not change closure, claims, tasks, recipes or processes. It removes the failure from default `bee list` and the native `bee-attention` query once labels are published; `--all` and exact inspection preserve history. `bee retry` continues to accept only unresolved failures, so it refuses an acknowledged request. If replacement work is intended, retry before acknowledging.
+Read `bee ack --help` for use and eligibility. Acknowledgment resolves failure attention while retaining the failed outcome, task state and execution history.
 
 The authoritative record is a native comment prefixed `Bee acknowledgment:` with strict JSON `{closedAt, reason}`. `closedAt` matches the request's native closure timestamp exactly. Native comment author and creation time supply `actor` and `acknowledgedAt`; their timestamp precision is preserved. This explicit resolution fact is separate from Colony's historical execution observations. Shared derives resolution; the existing label publisher projects it for queries.
 
@@ -58,14 +53,7 @@ The native comment is written before label publication. If publication fails, `r
 
 ## Report your own execution finished
 
-A Colony-launched bee reports through Bee, without entering a spawn ID:
-
-```sh
-bee finish success
-bee finish blocked --reason "Missing credential for TASK_ID; operator must supply it, then retry"
-```
-
-Complete all possible work first, close completed tasks, record findings and next actions on the remaining task beads, and follow the repository’s explicit remote-exchange checkpoints before reporting. Mark manually blocked tasks with native `blocked` status when appropriate. The blocked reason must be nonempty; explain the blocker and required next action. Colony records unfinished task IDs alongside that reason. A report does not automatically mark all linked tasks blocked. Native dependency waiting remains readiness for a pending request; an explicit blocked handoff is terminal unsuccessful execution requiring attention, including when the bee has closed its tasks but cannot finish cleanup or required publication.
+Read `bee finish --help` for delivery, completion and blocked handoff. Finish submits execution settlement; [authored responses](./responses.md) remain independent artifacts.
 
 Closing every task does not stop a live bee: it retains time for cleanup and reporting. `finish success` ends that execution's work; Colony checks all linked tasks. Unfinished work follows the ordinary bounded failure/retry policy, including exhaustion, even after a success report. After process exit, all tasks closed can also satisfy the request. Before launch, all tasks closed still prevents a launch. Caller `bee stop` remains cancellation without automatic retry.
 

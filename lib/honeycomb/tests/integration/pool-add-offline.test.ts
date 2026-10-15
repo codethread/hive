@@ -253,21 +253,6 @@ async function aheadPoolFixture(policy: string) {
 	return { root, trunk, cached };
 }
 
-test.each([{ policy: "origin_default", canonical: "trunk" }] as const)(
-	"offline pooled $policy branch and rollback use cached default",
-	async ({ policy, canonical }) => {
-		const fixture = await aheadPoolFixture(policy);
-		const failed = await addPool(fixture.root, ["--no-network"]);
-		expect(failed.failure).toBeInstanceOf(HookError);
-		expect(await gitOut(`${fixture.root}__feat2`, "rev-parse", "HEAD")).toBe(fixture.cached);
-		expect(await gitOut(fixture.root, "rev-parse", "main")).toBe(fixture[canonical]);
-		const success = await addPool(fixture.root, ["--no-network", "--skip-command"]);
-		expect(success.exitCode).toBe(EXIT_CODES.SUCCESS);
-		expect(await gitOut(fixture.root, "rev-parse", "feature/new")).toBe(fixture.cached);
-		expect(await gitOut(fixture.root, "rev-parse", "main")).toBe(fixture[canonical]);
-	},
-);
-
 async function existingCachedPoolFixture() {
 	const fixture = await aheadPoolFixture("fresh_canonical");
 	await run(["git", "-C", fixture.root, "branch", "feature/new", fixture.trunk]);

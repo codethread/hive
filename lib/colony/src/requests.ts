@@ -29,13 +29,16 @@ import type {
 import type { TrackerCommands, TrackerContext } from "./tracker.ts";
 import type { Bead } from "@hive/beads";
 import { CommandError } from "@hive/beads";
+import type { ResponseResolution } from "./response-store.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Automatic publication belongs to the requesting machine.
 import { hostname } from "node:os";
+import { resolveResponse } from "./response-store.ts";
 import { trackerScope } from "./tracker.ts";
 import { z } from "zod";
 
 const INSPECTION_ACTOR = "bee";
 const NONEMPTY = 1;
+const FIRST = 0;
 
 /** Native facts committed, but their query labels still need publication. */
 export class RequestPublicationError extends Error {
@@ -114,14 +117,15 @@ export interface RequestView {
 	/** Latest attempt's stdout evidence; null means no attempt observation has been published. */
 	stdoutActivity: StdoutActivity | null;
 }
-export interface RequestResult {
-	/** Whether the caller inspected or closed this request. */
-	kind: "request_status" | "request_stopped";
+interface RequestResultBase {
 	/** Explicit canonical repository and tracker authority. */
 	repository: RepositoryEndpoint;
 	/** Native request facts and last recorded evidence. */
 	request: RequestView;
 }
+export type RequestResult = RequestResultBase &
+	({ kind: "request_status"; response: ResponseResolution } | { kind: "request_stopped" });
+
 export interface RequestListResult {
 	/** Stable JSON result discriminator. */
 	kind: "request_list";
@@ -154,8 +158,13 @@ export async function inspectRequest(
 		beads.show(trackerScope(repository, INSPECTION_ACTOR), id),
 		readyTasks({ beads, repository }),
 	]);
+	const captured = readSpawnRequest(request);
 	return {
 		kind: "request_status",
+		response: await resolveResponse(
+			{ beads, scope: trackerScope(repository, INSPECTION_ACTOR) },
+			{ taskId: captured.taskIds[FIRST]!, requestId: id },
+		),
 		repository,
 		request: await requestView({ beads, repository }, request, ready),
 	};

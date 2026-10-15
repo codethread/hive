@@ -26,7 +26,12 @@ import {
 	snapshotFor,
 	targetActor,
 } from "./definition.ts";
-import { readSpawnRequest, requestOutcome, requestResolution } from "@hive/shared";
+import {
+	readSpawnRequest,
+	renderResponseInstructions,
+	requestOutcome,
+	requestResolution,
+} from "@hive/shared";
 import type { Snapshot } from "xstate";
 import type { Source } from "./catalogue.ts";
 import { compatibleWorkflowVersion } from "./compatibility.ts";
@@ -1319,7 +1324,7 @@ async function enter(input: EntryInput, services: Services): Promise<ActiveEntry
 		request = await spawnBee(
 			{
 				bead,
-				description: prepared.creation.description,
+				description: taskDescription(prepared.meta, { run, endpoint, bead }),
 				endpoint,
 				meta: prepared.meta,
 				run: run.id,
@@ -1348,7 +1353,7 @@ function entryCreation(input: EntryInput) {
 	const visit = (run.visits[entry.key] ?? FIRST) + ONE;
 	run.visits[entry.key] = visit;
 	const creation = nativeTaskOptions(meta, identity, {
-		description: taskDescription(meta, run, endpoint),
+		description: taskDescription(meta, { run, endpoint }),
 		parent,
 		title: `${meta.title} [${String(entry.context["role"] ?? entry.node)}; visit ${visit}]`,
 	});
@@ -1378,32 +1383,30 @@ function nativeTaskOptions(
 	return creation;
 }
 
-function taskDescription(meta: ActiveEntry["meta"], run: Run, endpoint: MutationEndpoint): string {
-	let completion =
-		"The runner closes this grouping bead after processing every worker result; " +
-		"workers must leave it open.";
+function taskDescription(
+	meta: ActiveEntry["meta"],
+	{ run, endpoint, bead = "TASK_ID" }: { run: Run; endpoint: MutationEndpoint; bead?: string },
+): string {
+	let completion = "Busy Bee closes this grouping bead after its workers finish; leave it open.";
 	if (meta.commands) {
+		let taskId = run.id;
+		let delivery = "The driver files the run's final answer or synthesis.";
+		if (meta.bee) {
+			taskId = bead;
+			delivery = "File this stage's answer before saving its outcome and closing it.";
+		}
 		completion =
-			"Finish the work and any child tasks, satisfy native acceptance gates, then save " +
-			"your original JSON payload with busybee --db " +
-			`${JSON.stringify(endpoint.db)}` +
-			" record-result " +
-			`${run.id}` +
-			" TASK_ID CHOICE --data-file FILE before br close TASK_ID. Put narrative " +
-			"verification evidence in comments. The driver collects closed results; explicit " +
-			"next/choice also remain available. Do not close the workflow or grouping beads; " +
-			"the runner owns those. A closed task remains active until its result is " +
-			"accepted.";
+			`${delivery} ${renderResponseInstructions({ taskId })}\n\n` +
+			"Satisfy acceptance and child work, then save your original outcome payload with " +
+			`busybee --db ${JSON.stringify(endpoint.db)} record-result ${run.id} ` +
+			"TASK_ID CHOICE --data-file FILE before br close TASK_ID. Read busybee --help for options. " +
+			"The driver collects saved results; Busy Bee closes groups and the run.";
 	}
-	const discovery =
-		`busybee --db ${JSON.stringify(endpoint.db)} discover ` +
-		`${run.id}\nUse the current checkout (or --repo) containing the same ` +
-		"definition. From a Hive checkout, bun run --silent busybee invokes " +
-		"the same CLI.";
 	return (
-		`${meta.instructions}\n\n` +
-		`${completion}\n\nDiscover active choices and payload requirements:\n` +
-		`${discovery}\nAdd --json for machine-readable schemas.`
+		`${meta.instructions}\n\n${completion}\n\n` +
+		`Discover choices and payload schemas: busybee --db ${JSON.stringify(endpoint.db)} ` +
+		`discover ${run.id} --json. Use the checkout (or --repo) containing the definition. ` +
+		"TASK_ID is this stage's bead ID."
 	);
 }
 
@@ -1419,27 +1422,9 @@ async function spawnBee(
 ): Promise<string> {
 	const { bead, description, endpoint, meta, run } = input;
 	const prompt =
-		"Workflow task " +
-		`${bead}` +
-		".\n\n" +
-		`${description}` +
-		"\n\nRead the complete task with br show " +
-		`${bead}` +
-		" --json. Work only on this task. Save your original JSON payload with busybee " +
-		"--db " +
-		`${JSON.stringify(endpoint.db)}` +
-		" --repo " +
-		`${JSON.stringify(endpoint.repo)}` +
-		" record-result " +
-		`${run}` +
-		" " +
-		`${bead}` +
-		" CHOICE --data-file FILE, then br close " +
-		`${bead}` +
-		". The saved notes use {choice,data}; put narrative verification in comments. Use " +
-		"your own audit actor through --actor or BD_ACTOR. Choose one of: " +
-		`${Object.keys(meta.commands ?? {}).join(", ")}` +
-		". Do not advance the workflow yourself.";
+		`Workflow task ${bead}.\n\n${description}\n\n` +
+		`Read br show ${bead} --json and follow its completion instructions. ` +
+		"Leave workflow navigation to the driver.";
 	const output = await services.execute(
 		[
 			"bee",

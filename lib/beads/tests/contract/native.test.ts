@@ -1,5 +1,10 @@
 /* eslint-disable max-statements -- Disposable contract fixture preparation and cleanup stay together. */
-import { contractSession, filtersAndPagination, labelsAndSavedQueries } from "./scenarios.ts";
+import {
+	contractSession,
+	filtersAndPagination,
+	labelsAndSavedQueries,
+	projectedFiledRecords,
+} from "./scenarios.ts";
 import { createMemoryBeads, createNativeBeads } from "../../src/index.ts";
 import { expect, test } from "bun:test";
 // eslint-disable-next-line import/no-nodejs-modules -- Disposable native contract fixture.
@@ -18,6 +23,13 @@ test(
 	"native and memory preserve filters, search and pagination #test-9",
 	async () => {
 		await compare(filtersAndPagination);
+	},
+	CONTRACT_TIMEOUT,
+);
+test(
+	"native and memory preserve projected filed records and atomic nonblocking links",
+	async () => {
+		await compare(projectedFiledRecords);
 	},
 	CONTRACT_TIMEOUT,
 );

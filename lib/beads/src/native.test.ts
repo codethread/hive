@@ -1,6 +1,71 @@
 import { createNativeBeads, formatBeadsQuery } from "./native.ts";
 import { expect, test } from "bun:test";
 
+const ZERO = 0;
+const ONE = 1;
+const HIDDEN_CLOSED = 3;
+const TOTAL_MATCHES = 4;
+
+test.each(["list", "search"] as const)(
+	"native projected %s preserves columns and page facts",
+	async (mode) => {
+		const service = createNativeBeads({
+			execute: (argv) => {
+				const command = ["list"];
+				if (mode === "search") {
+					command.splice(ZERO, ONE, "search", "needle");
+				}
+				expect(argv).toEqual([
+					"br",
+					...command,
+					"--label",
+					"response",
+					"--all",
+					"--limit",
+					"1",
+					"--offset",
+					"2",
+					"--fields",
+					"id,description,notes",
+					"--json",
+				]);
+				return Promise.resolve(
+					JSON.stringify({
+						// eslint-disable-next-line unicorn/no-null -- Native absent selected text is null.
+						issues: [{ id: "filed", description: null, notes: null, title: "unrequested" }],
+						total: 4,
+						hidden_closed_count: 3,
+						limit: 1,
+						offset: 2,
+						has_more: true,
+					}),
+				);
+			},
+		});
+		const selection = { all: true, labels: ["response"], limit: 1, offset: 2 };
+		const fields = ["id", "description", "notes"] as const;
+		const read = () => {
+			if (mode === "search") {
+				return service.searchProjected({ cwd: "/fixture" }, "needle", selection, fields);
+			}
+			return service.listProjected({ cwd: "/fixture" }, selection, fields);
+		};
+		const page = await read();
+		expect(page).toMatchObject({
+			issues: [{ id: "filed", description: "", notes: "" }],
+			limit: 1,
+			offset: 2,
+			has_more: true,
+		});
+		expect(Object.keys(page.issues[ZERO]!)).toEqual(["id", "description", "notes"]);
+		if (mode === "search") {
+			expect(page).toHaveProperty("hidden_closed_count", HIDDEN_CLOSED);
+		} else {
+			expect(page).toHaveProperty("total", TOTAL_MATCHES);
+		}
+	},
+);
+
 test.each([
 	{ mode: "flush" as const, flag: "--flush-only" },
 	{ mode: "import" as const, flag: "--import-only" },

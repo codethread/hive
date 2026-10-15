@@ -1,10 +1,12 @@
 // Native dep and query operations keep scope, identifiers and their named options explicit.
 /* eslint-disable max-params */
 import type {
+	BeadProjection,
 	BeadSelection,
 	BeadsScope,
 	BeadsService,
 	CreateBead,
+	ProjectedBead,
 	ReadySelection,
 	UpdateBead,
 } from "./service.ts";
@@ -57,6 +59,22 @@ const pageSchema = z.object({
 	has_more: z.boolean(),
 });
 const searchSchema = pageSchema.omit({ total: true }).extend({ hidden_closed_count: z.number() });
+const projectionColumns = {
+	id: z.string(),
+	title: z.string(),
+	status: z.string(),
+	issue_type: z.string(),
+	description: z
+		.string()
+		.nullable()
+		.transform((value) => value ?? ""),
+	notes: z
+		.string()
+		.nullable()
+		.transform((value) => value ?? ""),
+	created_at: z.string(),
+	updated_at: z.string(),
+};
 const updateSchema = z.array(
 	z.object({
 		id: z.string(),
@@ -143,7 +161,8 @@ export function createNativeBeads(options: NativeBeadsOptions = {}): BeadsServic
 		scope: BeadsScope,
 		args: string[],
 		schema: z.ZodType<Result>,
-	): Promise<Result> => schema.parse(JSON.parse(await invoke(scope, args)));
+		params?: { jitless: boolean },
+	): Promise<Result> => schema.parse(JSON.parse(await invoke(scope, args)), params);
 	const synchronize = async (scope: BeadsScope, mode: string): Promise<void> => {
 		await invoke(scope, ["sync", mode]);
 	};
@@ -162,6 +181,23 @@ export function createNativeBeads(options: NativeBeadsOptions = {}): BeadsServic
 		list: (scope, selection = {}) => read(scope, formatBeadsQuery(selection), pageSchema),
 		search: (scope, text, selection = {}) =>
 			read(scope, formatBeadsQuery(selection, text), searchSchema),
+		listProjected: (scope, selection, fields) =>
+			read(
+				scope,
+				[...formatBeadsQuery(selection), "--fields", fields.join(",")],
+				projectedPageSchema(fields),
+				// The tuple builds a one-use schema; avoid compiling its parser on every read.
+				{ jitless: true },
+			),
+		searchProjected: (scope, text, selection, fields) =>
+			read(
+				scope,
+				[...formatBeadsQuery(selection, text), "--fields", fields.join(",")],
+				projectedPageSchema(fields)
+					.omit({ total: true })
+					.extend({ hidden_closed_count: z.number() }),
+				{ jitless: true },
+			),
 		ready: (scope, selection = {}) =>
 			read(scope, ["ready", "--brief", ...readyArguments(selection)], z.array(readySchema)),
 		update: (scope, ids, input) =>
@@ -256,6 +292,17 @@ export function formatBeadsQuery(selection: BeadSelection, text?: string): strin
 }
 
 // --- Private functions ---
+function projectedPageSchema<Fields extends BeadProjection>(fields: Fields) {
+	const issues = z.array(projectedSchema(fields));
+	return pageSchema.extend({ issues });
+}
+function projectedSchema<Fields extends BeadProjection>(
+	fields: Fields,
+): z.ZodType<ProjectedBead<Fields>> {
+	const shape = Object.fromEntries(fields.map((field) => [field, projectionColumns[field]]));
+	// The requested tuple determines both the parser columns and its Pick result.
+	return z.object(shape).transform((row) => row as ProjectedBead<Fields>);
+}
 function createArguments(input: CreateBead): string[] {
 	return [
 		...fieldArguments(input),
