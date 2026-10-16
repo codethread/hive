@@ -138,18 +138,38 @@ export function Label({ children }: { children: ReactNode }) {
 }
 
 export function BeeAssignment({ card }: { card: Card }) {
-	if (card.beeAssignments.length === 0) {
-		return null;
-	}
-	const requests = card.beeAssignments.map((bee) => `${bee.kind} (${bee.id})`).join(", ");
 	return (
-		<span
-			className="mr-1"
-			title={`Assigned to ${card.assignee} · ${requests}. Recorded assignment; process health is not checked.`}
-		>
-			<UserRound aria-hidden="true" className="inline-block size-3 text-muted" />
-			<span className="sr-only">Bee assigned</span>
-		</span>
+		<>
+			{card.beeAssignments.map((bee) => (
+				<Link
+					key={bee.id}
+					from="/colonies/$colonyId"
+					to="."
+					search={(current) => {
+						const { bead: _bead, outline: _outline, ...rest } = current;
+						return {
+							...rest,
+							view: "open",
+							page: 0,
+							requestPage: 0,
+							request: bee.id,
+							ancestry: bee.id,
+							beeQuery: "",
+						};
+					}}
+					className="mr-1 rounded hover:text-accent focus-visible:outline-2 focus-visible:outline-accent"
+					title={
+						`Bee assigned: ${card.assignee} · ${bee.kind} (${bee.id}). ` +
+						"Inspect recorded request details."
+					}
+				>
+					<UserRound aria-hidden="true" className="inline-block size-3 text-muted" />
+					<span className="sr-only">
+						Bee assigned · inspect {bee.kind} request {bee.id}
+					</span>
+				</Link>
+			))}
+		</>
 	);
 }
 

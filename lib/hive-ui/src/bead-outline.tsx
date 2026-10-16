@@ -44,7 +44,7 @@ export function BeadOutline({ colonyId, id }: { colonyId: string; id: string }) 
 					[hierarchy?.nodes.map((node) => node.id) ?? []],
 					annotationEntries,
 				)}
-				label="Card icons"
+				label="Bee assignment and merge details"
 			/>
 			{hierarchy && root && (
 				<>

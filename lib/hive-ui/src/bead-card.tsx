@@ -59,8 +59,8 @@ export function BeadCard({
 					<BeeAssignment card={card} />
 					{card.assignee ?? "Unassigned"}
 				</span>
-				{card.assignee !== null && card.status === "in_progress" && (
-					<BeeActivity bee={{ outcome: "pending", stdout: latest?.stdout ?? null }} />
+				{latest !== undefined && (
+					<BeeActivity bee={{ outcome: "pending", stdout: latest.stdout }} />
 				)}
 				<span className="bead-updated">Updated {time(card.updatedAt)}</span>
 			</div>

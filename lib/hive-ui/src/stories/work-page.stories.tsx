@@ -1,5 +1,12 @@
+import { HttpResponse, http } from "msw";
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { malformedMergeDetail, malformedMergeHierarchy, worker } from "./fixtures.ts";
+import {
+	fixtureDetail,
+	hierarchy,
+	malformedMergeDetail,
+	malformedMergeHierarchy,
+	worker,
+} from "./fixtures.ts";
 import {
 	multipleWorkflows,
 	nestedWorkflows,
@@ -9,6 +16,12 @@ import {
 } from "./workflow-fixtures.ts";
 import { WorkPage } from "../work-page.tsx";
 import { beadHandlers } from "./handlers.ts";
+
+const unavailableHierarchy = structuredClone(hierarchy);
+for (const node of unavailableHierarchy.nodes) {
+	node.beeAssignments = [];
+	node.merges = [];
+}
 
 const meta = {
 	title: "Workspace/Work board",
@@ -26,6 +39,19 @@ export const BeeGraph: Story = {
 };
 export const CompletedBees: Story = { parameters: { navigation: { view: "completed" } } };
 export const Inspector: Story = { parameters: { navigation: { bead: "hv-ui.1" } } };
+export const AssignmentDetailsUnavailable: Story = {
+	parameters: {
+		msw: [
+			http.get("/api/colonies/:colony/annotations", () =>
+				HttpResponse.json({ message: "Details could not be read." }, { status: 503 }),
+			),
+			...beadHandlers(unavailableHierarchy, (id) => {
+				const detail = fixtureDetail(id);
+				return { ...detail, card: { ...detail.card, beeAssignments: [], merges: [] } };
+			}),
+		],
+	},
+};
 export const DescendantOutline: Story = { parameters: { navigation: { outline: "hv-ui" } } };
 export const Filtered: Story = {
 	parameters: { navigation: { statuses: ["blocked"], all: ["hitl"] } },

@@ -18,6 +18,26 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 export const AssignedBee: Story = {};
+export const AssignedAgent: Story = { args: { card: cards[0]! } };
+export const PendingWithoutOutput: Story = {
+	args: {
+		card: {
+			...cards[1]!,
+			beeAssignments: cards[1]!.beeAssignments.map(({ id, kind }) => ({ id, kind, stdout: null })),
+		},
+	},
+};
+export const MultipleAssignedBees: Story = {
+	args: {
+		card: {
+			...cards[1]!,
+			beeAssignments: [
+				...cards[1]!.beeAssignments,
+				{ id: "hv-request-other", kind: "slow-worker", stdout: null },
+			],
+		},
+	},
+};
 export const Compact: Story = { args: { compact: true } };
 export const Blocked: Story = { args: { card: cards[3]! } };
 export const Unassigned: Story = { args: { card: cards[2]! } };
