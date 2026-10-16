@@ -129,8 +129,15 @@ const savedQuerySchema = z.object({
 	created_at: z.string(),
 });
 const queryListSchema = z.object({ queries: z.array(savedQuerySchema), count: z.number() });
-const locationSchema = z.object({ database_path: z.string(), beads_dir: z.string().optional() });
+const locationSchema = z.object({
+	database_path: z.string(),
+	jsonl_path: z.string(),
+	beads_dir: z.string().optional(),
+});
 const syncStatusSchema = z.object({
+	dirty_count: z.number(),
+	db_newer: z.boolean(),
+	jsonl_content_hash: z.string().nullable(),
 	coverage_drift: z.boolean(),
 	jsonl_exists: z.boolean(),
 	jsonl_newer: z.boolean(),

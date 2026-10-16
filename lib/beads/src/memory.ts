@@ -24,6 +24,8 @@ import type {
 	SelectedBead,
 	UpdateBead,
 } from "./service.ts";
+// eslint-disable-next-line import/no-nodejs-modules -- Pure path projection for the fixture location.
+import { dirname, join } from "node:path";
 import type { BeadComment } from "./model.ts";
 import { CommandError } from "./model.ts";
 
@@ -171,7 +173,7 @@ export function createMemoryBeads(options: MemoryBeadsOptions = {}): BeadsServic
 		where: (scope) =>
 			resolveMemory(() => {
 				const db = scope.db ?? options.db ?? "memory";
-				return { database_path: db };
+				return { database_path: db, jsonl_path: join(dirname(db), "issues.jsonl") };
 			}),
 		comments: {
 			add: (scope, id, text) => resolveMemory(() => addComment(select(scope), id, text)),

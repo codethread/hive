@@ -277,9 +277,17 @@ export interface QueryReceipt {
 }
 export interface BeadsLocation {
 	database_path: string;
+	/** Native-selected JSONL export, including an explicitly configured export path. */
+	jsonl_path: string;
 	beads_dir?: string | undefined;
 }
 export interface SyncStatus {
+	/** Exportable changes still awaiting local JSONL export. */
+	dirty_count: number;
+	/** Database changes are newer than the last export. */
+	db_newer: boolean;
+	/** Stored last-export hash, not a fresh checksum of the JSONL file; null when unset. */
+	jsonl_content_hash: string | null;
 	coverage_drift: boolean;
 	jsonl_exists: boolean;
 	jsonl_newer: boolean;

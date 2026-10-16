@@ -8,6 +8,7 @@ import { createMemoryBeads } from "@hive/beads";
 
 const scope = { cwd: colony.root, db: colony.beadsDb, actor: "fixture" };
 const filter = boardFilterSchema.parse({ view: "beads", closed: true });
+const COLD_AND_RECOVERY_READS = 2;
 const seeded = await workflowFixture();
 const linked = await mergeFixture();
 const emptyRequest = await linked.beads.create(scope, {
@@ -75,7 +76,7 @@ test("board and inventory project cross-host attribution without requiring execu
 	});
 	await beads.dep.add(scope, request.id, task.id, "related");
 	const context = { beads, colony, requestId: "test", log: async () => {} };
-	const data = createBoardData();
+	const data = createBoardData(unrequestedTopology);
 	const board = await data.board(context, filter, 0);
 	expect(board.cards.find((card) => card.id === task.id)?.beeAssignments).toEqual([]);
 	const annotations = await data.annotations(context, [task.id], 0);
@@ -95,7 +96,7 @@ test("ordinary children cannot open an ancestor workflow", async () => {
 		calls++;
 		return Promise.resolve(samplePreview(workflowSamples[0]!));
 	};
-	const result = await createBoardData()
+	const result = await createBoardData(unrequestedTopology)
 		.workflow(seeded.context, seeded.manual.id, readPreview)
 		.catch((error: unknown) => error);
 	expect(result).toBeInstanceOf(Error);
@@ -103,7 +104,13 @@ test("ordinary children cannot open an ancestor workflow", async () => {
 });
 
 test("primary cards and families never hydrate tasks or wait for merge and assignment icons", async () => {
-	const data = createBoardData();
+	const data = createBoardData((_colony, consume) =>
+		consume({
+			nodes: [{ id: linked.task.id, status: "open", labels: [] }],
+			edges: [],
+			fetchedAt: "2026-10-15T00:00:00Z",
+		}),
+	);
 	const beads = {
 		...linked.beads,
 		showMany: () => Promise.reject(new Error("Task detail must remain lazy")),
@@ -115,8 +122,9 @@ test("primary cards and families never hydrate tasks or wait for merge and assig
 	const context = { beads, colony, requestId: "test", log: async () => {} };
 	const board = await data.board(context, filter, 0);
 	expect(board.cards.map((card) => card.id)).toEqual([linked.task.id]);
-	const family = await data.hierarchy({ ...context, beads: linked.beads }, [linked.task.id], 0);
+	const family = await data.hierarchy(context, [linked.task.id], 0);
 	expect(family.nodes.map((node) => node.id)).toEqual([linked.task.id]);
+	expect(family.fetchedAt).toBe("2026-10-15T00:00:00Z");
 });
 
 test("merge icons read labelled references in both directions, including closed and malformed records", async () => {
@@ -132,7 +140,7 @@ test("merge icons read labelled references in both directions, including closed 
 			},
 		},
 	};
-	const data = createBoardData();
+	const data = createBoardData(unrequestedTopology);
 	const context = { beads, colony, requestId: "test", log: async () => {} };
 	const result = await data.annotations(context, [linked.task.id], 0);
 	expect(result.cards[0]?.merges.map(({ id, kind }) => ({ id, kind }))).toEqual([
@@ -153,11 +161,48 @@ test("a request without tasks never falls back to a repository-wide task or work
 		requestId: "test",
 		log: async () => {},
 	};
-	const board = await createBoardData().board(
+	const board = await createBoardData(unrequestedTopology).board(
 		context,
 		boardFilterSchema.parse({ view: "open", request: emptyRequest.id }),
 		0,
 	);
 	expect(board.cards).toEqual([]);
 	expect(board.query).toEqual([]);
+});
+
+function unrequestedTopology(): Promise<never> {
+	throw new Error("Graph must remain lazy");
+}
+
+// eslint-disable-next-line max-statements -- Check a failed observation, recovery and subsequent cache hit together.
+test("failed graph validation never seeds the complete-family cache", async () => {
+	let fail = true;
+	let reads = 0;
+	const fetchedAt = "2026-10-15T00:00:00Z";
+	const data = createBoardData(
+		async (_colony, consume) => {
+			reads++;
+			const value = await consume({
+				nodes: [{ id: linked.task.id, status: "open", labels: [] }],
+				edges: [],
+				fetchedAt,
+			});
+			if (fail) {
+				throw new Error("Export changed during hydration");
+			}
+			return value;
+		},
+		() => Date.parse(fetchedAt),
+	);
+	const context = { beads: linked.beads, colony, requestId: "test", log: async () => {} };
+	const result = await data
+		.hierarchy(context, [linked.task.id], 0)
+		.catch((error: unknown) => error);
+	expect(result).toBeInstanceOf(Error);
+	fail = false;
+	const fresh = await data.hierarchy(context, [linked.task.id], 0);
+	const cached = await data.hierarchy(context, [linked.task.id], 0);
+	expect(reads).toBe(COLD_AND_RECOVERY_READS);
+	expect(cached).toEqual(fresh);
+	expect(cached.fetchedAt).toBe(fetchedAt);
 });

@@ -32,6 +32,7 @@ import {
 import { PAGE_SIZE, RELATION_LIMIT, REQUEST_PAGE_SIZE } from "../contracts.ts";
 import { SUMMARY_FIELDS, readHierarchy } from "./hierarchy.ts";
 import { beadFamilies, branchRows } from "../hierarchy.ts";
+import type { ReadTopology } from "./topology.ts";
 import type { SummaryBead } from "./hierarchy.ts";
 import type { WorkflowPreview } from "@hive/shared";
 import { formatBeadsQuery } from "@hive/beads";
@@ -70,9 +71,9 @@ interface ReadContext {
 	requestId: string;
 }
 
-/** Owns native reads and a short-lived, endpoint- and scope-keyed request inventory. */
+/** Compose native reads with injected topology and cache snapshots by endpoint and scope. */
 // eslint-disable-next-line max-statements -- Compose independent primary resources and optional metadata caches.
-export function createBoardData(now: () => number = Date.now) {
+export function createBoardData(readTopology: ReadTopology, now: () => number = Date.now) {
 	let version = 0;
 	const observe = () => {
 		version = Math.max(now(), version + 1);
@@ -204,62 +205,57 @@ export function createBoardData(now: () => number = Date.now) {
 			pendingBranches.delete(colony);
 		}
 	};
-	const readBranch = async (
+	const readBranch = (
 		context: ReadContext,
 		ids: string[],
 		{ direction, refreshAfter }: { direction: "family" | "descendants"; refreshAfter: number },
-	): Promise<Hierarchy> => {
-		const records = await readHierarchy(
-			ids,
-			{
-				rows: async (batch) => {
-					const rows = await summaries(context, {
-						ids: batch,
-						all: true,
-						limit: batch.length,
-					});
-					const found = new Set(rows.map((row) => row.id));
-					const missing = batch.filter((id) => !found.has(id));
-					// Native list omits tombstones/templates even with --all; exact reads retain linked nodes.
-					if (missing.length > 0) {
-						const exact = await read(context, ["show", ...missing], () =>
-							context.beads.showMany(readScope(context), missing),
-						);
-						rows.push(
-							...exact.map((bead) =>
-								Object.assign(bead, {
-									dependency_count: bead.dependencies.length,
-									dependent_count: bead.dependents.length,
-								}),
-							),
-						);
-					}
-					return rows;
+	): Promise<Hierarchy> =>
+		readTopology(context.colony, async (graph) => {
+			const records = await readHierarchy(
+				ids,
+				{
+					graph,
+					rows: async (batch) => {
+						const rows = await summaries(context, {
+							ids: batch,
+							all: true,
+							limit: batch.length,
+						});
+						const found = new Set(rows.map((row) => row.id));
+						const missing = batch.filter((id) => !found.has(id));
+						// Exact reads retain exported templates omitted by native list.
+						if (missing.length > 0) {
+							const exact = await read(context, ["show", ...missing], () =>
+								context.beads.showMany(readScope(context), missing),
+							);
+							rows.push(
+								...exact.map((bead) =>
+									Object.assign(bead, {
+										dependency_count: bead.dependencies.length,
+										dependent_count: bead.dependents.length,
+									}),
+								),
+							);
+						}
+						return rows;
+					},
 				},
-				edges: (id) =>
-					read(context, ["dep", "list", id, "--direction", "both", "--type", "parent-child"], () =>
-						context.beads.dep.list(readScope(context), id, {
-							direction: "both",
-							type: "parent-child",
-						}),
-					),
-			},
-			direction,
-		);
-		const projected = await cards(
-			context,
-			records.map(({ bead }) => bead),
-			refreshAfter,
-		);
-		return {
-			nodes: projected.map((summary, index) =>
-				Object.assign(summary, {
-					parentIds: records[index]!.parentIds,
-				}),
-			),
-			fetchedAt: new Date().toISOString(),
-		};
-	};
+				direction,
+			);
+			const projected = await cards(
+				context,
+				records.map(({ bead }) => bead),
+				refreshAfter,
+			);
+			return {
+				nodes: projected.map((summary, index) =>
+					Object.assign(summary, {
+						parentIds: records[index]!.parentIds,
+					}),
+				),
+				fetchedAt: graph.fetchedAt,
+			};
+		});
 	return {
 		board: async (
 			context: ReadContext,

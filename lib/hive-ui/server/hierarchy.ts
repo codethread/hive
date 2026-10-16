@@ -1,4 +1,5 @@
-import type { DependencyEdge, ProjectedBead } from "@hive/beads";
+import type { ProjectedBead } from "@hive/beads";
+import type { Topology } from "./topology.ts";
 
 export const SUMMARY_FIELDS = [
 	"id",
@@ -14,92 +15,108 @@ export const SUMMARY_FIELDS = [
 export type SummaryBead = ProjectedBead<typeof SUMMARY_FIELDS>;
 
 const READ_BATCH = 100;
-const EDGE_CONCURRENCY = 4;
+const EXCLUDED_LABELS = new Set(["system", "bee", "merge"]);
+
 export interface HierarchyRecord {
-	/** Unhydrated native fields; comments and relationship bodies are not read. */
+	/** Native card fields, independent of the exported graph. */
 	bead: SummaryBead;
-	/** Native parent links, independent of board filters. */
+	/** Parent-child links from the checked BV export. */
 	parentIds: string[];
 }
 interface HierarchyReads {
-	/** Batch summaries for explicit IDs, including every status. */
+	/** Complete exported topology for this read. */
+	graph: Topology;
+	/** Native summaries for explicit IDs, including closed records and templates. */
 	rows: (ids: string[]) => Promise<SummaryBead[]>;
-	/** Only native parent-child edges, in both directions. */
-	edges: (id: string) => Promise<DependencyEdge[]>;
+}
+interface FamilyIndex {
+	/** Exported ordinary task identities. */
+	nodes: Set<string>;
+	/** Outgoing native parent-child links. */
+	parents: Map<string, string[]>;
+	/** Incoming native parent-child links. */
+	children: Map<string, string[]>;
 }
 
-/** Traverse complete ordinary families with bounded native concurrency, without reading comments. */
-// Each frontier discovers the next explicit native links; publish only a complete traversal.
-// eslint-disable-next-line max-statements
+/** Select ordinary families from the exported graph, then hydrate native card fields. */
 export async function readHierarchy(
 	ids: string[],
-	reads: HierarchyReads,
+	{ graph, rows }: HierarchyReads,
 	direction: "family" | "descendants",
 ): Promise<HierarchyRecord[]> {
-	const records = new Map<string, HierarchyRecord>();
-	const visited = new Set<string>();
-	const knownEdges = new Map<string, DependencyEdge>();
-	let pending = [...new Set(ids)];
-	/* eslint-disable no-await-in-loop -- Each bounded frontier depends on the native edges read before it. */
-	while (pending.length > 0) {
-		const batch = pending.splice(0, READ_BATCH);
-		const rows = await reads.rows(batch);
-		const byId = new Map(rows.map((row) => [row.id, row]));
-		for (const id of batch) {
-			if (!byId.has(id)) {
-				throw new Error(`Bead ${id} disappeared while loading hierarchy. Refresh to reload.`);
-			}
-			visited.add(id);
-		}
-		const ordinary = rows.filter(
-			(row) =>
-				!row.labels.includes("system") &&
-				!row.labels.includes("bee") &&
-				!row.labels.includes("merge"),
-		);
-		for (let offset = 0; offset < ordinary.length; offset += EDGE_CONCURRENCY) {
-			const group = ordinary.slice(offset, offset + EDGE_CONCURRENCY);
-			const edges = await Promise.all(
-				group.map((row) => {
-					const known = [...knownEdges.values()].filter(
-						(edge) => edge.issue_id === row.id || edge.depends_on_id === row.id,
-					);
-					// All native edges are already known: this avoids querying closed leaf descendants and isolated beads.
-					if (
-						known.filter((edge) => edge.issue_id === row.id).length === row.dependency_count &&
-						known.filter((edge) => edge.depends_on_id === row.id).length === row.dependent_count
-					) {
-						// The aggregator accepts both known and asynchronously read edges as promises.
-						// eslint-disable-next-line promise/no-return-wrap
-						return Promise.resolve(known);
-					}
-					return reads.edges(row.id);
-				}),
-			);
-			for (const edge of edges.flat()) {
-				knownEdges.set(`${edge.issue_id}/${edge.depends_on_id}`, edge);
-			}
-			for (const [index, bead] of group.entries()) {
-				const parents = edges[index]!.filter((edge) => edge.issue_id === bead.id).map(
-					(edge) => edge.depends_on_id,
-				);
-				const children = edges[index]!.filter((edge) => edge.depends_on_id === bead.id).map(
-					(edge) => edge.issue_id,
-				);
-				records.set(bead.id, { bead, parentIds: parents });
-				pending.push(...children);
-				if (direction === "family") {
-					pending.push(...parents);
-				}
-			}
-		}
-		pending = [...new Set(pending)].filter((id) => !visited.has(id));
+	const index = indexGraph(graph);
+	const members = familyMembers(ids, index, direction);
+	const records: HierarchyRecord[] = [];
+	/* eslint-disable no-await-in-loop -- Bounded native batches hydrate the discovered component. */
+	for (let offset = 0; offset < members.length; offset += READ_BATCH) {
+		const batch = members.slice(offset, offset + READ_BATCH);
+		records.push(...(await hydrateBatch(batch, rows, index.parents)));
 	}
 	/* eslint-enable no-await-in-loop */
-	for (const id of ids) {
-		if (!records.has(id)) {
-			throw new Error(`Bead ${id} is not an ordinary task.`);
+	return records;
+}
+
+// --- Private functions ---
+function indexGraph(graph: Topology): FamilyIndex {
+	const nodes = new Set(
+		graph.nodes
+			.filter(
+				(node) =>
+					node.status !== "tombstone" && !node.labels.some((label) => EXCLUDED_LABELS.has(label)),
+			)
+			.map((node) => node.id),
+	);
+	const parents = new Map<string, string[]>();
+	const children = new Map<string, string[]>();
+	for (const edge of graph.edges) {
+		if (edge.type === "parent-child" && nodes.has(edge.from) && nodes.has(edge.to)) {
+			parents.set(edge.from, [...(parents.get(edge.from) ?? []), edge.to]);
+			children.set(edge.to, [...(children.get(edge.to) ?? []), edge.from]);
 		}
 	}
-	return [...records.values()];
+	return { nodes, parents, children };
+}
+
+// eslint-disable-next-line max-statements -- Keep seed validation and finite graph traversal together.
+function familyMembers(
+	ids: string[],
+	index: FamilyIndex,
+	direction: "family" | "descendants",
+): string[] {
+	for (const id of ids) {
+		if (!index.nodes.has(id)) {
+			throw new Error(
+				`Bead ${id} is absent from the exported ordinary-task graph. ` +
+					"Hierarchy requires an exported, non-tombstone ordinary task.",
+			);
+		}
+	}
+	const visited = new Set<string>();
+	const pending = [...ids];
+	for (const id of pending) {
+		if (!visited.has(id)) {
+			visited.add(id);
+			pending.push(...(index.children.get(id) ?? []));
+			if (direction === "family") {
+				pending.push(...(index.parents.get(id) ?? []));
+			}
+		}
+	}
+	return [...visited];
+}
+
+async function hydrateBatch(
+	ids: string[],
+	rows: HierarchyReads["rows"],
+	parents: Map<string, string[]>,
+): Promise<HierarchyRecord[]> {
+	const selected = await rows(ids);
+	const summaries = new Map(selected.map((row) => [row.id, row]));
+	return ids.map((id) => {
+		const bead = summaries.get(id);
+		if (!bead || bead.status === "tombstone") {
+			throw new Error(`Bead ${id} disappeared while loading hierarchy. Refresh to reload.`);
+		}
+		return { bead, parentIds: parents.get(id) ?? [] };
+	});
 }

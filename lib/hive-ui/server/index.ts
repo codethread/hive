@@ -17,6 +17,7 @@ import type { Colony } from "../contracts.ts";
 import { appendFile } from "node:fs/promises";
 import { createBoardData } from "./data.ts";
 import { createNativeBeads } from "@hive/beads";
+import { createTopologyReader } from "./topology.ts";
 import { createWorkflowReader } from "./workflow.ts";
 import index from "../src/index.html";
 import { readStatuses } from "./statuses.ts";
@@ -104,9 +105,10 @@ async function main(): Promise<void> {
 			development = { console: false, hmr: false };
 		}
 		const colonies = await readColonies(options);
-		const data = createBoardData();
 		const beads = createNativeBeads();
-		const preview = createWorkflowReader((argv, cwd) => execute(argv, cwd, process.env));
+		const invoke = (argv: string[], cwd: string) => execute(argv, cwd, process.env);
+		const data = createBoardData(createTopologyReader({ beads, execute: invoke }));
+		const preview = createWorkflowReader(invoke);
 		const server = Bun.serve({
 			development,
 			hostname: options.host,

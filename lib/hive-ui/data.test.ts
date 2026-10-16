@@ -322,7 +322,7 @@ async function annotationFixture() {
 		},
 	};
 	const now = Date.now() + 1;
-	const data = createBoardData(() => now);
+	const data = createBoardData(unrequestedTopology, () => now);
 	const warm = await data.annotations(context, [task.id], 0);
 	return { beads, scope, merge, task, assigned, context, data, now, warm, entered, release };
 }
@@ -340,7 +340,7 @@ async function assignmentFixture() {
 	await beads.dep.add(scope, request.id, task.id, "related");
 	const context = { beads, colony, requestId: "test", log: async () => {} };
 	const now = Date.parse(NEW);
-	const data = createBoardData(() => now);
+	const data = createBoardData(unrequestedTopology, () => now);
 	await data.annotations(context, [task.id], 0);
 	return { beads, scope, request, task, context, data, now };
 }
@@ -367,4 +367,8 @@ function node(id: string, parentIds: string[] = []): HierarchyNode {
 		labels: [],
 		updatedAt: OLD,
 	};
+}
+
+function unrequestedTopology(): Promise<never> {
+	throw new Error("Graph must remain lazy");
 }

@@ -22,7 +22,9 @@ Use Shared when actual consumers need the same contract. Spawn-request represent
 
 Beads' native adapter owns CLI arguments and output parsing. Consumer entry points inject that adapter; behavior tests inject its in-memory counterpart. Native conformance tests belong to Beads; filesystem, Git and process-boundary tests stay with the modules owning those effects.
 
-Hive UI owns browser/API schemas and read models. Native Beads supplies task/request facts; Busy Bee's public checkpoint identity supplies workflow provenance. The UI calls Busy Bee's preview command with the server-selected repository/database pair, consuming the Shared [wire schema](../lib/shared/src/workflow-preview.ts) without interpreting actor state or reading Colony's private store. The [preview contract](../lib/busybee/SPEC.md#saved-state-preview) owns projection limits; the [UI design](design/hive-ui.md#workflow-preview) owns presentation.
+Hive UI owns browser/API schemas and read models. Native Beads supplies task/request facts; BV supplies hierarchy topology from the native-selected JSONL export. Hive UI owns BV invocation, source validation, ordinary-family membership and native card hydration; the [hierarchy source contract](design/hive-ui.md#hierarchy-source) defines this read boundary.
+
+Busy Bee's public checkpoint identity supplies workflow provenance. The UI calls Busy Bee's preview command with the server-selected repository/database pair, consuming the Shared [wire schema](../lib/shared/src/workflow-preview.ts) without interpreting actor state or reading Colony's private store. The [preview contract](../lib/busybee/SPEC.md#saved-state-preview) owns projection limits; the [UI design](design/hive-ui.md#workflow-preview) owns presentation.
 
 ## Bee and Colony request flow
 

@@ -130,11 +130,14 @@ test("native discovery preserves unspecified environment and parses its typed lo
 			expect(argv).toEqual(["br", "where", "--json"]);
 			expect(cwd).toBe("/execution");
 			expect(env).toEqual({ BEADS_DB: "/selected/beads.db", BD_ACTOR: "reader" });
-			return Promise.resolve('{"database_path":"/selected/beads.db","beads_dir":"/selected"}');
+			return Promise.resolve(
+				'{"database_path":"/selected/beads.db","beads_dir":"/selected","jsonl_path":"/exports/custom.jsonl"}',
+			);
 		},
 	});
 	expect(await service.where({ cwd: "/execution" })).toEqual({
 		database_path: "/selected/beads.db",
+		jsonl_path: "/exports/custom.jsonl",
 		beads_dir: "/selected",
 	});
 });
@@ -151,7 +154,15 @@ test("sync status disables auto effects before inspecting the selected tracker",
 				"--json",
 			]);
 			return Promise.resolve(
-				'{"coverage_drift":false,"jsonl_exists":true,"jsonl_newer":false,"workspace_health":"healthy"}',
+				JSON.stringify({
+					dirty_count: 0,
+					db_newer: false,
+					jsonl_content_hash: "snapshot",
+					coverage_drift: false,
+					jsonl_exists: true,
+					jsonl_newer: false,
+					workspace_health: "healthy",
+				}),
 			);
 		},
 	});
