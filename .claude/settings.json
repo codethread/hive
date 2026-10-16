@@ -8,6 +8,15 @@
 						"command": "beeswax beads session-start"
 					}
 				]
+			},
+			{
+				"hooks": [
+					{
+						"type": "command",
+						"command": "beeswax prime",
+						"statusMessage": "Beeswax onboarding v1"
+					}
+				]
 			}
 		]
 	}

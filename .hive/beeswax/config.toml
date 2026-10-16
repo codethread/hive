@@ -4,3 +4,8 @@ hooks = "husky"
 [hooks]
 pre_commit = ".husky/pre-commit"
 pre_merge_commit = ".husky/pre-merge-commit"
+
+[onboarding]
+harnesses = ["claude", "codex", "pi"]
+include = []
+exclude = []
