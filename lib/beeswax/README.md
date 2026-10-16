@@ -31,9 +31,13 @@ At session start, run `beeswax prime` and read its output before working.
 
 Use the filtered command in that instruction if needed. Keep one loading route per harness to avoid duplicate context.
 
+For installed release provenance and source retrieval, use `beeswax info --help`. Binary installations do not include a source tree.
+
 ## Configure a repository
 
 Run `beeswax setup` in the consuming repository. The interactive wizard handles tracker selection, permanent tracker prerequisites, Git integration and harness onboarding. Read `beeswax setup --help` for headless options and first-initialization prerequisites. Setup stays local; `beeswax beads sync` receives and publishes tracker changes.
+
+Setup's readiness receipt separates configured artifacts from pending execution checks and reports effective [Honeycomb configuration](../honeycomb/README.md#config) for review. Preserve valid existing policy. For managed workers, continue with [Bee and Colony setup](../colony/README.md#install-and-try-it); repository plumbing alone does not establish runtime readiness.
 
 ## Load onboarding in your harness
 

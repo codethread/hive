@@ -20,10 +20,11 @@ import { join, resolve } from "node:path";
  * Exclusive configuration creation and execution directory validation.
  */
 import { mkdir, open, realpath, stat } from "node:fs/promises";
-import type { InitOptions } from "./cli.ts";
+import type { InitOptions } from "./initial-config.ts";
 import { createIdentity } from "./identity.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Submission binds execution to the requesting machine.
 import { hostname } from "node:os";
+import { initialConfig } from "./initial-config.ts";
 import type { loadBeesConfig } from "./config.ts";
 import { trackerScope } from "./tracker.ts";
 
@@ -181,42 +182,6 @@ async function createRequest(
 	};
 }
 
-function initialConfig(options: InitOptions): string {
-	return (
-		`owner = ${JSON.stringify(options.owner)}
-humans = [${JSON.stringify(options.owner)}]
-ranking = "bv-pagerank"
-max_retries = 3
-retry_delay_ms = 250
-
-[limits]
-colony = 4
-kind = 2
-worktree = 2
-
-[kinds.worker]
-description = "mutation-scope: mutating; Implement the linked task beads and verify their outcomes."
-harness = "codex"
-model = ${JSON.stringify(options.model)}
-effort = "low"
-system_prompt = '''
-Work on the related task beads.
-
-- Read their full instructions.
-- Claim only your work.
-- Verify outcomes and close completed tasks.
-'''
-
-[formulas.codex]
-executable = "codex"
-headless = ["exec", "--json", "--sandbox", "workspace-write"]
-argv = ["-m", "{{model}}", "-c", 'model_reasoning_effort="{{effort}}"', ` +
-		`"-c", 'shell_environment_policy.inherit="all"', "{{#if system_prompt}}-c{{/if}}", ` +
-		`'{{#if system_prompt}}developer_instructions={{json system_prompt}}{{/if}}', ` +
-		`"--", "{{prompt}}"]
-`
-	);
-}
 // eslint-disable-next-line max-statements -- Snapshot the recipe and execution directory together at submission.
 async function captureRecipe(
 	input: { kind: string; options: SpawnOptions },

@@ -12,7 +12,7 @@ Hive's product packages are independently replaceable. They cooperate through co
 | `lib/honeycomb` | Worktree discovery and lifecycle, including canonical-root decisions | Public command interface; Bee and Colony obtain the canonical root through `honeycomb root` |
 | `lib/waggle` | Classifier discovery and execution | Independent `waggle` CLI; it does not decide runtime scheduling or mutate requests |
 | `lib/busybee` | Workflow navigation, task visits and per-run checkpoints | XState chooses transitions; native `br` stores work and checkpoints; optional Bee requests delegate execution to Colony |
-| `lib/hive-ui` | Read-only work-board HTTP projections, route-driven browser snapshots and presentation | Imports Beads services and Shared contracts; reads configured repository/database pairs and calls Busy Bee's public preview command |
+| `lib/hive-ui` | Read-only work-board HTTP projections, route-driven browser snapshots and presentation | Imports Beads services and Shared contracts; selects repository/database pairs explicitly or through public Colony status and calls Busy Bee's public preview command |
 | `lib/scent` | Harness identity attribution and context | Resolves native identity or adopts supplied Bee identity; preserves the selected tracker |
 | `lib/beeswax` | Consumer repository setup, Beads environment/publication, JSONL merging/validation, Git/harness adapters and executable installation | Installed CLI; imports Shared/Beads contracts and invokes installed Honeycomb |
 | `lib/tooling` | Repository test selection and release maintenance | Development tooling, independent of the Bee execution path |
@@ -22,7 +22,7 @@ Use Shared when actual consumers need the same contract. Spawn-request represent
 
 Beads' native adapter owns CLI arguments and output parsing. Consumer entry points inject that adapter; behavior tests inject its in-memory counterpart. Native conformance tests belong to Beads; filesystem, Git and process-boundary tests stay with the modules owning those effects.
 
-Hive UI owns browser/API schemas and read models. Native Beads supplies task/request facts; BV supplies hierarchy topology from the native-selected JSONL export. Hive UI owns BV invocation, source validation, ordinary-family membership and native card hydration; the [hierarchy source contract](design/hive-ui.md#hierarchy-source) defines this read boundary.
+Hive UI owns browser/API schemas and read models. Its startup endpoint allowlist comes from explicit configuration or Colony's public status command, without daemon lifecycle effects or access to Colony's private store. Native Beads supplies task/request facts; BV supplies hierarchy topology from the native-selected JSONL export. Hive UI owns BV invocation, source validation, ordinary-family membership and native card hydration; the [hierarchy source contract](design/hive-ui.md#hierarchy-source) defines this read boundary.
 
 Busy Bee's public checkpoint identity supplies workflow provenance. The UI calls Busy Bee's preview command with the server-selected repository/database pair, consuming the Shared [wire schema](../lib/shared/src/workflow-preview.ts) without interpreting actor state or reading Colony's private store. The [preview contract](../lib/busybee/SPEC.md#saved-state-preview) owns projection limits; the [UI design](design/hive-ui.md#workflow-preview) owns presentation.
 

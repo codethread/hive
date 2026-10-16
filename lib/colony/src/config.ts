@@ -32,9 +32,18 @@ export async function loadBeesConfig(
 	files: ConfigFiles = liveFiles,
 ): Promise<LoadedBeesConfig> {
 	const path = join(root, ".hive", "bees.toml");
-	const config = await fromFile(path, async () =>
-		beesConfigSchema.parse(Bun.TOML.parse(await files.readText(path))),
-	);
+	const config = await fromFile(path, async () => {
+		const text = await files.readText(path).catch((error: unknown) => {
+			if (error instanceof Error && "code" in error && error.code === "ENOENT") {
+				throw new Error(
+					"Canonical Colony configuration is missing. Run colony init --help to create .hive/bees.toml.",
+					{ cause: error },
+				);
+			}
+			throw error;
+		});
+		return beesConfigSchema.parse(Bun.TOML.parse(text));
+	});
 	const centralNames = new Set(Object.keys(config.kinds));
 	const sources = new Map<string, string>();
 	const warnings: string[] = [];

@@ -19,6 +19,7 @@ import { createBoardData } from "./data.ts";
 import { createNativeBeads } from "@hive/beads";
 import { createTopologyReader } from "./topology.ts";
 import { createWorkflowReader } from "./workflow.ts";
+import { discoverColonies } from "./colony-discovery.ts";
 import index from "../src/index.html";
 import { readStatuses } from "./statuses.ts";
 import { version } from "../package.json";
@@ -39,11 +40,14 @@ const configSchema = z
 const optionsSchema = z.object({
 	beadsDb: z.string().optional(),
 	colonies: z.string().optional(),
+	daemon: z.boolean().default(false),
 	host: z.enum(["127.0.0.1", "0.0.0.0"]).default("127.0.0.1"),
 	json: z.boolean().default(false),
 	logFile: z.string().optional(),
 	port: z.coerce.number().int().min(0).max(MAX_PORT),
 	repo: z.string(),
+	socket: z.string().optional(),
+	state: z.string().optional(),
 });
 const idSchema = z.string().regex(/^[\da-z][\w.-]*$/iu);
 const apiRoute = new RegExp(
@@ -69,6 +73,9 @@ async function main(): Promise<void> {
 			"--colonies <file>",
 			"JSON array of {name, root, beadsDb}; replaces the single endpoint",
 		)
+		.option("--daemon", "Discover registered endpoints from the selected Colony daemon at startup")
+		.option("--state <directory>", "Colony daemon state directory (requires --daemon)")
+		.option("--socket <path>", "Colony daemon socket (requires --daemon and --state)")
 		.option("--host <address>", "Bind address: 127.0.0.1 or 0.0.0.0 for LAN access", "127.0.0.1")
 		.option("--port <number>", "HTTP port (0 chooses a free port)", "4318")
 		.option("--json", "Emit one JSON startup result (requires --log-file)")
@@ -76,8 +83,10 @@ async function main(): Promise<void> {
 		.addHelpText(
 			"after",
 			"\nRun hive-ui, or use bun run start from lib/hive-ui during " +
-				"development. No daemon is started. Each browser view selects exactly " +
-				"one configured endpoint.",
+				"development. --daemon reads registered endpoints from public Colony status; " +
+				"it replaces the single endpoint and cannot be combined with --colonies. " +
+				"Unavailable or empty daemon membership fails startup. No daemon is started. " +
+				"Restart the UI to refresh membership. Each browser view selects one endpoint.",
 		)
 		.configureOutput({ writeErr: () => {} })
 		.exitOverride();
@@ -104,9 +113,9 @@ async function main(): Promise<void> {
 		if (!options.json) {
 			development = { console: false, hmr: false };
 		}
-		const colonies = await readColonies(options);
-		const beads = createNativeBeads();
 		const invoke = (argv: string[], cwd: string) => execute(argv, cwd, process.env);
+		const colonies = await readColonies(options, invoke);
+		const beads = createNativeBeads();
 		const data = createBoardData(createTopologyReader({ beads, execute: invoke }));
 		const preview = createWorkflowReader(invoke);
 		const server = Bun.serve({
@@ -155,7 +164,27 @@ async function main(): Promise<void> {
 	}
 }
 
-async function readColonies(options: z.infer<typeof optionsSchema>): Promise<Colony[]> {
+// eslint-disable-next-line max-statements -- Select one startup source and establish the server endpoint allowlist.
+async function readColonies(
+	options: z.infer<typeof optionsSchema>,
+	invoke: (argv: string[], cwd: string) => Promise<string>,
+): Promise<Colony[]> {
+	if (options.daemon) {
+		if (options.colonies !== undefined) {
+			throw new Error("Choose --daemon or --colonies; they select different endpoint sources.");
+		}
+		const endpoints = await discoverColonies(options, (argv) =>
+			invoke(argv, resolve(options.repo)),
+		);
+		return Promise.all(
+			endpoints.map(async (endpoint) =>
+				colony(await resolveRepository(endpoint.root, endpoint.beadsDb), basename(endpoint.root)),
+			),
+		);
+	}
+	if (options.state !== undefined || options.socket !== undefined) {
+		throw new Error("--state and --socket require --daemon.");
+	}
 	if (options.colonies !== undefined) {
 		const entries = configSchema.parse(await Bun.file(resolve(options.colonies)).json());
 		return Promise.all(

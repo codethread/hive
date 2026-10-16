@@ -3,10 +3,10 @@
 import { BusyBeeError, createServices } from "../../src/native.ts";
 import { captureCli, invoke, useRepositoryFixture } from "./support.ts";
 import { describe, expect, mock, test } from "bun:test";
+import { fingerprint, listWorkflows } from "../../src/catalogue.ts";
 import type { RepositoryFixture } from "./support.ts";
 import { createMemoryBeads } from "@hive/beads";
 import { join } from "node:path";
-import { listWorkflows } from "../../src/catalogue.ts";
 import { mkdir } from "node:fs/promises";
 import { startNamed } from "../../src/runtime.ts";
 import { z } from "zod";
@@ -85,6 +85,47 @@ test("a repository with no catalogue lists no workflows", async () => {
 	});
 	await assertNoCreation(services);
 });
+
+test.each([
+	"package.json",
+	"bun.lock",
+	"bun.lockb",
+	"package-lock.json",
+	"pnpm-lock.yaml",
+	"yarn.lock",
+])(
+	"named provenance includes shared %s and excludes generated dependency trees",
+	async (filename) => {
+		const directory = "/catalogue-validation/.workflows/example";
+		let content = new TextEncoder().encode("original").buffer;
+		const services = {
+			...createServices(),
+			readDirectory: (path: string) => {
+				if (path.endsWith("node_modules")) {
+					throw new Error("Provenance must not traverse installed dependencies");
+				}
+				let name: string = filename;
+				if (path === directory) {
+					name = "workflow.ts";
+				}
+				return Promise.resolve([
+					{ kind: "file" as const, name },
+					{ kind: "directory" as const, name: "node_modules" },
+				]);
+			},
+			readBytes: (path: string) => {
+				if (path.endsWith(filename)) {
+					return Promise.resolve(content);
+				}
+				return Promise.resolve(new ArrayBuffer(SUCCESS));
+			},
+		};
+		const source = { directory, kind: "folder" as const, source: join(directory, "workflow.ts") };
+		const original = await fingerprint(source, services);
+		content = new TextEncoder().encode("changed").buffer;
+		expect(await fingerprint(source, services)).not.toBe(original);
+	},
+);
 
 test.each([
 	{
@@ -177,6 +218,7 @@ async function prepareCatalogue(fixture: RepositoryFixture) {
 	const { repo } = fixture.options;
 	const folder = join(repo, ".workflows/example");
 	const marker = join(fixture.root, "entry-imported");
+	await mkdir(join(repo, ".workflows/node_modules/a-package"), { recursive: true });
 	await Bun.write(join(folder, "busybee.toml"), manifest);
 	await Bun.write(join(folder, "brief.ts"), 'export const title="First task";');
 	await Bun.write(

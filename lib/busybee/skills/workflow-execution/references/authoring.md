@@ -1,6 +1,6 @@
 # Authoring workflow definitions
 
-Busy Bee executes trusted Bun modules; the application must provide their imports, including XState v5 and Zod.
+Busy Bee executes workflow definitions as trusted Bun modules. Follow [checkout preparation](../SKILL.md#select-the-run) before validation.
 
 ## Define and discover
 
@@ -12,7 +12,7 @@ version = "1.0.0"
 run = "./workflow.ts"
 ```
 
-Use a full SemVer version and a relative `.ts` or `.js` entry inside the folder. Keep generated output outside the folder; its regular files are fingerprinted as provenance. `busybee list` reads manifests without importing code. `input-schema NAME --json` imports the selected definition. Explicit modules use `input-schema --source PATH` and `start PATH --parent WORK_ID --owner HUMAN`.
+Use a full SemVer version and a relative `.ts` or `.js` entry inside the folder. Keep generated output outside the definition folder; `node_modules` trees are excluded from fingerprints. `busybee list` reads manifests without importing code. `input-schema NAME --json` imports the selected definition. Explicit modules use `input-schema --source PATH` and `start PATH --parent WORK_ID --owner HUMAN`.
 
 Export `machine`, `inputSchema`, `runBrief(input)` returning `{title, description}`, and `commandSchemas` mapping outcome names to Zod payload schemas. An optional `resumeSchema` checks persisted root context during preflight, not ordinary resume. Optional `validateCommand(entry, command, data)` rejects context-dependent invalid outcomes; `inputConstraints` and `describe(entry)` expose additional discovery guidance.
 
@@ -60,4 +60,4 @@ Before updating a named definition with unfinished runs, run `busybee preflight 
 
 Compatible named versions must preserve saved state IDs, actor routes, context, frozen outcomes and completed-work meaning. Current versions must be equal or newer within the saved caret range: `1.2.3` allows newer `1.x`, `0.2.3` allows newer `0.2.x`, and `0.0.3` allows only itself. Prereleases require exact SemVer equality. A successful mutation saves the current version. Use a version outside that range when contracts break; a newly mandatory prerequisite before already-completed work cannot be enforced by restoring an old snapshot.
 
-Explicit-file runs reject a changed entry-file hash. Named folder hashes record provenance rather than deciding compatibility; neither hash covers external imports or installed dependencies. Keep evidence and recovery decisions explicit when an existing run cannot resume. Checkpoint format versions are separate from workflow versions and have no automatic migration.
+Explicit-file runs reject changes to the entry file's own bytes. Named fingerprints record provenance, including the shared `.workflows` package manifest and lockfiles, rather than deciding compatibility. Neither fingerprint verifies installed dependency contents or external imports. Keep evidence and recovery decisions explicit when an existing run cannot resume. Checkpoint format versions are separate from workflow versions and have no automatic migration.

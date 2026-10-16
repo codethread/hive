@@ -45,12 +45,12 @@ exec bun run --filter "${usage_package?}" test "$@"
 '''
 
 [tasks.hive-ui]
-description = "Build and run the Hive UI"
-usage = 'arg "[args]" var=#true double_dash="required" help="Hive UI server arguments after --, e.g. --port 0"'
+description = "Build and run Hive UI with endpoints from the Colony daemon"
+usage = 'arg "[args]" var=#true double_dash="required" help="Daemon-discovery UI arguments after --, e.g. --port 0"'
 run = '''
 eval "set -- ${usage_args:-}"
 bun run --filter @hive/hive-ui build
-exec bun run --cwd lib/hive-ui start "$@"
+exec bun run --cwd lib/hive-ui start --daemon "$@"
 '''
 
 [tasks."hive-ui:storybook"]

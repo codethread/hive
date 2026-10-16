@@ -37,7 +37,7 @@ version = "1.0.0"
 run = "./workflow.ts"
 ```
 
-`description`, `version` and `run` are required. `version` must be a full SemVer such as `1.0.0` or `1.1.0-beta.1`, not `1`, `1.0` or a range. It declares compatibility with saved runs as described below. The entry must be a relative `.js` or `.ts` path within the folder. Keep local helpers beside it and generated outputs elsewhere: Busy Bee fingerprints the folder's regular files as provenance. External imports and installed packages are outside that hash.
+`description`, `version` and `run` are required. `version` must be a full SemVer such as `1.0.0` or `1.1.0-beta.1`, not `1`, `1.0` or a range. It declares compatibility with saved runs as described below. The entry must be a relative `.js` or `.ts` path within the folder. Keep local helpers beside the entry and generated output elsewhere. The [provenance contract](../lib/busybee/SPEC.md#contracts-and-authority) defines which workflow and shared dependency files contribute to named fingerprints.
 
 `list` reads manifests without evaluating workflow code; a missing `.workflows` directory yields an empty catalogue, while malformed entries fail. `run NAME` and `input-schema NAME` resolve entries from the current checkout, including nested callers or `--repo`. Use `start PATH` and `input-schema --source PATH` when working without a manifest.
 
@@ -52,7 +52,7 @@ A named run saves its manifest version. Resume accepts the current version only 
 | `0.0.3`        | `0.0.3` only                           | `0.0.2`, `0.0.4`        |
 | `1.2.3-beta.1` | Exact same version only                | `1.2.3-beta.2`, `1.2.3` |
 
-If either version is a prerelease, exact SemVer equality is required; build metadata does not affect equality or precedence. After a successful mutation, the checkpoint saves the current manifest version, so later restores compare against that version. Read-only inspection does not persist a version update. The named folder hash records the source that produced the latest saved checkpoint; a changed hash does not refuse a compatible version. Explicit-file runs have no manifest compatibility promise and refuse changed entry-file hashes before import. Neither mechanism checks installed dependencies or external imports.
+If either version is a prerelease, exact SemVer equality is required; build metadata does not affect equality or precedence. After a successful mutation, the checkpoint saves the current manifest version, so later restores compare against that version. Read-only inspection does not persist a version update. Named fingerprints record provenance without rejecting compatible versions; explicit-file runs require the entry-file hash to match before import. See the [provenance contract](../lib/busybee/SPEC.md#contracts-and-authority) for dependency limits.
 
 Within a compatible release, preserve the contracts already stored by a run:
 

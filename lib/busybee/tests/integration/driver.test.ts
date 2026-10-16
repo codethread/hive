@@ -676,16 +676,17 @@ async function replacementFixture() {
 
 describe("default catalogue installation", () => {
 	test("init installs at the catalogue root from a nested directory without tracker discovery", async () => {
-		const requests: { directory: string; manifest: string; source: string }[] = [];
+		const requests: Parameters<Services["installWorkflow"]>[typeof FIRST][] = [];
 		const roots: { argv: string[]; cwd: string }[] = [];
 		const io = {
 			...createServices(),
+			canResolve: () => Promise.resolve(false),
 			cwd: repo,
 			execute: (argv: string[], cwd: string) => {
 				roots.push({ argv, cwd });
 				return Promise.resolve("/another-checkout\n");
 			},
-			installWorkflow: (input: { directory: string; manifest: string; source: string }) => {
+			installWorkflow: (input: Parameters<Services["installWorkflow"]>[typeof FIRST]) => {
 				requests.push(input);
 				return Promise.resolve();
 			},
@@ -694,6 +695,20 @@ describe("default catalogue installation", () => {
 		expect(result.document).toEqual({
 			ok: true,
 			kind: "init",
+			dependencies: {
+				install: [
+					"bun",
+					"add",
+					"--cwd",
+					"/another-checkout/.workflows",
+					"xstate@^5.33.2",
+					"zod@^4.6.5",
+				],
+				manifest: "/another-checkout/.workflows/package.json",
+				missing: ["xstate", "zod"],
+				required: { xstate: "^5.33.2", zod: "^4.6.5" },
+				status: "install_required",
+			},
 			name: "do-work",
 			repo: "/another-checkout",
 			source: "/another-checkout/.workflows/do-work/workflow.ts",
@@ -706,6 +721,7 @@ describe("default catalogue installation", () => {
 			{
 				directory: "/another-checkout/.workflows/do-work",
 				manifest: expect.stringContaining('version = "1.0.0"'),
+				packageManifest: expect.stringContaining('"xstate": "^5.33.2"'),
 				source: expect.stringContaining('id: "do-work"'),
 			},
 		]);

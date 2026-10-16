@@ -16,6 +16,7 @@ import { z } from "zod";
 
 const PROBE_TIMEOUT = 1000;
 const ownerSchema = z.strictObject({
+	birthtimeMs: z.number().positive(),
 	device: z.number(),
 	id: z.string(),
 	inode: z.number(),
@@ -56,6 +57,7 @@ export async function claimServer(location: ServerLocation) {
 					throw new Error(`Daemon endpoint is not a socket: ${location.socket}`);
 				}
 				const owner = {
+					birthtimeMs: z.number().positive().parse(bound.birthtimeMs),
 					device: bound.dev,
 					id,
 					inode: bound.ino,
@@ -92,8 +94,8 @@ async function recoverSocket(location: ServerLocation): Promise<void> {
 	const owner = ownerSchema.parse(JSON.parse(source));
 	if (
 		owner.socket !== location.socket ||
-		owner.device !== existing.dev ||
-		owner.inode !== existing.ino
+		owner.inode !== existing.ino ||
+		owner.birthtimeMs !== existing.birthtimeMs
 	) {
 		throw new Error(`Socket ownership does not match the selected endpoint: ${location.socket}`);
 	}
@@ -102,7 +104,12 @@ async function recoverSocket(location: ServerLocation): Promise<void> {
 	}
 	await assertDisconnected(location.socket);
 	const current = await lstat(location.socket);
-	if (!current.isSocket() || current.dev !== owner.device || current.ino !== owner.inode) {
+	if (
+		!current.isSocket() ||
+		current.dev !== existing.dev ||
+		current.ino !== existing.ino ||
+		current.birthtimeMs !== existing.birthtimeMs
+	) {
 		throw new Error(`Socket changed during recovery: ${location.socket}`);
 	}
 	await unlink(location.socket);

@@ -7,6 +7,7 @@ import defaultManifest from "../../../.workflows/do-work/busybee.toml" with { ty
 // Bun text imports have a string default export.
 // eslint-disable-next-line import/default
 import defaultSource from "../../../.workflows/do-work/workflow.ts" with { type: "text" };
+import { dependencies } from "../package.json";
 import { execute as executeProcess } from "@hive/shared";
 // eslint-disable-next-line import/no-nodejs-modules -- Author modules are trusted and loaded at the I/O seam.
 import { pathToFileURL } from "node:url";
@@ -16,6 +17,14 @@ import { randomUUID } from "node:crypto";
 import { resolve } from "node:path";
 
 const CONFLICT = 6;
+const INDENT = 2;
+const EMPTY = 0;
+const workflowDependencies = { xstate: dependencies.xstate, zod: dependencies.zod };
+const defaultPackageManifest = `${JSON.stringify(
+	{ private: true, type: "module", dependencies: workflowDependencies },
+	undefined,
+	INDENT,
+)}\n`;
 export interface Options {
 	/** Audit identity, otherwise BD_ACTOR. */
 	actor?: string;
@@ -63,6 +72,8 @@ export interface Services {
 	execute: (argv: string[], cwd: string) => Promise<string>;
 	/** Trusted author module loading. */
 	importModule: (source: string) => Promise<unknown>;
+	/** Ordinary package resolution from an authoring directory; missing packages return false. */
+	canResolve: (specifier: string, directory: string) => Promise<boolean>;
 	/** Native input and manifest reads. */
 	readText: (path: string) => Promise<string>;
 	/** Definition fingerprint bytes. */
@@ -82,6 +93,7 @@ export interface Services {
 		directory: string;
 		manifest: string;
 		source: string;
+		packageManifest: string;
 	}) => Promise<void>;
 }
 export interface CreateTask {
@@ -105,6 +117,7 @@ export function createServices(): Services {
 		actor: process.env["BD_ACTOR"],
 		beads: createNativeBeads(),
 		beforeWrite: () => {},
+		canResolve: canResolvePackage,
 		cwd: process.cwd(),
 		execute: (argv, cwd) => executeProcess(argv, cwd, process.env),
 		importModule: (source) => import(pathToFileURL(source).href) as Promise<unknown>,
@@ -137,8 +150,19 @@ export async function repositoryRoot(directory: string, services: Services): Pro
 export async function installDefaultWorkflow(options: Options, services: Services) {
 	const repo = await repositoryRoot(options.repo ?? services.cwd, services);
 	const directory = resolve(repo, ".workflows/do-work");
-	await services.installWorkflow({ directory, manifest: defaultManifest, source: defaultSource });
-	return { name: "do-work", repo, source: resolve(directory, "workflow.ts"), version: "1.0.0" };
+	await services.installWorkflow({
+		directory,
+		manifest: defaultManifest,
+		packageManifest: defaultPackageManifest,
+		source: defaultSource,
+	});
+	return {
+		dependencies: await dependencyReadiness(directory, services),
+		name: "do-work",
+		repo,
+		source: resolve(directory, "workflow.ts"),
+		version: "1.0.0",
+	};
 }
 
 export async function resolveEndpoint(options: Options, services: Services): Promise<Endpoint> {
@@ -244,12 +268,20 @@ async function installWorkflowFiles(input: {
 	directory: string;
 	manifest: string;
 	source: string;
+	packageManifest: string;
 }): Promise<void> {
 	await mkdir(resolve(input.directory, ".."), { recursive: true });
 	await mkdir(input.directory);
 	try {
 		await writeFile(resolve(input.directory, "busybee.toml"), input.manifest, { flag: "wx" });
 		await writeFile(resolve(input.directory, "workflow.ts"), input.source, { flag: "wx" });
+		await writeFile(resolve(input.directory, "../package.json"), input.packageManifest, {
+			flag: "wx",
+		}).catch((error: unknown) => {
+			if (!(error instanceof Error && "code" in error && error.code === "EEXIST")) {
+				throw error;
+			}
+		});
 	} catch (error) {
 		throw new BusyBeeError(
 			"workflow_install_partial",
@@ -259,6 +291,44 @@ async function installWorkflowFiles(input: {
 			{ cause: error, context: { directory: input.directory } },
 		);
 	}
+}
+async function canResolvePackage(specifier: string, directory: string): Promise<boolean> {
+	try {
+		await Bun.resolve(specifier, directory);
+		return true;
+	} catch (error) {
+		if (error instanceof Error && "code" in error && error.code === "ERR_MODULE_NOT_FOUND") {
+			return false;
+		}
+		throw error;
+	}
+}
+
+async function dependencyReadiness(directory: string, services: Services) {
+	const packages = await Promise.all(
+		Object.keys(workflowDependencies).map(async (name) => ({
+			name,
+			available: await services.canResolve(name, directory),
+		})),
+	);
+	const missing = packages.filter(({ available }) => !available).map(({ name }) => name);
+	let status = "ready";
+	if (missing.length > EMPTY) {
+		status = "install_required";
+	}
+	return {
+		install: [
+			"bun",
+			"add",
+			"--cwd",
+			resolve(directory, ".."),
+			...Object.entries(workflowDependencies).map(([name, version]) => `${name}@${version}`),
+		],
+		manifest: resolve(directory, "../package.json"),
+		missing,
+		required: workflowDependencies,
+		status,
+	};
 }
 async function readEntries(path: string): Promise<DirectoryEntry[]> {
 	const entries = await readdir(path, { withFileTypes: true });

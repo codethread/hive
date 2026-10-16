@@ -194,7 +194,12 @@ test("setup forwards tracker selection and actor and returns a concise JSON rece
 		SUCCESS,
 		(options) => {
 			calls.push(options);
-			return Promise.resolve({ kind: "bee_setup", repository, preset: "bee-attention" });
+			return Promise.resolve({
+				kind: "bee_setup",
+				repository,
+				preset: "bee-attention",
+				recipes: ["/checkout/.bv/recipes.yaml", "/tracker/.bv/recipes.yaml"],
+			});
 		},
 	);
 	expect(calls).toEqual([{ repo: "/checkout", beadsDb: repository.beadsDb, actor: "test" }]);
@@ -203,6 +208,7 @@ test("setup forwards tracker selection and actor and returns a concise JSON rece
 		kind: "bee_setup",
 		repository,
 		preset: "bee-attention",
+		recipes: ["/checkout/.bv/recipes.yaml", "/tracker/.bv/recipes.yaml"],
 	});
 });
 

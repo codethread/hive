@@ -4,6 +4,7 @@ import type { DaemonResponse } from "./client.ts";
 import type { Explanation } from "./explain.ts";
 import type { HistoryResult } from "./history.ts";
 import type { InitializedResult } from "./producer.ts";
+import type { RestartedDaemon } from "./daemon-lifecycle.ts";
 import { match } from "ts-pattern";
 import { z } from "zod";
 
@@ -32,6 +33,7 @@ type Result =
 	| DaemonResponse
 	| InitializedResult
 	| LaunchedResult
+	| RestartedDaemon
 	| DaemonCompletedResult;
 
 export function writeColonyResult(
@@ -57,6 +59,12 @@ function formatResult(result: Result): string {
 		)
 		.with({ kind: "daemon_completed" }, () => "Foreground daemon stopped successfully.")
 		.with({ kind: "stopped" }, () => "Daemon stopped.")
+		.with(
+			{ kind: "restarted" },
+			({ daemon, supervisor }) =>
+				`Daemon restarted: ${daemon.id} (PID ${daemon.pid})\n` +
+				`Supervisor: ${supervisor.service}\nRecovered repositories: ${daemon.colonies.length}`,
+		)
 		.with(
 			{ kind: "awake" },
 			({ repository }) => `Colony awake: ${repository.root}\nBeads database: ${repository.beadsDb}`,

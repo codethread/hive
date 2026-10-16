@@ -26,6 +26,7 @@ import type { WorkspaceIO } from "./services.ts";
 import { applyOnboarding } from "./onboarding.ts";
 import { bindCheckout } from "./binding.ts";
 import { bootstrapHooks } from "./husky.ts";
+import { setupReadiness } from "./readiness.ts";
 import { z } from "zod";
 
 const NONEMPTY = 1;
@@ -89,6 +90,8 @@ export interface SetupOptions {
 }
 
 export interface SetupOperations {
+	/** Check init conflicts before any setup files are written. */
+	preflight: (options: SetupOptions) => Promise<void>;
 	/** Perform one selected tracker operation using the same options as the wizard. */
 	tracker: (options: SetupOptions) => Promise<string>;
 }
@@ -182,6 +185,7 @@ export async function setupRepository(options: SetupOptions, deps: SetupDependen
 			requireProjectGeneration(lock, options.config);
 		}
 		if (options.tracker === "init") {
+			await deps.operations.preflight(options);
 			await verifyTrackerInitialization(options.repo, options.config, deps);
 		}
 		await verifyExecutable(options.repo, options.executable, deps);
@@ -224,6 +228,7 @@ export async function setupRepository(options: SetupOptions, deps: SetupDependen
 		}
 		const lockfile = await writeProjectLock(options.repo, deps);
 		completed.push("project_lock");
+		const readiness = await setupReadiness(options, database, deps);
 		return {
 			ok: true,
 			kind: "repository_setup",
@@ -232,18 +237,22 @@ export async function setupRepository(options: SetupOptions, deps: SetupDependen
 			hooks,
 			lockfile,
 			completed,
+			readiness,
 		};
 	} catch (error) {
 		let context: Record<string, unknown> = {};
+		let cause = "execution_failed";
 		if (error instanceof BeeswaxError) {
 			({ context } = error);
+			cause = error.reason;
 		}
 		throw new BeeswaxError("setup_failed", errorMessage(error), {
 			context: {
 				...context,
+				cause,
 				repository: options.repo,
 				completed,
-				database,
+				database: database || context.database || "",
 			},
 		});
 	}

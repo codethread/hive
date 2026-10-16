@@ -3,10 +3,15 @@ import { BeeswaxError, EXIT, errorMessage } from "./errors.ts";
 import type { ProcessResult, WorkspaceIO } from "./services.ts";
 import type { SetupFlags, SetupOptions } from "./setup.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Native filesystem adapter composition.
-import { appendFile, chmod, readdir, rm } from "node:fs/promises";
+import { appendFile, chmod, readdir, realpath, rm } from "node:fs/promises";
 // eslint-disable-next-line import/no-nodejs-modules -- Native executable paths.
 import { basename, resolve } from "node:path";
-import { bootstrapBeads, initializeBeads, localBootstrapServices } from "./beads/bootstrap.ts";
+import {
+	bootstrapBeads,
+	initializeBeads,
+	localBootstrapServices,
+	preflightInitialization,
+} from "./beads/bootstrap.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Default human owner is the local account.
 import { homedir, userInfo } from "node:os";
 import { onboardingWizard, setupWizard } from "./wizard.ts";
@@ -17,6 +22,7 @@ import type { Dependencies } from "./cli.ts";
 import { createBundledSkills } from "./skills.ts";
 import { createNativeBeads } from "@hive/beads";
 import { installArtifacts } from "./artifact-native.ts";
+import { installationInfo } from "./info.ts";
 import { mergeFiles } from "./git/merge.ts";
 import { packRepository } from "./git/pack.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Artifact destinations are resolved at the native boundary.
@@ -72,6 +78,7 @@ export function createLiveDependencies(): Dependencies {
 	});
 	return {
 		...io,
+		installationInfo: async () => installationInfo(await realpath(process.execPath), io),
 		context,
 		wizard: setupWizard,
 		onboardingWizard,
@@ -89,6 +96,9 @@ export function createLiveDependencies(): Dependencies {
 		source: environment.WK_ROOT ?? context.cwd,
 		environmentFile: environment.CLAUDE_ENV_FILE ?? "",
 		operations: {
+			preflight: async (options) => {
+				await preflightInitialization(options.repo, withActor(options), integrations(options));
+			},
 			tracker: async (options: SetupOptions) => {
 				if (options.tracker === "init") {
 					const initialized = await initializeBeads(

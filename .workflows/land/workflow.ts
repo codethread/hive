@@ -427,11 +427,13 @@ export const machine = setup({
 						"with their documented help/read-only commands, including Busy Bee " +
 						"loading the land definition from the canonical checkout. Installation " +
 						"updates future invocations, not running processes: inspect running " +
-						"Hive services and follow their documented deliberate restart " +
-						"procedure when needed. Coordinate restarts that affect active work; " +
-						"record any deferred restart and its owner without claiming the " +
-						"running service was refreshed.\n\nA failed dependency install, build, " +
-						"installation or smoke check keeps this task open with diagnostics " +
+						"Hive services and coordinate deliberate refreshes with active work. " +
+						"When Colony needs a refresh, read `colony daemon restart --help`, " +
+						"then run `colony daemon restart --json` for the selected state/socket. " +
+						"Retain its verified restarted result, or record a deliberate deferral " +
+						"with its reason and owner without claiming the running service was " +
+						"refreshed.\n\nA failed dependency install, build, installation, restart " +
+						"or smoke check keeps this task open with diagnostics, confirmed effects " +
 						"and the next action; do not continue after a failed command. Inspect " +
 						"partial installation before retrying. A post-merge code defect needs " +
 						"an agreed forward fix or revert, not edits to main. Choose next only " +

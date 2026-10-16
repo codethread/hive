@@ -22,6 +22,7 @@ import type {
 } from "./workflow-submission.ts";
 import { formatResponseResult, responseJsonSchema } from "./responses.ts";
 import type { AssessmentSubmission } from "./postrun.ts";
+import { BeeSetupError } from "./setup.ts";
 import { Command } from "commander";
 import type { DroneReportResult } from "./drone.ts";
 import type { FinishResult } from "./launch.ts";
@@ -34,6 +35,7 @@ import { reportFailure } from "./cli.ts";
 import { version } from "../package.json";
 
 const SUCCESS = 0;
+const FAILURE = 1;
 const JSON_INDENT = 2;
 type BeeResult =
 	| BeeSetupResult
@@ -93,7 +95,7 @@ export interface AckOptions extends InspectionOptions {
 	reason: string;
 }
 export interface BeeDependencies {
-	/** Install the Bee-owned saved query in the selected tracker. */
+	/** Install Bee's saved query and checkout-local BV views. */
 	setup: (options: BeeSetupOptions) => Promise<BeeSetupResult>;
 	/** File one authored response against its task and optional exact request. */
 	responsePublish: (task: string, options: PublishOptions) => Promise<ResponseCommandResult>;
@@ -156,7 +158,7 @@ export async function runBeeCli(argv: string[], deps: BeeDependencies): Promise<
 	responseCommands(program, argv, deps);
 	registerSkills(program, "bee", deps.stdout);
 	inspectionOptions(
-		program.command("setup").description("Install or refresh the Bee attention preset"),
+		program.command("setup").description("Install Bee's attention preset and BV work/system views"),
 	)
 		.requiredOption(
 			"--actor <identity>",
@@ -168,8 +170,17 @@ export async function runBeeCli(argv: string[], deps: BeeDependencies): Promise<
 			`
 Installs bee-attention for failed, unresolved spawn requests, including closed ones.
 Saved queries are local to the selected database; run setup for each tracker clone.
-Replaces only this preset. If interrupted, rerun setup to restore it.
-No daemon or bee-kind configuration is needed.
+Replaces only this saved preset.
+
+Also installs .bv/recipes.yaml in the caller's checkout and permanent tracker/state
+checkout. The selected database must be that repository's tracker .beads/beads.db.
+The work view excludes system-labelled records; the system view includes them.
+Preserves unrelated recipes and compatible work/system views. Conflicting views
+fail before writes; reconcile the named recipe and rerun. No issue labels change.
+
+JSON failures retain presetRemoved, presetInstalled and recipesInstalled. Inspect
+those confirmed effects before retrying after interruption. No daemon or bee-kind
+configuration is needed. Verify BV discovery in both checkouts with bv --robot-recipes.
 
 Use --json for a machine-readable result. Read br query --help to run saved queries.
 `,
@@ -365,6 +376,21 @@ Use --json for a machine-readable result. Read br query --help to run saved quer
 		await program.parseAsync(argv, { from: "user" });
 		return SUCCESS;
 	} catch (error) {
+		if (error instanceof BeeSetupError) {
+			if (argv.includes("--json")) {
+				const failure = {
+					ok: false,
+					kind: "error",
+					reason: "bee_setup_failed",
+					message: error.message,
+					...error.context,
+				};
+				deps.stdout(`${JSON.stringify(failure)}\n`);
+			} else {
+				deps.stderr(`bee: ${error.message}\n${JSON.stringify(error.context)}\n`);
+			}
+			return FAILURE;
+		}
 		return reportFailure(error, argv.includes("--json") || argv.includes("--schema"), {
 			...deps,
 			command: "bee",
@@ -511,7 +537,9 @@ function writeResult(
 		return;
 	}
 	if (result.kind === "bee_setup") {
-		stdout(`Installed ${result.preset} in ${result.repository.beadsDb}.\n`);
+		stdout(
+			`Installed ${result.preset} in ${result.repository.beadsDb}.\nBV recipes: ${result.recipes.join(", ")}\n`,
+		);
 		return;
 	}
 	if (result.kind === "bee_kinds") {

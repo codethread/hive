@@ -28,6 +28,8 @@ export interface Options extends SetupFlags {
 }
 
 export interface Dependencies extends SetupDependencies {
+	/** Read version-matched release metadata without repository discovery. */
+	installationInfo: () => Promise<object>;
 	/** Default destination for explicitly installed CLI artifacts. */
 	binDirectory: string;
 	/** Install named built artifacts through the native filesystem adapter. */
@@ -118,6 +120,23 @@ function createProgram(
 		);
 	addPrime(program, emit);
 	program
+		.command("info")
+		.description("Show installed version, release revision and source retrieval route")
+		.addHelpText(
+			"after",
+			`
+Reads release metadata beside the executable in known package/release layouts.
+The JSON result includes version, executable, revision and metadata path; absent
+metadata leaves revision and metadata null. Source status is not_installed.
+Use source.url or source.archive to retrieve the recorded revision, or the release
+tag when revision metadata is unavailable. This command does not download source
+or search local checkouts.
+`,
+		)
+		.action(async () => {
+			emit(await deps.installationInfo());
+		});
+	program
 		.command("schema")
 		.description("Print JSON schemas for project configuration, lock and result envelopes")
 		.action(() => {
@@ -149,13 +168,17 @@ function createProgram(
 				"  # Review and commit the generated project contract and hook sections before init.\n" +
 				"  beeswax setup --tracker init --prefix app --owner operator --hooks husky " +
 				"--environment none --no-codex --yes --json\n" +
-				"Init checks configured versioned hooks in the canonical checkout's HEAD before setup changes.\n" +
+				"Init checks configured versioned hooks, existing stores and inherited exports before setup writes.\n" +
 				"Paths under .git/ use shared Git metadata and need no commit.\n" +
-				"Retain the init receipt; deliberately establish the first snapshot and upstream before publication.\n" +
+				"First snapshot and upstream: beeswax skills file repository-setup references/publication.md\n" +
 				"\nHooks: husky bootstraps the bundled runner; git retains Git's default hook lookup.\n" +
 				"None skips framework bootstrap but still installs validation sections. Custom frameworks must invoke\n" +
 				"the --pre-commit/--pre-merge-commit files. Inspect formats with beeswax schema.\n" +
-				"Setup stays local; beads sync publishes. On failure, inspect completed phases before retrying.\n",
+				"Setup stays local; beads sync publishes. The readiness receipt reports configured artifacts,\n" +
+				"effective Honeycomb policy and next actions; execution remains not_verified. Review those\n" +
+				"actions through beeswax skills get repository-setup before declaring onboarding complete.\n" +
+				"Failures retain completed phases and any trackerEffects, including observed checkout/database\n" +
+				"artifacts. Inspect these and the reported next action before retrying; setup is not rolled back.\n",
 		)
 		.action(async function setup(this: Command) {
 			const options = await resolveSetup(

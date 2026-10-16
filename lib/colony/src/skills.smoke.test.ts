@@ -146,6 +146,7 @@ async function invoke(command: string, args: string[]) {
 		responseSearch: unexpected,
 		result: unexpected,
 		retry: unexpected,
+		restart: unexpected,
 		run: unexpected,
 		serve: unexpected,
 		setup: unexpected,

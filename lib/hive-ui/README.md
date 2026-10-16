@@ -20,7 +20,17 @@ The build writes `lib/hive-ui/dist/hive-ui`; installation copies it to `~/.local
 
 `BEADS_DB` supplies the default database when set. `--repo` selects the repository discovery directory. The server binds to `127.0.0.1:4318`; use `--port 0` for a free port. Use `--host 0.0.0.0 --port 4324` to make an explicitly configured preview reachable over the LAN. Run `bun run --cwd lib/hive-ui start --help` for all options. Native `br`, `bv` (Beads Viewer, tested with v0.25.2) and `honeycomb` must be on PATH; workflow previews also require a [Busy Bee installation](../busybee/README.md#install) supporting `busybee preview` and the selected repository's workflow definitions.
 
-For multiple colonies, create a JSON file of explicit repository/database pairs:
+To discover the running daemon's registered repository/database pairs at startup:
+
+```sh
+hive-ui --daemon
+```
+
+Use `hive-ui --help` to select another daemon state/socket. Discovery reads public daemon status without starting it. An unavailable daemon or empty membership fails startup. Restart the UI to refresh membership; board refresh keeps the startup endpoint list.
+
+Hive's `mise run hive-ui` task builds the UI and enables daemon discovery. Pass server options after `--`, for example `mise run hive-ui -- --port 0`. Use the direct CLI for the explicit endpoint modes below.
+
+For an offline endpoint list, create a JSON file of explicit repository/database pairs:
 
 ```json
 [
@@ -36,7 +46,7 @@ For multiple colonies, create a JSON file of explicit repository/database pairs:
 bun run --cwd lib/hive-ui start --colonies /absolute/path/to/colonies.json
 ```
 
-The switcher queries only the selected colony. Filters and card selection are remembered per colony for the browser session. No daemon registration or discovery is required.
+The explicit list requires no daemon registration or discovery. Choose it or `--daemon`; they cannot be combined. The switcher queries only the selected colony. Filters and card selection are remembered per colony for the browser session.
 
 ## Reading the board
 

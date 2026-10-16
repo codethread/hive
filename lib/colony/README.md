@@ -6,7 +6,7 @@ Bee opens configured roles with `bee run` or submits workflow assignments with `
 
 Follow [CLI artifacts](../tooling/README.md#cli-artifacts) for building and installing the companion executables. Runtime requirements are Git, `br`, `honeycomb`, `busybee`, and a native harness with working model access. Default ranking also requires `bv`; [FIFO](#scheduling) does not. Installation supplies no service.
 
-Read `colony init --help` to create canonical configuration and `busybee init --help` to install the default workflow. Its `xstate` and `zod` imports must resolve in the execution checkout. Init's default formula uses native Codex; other harnesses need matching formulas. `bee setup --help` installs the [attention preset](../../docs/agents/spawn-requests.md#saved-presets) in an existing tracker.
+Read `colony init --help` to create canonical configuration for Codex, Claude or both, preserving an existing `.hive/bees.toml`. Use `colony config schema` for the complete configuration fields and defaults. Prepare the selected workflow in the execution checkout through [Busy Bee](../busybee/README.md#prepare-a-checkout). `bee setup --help` installs the [attention preset](../../docs/agents/spawn-requests.md#saved-presets) and checkout-local BV views. This setup command requires the repository's permanent `tracker/state` database; other Bee commands retain their general selected-database contract.
 
 Read `bee --help` for submission and result discovery, then `colony wake --help` to enable execution. For experiments, select a disposable repository, initialized tracker and private Colony state explicitly. Before deleting them, cancel the request while awake and inspect until execution has stopped and settlement completed. Sleep and daemon stop leave detached workers alive. The [native probe](#verification) automates isolated setup and bounded cleanup.
 
@@ -80,13 +80,17 @@ Hive's nurse synthesizes retained assessments using [welcoming hive](../../docs/
 
 ## Run a colony
 
-Use `colony --help` for membership and daemon commands, then focused help for repository/tracker/state/socket selection. `wake` lazily starts the selected server, registers the canonical repository and reloads its policy. `add` creates asleep membership and preserves existing activity. Durable awake membership resumes after daemon restart; asleep membership stays asleep.
+Use `colony --help` for membership and daemon commands, then focused help for repository/tracker/state/socket selection. `wake` registers the canonical repository and reloads its policy. `add` creates asleep membership and preserves existing activity. Both lazily start an unavailable daemon through native supervision. Durable awake membership resumes after daemon restart; asleep membership stays asleep.
 
-`sleep` drains the current scheduling pass, then stops polling, dispatch and reconciliation. Detached workers continue. `remove` also drops membership while retaining execution history and tracker authority. Re-add/wake can reconcile work that outlived registration.
+`sleep` drains the selected repository's current scheduling pass, then stops its polling, dispatch and reconciliation. `remove` also drops that repository's membership while retaining execution history and tracker authority. Other repositories on the daemon remain active. Re-add/wake can reconcile work that outlived registration.
+
+`daemon stop` stops the selected server and pauses all its colonies. Detached workers survive sleep, removal and daemon stop; use repository sleep to pause one colony while keeping the others awake.
+
+For native startup prerequisites, an installed runtime update or deliberate replacement, follow `colony daemon restart --help`. It owns the supported supervisor, verification, recovery and result contract; retain the selected state/socket throughout.
 
 `wake --temp` creates membership that lasts until sleep, removal or daemon exit, including with an empty queue. It is not restored. Ordinary wake/add promotes it to durable; temporary wake refuses an existing durable entry.
 
-One daemon owns each state directory, even across socket choices. An explicit socket requires explicit state. After a crash, wake may recover a recorded stale socket; unknown sockets/files are preserved and reported. Status/stop contact the selected daemon without starting it. Foreground `daemon serve` supports service managers; no service is installed automatically.
+Repositories normally share the default daemon. One daemon owns each state directory, even across socket choices. Choosing another `--state` directory selects separate membership and retained runtime history; keep that selection for subsequent commands. An explicit socket requires explicit state. After a crash, wake may recover a recorded stale socket; unknown sockets/files are preserved and reported. Status/stop contact the selected daemon without starting it. Lazy startup and restart register a native service for the selected state; foreground `daemon serve` remains available for an explicitly managed process.
 
 Recovery adopts verified surviving executions without duplication. Dead executions follow ordinary settlement/retry rules. Cancelling while asleep leaves workers and claims until wake; awake cancellation stops owned execution before releasing unfinished claims. Missing or ambiguous process authority fails visibly.
 

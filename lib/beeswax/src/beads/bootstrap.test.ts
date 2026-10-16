@@ -42,9 +42,47 @@ test("initialization refuses existing accepted history before creating a checkou
 	expect(checkouts).toEqual([]);
 });
 
+test.each(["beads.db", "issues.jsonl", "inherited-export"])(
+	"initialization refuses %s before creating artifacts",
+	async (existing) => {
+		const { services, checkouts, calls } = initializationFixture(false);
+		const { command } = services;
+		services.command = (argv, cwd) => {
+			if (existing === "inherited-export" && argv.includes("ls-tree")) {
+				return Promise.resolve(".beads/issues.jsonl");
+			}
+			return command(argv, cwd);
+		};
+		services.exists = (path) => Promise.resolve(path === `/repo/.beads/${existing}`);
+		await expect(initializeBeads(root, options, services, integrations)).rejects.toMatchObject({
+			reason: "tracker_exists",
+		});
+		expect(checkouts).toEqual([]);
+		expect(calls.some(({ argv }) => argv[first] === "br")).toBe(false);
+	},
+);
+
+test("initialization retains a created tracker and database when snapshot flush fails", async () => {
+	const { services } = initializationFixture(false);
+	services.beads.sync.flush = () => Promise.reject(new Error("inherited snapshot"));
+	await expect(initializeBeads(root, options, services, integrations)).rejects.toMatchObject({
+		reason: "tracker_setup_failed",
+		context: {
+			database,
+			trackerEffects: {
+				tracker,
+				databaseExists: true,
+				checkoutExists: true,
+				completed: ["checkout", "database_initialized"],
+			},
+		},
+	});
+});
+
 function initializationFixture(acceptedHistory: boolean) {
 	const calls: { argv: readonly string[]; cwd: string }[] = [];
 	const checkouts: { root: string; base: string | undefined }[] = [];
+	let initialized = false;
 	const beads = createMemoryBeads();
 	const services: BootstrapServices = {
 		actor: "fixture-actor",
@@ -56,6 +94,7 @@ function initializationFixture(acceptedHistory: boolean) {
 				case "git rev-parse --path-format=absolute --git-common-dir": {
 					return Promise.resolve("/repo/.git");
 				}
+				case "git ls-tree --name-only HEAD -- .beads/issues.jsonl":
 				case "git branch --list tracker/state": {
 					return Promise.resolve("");
 				}
@@ -75,6 +114,7 @@ function initializationFixture(acceptedHistory: boolean) {
 					if (argv[first] !== "br") {
 						throw new Error(`Unexpected command: ${argv.join(" ")}`);
 					}
+					initialized = true;
 					return Promise.resolve("{}");
 				}
 			}
@@ -83,7 +123,8 @@ function initializationFixture(acceptedHistory: boolean) {
 			checkouts.push({ root: checkoutRoot, base });
 			return Promise.resolve(tracker);
 		},
-		exists: (path) => Promise.resolve(path === database),
+		exists: (path) =>
+			Promise.resolve(initialized && (path === database || path === `${tracker}/.git`)),
 		readConfig: () => {
 			throw new Error("No environment integration requested");
 		},

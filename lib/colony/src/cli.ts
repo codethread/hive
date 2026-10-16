@@ -3,20 +3,25 @@
  * lifecycle.
  */
 import { Command, CommanderError } from "commander";
+import { beesConfigSchema, policyChangeSchema } from "@hive/shared";
 import type { AssessmentsResult } from "./assessments.ts";
 import { CommandError } from "@hive/beads";
+import { DaemonLifecycleError } from "./daemon-lifecycle.ts";
 import type { DaemonResponse } from "./client.ts";
 import { DaemonUnavailableError } from "./client.ts";
 import type { Explanation } from "./explain.ts";
 import type { HistoryResult } from "./history.ts";
+import type { InitOptions } from "./initial-config.ts";
 import type { InitializedResult } from "./producer.ts";
 import type { LaunchedResult } from "./output.ts";
 import { RequestPublicationError } from "./requests.ts";
 import { ResponseError } from "./response-store.ts";
+import type { RestartedDaemon } from "./daemon-lifecycle.ts";
 import { WorkflowCommandError } from "./workflows.ts";
 import { WorkflowSubmissionError } from "./workflow-submission.ts";
 import { assessmentLimitSchema } from "./assessments.ts";
 import { assessmentReportSchema } from "./postrun.ts";
+import { initOptionsSchema } from "./initial-config.ts";
 import { registerSkills } from "./skills.ts";
 import { version } from "../package.json";
 import { writeColonyResult } from "./output.ts";
@@ -36,15 +41,6 @@ interface CliFailure {
 	requestId?: string;
 	/** Replacements already created before a publication failure. */
 	replacementIds?: string[];
-}
-
-export interface InitOptions {
-	/** Canonical discovery directory. */
-	repo: string;
-	/** Human accountable for produced requests. */
-	owner: string;
-	/** Default worker model. */
-	model: string;
 }
 
 export interface LaunchOptions {
@@ -105,6 +101,8 @@ export interface ColonyDependencies {
 	status: (options: ServerOptions) => Promise<DaemonResponse>;
 	/** Stop the selected running daemon. */
 	stop: (options: ServerOptions) => Promise<DaemonResponse>;
+	/** Replace the daemon through independent native supervision and verify recovery. */
+	restart: (options: ServerOptions) => Promise<RestartedDaemon>;
 	/** Write canonical configuration without overwriting it. */
 	init: (options: InitOptions) => Promise<InitializedResult>;
 	/** Execute the isolated Colony process. */
@@ -181,13 +179,36 @@ export async function runCli(argv: string[], deps: ColonyDependencies): Promise<
 		.description("Create canonical .hive/bees.toml without overwriting it")
 		.option("--repo <directory>", "Repository discovery directory", ".")
 		.requiredOption("--owner <identity>", "Human request owner")
-		.requiredOption("--model <model>", "Default Codex worker model")
+		.option("--harness <codex|claude|both>", "Worker harness selection", "codex")
+		.requiredOption("--model <model>", "Default worker model (Codex in both mode)")
+		.option("--claude-model <model>", "Additional Claude worker model (required only in both mode)")
+		.option(
+			"--permission-mode <restricted|unrestricted>",
+			"Native worker permission mode",
+			"restricted",
+		)
 		.addHelpText(
 			"after",
-			"\nCustom kinds and harness templates: colony skills file operations references/configuration.md\n",
+			`
+Creates worker for the selected harness. In both mode, worker uses Codex and
+claude-worker uses Claude; --model selects Codex and --claude-model selects Claude.
+For a single harness, use --model alone.
+
+Restricted is the default: managed Codex uses workspace-write and managed Claude
+uses its default permission mode. Unrestricted selects the harness's native
+permission bypass. Review the generated formula and verify private attempt-artifact
+access before relying on completion reporting. Permission mode does not grant hook trust.
+
+Configuration fields and defaults: colony config schema
+Custom kinds, hook trust and first execution: colony skills file operations references/configuration.md
+`,
 		)
-		.action(async (options: InitOptions) => {
-			writeColonyResult(await deps.init(options), argv.includes("--json"), deps.stdout);
+		.action(async (options: unknown) => {
+			writeColonyResult(
+				await deps.init(initOptionsSchema.parse(options)),
+				argv.includes("--json"),
+				deps.stdout,
+			);
 		});
 	program
 		.command("launch <spawn-id>")
@@ -199,7 +220,11 @@ export async function runCli(argv: string[], deps: ColonyDependencies): Promise<
 			writeColonyResult(await deps.launch(id, options), argv.includes("--json"), deps.stdout);
 		});
 	serverOptions(
-		program.command("wake").description("Reload canonical policy and wake a repository"),
+		program
+			.command("wake")
+			.description(
+				"Reload policy and wake a repository; see daemon restart --help for startup prerequisites",
+			),
 	)
 		.option("--repo <directory>", "Repository discovery directory", ".")
 		.requiredOption("--beads-db <path>", "Selected Beads database", process.env["BEADS_DB"])
@@ -237,7 +262,22 @@ export async function runCli(argv: string[], deps: ColonyDependencies): Promise<
 
 	const config = program
 		.command("config")
-		.description("Inspect or change active formula and limit policy");
+		.description("Discover configuration schemas or inspect and change runtime policy");
+	config
+		.command("schema")
+		.description(
+			"Print canonical configuration and runtime update JSON schemas with defaults, offline",
+		)
+		.action(() => {
+			deps.stdout(
+				`${JSON.stringify({
+					ok: true,
+					kind: "configuration_schema",
+					configuration: z.toJSONSchema(beesConfigSchema, { io: "input" }),
+					runtimeUpdates: z.toJSONSchema(policyChangeSchema, { io: "input" }),
+				})}\n`,
+			);
+		});
 	for (const operation of ["show", "history"] as const) {
 		repositoryOptions(config.command(operation).description(configDescription(operation))).action(
 			async (options: RepositoryOptions) => {
@@ -315,16 +355,48 @@ Policy diagnosis and activation: colony skills file operations references/recove
 			);
 		},
 	);
-	serverOptions(daemon.command("status").description("Inspect the running daemon")).action(
-		async (options: ServerOptions) => {
-			writeColonyResult(await deps.status(options), argv.includes("--json"), deps.stdout);
-		},
-	);
+	serverOptions(
+		daemon
+			.command("status")
+			.description("Read daemon membership, policy and retained attempt observations"),
+	).action(async (options: ServerOptions) => {
+		writeColonyResult(await deps.status(options), argv.includes("--json"), deps.stdout);
+	});
 	serverOptions(daemon.command("stop").description("Stop the running daemon")).action(
 		async (options: ServerOptions) => {
 			writeColonyResult(await deps.stop(options), argv.includes("--json"), deps.stdout);
 		},
 	);
+	serverOptions(
+		daemon
+			.command("restart")
+			.description("Restart the daemon and verify independent ownership and recovery"),
+	)
+		.action(async (options: ServerOptions) => {
+			writeColonyResult(await deps.restart(options), argv.includes("--json"), deps.stdout);
+		})
+		.addHelpText(
+			"after",
+			`
+Use colony daemon restart --json for a verified replacement. Native startup requires
+the macOS GUI launchd domain or a reachable Linux systemd user manager via
+systemctl --user. Platform, manager, runtime access and PATH are checked before
+stopping a daemon. Service setup adds no login startup or automatic restart policy.
+The operation drains the old daemon, proves its process exited, then verifies a
+distinct ready daemon, independent native ownership and repository recovery.
+
+Durable registrations, Beads database selections, awake/asleep intent and surviving
+attempts are preserved. Temporary registrations and policy overrides end with the
+old daemon. Detached bees continue running.
+
+JSON success has kind restarted, previous (id/pid or null when already unavailable),
+daemon, supervisor (kind launchd or systemd) and confirmedEffects.
+Failure kind error with reason daemon_lifecycle_incomplete includes target,
+checkpoint, confirmedEffects, receipt path and diagnostics. Retain restart.json
+and daemon-handoff.json when present; inspect confirmed effects and resolve the
+failure before retrying the same target.
+`,
+		);
 	try {
 		await program.parseAsync(argv, { from: "user" });
 		return SUCCESS;
@@ -351,6 +423,15 @@ export function reportFailure(
 		({ message } = error);
 	}
 	const failure: CliFailure = { message, reason: failureReason(error) };
+	if (error instanceof DaemonLifecycleError) {
+		Object.assign(failure, {
+			reason: error.reason,
+			target: error.target,
+			confirmedEffects: error.confirmedEffects,
+			checkpoint: error.checkpoint,
+			receipt: `${error.target.state}/restart.json`,
+		});
+	}
 	if (error instanceof RequestPublicationError) {
 		failure.requestId = error.requestId;
 		failure.replacementIds = error.replacementIds;
@@ -403,7 +484,7 @@ function serverOptions(command: Command): Command {
 }
 function registryDescription(operation: "add" | "sleep" | "remove"): string {
 	return {
-		add: "Register a repository durably; new registrations start asleep",
+		add: "Register durably, initially asleep; see daemon restart --help for startup prerequisites",
 		remove: "Remove registration while retaining detached executions and records",
 		sleep: "Drain and pause scheduling; detached executions continue",
 	}[operation];

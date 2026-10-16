@@ -1,3 +1,4 @@
+import { BeeswaxError, errorMessage } from "../errors.ts";
 import type { SetupIntegrations, SetupServices } from "./setup.ts";
 import { defaultSetupIntegrations, localSetupServices, setupBeads } from "./setup.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Repository and tracker paths.
@@ -53,15 +54,23 @@ export async function bootstrapBeads(
 	if (cwd !== root) {
 		await verifySelection(cwd, database, services.command, integrations);
 	}
-	await ensureTracker(root, tracker, services);
-	await verifyTracker(tracker, common, services.command);
-	await importDatabase(tracker, database, services);
-	/* eslint-disable no-await-in-loop -- Configure each checkout only after the shared endpoint is ready. */
-	for (const checkout of checkouts) {
-		await setupBeads(checkout, { database, kind: "database" }, services, integrations);
+	const completed: string[] = [];
+	try {
+		await ensureTracker(root, tracker, services);
+		completed.push("checkout");
+		await verifyTracker(tracker, common, services.command);
+		await importDatabase(tracker, database, services);
+		completed.push("database_ready");
+		/* eslint-disable no-await-in-loop -- Configure each checkout only after the shared endpoint is ready. */
+		for (const checkout of checkouts) {
+			await setupBeads(checkout, { database, kind: "database" }, services, integrations);
+			completed.push(`environment:${checkout}`);
+		}
+		/* eslint-enable no-await-in-loop */
+		return database;
+	} catch (error) {
+		throw await trackerFailure(error, { tracker, database, completed }, services);
 	}
-	/* eslint-enable no-await-in-loop */
-	return database;
 }
 
 export interface InitializeOptions {
@@ -87,6 +96,59 @@ export async function initializeBeads(
 	services: BootstrapServices,
 	integrations: SetupIntegrations = defaultSetupIntegrations,
 ): Promise<InitializedTracker> {
+	const { common, root, tracker, database } = await preflightInitialization(
+		cwd,
+		services,
+		integrations,
+	);
+	const completed: string[] = [];
+	try {
+		const created = await services.createTracker(root, "HEAD");
+		completed.push("checkout");
+		if (created !== tracker) {
+			throw new Error(`Expected permanent tracker at ${tracker}; Honeycomb returned ${created}.`);
+		}
+		const actualCommon = await services.command(commonDirectory, tracker);
+		const branch = await services.command(["git", "branch", "--show-current"], tracker);
+		if (actualCommon !== common || branch !== trackerBranch) {
+			throw new Error(`Expected ${tracker} to be this repository's tracker/state checkout.`);
+		}
+		await services.command(
+			[
+				"br",
+				"--db",
+				database,
+				"--actor",
+				services.actor,
+				"init",
+				"--prefix",
+				options.prefix,
+				"--json",
+			],
+			tracker,
+		);
+		completed.push("database_initialized");
+		await services.beads.sync.flush({ actor: services.actor, cwd: tracker, db: database });
+		completed.push("snapshot_flushed");
+		/* eslint-disable no-await-in-loop -- Configure all checkouts only after native initialization. */
+		for (const checkout of new Set([root, tracker, cwd])) {
+			await setupBeads(checkout, { database, kind: "database" }, services, integrations);
+			completed.push(`environment:${checkout}`);
+		}
+		/* eslint-enable no-await-in-loop */
+		return { ...options, actor: services.actor, database };
+	} catch (error) {
+		throw await trackerFailure(error, { tracker, database, completed }, services);
+	}
+}
+
+/** Refuse existing stores and inherited exports before setup creates local artifacts. */
+// eslint-disable-next-line max-statements -- Read all initialization conflicts before any effects.
+export async function preflightInitialization(
+	cwd: string,
+	services: BootstrapServices,
+	integrations: SetupIntegrations = defaultSetupIntegrations,
+) {
 	const common = await services.command(commonDirectory, cwd);
 	const root = dirname(common);
 	const tracker = join(root, ".worktrees", "tracker--state");
@@ -94,6 +156,34 @@ export async function initializeBeads(
 	await verifySelection(root, database, services.command, integrations);
 	if (cwd !== root) {
 		await verifySelection(cwd, database, services.command, integrations);
+	}
+	const paths = [...new Set([root, cwd])].flatMap((checkout) =>
+		["beads.db", "issues.jsonl"].map((name) => join(checkout, ".beads", name)),
+	);
+	const existing = await Promise.all(
+		paths.map(async (path) => {
+			if (await services.exists(path)) {
+				return path;
+			}
+			return "";
+		}),
+	);
+	const inherited = await services.command(
+		["git", "ls-tree", "--name-only", "HEAD", "--", ".beads/issues.jsonl"],
+		root,
+	);
+	if (existing.some(Boolean) || inherited !== "") {
+		throw new BeeswaxError(
+			"tracker_exists",
+			"Existing in-place tracker or accepted export requires deliberate adoption; init will not replace it.",
+			{
+				context: {
+					existing: existing.filter(Boolean),
+					inheritedExport: inherited,
+					nextCommand: "beeswax migrate setup",
+				},
+			},
+		);
 	}
 	const local = await services.command(["git", "branch", "--list", trackerBranch], root);
 	const remotes = await services.command(["git", "remote"], root);
@@ -104,44 +194,46 @@ export async function initializeBeads(
 			root,
 		);
 	}
-	if (local !== "" || remote !== "" || (await services.exists(join(tracker, ".git")))) {
-		throw new Error(
+	if (
+		local !== "" ||
+		remote !== "" ||
+		(await services.exists(join(tracker, ".git"))) ||
+		(await services.exists(database))
+	) {
+		throw new BeeswaxError(
+			"tracker_exists",
 			"Tracker history already exists. Bootstrap or adopt it instead of initializing.",
+			{ context: { nextCommand: "beeswax setup --help", tracker } },
 		);
 	}
-	const created = await services.createTracker(root, "HEAD");
-	if (created !== tracker) {
-		throw new Error(`Expected permanent tracker at ${tracker}; Honeycomb returned ${created}.`);
-	}
-	const actualCommon = await services.command(commonDirectory, tracker);
-	const branch = await services.command(["git", "branch", "--show-current"], tracker);
-	if (actualCommon !== common || branch !== trackerBranch) {
-		throw new Error(`Expected ${tracker} to be this repository's tracker/state checkout.`);
-	}
-	await services.command(
-		[
-			"br",
-			"--db",
-			database,
-			"--actor",
-			services.actor,
-			"init",
-			"--prefix",
-			options.prefix,
-			"--json",
-		],
-		tracker,
-	);
-	await services.beads.sync.flush({ actor: services.actor, cwd: tracker, db: database });
-	/* eslint-disable no-await-in-loop -- Configure all checkouts only after native initialization. */
-	for (const checkout of new Set([root, tracker, cwd])) {
-		await setupBeads(checkout, { database, kind: "database" }, services, integrations);
-	}
-	/* eslint-enable no-await-in-loop */
-	return { ...options, actor: services.actor, database };
+	return { common, root, tracker, database };
 }
 
 // --- Private functions ---
+
+async function trackerFailure(
+	cause: unknown,
+	effects: { tracker: string; database: string; completed: string[] },
+	services: SetupServices,
+): Promise<BeeswaxError> {
+	const [checkoutExists, databaseExists] = await Promise.all([
+		services.exists(join(effects.tracker, ".git")),
+		services.exists(effects.database),
+	]);
+	let database = "";
+	if (databaseExists) {
+		({ database } = effects);
+	}
+	return new BeeswaxError("tracker_setup_failed", errorMessage(cause), {
+		context: {
+			database,
+			trackerEffects: { ...effects, checkoutExists, databaseExists },
+			nextAction:
+				"Inspect the retained tracker checkout, database and completed phases " +
+				"before retrying; setup has not removed them.",
+		},
+	});
+}
 
 // eslint-disable-next-line max-params -- Match the public operation inputs at this selection boundary.
 async function verifySelection(

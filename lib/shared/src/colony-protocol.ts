@@ -145,8 +145,11 @@ export const attemptDetailsSchema = attemptStatusSchema.extend({
 /** One operation per HTTP request on the selected local Unix socket. */
 export const colonyRequestSchema = z.discriminatedUnion("kind", [
 	z.strictObject({ kind: z.literal("status") }),
+	/** Wait for reconciliation to finish or fail, then return status. */
+	z.strictObject({ kind: z.literal("recover") }),
 	z.strictObject({ kind: z.literal("inspect"), repository: repositoryEndpointSchema }),
-	z.strictObject({ kind: z.literal("stop") }),
+	/** Bind stop to the caller's observed daemon lifetime with expectedId. */
+	z.strictObject({ kind: z.literal("stop"), expectedId: z.string().optional() }),
 	z.strictObject({
 		kind: z.literal("wake"),
 		repository: repositoryEndpointSchema,
@@ -161,6 +164,19 @@ export const colonyRequestSchema = z.discriminatedUnion("kind", [
 		repository: repositoryEndpointSchema,
 	}),
 ]);
+
+const registrationHandoffSchema = z.strictObject({
+	repository: repositoryEndpointSchema,
+	intent: z.enum(["awake", "asleep"]),
+	attempts: z.array(attemptStatusSchema),
+});
+
+/** Drained durable registrations and attempts; acknowledgment precedes final daemon exit. */
+export const daemonStopResponseSchema = z.strictObject({
+	kind: z.literal("stopped"),
+	id: z.string(),
+	registrations: z.array(registrationHandoffSchema),
+});
 
 /** Public responses are validated by the CLI at the transport boundary. */
 export const colonyResponseSchema = z.discriminatedUnion("kind", [
@@ -183,7 +199,7 @@ export const colonyResponseSchema = z.discriminatedUnion("kind", [
 		socket: z.string(),
 		state: z.string(),
 	}),
-	z.strictObject({ kind: z.literal("stopped") }),
+	daemonStopResponseSchema,
 	z.strictObject({ kind: z.literal("awake"), repository: repositoryEndpointSchema }),
 	z.strictObject({ kind: z.literal("registered"), repository: repositoryEndpointSchema }),
 	z.strictObject({ kind: z.literal("slept"), repository: repositoryEndpointSchema }),

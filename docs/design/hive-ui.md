@@ -56,9 +56,11 @@ The current reference app differs from the user's recalled data flow: it uses Ta
 
 ## Package and runtime
 
-`hive-ui` is an independent product package. It imports `@hive/beads` for injected tracker I/O and `@hive/shared` for repository resolution, spawn decoding and the workflow preview wire schema. The UI does not import Colony, inspect its private SQLite schema or call `colony list`: that command currently refreshes persisted attempt state. The earlier librarian consultation `.1` established these read-only constraints; its proposed Colony-hosted UI was superseded by the user's explicit package direction.
+`hive-ui` is an independent product package. It imports `@hive/beads` for injected tracker I/O and `@hive/shared` for repository resolution, spawn decoding and the workflow preview wire schema. It uses Colony's public status command without importing the product or inspecting its private SQLite schema. Status returns retained attempt observations; it does not independently prove process health. The earlier librarian consultation `.1` established the read-only boundary; its proposed Colony-hosted UI was superseded by the user's explicit package direction.
 
-Startup selects one `--repo`/`--beads-db` pair, or an explicit JSON list of named endpoints through `--colonies`. Each endpoint keeps its canonical root and selected absolute database together. A stable endpoint ID keys routes and per-colony views. The switcher lists configured endpoints without querying all their trackers. Automatic discovery and temporary daemon registrations are outside this MVP.
+Startup selects one `--repo`/`--beads-db` pair, an explicit JSON list through `--colonies`, or registered endpoints through `--daemon`. Daemon discovery calls public `colony daemon status --json` with the selected state/socket and validates its response. It starts no daemon and fails on unavailable or empty membership. The startup list becomes the server's endpoint allowlist; board refresh does not rediscover membership.
+
+Each endpoint keeps its canonical root and selected absolute database together. A stable endpoint ID keys routes and per-colony views. The switcher lists selected endpoints without querying all their trackers. Explicit endpoint mode remains available without a daemon; UI startup never creates temporary registrations.
 
 The foreground Bun server serves the React app and GET API on the same loopback address. Bun's HTML bundler and official Tailwind plugin avoid another server/build pipeline; TypeScript still runs directly and `tsc --noEmit` remains the gate. See [Bun HTML serving](https://bun.com/docs/bundler/html-static).
 

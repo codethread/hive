@@ -4,28 +4,60 @@ import { CommandError, createNativeBeads } from "@hive/beads";
 import type { ConfigOptions, ServerOptions } from "../src/cli.ts";
 import { colonyEntry, entryCommand } from "../src/executables.ts";
 import { execute, policyChangeSchema, resolveRepository } from "@hive/shared";
-import { requestLazyServer, requestServer } from "../src/client.ts";
+import {
+	prepareSupervisedServer,
+	readDaemonHandoff,
+	readDaemonOwner,
+	readPendingRestart,
+	recordRestart,
+	startSupervisedServer,
+	verifySupervisedServer,
+	withDaemonLock,
+} from "../src/daemon-supervisor.ts";
+import { requestLazyServer, restartServer } from "../src/daemon-lifecycle.ts";
 import type { ConfigCommand } from "@hive/shared";
 import type { ServerTarget } from "../src/client.ts";
 import { explainRequest } from "../src/explain.ts";
 import { initRepository } from "../src/producer.ts";
 import { launchedResultSchema } from "../src/output.ts";
 import { match } from "ts-pattern";
+import { observeProcess } from "../src/processes.ts";
 import { readAssessments } from "../src/assessments.ts";
 import { readHistory } from "../src/history.ts";
+import { requestServer } from "../src/client.ts";
 import { resolveServerTarget } from "../src/server-target.ts";
 import { runCli } from "../src/cli.ts";
 
 const USER_ARGUMENTS_START = 2;
+const POLL_INTERVAL_MS = 50;
 const beads = createNativeBeads();
 const SUCCESS = 0;
 const runtime = colonyEntry("runtime");
+const lifecycle = {
+	prepare: prepareSupervisedServer,
+	handoff: readDaemonHandoff,
+	pending: readPendingRestart,
+	record: recordRestart,
+	request: requestServer,
+	owner: readDaemonOwner,
+	observe: observeProcess,
+	start: startSupervisedServer,
+	verify: verifySupervisedServer,
+	now: () => performance.now(),
+	pause: () => Bun.sleep(POLL_INTERVAL_MS),
+};
 process.exitCode = await runCli(Bun.argv.slice(USER_ARGUMENTS_START), {
-	add: async (options) =>
-		requestLazyServer(target(options), {
-			kind: "add",
-			repository: await resolveRepository(options.repo, options.beadsDb),
-		}),
+	add: (options) =>
+		withDaemonLock(target(options), async () =>
+			requestLazyServer(
+				target(options),
+				{
+					kind: "add",
+					repository: await resolveRepository(options.repo, options.beadsDb),
+				},
+				lifecycle,
+			),
+		),
 	assessments: async (options) =>
 		readAssessments(target(options).state, {
 			limit: options.limit,
@@ -70,6 +102,8 @@ process.exitCode = await runCli(Bun.argv.slice(USER_ARGUMENTS_START), {
 			kind: "remove",
 			repository: await resolveRepository(options.repo, options.beadsDb),
 		}),
+	restart: (options) =>
+		withDaemonLock(target(options), () => restartServer(target(options), lifecycle)),
 	// eslint-disable-next-line max-statements -- Foreground process ownership includes signal forwarding and cleanup.
 	serve: async (options) => {
 		const selected = target(options);
@@ -109,12 +143,18 @@ process.exitCode = await runCli(Bun.argv.slice(USER_ARGUMENTS_START), {
 	stderr: (text) => process.stderr.write(text),
 	stdout: (text) => process.stdout.write(text),
 	stop: (options) => requestServer(target(options), { kind: "stop" }),
-	wake: async (options) =>
-		requestLazyServer(target(options), {
-			kind: "wake",
-			repository: await resolveRepository(options.repo, options.beadsDb),
-			temporary: options.temp,
-		}),
+	wake: (options) =>
+		withDaemonLock(target(options), async () =>
+			requestLazyServer(
+				target(options),
+				{
+					kind: "wake",
+					repository: await resolveRepository(options.repo, options.beadsDb),
+					temporary: options.temp,
+				},
+				lifecycle,
+			),
+		),
 });
 
 function target(options: ServerOptions): ServerTarget {

@@ -14,10 +14,10 @@ import type {
 	RepositoryEndpoint,
 } from "@hive/shared";
 // eslint-disable-next-line import/no-nodejs-modules -- Own daemon directory permissions and socket parent.
-import { chmod, mkdir } from "node:fs/promises";
+import { chmod, mkdir, rename } from "node:fs/promises";
 import { colonyRequestSchema, resolveRepository } from "@hive/shared";
 // eslint-disable-next-line import/no-nodejs-modules -- Absolute socket and state paths are process boundaries.
-import { dirname, isAbsolute } from "node:path";
+import { dirname, isAbsolute, join } from "node:path";
 import { loadPolicy, policySnapshot, policyView, updatePolicy } from "./policy.ts";
 import type { ActivePolicy } from "./policy.ts";
 import type { BeadsService } from "@hive/beads";
@@ -30,6 +30,7 @@ import { openStore } from "./store.ts";
 import { waitFor } from "xstate";
 
 const SOCKET_MODE = 0o600;
+const RECOVERY_TIMEOUT_MS = 10_000;
 interface RunningColony {
 	/** Explicit repository authority. */
 	repository: RepositoryEndpoint;
@@ -107,18 +108,45 @@ export async function serve(options: ServerOptions, beads: BeadsService): Promis
 					}
 					const command = colonyRequestSchema.parse(await request.json());
 					const result = await match(command)
-						.with({ kind: "status" }, async (): Promise<ColonyResponse> => ({
-							colonies: await Promise.all(
-								[...colonies.values()].map(async (colony) =>
-									colonyStatus(colony, await store.attempts(colony.repository.root)),
-								),
-							),
-							id: ownership.id,
-							kind: "status",
-							pid: process.pid,
-							socket: options.socket,
-							state: options.state,
-						}))
+						.with(
+							{ kind: "status" },
+							{ kind: "recover" },
+							async ({ kind }): Promise<ColonyResponse> => {
+								if (kind === "recover") {
+									await Promise.all(
+										[...colonies.values()].map(({ actor }) =>
+											waitFor(
+												actor,
+												(snapshot) =>
+													snapshot.matches("idle") ||
+													snapshot.matches("asleep") ||
+													snapshot.matches("failed"),
+												{ timeout: RECOVERY_TIMEOUT_MS },
+											),
+										),
+									);
+								}
+								return {
+									colonies: [...colonies.values()].map((colony) =>
+										colonyStatus(
+											colony,
+											store
+												.retainedInventory(colony.repository.root)
+												.map(({ id, spawnId, state }) => ({
+													id,
+													spawnId,
+													state,
+												})),
+										),
+									),
+									id: ownership.id,
+									kind: "status",
+									pid: process.pid,
+									socket: options.socket,
+									state: options.state,
+								};
+							},
+						)
 						.with({ kind: "inspect" }, async ({ repository }): Promise<ColonyResponse> => {
 							const canonical = await resolveRepository(repository.root, repository.beadsDb);
 							const current = colonies.get(canonical.root);
@@ -290,9 +318,24 @@ export async function serve(options: ServerOptions, beads: BeadsService): Promis
 								return { kind: "slept", repository: canonical };
 							},
 						)
-						.with({ kind: "stop" }, async (): Promise<ColonyResponse> => {
+						// eslint-disable-next-line max-statements -- Drain and retain the complete handoff before final closure.
+						.with({ kind: "stop" }, async ({ expectedId }): Promise<ColonyResponse> => {
+							if (expectedId !== undefined && expectedId !== ownership.id) {
+								throw new Error("Daemon identity changed before stop");
+							}
 							closing = true;
 							await Promise.all([...colonies.values()].map(({ actor }) => drain(actor)));
+							const registrations = await Promise.all(
+								store.registrations().map(async (registration) => ({
+									repository: registration.repository,
+									intent: registration.intent,
+									attempts: await store.attempts(registration.repository.root),
+								})),
+							);
+							const handoff = { kind: "stopped" as const, id: ownership.id, registrations };
+							const temporary = join(options.state, "daemon-handoff.json.tmp");
+							await Bun.write(temporary, JSON.stringify(handoff), { mode: 0o600 });
+							await rename(temporary, join(options.state, "daemon-handoff.json"));
 							store.clearPolicies();
 							/* eslint-disable-next-line promise/no-nesting --
 							 * Close SQLite only after the current response and all accepted commands drain.
@@ -301,7 +344,7 @@ export async function serve(options: ServerOptions, beads: BeadsService): Promis
 								store.close();
 								return ownership.close();
 							});
-							return { kind: "stopped" };
+							return handoff;
 						})
 						.exhaustive();
 					return Response.json(result);

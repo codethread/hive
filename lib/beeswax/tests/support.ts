@@ -77,8 +77,10 @@ export function fixture() {
 		wizard: unexpected,
 		onboardingWizard: unexpected,
 		installArtifacts: unexpected,
+		installationInfo: unexpected,
 		skills,
 		operations: {
+			preflight: async () => {},
 			tracker: async (options) => {
 				trackers.push(options);
 				return options.beadsDb;

@@ -59,9 +59,6 @@ export async function dispatch(
 			evidence.step("dispatch.prepare", input.repository.root);
 			const candidates = await prepareCandidates(input, config, revisionId, evidence);
 			await reconcileAssessments({ ...input, config });
-			if (candidates.length === EMPTY) {
-				return;
-			}
 			await dispatchPriorityGroups(input, config, candidates, evidence);
 		},
 	);

@@ -9,9 +9,13 @@ Follow application policy and the user's authorized scope. Read `colony --help` 
 
 Keep three selections explicit: `--repo` discovers the canonical repository, `--beads-db` (or `BEADS_DB`) selects native task/request authority, and `--state` selects the server's private runtime state. Use subcommand help for endpoint defaults and socket selection.
 
+Repositories normally share the default daemon. Choosing another `--state` directory selects separate daemon membership and execution history; use it deliberately for isolation and retain that selection for later controls and diagnosis.
+
 The recipe's execution directory is separate from all three. Canonical `.hive/bees.toml` and `.hive/bees/` supply kind defaults and policy.
 
-Before configuring kinds or harness templates, read [kind and harness configuration](references/configuration.md) with `colony skills file operations references/configuration.md`.
+Before configuring kinds or harness templates, or verifying a first execution, read [kind and harness configuration](references/configuration.md) with `colony skills file operations references/configuration.md`.
+
+For the attention query and BV views, follow `bee setup --help`. That setup operation requires this repository's permanent `tracker/state` database; other Bee operations keep their general selected-database contract.
 
 ## Diagnose stalled execution
 
@@ -30,7 +34,9 @@ Evidence
 
 ## Control scheduling deliberately
 
-Use `colony add --help` to register without scheduling, or `colony wake --help` to activate scheduling and reload canonical policy.
+Use `colony add --help` to register without scheduling, or `colony wake --help` to activate scheduling and reload canonical policy. For native startup prerequisites, runtime replacement and recovery, follow `colony daemon restart --help` with the same state/socket selection.
+
+`sleep` and `remove` affect only the selected repository's colony. `daemon stop` stops the selected server and pauses every colony it hosts; use repository sleep when other colonies should stay awake.
 
 Sleeping a colony, removing its registration or stopping its daemon leaves detached workers alive. To cancel work, follow `bee stop --help` with the owning Colony awake, then verify execution stopped before cleanup. Stopping a workflow driver leaves independent stage workers and the run available for continuation.
 

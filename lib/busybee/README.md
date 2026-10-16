@@ -27,6 +27,12 @@ busybee skills file workflow-execution references/authoring.md
 
 The guidance covers execution and definition authoring; the application's instructions and verification policy govern the work. Read `busybee skills --help` for resource and output contracts. Running workflows still requires the dependencies described below.
 
+## Prepare a checkout
+
+Use `busybee init --help` to install the bundled `do-work` definition and act on its dependency readiness report. Preserve an existing workflow and supply its imports through the application's dependency tooling. Imports resolve normally from the workflow directory; a root `package.json` is unnecessary.
+
+Use `busybee list` to discover manifests, then `busybee input-schema NAME --json` to verify imports and inspect the selected definition's required input before starting a run. Manifest discovery alone does not establish dependency readiness. These checks create no work and launch no worker.
+
 ## Run a workflow
 
 Use a repository with an existing Beads database. Busy Bee uses the same database as `br`: `--db PATH` overrides `BEADS_DB` and native discovery. `--repo PATH` selects the working checkout independently of database storage.
@@ -143,7 +149,7 @@ The [Land integration tests](./tests/integration/land.test.ts) exercise saved st
 
 Named runs resolve their saved name in the current checkout and can resume there with the same database, even after the original worktree is removed. Each manifest requires a full SemVer `version`, such as `1.2.3`. The current version must be equal to or newer than the saved version within its forward caret range: saved `1.2.3` permits newer `1.x` patch/minor versions and rejects `2.0.0` and downgrades. Before `1.0.0`, caret ranges are narrower: `0.2.3` permits versions below `0.3.0`, while `0.0.3` permits only itself. If either version is a prerelease, only the exact same SemVer version resumes; build metadata does not affect equality or precedence. Successful mutations save the current version for subsequent comparisons; read-only inspection does not persist that update. Authors promise that allowed versions preserve saved state, context and task contracts; preflight helps check that promise.
 
-The named definition's folder hash records the definition that produced the latest saved checkpoint, rather than deciding compatibility. Keep generated files outside that folder: the manifest, entry and local helpers are fingerprinted. Explicit-path runs retain their source path and require the entry-file hash to match before import; changed files require a fresh run. Neither hash covers external imports or installed dependencies.
+Named fingerprints record provenance; manifest versions determine resume compatibility. Explicit-path runs retain their source path and require the entry-file hash to match before import. See the [provenance contract](./SPEC.md#contracts-and-authority) for included files and dependency limits.
 
 Engine checkpoints use `formatVersion: 1`, independently of workflow SemVer. The engine validates the checkpoint header and trusts its own stored snapshot and visit body. Old or unknown checkpoint formats are rejected with fresh-run guidance; there is no migration. See the [checkpoint contract](./SPEC.md#checkpoint-and-failure-boundary).
 

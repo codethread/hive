@@ -1,3 +1,4 @@
+/* eslint-disable unicorn/no-null -- Match explicit nulls in public command responses. */
 /* eslint-disable require-await -- Test doubles return the production promise contract without real IO. */
 import { BeeswaxError, EXIT } from "../../src/errors.ts";
 import { expect, test } from "bun:test";
@@ -107,6 +108,95 @@ test("setup failure retains confirmed phases and never claims completion", async
 		completed: ["local_excludes", "tracker", "configuration", "local_binding", "merge_driver"],
 	});
 	expect(fx.files.get("/repo/.husky/pre-commit")).toBe("custom hook\n");
+});
+
+test("setup preserves nested tracker effects in its public failure receipt", async () => {
+	const fx = preparedHead();
+	const database = "/repo/.worktrees/tracker--state/.beads/beads.db";
+	fx.deps.operations.tracker = async () => {
+		throw new BeeswaxError("tracker_setup_failed", "flush failed", {
+			context: { database, trackerEffects: { completed: ["checkout", "database_initialized"] } },
+		});
+	};
+	expect(await runCli(["setup", "--tracker", "init", "--json"], fx.deps)).toBe(EXIT.failure);
+	expect(JSON.parse(fx.output.join(""))).toMatchObject({
+		ok: false,
+		database,
+		completed: ["local_excludes"],
+		trackerEffects: { completed: ["checkout", "database_initialized"] },
+	});
+	expect(fx.output).toHaveLength(SINGLE);
+	expect(fx.errors).toEqual([]);
+});
+
+test("setup runs tracker preflight before writing local exclusions", async () => {
+	const fx = fixture();
+	fx.deps.operations.preflight = async () => {
+		throw new BeeswaxError("tracker_exists", "existing store");
+	};
+	expect(await runCli(["setup", "--tracker", "init", "--json"], fx.deps)).toBe(EXIT.failure);
+	expect(fx.files.size).toBe(EMPTY);
+	expect(fx.trackers).toEqual([]);
+	expect(JSON.parse(fx.output.join(""))).toMatchObject({ completed: [] });
+});
+
+test("setup reports reused Honeycomb policy separately from deliberate execution steps", async () => {
+	const fx = fixture();
+	const { exec } = fx.deps;
+	fx.deps.exec = async (argv, cwd) => {
+		if (argv.at(EMPTY) === "honeycomb") {
+			return {
+				exitCode: 0,
+				stderr: "",
+				stdout: JSON.stringify({
+					ok: true,
+					kind: "config_explain",
+					root: "/canonical",
+					worktree_location: "nested",
+					command: { source: "global:project", value: "bootstrap" },
+					matched_rules: [],
+					project: { root: "/canonical" },
+					local_config: null,
+					add: { policy: "fresh_canonical" },
+					finish: { push: false },
+				}),
+			};
+		}
+		return await exec(argv, cwd);
+	};
+	expect(await runCli(["setup", "--tracker", "none", "--json"], fx.deps)).toBe(EXIT.success);
+	const result = JSON.parse(fx.output.join(""));
+	expect(result.readiness).toMatchObject({
+		execution: "not_verified",
+		honeycomb: {
+			status: "review_effective_policy",
+			effective: { command: { source: "global:project" }, local_config: null },
+		},
+	});
+	expect(result.readiness.next.map((entry: { area: string }) => entry.area)).toEqual([
+		"repository_policy",
+		"worktrees",
+		"bee_bv",
+		"colony_configuration",
+		"workflow_dependencies",
+		"activation",
+		"first_execution",
+	]);
+	expect(fx.commands.some((argv) => argv.includes("wake"))).toBe(false);
+});
+
+test("info emits one document outside a repository without checkout discovery", async () => {
+	const fx = fixture();
+	fx.deps.installationInfo = async () => ({
+		ok: true,
+		kind: "installation_info",
+		version: "0.5.0",
+		revision: null,
+	});
+	expect(await runCli(["info", "--json"], fx.deps)).toBe(EXIT.success);
+	expect(fx.output).toHaveLength(SINGLE);
+	expect(fx.errors).toEqual([]);
+	expect(fx.commands).toEqual([]);
 });
 
 test.each([{ args: ["--unknown", "--json"] }, { args: ["setup", "--tracker", "wrong", "--json"] }])(

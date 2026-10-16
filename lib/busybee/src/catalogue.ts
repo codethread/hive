@@ -24,6 +24,14 @@ export type Source =
 
 const NONEMPTY = 1;
 const FIRST = 0;
+const dependencyFiles = new Set([
+	"package.json",
+	"bun.lock",
+	"bun.lockb",
+	"package-lock.json",
+	"pnpm-lock.yaml",
+	"yarn.lock",
+]);
 const nameSchema = z.compile(z.string().regex(/^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/u));
 const manifestSchema = z.compile(
 	z.strictObject({
@@ -48,7 +56,7 @@ export async function listWorkflows(
 		throw error;
 	});
 	const names = entries
-		.filter((entry) => entry.kind === "directory")
+		.filter((entry) => entry.kind === "directory" && entry.name !== "node_modules")
 		.map((entry) => entry.name)
 		.toSorted();
 	const workflows = await Promise.all(
@@ -74,7 +82,7 @@ export async function fingerprint(source: Source, services: Services) {
 		return hash.update(await services.readBytes(source.source)).digest("hex");
 	}
 	const { directory } = source;
-	const files = await definitionFiles(directory, services);
+	const files = await provenanceFiles(directory, services);
 	for (const file of files.toSorted()) {
 		// eslint-disable-next-line no-await-in-loop -- Feed bytes in sorted order into the single hash.
 		const content = await services.readBytes(file);
@@ -112,7 +120,8 @@ async function readManifest(repo: string, name: string, services: Services) {
 
 async function definitionFiles(directory: string, services: Services): Promise<string[]> {
 	const files: string[] = [];
-	for (const entry of await services.readDirectory(directory)) {
+	const entries = await services.readDirectory(directory);
+	for (const entry of entries.filter(({ name }) => name !== "node_modules")) {
 		const path = join(directory, entry.name);
 		if (entry.kind === "directory") {
 			// eslint-disable-next-line no-await-in-loop -- Walk one authoring tree deterministically.
@@ -128,4 +137,16 @@ async function definitionFiles(directory: string, services: Services): Promise<s
 		}
 	}
 	return files;
+}
+
+async function provenanceFiles(directory: string, services: Services): Promise<string[]> {
+	const files = await definitionFiles(directory, services);
+	const parent = resolve(directory, "..");
+	const entries = await services.readDirectory(parent);
+	return [
+		...files,
+		...entries
+			.filter((entry) => entry.kind === "file" && dependencyFiles.has(entry.name))
+			.map((entry) => join(parent, entry.name)),
+	];
 }

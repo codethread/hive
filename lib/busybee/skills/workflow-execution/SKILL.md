@@ -27,7 +27,7 @@ busybee discover RUN --json
 
 Read each active task with `br show TASK --json` for its full brief, children, assignment and blockers. `show` identifies visits and dispatch requests; `discover` supplies legal outcomes and payload schemas. On retry, resume the supplied run and collect saved closed-stage results before doing more work.
 
-For authorized new work, use `busybee list` and `busybee input-schema NAME --json`, then `busybee run NAME --parent WORK_ID --owner HUMAN --input-file INPUT.json --json` with matching input. Retain the run ID. Definitions and dependencies come from the application checkout; see `busybee init --help` when it needs the bundled `do-work` definition.
+For authorized new work, use `busybee list` and `busybee input-schema NAME --json`, then `busybee run NAME --parent WORK_ID --owner HUMAN --input-file INPUT.json --json` with matching input. Retain the run ID. When the checkout needs the bundled `do-work` definition, follow `busybee init --help` before input discovery. Existing definitions must resolve their imports in the execution checkout; `list` reads manifests without importing code.
 
 Preserve supplied `BEADS_DB` and `BD_ACTOR`; otherwise supply your agent actor for mutations. `--db` selects the tracker independently of the `--repo` execution checkout. Human ownership and agent assignment are separate.
 

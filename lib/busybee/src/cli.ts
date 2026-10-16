@@ -183,7 +183,19 @@ function registerCreation(invocation: Invocation): void {
 	const options = (): CliOptions => cli.opts<CliOptions>();
 	cli
 		.command("init")
-		.description("Install bundled do-work 1.0.0 in this checkout; fails if its folder exists")
+		.description("Install bundled do-work and report dependency readiness")
+		.addHelpText(
+			"after",
+			"\nCreates .workflows/do-work; fails if that folder exists. Creates " +
+				".workflows/package.json only when absent, preserving an existing manifest.\n\n" +
+				"Use init --json to read dependencies.required (package ranges), " +
+				"dependencies.missing (unresolved packages) and dependencies.install (exact Bun argv). " +
+				"dependencies.status is ready when xstate and zod resolve normally from the workflow " +
+				"directory, otherwise install_required. This checks resolvability, not installed versions.\n\n" +
+				"When installation is required, run dependencies.install to install the packages and " +
+				"update the .workflows manifest and lockfile before input-schema or run. " +
+				"No root package.json is required. Init does not install dependencies or select a tracker.",
+		)
 		.action(async () => {
 			writeResult(await installDefaultWorkflow(options(), services), invocation);
 		});

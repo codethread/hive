@@ -1,6 +1,10 @@
 # Kind and harness configuration
 
-Use `colony init --help` for first setup with a Codex worker. For custom kinds or harnesses, edit the canonical worktree's `.hive/bees.toml`; worktree-local and root-level `bees.toml` files are ignored. Preserve the repository's human ownership and reservation policy.
+Use `colony init --help` for first setup with Codex, Claude or both, including model and permission choices. For custom kinds or harnesses, edit the canonical worktree's `.hive/bees.toml`; worktree-local and root-level `bees.toml` files are ignored. Preserve the repository's human ownership and reservation policy.
+
+Reuse valid existing configuration. Review the selected formula's executable and model access before activation. Restricted execution must permit the attempt's private completion-artifact writes; generated configuration alone does not verify that access. Trust of repository onboarding hooks is separate from the harness permission mode. Review hook trust in the actual execution checkout and verify received context in the first execution below.
+
+Use `colony config schema` for JSON schemas of central configuration, defaults and runtime updates. It works without a repository, tracker or daemon. The `configuration` schema describes `.hive/bees.toml`; `runtimeUpdates` describes temporary changes through `colony config update`. Schema discovery does not read or validate your current configuration; read back effective kinds as below and follow [policy and recovery](recovery.md) for activation.
 
 ## Define kinds
 
@@ -55,3 +59,11 @@ argv = ["{{#if system_prompt}}-c{{/if}}", '{{#if system_prompt}}developer_instru
 Ordinary argument values remain raw; use JSON quoting only where the harness expects it. Route `system_prompt` to native role instructions and `prompt` to the execution message. Keep both routes: the managed execution message carries the assignment and delivery target. Validation renders formulas with present and absent prompts and canonical and explicit execution directories; a matching formula is required to invoke a kind.
 
 For an authorized live formula change, read `colony config update --help` for the payload and [policy and recovery](recovery.md) for activation/reset behavior (`colony skills file operations references/recovery.md`).
+
+## Verify the first execution
+
+1. Read back the configured kind as above. In its intended execution checkout, use `busybee skills get workflow-execution` to prepare and discover the kind's workflow and input schema.
+2. Choose a bounded assignment under existing onboarding work that leaves application files unchanged. Require an authored response, confirmation of received onboarding context and normal completion reporting. Submit through `bee spawn --help`, then deliberately activate the selected repository with `colony wake --help`.
+3. Retain the request and run IDs. Use `bee result --help` to read the response, `busybee show` to confirm the run reports `done`, and `colony explain --help` to verify execution settlement and released capacity. Confirm application files remain unchanged.
+
+If any check disagrees, retain the IDs and observations and follow [stalled-execution diagnosis](../SKILL.md#diagnose-stalled-execution) before submitting another check. Generated files and schema discovery alone do not prove runtime readiness.
