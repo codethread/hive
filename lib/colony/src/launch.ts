@@ -159,7 +159,7 @@ export async function prepareLaunch(
 	policyRevisionId: string | null = null,
 ): Promise<Preparation> {
 	const { beads } = request;
-	const spawn = await beads.show(trackerScope(request, "colony"), request.id);
+	const spawn = await beads.show(trackerScope(request, "sys-colony"), request.id);
 	if (spawn.status !== "open") {
 		throw new Error(`Request ${spawn.id} is ${spawn.status}, expected open`);
 	}

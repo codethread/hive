@@ -32,7 +32,7 @@ export interface BootstrapServices extends SetupServices {
 
 export const localBootstrapServices: BootstrapServices = {
 	...localSetupServices,
-	actor: process.env.BD_ACTOR ?? "hive-setup",
+	actor: process.env.BD_ACTOR ?? "sys-beeswax",
 	beads: createNativeBeads({ execute: runCommand }),
 	createTracker: createTrackerCheckout,
 };

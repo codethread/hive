@@ -1,5 +1,12 @@
 import { EXIT_CODES, dispatch } from "../../src/index";
-import { commitFile, deps, pathExists, useOriginFixture, writeConfig } from "./support.ts";
+import {
+	commitFile,
+	createWorktree,
+	deps,
+	pathExists,
+	useOriginFixture,
+	writeConfig,
+} from "./support.ts";
 import { expect, test } from "bun:test";
 import { gitOut, gitSucceeds, gitText, useTmpHome } from "./lifecycle-helpers.ts";
 
@@ -9,8 +16,9 @@ const { initRepoWithOrigin } = useOriginFixture();
 async function prepareFinish(branch: string, policy = "") {
 	const { remote, root } = await initRepoWithOrigin(tmp.dir);
 	writeConfig({ command: "echo ready", copyToml: policy, root, tmp: tmp.dir });
-	await dispatch("add", ["--cwd", root, "--branch", branch, "--json"], deps);
-	return { remote, root, worktreePath: `${root}__${branch.replaceAll("/", "--")}` };
+	const worktreePath = `${root}__${branch.replaceAll("/", "--")}`;
+	await createWorktree({ branch, path: worktreePath, root });
+	return { remote, root, worktreePath };
 }
 
 test("removes a non-pooled source worktree after finish when cleanup is enabled", async () => {

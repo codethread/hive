@@ -325,11 +325,11 @@ async function trackerFacts(
 	id: string,
 	{ beads, repository }: TrackerContext,
 ): Promise<TrackerFacts> {
-	const spawn = await beads.show(trackerScope(repository, "colony"), id);
+	const spawn = await beads.show(trackerScope(repository, "sys-colony"), id);
 	const request = readSpawnRequest(spawn);
 	const [tasks, ready] = await Promise.all([
 		Promise.all(
-			request.taskIds.map((task) => beads.show(trackerScope(repository, "colony"), task)),
+			request.taskIds.map((task) => beads.show(trackerScope(repository, "sys-colony"), task)),
 		),
 		beads.ready(trackerScope(repository, request.identity), { limit: 0 }),
 	]);
@@ -349,7 +349,7 @@ async function trackerFacts(
 				assignee: task.assignee ?? null,
 				dependencies: await Promise.all(
 					task.dependencies.map(async (edge) => {
-						const dependency = await beads.show(trackerScope(repository, "colony"), edge.id);
+						const dependency = await beads.show(trackerScope(repository, "sys-colony"), edge.id);
 						return { ...edge, status: dependency.status, updatedAt: dependency.updated_at };
 					}),
 				),

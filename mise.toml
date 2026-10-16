@@ -6,7 +6,7 @@ bun install
 bun run --filter '*' build
 bun run --filter '*' install:bin
 beeswax beads bootstrap --environment mise
-mise exec -- bee setup --actor "${BD_ACTOR:-hive-setup}"
+mise exec -- bee setup --actor "${BD_ACTOR:-sys-beeswax}"
 beeswax sync
 '''
 

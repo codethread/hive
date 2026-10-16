@@ -56,7 +56,7 @@ test("injected observations deduplicate unchanged facts and retain their native 
 	await publishObservation(tracker, id, "waiting: capacity");
 	const request = await tracker.beads.show(trackerScope(tracker.repository, "inspector"), id);
 	expect(request.comments.map(({ author, text }) => ({ author, text }))).toEqual([
-		{ author: "colony", text: "Colony observation: waiting: dependency" },
-		{ author: "colony", text: "Colony observation: waiting: capacity" },
+		{ author: "sys-colony", text: "Colony observation: waiting: dependency" },
+		{ author: "sys-colony", text: "Colony observation: waiting: capacity" },
 	]);
 });

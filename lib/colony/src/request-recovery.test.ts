@@ -92,10 +92,33 @@ test.each(["driver", "stage"] as const)(
 		expect(inventory).toHaveBeenCalledTimes(ONCE);
 		expect(store.requests(fixture.tracker.repository.root)).toEqual([fixture.saved]);
 		expect(fixture.saved.state).toBe("waiting");
+		await assertSettlementAttribution(fixture);
 	},
 );
 
 // --- Fixtures ---
+async function assertSettlementAttribution(fixture: typeof continuation.driver): Promise<void> {
+	const { tracker, saved, scope, taskId } = fixture;
+	await tracker.beads.close(scope, taskId, { reason: "Completed" });
+	const close = mock(tracker.beads.close);
+	const update = mock(tracker.beads.update);
+	await reconcileRequests({
+		...tracker,
+		beads: { ...tracker.beads, close, update },
+		config,
+		store: { ...store, history, inventory: () => Promise.resolve([]) },
+	});
+	const result = await tracker.beads.show(scope, saved.id);
+	expect(close.mock.calls.map(([operation]) => operation.actor)).toEqual(["sys-colony"]);
+	expect(update.mock.calls.map(([operation]) => operation.actor)).toEqual(["sys-colony"]);
+	expect(result).toMatchObject({
+		status: "closed",
+		close_reason: "completed",
+		labels: expect.arrayContaining(["bee-outcome:succeeded", "bee-resolution:resolved"]),
+	});
+	expect(store.requests(tracker.repository.root)[FIRST]?.state).toBe("terminal");
+}
+
 // Seed genuine native/receipt/checkpoint authority through existing memory and SQLite adapters.
 // eslint-disable-next-line max-statements
 async function recoveryFixture(name: string, kind: WorkflowAssignment["kind"] = "stage") {

@@ -18,6 +18,6 @@ export interface TrackerCommands {
 }
 
 /** Select tracker authority and audit identity independently for each operation. */
-export function trackerScope(repository: RepositoryEndpoint, actor: string): BeadsScope {
+export function trackerScope(repository: RepositoryEndpoint, actor?: string): BeadsScope {
 	return { cwd: repository.root, db: repository.beadsDb, actor };
 }

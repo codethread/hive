@@ -59,7 +59,6 @@ export function createTopologyReader({ beads, execute }: TopologyDependencies): 
 		const scope: BeadsScope = {
 			cwd: colony.root,
 			db: colony.beadsDb,
-			actor: "hive-ui",
 			noAutoImport: true,
 			noAutoFlush: true,
 		};

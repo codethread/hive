@@ -28,12 +28,12 @@ import { validateStagedSnapshot } from "./git/validate.ts";
 export function createLiveDependencies(): Dependencies {
 	const environment: NodeJS.ProcessEnv = {
 		...process.env,
-		BD_ACTOR: process.env.BD_ACTOR ?? "beeswax",
+		BD_ACTOR: process.env.BD_ACTOR ?? "sys-beeswax",
 	};
 	const context = {
 		cwd: process.cwd(),
 		owner: userInfo().username,
-		actor: environment.BD_ACTOR ?? "beeswax",
+		actor: environment.BD_ACTOR ?? "sys-beeswax",
 		beadsDb: environment.BEADS_DB ?? "",
 		executable: installedExecutable(),
 		tty: Boolean(process.stdin.isTTY && process.stdout.isTTY),

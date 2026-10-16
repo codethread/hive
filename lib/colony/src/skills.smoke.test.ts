@@ -3,6 +3,8 @@ import { afterAll, beforeAll, expect, test } from "bun:test";
 import { mkdtemp, rm } from "node:fs/promises";
 // eslint-disable-next-line import/no-nodejs-modules -- Resolve temporary fixture paths.
 import { join } from "node:path";
+import { runBeeCli } from "./bee-cli.ts";
+import { runCli } from "./cli.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Use the OS temporary root outside Git.
 import { tmpdir } from "node:os";
 
@@ -24,7 +26,7 @@ afterAll(async () => {
 test.each(COMMANDS)(
 	"$command discovers only its bundled metadata without repository services",
 	async ({ command, name, resource }) => {
-		const listed = await invoke(command, ["skills", "list", "--json"]);
+		const listed = await source(command, ["skills", "list", "--json"]);
 		expect(listed).toMatchObject({ code: SUCCESS, stderr: "" });
 		expect(JSON.parse(listed.stdout)).toEqual({
 			ok: true,
@@ -41,7 +43,7 @@ test.each(COMMANDS)(
 test.each(COMMANDS)(
 	"$command returns the same Markdown body through get and SKILL.md",
 	async ({ command, name, resource }) => {
-		const instructions = await invoke(command, ["skills", "get", name]);
+		const instructions = await source(command, ["skills", "get", name]);
 		expect(instructions).toMatchObject({ code: SUCCESS, stderr: "" });
 		expect(instructions.stdout).not.toStartWith("---");
 		expect(instructions.stdout).toContain(`${command} skills file ${name} ${resource}`);
@@ -62,7 +64,7 @@ test.each(COMMANDS)(
 test.each(COMMANDS)(
 	"$command loads a supporting resource independently as text or JSON",
 	async ({ command, name, resource }) => {
-		const file = await invoke(command, ["skills", "file", name, resource, "--json"]);
+		const file = await source(command, ["skills", "file", name, resource, "--json"]);
 		expect(file).toMatchObject({ code: SUCCESS, stderr: "" });
 		expect(JSON.parse(file.stdout)).toEqual({
 			ok: true,
@@ -101,12 +103,67 @@ test.each(
 );
 
 test.each(COMMANDS)("$command sends text skill errors to stderr", async ({ command }) => {
-	const result = await invoke(command, ["skills", "get", "missing"]);
+	const result = await source(command, ["skills", "get", "missing"]);
 	expect(result).toMatchObject({ code: USAGE_ERROR, stdout: "" });
 	expect(result.stderr).toStartWith(`${command}: `);
 });
 
+// Repeated assertions use CLI interfaces; source() checks isolated source-entrypoint processes.
 async function invoke(command: string, args: string[]) {
+	let stdout = "";
+	let stderr = "";
+	const deps = {
+		ack: unexpected,
+		add: unexpected,
+		assess: unexpected,
+		assessments: unexpected,
+		attachWorkflow: unexpected,
+		config: unexpected,
+		dispatchStage: unexpected,
+		events: unexpected,
+		explain: unexpected,
+		finish: unexpected,
+		init: unexpected,
+		inspect: unexpected,
+		kinds: unexpected,
+		launch: unexpected,
+		list: unexpected,
+		remove: unexpected,
+		report: unexpected,
+		responseGet: unexpected,
+		responseHistory: unexpected,
+		responsePublish: unexpected,
+		responseSearch: unexpected,
+		result: unexpected,
+		retry: unexpected,
+		run: unexpected,
+		serve: unexpected,
+		setup: unexpected,
+		sleep: unexpected,
+		spawn: unexpected,
+		status: unexpected,
+		stop: unexpected,
+		wake: unexpected,
+		stdout: (text: string) => {
+			stdout += text;
+		},
+		stderr: (text: string) => {
+			stderr += text;
+		},
+	};
+	if (command === "bee") {
+		const code = await runBeeCli(args, deps);
+		return { code, stdout, stderr };
+	}
+	const code = await runCli(args, deps);
+	return { code, stdout, stderr };
+}
+
+function unexpected(): never {
+	throw new Error("Skill commands must not use repository services");
+}
+
+async function source(command: string, args: string[]) {
 	const entry = new URL(`../bin/${command}.ts`, import.meta.url).pathname;
 	const child = Bun.spawn([process.execPath, entry, ...args], {
 		cwd: directory,

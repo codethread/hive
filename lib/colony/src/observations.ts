@@ -30,12 +30,12 @@ export async function publishObservation(
 	id: string,
 	fact: string,
 ): Promise<void> {
-	const spawn = await beads.show(trackerScope(repository, "colony"), id);
+	const spawn = await beads.show(trackerScope(repository, "sys-colony"), id);
 	assertObservationHost(readSpawnRequest(spawn).host, id);
 	const latest = latestColonyObservation(spawn);
 	const message = `${COLONY_OBSERVATION_PREFIX} ${fact}`;
 	if (latest?.text !== message) {
-		await beads.comments.add(trackerScope(repository, "colony"), id, message);
+		await beads.comments.add(trackerScope(repository, "sys-colony"), id, message);
 	}
 }
 
@@ -45,7 +45,7 @@ export async function publishStdoutActivity(
 	receipt: Pick<LaunchReceipt, "id" | "attemptNumber" | "spawnId" | "directory">,
 	final = false,
 ): Promise<void> {
-	const spawn = await beads.show(trackerScope(repository, "colony"), receipt.spawnId);
+	const spawn = await beads.show(trackerScope(repository, "sys-colony"), receipt.spawnId);
 	assertObservationHost(readSpawnRequest(spawn).host, receipt.spawnId);
 	const activity: StdoutActivity = {
 		attemptId: receipt.id,
@@ -55,7 +55,7 @@ export async function publishStdoutActivity(
 	};
 	if (stdoutActivityDue(latestStdoutActivity(spawn), activity, final)) {
 		await beads.comments.add(
-			trackerScope(repository, "colony"),
+			trackerScope(repository, "sys-colony"),
 			receipt.spawnId,
 			`${COLONY_STDOUT_PREFIX} ${JSON.stringify(activity)}`,
 		);

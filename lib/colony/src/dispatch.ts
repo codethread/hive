@@ -84,7 +84,7 @@ async function prepareCandidates(
 	evidence.step("labels.reconcile-closed", repository.root);
 	await reconcileClosedRequestLabels(input);
 	evidence.step("tracker.list", repository.root);
-	const { issues } = await beads.list(trackerScope(repository, "colony"), {
+	const { issues } = await beads.list(trackerScope(repository, "sys-colony"), {
 		status: ["open"],
 		labels: SPAWN_REQUEST_LABELS,
 		limit: 0,
@@ -108,13 +108,13 @@ async function prepareCandidates(
 				if (!record) {
 					preparation.step("labels.publish", request.id);
 					record = newRequest(
-						await publishRequestLabels(input, "colony", request.id, hostname()),
+						await publishRequestLabels(input, "sys-colony", request.id, hostname()),
 						repository,
 					);
 					store.saveRequest(repository.root, record);
 					records.set(request.id, record);
 				}
-				const current = await beads.show(trackerScope(repository, "colony"), request.id);
+				const current = await beads.show(trackerScope(repository, "sys-colony"), request.id);
 				assertRequestAuthority(record, readSpawnRequest(current));
 				if (record.state === "waiting") {
 					const id = crypto.randomUUID();

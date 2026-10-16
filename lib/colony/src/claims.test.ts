@@ -163,7 +163,13 @@ test("claims preserve human ownership and release only unfinished tasks still ow
 		},
 	);
 	await releaseClaims(
-		tracker,
+		{
+			...tracker,
+			beads: beforeTrackerWrite(tracker.beads, (scope) => {
+				expect(scope.actor).toBe("sys-colony");
+				return Promise.resolve();
+			}),
+		},
 		{ ...request, context: { ...request.context, claims: [id, foreign, closed] } },
 		evidence,
 	);

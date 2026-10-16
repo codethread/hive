@@ -72,7 +72,7 @@ export async function releaseClaims(
 			/* eslint-disable-next-line no-await-in-loop --
 			 * A stale version fails loudly and leaves the remaining claims intact.
 			 */
-			await beads.update(trackerScope(repository, record.context.identity), [id], {
+			await beads.update(trackerScope(repository, "sys-colony"), [id], {
 				assignee: "",
 				status,
 				ifUnchanged: task.updated_at,

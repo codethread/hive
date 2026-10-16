@@ -537,8 +537,6 @@ async function readTasks(
 		"--no-auto-flush",
 		"--db",
 		context.colony.beadsDb,
-		"--actor",
-		"hive-ui",
 		"--json",
 	];
 	return { query, tasks };
@@ -615,7 +613,6 @@ async function read<Value>(
 
 function readScope(context: ReadContext): BeadsScope {
 	return {
-		actor: "hive-ui",
 		cwd: context.colony.root,
 		db: context.colony.beadsDb,
 		noAutoImport: true,

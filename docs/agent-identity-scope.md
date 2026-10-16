@@ -4,6 +4,18 @@ This preserves the native identity scope agreed on 2026-10-03 for `hv-3x8`, whil
 
 The [harness capability contract](./harness-capabilities.md) keeps dated upstream observations separate from current Hive verification. Terms follow the [glossary](../GLOSSARY.md). Repository contributors continue to follow the root `AGENTS.md` actor rules; Colony workers receive their captured friendly identity through the launcher.
 
+## System attribution
+
+Caller-driven CLI mutations retain the human or agent caller's identity. Native claim acquisition uses the bee's identity because `br update --claim` sets the assignee to the actor. Other automatic work uses these system actors:
+
+| Actor | Attribution scope |
+| --- | --- |
+| `sys-beeswax` | Beeswax setup and tracker plumbing when no caller actor is supplied |
+| `sys-colony` | Colony observations, automatic claim release, spawn request settlement and request-label reconciliation |
+| `sys-memory` | In-memory Beads adapter default when neither the operation nor adapter supplies an actor |
+
+Hive UI is read-only and supplies no actor. Any future UI mutations must use the human user's identity, such as `ct`.
+
 ## Native identity paths
 
 | Runtime surface | Attribution | Boundary |

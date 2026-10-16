@@ -1,14 +1,15 @@
 import { EXIT_CODES, dispatch } from "../../src/index";
+import { beforeEach, describe, expect, test } from "bun:test";
 // oxlint-disable-next-line import/no-nodejs-modules -- Integration fixtures exercise real filesystem IO.
 import { chmod, writeFile } from "node:fs/promises";
 import {
 	commitFile,
 	commitOnRemoteDefault,
+	createWorktree,
 	deps,
 	useOriginFixture,
 	writeConfig,
 } from "./support.ts";
-import { expect, test } from "bun:test";
 import { finishArgs, finishPolicy, readCheckoutState, readFinishState } from "./finish-helpers.ts";
 import { gitOut, useTmpHome } from "./lifecycle-helpers.ts";
 import { GitError } from "../../src/git/error.ts";
@@ -19,14 +20,16 @@ const tmp = useTmpHome("honeycomb-finish-hooks-test-");
 const { initRepoWithOrigin } = useOriginFixture();
 const EXECUTABLE_MODE = 0o755;
 
-test.each([
+describe.each([
 	{ hook: "pre-commit", strategy: "squash", fresh: false, staged: "source.txt" },
 	{ hook: "pre-merge-commit", strategy: "merge_commit", fresh: false, staged: "source.txt" },
 	{ hook: "pre-rebase", strategy: "rebase_ff", fresh: true, staged: "" },
-])(
-	"$strategy preserves $hook rejection as a Git failure",
-	async ({ hook, strategy, fresh, staged }) => {
-		const fixture = await prepareHookFailure(hook, strategy, fresh);
+])("$strategy preserves $hook rejection", ({ hook, strategy, fresh, staged }) => {
+	const fixture = { branch: "feature/hook", remote: "", root: "", worktreePath: "" };
+	beforeEach(async () => {
+		Object.assign(fixture, await prepareHookFailure(hook, strategy, fresh));
+	});
+	test("as a Git failure", async () => {
 		const before = await readFinishState(fixture);
 		const sourceBefore = await readCheckoutState(fixture.worktreePath);
 		const result = await dispatch("finish", finishArgs(fixture.worktreePath, strategy), deps);
@@ -45,8 +48,8 @@ test.each([
 		expect(await readCheckoutState(fixture.worktreePath)).toEqual(sourceBefore);
 		expect(await gitOut(fixture.root, "ls-files", "--unmerged")).toBe("");
 		expect(await gitOut(fixture.root, "diff", "--name-only", "--cached")).toBe(staged);
-	},
-);
+	});
+});
 
 // --- Private functions ---
 
@@ -58,9 +61,8 @@ async function prepareHookFailure(hook: string, strategy: string, fresh: boolean
 		tmp: tmp.dir,
 		copyToml: finishPolicy(strategy, fresh, true),
 	});
-	const added = await dispatch("add", ["--cwd", root, "--branch", "feature/hook", "--json"], deps);
-	expect(added.exitCode).toBe(EXIT_CODES.SUCCESS);
 	const worktreePath = `${root}__feature--hook`;
+	await createWorktree({ branch: "feature/hook", path: worktreePath, root });
 	await commitFile({
 		content: "source\n",
 		message: "source work",

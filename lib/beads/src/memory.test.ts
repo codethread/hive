@@ -19,12 +19,17 @@ test("memory stores are isolated by factory and database", async () => {
 	expect(otherPage.issues).toHaveLength(ZERO);
 });
 
-test("fixture discovery and actor selection do not require native I/O", async () => {
-	const memory = createMemoryBeads({ db: "/selected/beads.db", actor: "fixture" });
-	const location = await memory.where({ cwd: "/execution" });
+test.each([
+	{ factory: {}, operationActor: undefined, expected: "sys-memory" },
+	{ factory: { actor: "fixture" }, operationActor: undefined, expected: "fixture" },
+	{ factory: { actor: "fixture" }, operationActor: "worker", expected: "worker" },
+])("actor selection credits $expected", async ({ factory, operationActor, expected }) => {
+	const memory = createMemoryBeads({ db: "/selected/beads.db", ...factory });
+	const endpoint = { cwd: "/execution", actor: operationActor };
+	const location = await memory.where(endpoint);
 	expect(location.database_path).toBe("/selected/beads.db");
-	const created = await memory.create({ cwd: "/execution" }, { title: "fixture" });
-	expect(created.created_by).toBe("fixture");
+	const created = await memory.create(endpoint, { title: "fixture" });
+	expect(created.created_by).toBe(expected);
 });
 
 test("filesystem synchronization rejects visibly and missing records retain native diagnostics", async () => {

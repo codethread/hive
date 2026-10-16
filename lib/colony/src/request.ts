@@ -533,13 +533,13 @@ async function finishSettlement(
 		const spawn = await beads.show(trackerScope(repository, record.context.identity), record.id);
 		if (spawn.status !== "closed") {
 			evidence.step("tracker.close", record.id);
-			await beads.close(trackerScope(repository, record.context.identity), record.id, {
+			await beads.close(trackerScope(repository, "sys-colony"), record.id, {
 				reason: next.context.outcome!,
 			});
 			evidence.completed("tracker.closed", record.id);
 		}
 		evidence.step("labels.publish", record.id);
-		await publishRequestLabels(runtime, record.context.identity, record.id, hostname());
+		await publishRequestLabels(runtime, "sys-colony", record.id, hostname());
 		evidence.completed("labels.published", record.id);
 	}
 	store.settleRequest(repository.root, next, await prepareAssessment(runtime, next));

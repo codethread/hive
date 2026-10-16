@@ -430,7 +430,7 @@ export function formatResponseResult(result: ResponseCommandResult): string {
 }
 
 // --- Private functions ---
-async function responseContext(options: InspectionOptions, deps: TrackerCommands, actor = "bee") {
+async function responseContext(options: InspectionOptions, deps: TrackerCommands, actor?: string) {
 	const repository = await deps.resolveRepository(options.repo, options.beadsDb);
 	return { repository, context: { beads: deps.beads, scope: trackerScope(repository, actor) } };
 }

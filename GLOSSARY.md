@@ -14,7 +14,7 @@ UI presentation names are defined in the nested [Hive UI glossary](./lib/hive-ui
 
 **Harness subagent**: An agent created through a harness's built-in delegation mechanism rather than through Colony.
 
-**Identity**: Who a human or agent is for attribution, independent of agent attributes, ownership and assignment. An identity ordinarily distinguishes one individual, but uniqueness is not guaranteed.
+**Identity**: Who a human, agent or automated system is for attribution, independent of agent attributes, ownership and assignment. Human and agent identities ordinarily distinguish one individual, but uniqueness is not guaranteed.
 
 **Friendly name**: An agent's human-readable attribution name, ordinarily three words such as `amber-quiet-otter`. _Avoid_: Harness names such as `claude` when naming an individual agent.
 
@@ -77,6 +77,8 @@ UI presentation names are defined in the nested [Hive UI glossary](./lib/hive-ui
 **Supersession**: Replacement of an unsuccessful request with a newly submitted request. The original and replacement retain separate identities, outcomes and execution histories.
 
 **Actor**: The identity credited with a change to a bead, distinct from its owner and assignee.
+
+**System actor**: An actor representing automation itself, named with a `sys-` prefix.
 
 **Owner**: The human accountable for a bead, giving collaborators a clear point of responsibility separate from whoever is assigned to do the work.
 

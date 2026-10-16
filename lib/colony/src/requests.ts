@@ -36,7 +36,6 @@ import { resolveResponse } from "./response-store.ts";
 import { trackerScope } from "./tracker.ts";
 import { z } from "zod";
 
-const INSPECTION_ACTOR = "bee";
 const NONEMPTY = 1;
 const FIRST = 0;
 
@@ -155,14 +154,14 @@ export async function inspectRequest(
 ): Promise<RequestResult> {
 	const repository = await resolveRepository(options.repo, options.beadsDb);
 	const [request, ready] = await Promise.all([
-		beads.show(trackerScope(repository, INSPECTION_ACTOR), id),
+		beads.show(trackerScope(repository), id),
 		readyTasks({ beads, repository }),
 	]);
 	const captured = readSpawnRequest(request);
 	return {
 		kind: "request_status",
 		response: await resolveResponse(
-			{ beads, scope: trackerScope(repository, INSPECTION_ACTOR) },
+			{ beads, scope: trackerScope(repository) },
 			{ taskId: captured.taskIds[FIRST]!, requestId: id },
 		),
 		repository,
@@ -182,13 +181,13 @@ export async function listRequests(
 	if (!options.all) {
 		labels.push("bee-resolution:unresolved");
 	}
-	const listing = await beads.list(trackerScope(repository, INSPECTION_ACTOR), {
+	const listing = await beads.list(trackerScope(repository), {
 		all: true,
 		labels,
 		limit: 0,
 	});
 	const candidates = await Promise.all(
-		listing.issues.map(({ id }) => beads.show(trackerScope(repository, INSPECTION_ACTOR), id)),
+		listing.issues.map(({ id }) => beads.show(trackerScope(repository), id)),
 	);
 	// Acknowledgment or supersession can resolve a candidate before its labels are published.
 	const requests = candidates.filter(
@@ -323,7 +322,7 @@ export async function reconcileClosedRequestLabels({
 	beads,
 	repository,
 }: TrackerContext): Promise<void> {
-	const { issues } = await beads.list(trackerScope(repository, "colony"), {
+	const { issues } = await beads.list(trackerScope(repository, "sys-colony"), {
 		status: ["closed"],
 		labels: [...SPAWN_REQUEST_LABELS, "bee-outcome:pending"],
 		limit: 0,
@@ -334,7 +333,7 @@ export async function reconcileClosedRequestLabels({
 		/* eslint-disable-next-line no-await-in-loop --
 		 * Bounded native publications complete before the next closed request is repaired.
 		 */
-		await publishRequestLabels({ beads, repository }, "colony", issue.id, hostname());
+		await publishRequestLabels({ beads, repository }, "sys-colony", issue.id, hostname());
 	}
 }
 
@@ -408,7 +407,7 @@ function assertPublicationHost(bead: Bead, host: string | undefined): void {
 }
 
 async function readyTasks({ beads, repository }: TrackerContext): Promise<Set<string>> {
-	const ready = await beads.ready(trackerScope(repository, INSPECTION_ACTOR), { limit: 0 });
+	const ready = await beads.ready(trackerScope(repository), { limit: 0 });
 	return new Set(ready.map(({ id }) => id));
 }
 async function requestView(
@@ -419,7 +418,7 @@ async function requestView(
 	const request = readSpawnRequest(bead);
 	const tasks = await Promise.all(
 		request.taskIds.map(async (id): Promise<TaskView> => {
-			const task = await beads.show(trackerScope(repository, INSPECTION_ACTOR), id);
+			const task = await beads.show(trackerScope(repository), id);
 			let readiness: TaskView["readiness"] = "blocked";
 			if (task.status === "closed") {
 				readiness = "closed";

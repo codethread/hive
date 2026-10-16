@@ -40,7 +40,6 @@ test("graph reads pin the native-selected export and retain the source observati
 		{
 			cwd: colony.root,
 			db: colony.beadsDb,
-			actor: "hive-ui",
 			noAutoImport: true,
 			noAutoFlush: true,
 		},

@@ -2,8 +2,10 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 // eslint-disable-next-line import/no-nodejs-modules -- Isolated directories exercise offline executable reads.
 import { mkdir, mkdtemp, rm } from "node:fs/promises";
 import { EXIT } from "../../src/queue.ts";
+import { createLiveDependencies } from "../../src/live.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Resolve source, compiled executable and temporary home paths.
 import { resolve } from "node:path";
+import { runCli } from "../../src/cli.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Keep CLI fixtures outside any repository.
 import { tmpdir } from "node:os";
 
@@ -28,27 +30,29 @@ beforeAll(async () => {
 		binary,
 	]);
 	expect(build.code).toBe(EXIT.success);
-	// Initialize the compiled runtime before timing individual command contracts.
-	const initialized = await capture([binary, "--help"]);
-	expect(initialized.code).toBe(EXIT.success);
 });
 
 afterAll(async () => {
 	await rm(directory, { recursive: true, force: true });
 });
 
+// Source cases use runCli; discovery also checks an isolated source-entrypoint process.
 describe.each(["source", "standalone"])("%s bundled skills", (mode) => {
 	const run = (args: readonly string[]) => {
-		let command = [binary];
 		if (mode === "source") {
-			command = [process.execPath, entrypoint];
+			return sourceSkills(args);
 		}
-		return capture([...command, "skills", ...args]);
+		return capture([binary, "skills", ...args]);
 	};
 
 	test("discovery defaults to metadata only outside a repository", async () => {
 		const listed = await run(["list", "--json"]);
 		expect(listed).toMatchObject({ code: EXIT.success, stderr: "" });
+		if (mode === "source") {
+			expect(await capture([process.execPath, entrypoint, "skills", "list", "--json"])).toEqual(
+				listed,
+			);
+		}
 		const payload = JSON.parse(listed.stdout);
 		const [skill] = payload.skills;
 		expect(payload).toEqual({
@@ -125,6 +129,22 @@ describe.each(["source", "standalone"])("%s bundled skills", (mode) => {
 		expect(result.stderr).toContain("qlock:");
 	});
 });
+
+async function sourceSkills(args: readonly string[]) {
+	let stdout = "";
+	let stderr = "";
+	const code = await runCli(["skills", ...args], {
+		...createLiveDependencies(),
+		cwd,
+		stdout: (text) => {
+			stdout += text;
+		},
+		stderr: (text) => {
+			stderr += text;
+		},
+	});
+	return { code, stdout, stderr };
+}
 
 async function capture(command: string[]) {
 	const child = Bun.spawn(command, {

@@ -133,7 +133,7 @@ export function createMemoryBeads(options: MemoryBeadsOptions = {}): BeadsServic
 		const store = selected;
 		return {
 			store,
-			actor: scope.actor ?? options.actor ?? "memory",
+			actor: scope.actor ?? options.actor ?? "sys-memory",
 			tick: () => {
 				store.revision = Math.max(store.revision + ONE, Date.parse(store.now()));
 				return new Date(store.revision).toISOString();

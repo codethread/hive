@@ -1,15 +1,16 @@
 import { advanceQueue, enqueue } from "../../src/queue.ts";
-import { afterEach, beforeEach, expect, test } from "bun:test";
-// eslint-disable-next-line import/no-nodejs-modules -- Real isolated filesystem fixtures exercise the installed CLI.
+import { afterAll, afterEach, beforeAll, beforeEach, expect, test } from "bun:test";
+import { createLiveDependencies, openQueue } from "../../src/live.ts";
+// eslint-disable-next-line import/no-nodejs-modules -- Isolated filesystem fixtures exercise a compiled CLI.
 import { mkdir, mkdtemp, realpath, rm } from "node:fs/promises";
 import { Database } from "bun:sqlite";
-import { openQueue } from "../../src/live.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Locate the executable and fixture paths.
 import { resolve } from "node:path";
+import { runCli } from "../../src/cli.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Place subprocess fixtures outside the checkout.
 import { tmpdir } from "node:os";
 
-const executable = resolve(import.meta.dirname, "../../bin/qlock.ts");
+const entrypoint = resolve(import.meta.dirname, "../../bin/qlock.ts");
 const queued = 75;
 const gone = 3;
 const usage = 2;
@@ -18,8 +19,25 @@ const success = 0;
 const failure = 1;
 const singleRunner = 1;
 const ticketIncrement = 1;
+let executable = "";
+let buildDirectory = "";
 let directory = "";
 let lock = "";
+
+beforeAll(async () => {
+	buildDirectory = await mkdtemp(resolve(tmpdir(), "hive-qlock-binary-"));
+	executable = resolve(buildDirectory, "qlock");
+	const build = Bun.spawn(
+		[process.execPath, "build", entrypoint, "--compile", "--outfile", executable],
+		{ stdout: "pipe", stderr: "pipe" },
+	);
+	await Promise.all([new Response(build.stdout).text(), new Response(build.stderr).text()]);
+	expect(await build.exited).toBe(success);
+});
+
+afterAll(async () => {
+	await rm(buildDirectory, { recursive: true, force: true });
+});
 
 beforeEach(async () => {
 	const temporary = await mkdtemp(resolve(tmpdir(), "hive-qlock-"));
@@ -46,7 +64,7 @@ test("exec preserves command arguments, streams and exit status, then frees the 
 		"two words",
 	]);
 	expect(result).toEqual({ code: childFailure, stdout: "two words", stderr: "problem" });
-	expect(await qlock(["status", "--lock", lock])).toEqual({
+	expect(await liveQlock(["status", "--lock", lock])).toEqual({
 		code: 0,
 		stdout: "free\n",
 		stderr: "",
@@ -115,33 +133,33 @@ test(
 		]);
 		expect(joined.code).toBe(queued);
 		const urgent = timeoutTicket(joined.stderr);
-		const status = await qlock(["status", "--lock", lock]);
+		const status = await liveQlock(["status", "--lock", lock]);
 		expect(Array.from(status.stdout.matchAll(/ticket \d+/gu), ([ticket]) => ticket)).toEqual(
 			[first, urgent, normal].map((id) => `ticket ${id}`),
 		);
 		expect(status.stdout).toContain("[urgent: verification]");
 		await expect(
-			qlock(["exec", "-w", "0", "--ticket", urgent, "--lock", lock, "--", "true"]),
+			liveQlock(["exec", "-w", "0", "--ticket", urgent, "--lock", lock, "--", "true"]),
 		).resolves.toMatchObject({
 			code: queued,
 		});
 		await expect(
-			qlock(["exec", "-w", "0", "--ticket", first, "--lock", lock, "--", "true"]),
+			liveQlock(["exec", "-w", "0", "--ticket", first, "--lock", lock, "--", "true"]),
 		).resolves.toMatchObject({
 			code: 0,
 		});
 		await expect(
-			qlock(["exec", "-w", "0", "--ticket", normal, "--lock", lock, "--", "true"]),
+			liveQlock(["exec", "-w", "0", "--ticket", normal, "--lock", lock, "--", "true"]),
 		).resolves.toMatchObject({
 			code: queued,
 		});
 		await expect(
-			qlock(["exec", "-w", "0", "--ticket", urgent, "--lock", lock, "--", "true"]),
+			liveQlock(["exec", "-w", "0", "--ticket", urgent, "--lock", lock, "--", "true"]),
 		).resolves.toMatchObject({
 			code: 0,
 		});
 		await expect(
-			qlock(["exec", "-w", "0", "--ticket", normal, "--lock", lock, "--", "true"]),
+			liveQlock(["exec", "-w", "0", "--ticket", normal, "--lock", lock, "--", "true"]),
 		).resolves.toMatchObject({
 			code: 0,
 		});
@@ -154,7 +172,6 @@ test(
 	async () => {
 		const runner = Bun.spawn(
 			[
-				process.execPath,
 				executable,
 				"exec",
 				"-w",
@@ -243,7 +260,6 @@ test(
 		const competitors = Array.from({ length: 2 }, () =>
 			Bun.spawn(
 				[
-					process.execPath,
 					executable,
 					"exec",
 					"-w",
@@ -290,7 +306,6 @@ test(
 		const childStatus = 23;
 		const runner = Bun.spawn(
 			[
-				process.execPath,
 				executable,
 				"exec",
 				"-w",
@@ -440,7 +455,24 @@ function timeoutTicket(stderr: string): string {
 }
 
 function qlock(args: readonly string[]) {
-	return command([process.execPath, executable, ...args], { ...process.env, WK_ROOT: undefined });
+	return command([executable, ...args], { ...process.env, WK_ROOT: undefined });
+}
+
+// Status and quiet-child ordering use real SQLite; qlock itself stays in this process.
+async function liveQlock(args: readonly string[]) {
+	let stdout = "";
+	let stderr = "";
+	const code = await runCli(args, {
+		...createLiveDependencies(),
+		cwd: directory,
+		stdout: (text) => {
+			stdout += text;
+		},
+		stderr: (text) => {
+			stderr += text;
+		},
+	});
+	return { code, stdout, stderr };
 }
 
 async function command(argv: string[], env = process.env) {
