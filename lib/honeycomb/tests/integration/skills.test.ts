@@ -13,7 +13,7 @@ test("skills lists bundled metadata outside a repository", async () => {
 		skills: [
 			{
 				name: "git-workflow",
-				description: "Use when creating, locating or cleaning up Git worktrees.",
+				description: expect.any(String),
 				files: ["SKILL.md", "references/pooled-slots.md"],
 			},
 		],
@@ -25,9 +25,7 @@ test("skills lists bundled metadata outside a repository", async () => {
 test("skills retrieves instructions and referenced resources as text or JSON", async () => {
 	const instructions = await runCli(["skills", "get", "git-workflow"], tmp.dir);
 	expect(instructions).toMatchObject({ exitCode: EXIT_CODES.SUCCESS, stderr: "" });
-	expect(
-		instructions.stdout.startsWith("Use Honeycomb instead of raw `git worktree` commands"),
-	).toBe(true);
+	expect(instructions.stdout).not.toStartWith("---");
 	const jsonInstructions = await runCli(["skills", "get", "git-workflow", "--json"], tmp.dir);
 	expect(jsonInstructions).toMatchObject({ exitCode: EXIT_CODES.SUCCESS, stderr: "" });
 	expect(JSON.parse(jsonInstructions.stdout)).toMatchObject({

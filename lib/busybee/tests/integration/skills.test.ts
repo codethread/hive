@@ -1,0 +1,128 @@
+// Public command contracts run outside a repository with no runtime configuration.
+/* eslint-disable import/no-nodejs-modules */
+// Keep the executable in the changed-test dependency graph.
+// eslint-disable-next-line import/no-unassigned-import
+import "../../bin/busybee.ts";
+import { afterEach, beforeEach, expect, test } from "bun:test";
+import { mkdtemp, rm } from "node:fs/promises";
+import { captureCli } from "./support.ts";
+import { createServices } from "../../src/native.ts";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
+
+const SUCCESS = 0;
+const FIRST = 0;
+let directory = "";
+beforeEach(async () => {
+	directory = await mkdtemp(join(tmpdir(), "busybee-skills-"));
+});
+afterEach(async () => {
+	await rm(directory, { force: true, recursive: true });
+});
+
+test("skills lists discovery metadata without loading instruction bodies", async () => {
+	const listed = await invokeSkills(["list", "--json"]);
+	expect(listed).toMatchObject({ code: 0, stderr: "" });
+	const document = JSON.parse(listed.stdout);
+	expect(document).toEqual({
+		ok: true,
+		kind: "skills_list",
+		skills: [
+			{
+				name: "workflow-execution",
+				description: expect.any(String),
+				files: ["SKILL.md", "references/authoring.md"],
+			},
+		],
+	});
+	expect(await invokeSkills(["--json"])).toEqual(listed);
+	const text = await invokeSkills([]);
+	expect(text).toMatchObject({ code: 0, stderr: "" });
+	expect(text.stdout).toBe(`workflow-execution\t${document.skills[FIRST].description}\n`);
+});
+
+test("skills returns Markdown bodies and lists retrievable references", async () => {
+	const text = await invokeSkills(["get", "workflow-execution"]);
+	expect(text).toMatchObject({ code: 0, stderr: "" });
+	expect(text.stdout.startsWith("---")).toBe(false);
+	const json = await invokeSkills(["get", "workflow-execution", "--json"]);
+	expect(JSON.parse(json.stdout)).toEqual({
+		ok: true,
+		kind: "skills_get",
+		name: "workflow-execution",
+		path: "SKILL.md",
+		content: text.stdout.trimEnd(),
+	});
+	expect(await invokeSkills(["file", "workflow-execution", "SKILL.md"])).toEqual(text);
+	const reference = await invokeSkills(["file", "workflow-execution", "references/authoring.md"]);
+	expect(reference).toMatchObject({ code: 0, stderr: "" });
+	const referenceJson = await invokeSkills([
+		"file",
+		"workflow-execution",
+		"references/authoring.md",
+		"--json",
+	]);
+	expect(JSON.parse(referenceJson.stdout)).toEqual({
+		ok: true,
+		kind: "skills_get",
+		name: "workflow-execution",
+		path: "references/authoring.md",
+		content: reference.stdout,
+	});
+});
+
+test.each([
+	{ args: ["get", "missing"] },
+	{ args: ["get"] },
+	{ args: ["file", "workflow-execution"] },
+	{ args: ["file", "workflow-execution", "missing.md"] },
+	{ args: ["file", "workflow-execution", "../SKILL.md"] },
+	{ args: ["unknown"] },
+])("skills rejects invalid requests through the CLI: %j", async ({ args }) => {
+	const result = await invokeSkills([...args, "--json"]);
+	expect(result.code).not.toBe(SUCCESS);
+	expect(result.stderr).toBe("");
+	expect(JSON.parse(result.stdout)).toMatchObject({ ok: false, kind: "error", reason: "usage" });
+	const text = await invokeSkills(args);
+	expect(text.code).toBe(result.code);
+	expect(text.stdout).toBe("");
+	expect(text.stderr).not.toBe("");
+});
+
+test("the executable reads bundled guidance with an empty PATH and isolated home", async () => {
+	const proc = Bun.spawn(
+		[
+			process.execPath,
+			new URL("../../bin/busybee.ts", import.meta.url).pathname,
+			"skills",
+			"get",
+			"workflow-execution",
+			"--json",
+		],
+		{
+			cwd: directory,
+			env: { HOME: directory, PATH: "", XDG_CONFIG_HOME: directory },
+			stdout: "pipe",
+			stderr: "pipe",
+		},
+	);
+	try {
+		const [stdout, stderr, code] = await Promise.all([
+			new Response(proc.stdout).text(),
+			new Response(proc.stderr).text(),
+			proc.exited,
+		]);
+		expect({ code, stderr }).toEqual({ code: 0, stderr: "" });
+		expect(JSON.parse(stdout)).toMatchObject({
+			ok: true,
+			kind: "skills_get",
+			name: "workflow-execution",
+		});
+	} finally {
+		proc.kill();
+	}
+});
+
+function invokeSkills(args: readonly string[]) {
+	return captureCli(["skills", ...args], { ...createServices(), actor: undefined, cwd: directory });
+}

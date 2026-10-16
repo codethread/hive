@@ -1,16 +1,15 @@
 ---
 name: delegation
-description: Use Bee to delegate work to configured agent roles, retrieve their answers, or recover and complete workflow executions.
+description: Delegate work with Bee, retrieve authored answers, or retry, cancel and finish assigned executions.
 ---
 
-Use Bee for execution requests in the application's repository. Follow that repository's domain conventions, commands, task policy and authorization; this guidance supplies tool mechanics. Read `bee --help` and the relevant subcommand help for flags.
+Follow the application's task policy and authorization. Read `bee --help` for the submission sequence and focused command help for options.
 
 ## Submit a bounded assignment
 
-1. Select the repository and tracker deliberately. `--repo` selects canonical Bee configuration; `--beads-db` (or `BEADS_DB`) selects the tracker. `--cwd` selects the execution checkout and its workflow definitions, independently of those selections.
-2. Choose a configured role by its description and default workflow with `bee kinds`; its help covers discovery and prompt expansion. Kind discovery requires configuration, but no tracker or daemon.
-3. Read the existing parent task and its acceptance criteria. Follow `bee spawn --help` to prepare workflow input and submit the assignment with the selected repository, tracker and checkout. Preserve an injected `BD_ACTOR`; otherwise supply your agent actor. Keep role defaults unless a deliberate override is needed.
-4. Retain `request.id`, `request.identity` and `workflow.runId`. Submission creates durable work and a request; it does not establish that an agent started or completed anything. The original parent keeps its own assignment and completion policy.
+1. Read the existing parent task and acceptance criteria. Choose a kind by its description and default workflow with `bee kinds`.
+2. Follow `bee spawn --help` to submit workflow input. Select configuration, tracker and execution checkout independently; preserve supplied `BD_ACTOR` and `BEADS_DB`. Keep kind defaults unless the assignment needs an override.
+3. Retain `request.id` for delivery, `request.identity` for assignment and `workflow.runId` for workflow navigation. Submission does not establish that execution started. The parent keeps its own assignment and completion policy.
 
 ## Inspect before taking the next action
 
@@ -22,8 +21,8 @@ Known request
   +-- closed -----------------> read the answer and native outcome
 ```
 
-Use `bee status` for exact request/task facts and delivery availability; `bee list --help` covers discovery and history. Read `bee result --help`, then retrieve the authored answer with the retained request ID. Interpret the answer alongside its native outcome before synthesizing it; task closure alone is not an answer.
+Use `bee status` for request/task facts and `bee list --help` for discovery. Read `bee result --help`, then retrieve the authored answer with the retained request ID and interpret it alongside the request outcome.
 
-Native task beads own acceptance, status and assignment. Request closure, process exit and task completion are distinct. A last Colony observation is timestamped historical evidence, not proof of current execution. Use `colony explain REQUEST` with the same repository/tracker and selected server when fresh process and scheduling evidence is needed; preserve its source, freshness and unavailable evidence.
+Native task beads own acceptance, status and assignment. For stalled execution or uncertain process state, read `colony skills get operations`; recorded request observations alone do not establish liveness.
 
 Before retrying, cancelling, recovering a partial submission, or completing an assigned execution, read [execution and recovery](references/execution.md) with `bee skills file delegation references/execution.md`.

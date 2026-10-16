@@ -1,9 +1,9 @@
 ---
 name: git-workflow
-description: Use when creating, locating or cleaning up Git worktrees.
+description: Manage Git worktrees with Honeycomb, including pooled slot allocation and cleanup.
 ---
 
-Use Honeycomb instead of raw `git worktree` commands. Consult help when needed: `honeycomb -h` for command discovery, or `honeycomb <command> --help` for syntax and effects.
+Use the application's Honeycomb policy to manage worktrees. Read `honeycomb -h` for command discovery and focused command help before mutations.
 
 - Reuse the task's existing worktree; create one when needed.
 - Prefer `--json` where supported; use structured results rather than parsing messages.
