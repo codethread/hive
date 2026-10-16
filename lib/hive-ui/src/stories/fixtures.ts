@@ -126,6 +126,7 @@ export const cards: Card[] = [
 	card("hv-backlog", "Explore colony comparison", "open", { priority: 4, labels: [] }),
 ];
 export const hierarchy: Hierarchy = {
+	stale: false,
 	fetchedAt: OBSERVED_AT,
 	nodes: cards.map((entry) => ({
 		...entry,

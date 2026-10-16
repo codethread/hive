@@ -3,6 +3,7 @@ import { OBSERVED_AT, fixtureFamily } from "./fixtures.ts";
 
 /** Persisted native records only: chart states without visits have no fixture bead. */
 export const workflowHierarchy: Hierarchy = {
+	stale: false,
 	fetchedAt: OBSERVED_AT,
 	nodes: [
 		node("hv-keyboard", "Tighten keyboard navigation", "in_progress", null),

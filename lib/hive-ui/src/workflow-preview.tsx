@@ -1,21 +1,20 @@
 /* eslint-disable import/max-dependencies -- The preview composes its dialog, resource and hosted diagram boundaries. */
+import { Close, Content, Description, Overlay, Portal, Root, Title } from "@radix-ui/react-dialog";
 import {
-	Close,
-	Content,
-	Description,
-	Overlay,
-	Portal,
-	Root,
-	Title,
-	Trigger,
-} from "@radix-ui/react-dialog";
-import { EMPTY, loadWorkflow, preferences, workflows } from "./data.ts";
+	EMPTY,
+	loadWorkflow,
+	preferences,
+	snapshot,
+	workflowSelection,
+	workflows,
+} from "./data.ts";
 import { RefreshCw, Workflow, X } from "lucide-react";
 import { Button } from "./primitives.tsx";
+import { ResourceNotice } from "./ui.tsx";
 import { WorkflowDiagram } from "./workflow-diagram.tsx";
 import type { WorkflowPreview } from "../contracts.ts";
+import { useLiveRefresh } from "./use-live-refresh.ts";
 import { useParams } from "@tanstack/react-router";
-import { useState } from "react";
 import { useStore } from "zustand";
 
 /** Every generated bead opens its owning workflow; ordinary descendants have no action. */
@@ -26,35 +25,57 @@ export function WorkflowIndicator({
 	id: string;
 	isWorkflowGenerated: boolean;
 }) {
-	const [open, setOpen] = useState(false);
 	const { colonyId } = useParams({ from: "/colonies/$colonyId" });
-	const theme = useStore(preferences, (state) => state.theme);
 	if (!isWorkflowGenerated) {
 		return null;
 	}
 	return (
+		<button
+			type="button"
+			aria-label={`View workflow for ${id}`}
+			title="View workflow state"
+			className="workflow-trigger rounded p-1 text-accent hover:bg-raised focus-visible:outline-2"
+			onClick={(event) => {
+				workflowSelection.setState({
+					kind: "open",
+					colony: colonyId,
+					id,
+					trigger: event.currentTarget,
+				});
+				void loadWorkflow(colonyId, id);
+			}}
+		>
+			<Workflow aria-hidden="true" className="size-4" />
+		</button>
+	);
+}
+
+export function WorkflowDialog() {
+	const selected = useStore(workflowSelection);
+	const theme = useStore(preferences, (state) => state.theme);
+	if (selected.kind === "closed") {
+		return null;
+	}
+	const { colony: colonyId, id, trigger } = selected;
+	return (
 		<Root
-			open={open}
-			onOpenChange={(next) => {
-				setOpen(next);
-				if (next) {
-					void loadWorkflow(colonyId, id);
+			open
+			onOpenChange={(open) => {
+				if (!open) {
+					workflowSelection.setState({ kind: "closed" }, true);
 				}
 			}}
 		>
-			<Trigger asChild>
-				<button
-					type="button"
-					aria-label={`View workflow for ${id}`}
-					title="View workflow state"
-					className="workflow-trigger rounded p-1 text-accent hover:bg-raised focus-visible:outline-2"
-				>
-					<Workflow aria-hidden="true" className="size-4" />
-				</button>
-			</Trigger>
 			<Portal>
 				<Overlay className="workflow-overlay" />
-				<Content data-theme={theme} className="workflow-dialog workflow-dialog-modal">
+				<Content
+					data-theme={theme}
+					className="workflow-dialog workflow-dialog-modal"
+					onCloseAutoFocus={(event) => {
+						event.preventDefault();
+						trigger.focus();
+					}}
+				>
 					<div className="workflow-dialog-heading">
 						<Title asChild>
 							<h2>
@@ -93,7 +114,6 @@ export function WorkflowIndicator({
 	);
 }
 
-// --- Only a successfully refreshed checkpoint is presented as current. ---
 function WorkflowContent({
 	colonyId,
 	id,
@@ -103,27 +123,17 @@ function WorkflowContent({
 	id: string;
 	theme: "light" | "dark";
 }) {
+	useLiveRefresh(() => loadWorkflow(colonyId, id));
 	const resource = useStore(
 		workflows.store,
 		(state) => state.entries[`${colonyId}/${id}`] ?? EMPTY,
 	);
-	if (resource.kind === "failed") {
-		return (
-			<div className="p-6" role="alert">
-				<h3 className="font-medium">Workflow preview unavailable</h3>
-				<p className="mt-2 text-sm text-muted">{resource.message}</p>
-			</div>
-		);
-	}
-	if (resource.kind !== "ready") {
-		return <output className="p-6 text-sm text-muted">Reading saved workflow state…</output>;
-	}
+	const preview = snapshot(resource);
 	return (
-		<WorkflowSnapshot
-			key={`${resource.receivedAt}:${theme}`}
-			preview={resource.data}
-			theme={theme}
-		/>
+		<>
+			<ResourceNotice resource={resource} label="Workflow preview" />
+			{preview && <WorkflowSnapshot preview={preview} theme={theme} />}
+		</>
 	);
 }
 

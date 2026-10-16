@@ -1,4 +1,4 @@
-import type { Bee, Card } from "../contracts.ts";
+import type { Bee, Card, Hierarchy } from "../contracts.ts";
 import {
 	Circle,
 	CircleCheck,
@@ -14,8 +14,22 @@ import { Badge } from "./primitives.tsx";
 import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import type { Resource } from "./data.ts";
+import { snapshot } from "./data.ts";
 import { statusName } from "./filter-controls.tsx";
 import { useActivityClock } from "./activity-clock.tsx";
+
+export function HierarchyNotice({ resource }: { resource: Resource<Hierarchy> }) {
+	return (
+		<>
+			<ResourceNotice resource={resource} label="Hierarchy" />
+			{snapshot(resource)?.stale === true && (
+				<output className="block px-5 py-2 text-xs text-muted">
+					Showing the last exported hierarchy. Waiting for the latest data…
+				</output>
+			)}
+		</>
+	);
+}
 
 export function BeeActivity({ bee }: { bee: Pick<Bee, "outcome" | "stdout"> }) {
 	const now = useActivityClock();

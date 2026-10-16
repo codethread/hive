@@ -67,6 +67,9 @@ export const details = createResource(detailSchema);
 export const hierarchies = createHierarchyResource();
 export const outlines = createResource(hierarchySchema);
 export const workflows = createResource(workflowPreviewSchema);
+export const workflowSelection = createStore<
+	{ kind: "closed" } | { kind: "open"; colony: string; id: string; trigger: HTMLButtonElement }
+>(() => ({ kind: "closed" }));
 export const provenance = createResource(provenanceSchema);
 export const preferences = createStore<Preferences>(() => ({
 	showWorkflowBeads: false,
@@ -367,7 +370,7 @@ function reconcileAnnotation(
 	};
 }
 
-/** Routes and event actions load; components subscribe. No effects or duplicate Router cache. */
+/** Zustand load actions own snapshots; routes, actions and refresh actors call them. */
 function createResource<Value>(
 	schema: z.ZodType<Value>,
 	read: (path: string) => Promise<Value> = (path) => request(path, schema),
@@ -458,8 +461,8 @@ function publishHierarchy(
 	next[key] = resource;
 	for (const family of beadFamilies(resource.data)) {
 		const data = {
+			...resource.data,
 			nodes: family.rows.map(({ node }) => node),
-			fetchedAt: resource.data.fetchedAt,
 		};
 		for (const { node } of family.rows) {
 			next[hierarchyKey(colony, [node.id])] = { ...resource, data };

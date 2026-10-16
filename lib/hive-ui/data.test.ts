@@ -16,8 +16,12 @@ const OLD = "2026-10-12T00:00:00Z";
 const NEW = "2026-10-12T00:00:01Z";
 const left = node("left");
 const right = node("right");
-const original = { nodes: [left, right, node("child", ["left"])], fetchedAt: OLD };
-const moved = { nodes: [right, node("child", ["right"])], fetchedAt: NEW };
+const original: Hierarchy = {
+	stale: false,
+	nodes: [left, right, node("child", ["left"])],
+	fetchedAt: OLD,
+};
+const moved: Hierarchy = { stale: false, nodes: [right, node("child", ["right"])], fetchedAt: NEW };
 
 const SMALL_FAMILY = 2;
 const race = await annotationFixture();
