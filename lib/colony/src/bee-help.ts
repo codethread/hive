@@ -88,8 +88,8 @@ Colony validates submission before settling execution.
 Choose by description. --verbose expands configuration; --schema returns output
 contracts without configuration access (combine for the full-detail schema).
 --as previews caller visibility; --all or an explicit kind bypasses that filter.
-Visibility guides discovery, not spawn authority. Canonical .hive/bees.toml and
-.hive/bees/*/bee.toml supply kinds; the package guide documents configuration.
+Visibility guides discovery, not spawn authority. To configure kinds, read:
+  colony skills file operations references/configuration.md
 
 ${MUTATION_SCOPE_HELP}
 `,

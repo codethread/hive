@@ -11,8 +11,18 @@ import { tmpdir } from "node:os";
 const SUCCESS = 0;
 const USAGE_ERROR = 2;
 const COMMANDS = [
-	{ command: "bee", name: "delegation", resource: "references/execution.md" },
-	{ command: "colony", name: "operations", resource: "references/recovery.md" },
+	{
+		command: "bee",
+		name: "delegation",
+		resource: "references/execution.md",
+		files: ["SKILL.md", "references/execution.md"],
+	},
+	{
+		command: "colony",
+		name: "operations",
+		resource: "references/recovery.md",
+		files: ["SKILL.md", "references/configuration.md", "references/recovery.md"],
+	},
 ];
 let directory = "";
 
@@ -25,13 +35,13 @@ afterAll(async () => {
 
 test.each(COMMANDS)(
 	"$command discovers only its bundled metadata without repository services",
-	async ({ command, name, resource }) => {
+	async ({ command, name, files }) => {
 		const listed = await source(command, ["skills", "list", "--json"]);
 		expect(listed).toMatchObject({ code: SUCCESS, stderr: "" });
 		expect(JSON.parse(listed.stdout)).toEqual({
 			ok: true,
 			kind: "skills_list",
-			skills: [{ name, description: expect.any(String), files: ["SKILL.md", resource] }],
+			skills: [{ name, description: expect.any(String), files }],
 		});
 		expect(await invoke(command, ["skills", "--json"])).toEqual(listed);
 		const text = await invoke(command, ["skills"]);

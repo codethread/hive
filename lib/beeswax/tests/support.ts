@@ -34,6 +34,9 @@ export function fixture() {
 		write: async (path, value) => {
 			files.set(path, value);
 		},
+		remove: async (path) => {
+			files.delete(path);
+		},
 		exists: async (path) => files.has(path),
 		chmod: async () => {},
 		list: async () => [],
@@ -72,6 +75,7 @@ export function fixture() {
 		},
 		stdin: unexpected,
 		wizard: unexpected,
+		onboardingWizard: unexpected,
 		installArtifacts: unexpected,
 		skills,
 		operations: {

@@ -264,7 +264,7 @@ function registerSkills(program: Command, deps: Deps): void {
 		);
 	skills
 		.command("list")
-		.description("List bundled skill names, descriptions, and resource paths")
+		.description("List names and descriptions; --json also includes resource paths")
 		.option("--json", "Machine-readable output")
 		.action((_opts, command) =>
 			runAction("skills", ["list", ...optsToArgs(command.optsWithGlobals())], deps),

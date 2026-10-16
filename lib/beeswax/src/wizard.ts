@@ -1,9 +1,12 @@
 import { BeeswaxError, EXIT } from "./errors.ts";
+import type { HookAdapter, OnboardingFlags } from "./config.ts";
 import type { SetupFlags, SetupOptions, TrackerMode } from "./setup.ts";
-import { confirm, intro, isCancel, outro, select, text } from "@clack/prompts";
+import { confirm, intro, isCancel, multiselect, outro, select, text } from "@clack/prompts";
 import type { CANCEL_SYMBOL } from "@clack/prompts";
-import type { HookAdapter } from "./config.ts";
+import type { OnboardingConfig } from "./onboarding.ts";
 import { selectHookConfig } from "./config.ts";
+
+const EMPTY = 0;
 
 /** Clack owns the terminal; returned options use exactly the CLI's deterministic setup path. */
 // eslint-disable-next-line max-statements -- Keep this ordered CLI operation and its result together.
@@ -109,8 +112,39 @@ export async function setupWizard(flags: SetupFlags, defaults: SetupOptions): Pr
 				}),
 			);
 	}
+	Object.assign(selected, await onboardingWizard(flags, defaults.config.onboarding));
 	outro("Applying repository setup");
 	return selected;
+}
+
+/** Choose only repository-local harness adapters; no personal settings are written. */
+export async function onboardingWizard(
+	flags: OnboardingFlags,
+	current: OnboardingConfig | undefined,
+): Promise<OnboardingFlags> {
+	if (flags.harness !== undefined) {
+		return flags;
+	}
+	const harnesses = await multiselect({
+		message: "Harnesses to receive Hive conventions in this repository",
+		initialValues: current?.harnesses ?? [],
+		required: false,
+		options: [
+			{ value: "claude", label: "Claude Code" },
+			{ value: "codex", label: "Codex" },
+			{ value: "pi", label: "Pi" },
+		],
+	});
+	if (isCancel(harnesses)) {
+		throw new BeeswaxError("cancelled", "Onboarding cancelled before making changes.", {
+			exitCode: EXIT.cancelled,
+		});
+	}
+	let harness: string[] = harnesses;
+	if (harness.length === EMPTY) {
+		harness = ["none"];
+	}
+	return { ...flags, harness };
 }
 
 // --- Private functions ---

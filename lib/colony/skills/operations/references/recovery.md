@@ -6,11 +6,7 @@ Unfinished linked tasks must be ready and available to the request's identity; p
 
 Limits apply to the colony, kind and launch location, with named kind overrides. Retained starting/running reservations consume capacity, including detached executions across sleep or registration removal. Waiting workflow drivers also consume ordinary quota; the user must increase relevant limits if they prevent workers from starting. A lower limit does not terminate existing workers. Read `colony explain` diagnostics before changing policy.
 
-Use `colony config show` and `colony config history` with the same repository/tracker/state selection to inspect active policy and revisions. `config update --actor ACTOR --file CHANGE.json` accepts one named formula or a complete limits object. Read its help; a limits payload has this form (choose values deliberately):
-
-```json
-{ "kind": "limits", "limits": { "colony": 4, "kind": 2, "kinds": {}, "worktree": 2 } }
-```
+Use `colony config show` and `colony config history` with the same repository/tracker/state selection to inspect active policy and revisions. Read `colony config update --help` for payload syntax and examples. Before editing formula templates, read [kind and harness configuration](configuration.md) with `colony skills file operations references/configuration.md`.
 
 Updates and resets require an awake colony. Updates wait for the current pass and affect subsequent launches. Captured recipes keep their kind defaults; the active formula controls harness invocation. `config reset`, a fresh wake or daemon recovery wake reloads canonical policy, preserving history. Keep matching runtime, worker and watchdog companion executables beside Colony when deploying an authorized update.
 

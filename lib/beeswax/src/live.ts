@@ -3,12 +3,13 @@ import { BeeswaxError, EXIT, errorMessage } from "./errors.ts";
 import type { ProcessResult, WorkspaceIO } from "./services.ts";
 import type { SetupFlags, SetupOptions } from "./setup.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Native filesystem adapter composition.
-import { appendFile, chmod, readdir } from "node:fs/promises";
+import { appendFile, chmod, readdir, rm } from "node:fs/promises";
 // eslint-disable-next-line import/no-nodejs-modules -- Native executable paths.
 import { basename, resolve } from "node:path";
 import { bootstrapBeads, initializeBeads, localBootstrapServices } from "./beads/bootstrap.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Default human owner is the local account.
 import { homedir, userInfo } from "node:os";
+import { onboardingWizard, setupWizard } from "./wizard.ts";
 import { parseDatabase, resolveEnvironment, runCommand } from "./beads/environment.ts";
 import { syncBeads, withTrackerLock } from "./beads/publish.ts";
 import type { BootstrapServices } from "./beads/bootstrap.ts";
@@ -22,7 +23,6 @@ import { packRepository } from "./git/pack.ts";
 import { runSessionStart } from "./beads/hook.ts";
 import { setupBeads } from "./beads/setup.ts";
 import { setupBeadsAutomatically } from "./beads/setup-auto.ts";
-import { setupWizard } from "./wizard.ts";
 import { validateStagedSnapshot } from "./git/validate.ts";
 
 /** Capture process context once and compose native adapters at the application boundary. */
@@ -74,6 +74,7 @@ export function createLiveDependencies(): Dependencies {
 		...io,
 		context,
 		wizard: setupWizard,
+		onboardingWizard,
 		skills: createBundledSkills(),
 		binDirectory: resolve(homedir(), ".local/bin"),
 		installArtifacts: (source, destination, names) =>
@@ -195,6 +196,7 @@ function workspaceIO(environment: NodeJS.ProcessEnv): WorkspaceIO {
 			}
 		},
 		chmod,
+		remove: (path) => rm(path, { force: true }),
 		read: async (path) => {
 			const file = Bun.file(path);
 			if (await file.exists()) {

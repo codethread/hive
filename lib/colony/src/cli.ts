@@ -182,6 +182,10 @@ export async function runCli(argv: string[], deps: ColonyDependencies): Promise<
 		.option("--repo <directory>", "Repository discovery directory", ".")
 		.requiredOption("--owner <identity>", "Human request owner")
 		.requiredOption("--model <model>", "Default Codex worker model")
+		.addHelpText(
+			"after",
+			"\nCustom kinds and harness templates: colony skills file operations references/configuration.md\n",
+		)
 		.action(async (options: InitOptions) => {
 			writeColonyResult(await deps.init(options), argv.includes("--json"), deps.stdout);
 		});
@@ -264,6 +268,30 @@ export async function runCli(argv: string[], deps: ColonyDependencies): Promise<
 		config.command("update").description("Apply one named formula or complete limits update"),
 	)
 		.requiredOption("--file <path>", "Strict JSON formula or limits change")
+		.addHelpText(
+			"after",
+			`
+Pass one strict JSON object in --file; comments and unknown fields are rejected.
+
+Replace one named formula (executable and argv required; headless optional):
+  {
+    "kind": "formula", "name": "example",
+    "formula": {
+      "executable": "/path/to/harness",
+      "argv": ["{{#if system_prompt}}--system-prompt{{/if}}", "{{system_prompt}}", "{{prompt}}"]
+    }
+  }
+Use the installed harness's executable and supported arguments.
+
+Replace all limits (colony, kind, kinds and worktree are all required):
+  { "kind": "limits", "limits": { "colony": 4, "kind": 2, "kinds": { "reviewer": 1 }, "worktree": 2 } }
+Limits are nonnegative integers; kinds maps names to per-kind overrides.
+Choose values deliberately; omitted prior overrides are removed.
+
+Formula templates: colony skills file operations references/configuration.md
+Policy diagnosis and activation: colony skills file operations references/recovery.md
+`,
+		)
 		.requiredOption(
 			"--actor <identity>",
 			"Identity applying this policy change",

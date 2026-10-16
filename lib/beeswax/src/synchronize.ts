@@ -9,18 +9,22 @@ import {
 	verifyExecutable,
 	writeProjectLock,
 } from "./project.ts";
+import { readProjectConfig, selectOnboardingConfig, writeProjectConfig } from "./config.ts";
+import type { OnboardingFlags } from "./config.ts";
 import type { WorkspaceIO } from "./services.ts";
+import { applyOnboarding } from "./onboarding.ts";
 import { bindCheckout } from "./binding.ts";
 import { bootstrapHooks } from "./husky.ts";
 import { installTrackerHooks } from "./tracker-hooks.ts";
-import { readProjectConfig } from "./config.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Resolve this clone's conventional tracker.
 import { resolve } from "node:path";
+
+const NONEMPTY = 1;
 
 /** Reproduce accepted intent, reporting completed phases if local materialization stops. */
 // eslint-disable-next-line max-statements -- Keep preflight, materialization and its partial-effect receipt together.
 export async function synchronizeProject(
-	options: { root: string; executable: string; update: boolean },
+	options: { root: string; executable: string; update: boolean } & OnboardingFlags,
 	io: WorkspaceIO & { context: { beadsDb: string } },
 ) {
 	const { root, executable, update } = options;
@@ -33,9 +37,13 @@ export async function synchronizeProject(
 				"Run beeswax setup to create .hive/beeswax/meta/lock.json first",
 			);
 		}
-		const config = await readProjectConfig(root, io);
-		if (!config) {
+		const saved = await readProjectConfig(root, io);
+		if (!saved) {
 			throw projectMigration("Missing .hive/beeswax/config.toml.");
+		}
+		let config = saved;
+		if (update) {
+			config = selectOnboardingConfig(saved, options);
 		}
 		if (!update) {
 			requireProjectVersion(lock);
@@ -61,7 +69,12 @@ export async function synchronizeProject(
 		}
 		await bootstrapHooks(root, config.bootstrap.hooks, io);
 		completed.push("hook_bootstrap");
+		const onboarding = await applyOnboarding(root, config.onboarding, io);
+		if (onboarding.length >= NONEMPTY) {
+			completed.push("onboarding");
+		}
 		if (update) {
+			await writeProjectConfig(root, config, io);
 			await writeProjectLock(root, io);
 			completed.push("project_lock");
 		}

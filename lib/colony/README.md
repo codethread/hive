@@ -26,38 +26,11 @@ Users open direct conversations with `bee run KIND`; agents delegate through `be
 
 `bee spawn --help` owns workflow input, execution selection and partial-submission recovery. Submission creates `original work -> workflow run -> stages`; the original parent's claim and completion remain separate. Drivers coordinate runs; dispatched workers execute stages. [Busy Bee](../busybee/README.md#delegate-a-workflow-to-bee) owns progression and group/run closure.
 
-| Instruction source          | Responsibility                                   |
-| --------------------------- | ------------------------------------------------ |
-| Kind `system_prompt`        | Role, expertise and authority                    |
-| Kind `prompt`               | Optional execution direction                     |
-| Workflow input/stage briefs | Assignment, context, deliverables and acceptance |
-
 Bee adds [delivery guidance](../../docs/agents/responses.md#runtime-guidance) at launch. Captured recipes retain the original role; receipts retain the actual invocation. Assessments and inactivity drones use separate protocols. The [spawn contract](../../docs/agents/spawn-requests.md#facts-and-authority) owns host binding and native lifecycle authority.
 
 ## Kind files
 
-Canonical `.hive/bees.toml` holds repository policy, formulas and optional inline `[kinds.NAME]` definitions. Kinds may instead live in immediate `.hive/bees/` subdirectories:
-
-```text
-.hive/bees/reviewer/
-  bee.toml
-  system_prompt.md  # optional role/protocol
-  prompt.md         # optional execution direction
-```
-
-`bee.toml` declares the name independently of its directory:
-
-```toml
-name = "reviewer"
-description = "Review code changes against repository standards."
-harness = "example"
-model = "selected-model"
-effort = "high"
-```
-
-Sibling prompt files supply their fields verbatim and may be absent or empty. Folder definitions use these files, not inline prompt fields. Central definitions may set either prompt inline; omission means empty text. Discovery is nonrecursive and excludes directory symlinks. The central file is required; its `kinds` table and the folder catalog are optional.
-
-A central definition replaces the whole matching folder definition and produces a discovery warning. Duplicate folders without a central winner fail. Missing or invalid folder files still fail when shadowed. Spawn, retry and runtime policy loading share discovery; worktree-local/root-level `bees.toml` is ignored. Editing configuration does not rewrite captured recipes.
+Run `colony skills file operations references/configuration.md` for required fields, canonical and folder definitions, prompt placement and precedence. This guide ships with Colony and works outside the Hive checkout.
 
 ## Retry an unsuccessful request
 
@@ -161,18 +134,7 @@ The captured execution directory defaults to the canonical worktree. Selecting a
 
 ## Harness formulas
 
-Canonical `.hive/bees.toml` maps harness names to executable and argument tokens. For example:
-
-```toml
-[formulas.example]
-executable = "/path/to/harness"
-headless = ["--print"]
-argv = ["--model", "{{model}}", "{{#if system_prompt}}--system-prompt{{/if}}", "{{system_prompt}}", "{{prompt}}"]
-```
-
-Use the harness's supported flags. `argv` applies to all invocations; optional `headless` tokens prepend only for managed workers, inactivity reviews and post-run inspectors. Interactive runs require a TTY; they do not silently switch modes.
-
-Templates use strict Handlebars without HTML escaping. Empty rendered tokens are omitted: condition both an optional flag and its value. The `json` helper JSON-quotes configuration values; ordinary argv values remain raw. Route `system_prompt` to native role instructions and `prompt` to the execution message. Validation checks present/absent prompts and canonical/explicit directories; unknown fields and missing formulas fail.
+Run `colony skills file operations references/configuration.md` for matching formulas, token rendering and role/execution delivery in interactive and managed invocations.
 
 ### Native formula examples
 
@@ -200,11 +162,11 @@ Process fingerprints and observed descendant lineage include separate process gr
 
 ## Live configuration
 
-Read `colony config --help` for show/update/history/reset and focused help for selection and input. Update accepts one strict JSON change: `{ "kind": "formula", "name": "example", "formula": { "executable": "/path/to/harness", "argv": [] } }`, or `{ "kind": "limits", "limits": { "colony": 4, "kind": 2, "kinds": { "reviewer": 1 }, "worktree": 2 } }`. Formula tokens follow [the template rules](#harness-formulas); limit updates replace all four settings.
+Read `colony config --help` for show/update/history/reset and `colony config update --help` for strict JSON payloads and examples. For diagnosis, authorization and activation/reset behavior, run `colony skills file operations references/recovery.md`.
 
-Only formulas and limits change live. Invalid changes preserve policy. Updates activate after the current scheduling pass; existing workers continue. Each accepted revision is immutable and attempts record the revision used. Generic inspection omits executable arguments; full snapshots and receipts remain private.
+Invalid changes preserve policy. Each accepted revision is immutable and attempts record the revision used. Generic inspection omits executable arguments; full snapshots and receipts remain private.
 
-Overrides last until fresh wake, recovery wake or reset reloads canonical configuration. History survives. Canonical loads record their source without inventing an author. Configuration commands do not start a daemon; update/reset require an awake colony.
+Canonical loads record their source without inventing an author. Configuration commands do not start a daemon.
 
 ## Verification
 

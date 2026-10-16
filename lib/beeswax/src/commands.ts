@@ -1,6 +1,6 @@
 import { BeeswaxError, EXIT } from "./errors.ts";
 import type { Dependencies, Options } from "./cli.ts";
-import { checkout, setupOptions } from "./cli.ts";
+import { checkout, onboardingOptions, setupOptions } from "./cli.ts";
 import { integrationSchema, resolveSetup } from "./setup.ts";
 import {
 	projectMigration,
@@ -245,14 +245,24 @@ export function addProjectCommands(
 		{ name: "sync", description: "Reproduce the committed Beeswax project contract" },
 		{ name: "update", description: "Explicitly update the Beeswax project contract" },
 	]) {
-		program
-			.command(name)
+		const command = program.command(name);
+		if (name === "update") {
+			onboardingOptions(command).option("-y, --yes", "Keep saved selections without prompting");
+		}
+		command
 			.description(`${description}; no tracker publication`)
 			.option("--executable <path>", "Stable installed CLI", deps.context.executable)
 			.action(async function synchronize(this: Command) {
-				const root = await checkout(this.optsWithGlobals<Options>(), deps);
-				const executable = this.opts<Options>().executable ?? deps.context.executable;
-				emit(await synchronizeProject({ root, executable, update: name === "update" }, deps));
+				let flags = this.optsWithGlobals<Options>();
+				const root = await checkout(flags, deps);
+				if (name === "update" && !flags.yes && !flags.json && deps.context.tty) {
+					const config = await readProjectConfig(root, deps);
+					flags = { ...flags, ...(await deps.onboardingWizard(flags, config?.onboarding)) };
+				}
+				const executable = flags.executable ?? deps.context.executable;
+				emit(
+					await synchronizeProject({ ...flags, root, executable, update: name === "update" }, deps),
+				);
 			});
 	}
 }

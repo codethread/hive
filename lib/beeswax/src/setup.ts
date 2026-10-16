@@ -1,5 +1,6 @@
+/* eslint-disable import/max-dependencies -- Setup composes repository adapters. */
 import { BeeswaxError, EXIT, errorMessage } from "./errors.ts";
-import type { HookAdapter, ProjectConfig } from "./config.ts";
+import type { HookAdapter, OnboardingFlags, ProjectConfig } from "./config.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Setup paths and inferred issue prefix.
 import { basename, join, resolve } from "node:path";
 import {
@@ -7,6 +8,7 @@ import {
 	defaultProjectConfig,
 	readProjectConfig,
 	selectHookConfig,
+	selectOnboardingConfig,
 	writeProjectConfig,
 } from "./config.ts";
 import { installHooks, installMergeDriver } from "./hooks.ts";
@@ -19,7 +21,9 @@ import {
 	verifyExecutable,
 	writeProjectLock,
 } from "./project.ts";
+import type { OnboardingConfig } from "./onboarding.ts";
 import type { WorkspaceIO } from "./services.ts";
+import { applyOnboarding } from "./onboarding.ts";
 import { bindCheckout } from "./binding.ts";
 import { bootstrapHooks } from "./husky.ts";
 import { z } from "zod";
@@ -30,7 +34,7 @@ export const trackerSchema = z.enum(["init", "bootstrap", "adopt", "none"]);
 export const integrationSchema = z.enum(["mise", "none"]);
 export type TrackerMode = z.infer<typeof trackerSchema>;
 
-export interface SetupFlags {
+export interface SetupFlags extends OnboardingFlags {
 	/** Actor credited with native tracker changes. */
 	actor?: string;
 	/** Target checkout, defaulting to the calling directory. */
@@ -47,7 +51,7 @@ export interface SetupFlags {
 	hooks?: HookAdapter;
 	/** Optional environment integration, independent of application dependencies. */
 	environment?: "mise" | "none";
-	/** Generate Codex's local environment configuration. */
+	/** Generate Codex's local tracker environment configuration. */
 	codex?: boolean;
 	/** Accept defaults without opening the wizard. */
 	yes?: boolean;
@@ -76,11 +80,11 @@ export interface SetupOptions {
 	executable: string;
 	/** Environment provider to configure. */
 	environment: "mise" | "none";
-	/** Whether local Codex configuration is generated. */
+	/** Whether Codex's local tracker environment is generated. */
 	codex: boolean;
 	/** Hook adapter for Beeswax requirements; application hook bodies stay application-owned. */
 	hooks: HookAdapter;
-	/** One hook-file pair shared by application and tracker checkouts, plus its bootstrap preset. */
+	/** Shared Git hook files, bootstrap preset and optional harness onboarding. */
 	config: ProjectConfig;
 }
 
@@ -101,6 +105,11 @@ export interface SetupDependencies extends WorkspaceIO {
 	};
 	/** Prompt only for options the caller did not provide. */
 	wizard: (flags: SetupFlags, defaults: SetupOptions) => Promise<SetupFlags>;
+	/** Select repository-local harness adapters without repeating tracker setup. */
+	onboardingWizard: (
+		flags: OnboardingFlags,
+		current: OnboardingConfig | undefined,
+	) => Promise<OnboardingFlags>;
 	/** Injected native tracker operations. */
 	operations: SetupOperations;
 }
@@ -209,6 +218,10 @@ export async function setupRepository(options: SetupOptions, deps: SetupDependen
 		}
 		await bootstrapHooks(options.repo, options.config.bootstrap.hooks, deps);
 		completed.push("hooks");
+		const onboarding = await applyOnboarding(options.repo, options.config.onboarding, deps);
+		if (onboarding.length >= NONEMPTY) {
+			completed.push("onboarding");
+		}
 		const lockfile = await writeProjectLock(options.repo, deps);
 		completed.push("project_lock");
 		return {
@@ -274,7 +287,7 @@ function applyFlags(defaults: SetupOptions, flags: SetupFlags): SetupOptions {
 		environment: flags.environment ?? defaults.environment,
 		codex: flags.codex ?? defaults.codex,
 		hooks: flags.hooks ?? defaults.hooks,
-		config: configSchema.parse(config),
+		config: configSchema.parse(selectOnboardingConfig(config, flags)),
 	};
 }
 
