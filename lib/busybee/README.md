@@ -15,6 +15,18 @@ busybee --help
 
 The build writes the standalone executable `lib/busybee/dist/busybee`. Installation copies it to `~/.local/bin`; put that directory on `PATH`. Use `install:bin --directory /path/to/bin` for another destination. Workflow definitions remain checkout-owned and must provide their imports. Bee-dispatched workers also require `bee` and an awake Colony; see [Bee-dispatched tasks](#bee-dispatched-tasks).
 
+## Bundled agent guidance
+
+The executable embeds version-matched agent guidance at build time. Read it offline without a source checkout, tracker or runtime configuration:
+
+```sh
+busybee skills list --json
+busybee skills get workflow-execution
+busybee skills file workflow-execution references/authoring.md
+```
+
+The guidance covers execution and definition authoring; the application's instructions and verification policy govern the work. Read `busybee skills --help` for resource and output contracts. Running workflows still requires the dependencies described below.
+
 ## Run a workflow
 
 Use a repository with an existing Beads database. Busy Bee uses the same database as `br`: `--db PATH` overrides `BEADS_DB` and native discovery. `--repo PATH` selects the working checkout independently of database storage.
@@ -70,6 +82,7 @@ Use `busybee --help` for the command flow and global options, then focused help 
 
 | Need                                                  | Help                          |
 | ----------------------------------------------------- | ----------------------------- |
+| Bundled agent guidance                                | `busybee skills --help`       |
 | Creation input                                        | `busybee input-schema --help` |
 | Active task briefs and run status                     | `busybee show --help`         |
 | Outcome choices and payload schemas                   | `busybee discover --help`     |

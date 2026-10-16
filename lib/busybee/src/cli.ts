@@ -1,3 +1,6 @@
+/* eslint-disable import/max-dependencies --
+ * The CLI composes workflow operations and bundled guidance at the command boundary.
+ */
 import { BusyBeeError, installDefaultWorkflow } from "./native.ts";
 import { Command, CommanderError } from "commander";
 import type { Options, Services } from "./native.ts";
@@ -8,6 +11,7 @@ import type { PreflightReport } from "./preflight.ts";
 import type { Source } from "./catalogue.ts";
 import { preflight } from "./preflight.ts";
 import { preview } from "./preview.ts";
+import { readSkills } from "./skills.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Explicit source paths resolve against the invoking directory.
 import { resolve } from "node:path";
 import { version as suiteVersion } from "../package.json";
@@ -202,6 +206,7 @@ function registerCreation(invocation: Invocation): void {
 }
 
 function registerInspection(invocation: Invocation): void {
+	registerSkills(invocation);
 	const { cli, services } = invocation;
 	const options = (): CliOptions => cli.opts<CliOptions>();
 	cli
@@ -259,6 +264,30 @@ function registerInspection(invocation: Invocation): void {
 			const result = await discover(id, options(), services);
 			writeResult(result, invocation, printDiscovery(result));
 		});
+}
+
+function registerSkills(invocation: Invocation): void {
+	invocation.cli
+		.command("skills [action] [name] [path]")
+		.description(
+			"Bundled guidance: list (default), get <name>, file <name> <path>; no repository required",
+		)
+		.addHelpText(
+			"after",
+			"\nList returns names, descriptions and resource paths. Get returns Markdown without " +
+				"frontmatter; file reads a listed resource (SKILL.md returns the same body as get).\n" +
+				"Use --json for skills_list / skills_get envelopes. Unknown actions, missing or " +
+				"unknown names, and missing or unlisted resources fail with a nonzero exit; " +
+				"JSON mode returns an error envelope with reason usage.",
+		)
+		.action(
+			async (action: string | undefined, name: string | undefined, path: string | undefined) => {
+				invocation.kind = "error";
+				const result = await readSkills(action, name, path);
+				invocation.kind = result.payload.kind;
+				writeResult(result.payload, invocation, `${result.readable.trimEnd()}\n`);
+			},
+		);
 }
 
 function registerPreflight(invocation: Invocation): void {

@@ -1,22 +1,21 @@
 ---
 name: operations
-description: Use Colony to inspect scheduling and execution, operate repository colonies, or diagnose stalled Bee requests.
+description: Operate Colony scheduling, diagnose stalled Bee requests and change execution capacity or policy.
 ---
 
-Operate Colony within the application's repository policy and the user's authorized scope. Repository conventions and verification commands remain authoritative. Read `colony --help` and relevant subcommand help before changing runtime state.
+Follow application policy and the user's authorized scope. Read `colony --help` and focused command help before changing runtime state.
 
 ## Select the authority
 
 Keep three selections explicit: `--repo` discovers the canonical repository, `--beads-db` (or `BEADS_DB`) selects native task/request authority, and `--state` selects the server's private runtime state. Use subcommand help for endpoint defaults and socket selection.
 
-The recipe's execution directory is separate from all three. Canonical `.hive/bees.toml` and `.hive/bees/` supply role defaults and policy. Changing kind defaults does not rewrite existing captured recipes; the active formula controls how an attempt invokes its harness.
+The recipe's execution directory is separate from all three. Canonical `.hive/bees.toml` and `.hive/bees/` supply kind defaults and policy.
 
 ## Diagnose before changing state
 
-1. Read `bee status REQUEST --repo REPOSITORY --beads-db DATABASE --json` for native request/task facts. It needs no daemon or configuration and retains timestamped last observations.
-2. Read `colony explain REQUEST --repo REPOSITORY --beads-db DATABASE --state STATE --json` for eligibility, capacity, checkpoint and verified process evidence. It does not wake, claim, reconcile or repair. `ok: true` means the report was produced; inspect unavailable sources and freshness, not just that flag.
-3. Use `colony daemon status --state STATE` or `colony list --state STATE` for the selected running server and colony policy. Use `colony inspect --repo REPOSITORY --beads-db DATABASE --state STATE` for retained attempts and paths. Inspection time is not checkpoint reconciliation time.
-4. For recorded failures, read `colony events --repo REPOSITORY --beads-db DATABASE --state STATE --request REQUEST --failures`. It reads retained private history offline. Historical checkpoints, old observations and closed requests do not establish live process state or successful work.
+1. Use `bee status REQUEST --json` for native request/task facts and timestamped last observations.
+2. Use `colony explain REQUEST --json` with the same repository/tracker and selected server for eligibility, capacity, checkpoint and process evidence. It observes without repairing. Inspect source availability and freshness; `ok: true` only means the report was produced.
+3. Follow `colony inspect --help` for retained attempts and paths, or `colony events --help` for recorded failures. Inspection time is not reconciliation time. Historical records and request closure do not establish live process state or successful work.
 
 ```text
 Evidence
@@ -29,8 +28,8 @@ Evidence
 
 ## Control scheduling deliberately
 
-`colony add` registers a repository without waking its scheduling loop. `colony wake` registers and wakes it, reloads canonical policy, and can start an absent daemon. `--temp` limits activation to that daemon lifetime. Both commands require the intended repository/tracker and server selection.
+Use `colony add --help` to register without scheduling, or `colony wake --help` to activate scheduling and reload canonical policy.
 
-`colony sleep` drains the scheduling pass and pauses polling/reconciliation. `colony remove` removes registration while retaining attempts. `colony daemon stop` stops the selected server. All leave detached workers alive. To cancel a request, use `bee stop REQUEST` while the owning Colony is awake, then verify owned execution has stopped before cleanup. Stopping a workflow driver leaves independent stage workers and the run available for continuation.
+Sleeping a colony, removing its registration or stopping its daemon leaves detached workers alive. To cancel work, follow `bee stop --help` with the owning Colony awake, then verify execution stopped before cleanup. Stopping a workflow driver leaves independent stage workers and the run available for continuation.
 
 Before changing capacity/formulas or recovering failed execution, read [policy and recovery](references/recovery.md) with `colony skills file operations references/recovery.md`.

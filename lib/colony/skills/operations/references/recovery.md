@@ -2,7 +2,7 @@
 
 ## Capacity and execution
 
-All unfinished linked tasks must be ready and available to the request's identity. Native task claims and human/HITL reservations remain authoritative. Requests execute on their captured submission host. A pending request may be waiting, executing, settling or retrying; an old running observation is not a live process check.
+Unfinished linked tasks must be ready and available to the request's identity; preserve native claims and human/HITL reservations. Requests execute on their captured submission host.
 
 Limits apply to the colony, kind and launch location, with named kind overrides. Retained starting/running reservations consume capacity, including detached executions across sleep or registration removal. Waiting workflow drivers also consume ordinary quota; the user must increase relevant limits if they prevent workers from starting. A lower limit does not terminate existing workers. Read `colony explain` diagnostics before changing policy.
 
@@ -12,7 +12,7 @@ Use `colony config show` and `colony config history` with the same repository/tr
 { "kind": "limits", "limits": { "colony": 4, "kind": 2, "kinds": {}, "worktree": 2 } }
 ```
 
-Updates and resets require an awake colony and do not start a daemon. Updates wait for the current pass, preserve captured recipes and affect subsequent launches. `config reset`, a fresh wake or daemon recovery wake reloads canonical configuration; transient overrides do not replace repository policy. History survives resets. Keep the runtime, worker and watchdog companion executables beside the matching installed Colony executable when deploying an authorized update.
+Updates and resets require an awake colony. Updates wait for the current pass and affect subsequent launches. Captured recipes keep their kind defaults; the active formula controls harness invocation. `config reset`, a fresh wake or daemon recovery wake reloads canonical policy, preserving history. Keep matching runtime, worker and watchdog companion executables beside Colony when deploying an authorized update.
 
 ## Recovery evidence
 
@@ -20,6 +20,6 @@ After a tracker or runtime failure, retain the error, request/attempt IDs and co
 
 Automatic attempts keep the same request and friendly identity within policy's finite retry budget. For explicit replacement after resolving the cause, follow `bee retry --help`. Closed task results, other identities and human reservations survive cleanup.
 
-Native task state establishes work completion. A successful process exit alone does not. A submitted `bee finish` report is accepted only after Colony validates it; sleeping defers settlement. Request closure also does not prove a detached worker stopped. Use source/freshness information from `colony explain` and retain uncertainty when ownership or liveness cannot be verified.
+For execution completion and blockers, follow `bee finish --help`. Colony validates reports when awake; sleeping defers settlement. Verify native task acceptance separately from process exit.
 
-Private `colony assessments` reports are advisory evidence about finished executions, not acceptance or authorization to alter application work. Use `--request` for detail and `--source` only when supporting context is needed.
+Read `colony assessments --help` for advisory reports on finished executions; these grant no authority to change application work.
