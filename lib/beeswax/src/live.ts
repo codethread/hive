@@ -17,6 +17,7 @@ import { createBundledSkills } from "./skills.ts";
 import { createNativeBeads } from "@hive/beads";
 import { installArtifacts } from "./artifact-native.ts";
 import { mergeFiles } from "./git/merge.ts";
+import { packRepository } from "./git/pack.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Artifact destinations are resolved at the native boundary.
 import { runSessionStart } from "./beads/hook.ts";
 import { setupBeads } from "./beads/setup.ts";
@@ -164,6 +165,7 @@ export function createLiveDependencies(): Dependencies {
 			merge: (paths) =>
 				mergeFiles(paths, { read: (path) => Bun.file(path).text(), write: io.write }),
 			validate: (repo) => validateStagedSnapshot(repo, io.command),
+			pack: (repo) => packRepository(repo, io.command),
 		},
 	};
 }

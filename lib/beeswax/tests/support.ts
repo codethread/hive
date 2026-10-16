@@ -89,7 +89,7 @@ export function fixture() {
 			automatic: unexpected,
 			sessionStart: unexpected,
 		},
-		git: { merge: unexpected, validate: unexpected },
+		git: { merge: unexpected, validate: unexpected, pack: unexpected },
 	};
 	return { deps, files, commands, output, errors, trackers };
 }

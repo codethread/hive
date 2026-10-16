@@ -55,4 +55,6 @@ Manual recovery takes place in a separate human terminal with tracker writers pa
 
 Keep the permanent tracker out of worktree pools and ordinary finish/remove cleanup. Its database, accepted history and pending work must survive feature checkout deletion.
 
+For explicit Git object packing, see [Pack Git storage](../lib/beeswax/README.md#pack-git-storage).
+
 Follow the [Beeswax project contract](../lib/beeswax/README.md#commit-the-project-contract) for tracker hook setup and migration. Changes to tracked application policy require reviewed, narrowly scoped tooling commits that also exist on main. Do not routinely merge main into the tracker branch: code branches carry no live snapshot. Preserve pending JSONL and the database; finish maintenance commits before publication, which requires changes to be limited to the snapshot.

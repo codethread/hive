@@ -8,6 +8,7 @@ import { integrationSchema, resolveSetup, setupRepository, trackerSchema } from 
 import { isTrackerSnapshot, validateTrackerHook } from "./hooks.ts";
 import type { MergePaths } from "./git/merge.ts";
 import type { MergeResult } from "./git/merge-core.ts";
+import type { PackingResult } from "./git/pack.ts";
 import type { Selection } from "./beads/setup.ts";
 import type { SkillProvider } from "skills-handler";
 import { lockSchema } from "./project.ts";
@@ -52,10 +53,11 @@ export interface Dependencies extends SetupDependencies {
 		automatic: (repo: string, source: string) => Promise<string | undefined>;
 		sessionStart: (input: unknown, file: string) => Promise<void>;
 	};
-	/** Git file-protocol operations use the same implementation as hooks. */
+	/** Native Git operations and the file protocols shared with hooks. */
 	git: {
 		merge: (paths: MergePaths) => Promise<MergeResult>;
 		validate: (repo: string) => Promise<void>;
+		pack: (repo: string) => Promise<PackingResult>;
 	};
 }
 
@@ -189,7 +191,31 @@ function createProgram(
 			]);
 			emit({ ok: true, kind: "artifacts_installed", artifacts });
 		});
-	const git = program.command("git").description("Git's merge and staged-snapshot protocols");
+	const git = program.command("git").description("Git storage and snapshot protocols");
+	git
+		.command("pack")
+		.description("Pack Git objects while preserving recovery history")
+		.addHelpText(
+			"after",
+			"\nSelect a checkout with --repo (default: current directory). In the default layout, packing\n" +
+				"covers its common Git object store, shared by all linked worktrees, including application\n" +
+				"and tracker branches. Inherited native Git environment variables can redirect repository\n" +
+				"and object-directory selection (for example, GIT_DIR and GIT_OBJECT_DIRECTORY).\n" +
+				"BEADS_DB does not select its scope.\n" +
+				"\nRetains reachable and unreachable objects; removes only redundant physical copies.\n" +
+				"No object or reflog expiry, history rewrite, remote access, database operations or backup deletion.\n" +
+				"Keep other repack, gc, prune and maintenance jobs idle until it finishes; this command\n" +
+				"does not lock them out. Allow temporary extra disk space; savings are not guaranteed.\n" +
+				"\nWith --json, the git_packed receipt identifies repository and commonDirectory. commonDirectory\n" +
+				"reports Git's common metadata directory, not the effective object store under redirection.\n" +
+				"The before/after observations contain looseObjects, packedObjects, packs, looseKiB and packedKiB.\n" +
+				"Sizes are reported by Git in KiB, not exact byte savings. Concurrent writes can affect\n" +
+				"observations; before/after is not an atomic snapshot.\n",
+		)
+		.action(async function pack(this: Command) {
+			const result = await deps.git.pack(await checkout(this.optsWithGlobals<Options>(), deps));
+			emit({ ok: true, kind: "git_packed", ...result });
+		});
 	git
 		.command("merge <ancestor> <current> <other>")
 		.description(

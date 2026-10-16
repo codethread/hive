@@ -173,6 +173,50 @@ test("initialization refuses an unprepared canonical HEAD before any setup effec
 	expect(fx.files.size).toBe(EMPTY);
 });
 
+test("git packing selects --repo without tracker selection and emits one focused JSON receipt", async () => {
+	const fx = fixture();
+	const selected: string[] = [];
+	fx.deps.command = async (_argv, cwd) => cwd;
+	fx.deps.git.pack = async (repository) => {
+		selected.push(repository);
+		return {
+			repository,
+			commonDirectory: "/shared/.git",
+			before: { looseObjects: 20, looseKiB: 80, packedObjects: 3, packs: 2, packedKiB: 16 },
+			after: { looseObjects: 0, looseKiB: 0, packedObjects: 23, packs: 1, packedKiB: 12 },
+		};
+	};
+	expect(await runCli(["git", "pack", "--repo", "/linked", "--json"], fx.deps)).toBe(EXIT.success);
+	expect(selected).toEqual(["/linked"]);
+	expect(fx.output).toHaveLength(SINGLE);
+	expect(fx.errors).toEqual([]);
+	expect(JSON.parse(fx.output.join(""))).toMatchObject({
+		ok: true,
+		kind: "git_packed",
+		repository: "/linked",
+		commonDirectory: "/shared/.git",
+	});
+	expect(fx.files.size).toBe(EMPTY);
+});
+
+test("git packing failure preserves its native diagnostics in one JSON document", async () => {
+	const fx = fixture();
+	fx.deps.git.pack = async () => {
+		throw new BeeswaxError("command_failed", "Git repack failed", {
+			context: { command: ["git", "repack"], stderr: "original Git diagnostics" },
+		});
+	};
+	expect(await runCli(["git", "pack", "--json"], fx.deps)).toBe(EXIT.failure);
+	expect(fx.output).toHaveLength(SINGLE);
+	expect(fx.errors).toEqual([]);
+	expect(JSON.parse(fx.output.join(""))).toMatchObject({
+		ok: false,
+		kind: "error",
+		reason: "command_failed",
+		stderr: "original Git diagnostics",
+	});
+});
+
 function preparedHead() {
 	const fx = fixture();
 	fx.files.set("/repo/.worktrees/tracker--state/.husky/pre-commit", hookSection);

@@ -35,6 +35,17 @@ Use `beeswax beads env --json` to inspect the selected tracker. For Hive's publi
 
 Hive's [setup recipe](../../docs/repository-commands.md#setup-and-automation) coordinates installation and local configuration. [CLI artifacts](../tooling/README.md#cli-artifacts) covers build and installation. For release lock refreshes, read `beeswax lock --help`.
 
+## Pack Git storage
+
+Run Git packing explicitly when object storage needs consolidation. Setup, hooks, tracker publication and background scheduling do not invoke it. The standalone executable needs only Git for this command; no setup, `br` or application dependencies are required.
+
+```nu
+beeswax git pack --help
+beeswax git pack --repo . --json
+```
+
+Read the focused help for the preservation contract, shared worktree scope, maintenance precondition and receipt fields.
+
 ## Bundled instructions
 
 Agent setup decisions and conditional migration/publication guidance are available offline, including outside a repository:
