@@ -1,6 +1,6 @@
 ---
 name: operations
-description: Operate Colony scheduling, diagnose stalled Bee requests and change execution capacity or policy.
+description: Configure Bee kinds, operate Colony scheduling, diagnose stalled requests and change execution capacity or policy.
 ---
 
 Follow application policy and the user's authorized scope. Read `colony --help` and focused command help before changing runtime state.
@@ -11,7 +11,9 @@ Keep three selections explicit: `--repo` discovers the canonical repository, `--
 
 The recipe's execution directory is separate from all three. Canonical `.hive/bees.toml` and `.hive/bees/` supply kind defaults and policy.
 
-## Diagnose before changing state
+Before configuring kinds or harness templates, read [kind and harness configuration](references/configuration.md) with `colony skills file operations references/configuration.md`.
+
+## Diagnose stalled execution
 
 1. Use `bee status REQUEST --json` for native request/task facts and timestamped last observations.
 2. Use `colony explain REQUEST --json` with the same repository/tracker and selected server for eligibility, capacity, checkpoint and process evidence. It observes without repairing. Inspect source availability and freshness; `ok: true` only means the report was produced.
@@ -32,4 +34,4 @@ Use `colony add --help` to register without scheduling, or `colony wake --help` 
 
 Sleeping a colony, removing its registration or stopping its daemon leaves detached workers alive. To cancel work, follow `bee stop --help` with the owning Colony awake, then verify execution stopped before cleanup. Stopping a workflow driver leaves independent stage workers and the run available for continuation.
 
-Before changing capacity/formulas or recovering failed execution, read [policy and recovery](references/recovery.md) with `colony skills file operations references/recovery.md`.
+Before changing live capacity/formulas or recovering failed execution, read [policy and recovery](references/recovery.md) with `colony skills file operations references/recovery.md`.

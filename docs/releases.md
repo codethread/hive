@@ -1,6 +1,6 @@
 # Install and release Hive
 
-Hive distributes one versioned archive containing `honeycomb`, `bee`, `colony`, `colony-runtime`, `colony-worker`, `colony-watchdog`, `busybee`, `qlock` and `hive-ui`. Waggle remains a development tool and is excluded from release archives. Every workspace package, including Waggle, shares the suite version. Each distributed executable reports its compiled package version with `--version`.
+Hive distributes one versioned archive containing `beeswax`, `honeycomb`, `bee`, `colony`, `colony-runtime`, `colony-worker`, `colony-watchdog`, `busybee`, `qlock` and `hive-ui`. Waggle remains a development tool and is excluded from release archives. Every workspace package, including Waggle, shares the suite version. Each distributed executable reports its compiled package version with `--version`.
 
 ## Homebrew installation
 
@@ -61,7 +61,7 @@ Build extracts the exact Git commit into temporary source, installs frozen depen
 
 The supported archive matrix is macOS and Linux, each on arm64 and x64, using Bun's `bun-darwin-arm64`, `bun-darwin-x64`, `bun-linux-arm64` and `bun-linux-x64` compiler targets. Linux artifacts use glibc. The release must verify native execution on all advertised platforms; compilation alone does not establish that.
 
-Each archive contains only `bin/` with the nine executables and `release.json` (version, source commit, platform, Bun version and executable list). The output also includes `manifest.json` and `SHA256SUMS`. Formula generation rehashes each archive and rejects an incomplete platform set or a mismatched filename/digest. The generated formula is a real Ruby formula with immutable versioned URLs and actual checksums; no placeholder formula is committed before artifacts exist.
+Each archive contains only `bin/` with the ten executables and `release.json` (version, source commit, platform, Bun version and executable list). The output also includes `manifest.json` and `SHA256SUMS`. Formula generation rehashes each archive and rejects an incomplete platform set or a mismatched filename/digest. The generated formula is a real Ruby formula with immutable versioned URLs and actual checksums; no placeholder formula is committed before artifacts exist.
 
 On each platform, verify checksums, extract outside a checkout, and check every executable's `--version`. Exercise public `--help`, `qlock status --lock` with a disposable lock, Busy Bee discovery/loading of a disposable workflow whose packages are installed, and Hive UI startup plus HTTP delivery of embedded assets using a disposable tracker. Verify Colony resolves the companion executables next to its installed binary. Do not launch the shared production daemon for smoke tests.
 

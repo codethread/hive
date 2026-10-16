@@ -11,6 +11,7 @@ import type { MergeResult } from "./git/merge-core.ts";
 import type { PackingResult } from "./git/pack.ts";
 import type { Selection } from "./beads/setup.ts";
 import type { SkillProvider } from "skills-handler";
+import { addPrime } from "./prime.ts";
 import { lockSchema } from "./project.ts";
 import { version } from "../package.json";
 import { z } from "zod";
@@ -115,6 +116,7 @@ function createProgram(
 			"\nStart: beeswax setup --help. Agent decisions: beeswax skills get repository-setup.\n" +
 				"JSON commands emit one success/error document with silent stderr; help stays text.\n",
 		);
+	addPrime(program, emit);
 	program
 		.command("schema")
 		.description("Print JSON schemas for project configuration, lock and result envelopes")
@@ -286,7 +288,7 @@ function createProgram(
 }
 
 export function setupOptions(command: Command): Command {
-	return command
+	return onboardingOptions(command)
 		.addOption(
 			new Option("--tracker <mode>", "init, bootstrap, adopt or none").choices(
 				trackerSchema.options,
@@ -320,6 +322,25 @@ export function setupOptions(command: Command): Command {
 		.option("-y, --yes", "Accept inferred defaults; never prompt");
 }
 
+export function onboardingOptions(command: Command): Command {
+	return command
+		.option(
+			"--harness <name>",
+			"Repo-local onboarding: claude, codex, pi or none; repeatable",
+			collectOptions,
+		)
+		.option("--include <tool>", "Add guidance to prime's default set; repeatable", collectOptions)
+		.option("--exclude <tool>", "Remove guidance after inclusion; repeatable", collectOptions)
+		.addHelpText(
+			"after",
+			"\nOnboarding adapters are generated only in this repository. Repeat --harness to select several;\n" +
+				"use --harness none alone to remove recognized adapters. Omitted headless options retain saved choices.\n" +
+				"Includes add to prime's defaults; excludes win. See beeswax prime --help for tool names.\n" +
+				"Ambiguous onboarding stops with an agent handoff: beeswax migrate setup.\n" +
+				"Codex requires project trust and /hooks review; Pi requires project trust.\n",
+		);
+}
+
 export async function checkout(options: Options, deps: Dependencies): Promise<string> {
 	return await deps.command(
 		["git", "rev-parse", "--show-toplevel"],
@@ -345,4 +366,8 @@ function describeError(error: unknown) {
 			...failure.context,
 		},
 	};
+}
+
+function collectOptions(value: string, previous: string[] = []): string[] {
+	return [...previous, value];
 }

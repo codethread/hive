@@ -16,13 +16,13 @@ const ORDINARY = null;
 const HELP = `
 Merge queue (instead of --lock):
   qlock exec --merge-target main -w 180 -- honeycomb finish --json
+The child merge command must target the same branch; --merge-target selects only the queue.
 `;
 const EXEC_HELP = `
 Example: wait, timeout, resume
   qlock exec --lock /tmp/check.lock -w 180 -- bun run check
   # Queue wait timeout (-w, not command runtime): exit 75; stderr:
   qlock: Ticket 42 still queued (#2/2); resume with --ticket 42 before --
-
   # Run again with the reported ID (here 42), same queue and command
   qlock exec --lock /tmp/check.lock -w 180 --ticket 42 -- bun run check
 
@@ -99,7 +99,11 @@ function createProgram(
 		.usage("[options] -- <command> [args...]")
 		.argument("<command>", "Executable to run", nonblank)
 		.argument("[args...]", "Arguments passed to the command")
-		.addHelpText("after", EXEC_HELP)
+		.addHelpText(
+			"after",
+			`${EXEC_HELP}A gone ticket exits 3; a queue timeout exits 75 unless --timeout-code overrides it.
+Child exit codes pass through and can overlap these codes; use qlock's diagnostic to distinguish them.`,
+		)
 		.requiredOption(
 			"-w, --wait <seconds>",
 			"Queue wait in whole seconds; -1 waits forever",
@@ -161,7 +165,7 @@ function queueCommand(command: Command): Command {
 		)
 		.option(
 			"--merge-target <branch>",
-			"Use a repository/branch queue instead of --lock",
+			"Use a repository/branch queue instead of --lock; child merge target must match",
 			branchRef,
 		);
 }

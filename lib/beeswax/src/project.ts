@@ -150,7 +150,13 @@ export function requireProjectConfig(lock: ProjectLock, config: ProjectConfig): 
 }
 
 export function digestConfig(config: ProjectConfig): string {
-	return digest(JSON.stringify({ bootstrap: config.bootstrap, hooks: config.hooks }));
+	return digest(
+		JSON.stringify({
+			bootstrap: config.bootstrap,
+			hooks: config.hooks,
+			onboarding: config.onboarding,
+		}),
+	);
 }
 
 // --- Private functions ---

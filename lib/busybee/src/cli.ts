@@ -274,7 +274,7 @@ function registerSkills(invocation: Invocation): void {
 		)
 		.addHelpText(
 			"after",
-			"\nList returns names, descriptions and resource paths. Get returns Markdown without " +
+			"\nList returns names and descriptions; --json also includes resource paths. Get returns Markdown without " +
 				"frontmatter; file reads a listed resource (SKILL.md returns the same body as get).\n" +
 				"Use --json for skills_list / skills_get envelopes. Unknown actions, missing or " +
 				"unknown names, and missing or unlisted resources fail with a nonzero exit; " +

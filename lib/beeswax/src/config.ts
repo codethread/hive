@@ -1,8 +1,11 @@
-import { BeeswaxError, errorMessage } from "./errors.ts";
+import { BeeswaxError, EXIT, errorMessage } from "./errors.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Visible project configuration stays checkout-relative.
 import { isAbsolute, join } from "node:path";
 import { parse, stringify } from "smol-toml";
+import type { OnboardingConfig } from "./onboarding.ts";
 import type { WorkspaceIO } from "./services.ts";
+import { onboardingSchema } from "./onboarding.ts";
+import { renderPrime } from "./prime.ts";
 import { z } from "zod";
 
 const NONEMPTY = 1;
@@ -19,9 +22,19 @@ const hooksSchema = z.strictObject({ pre_commit: pathSchema, pre_merge_commit: p
 export const configSchema = z.strictObject({
 	bootstrap: z.strictObject({ hooks: hookAdapterSchema }),
 	hooks: hooksSchema,
+	onboarding: onboardingSchema.optional(),
 });
 export type ProjectConfig = z.infer<typeof configSchema>;
 export const configPath = ".hive/beeswax/config.toml";
+
+export interface OnboardingFlags {
+	/** Harnesses receiving repository-local onboarding, or none to remove it. */
+	harness?: readonly string[];
+	/** Guidance added to the everyday set. */
+	include?: readonly string[];
+	/** Guidance removed after includes. */
+	exclude?: readonly string[];
+}
 
 /** Pin each actual hook file; Beeswax does not infer an application's hook framework. */
 export async function readProjectConfig(
@@ -76,4 +89,45 @@ export function selectHookConfig(config: ProjectConfig, adapter?: HookAdapter): 
 		({ hooks } = defaultProjectConfig(adapter));
 	}
 	return { ...config, bootstrap: { hooks: adapter }, hooks };
+}
+
+/** Resolve explicit onboarding selections while preserving unspecified project intent. */
+// eslint-disable-next-line max-statements -- Keep selection and usage failures at the CLI boundary.
+export function selectOnboardingConfig(
+	config: ProjectConfig,
+	flags: OnboardingFlags,
+): ProjectConfig {
+	const { onboarding, ...base } = config;
+	const harnesses = [...new Set(flags.harness ?? onboarding?.harnesses)];
+	if (harnesses.includes("none")) {
+		if (harnesses.length !== NONEMPTY) {
+			throw new BeeswaxError("usage", "--harness none cannot be combined with other harnesses.", {
+				exitCode: EXIT.usage,
+			});
+		}
+		return base;
+	}
+	if (harnesses.length < NONEMPTY) {
+		if (flags.include !== undefined || flags.exclude !== undefined) {
+			throw new BeeswaxError(
+				"usage",
+				"Choose an onboarding harness with --harness claude, --harness codex or --harness pi.",
+				{ exitCode: EXIT.usage },
+			);
+		}
+		return base;
+	}
+	const selected = onboardingSchema.safeParse({
+		harnesses,
+		include: flags.include ?? onboarding?.include ?? [],
+		exclude: flags.exclude ?? onboarding?.exclude ?? [],
+	});
+	if (!selected.success) {
+		throw new BeeswaxError("usage", "Unknown onboarding harness. Choose claude, codex or pi.", {
+			exitCode: EXIT.usage,
+		});
+	}
+	const result: OnboardingConfig = selected.data;
+	renderPrime(result);
+	return { ...base, onboarding: result };
 }

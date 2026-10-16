@@ -4,4 +4,6 @@ Restore a contract each checkout can reproduce with `beeswax sync`. Preserve app
 
 Inspect the reported mismatch, `.hive/beeswax/config.toml`, `.hive/beeswax/meta/lock.json`, local receipts and effective Git settings. Establish the intended release and generation using `beeswax schema` and `beeswax update --help`; receipts are observations, not accepted intent.
 
+For `onboarding_ambiguous`, inspect the reported `path`, `observed` and `desired` alongside the saved harness selection. Agree the intended onboarding with the user and resolve unfamiliar commands/options or incomplete/duplicate markers, preserving unrelated settings and code. Recognized JSON entries use a `Beeswax onboarding vN` status message and the supported `beeswax prime` command; Pi owns the section between `// beeswax:begin onboarding vN` and `// beeswax:end onboarding`. Routine recognized version or filter changes are automatic. The handoff concerns ownership that Beeswax cannot establish.
+
 Resolve remaining choices with the user and apply supported CLI operations. For hook changes, follow `beeswax migrate hooks`, accounting for old owned sections before changing the lock. Keep machine paths and actors out of the portable contract. Verify affected behavior and repeat sync with the accepted release; report results and unresolved work.

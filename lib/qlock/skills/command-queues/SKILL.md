@@ -23,7 +23,7 @@ Read `qlock exec --help` for execution and resumption syntax. Use a bounded queu
 
 ## Resume after a wait timeout
 
-Use the qlock diagnostic to distinguish a queue timeout from a child failure: exit codes can overlap. On timeout, resume promptly with the reported ticket, same resolved queue and intended command; the child has not started. Keep that ticket across repeated waits. If qlock reports it gone (exit 3), deliberately rejoin if work remains. Inspect an already-running ticket before attempting more work. `exec --help` owns timeout codes and ticket-expiry details.
+On a reported queue timeout, resume promptly with the ticket, same resolved queue and intended command; the child has not started. Keep that ticket across repeated waits. If qlock reports it gone, deliberately rejoin if work remains. Inspect an already-running ticket before attempting more work. `qlock exec --help` owns exit codes, diagnostics and ticket-expiry details.
 
 ## Inspect without admitting work
 

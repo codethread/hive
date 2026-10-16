@@ -12,6 +12,8 @@ export interface WorkspaceIO {
 	read: (path: string) => Promise<string>;
 	/** Persist a UTF-8 file, creating parent directories. */
 	write: (path: string, contents: string) => Promise<void>;
+	/** Remove a previously accepted, dedicated generated file. */
+	remove: (path: string) => Promise<void>;
 	/** Inspect a path without changing it. */
 	exists: (path: string) => Promise<boolean>;
 	/** List an optional hook directory; missing directories have no entries. */
