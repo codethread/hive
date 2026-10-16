@@ -10,6 +10,7 @@ Agentic tools move too fast to make a mega-tool worth building, but tooling is e
 
 1. Alpha software built for me; no backwards compatibility, not api shims, no migration docs (beyond a changelog).
 2. Solve the happy path and FAIL LOUDLY otherwise. This is not a rust app with all cases covered, it prioritises solving the problem with the least complexity and if not we fail with clear and diagnostics (agents can fix fast)
+3. Hive strives for resumable work with minimal loss, not durable workflows à la Temporal.
 
 ## Scope
 
