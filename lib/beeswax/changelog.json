@@ -1,5 +1,24 @@
 [
 	{
+		"version": "0.6.3",
+		"changes": [
+			{
+				"commit": "b71931e351eaa3bac1d2a2580b6889b2e997322d",
+				"summary": "include Beads and BV in portable task guidance",
+				"body": "`beeswax prime` now includes `br` and `bv` by default. Shared guidance covers tracker identity, system-record filtering, task authority, claims, human reservations, verification and publication checkpoints. Tool-row filters retain this safety baseline. Prime works offline without a source checkout, tracker or installed skill. Release-history pointers remain limited to Hive-owned CLIs.\n\nOptional: read `beeswax prime --help` for defaults and filters. Consolidate repeated safety guidance around one primer loading route while retaining repository-specific policy.",
+				"breaking": [],
+				"adoption": []
+			},
+			{
+				"commit": "b71931e351eaa3bac1d2a2580b6889b2e997322d",
+				"summary": "install a customizable Hive workflow during setup",
+				"body": "Setup offers `--install-workflow-skill` and a default-off wizard choice. It installs only the public `hive` skill for selected Claude Code, Codex or Pi harnesses through `skills@1.7.2`. Installation requires Node >=22.20.0, npm/npx and network access; prime remains offline.\n\nExisting skill destinations stop setup before writes. Installation runs last; failures retain completed setup phases and installer diagnostics for review of partial effects. The opt-in is not saved. Prime, hooks, sync and update never install or refresh the skill.\n\nOptional: read `beeswax setup --help` before adding the flag to an intended setup invocation; `--yes` alone does not opt in. Omit the flag to preserve an existing workflow. Customize and commit installed files, selected links and installer metadata, then verify discovery and trust in each execution checkout. Review upstream replacements manually: the public main-branch skill evolves independently of the executable. Codex and Pi share its canonical project directory.",
+				"breaking": [],
+				"adoption": []
+			}
+		]
+	},
+	{
 		"version": "0.6.2",
 		"changes": []
 	},

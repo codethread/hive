@@ -1,5 +1,17 @@
 [
 	{
+		"version": "0.6.3",
+		"changes": [
+			{
+				"commit": "2c86291aef7ff9b96cfcb71aa9f3961bfc6be211",
+				"summary": "save workflow outcomes before closing stages",
+				"body": "`busybee complete RUN TASK CHOICE` validates and saves the original `{choice,data}`, finishes the checkpoint write and releases its lock before attempting native closure. It supports driver-handled and Bee-dispatched visits and respects Beads acceptance and child gates.\n\nClosure refusal or an unconfirmed closure receipt reports `stage_close_failed` with `resultSaved: true`. Inspect the task, resolve the refusal and retry with the same original choice and data. Matching retries can finish closure or acknowledge an already-closed visit, even after collection. Conflicting or malformed saved results fail, as does a closed visit without saved evidence. Drivers still advance workflows with `busybee collect RUN`.\n\nOptional: use `complete` for ordinary stage completion after satisfying acceptance, child work and required answer delivery. Read `busybee complete --help` for payload options and prerequisites. `record-result` remains available for saving without closure; direct `next` and `choice` submissions still require an active, closed driver-handled visit.",
+				"breaking": [],
+				"adoption": []
+			}
+		]
+	},
+	{
 		"version": "0.6.2",
 		"changes": []
 	},

@@ -1,5 +1,17 @@
 [
 	{
+		"version": "0.6.3",
+		"changes": [
+			{
+				"commit": "2c86291aef7ff9b96cfcb71aa9f3961bfc6be211",
+				"summary": "clarify workflow result notes for stage completion",
+				"body": "`bee response --help` identifies workflow notes as Busy Bee's original `{choice,data}` outcome, covering both `complete` and `record-result`. No adoption action is required.",
+				"breaking": [],
+				"adoption": []
+			}
+		]
+	},
+	{
 		"version": "0.6.2",
 		"changes": []
 	},

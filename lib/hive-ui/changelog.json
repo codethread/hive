@@ -1,5 +1,17 @@
 [
 	{
+		"version": "0.6.3",
+		"changes": [
+			{
+				"commit": "253a7d2eb6b00c5df669c528e3445e8efc94e7c1",
+				"summary": "restore default server startup",
+				"body": "Running `hive-ui` with a configured database or endpoint source starts the\nforeground server again instead of exiting with help. Existing server\noptions work as before; `--help`, `--version` and `changelog` still exit\nwithout starting the server.",
+				"breaking": [],
+				"adoption": []
+			}
+		]
+	},
+	{
 		"version": "0.6.2",
 		"changes": [
 			{
