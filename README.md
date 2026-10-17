@@ -2,6 +2,25 @@
 
 Tools for running coding agents, managing Git worktrees and coordinating Beads work.
 
+## Set up the Hive stack
+
+Install with Homebrew:
+
+```sh
+brew tap codethread/hive https://github.com/codethread/hive.git
+brew install oven-sh/bun/bun dicklesworthstone/tap/br dicklesworthstone/tap/bv codethread/hive/hive
+```
+
+Then, from the repository you want to configure:
+
+```sh
+beeswax setup
+```
+
+See [repository setup](./lib/beeswax/README.md#configure-a-repository) for details, including headless setup and managed workers.
+
+## Tools
+
 | Tool | Use |
 | --- | --- |
 | [Bee and Colony](./lib/colony/README.md) | Submit agent requests through Beads; schedule and supervise their execution |
@@ -13,17 +32,4 @@ Tools for running coding agents, managing Git worktrees and coordinating Beads w
 
 [Hive plugins](./plugins/README.md) provide Git worktree and merge queue guidance for Claude Code, Codex and Pi.
 
-For Homebrew installation, see [installation and releases](./docs/releases.md).
-
-For a new clone:
-
-```sh
-mise trust
-mise run
-```
-
-This installs the tools and bootstraps Beads. See [Beads setup](./docs/beads-integration.md#bootstrap-a-clone) for prerequisites and tracker requirements, then follow a tool guide above.
-
-For individual builds, installation destinations and runtime requirements, see [CLI artifacts](./lib/tooling/README.md#cli-artifacts).
-
-The [documentation index](./docs/README.md) covers architecture, terminology and integration contracts. [Philosophy](./docs/PHILOSOPHY.md) explains the project's scope.
+The [documentation index](./docs/README.md) covers guides and reference material. [Philosophy](./docs/PHILOSOPHY.md) explains the project's scope. To develop Hive, see [Contributing](./CONTRIBUTING.md).

@@ -39,6 +39,7 @@
 
 ## Development and automation
 
+- [Contributing to Hive](../CONTRIBUTING.md) — source-checkout setup and contribution rules.
 - [Repository commands](./repository-commands.md) — task discovery, recipe ownership and setup routes.
 - [Repository tooling](../lib/tooling/README.md) — contract-test selection, timing reports and approved allowances.
 - [Development toolchain](./integrations.md#development-toolchain) — runtime, hooks, environment setup and explicit tracker publication responsibilities.

@@ -14,7 +14,7 @@ brew test codethread/hive/hive
 
 Bun is a build-only dependency. Git, Beads (`br`) and Beads Viewer (`bv`) are required at runtime. Installation and formula tests create neither a tracker nor a service. Keep Colony's five executables together; coordinate active work before deliberately restarting an upgraded Colony daemon.
 
-Machine installation is separate from project setup. Each project supplies its Beads database, Bee configuration, workflow catalogue and workflow module dependencies. Busy Bee embeds Bun but loads trusted workflow modules from the selected checkout. Install that checkout's dependencies before running its workflows. Hive's clone setup is in the [root README](../README.md).
+Machine installation is separate from project setup. Each project supplies its Beads database, Bee configuration, workflow catalogue and workflow module dependencies. Busy Bee embeds Bun but loads trusted workflow modules from the selected checkout. Install that checkout's dependencies before running its workflows. Hive's clone setup is in [Contributing](../CONTRIBUTING.md#set-up-a-source-checkout).
 
 After upgrading, verify `beeswax --version` and run `beeswax update --yes` in each adopting project to refresh its saved contract and onboarding. `beeswax sync` reproduces the existing lock; it does not adopt the new version.
 
