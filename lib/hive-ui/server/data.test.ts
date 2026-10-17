@@ -104,13 +104,15 @@ test("ordinary children cannot open an ancestor workflow", async () => {
 });
 
 test("primary cards and families never hydrate tasks or wait for merge and assignment icons", async () => {
-	const data = createBoardData((_colony, consume) =>
-		consume({
+	const data = createBoardData(async (_colony, consume) => ({
+		stale: false,
+		value: await consume({
+			stale: false,
 			nodes: [{ id: linked.task.id, status: "open", labels: [] }],
 			edges: [],
 			fetchedAt: "2026-10-15T00:00:00Z",
 		}),
-	);
+	}));
 	const beads = {
 		...linked.beads,
 		showMany: () => Promise.reject(new Error("Task detail must remain lazy")),
@@ -183,6 +185,7 @@ test("failed graph validation never seeds the complete-family cache", async () =
 		async (_colony, consume) => {
 			reads++;
 			const value = await consume({
+				stale: false,
 				nodes: [{ id: linked.task.id, status: "open", labels: [] }],
 				edges: [],
 				fetchedAt,
@@ -190,7 +193,7 @@ test("failed graph validation never seeds the complete-family cache", async () =
 			if (fail) {
 				throw new Error("Export changed during hydration");
 			}
-			return value;
+			return { value, stale: false };
 		},
 		() => Date.parse(fetchedAt),
 	);

@@ -2,8 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { WorkflowPreview } from "../contracts.ts";
 import { createInspector } from "@statelyai/sdk/inspect";
-
-const LAST_PATH_SEGMENT = -1;
+import { createWorkflowPublisher } from "./workflow-actors.ts";
 
 /** Publish only the producer's structural projection, never the checkpoint body. */
 export function WorkflowDiagram({
@@ -15,6 +14,8 @@ export function WorkflowDiagram({
 }) {
 	const [notice, setNotice] = useState("Connecting to Stately…");
 	const frame = useRef<HTMLIFrameElement>(null);
+	const connection = useRef<ReturnType<typeof createInspector> | null>(null);
+	const publish = useRef<ReturnType<typeof createWorkflowPublisher> | null>(null);
 	useEffect(() => {
 		const inspector = createInspector({
 			producerId: "hive-preview",
@@ -23,7 +24,6 @@ export function WorkflowDiagram({
 			name: "Hive saved workflow",
 			readOnly: true,
 			bidirectional: false,
-			theme,
 		});
 		inspector.on("loaded", () => {
 			setNotice("Stately connected · saved workflow state");
@@ -31,25 +31,21 @@ export function WorkflowDiagram({
 		inspector.on("error", (error) => {
 			setNotice(`Stately: ${error.message}`);
 		});
-		const ids = new Map(
-			actors.map((actor, index) => [JSON.stringify(actor.path), `actor-${index}`]),
-		);
-		for (const actor of actors) {
-			const parent =
-				actor.path.length === 0
-					? undefined
-					: ids.get(JSON.stringify(actor.path.slice(0, LAST_PATH_SEGMENT)));
-			inspector.actor(ids.get(JSON.stringify(actor.path))!, {
-				machine: actor.machine,
-				snapshot: actor.snapshot,
-				...(parent === undefined ? {} : { parent }),
-			});
-		}
+		connection.current = inspector;
+		publish.current = createWorkflowPublisher(inspector, (id) => {
+			inspector.selectActor(`hive-preview:${id}`);
+		});
 		frame.current!.src = inspector.inspectorUrl!;
 		return () => {
 			inspector.destroy();
 		};
-	}, [actors, theme]);
+	}, []);
+	useEffect(() => {
+		publish.current!(actors);
+	}, [actors]);
+	useEffect(() => {
+		connection.current!.setTheme(theme);
+	}, [theme]);
 	return (
 		<div className="workflow-preview-body">
 			<div className="workflow-preview-toolbar">

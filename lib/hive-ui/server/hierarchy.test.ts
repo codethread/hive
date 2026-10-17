@@ -23,6 +23,7 @@ const rows: SelectedBead[] = [
 	}),
 );
 const graph = {
+	stale: false,
 	nodes: rows,
 	edges: [
 		{ from: "middle", to: "root", type: "parent-child" },
@@ -55,6 +56,7 @@ test("graph discovery batches native rows after finding the complete component",
 		[many[0]!.id],
 		{
 			graph: {
+				stale: false,
 				nodes: many,
 				edges: many
 					.slice(1)
@@ -113,4 +115,14 @@ test.each([
 		"family",
 	).catch((error: unknown) => error);
 	expect(result).toBeInstanceOf(Error);
+});
+
+test("a new seed awaiting export does not hide families already in the stale graph", async () => {
+	const reads = {
+		graph: { ...graph, stale: true },
+		rows: (ids: string[]) => Promise.resolve(rows.filter((row) => ids.includes(row.id))),
+	};
+	const family = await readHierarchy(["new", "selected"], reads, "family");
+	expect(family.map(({ bead }) => bead.id).toSorted()).toEqual(["middle", "root", "selected"]);
+	expect(await readHierarchy(["new"], reads, "descendants")).toEqual([]);
 });

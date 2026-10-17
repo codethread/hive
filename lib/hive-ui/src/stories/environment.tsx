@@ -22,6 +22,7 @@ import {
 	outlines,
 	preferences,
 	provenance,
+	workflowSelection,
 	workflows,
 } from "../data.ts";
 import { createContext, useContext, useEffect, useState } from "react";
@@ -29,6 +30,7 @@ import { ActivityClock } from "../activity-clock.tsx";
 import type { Navigation } from "../../contracts.ts";
 import type { ReactNode } from "react";
 import { Shell } from "../work-page.tsx";
+import { WorkflowDialog } from "../workflow-preview.tsx";
 import { columnOrders } from "../column-settings.tsx";
 import { loadGraph } from "../graph-loader.ts";
 import { navigationSchema } from "../../contracts.ts";
@@ -79,6 +81,7 @@ export function resetStoryState(): void {
 	inventories.store.setState({ entries: {} });
 	outlines.store.setState({ entries: {} });
 	workflows.store.setState({ entries: {} });
+	workflowSelection.setState({ kind: "closed" }, true);
 	provenance.store.setState({ entries: {} });
 	preferences.setState({
 		showWorkflowBeads: false,
@@ -92,6 +95,15 @@ export function resetStoryState(): void {
 	localStorage.removeItem("hive-ui.saved-views");
 }
 
+function StoryShell() {
+	return (
+		<>
+			<Outlet />
+			<WorkflowDialog />
+		</>
+	);
+}
+
 function StoryRoute() {
 	return useContext(StoryContent);
 }
@@ -99,7 +111,7 @@ function StoryRoute() {
 function storyRouter(navigation: Partial<Navigation> | undefined, shell: boolean) {
 	const initial = navigationSchema.parse({ view: "beads", ...navigation });
 	let initialLoad = true;
-	const root = createRootRoute({ component: shell ? Shell : Outlet, loader: loadColonies });
+	const root = createRootRoute({ component: shell ? Shell : StoryShell, loader: loadColonies });
 	const route = createRoute({
 		getParentRoute: () => root,
 		path: "/colonies/$colonyId",

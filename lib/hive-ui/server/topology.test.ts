@@ -20,10 +20,12 @@ const output = {
 	source_kind: "jsonl_local",
 	source_authority: {
 		state: "complete",
+		loaded: 1,
+		failed: 0,
 		errors: 0,
 		read_errors: 0,
 		skipped: 0,
-		sources: [{ stale: false }],
+		sources: [{ stale: false, status: "loaded" }],
 	},
 	nodes: 1,
 	edges: 0,
@@ -32,7 +34,8 @@ const output = {
 
 test("graph reads pin the native-selected export and retain the source observation", async () => {
 	const fixture = readerFixture([healthy, healthy], output);
-	const graph = await fixture.reader(colony, (value) => Promise.resolve(value));
+	const { value: graph, stale } = await fixture.reader(colony, (value) => Promise.resolve(value));
+	expect(stale).toBe(false);
 	expect(graph.nodes).toEqual([{ id: "root", status: "closed", labels: [] }]);
 	expect(graph.edges).toEqual([]);
 	expect(fixture.calls).toEqual([["bv", "--db", path, "--robot-graph", "--graph-format=json"]]);
@@ -47,12 +50,8 @@ test("graph reads pin the native-selected export and retain the source observati
 });
 
 test.each([
-	{ dirty_count: 1 },
-	{ db_newer: true },
-	{ jsonl_newer: true },
 	{ jsonl_exists: false },
 	{ jsonl_content_hash: null },
-	{ coverage_drift: true },
 	{ workspace_health: "unhealthy" },
 ])("unavailable native export rejects before graph consumption: %j", async (change) => {
 	const fixture = readerFixture([{ ...healthy, ...change }], output);
@@ -62,27 +61,61 @@ test.each([
 });
 
 test.each([
+	{ dirty_count: 1 },
+	{ db_newer: true },
+	{ jsonl_newer: true },
+	{ coverage_drift: true },
+	{ db_newer: true, dirty_count: 1, workspace_health: "degraded" },
+])("export lag still consumes the readable graph: %j", async (change) => {
+	const fixture = readerFixture([{ ...healthy, ...change }, healthy], output);
+	const result = await fixture.reader(colony, consumeGraph);
+	expect(result.stale).toBe(true);
+	expect(result.value.stale).toBe(true);
+	expect(result.value.nodes.map((node) => node.id)).toEqual(["root"]);
+});
+
+test("BV stale-only authority remains readable without admitting dropped records", async () => {
+	const payload = {
+		...output,
+		source_authority: {
+			...output.source_authority,
+			state: "partial",
+			sources: [{ stale: true, status: "loaded" }],
+		},
+	};
+	const fixture = readerFixture([healthy, healthy], payload);
+	const result = await fixture.reader(colony, consumeGraph);
+	expect(result.stale).toBe(true);
+	const incomplete = readerFixture([healthy], {
+		...payload,
+		source_authority: { ...payload.source_authority, skipped: 1 },
+	});
+	const failure = await incomplete.reader(colony, consumeGraph).catch((error: unknown) => error);
+	expect(failure).toBeInstanceOf(Error);
+});
+
+test.each([
 	{ ...healthy, jsonl_content_hash: "changed" },
 	{ ...healthy, dirty_count: 1, db_newer: true },
-])("a source change during row hydration rejects its result: %j", async (after) => {
+	{ ...healthy, jsonl_newer: true },
+	{ ...healthy, coverage_drift: true },
+])("a source change during row hydration returns usable stale data: %j", async (after) => {
 	const fixture = readerFixture([healthy, after], output);
 	let consumed = false;
 	const value = Promise.resolve("rows");
-	const result = await fixture
-		.reader(colony, () => {
-			consumed = true;
-			return value;
-		})
-		.catch((error: unknown) => error);
+	const result = await fixture.reader(colony, () => {
+		consumed = true;
+		return value;
+	});
 	expect(consumed).toBe(true);
-	expect(result).toBeInstanceOf(Error);
+	expect(result).toEqual({ value: "rows", stale: true });
 });
 
 test.each([
 	{ ...output, source_path: "/different.jsonl" },
 	{ ...output, source_kind: "sqlite" },
 	{ ...output, source_authority: { ...output.source_authority, state: "partial", errors: 1 } },
-	{ ...output, source_authority: { ...output.source_authority, sources: [{ stale: true }] } },
+	{ ...output, source_authority: { ...output.source_authority, failed: 1 } },
 	{
 		...output,
 		edges: 1,

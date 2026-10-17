@@ -196,6 +196,8 @@ export const cardAnnotationsSchema = z.object({
 });
 export type CardAnnotations = z.infer<typeof cardAnnotationsSchema>;
 export const hierarchySchema = z.object({
+	/** Exported membership may be stale even when native card fields are current. */
+	stale: z.boolean(),
 	/** Full summaries in the requested native parent-child branches, including closed beads. */
 	nodes: z.array(
 		cardSchema.extend({

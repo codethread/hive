@@ -1,4 +1,4 @@
-import { BeeAssignment, ResourceNotice, time } from "./ui.tsx";
+import { BeeAssignment, HierarchyNotice, ResourceNotice, time } from "./ui.tsx";
 import {
 	EMPTY,
 	annotateHierarchy,
@@ -37,7 +37,7 @@ export function BeadOutline({ colonyId, id }: { colonyId: string; id: string }) 
 			>
 				← Back to board
 			</Link>
-			<ResourceNotice resource={resource} />
+			<HierarchyNotice resource={resource} />
 			<ResourceNotice
 				resource={annotationStatus(
 					colonyId,

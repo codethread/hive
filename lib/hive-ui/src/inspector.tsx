@@ -1,6 +1,14 @@
 import type { Bee, Detail, Provenance, Relation } from "../contracts.ts";
 /* eslint-disable import/max-dependencies -- The inspector composes task resources and their metadata presentation. */
-import { BeeAssignment, Label, OutlineLink, ResourceNotice, outcomeName, time } from "./ui.tsx";
+import {
+	BeeAssignment,
+	HierarchyNotice,
+	Label,
+	OutlineLink,
+	ResourceNotice,
+	outcomeName,
+	time,
+} from "./ui.tsx";
 import {
 	EMPTY,
 	annotateCards,
@@ -48,7 +56,8 @@ export function Inspector({ colonyId, id }: { colonyId: string; id: string }) {
 	);
 	const hierarchy = annotateHierarchy(snapshot(hierarchyResource), colonyId, annotationEntries);
 	const isMerge = detail?.card.labels.includes("merge") === true;
-	const showOutline = !isMerge && (hierarchy === null || hasHierarchy(hierarchy, id));
+	const showOutline =
+		!isMerge && (hierarchy === null || hierarchy.stale || hasHierarchy(hierarchy, id));
 	const navigate = useNavigate({ from: "/colonies/$colonyId" });
 	const dialogRef = useRef<HTMLDialogElement>(null);
 	const closeRef = useRef<HTMLButtonElement>(null);
@@ -247,7 +256,7 @@ export function Inspector({ colonyId, id }: { colonyId: string; id: string }) {
 					</TabsContent>
 					{showOutline && (
 						<TabsContent value="outline" forceMount className="inspector-hierarchy">
-							<ResourceNotice resource={hierarchyResource} label="Outline" />
+							<HierarchyNotice resource={hierarchyResource} />
 							<ResourceNotice
 								resource={annotationStatus(
 									colonyId,

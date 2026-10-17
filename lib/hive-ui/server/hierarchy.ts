@@ -45,7 +45,11 @@ export async function readHierarchy(
 	direction: "family" | "descendants",
 ): Promise<HierarchyRecord[]> {
 	const index = indexGraph(graph);
-	const members = familyMembers(ids, index, direction);
+	let seeds = ids;
+	if (graph.stale) {
+		seeds = ids.filter((id) => index.nodes.has(id));
+	}
+	const members = familyMembers(seeds, index, direction);
 	const records: HierarchyRecord[] = [];
 	/* eslint-disable no-await-in-loop -- Bounded native batches hydrate the discovered component. */
 	for (let offset = 0; offset < members.length; offset += READ_BATCH) {

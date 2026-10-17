@@ -45,7 +45,7 @@ test.each([
 		root,
 		...statuses.map((status, index) => makeNode(`child-${index}`, status, [root.id])),
 	];
-	const hierarchy = { nodes, fetchedAt: root.updatedAt };
+	const hierarchy = { nodes, stale: false, fetchedAt: root.updatedAt };
 	const [family] = boardFamilies(board([nodes[1]!]), hierarchy);
 	expect(family!.layout).toBe(expected);
 	expect(family!.visible.map(({ node }) => node.id)).toEqual(["child-0"]);
@@ -57,6 +57,7 @@ test("current card status controls both family layout and native lane placement"
 	const current = { ...child, status: "in_review" };
 	const [family] = boardFamilies(board([root, current]), {
 		nodes: [root, child],
+		stale: false,
 		fetchedAt: root.updatedAt,
 	});
 	expect(family!.layout).toBe("swimlane");
@@ -71,7 +72,7 @@ test.each([
 	const root = makeNode("hv-ezgh1", "in_progress");
 	const child = makeNode("hv-ezgh1.9.1", "blocked");
 	const nodes = [child, root, ...middle];
-	const hierarchy = { nodes, fetchedAt: root.updatedAt };
+	const hierarchy = { nodes, stale: false, fetchedAt: root.updatedAt };
 	const families = boardFamilies(board([child, root]), hierarchy);
 	expect(
 		families.map((family) => ({
@@ -103,7 +104,7 @@ test("board grouping respects ID segment boundaries and retains non-dotted nativ
 	const native = makeNode("hv-other", "open", [nested.id]);
 	const separate = makeNode("hv-work.10", "open");
 	const nodes = [root, nested, native, separate];
-	const families = boardFamilies(board(nodes), { nodes, fetchedAt: root.updatedAt });
+	const families = boardFamilies(board(nodes), { nodes, stale: false, fetchedAt: root.updatedAt });
 	expect(families.map((family) => family.visible.map(({ node }) => node.id))).toEqual([
 		[root.id, nested.id, native.id],
 		[separate.id],
@@ -117,7 +118,11 @@ test("dotted bridges through non-root members join whole native families transit
 	const nested = makeNode("hv-nested", "closed", [branch.id]);
 	const leaf = makeNode("hv-nested.3", "blocked");
 	const nodes = [leaf, nested, branch, middle, root];
-	const families = boardFamilies(board([root, leaf]), { nodes, fetchedAt: root.updatedAt });
+	const families = boardFamilies(board([root, leaf]), {
+		nodes,
+		stale: false,
+		fetchedAt: root.updatedAt,
+	});
 	expect(
 		families.map((family) => ({
 			root: family.root.id,
@@ -169,7 +174,7 @@ test.each([
 	if (!loaded) {
 		nodes = nodes.filter((node) => node.id !== "hv-scope" && node.id !== "hv-work");
 	}
-	const hierarchy = { nodes, fetchedAt: nodes[0]!.updatedAt };
+	const hierarchy = { nodes, stale: false, fetchedAt: nodes[0]!.updatedAt };
 	const families = boardFamilies(board(nodes), hierarchy);
 	expect(families.map((family) => family.rows.map(({ node, depth }) => [node.id, depth]))).toEqual(
 		expected.map((family) => family.map((row) => [...row])),
@@ -188,7 +193,7 @@ test("native shared children and rootless components appear once without truncat
 		makeNode("cycle-a", "open", ["cycle-b"]),
 		makeNode("cycle-b", "open", ["cycle-a"]),
 	];
-	const hierarchy: Hierarchy = { nodes, fetchedAt: nodes[0]!.updatedAt };
+	const hierarchy: Hierarchy = { nodes, stale: false, fetchedAt: nodes[0]!.updatedAt };
 	const families = beadFamilies(hierarchy);
 	expect(families).toHaveLength(COMPONENT_COUNT);
 	expect(families.flatMap((family) => family.rows.map(({ node }) => node.id)).toSorted()).toEqual(
@@ -208,7 +213,7 @@ test("outline closed visibility preserves selected beads and native paths to act
 		makeNode("closed", "closed", ["root"]),
 		makeNode("deleted", "tombstone", ["root"]),
 	];
-	const hierarchy = { nodes, fetchedAt: nodes[0]!.updatedAt };
+	const hierarchy = { nodes, stale: false, fetchedAt: nodes[0]!.updatedAt };
 	expect(outlineHierarchy(hierarchy, false, "root").nodes.map((node) => node.id)).toEqual([
 		"root",
 		"parent",
@@ -233,7 +238,9 @@ test.each([
 		expected: true,
 	},
 ])("inspector outline availability uses native relationships: $name", ({ nodes, expected }) => {
-	expect(hasHierarchy({ nodes: [...nodes], fetchedAt: nodes[0].updatedAt }, "bead")).toBe(expected);
+	expect(
+		hasHierarchy({ nodes: [...nodes], stale: false, fetchedAt: nodes[0].updatedAt }, "bead"),
+	).toBe(expected);
 });
 
 const RAIL_SUBCARD_COUNT = 3;

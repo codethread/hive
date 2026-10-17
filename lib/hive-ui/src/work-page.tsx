@@ -16,6 +16,7 @@ import {
 	preferences,
 	snapshot,
 } from "./data.ts";
+import { HierarchyNotice, ResourceNotice, time } from "./ui.tsx";
 import { Link, Outlet, useNavigate, useParams, useSearch } from "@tanstack/react-router";
 import {
 	PAGE_SIZE,
@@ -26,7 +27,6 @@ import {
 	inventoryKey,
 	navigationSchema,
 } from "../contracts.ts";
-import { ResourceNotice, time } from "./ui.tsx";
 import { BeadBoard } from "./bead-board.tsx";
 import { BeadOutline } from "./bead-outline.tsx";
 import { BeeWorkspace } from "./bee-workspace.tsx";
@@ -35,6 +35,8 @@ import { FilterWorkspace } from "./filter-drawer.tsx";
 import { HeaderSearch } from "./board-search.tsx";
 import { Inspector } from "./inspector.tsx";
 import type { Navigation } from "../contracts.ts";
+import { WorkflowDialog } from "./workflow-preview.tsx";
+import { useLiveRefresh } from "./use-live-refresh.ts";
 import { useStore } from "zustand";
 
 export function Shell() {
@@ -98,6 +100,7 @@ export function Shell() {
 			</header>
 			<ResourceNotice resource={resource} />
 			<Outlet />
+			<WorkflowDialog />
 		</div>
 	);
 }
@@ -111,6 +114,7 @@ export function WorkPage() {
 	const showWorkflowBeads = useStore(preferences, (state) => state.showWorkflowBeads);
 	const { colonyId } = useParams({ from: "/colonies/$colonyId" });
 	const search = useSearch({ from: "/colonies/$colonyId" });
+	useLiveRefresh(() => loadView(colonyId, search, true));
 	const filter = boardFilterSchema.parse(search);
 	const key = boardKey(colonyId, filter);
 	const resource = useStore(boards.store, (state) => state.entries[key] ?? EMPTY);
@@ -206,7 +210,7 @@ export function WorkPage() {
 							{search.outline === undefined ? (
 								board && (
 									<>
-										<ResourceNotice resource={hierarchyResource} label="Hierarchy" />
+										<HierarchyNotice resource={hierarchyResource} />
 										<ResourceNotice
 											resource={annotationStatus(
 												colonyId,

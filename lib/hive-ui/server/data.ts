@@ -144,7 +144,7 @@ export function createBoardData(readTopology: ReadTopology, now: () => number = 
 		{ direction, refreshAfter }: { direction: "family" | "descendants"; refreshAfter: number },
 	): Promise<Hierarchy> => {
 		if (ids.length === 0) {
-			return { nodes: [], fetchedAt: new Date().toISOString() };
+			return { nodes: [], fetchedAt: new Date().toISOString(), stale: false };
 		}
 		const colony = context.colony.id;
 		const active = pendingBranches.get(colony);
@@ -168,6 +168,7 @@ export function createBoardData(readTopology: ReadTopology, now: () => number = 
 			const value = {
 				nodes,
 				fetchedAt: cached.map((entry) => entry!.value.fetchedAt).toSorted()[0]!,
+				stale: cached.some((entry) => entry!.value.stale),
 			};
 			if (direction === "descendants") {
 				value.nodes = branchRows(
@@ -194,7 +195,7 @@ export function createBoardData(readTopology: ReadTopology, now: () => number = 
 			}
 			if (direction === "family") {
 				for (const family of beadFamilies(value)) {
-					const branch = { nodes: family.rows.map(({ node }) => node), fetchedAt: value.fetchedAt };
+					const branch = { ...value, nodes: family.rows.map(({ node }) => node) };
 					for (const node of branch.nodes) {
 						branches.set(`${colony}/${node.id}`, { startedAt, value: branch });
 					}
@@ -205,12 +206,12 @@ export function createBoardData(readTopology: ReadTopology, now: () => number = 
 			pendingBranches.delete(colony);
 		}
 	};
-	const readBranch = (
+	const readBranch = async (
 		context: ReadContext,
 		ids: string[],
 		{ direction, refreshAfter }: { direction: "family" | "descendants"; refreshAfter: number },
-	): Promise<Hierarchy> =>
-		readTopology(context.colony, async (graph) => {
+	): Promise<Hierarchy> => {
+		const result = await readTopology(context.colony, async (graph) => {
 			const records = await readHierarchy(
 				ids,
 				{
@@ -256,6 +257,8 @@ export function createBoardData(readTopology: ReadTopology, now: () => number = 
 				fetchedAt: graph.fetchedAt,
 			};
 		});
+		return { ...result.value, stale: result.stale };
+	};
 	return {
 		board: async (
 			context: ReadContext,
