@@ -4,8 +4,8 @@
 class Hive < Formula
   desc "Coding agent tools: worktrees, workflows, workers and a local work board"
   homepage "https://github.com/codethread/hive"
-  url "https://github.com/codethread/hive/archive/refs/tags/v0.6.2.tar.gz"
-  sha256 "622a5a049d2f7b56e0c1aaa2bd056eee697453cab1dd5a98586749d5f82b14d6"
+  url "https://github.com/codethread/hive/archive/refs/tags/v0.6.3.tar.gz"
+  sha256 "6c6a04c53a270ead308423208a59927594934d30aed276e2b7df7f110386cd2b"
 
   depends_on "oven-sh/bun/bun" => :build
   depends_on "dicklesworthstone/tap/br"
