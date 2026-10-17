@@ -113,6 +113,15 @@ export async function setupWizard(flags: SetupFlags, defaults: SetupOptions): Pr
 			);
 	}
 	Object.assign(selected, await onboardingWizard(flags, defaults.config.onboarding));
+	selected.installWorkflowSkill =
+		flags.installWorkflowSkill ??
+		take(
+			await confirm({
+				message:
+					"Install the optional hive workflow skill? Requires Node >=22.20.0, npm/npx and network.",
+				initialValue: false,
+			}),
+		);
 	outro("Applying repository setup");
 	return selected;
 }

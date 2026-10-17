@@ -12,6 +12,13 @@ await writeProjectLock(root, template.deps);
 // eslint-disable-next-line max-statements -- Exercise one selection through update, refresh and removal.
 test("update selects harnesses, sync refreshes recognizable entries and deselection keeps user settings", async () => {
 	const fx = fixture();
+	const execute = fx.deps.exec;
+	const childCommands: string[] = [];
+	fx.deps.exec = (argv, cwd) => {
+		childCommands.push(argv.join(" "));
+		return execute(argv, cwd);
+	};
+	fx.files.set(`${root}/.agents/skills/hive/SKILL.md`, "custom workflow");
 	for (const [path, contents] of template.files) {
 		fx.files.set(path, contents);
 	}
@@ -30,4 +37,6 @@ test("update selects harnesses, sync refreshes recognizable entries and deselect
 		fx.deps,
 	);
 	expect(fx.files.get(path)).not.toContain("Beeswax onboarding");
+	expect(fx.files.get(`${root}/.agents/skills/hive/SKILL.md`)).toBe("custom workflow");
+	expect(childCommands.some((command) => command.startsWith("npx "))).toBe(false);
 });

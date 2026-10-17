@@ -3,7 +3,7 @@ import type { Command } from "commander";
 
 // Public tool concepts from package bins, release artifacts and docs/architecture.md.
 // Runtime, worker and watchdog executables belong to Colony's operations guidance.
-const tools = [
+const hiveTools = [
 	{
 		name: "honeycomb",
 		everyday: true,
@@ -54,6 +54,22 @@ const tools = [
 	},
 ] as const;
 
+const tools = [
+	{
+		name: "br",
+		everyday: true,
+		guidance: "Read and update Beads work records.",
+		instructions: "br --help",
+	},
+	{
+		name: "bv",
+		everyday: true,
+		guidance: "Explore dependencies and prioritize work.",
+		instructions: "bv --help",
+	},
+	...hiveTools,
+] as const;
+
 interface PrimeOptions {
 	/** Optional tool guidance added to the everyday set. */
 	include: readonly string[];
@@ -70,9 +86,10 @@ export function addPrime(program: Command, emit: (value: object, text?: string) 
 		.option("--exclude <tool>", "Remove a tool after inclusion; repeatable", collect, [])
 		.addHelpText(
 			"after",
-			"\nDefaults: honeycomb, busybee, bee, qlock. Includes add; excludes win.\n" +
+			"\nDefaults: br, bv, honeycomb, busybee, bee, qlock. Includes add; excludes win.\n" +
 				`Tools: ${tools.map((tool) => tool.name).join(", ")}.\n` +
 				"Rows keep the listed order; repeated names add no rows. Unknown names are usage errors.\n" +
+				"Include/exclude filter tool rows only; shared safety guidance always remains.\n" +
 				"Examples: beeswax prime --include colony --include beeswax\n" +
 				"          beeswax prime --exclude bee --exclude busybee\n" +
 				"With --json, returns a prime document containing the same onboarding text.\n",
@@ -104,7 +121,16 @@ export function renderPrime(options: PrimeOptions): string {
 	return [
 		"This repository uses Hive. Follow these conventions:",
 		"Read a tool's instructions when its task applies; use its --help for command options.",
-		"After upgrading, read <tool> changelog for breaking changes and adoption actions.",
+		"After upgrading Hive-owned CLIs, read <tool> changelog for breaking changes and adoption actions. " +
+			"This release-history command excludes external br/bv.",
+		"",
+		"Preserve supplied BEADS_DB and actor identity. " +
+			"Native Beads owns tasks, assignments and readiness; BV is advisory.",
+		"Exclude automation-owned system beads from ordinary queries: " +
+			"br search/list/ready use --exclude-label system; BV uses bv --recipe work --robot-triage.",
+		"Inspect, claim available work, perform it, verify acceptance and close with evidence. " +
+			"Preserve other assignees and human/HITL reservations.",
+		"Publish tracker changes at repository-defined checkpoints; code pushes require separate authorization.",
 		"",
 		"| Tool | When to use it | Instructions |",
 		"| --- | --- | --- |",
@@ -125,7 +151,7 @@ export function updateChangelogs(
 	return {
 		previousVersion,
 		installedVersion,
-		commands: tools
+		commands: hiveTools
 			.filter((tool) => commandAvailable(tool.name))
 			.map((tool) => `${tool.name} changelog${selector}`),
 	};

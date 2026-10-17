@@ -198,7 +198,11 @@ or search local checkouts.
 	setupOptions(
 		program
 			.command("setup")
-			.description("Configure a repository through a wizard or explicit flags"),
+			.description("Configure a repository through a wizard or explicit flags")
+			.option(
+				"--install-workflow-skill",
+				"Install the optional hive skill for selected harnesses; see prerequisites below",
+			),
 	)
 		.addHelpText(
 			"after",
@@ -220,7 +224,16 @@ or search local checkouts.
 				"effective Honeycomb policy and next actions; execution remains not_verified. Review those\n" +
 				"actions through beeswax skills get repository-setup before declaring onboarding complete.\n" +
 				"Failures retain completed phases and any trackerEffects, including observed checkout/database\n" +
-				"artifacts. Inspect these and the reported next action before retrying; setup is not rolled back.\n",
+				"artifacts. Inspect these and the reported next action before retrying; setup is not rolled back.\n" +
+				"\nWorkflow skill: --install-workflow-skill opts in for this setup only; --yes alone does not.\n" +
+				"Requires Node >=22.20.0, npm/npx and network access. Uses skills@1.7.2 and the resolved\n" +
+				"--harness selection: claude maps to claude-code; codex and pi keep their names.\n" +
+				"Source: https://github.com/codethread/hive/tree/main/skills/hive (only skill hive).\n" +
+				"Before setup writes, any entry at .agents/skills/hive or the selected Claude target\n" +
+				".claude/skills/hive stops installation. Omit the flag to retain it; review updates manually.\n" +
+				"Installation runs last. Its receipt confirms installer results and observed paths, not harness\n" +
+				"loading. On failure, inspect installer diagnostics and possible partial files before retrying.\n" +
+				"The install request is not saved; prime, hooks, sync and update never install or update the skill.\n",
 		)
 		.action(async function setup(this: Command) {
 			const options = await resolveSetup(

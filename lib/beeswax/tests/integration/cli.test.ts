@@ -85,6 +85,107 @@ test("headless setup with no known tracker asks for a concrete flag before write
 	});
 });
 
+test("workflow skill installation requires harnesses and preserves existing content before setup writes", async () => {
+	const fx = fixture();
+	expect(
+		await runCli(["setup", "--tracker", "none", "--install-workflow-skill", "--json"], fx.deps),
+	).toBe(EXIT.usage);
+	expect(fx.files.size).toBe(EMPTY);
+	fx.output.length = EMPTY;
+	fx.files.set("/repo/.agents/skills/hive/SKILL.md", "custom workflow");
+	fx.deps.list = async () => ["hive"];
+	const before = new Map(fx.files);
+	expect(
+		await runCli(
+			["setup", "--tracker", "none", "--harness", "codex", "--install-workflow-skill", "--json"],
+			fx.deps,
+		),
+	).toBe(EXIT.failure);
+	expect(fx.files).toEqual(before);
+	expect(JSON.parse(fx.output.join(""))).toMatchObject({
+		ok: false,
+		cause: "workflow_skill_exists",
+		completed: [],
+	});
+});
+
+test.each([false, true])(
+	"setup skill installation is explicit even with --yes and harnesses: %j",
+	// eslint-disable-next-line max-statements -- Verify invocation, receipt and nonpersistent setup intent together.
+	async (install) => {
+		const fx = fixture();
+		const installers: string[][] = [];
+		const installFlags: string[] = [];
+		if (install) {
+			installFlags.push("--install-workflow-skill");
+		}
+		fx.deps.list = async (path) => {
+			if (fx.files.has(`${path}/hive/SKILL.md`)) {
+				return ["hive"];
+			}
+			return [];
+		};
+		fx.deps.exec = async (argv) => {
+			if (argv.at(EMPTY) === "npx") {
+				installers.push([...argv]);
+				fx.files.set("/repo/.agents/skills/hive/SKILL.md", "installed workflow");
+				return {
+					exitCode: 0,
+					stdout: JSON.stringify([
+						{
+							name: "hive",
+							status: "installed",
+							scope: "project",
+							agents: ["Codex"],
+							path: "/repo/.agents/skills/hive",
+						},
+					]),
+					stderr: "progress",
+				};
+			}
+			return { exitCode: 1, stdout: "", stderr: "" };
+		};
+		expect(
+			await runCli(
+				["setup", "--tracker", "none", "--harness", "codex", "--yes", "--json", ...installFlags],
+				fx.deps,
+			),
+		).toBe(EXIT.success);
+		expect(installers).toHaveLength(Number(install));
+		expect(fx.output).toHaveLength(SINGLE);
+		expect(fx.errors).toEqual([]);
+		const receipt = JSON.parse(fx.output.join(""));
+		expect(receipt.completed.includes("workflow_skill")).toBe(install);
+		expect(fx.files.get("/repo/.hive/beeswax/config.toml")).not.toContain("install_workflow");
+		expect(fx.files.get("/repo/.hive/beeswax/meta/lock.json")).not.toContain("workflowSkill");
+	},
+);
+
+test("installer failure keeps setup phases and partial effects in one JSON receipt", async () => {
+	const fx = fixture();
+	const execute = fx.deps.exec;
+	fx.deps.exec = async (argv, cwd) => {
+		if (argv.at(EMPTY) === "npx") {
+			return { exitCode: 1, stdout: "[]", stderr: "child failed" };
+		}
+		return execute(argv, cwd);
+	};
+	expect(
+		await runCli(
+			["setup", "--tracker", "none", "--harness", "codex", "--install-workflow-skill", "--json"],
+			fx.deps,
+		),
+	).toBe(EXIT.failure);
+	expect(fx.output).toHaveLength(SINGLE);
+	expect(fx.errors).toEqual([]);
+	expect(JSON.parse(fx.output.join(""))).toMatchObject({
+		ok: false,
+		cause: "workflow_skill_failed",
+		completed: expect.arrayContaining(["project_lock"]),
+		installer: { exitCode: 1, stderr: "child failed", effects: "unknown" },
+	});
+});
+
 test("existing endpoint is adopted by default without creating tracker history", async () => {
 	const fx = fixture();
 	fx.deps.context.beadsDb = "/custom/.beads/beads.db";

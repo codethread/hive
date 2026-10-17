@@ -14,6 +14,11 @@ import {
 import { installHooks, installMergeDriver } from "./hooks.ts";
 import { installTrackerHooks, verifyTrackerInitialization } from "./tracker-hooks.ts";
 import {
+	installWorkflowSkill,
+	planWorkflowSkill,
+	preflightWorkflowSkill,
+} from "./workflow-skill.ts";
+import {
 	readProjectLock,
 	requireProjectConfig,
 	requireProjectGeneration,
@@ -62,6 +67,8 @@ export interface SetupFlags extends OnboardingFlags {
 	preCommit?: string;
 	/** Explicit integration point for merge commits. */
 	preMergeCommit?: string;
+	/** Explicit request for the curated project workflow skill. */
+	installWorkflowSkill?: boolean;
 }
 
 export interface SetupOptions {
@@ -87,6 +94,8 @@ export interface SetupOptions {
 	hooks: HookAdapter;
 	/** Shared Git hook files, bootstrap preset and optional harness onboarding. */
 	config: ProjectConfig;
+	/** Optional targets for this setup invocation only. */
+	workflowSkill: ReturnType<typeof planWorkflowSkill>;
 }
 
 export interface SetupOperations {
@@ -155,6 +164,7 @@ export async function resolveSetup(
 		codex: true,
 		hooks: existing?.bootstrap.hooks ?? "husky",
 		config: existing ?? defaultProjectConfig("husky"),
+		workflowSkill: undefined,
 	};
 	let selected = flags;
 	if (!json && !flags.yes && deps.context.tty) {
@@ -183,6 +193,9 @@ export async function setupRepository(options: SetupOptions, deps: SetupDependen
 			requireProjectVersion(lock);
 			requireProjectConfig(lock, options.config);
 			requireProjectGeneration(lock, options.config);
+		}
+		if (options.workflowSkill) {
+			await preflightWorkflowSkill(options.repo, options.workflowSkill, deps);
 		}
 		if (options.tracker === "init") {
 			await deps.operations.preflight(options);
@@ -229,6 +242,12 @@ export async function setupRepository(options: SetupOptions, deps: SetupDependen
 		const lockfile = await writeProjectLock(options.repo, deps);
 		completed.push("project_lock");
 		const readiness = await setupReadiness(options, database, deps);
+		const workflowSkill =
+			options.workflowSkill &&
+			(await installWorkflowSkill(options.repo, options.workflowSkill, deps));
+		if (workflowSkill) {
+			completed.push("workflow_skill");
+		}
 		return {
 			ok: true,
 			kind: "repository_setup",
@@ -238,6 +257,7 @@ export async function setupRepository(options: SetupOptions, deps: SetupDependen
 			lockfile,
 			completed,
 			readiness,
+			workflowSkill,
 		};
 	} catch (error) {
 		let context: Record<string, unknown> = {};
@@ -270,6 +290,7 @@ function applyFlags(defaults: SetupOptions, flags: SetupFlags): SetupOptions {
 			pre_merge_commit: flags.preMergeCommit ?? config.hooks.pre_merge_commit,
 		},
 	};
+	config = configSchema.parse(selectOnboardingConfig(config, flags));
 	return {
 		...defaults,
 		actor: z
@@ -296,7 +317,8 @@ function applyFlags(defaults: SetupOptions, flags: SetupFlags): SetupOptions {
 		environment: flags.environment ?? defaults.environment,
 		codex: flags.codex ?? defaults.codex,
 		hooks: flags.hooks ?? defaults.hooks,
-		config: configSchema.parse(selectOnboardingConfig(config, flags)),
+		config,
+		workflowSkill: planWorkflowSkill(flags.installWorkflowSkill ?? false, config.onboarding),
 	};
 }
 

@@ -15,7 +15,7 @@ The standalone executable bundles Bun and the unmodified Husky 9.1.7 runner ([MI
 
 ## Orient an agent
 
-With Hive's executables on `PATH`, run `beeswax prime` for the repository's Hive conventions and task-to-tool pointers. It works offline, inside or outside a repository, without setup or tracker access. The installed Beeswax version owns the text; agents fetch detailed instructions only when a task calls for them.
+With Hive's executables on `PATH`, run `beeswax prime` for shared task safety and a map of Beads, BV and Hive tools. It works offline, inside or outside a repository, without setup, tracker access or an installed skill. The installed Beeswax version owns the text; agents fetch detailed instructions only when a task calls for them.
 
 Use `beeswax prime --help` to discover the default set, available tools and output options. To add Colony and Beeswax to the default map while removing Bee and Busy Bee:
 
@@ -29,17 +29,34 @@ Use Beeswax to [load onboarding in your harness](#load-onboarding-in-your-harnes
 At session start, run `beeswax prime` and read its output before working.
 ```
 
-Use the filtered command in that instruction if needed. Keep one loading route per harness to avoid duplicate context.
+Use the filtered command in that instruction if needed. Filters affect tool rows only; shared safety guidance remains even when every tool is excluded. Keep one loading route per harness to avoid duplicate context.
 
 For installed release provenance and source retrieval, use `beeswax info --help`. Binary installations do not include a source tree.
 
-For improvements, breaking changes and adoption actions, follow prime's `<tool> changelog` pointer. Each tool carries its history offline; see [tool changelogs](../../docs/releases.md#read-tool-changelogs) for version selection, adoption labels and how `beeswax update` selects history pointers from `PATH`.
+For Hive-owned CLI improvements, breaking changes and adoption actions, follow prime's `<tool> changelog` pointer. External `br` and `bv` are outside that release-history contract. See [tool changelogs](../../docs/releases.md#read-tool-changelogs) for offline histories, version selection and how `beeswax update` selects Hive history pointers from `PATH`.
 
 ## Configure a repository
 
 Run `beeswax setup` in the consuming repository. The interactive wizard handles tracker selection, permanent tracker prerequisites, Git integration and harness onboarding. Read `beeswax setup --help` for headless options and first-initialization prerequisites. Setup stays local; `beeswax beads sync` receives and publishes tracker changes.
 
 Setup's readiness receipt separates configured artifacts from pending execution checks and reports effective [Honeycomb configuration](../honeycomb/README.md#config) for review. Preserve valid existing policy. For managed workers, continue with [Bee and Colony setup](../colony/README.md#install-and-try-it); repository plumbing alone does not establish runtime readiness.
+
+## Install a customizable workflow
+
+The optional `hive` skill supplies work conventions for routing requests, planning Beads tasks and coordinating completion. It is separate from prime's safety baseline and the installed tools' command manuals. Add `--install-workflow-skill` to an intended setup invocation, or choose the default-off wizard option. Read `beeswax setup --help` for prerequisites, harness selection, existing-content protection and failure handling.
+
+For skill-only installation, run upstream directly from the consuming checkout, selecting the harnesses you use:
+
+```sh
+npx --yes skills@1.7.2 add https://github.com/codethread/hive/tree/main/skills/hive \
+  --skill hive --agent claude-code codex pi --yes --json
+```
+
+The curated source selects only `hive`. It follows the public main branch independently of the installed Beeswax version. Upstream's default mode stores the editable copy at `.agents/skills/hive` and links Claude's `.claude/skills/hive` to it. Codex and Pi share the canonical directory, so selecting one does not promise exclusive visibility.
+
+Review and customize the installed workflow for your repository, then commit its files, selected links and project installer metadata. Treat upstream replacements as deliberate, reviewed changes: direct upstream installation can replace existing content. Beeswax's install flag refuses existing destinations, and its normal updates leave the skill alone.
+
+Verify discovery in the actual execution checkout after reviewing project trust and harness settings. The installer receipt confirms files, not that a harness has loaded them. See [harness onboarding](#load-onboarding-in-your-harness) for context delivery.
 
 ## Load onboarding in your harness
 
@@ -58,6 +75,8 @@ Beeswax generates the selected adapters in the consuming repository, preserving 
 | Pi | `.pi/extensions/beeswax.js` | Runs `beeswax prime` before each agent run and supplies a named system-prompt section |
 
 The adapters call the separately installed `beeswax` executable on the harness's `PATH`; onboarding writes no global harness settings. Read `beeswax update --help` for selection and filtering options. Unspecified headless options retain saved choices.
+
+These adapters load the primer, not skill bodies. Harness-discovered skill descriptions advertise when to load a skill; bodies and references enter context on demand. The primer's bundled-tool pointers work independently of harness skill discovery.
 
 Start a new session after setup. [Claude Code](https://code.claude.com/docs/en/hooks#sessionstart) and [Codex](https://learn.chatgpt.com/docs/hooks#sessionstart) add the command's output to model context. In Codex, trust the project and use `/hooks` to review and trust each new or changed hook definition. Pi loads project extensions after project trust is granted.
 
