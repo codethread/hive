@@ -33,7 +33,7 @@ Use the filtered command in that instruction if needed. Keep one loading route p
 
 For installed release provenance and source retrieval, use `beeswax info --help`. Binary installations do not include a source tree.
 
-For improvements, breaking changes and adoption actions, follow prime's `<tool> changelog` pointer. Each tool carries its history offline; see [tool changelogs](../../docs/releases.md#read-tool-changelogs) for version selection and the meaning of adoption labels.
+For improvements, breaking changes and adoption actions, follow prime's `<tool> changelog` pointer. Each tool carries its history offline; see [tool changelogs](../../docs/releases.md#read-tool-changelogs) for version selection, adoption labels and how `beeswax update` selects history pointers from `PATH`.
 
 ## Configure a repository
 

@@ -11,6 +11,7 @@ import {
 	writeProjectLock,
 } from "./project.ts";
 import { readProjectConfig, selectOnboardingConfig, writeProjectConfig } from "./config.ts";
+import type { Dependencies } from "./cli.ts";
 import type { OnboardingFlags } from "./config.ts";
 import type { WorkspaceIO } from "./services.ts";
 import { applyOnboarding } from "./onboarding.ts";
@@ -28,7 +29,7 @@ const NONEMPTY = 1;
 // eslint-disable-next-line max-statements -- Keep preflight, materialization and its partial-effect receipt together.
 export async function synchronizeProject(
 	options: { root: string; executable: string; update: boolean } & OnboardingFlags,
-	io: WorkspaceIO & { context: { beadsDb: string } },
+	io: WorkspaceIO & Pick<Dependencies, "commandAvailable"> & { context: { beadsDb: string } },
 ) {
 	const { root, executable, update } = options;
 	const completed: string[] = [];
@@ -90,7 +91,12 @@ export async function synchronizeProject(
 			completed,
 		};
 		if (update) {
-			return { ...result, changelogs: updateChangelogs(lock.beeswaxVersion, version) };
+			return {
+				...result,
+				changelogs: updateChangelogs(lock.beeswaxVersion, version, (name) =>
+					io.commandAvailable(name, root),
+				),
+			};
 		}
 		return result;
 	} catch (error) {

@@ -3,7 +3,17 @@ import { expect, test } from "bun:test";
 import { renderPrime, updateChangelogs } from "./prime.ts";
 import { BeeswaxError } from "./errors.ts";
 
-const PUBLIC_TOOLS = 8;
+const homebrewTools = ["honeycomb", "busybee", "bee", "qlock", "colony", "beeswax", "hive-ui"];
+const developmentTools = [
+	"honeycomb",
+	"busybee",
+	"bee",
+	"qlock",
+	"colony",
+	"beeswax",
+	"waggle",
+	"hive-ui",
+];
 
 test("default onboarding contains only everyday tools", () => {
 	expect(renderPrime({ include: [], exclude: [] })).toMatchInlineSnapshot(`
@@ -66,11 +76,15 @@ test.each([
 });
 
 test.each([
-	{ previous: "0.5.0", command: "busybee changelog --since 0.5.0" },
-	{ previous: "0.6.0", command: "busybee changelog" },
-])("update from $previous keeps adoption discovery visible", ({ previous, command }) => {
-	const result = updateChangelogs(previous, "0.6.0");
-	expect(result).toMatchObject({ previousVersion: previous, installedVersion: "0.6.0" });
-	expect(result.commands).toContain(command);
-	expect(result.commands).toHaveLength(PUBLIC_TOOLS);
-});
+	{ previous: "0.5.0", selector: " --since 0.5.0", available: homebrewTools },
+	{ previous: "0.6.0", selector: "", available: homebrewTools },
+	{ previous: "0.5.0", selector: " --since 0.5.0", available: developmentTools },
+	{ previous: "0.6.0", selector: "", available: developmentTools },
+])(
+	"update from $previous lists available tools: $available",
+	({ previous, selector, available }) => {
+		const result = updateChangelogs(previous, "0.6.0", (name) => available.includes(name));
+		expect(result).toMatchObject({ previousVersion: previous, installedVersion: "0.6.0" });
+		expect(result.commands).toEqual(available.map((name) => `${name} changelog${selector}`));
+	},
+);

@@ -113,7 +113,11 @@ export function renderPrime(options: PrimeOptions): string {
 }
 
 /** The project pin is a comparison baseline, not evidence of adoption or acknowledgment. */
-export function updateChangelogs(previousVersion: string, installedVersion: string) {
+export function updateChangelogs(
+	previousVersion: string,
+	installedVersion: string,
+	commandAvailable: (name: string) => boolean,
+) {
 	let selector = "";
 	if (previousVersion !== installedVersion) {
 		selector = ` --since ${previousVersion}`;
@@ -121,7 +125,9 @@ export function updateChangelogs(previousVersion: string, installedVersion: stri
 	return {
 		previousVersion,
 		installedVersion,
-		commands: tools.map((tool) => `${tool.name} changelog${selector}`),
+		commands: tools
+			.filter((tool) => commandAvailable(tool.name))
+			.map((tool) => `${tool.name} changelog${selector}`),
 	};
 }
 

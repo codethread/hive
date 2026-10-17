@@ -24,7 +24,9 @@ Run `<tool> changelog` for recorded improvements, breaking changes and adoption 
 
 The default selects the latest recorded release at or below the executable's version. Use `<tool> changelog --help` for exclusive `--since` filtering, exact `--release` selection, pagination and JSON output. Recorded coverage begins at 0.6.0 with selected highlights, not an exhaustive backfill.
 
-Adoption actions are labelled **required** or **optional**. Read them against the consuming project's configuration before making changes. Beeswax's update receipt points to each tool's history using the previous project version; a same-version update still points to the current history. Updating the lock does not apply or acknowledge those actions.
+Beeswax's update receipt includes history commands only for known tool names found on `PATH`, including Waggle when present. It assumes upgraded Hive tools; name lookup does not check their versions or supported subcommands. The previous project version supplies the exclusive `--since` baseline; a same-version update still points to the current history.
+
+Adoption actions are labelled **required** or **optional**. Read them against the consuming project's configuration before making changes. `beeswax update` installs no tool binaries; updating the lock does not apply or acknowledge adoption actions.
 
 ## Author tool changelog records
 

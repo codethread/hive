@@ -78,6 +78,8 @@ export function createLiveDependencies(): Dependencies {
 	});
 	return {
 		...io,
+		commandAvailable: (name, cwd) =>
+			Bun.which(name, { PATH: environment.PATH ?? "", cwd }) !== null,
 		installationInfo: async () => installationInfo(await realpath(process.execPath), io),
 		context,
 		wizard: setupWizard,

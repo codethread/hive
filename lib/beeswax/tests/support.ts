@@ -19,6 +19,7 @@ export function fixture() {
 		throw new Error("Unexpected test operation");
 	};
 	const deps: Dependencies = {
+		commandAvailable: () => false,
 		context: {
 			cwd: "/repo",
 			actor: "codex",

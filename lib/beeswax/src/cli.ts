@@ -36,6 +36,8 @@ export interface Options extends SetupFlags {
 }
 
 export interface Dependencies extends SetupDependencies {
+	/** Check whether a command name resolves on PATH from cwd. */
+	commandAvailable: (name: string, cwd: string) => boolean;
 	/** Read version-matched release metadata without repository discovery. */
 	installationInfo: () => Promise<object>;
 	/** Default destination for explicitly installed CLI artifacts. */

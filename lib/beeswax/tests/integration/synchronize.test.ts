@@ -33,6 +33,22 @@ test("sync materializes committed intent without publishing tracker state or rew
 	expect(fx.errors).toEqual([]);
 });
 
+test("update uses command availability at the project root without persisting machine state", async () => {
+	const fx = configured();
+	fx.deps.commandAvailable = (name, cwd) => name === "beeswax" && cwd === root;
+	expect(await runCli(["update", "--json"], fx.deps)).toBe(success);
+	expect(JSON.parse(fx.output.join(""))).toMatchObject({
+		changelogs: {
+			previousVersion: version,
+			installedVersion: version,
+			commands: ["beeswax changelog"],
+		},
+	});
+	expect(fx.files.get("/repo/.hive/beeswax/meta/lock.json")).toBe(
+		template.files.get("/repo/.hive/beeswax/meta/lock.json"),
+	);
+});
+
 test("sync refuses configuration drift before writes and explicit update accepts supported changes", async () => {
 	const fx = configured();
 	const config = { ...defaultProjectConfig("husky"), bootstrap: { hooks: "none" as const } };
