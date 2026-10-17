@@ -20,6 +20,8 @@ Replace the path with your Hive checkout. Relative extension paths resolve from 
 
 Native identities come from the actual session key through a seeded name generator. Repeated starts, resume and compact retain the name; new sessions resolve a new name. Names are attribution labels, without guaranteed uniqueness. Bee supplies its own name for both interactive and Colony-managed launches. Scent retains that name across conversation changes and binds it to the current session. Bee clears any inherited native session binding and marks its supplied identity before launch. The `HIVE_AGENT_SOURCE=bee|native` marker survives Pi recreating extensions during a session switch.
 
+In interactive Pi sessions, Scent publishes the friendly name through Pi's `scent-identity` status key for optional footer display. Session changes refresh the value; session shutdown clears it.
+
 Scent sets `BD_ACTOR`, `BR_HARNESS=pi`, `HIVE_AGENT_NAME`, `HIVE_AGENT_SESSION` and `HIVE_AGENT_SOURCE`. It refreshes `BR_MODEL` and `BR_EFFORT` from Pi when known and deletes them when unknown. `BR_AGENT_NAME` retains a supplied Bee kind; native names do not imply a kind. `BR_EFFORT` is tool environment metadata, not a new Beads field. Other environment variables, including `BEADS_DB`, stay as supplied. Select the tracker before launching Pi; code cwd never selects it.
 
 ## Native Codex

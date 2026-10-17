@@ -78,7 +78,30 @@ test("runtime model and thinking metadata refresh and become absent when unknown
 	});
 });
 
-function fixture(env: NodeJS.ProcessEnv) {
+test("UI status follows session identity and clears on shutdown", () => {
+	const env: NodeJS.ProcessEnv = {};
+	const host = fixture(env, true);
+	for (const session of ["first", "new"]) {
+		host.ctx.sessionManager = { getSessionId: () => session } as ExtensionContext["sessionManager"];
+		host.emit("session_start", {}, host.ctx);
+		expect(env.BD_ACTOR).toBe(resolveIdentity(session).name);
+	}
+	host.emit("session_shutdown", {}, host.ctx);
+	expect(host.statusUpdates).toEqual([
+		["scent-identity", resolveIdentity("first").name],
+		["scent-identity", resolveIdentity("new").name],
+		["scent-identity", undefined],
+	]);
+});
+
+test("headless sessions do not publish UI status", () => {
+	const host = fixture({});
+	host.emit("session_start", {}, host.ctx);
+	host.emit("session_shutdown", {}, host.ctx);
+	expect(host.statusUpdates).toEqual([]);
+});
+
+function fixture(env: NodeJS.ProcessEnv, hasUI = false) {
 	type Handler = (event: never, ctx: ExtensionContext) => unknown;
 	const handlers = new Map<string, Handler>();
 	const on = ((name: string, handler: Handler) => {
@@ -88,9 +111,15 @@ function fixture(env: NodeJS.ProcessEnv) {
 		};
 	}) as ExtensionAPI["on"];
 	installPiIdentity({ on }, env);
-	const ctx = { sessionManager: { getSessionId: () => "first" } } as ExtensionContext;
+	const statusUpdates: [string, string | undefined][] = [];
+	const ctx = {
+		hasUI,
+		ui: { setStatus: (key: string, text: string | undefined) => statusUpdates.push([key, text]) },
+		sessionManager: { getSessionId: () => "first" },
+	} as unknown as ExtensionContext;
 	return {
 		ctx,
+		statusUpdates,
 		emit(name: string, event: unknown, context: ExtensionContext) {
 			const handler = handlers.get(name);
 			if (!handler) {
