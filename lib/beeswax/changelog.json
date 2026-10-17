@@ -1,13 +1,37 @@
 [
 	{
+		"version": "0.6.1",
+		"changes": [
+			{
+				"commit": "21cf817d673df59f5dc6e4b59fdd8cf86a5b8fda",
+				"summary": "omit unavailable tools from update history pointers",
+				"body": "`beeswax update` returns history commands only for known Hive tool names\nfound on `PATH`, including Waggle when present. It checks executable names,\nnot tool versions or supported subcommands.\n\nAfter upgrading Hive's executables, refresh the project contract and follow\nthe returned history commands:\n\n```sh\nbeeswax update --yes\n```\n\nThe previous project version remains the exclusive `--since` baseline;\nsame-version updates point to current history without `--since`. This fix\nrequires no manual migration. Updating the contract does not install binaries\nor apply or acknowledge adoption actions.",
+				"breaking": [],
+				"adoption": []
+			},
+			{
+				"commit": "e35554e9c4c9acff6019c6d2f84b9696e06ae5de",
+				"summary": "link project updates to offline tool histories",
+				"body": "Use `beeswax changelog` to read bundled release changes and adoption\ninstructions. After upgrading, run `beeswax update --yes` in each adopting\nproject to refresh its saved contract and onboarding. The update reports\nthe previous and installed versions, with `<tool> changelog --since VERSION`\ncommands using the previous project version. Same-version updates point\nto the current history without `--since`. Prime also directs agents to\nchangelogs after upgrades.\n\nUpdating the project lock does not apply or acknowledge adoption actions.",
+				"breaking": [],
+				"adoption": [
+					{
+						"requirement": "optional",
+						"text": "Review the tool histories linked by beeswax update for changes and adoption actions relevant to the project."
+					}
+				]
+			}
+		]
+	},
+	{
 		"version": "0.6.0",
 		"changes": [
 			{
 				"commit": "d7e55e9fb000d05b255240210a7df3694c0447df",
 				"summary": "Setup reports configured artifacts, pending readiness checks and completed phases after partial failures.",
+				"body": "",
 				"breaking": [],
-				"adoption": [],
-				"body": ""
+				"adoption": []
 			}
 		]
 	}

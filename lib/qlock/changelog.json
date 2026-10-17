@@ -1,13 +1,25 @@
 [
 	{
+		"version": "0.6.1",
+		"changes": [
+			{
+				"commit": "e35554e9c4c9acff6019c6d2f84b9696e06ae5de",
+				"summary": "show queue tool release changes without joining a queue",
+				"body": "Run `qlock changelog` for bundled release history and adoption instructions.\nVersion selection and paginated JSON output work without acquiring a lock.",
+				"breaking": [],
+				"adoption": []
+			}
+		]
+	},
+	{
 		"version": "0.6.0",
 		"changes": [
 			{
 				"commit": "78873402ec249de560f459f6732796052b71aa10",
 				"summary": "Help explains queue admission timeouts and how to resume a retained ticket.",
+				"body": "",
 				"breaking": [],
-				"adoption": [],
-				"body": ""
+				"adoption": []
 			}
 		]
 	}

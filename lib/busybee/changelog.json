@@ -1,18 +1,49 @@
 [
 	{
+		"version": "0.6.1",
+		"changes": [
+			{
+				"commit": "e35554e9c4c9acff6019c6d2f84b9696e06ae5de",
+				"summary": "read workflow tool changes without opening a tracker",
+				"body": "Run `busybee changelog` for the latest recorded release. It includes\nrequired or optional adoption guidance when recorded, without loading a\nworkflow, repository configuration or tracker.\n\nRead the earlier dependency guidance with:\n\n```sh\nbusybee changelog --release 0.6.0\n```\n\nThat guidance describes moving workflow-only xstate and zod dependencies\nto `.workflows/package.json` while retaining dependencies the application\nuses. Existing root dependency setups remain valid.",
+				"breaking": [],
+				"adoption": [
+					{
+						"requirement": "optional",
+						"text": "Review the 0.6.0 dependency guidance when deciding where to install workflow-only dependencies."
+					}
+				]
+			},
+			{
+				"commit": "e35554e9c4c9acff6019c6d2f84b9696e06ae5de",
+				"summary": "require changelog evidence in Hive Land and Release",
+				"body": "Hive's Land definition reviews exact source and final squash messages,\nincluding every affected tool's records and adoption actions. It preserves\nthe final blocks and checks the actual integrated commit. Release validates\ndeclared records, reviews generated histories and verifies offline commands\nbefore publication. Ordinary Land leaves suite versions unchanged.\n\nThese requirements apply to Hive's Land and Release definitions, not to\nall workflows run by Busy Bee. Their compatibility versions are independent\nof the Hive suite version and the `changelog v1` record format.",
+				"breaking": [
+					"Hive Land is now 4.0.0 and Release is now 3.0.0. Runs saved under earlier incompatible versions of those definitions cannot resume through the new mandatory changelog prerequisites."
+				],
+				"adoption": [
+					{
+						"requirement": "required",
+						"text": "When continuing an incompatible saved Hive Land or Release run, retain its authorization and evidence, inspect completed effects, and start a fresh run of the same workflow for the remaining scope."
+					}
+				]
+			}
+		]
+	},
+	{
 		"version": "0.6.0",
 		"changes": [
 			{
 				"commit": "d7e55e9fb000d05b255240210a7df3694c0447df",
 				"summary": "Workflow dependencies can live in .workflows/package.json.",
+				"body": "",
 				"breaking": [],
 				"adoption": [
 					{
 						"requirement": "optional",
 						"text": "Move workflow-only xstate and zod dependencies to .workflows/package.json, install there with your project's package manager, then verify each definition with busybee input-schema NAME --json. Retain root dependencies used by the application. Existing root dependency setups remain valid. busybee init preserves existing definitions; it does not migrate them."
 					}
-				],
-				"body": ""
+				]
 			}
 		]
 	}

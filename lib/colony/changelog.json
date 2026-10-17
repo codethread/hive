@@ -1,13 +1,25 @@
 [
 	{
+		"version": "0.6.1",
+		"changes": [
+			{
+				"commit": "e35554e9c4c9acff6019c6d2f84b9696e06ae5de",
+				"summary": "expose execution history without contacting the daemon",
+				"body": "Run `colony changelog` to read recorded execution changes offline. Colony's\nhistory also covers its runtime, worker and watchdog companion executables.",
+				"breaking": [],
+				"adoption": []
+			}
+		]
+	},
+	{
 		"version": "0.6.0",
 		"changes": [
 			{
 				"commit": "d7e55e9fb000d05b255240210a7df3694c0447df",
 				"summary": "The shared daemon supports native launchd/systemd supervision and recovers verified surviving executions after restart.",
+				"body": "",
 				"breaking": [],
-				"adoption": [],
-				"body": ""
+				"adoption": []
 			}
 		]
 	}

@@ -1,6 +1,6 @@
 {
 	"format": 1,
-	"beeswaxVersion": "0.6.0",
+	"beeswaxVersion": "0.6.1",
 	"configDigest": "ad73af3cc440cba45864b5f3662c04ca501b2c640bc94ac662892c0f29362e81",
 	"hooks": {
 		".husky/pre-commit": "a11e58c7c8203220f5cc3aa3f615f97293df4b9b16dc7759d12fe468248f7a25",

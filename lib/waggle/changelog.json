@@ -1,13 +1,25 @@
 [
 	{
+		"version": "0.6.1",
+		"changes": [
+			{
+				"commit": "e35554e9c4c9acff6019c6d2f84b9696e06ae5de",
+				"summary": "expose classifier tool release history offline",
+				"body": "Use `waggle changelog` to inspect bundled tool changes without loading\nclassifiers or making a model request. Waggle remains development-only and\nis excluded from the Homebrew installation.",
+				"breaking": [],
+				"adoption": []
+			}
+		]
+	},
+	{
 		"version": "0.6.0",
 		"changes": [
 			{
 				"commit": "f9f0d9a5b0ec2ab129228d2e90cb9cff67145613",
 				"summary": "Adds repository-owned review classifiers with offline discovery and structured evidence input and results.",
+				"body": "",
 				"breaking": [],
-				"adoption": [],
-				"body": ""
+				"adoption": []
 			}
 		]
 	}
