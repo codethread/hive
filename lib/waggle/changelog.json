@@ -1,0 +1,14 @@
+[
+	{
+		"version": "0.6.0",
+		"changes": [
+			{
+				"commit": "f9f0d9a5b0ec2ab129228d2e90cb9cff67145613",
+				"summary": "Adds repository-owned review classifiers with offline discovery and structured evidence input and results.",
+				"breaking": [],
+				"adoption": [],
+				"body": ""
+			}
+		]
+	}
+]

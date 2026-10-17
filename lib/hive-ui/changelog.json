@@ -1,0 +1,14 @@
+[
+	{
+		"version": "0.6.0",
+		"changes": [
+			{
+				"commit": "d7e55e9fb000d05b255240210a7df3694c0447df",
+				"summary": "Discovers registered repositories and their Beads databases from an already-running Colony daemon at startup.",
+				"breaking": [],
+				"adoption": [],
+				"body": ""
+			}
+		]
+	}
+]

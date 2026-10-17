@@ -1,0 +1,14 @@
+[
+	{
+		"version": "0.6.0",
+		"changes": [
+			{
+				"commit": "83a02d89b9e4c8ce233d34c475fb4e1903658d15",
+				"summary": "Finish checks integration conflicts before changing the canonical worktree.",
+				"breaking": [],
+				"adoption": [],
+				"body": ""
+			}
+		]
+	}
+]

@@ -33,6 +33,8 @@ Use the filtered command in that instruction if needed. Keep one loading route p
 
 For installed release provenance and source retrieval, use `beeswax info --help`. Binary installations do not include a source tree.
 
+For improvements, breaking changes and adoption actions, follow prime's `<tool> changelog` pointer. Each tool carries its history offline; see [tool changelogs](../../docs/releases.md#read-tool-changelogs) for version selection and the meaning of adoption labels.
+
 ## Configure a repository
 
 Run `beeswax setup` in the consuming repository. The interactive wizard handles tracker selection, permanent tracker prerequisites, Git integration and harness onboarding. Read `beeswax setup --help` for headless options and first-initialization prerequisites. Setup stays local; `beeswax beads sync` receives and publishes tracker changes.

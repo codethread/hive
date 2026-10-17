@@ -9,6 +9,8 @@
 	"dependencies": {
 		"@hive/beads": "workspace:*",
 		"@hive/shared": "workspace:*",
+		"conventional-commits-parser": "^7.1.3",
+		"mdast-util-from-markdown": "^2.1.0",
 		"zod": "^4.6.5"
 	},
 	"devDependencies": {}

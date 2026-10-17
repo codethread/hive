@@ -35,9 +35,19 @@ async function assertSquashCommit(options: {
 	const { root, beforeHead, title, body } = options;
 	const expected = [title];
 	if (body !== undefined) {
-		expected.push(body);
+		expected.push(...body.split("\n").filter((line) => line !== ""));
 	}
-	expected.push("Source branch: feature/squash-finish", "one", "two");
+	expected.push(
+		"Source branch: feature/squash-finish",
+		"> one",
+		">",
+		"> ~~~changelog v1",
+		"> feat(honeycomb): archived entry",
+		">",
+		"> Source **prose**.",
+		"> ~~~",
+		"> two",
+	);
 	expect(await commitMessageLines(root)).toEqual(expected);
 	expect(await gitOut(root, "rev-list", "--count", `${beforeHead}..HEAD`)).toBe("1");
 	expect(await readFile(join(root, "one.txt"), "utf8")).toBe("one\n");
@@ -49,7 +59,12 @@ test("squash composes the caller message with branch provenance and source histo
 		"feature/squash-finish",
 		'[project.finish]\nstrategy = "squash"\n',
 	);
-	await commitFile({ content: "one\n", message: "one", path: "one.txt", repo: worktreePath });
+	await commitFile({
+		content: "one\n",
+		message: "one\n\n~~~changelog v1\nfeat(honeycomb): archived entry\n\nSource **prose**.\n~~~",
+		path: "one.txt",
+		repo: worktreePath,
+	});
 	await commitFile({ content: "two\n", message: "two", path: "two.txt", repo: worktreePath });
 	const beforeHead = await gitOut(root, "rev-parse", "HEAD");
 
@@ -61,7 +76,7 @@ test("squash composes the caller message with branch provenance and source histo
 			"--title",
 			"feat(squash): fold source history",
 			"--body",
-			"Agent-written integration body.",
+			"Agent-written integration body.\n\n~~~changelog v1\nfeat(honeycomb): caller entry\n~~~",
 			"--json",
 		],
 		deps,
@@ -71,7 +86,7 @@ test("squash composes the caller message with branch provenance and source histo
 	expect(JSON.parse(result.stdout ?? "{}")).toMatchObject({ strategy: "squash" });
 	await assertSquashCommit({
 		beforeHead,
-		body: "Agent-written integration body.",
+		body: "Agent-written integration body.\n\n~~~changelog v1\nfeat(honeycomb): caller entry\n~~~",
 		root,
 		title: "feat(squash): fold source history",
 	});

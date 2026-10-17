@@ -8,7 +8,7 @@ Hive's product packages are independently replaceable. They cooperate through co
 | --- | --- | --- |
 | `lib/beads` | The subset of the native Beads contract consumed by Hive, with native and in-memory adapters | Exports an injected service; owns no Hive scheduling or workflow policy |
 | `lib/colony` | Bee request interface and Colony CLI, daemon ownership, repository scheduling, task claims, retries, supervision and private persistence | Imports Shared contracts; consumes spawn beads through native `br`; launches native harness executables |
-| `lib/shared` | Consumed contracts: recipes, formulas, spawn requests, repository endpoints, daemon messages and workflow preview payloads | Exports types, boundary parsers and small shared operations; owns no daemon, scheduler or CLI presentation |
+| `lib/shared` | Consumed contracts: recipes, formulas, spawn requests, repository endpoints, daemon messages, workflow preview payloads and changelogs | Exports types, boundary parsers and small shared operations; owns no daemon, scheduler or product-specific CLI presentation |
 | `lib/honeycomb` | Worktree discovery and lifecycle, including canonical-root decisions | Public command interface; Bee and Colony obtain the canonical root through `honeycomb root` |
 | `lib/waggle` | Classifier discovery and execution | Independent `waggle` CLI; it does not decide runtime scheduling or mutate requests |
 | `lib/busybee` | Workflow navigation, task visits and per-run checkpoints | XState chooses transitions; native `br` stores work and checkpoints; optional Bee requests delegate execution to Colony |
@@ -18,7 +18,7 @@ Hive's product packages are independently replaceable. They cooperate through co
 | `lib/tooling` | Repository test selection and release maintenance | Development tooling, independent of the Bee execution path |
 | `lib/qlock` | Ticketed local command admission, queue state and foreground child execution | Independent CLI; merge-target queues obtain repository identity through `honeycomb root` |
 
-Use Shared when actual consumers need the same contract. Spawn-request representation belongs there because submission, offline inspection and execution must agree; scheduling and terminal formatting stay in Colony. Busy Bee's workflow rules remain independent of Colony execution; its [specification](../lib/busybee/SPEC.md) defines progression and checkpoint authority.
+Use Shared when actual consumers need the same contract. Spawn-request representation belongs there because submission, offline inspection and execution must agree; scheduling and request-specific terminal formatting stay in Colony. The consumed changelog schema, pure query and plain content formatter belong in Shared; records retain Markdown bodies alongside summaries, source revisions, breaking details and reviewed adoption notes. Product packages own their histories, Commander registration, streams/I/O and product-specific CLI presentation. Tooling parses the [authored commit records](releases.md#author-tool-changelog-records) into release candidates. Busy Bee's workflow rules remain independent of Colony execution; its [specification](../lib/busybee/SPEC.md) defines progression and checkpoint authority.
 
 Beads' native adapter owns CLI arguments and output parsing. Consumer entry points inject that adapter; behavior tests inject its in-memory counterpart. Native conformance tests belong to Beads; filesystem, Git and process-boundary tests stay with the modules owning those effects.
 

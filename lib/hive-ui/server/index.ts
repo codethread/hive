@@ -10,11 +10,19 @@ import {
 import { Command, CommanderError } from "commander";
 // eslint-disable-next-line import/no-nodejs-modules -- Resolve explicitly configured local repository endpoints.
 import { basename, resolve } from "node:path";
+import {
+	changelogHistorySchema,
+	changelogQuerySchema,
+	changelogSchema,
+	queryChangelog,
+	renderChangelog,
+} from "@hive/shared/changelog";
 import { execute, resolveRepository } from "@hive/shared";
 import type { BeadsService } from "@hive/beads";
 import type { Colony } from "../contracts.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Explicit machine-mode diagnostics file boundary.
 import { appendFile } from "node:fs/promises";
+import changelog from "../changelog.json";
 import { createBoardData } from "./data.ts";
 import { createNativeBeads } from "@hive/beads";
 import { createTopologyReader } from "./topology.ts";
@@ -90,8 +98,44 @@ async function main(): Promise<void> {
 		)
 		.configureOutput({ writeErr: () => {} })
 		.exitOverride();
+
+	program
+		.command("changelog")
+		.description(
+			"Read embedded history offline; " +
+				"defaults to the latest recorded release at or below this executable version",
+		)
+		.summary("Read offline release history")
+		.option("--since <version>", "Releases newer than this stable version (exclusive)")
+		.option("--release <version>", "Read one exact recorded release; cannot combine with --since")
+		.option("--limit <count>", "Changes per page (1–100, default 20)")
+		.option("--offset <count>", "Skip matching changes (default 0)")
+		.option("--schema", "Print the successful JSON response schema")
+		.option("--json", "Emit one JSON document with silent stderr")
+		.action(function changelogCommand(this: Command) {
+			const options = this.optsWithGlobals();
+			if (options["schema"] === true) {
+				process.stdout.write(
+					`${JSON.stringify({ ok: true, kind: "changelog_schema", schema: changelogSchema() })}\n`,
+				);
+				return;
+			}
+			const page = queryChangelog(
+				{ tool: "hive-ui", version },
+				changelogHistorySchema.parse(changelog),
+				changelogQuerySchema.parse(options),
+			);
+			let output = renderChangelog(page);
+			if (options["json"] === true) {
+				output = `${JSON.stringify(page)}\n`;
+			}
+			process.stdout.write.bind(process.stdout)(output);
+		});
 	try {
 		program.parse();
+		if (program.args[0] === "changelog") {
+			return;
+		}
 		const options = optionsSchema.parse(program.opts());
 		if (options.json && options.logFile === undefined) {
 			throw new Error("--json requires --log-file so diagnostics stay out of terminal output.");
@@ -153,10 +197,12 @@ async function main(): Promise<void> {
 			return;
 		}
 		const message = errorMessage(error);
+		let reason = "ui_start_failed";
+		if (program.args[0] === "changelog") {
+			reason = "changelog_failed";
+		}
 		if (process.argv.includes("--json")) {
-			process.stdout.write(
-				`${JSON.stringify({ kind: "error", message, ok: false, reason: "ui_start_failed" })}\n`,
-			);
+			process.stdout.write(`${JSON.stringify({ kind: "error", message, ok: false, reason })}\n`);
 		} else {
 			process.stderr.write(`hive-ui: ${message}\n`);
 		}

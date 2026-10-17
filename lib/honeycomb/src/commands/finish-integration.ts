@@ -341,7 +341,15 @@ function composeSquashCommitMessage(options: {
 	if (body) {
 		sections.push(body);
 	}
-	sections.push(`Source branch: ${sourceBranch}`, ...messages);
+	sections.push(
+		`Source branch: ${sourceBranch}`,
+		...messages.map((message) =>
+			message
+				.split("\n")
+				.map((line) => `> ${line}`)
+				.join("\n"),
+		),
+	);
 	return sections.join("\n\n");
 }
 

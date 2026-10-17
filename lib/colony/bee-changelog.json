@@ -1,0 +1,14 @@
+[
+	{
+		"version": "0.6.0",
+		"changes": [
+			{
+				"commit": "0497db1aa31dfcd4d166d95602dc9a188c77e1f3",
+				"summary": "Managed bees retain configured harness paths under native daemon supervision, including the location of existing Codex authentication.",
+				"breaking": [],
+				"adoption": [],
+				"body": ""
+			}
+		]
+	}
+]

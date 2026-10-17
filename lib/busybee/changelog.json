@@ -1,0 +1,19 @@
+[
+	{
+		"version": "0.6.0",
+		"changes": [
+			{
+				"commit": "d7e55e9fb000d05b255240210a7df3694c0447df",
+				"summary": "Workflow dependencies can live in .workflows/package.json.",
+				"breaking": [],
+				"adoption": [
+					{
+						"requirement": "optional",
+						"text": "Move workflow-only xstate and zod dependencies to .workflows/package.json, install there with your project's package manager, then verify each definition with busybee input-schema NAME --json. Retain root dependencies used by the application. Existing root dependency setups remain valid. busybee init preserves existing definitions; it does not migrate them."
+					}
+				],
+				"body": ""
+			}
+		]
+	}
+]

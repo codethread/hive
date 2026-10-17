@@ -4,6 +4,13 @@
  */
 import { Command, CommanderError } from "commander";
 import { beesConfigSchema, policyChangeSchema } from "@hive/shared";
+import {
+	changelogHistorySchema,
+	changelogQuerySchema,
+	changelogSchema,
+	queryChangelog,
+	renderChangelog,
+} from "@hive/shared/changelog";
 import type { AssessmentsResult } from "./assessments.ts";
 import { CommandError } from "@hive/beads";
 import { DaemonLifecycleError } from "./daemon-lifecycle.ts";
@@ -21,6 +28,7 @@ import { WorkflowCommandError } from "./workflows.ts";
 import { WorkflowSubmissionError } from "./workflow-submission.ts";
 import { assessmentLimitSchema } from "./assessments.ts";
 import { assessmentReportSchema } from "./postrun.ts";
+import changelog from "../changelog.json";
 import { initOptionsSchema } from "./initial-config.ts";
 import { registerSkills } from "./skills.ts";
 import { version } from "../package.json";
@@ -121,6 +129,38 @@ export async function runCli(argv: string[], deps: ColonyDependencies): Promise<
 		.option("--json", "Emit errors as JSON too")
 		.configureOutput({ writeErr: () => {}, writeOut: deps.stdout })
 		.exitOverride();
+
+	program
+		.command("changelog")
+		.description(
+			"Read embedded history offline; defaults to the latest recorded release at or below this executable version",
+		)
+		.summary("Read offline release history")
+		.option("--since <version>", "Releases newer than this stable version (exclusive)")
+		.option("--release <version>", "Read one exact recorded release; cannot combine with --since")
+		.option("--limit <count>", "Changes per page (1–100, default 20)")
+		.option("--offset <count>", "Skip matching changes (default 0)")
+		.option("--schema", "Print the successful JSON response schema")
+		.option("--json", "Emit one JSON document with silent stderr")
+		.action(function changelogCommand(this: Command) {
+			const options = this.optsWithGlobals();
+			if (options["schema"] === true) {
+				deps.stdout(
+					`${JSON.stringify({ ok: true, kind: "changelog_schema", schema: changelogSchema() })}\n`,
+				);
+				return;
+			}
+			const page = queryChangelog(
+				{ tool: "colony", version },
+				changelogHistorySchema.parse(changelog),
+				changelogQuerySchema.parse(options),
+			);
+			let output = renderChangelog(page);
+			if (options["json"] === true) {
+				output = `${JSON.stringify(page)}\n`;
+			}
+			deps.stdout(output);
+		});
 	registerSkills(program, "colony", deps.stdout);
 	program
 		.command("assessments")

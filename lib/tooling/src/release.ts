@@ -2,8 +2,16 @@ import { z } from "zod";
 
 const FIRST = 0;
 const TAG_PREFIX_LENGTH = 1;
+const SHORT_HASH_LENGTH = 7;
+const FIRST_LINE = 1;
 
 export const versionSchema = z.string().regex(/^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)$/u);
+export interface ReleaseCommit {
+	/** Full source revision, retained in structured release history. */
+	hash: string;
+	/** Complete authored Git message, including breaking notes. */
+	message: string;
+}
 export interface PackageHistory {
 	/** Repository-relative directory; dot names the root package. */
 	directory: string;
@@ -11,8 +19,8 @@ export interface PackageHistory {
 	name: string;
 	/** Current package version, before the suite bump. */
 	version: string;
-	/** Git's abbreviated commit ID and subject, newest first. */
-	commits: string[];
+	/** Git revisions and full messages, newest first. */
+	commits: ReleaseCommit[];
 }
 
 /** Choose the newest stable suite tag reachable from the release source. */
@@ -56,7 +64,12 @@ export function releaseNotes(
 	const sections = packages.map((pkg) => {
 		let changes = "No change.";
 		if (pkg.commits.length > FIRST) {
-			changes = pkg.commits.map((commit) => `- ${commit}`).join("\n");
+			changes = pkg.commits
+				.map(
+					(commit) =>
+						`- ${commit.hash.slice(FIRST, SHORT_HASH_LENGTH)} ${commit.message.split("\n", FIRST_LINE).join("")}`,
+				)
+				.join("\n");
 		}
 		return `## ${pkg.name}\n\n${changes}`;
 	});

@@ -3,6 +3,13 @@ import { BeeswaxError, EXIT, errorMessage } from "./errors.ts";
 import { Command, CommanderError, Option } from "commander";
 import type { SetupDependencies, SetupFlags } from "./setup.ts";
 import { addBeads, addMigration, addProjectCommands, addSkills } from "./commands.ts";
+import {
+	changelogHistorySchema,
+	changelogQuerySchema,
+	changelogSchema,
+	queryChangelog,
+	renderChangelog,
+} from "@hive/shared/changelog";
 import { configSchema, hookAdapterSchema } from "./config.ts";
 import { integrationSchema, resolveSetup, setupRepository, trackerSchema } from "./setup.ts";
 import { isTrackerSnapshot, validateTrackerHook } from "./hooks.ts";
@@ -12,6 +19,7 @@ import type { PackingResult } from "./git/pack.ts";
 import type { Selection } from "./beads/setup.ts";
 import type { SkillProvider } from "skills-handler";
 import { addPrime } from "./prime.ts";
+import changelog from "../changelog.json";
 import { lockSchema } from "./project.ts";
 import { version } from "../package.json";
 import { z } from "zod";
@@ -118,6 +126,38 @@ function createProgram(
 			"\nStart: beeswax setup --help. Agent decisions: beeswax skills get repository-setup.\n" +
 				"JSON commands emit one success/error document with silent stderr; help stays text.\n",
 		);
+
+	program
+		.command("changelog")
+		.description(
+			"Read embedded history offline; defaults to the latest recorded release at or below this executable version",
+		)
+		.summary("Read offline release history")
+		.option("--since <version>", "Releases newer than this stable version (exclusive)")
+		.option("--release <version>", "Read one exact recorded release; cannot combine with --since")
+		.option("--limit <count>", "Changes per page (1–100, default 20)")
+		.option("--offset <count>", "Skip matching changes (default 0)")
+		.option("--schema", "Print the successful JSON response schema")
+		.option("--json", "Emit one JSON document with silent stderr")
+		.action(function changelogCommand(this: Command) {
+			const options = this.optsWithGlobals();
+			if (options["schema"] === true) {
+				deps.stdout(
+					`${JSON.stringify({ ok: true, kind: "changelog_schema", schema: changelogSchema() })}\n`,
+				);
+				return;
+			}
+			const page = queryChangelog(
+				{ tool: "beeswax", version },
+				changelogHistorySchema.parse(changelog),
+				changelogQuerySchema.parse(options),
+			);
+			let output = renderChangelog(page);
+			if (options["json"] === true) {
+				output = `${JSON.stringify(page)}\n`;
+			}
+			deps.stdout(output);
+		});
 	addPrime(program, emit);
 	program
 		.command("info")

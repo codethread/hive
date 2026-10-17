@@ -104,11 +104,25 @@ export function renderPrime(options: PrimeOptions): string {
 	return [
 		"This repository uses Hive. Follow these conventions:",
 		"Read a tool's instructions when its task applies; use its --help for command options.",
+		"After upgrading, read <tool> changelog for breaking changes and adoption actions.",
 		"",
 		"| Tool | When to use it | Instructions |",
 		"| --- | --- | --- |",
 		...selected.map((tool) => `| ${tool.name} | ${tool.guidance} | \`${tool.instructions}\` |`),
 	].join("\n");
+}
+
+/** The project pin is a comparison baseline, not evidence of adoption or acknowledgment. */
+export function updateChangelogs(previousVersion: string, installedVersion: string) {
+	let selector = "";
+	if (previousVersion !== installedVersion) {
+		selector = ` --since ${previousVersion}`;
+	}
+	return {
+		previousVersion,
+		installedVersion,
+		commands: tools.map((tool) => `${tool.name} changelog${selector}`),
+	};
 }
 
 // --- Private functions ---

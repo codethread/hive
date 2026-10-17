@@ -1,0 +1,14 @@
+[
+	{
+		"version": "0.6.0",
+		"changes": [
+			{
+				"commit": "d7e55e9fb000d05b255240210a7df3694c0447df",
+				"summary": "The shared daemon supports native launchd/systemd supervision and recovers verified surviving executions after restart.",
+				"breaking": [],
+				"adoption": [],
+				"body": ""
+			}
+		]
+	}
+]

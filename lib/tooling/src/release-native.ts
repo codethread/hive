@@ -3,6 +3,8 @@ import { checkNextVersion, previousRelease, releaseNotes, versionSchema } from "
 // eslint-disable-next-line import/no-nodejs-modules -- Release preparation filesystem boundary.
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import type { PackageHistory } from "./release.ts";
+import { changelogHistorySchema } from "@hive/shared/changelog";
+import { generateChangelogs } from "./release-changelog.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Resolve release source paths.
 import { join } from "node:path";
 import { z } from "zod";
@@ -37,10 +39,19 @@ async function prepare(root: string, version: string) {
 	const packages = await packageHistory(root, previous);
 	checkNextVersion(version, packages, previous);
 	const notes = `releases/v${version}.md`;
+	const histories = generateChangelogs(
+		version,
+		packages.filter((pkg) => pkg.directory === ".").flatMap((pkg) => pkg.commits),
+	);
 	for (const pkg of packages) {
 		const file = join(root, pkg.directory, "package.json");
 		const manifest = packageSchema.parse(JSON.parse(await readFile(file, "utf8")));
 		await writeFile(file, `${JSON.stringify({ ...manifest, version }, undefined, "\t")}\n`);
+	}
+	for (const { file, release } of histories) {
+		const historyFile = join(root, file);
+		const history = changelogHistorySchema.parse(JSON.parse(await readFile(historyFile, "utf8")));
+		await writeFile(historyFile, `${JSON.stringify([release, ...history], undefined, "\t")}\n`);
 	}
 	await mkdir(join(root, "releases"), { recursive: true });
 	await writeFile(join(root, notes), releaseNotes(version, previous, packages));
@@ -73,12 +84,31 @@ async function packageHistory(
 		if (previous !== undefined) {
 			range = `${previous}..HEAD`;
 		}
-		const history = await git(root, ["log", "--format=%h %s", range, "--", path]);
+		const args = ["log", "--format=%H%x1f%B%x00", range];
+		if (path !== ".") {
+			args.push("--", path);
+		}
+		const history = await git(root, args);
 		packages.push({
 			directory: path,
 			name: pkg.name,
 			version: pkg.version,
-			commits: history.split("\n").filter(Boolean),
+			commits: history
+				.split("\0")
+				.filter((record) => record.trim() !== "")
+				.map((record) => {
+					const separator = record.indexOf("\u001F");
+					return {
+						hash: z
+							.string()
+							.regex(/^[\da-f]{40}$/u)
+							.parse(record.slice(FIRST, separator).trim()),
+						message: z
+							.string()
+							.min(MINIMUM_LENGTH)
+							.parse(record.slice(separator + MINIMUM_LENGTH).trim()),
+					};
+				}),
 		});
 	}
 	return packages;

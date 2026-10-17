@@ -248,6 +248,11 @@ export function addProjectCommands(
 		const command = program.command(name);
 		if (name === "update") {
 			onboardingOptions(command).option("-y, --yes", "Keep saved selections without prompting");
+			command.addHelpText(
+				"after",
+				"\nReports previous and installed versions with <tool> changelog commands " +
+					"for breaking changes and adoption actions.",
+			);
 		}
 		command
 			.description(`${description}; no tracker publication`)

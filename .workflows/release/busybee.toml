@@ -1,3 +1,4 @@
 description = "Publish a tagged Hive source release and host-built Homebrew formula"
-version = "2.0.0"
+# Earlier runs may have passed the required changelog review and offline verification.
+version = "3.0.0"
 run = "./workflow.ts"

@@ -1,12 +1,15 @@
 /* eslint-disable @stylistic/max-len -- Snapshots preserve rendered table rows verbatim. */
 import { expect, test } from "bun:test";
+import { renderPrime, updateChangelogs } from "./prime.ts";
 import { BeeswaxError } from "./errors.ts";
-import { renderPrime } from "./prime.ts";
+
+const PUBLIC_TOOLS = 8;
 
 test("default onboarding contains only everyday tools", () => {
 	expect(renderPrime({ include: [], exclude: [] })).toMatchInlineSnapshot(`
 	  "This repository uses Hive. Follow these conventions:
 	  Read a tool's instructions when its task applies; use its --help for command options.
+	  After upgrading, read <tool> changelog for breaking changes and adoption actions.
 
 	  | Tool | When to use it | Instructions |
 	  | --- | --- | --- |
@@ -26,6 +29,7 @@ test("includes add optional tools once in canonical order", () => {
 	).toMatchInlineSnapshot(`
 	  "This repository uses Hive. Follow these conventions:
 	  Read a tool's instructions when its task applies; use its --help for command options.
+	  After upgrading, read <tool> changelog for breaking changes and adoption actions.
 
 	  | Tool | When to use it | Instructions |
 	  | --- | --- | --- |
@@ -45,6 +49,7 @@ test("excludes remove defaults and win over includes", () => {
 		.toMatchInlineSnapshot(`
 	  "This repository uses Hive. Follow these conventions:
 	  Read a tool's instructions when its task applies; use its --help for command options.
+	  After upgrading, read <tool> changelog for breaking changes and adoption actions.
 
 	  | Tool | When to use it | Instructions |
 	  | --- | --- | --- |
@@ -58,4 +63,14 @@ test.each([
 	{ include: [], exclude: ["typo"] },
 ])("unknown tool names fail: %j", (options) => {
 	expect(() => renderPrime(options)).toThrow(BeeswaxError);
+});
+
+test.each([
+	{ previous: "0.5.0", command: "busybee changelog --since 0.5.0" },
+	{ previous: "0.6.0", command: "busybee changelog" },
+])("update from $previous keeps adoption discovery visible", ({ previous, command }) => {
+	const result = updateChangelogs(previous, "0.6.0");
+	expect(result).toMatchObject({ previousVersion: previous, installedVersion: "0.6.0" });
+	expect(result.commands).toContain(command);
+	expect(result.commands).toHaveLength(PUBLIC_TOOLS);
 });

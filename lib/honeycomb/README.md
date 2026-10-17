@@ -387,7 +387,7 @@ From a non-canonical worktree:
 honeycomb finish --title "feat: integrate library work" --json
 ```
 
-The `squash` strategy requires `--title` and accepts an optional `--body`. The squash commit body also carries the source branch and every source commit message, oldest first, so breaking-change notes and per-commit context survive squashing. Other strategies reject `--title` and `--body`.
+The `squash` strategy requires `--title` and accepts an optional `--body`. After the caller's body, Honeycomb records the source branch and every source commit message, oldest first, prefixing each archived line with `> ` as a Markdown blockquote. Put authoritative [tool changelog records](../../docs/releases.md#author-tool-changelog-records) in the caller's reviewed body; quoted source records remain provenance and do not generate duplicate entries. Other strategies reject `--title` and `--body`.
 
 Finish checks conflicts before changing canonical, including before `fresh_canonical` advancement. Merge conflicts preserve canonical HEAD, index and worktree and prevent push/cleanup. With `rebase_ff`, conflicts remain in the source checkout; resolve them there or run `git rebase --abort`.
 

@@ -1,0 +1,14 @@
+[
+	{
+		"version": "0.6.0",
+		"changes": [
+			{
+				"commit": "78873402ec249de560f459f6732796052b71aa10",
+				"summary": "Help explains queue admission timeouts and how to resume a retained ticket.",
+				"breaking": [],
+				"adoption": [],
+				"body": ""
+			}
+		]
+	}
+]

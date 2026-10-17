@@ -4,11 +4,19 @@
 import { BusyBeeError, installDefaultWorkflow } from "./native.ts";
 import { Command, CommanderError } from "commander";
 import type { Options, Services } from "./native.ts";
+import {
+	changelogHistorySchema,
+	changelogQuerySchema,
+	changelogSchema,
+	queryChangelog,
+	renderChangelog,
+} from "@hive/shared/changelog";
 import { discover, navigate, prepareDriver, recordResult, start, startNamed } from "./runtime.ts";
 import { importDefinition, validate } from "./definition.ts";
 import { listWorkflows, namedDefinition } from "./catalogue.ts";
 import type { PreflightReport } from "./preflight.ts";
 import type { Source } from "./catalogue.ts";
+import changelog from "../changelog.json";
 import { preflight } from "./preflight.ts";
 import { preview } from "./preview.ts";
 import { readSkills } from "./skills.ts";
@@ -106,6 +114,7 @@ interface Discovery {
 	}[];
 }
 
+// eslint-disable-next-line max-statements -- Configure the public command surface before parsing.
 export async function runCli(
 	argv: string[],
 	services: Services,
@@ -122,6 +131,38 @@ export async function runCli(
 		terminal,
 	};
 	configure(invocation);
+	invocation.cli
+		.command("changelog")
+		.description(
+			"Read embedded history offline; defaults to the latest recorded release at or below this executable version",
+		)
+		.summary("Read offline release history")
+		.option("--since <version>", "Releases newer than this stable version (exclusive)")
+		.option("--release <version>", "Read one exact recorded release; cannot combine with --since")
+		.option("--limit <count>", "Changes per page (1–100, default 20)")
+		.option("--offset <count>", "Skip matching changes (default 0)")
+		.option("--schema", "Print the successful JSON response schema")
+		.option("--json", "Emit one JSON document with silent stderr")
+		.action(function changelogCommand(this: Command) {
+			const options = this.optsWithGlobals();
+			if (options["schema"] === true) {
+				terminal.stdout(
+					`${JSON.stringify({ ok: true, kind: "changelog_schema", schema: changelogSchema() })}\n`,
+				);
+				return;
+			}
+			const page = queryChangelog(
+				{ tool: "busybee", version: suiteVersion },
+				changelogHistorySchema.parse(changelog),
+				changelogQuerySchema.parse(options),
+			);
+			let output = renderChangelog(page);
+			if (options["json"] === true) {
+				output = `${JSON.stringify(page)}\n`;
+			}
+			terminal.stdout(output);
+		});
+
 	registerCreation(invocation);
 	registerInspection(invocation);
 	registerPreflight(invocation);

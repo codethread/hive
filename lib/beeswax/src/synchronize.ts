@@ -1,3 +1,4 @@
+/* eslint-disable import/max-dependencies -- Compose synchronization phases and version discovery receipt. */
 import { BeeswaxError, errorMessage } from "./errors.ts";
 import { installHooks, installMergeDriver } from "./hooks.ts";
 import {
@@ -18,6 +19,8 @@ import { bootstrapHooks } from "./husky.ts";
 import { installTrackerHooks } from "./tracker-hooks.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Resolve this clone's conventional tracker.
 import { resolve } from "node:path";
+import { updateChangelogs } from "./prime.ts";
+import { version } from "../package.json";
 
 const NONEMPTY = 1;
 
@@ -78,7 +81,7 @@ export async function synchronizeProject(
 			await writeProjectLock(root, io);
 			completed.push("project_lock");
 		}
-		return {
+		const result = {
 			ok: true,
 			kind: "project_synchronized",
 			repository: root,
@@ -86,6 +89,10 @@ export async function synchronizeProject(
 			projectLockUpdated: update,
 			completed,
 		};
+		if (update) {
+			return { ...result, changelogs: updateChangelogs(lock.beeswaxVersion, version) };
+		}
+		return result;
 	} catch (error) {
 		let failure = new BeeswaxError("synchronization_failed", errorMessage(error));
 		if (error instanceof BeeswaxError) {

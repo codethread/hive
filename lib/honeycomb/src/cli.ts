@@ -1,9 +1,18 @@
+/* eslint-disable import/max-dependencies -- Compose local commands and shared changelog contract. */
 import { Command, CommanderError } from "commander";
 import { EXIT_CODES, UsageError } from "./errors.ts";
+import {
+	changelogHistorySchema,
+	changelogQuerySchema,
+	changelogSchema,
+	queryChangelog,
+	renderChangelog,
+} from "@hive/shared/changelog";
 import { formatFailure, renderJsonResult } from "./protocol.ts";
 import type { CommandResult } from "./protocol.ts";
 import type { Deps } from "./services.ts";
 import { HELP } from "./cli-help.ts";
+import changelog from "../changelog.json";
 import { createLiveDeps } from "./live-deps.ts";
 import { dispatch } from "./main.ts";
 import tab from "@bomb.sh/tab/commander";
@@ -70,6 +79,45 @@ function createProgram(json: boolean): Command {
 		.addHelpText("after", HELP.overview)
 		.exitOverride();
 
+	program
+		.command("changelog")
+		.description(
+			"Read embedded history offline; defaults to the latest recorded release at or below this executable version",
+		)
+		.summary("Read offline release history")
+		.option("--since <version>", "Releases newer than this stable version (exclusive)")
+		.option("--release <version>", "Read one exact recorded release; cannot combine with --since")
+		.option("--limit <count>", "Changes per page (1–100, default 20)")
+		.option("--offset <count>", "Skip matching changes (default 0)")
+		.option("--schema", "Print the successful JSON response schema")
+		.option("--json", "Emit one JSON document with silent stderr")
+		// eslint-disable-next-line max-statements -- Own schema discovery, query output and argument errors together.
+		.action(function changelogCommand(this: Command) {
+			const options = this.optsWithGlobals();
+			if (options["schema"] === true) {
+				process.stdout.write(
+					`${JSON.stringify({ ok: true, kind: "changelog_schema", schema: changelogSchema() })}\n`,
+				);
+				return;
+			}
+			try {
+				const page = queryChangelog(
+					{ tool: "honeycomb", version },
+					changelogHistorySchema.parse(changelog),
+					changelogQuerySchema.parse(options),
+				);
+				let output = renderChangelog(page);
+				if (options["json"] === true) {
+					output = `${JSON.stringify(page)}\n`;
+				}
+				process.stdout.write(output);
+			} catch (error) {
+				program.error(String(error), {
+					code: "commander.invalidArgument",
+					exitCode: EXIT_CODES.USAGE,
+				});
+			}
+		});
 	return program;
 }
 

@@ -7,7 +7,7 @@ const packages: PackageHistory[] = [
 		directory: "lib/colony",
 		name: "@hive/colony",
 		version: "0.5.0",
-		commits: ["abc123 feat: workers"],
+		commits: [{ hash: "abc123", message: "feat: workers" }],
 	},
 	{ directory: "lib/beads", name: "@hive/beads", version: "0.5.0", commits: [] },
 ];

@@ -86,10 +86,12 @@ export const machine = setup({
 					instructions:
 						`Follow docs/releases.md#prepare-and-land-the-source and bun run release --help ` +
 						`to prepare ${context.nextVersion}. If all manifests already equal the unpublished ` +
-						`version, reconcile the existing preparation and refresh notes without rerunning ` +
+						`version, reconcile the existing preparation and refresh notes and changelog drafts without rerunning ` +
 						`the version bump. ` +
-						`Review all package versions, lockfiles and releases/vVERSION.md against history ` +
-						`since the newest reachable stable suite tag. On interruption inspect partial changes ` +
+						`Review all package versions and lockfiles. Validate declared changelog blocks under ` +
+						`docs/releases.md#author-tool-changelog-records. Have bookworm complete the guide's review of ` +
+						`generated per-tool changelogs and releases/vVERSION.md before Land; retain its response ` +
+						`and coverage in the evidence. On interruption inspect partial changes ` +
 						`before restoring only owned edits and retrying. Record the worktree and prior tag. ` +
 						`Prior evidence: ${context.evidence}`,
 				}),
@@ -103,8 +105,8 @@ export const machine = setup({
 				task: ({ context }: { context: ReleaseContext }) => ({
 					instructions:
 						`Follow docs/releases.md#prepare-and-land-the-source to start or resume ordinary ` +
-						`Land. Wait for done and record the exact integrated source commit; verify its ` +
-						`suite versions and release notes, including any concurrent changes in its ancestry. ` +
+						`Land. Wait for done and record the exact integrated source commit. Complete the guide's ` +
+						`verification of that source and its offline changelog commands before publication. ` +
 						`Canonical ${context.canonicalRoot}; BEADS_DB ${context.beadsDb}. ${context.evidence}`,
 				}),
 			},

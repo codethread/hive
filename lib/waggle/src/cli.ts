@@ -1,6 +1,15 @@
 import type { ClassificationRequest, Classifier } from "./classifiers.ts";
 import { Command, CommanderError } from "commander";
+import {
+	changelogHistorySchema,
+	changelogQuerySchema,
+	changelogSchema,
+	queryChangelog,
+	renderChangelog,
+} from "@hive/shared/changelog";
 import { parseClassification, prepareRequest } from "./classifiers.ts";
+import changelog from "../changelog.json";
+import { version } from "../package.json";
 
 const JSON_INDENT = 2;
 const SUCCESS = 0;
@@ -63,6 +72,38 @@ function createProgram(deps: WaggleDependencies): Command {
 		.option("--json", "Keep failures on stdout as JSON too; stderr stays silent")
 		.configureOutput({ writeErr: () => {}, writeOut: deps.stdout })
 		.exitOverride();
+
+	program
+		.command("changelog")
+		.description(
+			"Read embedded history offline; defaults to the latest recorded release at or below this executable version",
+		)
+		.summary("Read offline release history")
+		.option("--since <version>", "Releases newer than this stable version (exclusive)")
+		.option("--release <version>", "Read one exact recorded release; cannot combine with --since")
+		.option("--limit <count>", "Changes per page (1–100, default 20)")
+		.option("--offset <count>", "Skip matching changes (default 0)")
+		.option("--schema", "Print the successful JSON response schema")
+		.option("--json", "Emit one JSON document with silent stderr")
+		.action(function changelogCommand(this: Command) {
+			const options = this.optsWithGlobals();
+			if (options["schema"] === true) {
+				deps.stdout(
+					`${JSON.stringify({ ok: true, kind: "changelog_schema", schema: changelogSchema() })}\n`,
+				);
+				return;
+			}
+			const page = queryChangelog(
+				{ tool: "waggle", version },
+				changelogHistorySchema.parse(changelog),
+				changelogQuerySchema.parse(options),
+			);
+			let output = renderChangelog(page);
+			if (options["json"] === true) {
+				output = `${JSON.stringify(page)}\n`;
+			}
+			deps.stdout(output);
+		});
 
 	program
 		.command("list")

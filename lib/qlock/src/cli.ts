@@ -1,8 +1,16 @@
 import { Command, CommanderError, InvalidArgumentError, Option } from "commander";
 import type { Dependencies, Outcome, Request, TicketRequest } from "./run.ts";
 import { EXIT, QlockError, READY_WINDOW_MS } from "./queue.ts";
+import {
+	changelogHistorySchema,
+	changelogQuerySchema,
+	changelogSchema,
+	queryChangelog,
+	renderChangelog,
+} from "@hive/shared/changelog";
 import { normalizeError, runRequest } from "./run.ts";
 import type { Ticket } from "./queue.ts";
+import changelog from "../changelog.json";
 import { registerSkills } from "./skills.ts";
 import { version } from "../package.json";
 
@@ -25,7 +33,6 @@ Example: wait, timeout, resume
   qlock: Ticket 42 still queued (#2/2); resume with --ticket 42 before --
   # Run again with the reported ID (here 42), same queue and command
   qlock exec --lock /tmp/check.lock -w 180 --ticket 42 -- bun run check
-
 --ticket keeps your place; omit it to join again.
 No background execution. Ready tickets expire after 30s.
 `;
@@ -93,6 +100,38 @@ function createProgram(
 		.addHelpText("after", EXEC_HELP + HELP)
 		.configureOutput({ writeOut: deps.stdout, writeErr: () => {} })
 		.exitOverride();
+
+	program
+		.command("changelog")
+		.description(
+			"Read embedded history offline; defaults to the latest recorded release at or below this executable version",
+		)
+		.summary("Read offline release history")
+		.option("--since <version>", "Releases newer than this stable version (exclusive)")
+		.option("--release <version>", "Read one exact recorded release; cannot combine with --since")
+		.option("--limit <count>", "Changes per page (1–100, default 20)")
+		.option("--offset <count>", "Skip matching changes (default 0)")
+		.option("--schema", "Print the successful JSON response schema")
+		.option("--json", "Emit one JSON document with silent stderr")
+		.action(function changelogCommand(this: Command) {
+			const options = this.optsWithGlobals();
+			if (options["schema"] === true) {
+				deps.stdout(
+					`${JSON.stringify({ ok: true, kind: "changelog_schema", schema: changelogSchema() })}\n`,
+				);
+				return;
+			}
+			const page = queryChangelog(
+				{ tool: "qlock", version },
+				changelogHistorySchema.parse(changelog),
+				changelogQuerySchema.parse(options),
+			);
+			let output = renderChangelog(page);
+			if (options["json"] === true) {
+				output = `${JSON.stringify(page)}\n`;
+			}
+			deps.stdout(output);
+		});
 
 	queueCommand(program.command("exec"))
 		.description("Queue and run a command")

@@ -13,7 +13,7 @@ const FAILURE = 1;
 
 const HELP = `Usage: bun run release prepare VERSION [options]
 
-Prepare every package version, lockfile and releases/vVERSION.md for review.
+Prepare package versions, lockfiles, release notes and per-tool changelogs for review.
 --repo DIR  Hive source checkout (default: current directory)
 --json      Results and failures are always one JSON document
 

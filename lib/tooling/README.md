@@ -36,4 +36,4 @@ Standalone executables embed Bun and static dependencies; native external tools 
 
 ## Release tooling
 
-`bun run release --help` describes local version and release-note preparation. The [release workflow](../../.workflows/release/workflow.ts) owns source publication and the later Homebrew formula change; see the [release guide](../../docs/releases.md) for the procedure. Ordinary Land does not publish a release.
+`bun run release --help` describes local version, release-note and per-tool changelog preparation. The [release guide](../../docs/releases.md#author-tool-changelog-records) owns the versioned commit-body record format and review of generated histories. The [release workflow](../../.workflows/release/workflow.ts) owns source publication and the later Homebrew formula change. Ordinary Land leaves version bumps and versioned history generation to Release.

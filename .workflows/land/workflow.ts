@@ -165,6 +165,9 @@ export const machine = setup({
 						"includes unfinished agreed implementation; workflow creation or a PR URL alone grants no " +
 						"authority. Inspect acceptance, Git status/diff, base/head and any PR. Verify the target " +
 						"repository, surviving canonicalRoot and permanent beadsDb. Preserve claims and unrelated edits. " +
+						"Assess existing commits or proposed messages against docs/releases.md#author-tool-changelog-records " +
+						"for consumer-visible changes, breaking details and required or optional adoption steps. " +
+						"Ordinary Land leaves version bumps and versioned changelog generation to Release. " +
 						"Choose implement for unfinished acceptance or findings; check when full checks are " +
 						"missing/stale; review when checks pass but local approval is absent/stale; commit for checked, " +
 						"approved uncommitted content; reviewed for clean committed content with a current local review " +
@@ -217,7 +220,10 @@ export const machine = setup({
 						"code; inspect git status and the cumulative diff for secrets, local " +
 						"configuration and unintended files. Keep the diff scoped and " +
 						"documentation truthful. Have bookworm write/review changed prose, including embedded prompts " +
-						"and help, using docs/agents/specialists.md for the context handoff. Retain its coverage and " +
+						"and help, using docs/agents/specialists.md for the context handoff. Include the exact source and " +
+						"final squash messages and verify their per-tool coverage under " +
+						"docs/releases.md#author-tool-changelog-records. " +
+						"Retain its coverage and " +
 						"edits in the review evidence; reuse a completed pass only while its scope and content remain " +
 						"current. Run `bun run check` for the complete change; " +
 						"its full suite prints the complete timing report and fails on " +
@@ -277,7 +283,8 @@ export const machine = setup({
 				task: ({ context }: { context: LandingContext }) => ({
 					title: `Commit the reviewed change: ${targetTitle(context)}`,
 					instructions:
-						"Commit the scoped approved content using conventional commits and normal hooks. Record final " +
+						"Commit the scoped approved content with normal hooks and the exact message retained in review " +
+						"evidence. Record final " +
 						"source commits alongside expectedCommits and their relation to the review receipt. Choose " +
 						"changed if hooks, conflict repair or other edits alter reviewed content; choose next only for a " +
 						"clean tree matching the approved receipt. Failed hooks or unrelated dirty work block completion. " +
@@ -369,7 +376,9 @@ export const machine = setup({
 						"honeycomb finish --help and follow its policy without bypassing refusals. For PRs, merge through " +
 						"gh with the configured strategy/queue and expected-head check; no admin bypass. Wait for the " +
 						"actual merge commit: enqueuing is not completion. If already integrated, verify instead of " +
-						"repeating it. Record integration and source correspondence, including squash/rebase proof, " +
+						"repeating it. When squashing, supply the reviewed final message with its authoritative changelog " +
+						"blocks in the caller's body, following docs/releases.md#author-tool-changelog-records. " +
+						"Record integration and source correspondence, including squash/rebase proof, " +
 						"before next. Before removing the checkout, verify the same Land definition remains available in " +
 						"canonicalRoot; deliver subsequent results there using the retained BEADS_DB. External blockers " +
 						"remain open with diagnostics. " +
@@ -392,7 +401,8 @@ export const machine = setup({
 					instructions:
 						"From the retained canonical checkout/tracker, fetch and verify clean synchronized main contains " +
 						"the change. Use recorded commits and content/PR correspondence for squash/rebase integration. " +
-						"Run bun run check on the integrated result. A defect requires an agreed forward fix or revert; " +
+						"Verify the actual integrated commit's message retains the reviewed tool records and run " +
+						"bun run check at that exact hash. A defect requires an agreed forward fix or revert; " +
 						"leave this task open. Verify feature-worktree cleanup, using honeycomb remove --help with " +
 						"integration proof if needed, including --integrated-into origin/main for squash merges. Preserve " +
 						"the permanent tracker, unrelated worktrees and dirty files. Record integration/check/cleanup " +
