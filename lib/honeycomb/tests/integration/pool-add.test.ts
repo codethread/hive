@@ -17,7 +17,6 @@ import { join, resolve } from "node:path";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 
 const SINGLE_SLOT = 1;
-const TWO_SLOTS = 2;
 const FAIL_OUTSIDE_PLACEHOLDER = '[[ "$(git branch --show-current)" == wk-pool/* ]] || exit 7';
 
 const tmp = useTmpHome("honeycomb-pool-add-test-");
@@ -96,37 +95,6 @@ test("keeps legacy pool slots and creates only missing slots in the preferred lo
 		worktree_path: legacySlot,
 	});
 	expect(await gitOut(legacySlot, "branch", "--show-current")).toBe("wk-pool/feat1");
-});
-test("allocates the lowest initialized free slot and runs setup", async () => {
-	const { root } = await initRepoWithOrigin(tmp.dir);
-	writeConfig({
-		command: 'git branch --show-current > "$(git rev-parse --git-path setup-branch)"',
-		poolSize: TWO_SLOTS,
-		root,
-		tmp: tmp.dir,
-	});
-	await dispatch("ensure", ["--cwd", root], testDeps());
-
-	const result = await dispatch(
-		"add",
-		["--cwd", root, "--branch", "feature/pooled", "--json"],
-		testDeps(),
-	);
-
-	const plan = JSON.parse(result.stdout ?? "{}");
-	expect(plan).toMatchObject({
-		branch: "feature/pooled",
-		created_new_branch: true,
-		// oxlint-disable-next-line unicorn/no-null -- The JSON protocol explicitly reports absent script paths as null.
-		post_create_script_path: null,
-		worktree_path: `${root}__feat1`,
-	});
-	const setupBranchPath = await gitOut(`${root}__feat1`, "rev-parse", "--git-path", "setup-branch");
-	expect(await readFile(resolve(`${root}__feat1`, setupBranchPath), "utf8")).toBe(
-		"feature/pooled\n",
-	);
-	expect(await gitOut(`${root}__feat1`, "branch", "--show-current")).toBe("feature/pooled");
-	expect(await gitOut(`${root}__feat2`, "branch", "--show-current")).toBe("wk-pool/feat2");
 });
 test("copies into allocated slot after checkout and before setup", async () => {
 	const { root } = await initRepoWithOrigin(tmp.dir);

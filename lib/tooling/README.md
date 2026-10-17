@@ -32,8 +32,8 @@ Standalone executables embed Bun and static dependencies; native external tools 
 
 `bun run --filter '*' install:bin` installs already-built artifacts through Beeswax; see `beeswax artifacts install --help` for source/destination options. Installation replaces destination symlinks without modifying their targets. Keep Colony's daemon, worker and watchdog companions beside `bee` and `colony`; deliberately restart an existing daemon after updating its runtime.
 
-[`mise.toml`](../../mise.toml) owns setup ordering. `bun install` prepares a worktree without installing global commands. The [release guide](../../docs/releases.md) owns cross-platform builds from immutable revisions.
+[`mise.toml`](../../mise.toml) owns setup ordering. `bun install` prepares a worktree without installing global commands. For Homebrew installation from tagged source, see the [release guide](../../docs/releases.md#homebrew-installation).
 
 ## Release tooling
 
-`bun run release --help` describes local version/changelog preparation, revision builds and checksum-verified formula generation. The [release workflow](../../docs/releases.md) owns GitHub publication and the tap update. Ordinary Land does not publish a release.
+`bun run release --help` describes local version and release-note preparation. The [release workflow](../../.workflows/release/workflow.ts) owns source publication and the later Homebrew formula change; see the [release guide](../../docs/releases.md) for the procedure. Ordinary Land does not publish a release.

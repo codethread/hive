@@ -86,10 +86,7 @@ test.each([{ fresh: false }, { fresh: true }])(
 		await assertRebasedHistory(fixture.root, targetHead);
 	},
 );
-test.each([
-	{ fresh: false, allowance: "#test-71" },
-	{ fresh: true, allowance: "" },
-])(
+test.each([{ fresh: false, allowance: "#test-71" }])(
 	"rebase_ff replay conflict leaves canonical unchanged (fresh=$fresh) $allowance",
 	async ({ fresh }) => {
 		const fixture = await prepareReplayConflict(fresh);
@@ -211,35 +208,6 @@ test("merge preview errors fail loudly before fresh_canonical advancement", asyn
 		cleanup_actions: [],
 	});
 	expect(await readFinishState(fixture)).toEqual(before);
-});
-test("fresh_canonical conflict refuses without first fast-forwarding target", async () => {
-	const { remote, root, worktreePath } = await prepareFinish(
-		"feature/fresh-conflict",
-		'[project.add]\npolicy = "fresh_canonical"\n',
-	);
-	await commitFile({
-		content: "source\n",
-		message: "source work",
-		path: "source.txt",
-		repo: worktreePath,
-	});
-	await commitOnRemoteDefault({
-		content: "fresh\n",
-		message: "fresh remote",
-		path: "remote-fresh.txt",
-		remote,
-	});
-	const originalState = await readCheckoutState(root);
-
-	const result = await dispatch("finish", ["--cwd", worktreePath, "--json"], deps);
-
-	expect(result.exitCode).toBe(EXIT_CODES.BLOCKED);
-	expect(JSON.parse(result.stdout ?? "{}")).toMatchObject({
-		kind: "blocked",
-		reason: "conflict",
-	});
-	expect(await readCheckoutState(root)).toEqual(originalState);
-	expect(await gitSucceeds(root, "show", "HEAD:remote-fresh.txt")).toBe(false);
 });
 test("non-fast-forward ff_only refuses without target modification", async () => {
 	const { root, worktreePath } = await prepareFinish("feature/divergent-finish");

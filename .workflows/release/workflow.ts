@@ -2,44 +2,31 @@ import { assign, setup } from "xstate";
 import { z } from "zod";
 
 const text = z.string().trim().nonempty();
-const repository = z.string().regex(/^[\w.-]+\/[\w.-]+$/u);
-const revision = z.string().regex(/^[a-f\d]{40}$/u);
 const evidence = z.object({ evidence: text });
-const landed = evidence.extend({ revision });
+const landed = evidence.extend({ revision: z.string().regex(/^[a-f\d]{40}$/u) });
 
 export const inputSchema = z.object({
 	nextVersion: z.string().regex(/^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)$/u),
-	request: text.describe(
-		"Explicit user authorization to publish this version to these destinations.",
-	),
-	releaseRepository: repository.describe(
-		"Existing GitHub repository serving public release archives.",
-	),
-	tapRepository: repository.describe(
-		"Existing GitHub tap repository; an explicit tap URL also supports a source repository.",
-	),
-	tapCheckout: text.describe(
-		"Local tap repository anchor; create a separate worktree there for Formula/hive.rb.",
-	),
+	request: text.describe("Explicit user authorization to publish this version and source history."),
+	releaseRepository: z
+		.string()
+		.regex(/^[\w.-]+\/[\w.-]+$/u)
+		.describe("Public GitHub source repository and Homebrew tap."),
 	canonicalRoot: text.describe("Canonical Hive checkout retained after Land cleanup."),
-	beadsDb: text.describe("Permanent tracker endpoint, retained after Land cleanup."),
-	artifactDirectory: text.describe(
-		"Absolute candidate download/build directory outside the disposable release worktree; must not exist.",
-	),
+	beadsDb: text.describe("Permanent tracker endpoint retained after Land cleanup."),
 });
-
-export const commandSchemas = { next: evidence, landed, changes: evidence };
+export const commandSchemas = { next: evidence, landed };
 type ReleaseInput = z.infer<typeof inputSchema>;
 interface ReleaseContext extends ReleaseInput {
 	/** Evidence carried from the last completed visit. */
 	evidence: string;
-	/** Landed source commit; absent until Land completes. */
+	/** Exact integrated source commit recorded by Land. */
 	revision: string | undefined;
 }
 interface ReleaseEvent {
-	/** Only the Land visit supplies a source commit. */
-	type: "NEXT" | "LANDED" | "CHANGES";
-	/** Original payload is validated by Busy Bee before transition. */
+	/** Land records the source commit; other visits supply evidence. */
+	type: "NEXT" | "LANDED";
+	/** Busy Bee validates the original outcome payload. */
 	data: unknown;
 }
 
@@ -47,14 +34,11 @@ export function runBrief(input: ReleaseInput): { title: string; description: str
 	return {
 		title: `Release Hive ${input.nextVersion}`,
 		description:
-			`${input.request}\nPublish v${input.nextVersion} to ${input.releaseRepository}; ` +
-			`update ${input.tapRepository} from ${input.tapCheckout}. Retain ${input.canonicalRoot}, ` +
-			`${input.beadsDb} and artifacts ${input.artifactDirectory}. This is a separately invoked release; ` +
-			"Land never starts it automatically. All packages advance together; Waggle is excluded from archives. " +
-			"Follow docs/releases.md; preserve the annotated source tag when landing the later formula commit. " +
-			"After done, the authorized caller closes proven scope tasks and publishes final tracker evidence once. " +
-			"On retry inspect existing tags, releases and tap commits; " +
-			"never replace published artifacts or replay closed work.",
+			`${input.request}\nPublish source tag v${input.nextVersion} and release notes to ` +
+			`${input.releaseRepository}, then land its source-building Formula/hive.rb in the ` +
+			`same repository. Follow docs/releases.md. Retain ${input.canonicalRoot} and ` +
+			`${input.beadsDb}. After done, the authorized caller ` +
+			`closes proven scope tasks and publishes final tracker evidence once.`,
 	};
 }
 
@@ -63,7 +47,6 @@ export const machine = setup({
 	actions: {
 		record: assign(({ event }) => evidence.parse(event.data)),
 		recordRevision: assign(({ event }) => landed.parse(event.data)),
-		clearRevision: assign({ revision: undefined }),
 	},
 }).createMachine({
 	id: "release",
@@ -76,161 +59,83 @@ export const machine = setup({
 	states: {
 		preflight: {
 			meta: {
-				title: "Verify release authorization and destinations",
+				title: "Verify source release authorization and destination",
 				commands: { next: "NEXT" },
 				task: ({ context }: { context: ReleaseContext }) => ({
 					instructions:
-						`Read docs/releases.md. Verify actual user authorization: ${context.request}. ` +
-						`Version ${context.nextVersion} must exceed every package and latest reachable stable vX.Y.Z tag. ` +
-						`Verify gh authentication and write access to existing ${context.releaseRepository} and ` +
-						`${context.tapRepository}; public archive URLs must work without credentials. Do not create ` +
-						"repositories or change visibility without explicit authorization. Pushing the source tag also " +
-						"publishes its reachable source history; authorization must cover that disclosure. " +
-						"Fetch tags and inspect " +
-						"any existing tag/release before proceeding; an already published version requires reconciliation, " +
-						"not replacement. Verify the tap repository anchor, remote and default branch; formula edits use " +
-						"a separate worktree after publication. Verify br/bv upstream " +
-						"formulae and consumed dependency contract; record versions. Retain canonical checkout and tracker. " +
-						"Use Honeycomb to create a nested release worktree for the version commit. Missing authorization, " +
-						"credentials, destinations or incompatible dependencies keep this visit open with a precise next action. " +
-						`Artifact destination: ${context.artifactDirectory}.`,
+						`Follow the authorization guidance in docs/releases.md#prepare-and-land-the-source ` +
+						`for the actual user request: ${context.request}. ` +
+						`Verify gh authentication, write access and anonymous source access for ` +
+						`${context.releaseRepository}; confirm the canonical checkout remote is this ` +
+						`repository. Fetch tags and inspect existing release/tag/formula effects before ` +
+						`continuing. Version ${context.nextVersion} must exceed the latest stable suite tag. ` +
+						`For new preparation it must also exceed every package; an already-prepared ` +
+						`unpublished matching version may be reused. Verify the maintained Bun, br and bv ` +
+						`Homebrew dependencies. Create a nested Honeycomb release worktree; retain ` +
+						`${context.canonicalRoot} and permanent BEADS_DB ${context.beadsDb}. Missing ` +
+						`authorization or credentials keeps this visit open with its next action.`,
 				}),
 			},
 			on: { NEXT: { actions: "record", target: "prepare" } },
 		},
 		prepare: {
 			meta: {
-				title: "Prepare suite versions and package changelogs",
+				title: "Prepare suite versions and release notes",
 				commands: { next: "NEXT" },
 				task: ({ context }: { context: ReleaseContext }) => ({
 					instructions:
-						`In the clean release worktree run bun run release prepare ${context.nextVersion}. ` +
-						"Inspect the resulting manifest/lockfile diff and releases/vVERSION.md against Git history since " +
-						"the latest reachable stable suite tag. All workspace packages, including unchanged packages and " +
-						"Waggle, get the same version; unchanged packages explicitly say No change. CLI versions read " +
-						"their package manifests. Busy Bee manifest compatibility versions remain independent. " +
-						"If interrupted, inspect partial file effects before restoring only owned edits and rerunning. " +
-						`Record branch, prior tag and notes path. Prior evidence: ${context.evidence}`,
+						`Follow docs/releases.md#prepare-and-land-the-source and bun run release --help ` +
+						`to prepare ${context.nextVersion}. If all manifests already equal the unpublished ` +
+						`version, reconcile the existing preparation and refresh notes without rerunning ` +
+						`the version bump. ` +
+						`Review all package versions, lockfiles and releases/vVERSION.md against history ` +
+						`since the newest reachable stable suite tag. On interruption inspect partial changes ` +
+						`before restoring only owned edits and retrying. Record the worktree and prior tag. ` +
+						`Prior evidence: ${context.evidence}`,
 				}),
 			},
 			on: { NEXT: { actions: "record", target: "land" } },
 		},
 		land: {
 			meta: {
-				title: "Check, review and land the release preparation",
+				title: "Check, review and land the source release",
 				commands: { landed: "LANDED" },
 				task: ({ context }: { context: ReleaseContext }) => ({
 					instructions:
-						"Use the existing named Land workflow for the prepared version/changelog change, " +
-						"parented beneath this Release run with completedTasks: []. Supply the actual publishing " +
-						"authorization as landing context. Resume an already-created Land run on retry; do not duplicate it. " +
-						"Wait for Land status done, including check, review, integration, local build/install and cleanup. " +
-						"Defer tracker publication until this surrounding release completes. Read canonical main and " +
-						"record its exact 40-character integrated commit as revision; verify suite versions and notes " +
-						`there. Canonical ${context.canonicalRoot}; BEADS_DB ${context.beadsDb}. ${context.evidence}`,
+						`Follow docs/releases.md#prepare-and-land-the-source to start or resume ordinary ` +
+						`Land. Wait for done and record the exact integrated source commit; verify its ` +
+						`suite versions and release notes, including any concurrent changes in its ancestry. ` +
+						`Canonical ${context.canonicalRoot}; BEADS_DB ${context.beadsDb}. ${context.evidence}`,
 				}),
 			},
-			on: { LANDED: { actions: "recordRevision", target: "build" } },
-		},
-		build: {
-			meta: {
-				title: "Build immutable release archives and formula",
-				commands: { next: "NEXT", changes: "CHANGES" },
-				task: ({ context }: { context: ReleaseContext }) => ({
-					instructions:
-						`From ${context.canonicalRoot}, follow docs/releases.md to dispatch native candidate verification ` +
-						`for exact source ${context.revision} in ${context.releaseRepository}. Retain the Actions run and ` +
-						`candidate artifact identity; download its original bytes to ${context.artifactDirectory}. ` +
-						`Verify source, version ${context.nextVersion}, all four platforms and ten executables, excluding ` +
-						"Waggle. Generate hive.rb from that candidate for the release repository and validate Ruby syntax. " +
-						"Use the same archives for native proof and publication; recompilation invalidates that proof. " +
-						"On interruption inspect retained CI runs and any " +
-						"partial output and move owned unpublished output aside before retrying the same path. " +
-						"Never overwrite published artifacts. Choose changes for a source defect " +
-						"requiring repair and renewed Land.",
-				}),
-			},
-			on: {
-				NEXT: { actions: "record", target: "verify" },
-				CHANGES: { actions: "record", target: "repair" },
-			},
-		},
-		verify: {
-			meta: {
-				title: "Verify archives on every advertised platform",
-				commands: { next: "NEXT", changes: "CHANGES" },
-				task: ({ context }: { context: ReleaseContext }) => ({
-					instructions:
-						"Follow docs/releases.md verification. Match all four native platform proofs to the retained " +
-						"Actions run, candidate artifact and archive hashes. All ten executable versions must equal " +
-						`${context.nextVersion}. Complete the dependency-contract and Homebrew checks outside CI; ` +
-						"record their evidence separately. Cross-compilation or emulation is not native execution proof. " +
-						"Missing runners keep this visit open. Choose changes for a source defect; the repair route " +
-						"requires a forward fix, renewed Land and fresh archives before verification. " +
-						`Artifacts: ${context.artifactDirectory}; source ${context.revision}.`,
-				}),
-			},
-			on: {
-				NEXT: { actions: "record", target: "publish" },
-				CHANGES: { actions: "record", target: "repair" },
-			},
-		},
-		repair: {
-			entry: "clearRevision",
-			meta: {
-				title: "Repair the unpublished release candidate",
-				commands: { next: "NEXT" },
-				task: ({ context }: { context: ReleaseContext }) => ({
-					instructions:
-						`Repair the source defect in a new nested worktree: ${context.evidence}. ` +
-						`Keep the unpublished suite version ${context.nextVersion}; do not repeat its version bump. ` +
-						"Refresh its package changelog sections against the previous release tag to include the fix. " +
-						"Record focused verification and the repair branch. Prove no tag/release has been published, " +
-						`then move owned artifacts at ${context.artifactDirectory} aside with their failed-candidate ` +
-						"evidence so the original output path is free for the new build. External publication already " +
-						"present or mismatched effects block this repair; never replace a published version. " +
-						"Choose next to run Land again and capture the new integrated source revision.",
-				}),
-			},
-			on: { NEXT: { actions: "record", target: "land" } },
+			on: { LANDED: { actions: "recordRevision", target: "publish" } },
 		},
 		publish: {
 			meta: {
-				title: "Publish the verified Git tag and GitHub release",
+				title: "Publish the immutable source tag and release notes",
 				commands: { next: "NEXT" },
 				task: ({ context }: { context: ReleaseContext }) => ({
 					instructions:
-						`Check the recorded authorization and verified artifact evidence: ${context.evidence}. ` +
-						`Publish annotated tag v${context.nextVersion} pointing exactly at ${context.revision} to ` +
-						`${context.releaseRepository}, following docs/releases.md. Create a draft GitHub release, ` +
-						"upload only the four archives, manifest.json, SHA256SUMS and hive.rb from the saved artifact " +
-						"directory and use releases/vVERSION.md for notes. Download draft assets and compare bytes before " +
-						"publishing the draft. Verify anonymous URLs and SHA-256 again after publication. " +
-						"On retry inspect existing tag target, release/draft and asset digests. Continue matching partial " +
-						"effects only; mismatched tags/assets block. Never force a tag or clobber an uploaded asset. " +
-						"Record actual release URL, source/tag and verified hashes; submission alone is not publication.",
+						`Follow docs/releases.md#publish-the-source-release to publish annotated ` +
+						`v${context.nextVersion} pointing exactly at ${context.revision} in ` +
+						`${context.releaseRepository}, using that source's releases/v${context.nextVersion}.md. ` +
+						`Complete the guide's publication verification and record the release URL, exact ` +
+						`source and source checksum. ${context.evidence}`,
 				}),
 			},
 			on: { NEXT: { actions: "record", target: "tap" } },
 		},
 		tap: {
 			meta: {
-				title: "Update and verify the Homebrew tap",
+				title: "Land and verify the host-built Homebrew formula",
 				commands: { next: "NEXT" },
 				task: ({ context }: { context: ReleaseContext }) => ({
 					instructions:
-						`Use ${context.tapCheckout} as the repository anchor; verify remote ${context.tapRepository} ` +
-						"and fetch its default branch. Create or resume a separate nested Honeycomb worktree for the " +
-						"formula-only change. Copy the generated hive.rb to Formula/hive.rb without changing URLs/hashes. " +
-						"Run brew style, brew audit and an actual install/test against the published assets; verify all " +
-						"ten executable versions, mandatory br/bv dependencies and no install-time tracker or service " +
-						"startup. For Hive's same-repository tap, use ordinary Land beneath this Release run with " +
-						"completedTasks: []; preserve the source tag on its original commit. For another tap, follow " +
-						"that repository's commit/review/push policy. Wait for actual merged/pushed " +
-						"tap revision and verify clean-install availability using its fully qualified formula name. " +
-						"On retry retain matching existing formula/tap commits rather than duplicating updates. " +
-						"Comment on the Release run with source/tag, release URL, hashes, native tests, tap commit, " +
-						"installation and cleanup evidence. Missing credentials or failed install keeps this visit open. " +
+						`Follow docs/releases.md#land-the-homebrew-formula to land Formula/hive.rb for ` +
+						`v${context.nextVersion} in ${context.releaseRepository}, anchored at ` +
+						`${context.canonicalRoot}. Complete the guide's build, installation verification ` +
+						`and Land steps, retaining v${context.nextVersion} on ${context.revision}. Record ` +
+						`the required release, formula, installation and cleanup evidence on this run. ` +
 						`Published evidence: ${context.evidence}`,
 				}),
 			},
