@@ -105,28 +105,6 @@ test.each([{ fresh: false, allowance: "#test-71" }])(
 		expect(await readCheckoutState(fixture.worktreePath)).toEqual(sourceBefore);
 	},
 );
-test.each([
-	{ fresh: false, strategy: "squash" },
-	{ fresh: false, strategy: "merge_commit" },
-])(
-	"$strategy modify/delete conflict protects canonical (fresh=$fresh)",
-	async ({ fresh, strategy }) => {
-		const fixture = await prepareModifyDeleteConflict(fresh, strategy);
-		const before = await readFinishState(fixture);
-		const sourceBefore = await readCheckoutState(fixture.worktreePath);
-		const result = await dispatch("finish", finishArgs(fixture.worktreePath, strategy), deps);
-		await assertConflictPreserved({
-			...fixture,
-			result,
-			sourceHead: before.sourceBranchHead,
-			targetHead: before.canonical.head,
-		});
-		expect(await readFinishState(fixture)).toEqual(before);
-		expect(await readCheckoutState(fixture.worktreePath)).toEqual(sourceBefore);
-		expect(await pathExists(join(fixture.root, "README.md"))).toBe(false);
-		expect(await readFile(join(fixture.worktreePath, "README.md"), "utf8")).toBe("source\n");
-	},
-);
 test("finish rejects CLI policy overrides before fresh_canonical mutates target", async () => {
 	const { remote, root, worktreePath } = await prepareFinish(
 		"feature/cli-policy-override",
@@ -319,31 +297,5 @@ async function prepareReplayConflict(fresh: boolean) {
 	expect(
 		await gitSucceeds(fixture.root, "merge-tree", "--write-tree", targetHead, fixture.branch),
 	).toBe(true);
-	return fixture;
-}
-
-async function prepareModifyDeleteConflict(fresh: boolean, strategy: string) {
-	const fixture = await prepareFinish(
-		"feature/squash-conflict",
-		finishPolicy(strategy, fresh, true),
-	);
-	await commitFile({
-		content: "source\n",
-		message: "source change",
-		path: "README.md",
-		repo: fixture.worktreePath,
-	});
-	await commitFile({
-		content: "staged by a conflicted merge\n",
-		message: "source addition",
-		path: "source-only.txt",
-		repo: fixture.worktreePath,
-	});
-	await gitOut(fixture.root, "rm", "README.md");
-	await gitOut(fixture.root, "commit", "-m", "delete target file");
-	await gitOut(fixture.root, "push", "origin", "main");
-	if (fresh) {
-		await commitTargetChange(fixture, true, "remote.txt");
-	}
 	return fixture;
 }

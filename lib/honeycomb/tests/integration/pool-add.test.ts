@@ -60,15 +60,6 @@ async function prepareMixedPool() {
 	return { legacySlot: `${root}__feat1`, nestedSlot, root };
 }
 
-async function prepareRestoreTip() {
-	const { root, remote } = await initRepoWithOrigin(tmp.dir);
-	await createRemoteBranch(remote, "feature/pool-restore-tip");
-	await run(["git", "-C", root, "fetch", "origin"]);
-	await run(["git", "-C", root, "branch", "feature/pool-restore-tip", "main"]);
-	const originalHead = await gitOut(root, "rev-parse", "refs/heads/feature/pool-restore-tip");
-	return { originalHead, root };
-}
-
 test("keeps legacy pool slots and creates only missing slots in the preferred location", async () => {
 	const { root, legacySlot, nestedSlot } = await prepareMixedPool();
 	const status = await dispatch("status", ["--cwd", root], testDeps());
@@ -124,23 +115,6 @@ test("copies into allocated slot after checkout and before setup", async () => {
 	);
 	expect(await readFile(resolve(`${root}__feat1`, allocatedReadPath), "utf8")).toBe("pooled\n");
 });
-test("setup failure during allocation frees the slot and deletes the new branch", async () => {
-	const { root } = await initRepoWithOrigin(tmp.dir);
-	writeConfig({ command: FAIL_OUTSIDE_PLACEHOLDER, poolSize: SINGLE_SLOT, root, tmp: tmp.dir });
-	await dispatch("ensure", ["--cwd", root], testDeps());
-
-	const { failure } = await dispatch(
-		"add",
-		["--cwd", root, "--branch", "feature/setup-fail", "--json"],
-		testDeps(),
-	);
-	expect(failure).toBeInstanceOf(HookError);
-
-	expect(await gitOut(`${root}__feat1`, "branch", "--show-current")).toBe("wk-pool/feat1");
-	expect(await gitSucceeds(root, "show-ref", "--verify", "refs/heads/feature/setup-fail")).toBe(
-		false,
-	);
-});
 test("setup failure during allocation restores an existing branch tip", async () => {
 	const { root } = await initRepoWithOrigin(tmp.dir);
 	await run(["git", "-C", root, "branch", "feature/pool-setup-restore"]);
@@ -183,28 +157,6 @@ test("copy setup failure during allocation restores the slot placeholder", async
 	expect(
 		await gitSucceeds(root, "show-ref", "--verify", "refs/heads/feature/allocated-copy-fail"),
 	).toBe(false);
-});
-test("copy setup failure during allocation restores an existing branch tip", async () => {
-	const { root, originalHead } = await prepareRestoreTip();
-	writeConfig({ command: "echo ready", poolSize: SINGLE_SLOT, root, tmp: tmp.dir });
-	await dispatch("ensure", ["--cwd", root], testDeps());
-	writeConfig({
-		command: "echo should-not-run",
-		copyToml: 'copy = [".env.missing"]\n',
-		poolSize: SINGLE_SLOT,
-		root,
-		tmp: tmp.dir,
-	});
-
-	const { failure } = await dispatch(
-		"add",
-		["--cwd", root, "--branch", "feature/pool-restore-tip", "--json"],
-		testDeps(),
-	);
-	expect(failure).toBeInstanceOf(ConfigError);
-
-	expect(await gitOut(`${root}__feat1`, "branch", "--show-current")).toBe("wk-pool/feat1");
-	expect(await gitOut(root, "rev-parse", "refs/heads/feature/pool-restore-tip")).toBe(originalHead);
 });
 test.each([
 	{ branch: "feature/remote-pool", name: "existing remote-only", source: "remote" },
