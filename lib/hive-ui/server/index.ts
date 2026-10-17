@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-/* eslint-disable import/max-dependencies -- Foreground boundary composes server, CLI and package identity. */
+/* eslint-disable import/max-dependencies -- Foreground boundary composes server, CLI and native reads. */
 import {
 	ANNOTATION_BATCH,
 	PAGE_SIZE,
@@ -7,30 +7,23 @@ import {
 	boardScopeSchema,
 	inventoryFilterSchema,
 } from "../contracts.ts";
-import { Command, CommanderError } from "commander";
 // eslint-disable-next-line import/no-nodejs-modules -- Resolve explicitly configured local repository endpoints.
 import { basename, resolve } from "node:path";
-import {
-	changelogHistorySchema,
-	changelogQuerySchema,
-	changelogSchema,
-	queryChangelog,
-	renderChangelog,
-} from "@hive/shared/changelog";
 import { execute, resolveRepository } from "@hive/shared";
 import type { BeadsService } from "@hive/beads";
 import type { Colony } from "../contracts.ts";
+import { CommanderError } from "commander";
+import type { UiOptions } from "./cli.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Explicit machine-mode diagnostics file boundary.
 import { appendFile } from "node:fs/promises";
-import changelog from "../changelog.json";
 import { createBoardData } from "./data.ts";
 import { createNativeBeads } from "@hive/beads";
 import { createTopologyReader } from "./topology.ts";
+import { createUiCommand } from "./cli.ts";
 import { createWorkflowReader } from "./workflow.ts";
 import { discoverColonies } from "./colony-discovery.ts";
 import index from "../src/index.html";
 import { readStatuses } from "./statuses.ts";
-import { version } from "../package.json";
 import { z } from "zod";
 
 const HTTP = {
@@ -40,23 +33,10 @@ const HTTP = {
 	readOnly: 405,
 	unavailable: 503,
 };
-const MAX_PORT = 65_535;
 const ENDPOINT_ID_LENGTH = 16;
 const configSchema = z
 	.array(z.object({ beadsDb: z.string().min(1), name: z.string().min(1), root: z.string().min(1) }))
 	.min(1);
-const optionsSchema = z.object({
-	beadsDb: z.string().optional(),
-	colonies: z.string().optional(),
-	daemon: z.boolean().default(false),
-	host: z.enum(["127.0.0.1", "0.0.0.0"]).default("127.0.0.1"),
-	json: z.boolean().default(false),
-	logFile: z.string().optional(),
-	port: z.coerce.number().int().min(0).max(MAX_PORT),
-	repo: z.string(),
-	socket: z.string().optional(),
-	state: z.string().optional(),
-});
 const idSchema = z.string().regex(/^[\da-z][\w.-]*$/iu);
 const apiRoute = new RegExp(
 	/^\/api\/colonies\/(?<colony>[^/]+)\//u.source +
@@ -68,130 +48,17 @@ const apiRoute = new RegExp(
 await main();
 
 /** A foreground read-only app; no daemon lifecycle or tracker mutation commands. */
-// Own startup, structured CLI failure and shutdown in one foreground boundary.
 // eslint-disable-next-line max-statements
 async function main(): Promise<void> {
-	const program = new Command()
-		.name("hive-ui")
-		.version(version)
-		.description("Serve the local read-only Beads and Bees work board")
-		.option("--repo <directory>", "Repository discovery directory", ".")
-		.option("--beads-db <path>", "Selected native Beads database", process.env["BEADS_DB"])
-		.option(
-			"--colonies <file>",
-			"JSON array of {name, root, beadsDb}; replaces the single endpoint",
-		)
-		.option("--daemon", "Discover registered endpoints from the selected Colony daemon at startup")
-		.option("--state <directory>", "Colony daemon state directory (requires --daemon)")
-		.option("--socket <path>", "Colony daemon socket (requires --daemon and --state)")
-		.option("--host <address>", "Bind address: 127.0.0.1 or 0.0.0.0 for LAN access", "127.0.0.1")
-		.option("--port <number>", "HTTP port (0 chooses a free port)", "4318")
-		.option("--json", "Emit one JSON startup result (requires --log-file)")
-		.option("--log-file <path>", "Write server/native diagnostics to this file instead of stderr")
-		.addHelpText(
-			"after",
-			"\nRun hive-ui, or use bun run start from lib/hive-ui during " +
-				"development. --daemon reads registered endpoints from public Colony status; " +
-				"it replaces the single endpoint and cannot be combined with --colonies. " +
-				"Unavailable or empty daemon membership fails startup. No daemon is started. " +
-				"Restart the UI to refresh membership. Each browser view selects one endpoint.",
-		)
-		.configureOutput({ writeErr: () => {} })
-		.exitOverride();
-
-	program
-		.command("changelog")
-		.description(
-			"Read embedded history offline; " +
-				"defaults to the latest recorded release at or below this executable version",
-		)
-		.summary("Read offline release history")
-		.option("--since <version>", "Releases newer than this stable version (exclusive)")
-		.option("--release <version>", "Read one exact recorded release; cannot combine with --since")
-		.option("--limit <count>", "Changes per page (1–100, default 20)")
-		.option("--offset <count>", "Skip matching changes (default 0)")
-		.option("--schema", "Print the successful JSON response schema")
-		.option("--json", "Emit one JSON document with silent stderr")
-		.action(function changelogCommand(this: Command) {
-			const options = this.optsWithGlobals();
-			if (options["schema"] === true) {
-				process.stdout.write(
-					`${JSON.stringify({ ok: true, kind: "changelog_schema", schema: changelogSchema() })}\n`,
-				);
-				return;
-			}
-			const page = queryChangelog(
-				{ tool: "hive-ui", version },
-				changelogHistorySchema.parse(changelog),
-				changelogQuerySchema.parse(options),
-			);
-			let output = renderChangelog(page);
-			if (options["json"] === true) {
-				output = `${JSON.stringify(page)}\n`;
-			}
-			process.stdout.write.bind(process.stdout)(output);
-		});
+	const program = createUiCommand({
+		beadsDb: process.env["BEADS_DB"],
+		start: startServer,
+		write: (output) => {
+			process.stdout.write(output);
+		},
+	});
 	try {
-		program.parse();
-		if (program.args[0] === "changelog") {
-			return;
-		}
-		const options = optionsSchema.parse(program.opts());
-		if (options.json && options.logFile === undefined) {
-			throw new Error("--json requires --log-file so diagnostics stay out of terminal output.");
-		}
-		let logFile: string | undefined = undefined;
-		if (options.logFile !== undefined) {
-			logFile = resolve(options.logFile);
-			await appendFile(logFile, "");
-		}
-		const log = async (sample: object): Promise<void> => {
-			const line = `${JSON.stringify(sample)}\n`;
-			if (logFile !== undefined) {
-				await appendFile(logFile, line);
-				return;
-			}
-			process.stderr.write(line);
-		};
-		let development: false | { console: false; hmr: false } = false;
-		if (!options.json) {
-			development = { console: false, hmr: false };
-		}
-		const invoke = (argv: string[], cwd: string) => execute(argv, cwd, process.env);
-		const colonies = await readColonies(options, invoke);
-		const beads = createNativeBeads();
-		const data = createBoardData(createTopologyReader({ beads, execute: invoke }));
-		const preview = createWorkflowReader(invoke);
-		const server = Bun.serve({
-			development,
-			hostname: options.host,
-			port: options.port,
-			routes: {
-				"/*": index,
-				"/api/*": (request, listener) => {
-					listener.timeout(request, 0);
-					return api(request, { beads, colonies, data, log, preview, host: options.host });
-				},
-			},
-		});
-		const ready = {
-			colonies: colonies.length,
-			kind: "ui_started",
-			logFile,
-			ok: true,
-			url: server.url.href,
-		};
-		if (options.json) {
-			process.stdout.write(`${JSON.stringify(ready)}\n`);
-		} else {
-			process.stdout.write(`Hive UI · ${ready.url}\n`);
-		}
-		process.once("SIGTERM", () => {
-			void server.stop(true);
-		});
-		process.once("SIGINT", () => {
-			void server.stop(true);
-		});
+		await program.parseAsync();
 	} catch (error) {
 		if (error instanceof CommanderError && error.exitCode === 0) {
 			return;
@@ -210,9 +77,70 @@ async function main(): Promise<void> {
 	}
 }
 
+// --- Private helpers ---
+
+// eslint-disable-next-line max-statements -- Keep server startup, diagnostics and shutdown in one foreground boundary.
+async function startServer(options: UiOptions): Promise<void> {
+	if (options.json && options.logFile === undefined) {
+		throw new Error("--json requires --log-file so diagnostics stay out of terminal output.");
+	}
+	let logFile: string | undefined = undefined;
+	if (options.logFile !== undefined) {
+		logFile = resolve(options.logFile);
+		await appendFile(logFile, "");
+	}
+	const log = async (sample: object): Promise<void> => {
+		const line = `${JSON.stringify(sample)}\n`;
+		if (logFile !== undefined) {
+			await appendFile(logFile, line);
+			return;
+		}
+		process.stderr.write(line);
+	};
+	let development: false | { console: false; hmr: false } = false;
+	if (!options.json) {
+		development = { console: false, hmr: false };
+	}
+	const invoke = (argv: string[], cwd: string) => execute(argv, cwd, process.env);
+	const colonies = await readColonies(options, invoke);
+	const beads = createNativeBeads();
+	const data = createBoardData(createTopologyReader({ beads, execute: invoke }));
+	const preview = createWorkflowReader(invoke);
+	const server = Bun.serve({
+		development,
+		hostname: options.host,
+		port: options.port,
+		routes: {
+			"/*": index,
+			"/api/*": (request, listener) => {
+				listener.timeout(request, 0);
+				return api(request, { beads, colonies, data, log, preview, host: options.host });
+			},
+		},
+	});
+	const ready = {
+		colonies: colonies.length,
+		kind: "ui_started",
+		logFile,
+		ok: true,
+		url: server.url.href,
+	};
+	if (options.json) {
+		process.stdout.write(`${JSON.stringify(ready)}\n`);
+	} else {
+		process.stdout.write(`Hive UI · ${ready.url}\n`);
+	}
+	process.once("SIGTERM", () => {
+		void server.stop(true);
+	});
+	process.once("SIGINT", () => {
+		void server.stop(true);
+	});
+}
+
 // eslint-disable-next-line max-statements -- Select one startup source and establish the server endpoint allowlist.
 async function readColonies(
-	options: z.infer<typeof optionsSchema>,
+	options: UiOptions,
 	invoke: (argv: string[], cwd: string) => Promise<string>,
 ): Promise<Colony[]> {
 	if (options.daemon) {
