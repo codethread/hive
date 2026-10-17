@@ -1,6 +1,7 @@
 /* eslint-disable import/max-dependencies -- Driver contracts also exercise the bundled author definition. */
 import { BusyBeeError, createServices } from "../../src/native.ts";
 import { assign, createMachine } from "xstate";
+import { complete, navigate, prepareDriver, recordResult, start } from "../../src/runtime.ts";
 import { describe, expect, test } from "bun:test";
 import {
 	runBrief as doWorkBrief,
@@ -8,7 +9,6 @@ import {
 	machine as doWorkMachine,
 	inputSchema as doWorkSchema,
 } from "../../../../.workflows/do-work/workflow.ts";
-import { navigate, prepareDriver, recordResult, start } from "../../src/runtime.ts";
 import { renderResponseInstructions, spawnRequestLabels } from "@hive/shared";
 import type { Definition } from "../../src/definition.ts";
 import type { Services } from "../../src/native.ts";
@@ -528,12 +528,11 @@ const stageResponse = await filedResponse(
 	closedStage.stage.bead,
 	closedStage.stage.request!,
 );
-await recordResult(
+await complete(
 	{ id: closedStage.run.id, bead: closedStage.stage.bead, choice: "selected", data: payload },
 	{},
 	closedStage.io,
 );
-await closedStage.beads.close(scope, closedStage.stage.bead);
 await Promise.all(
 	[...ended.values()].map((current) =>
 		filedResponse(current, current.stage.bead, current.stage.request!),

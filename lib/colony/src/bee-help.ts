@@ -9,7 +9,7 @@ export const HELP = {
 	response: `
 Delivery: file the complete answer or blocker, verify the returned ID with
 bee response get, then cite it with concise progress/verification in task comments.
-Workflow notes hold only the original {choice,data} saved by busybee record-result.
+Workflow notes hold only Busy Bee's original {choice,data} outcome.
 Publication does not complete work or advance a workflow; follow bee finish --help.
 
 The target is the driver's run or the dispatched worker's stage, supplied by the

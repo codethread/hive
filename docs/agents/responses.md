@@ -6,7 +6,7 @@ Keep authored answers, task progress and machine outcomes separate:
 | --- | --- |
 | Complete answer or blocker report | Immutable response linked to its producing run/stage |
 | Progress, verification and response IDs | Task comments |
-| Workflow outcome | Stage notes saved by `busybee record-result` |
+| Workflow outcome | Stage notes: Busy Bee's original `{choice,data}` outcome |
 | Specialist decisions and curation history | [Filed evidence](../beads-meta.md#filed-specialist-evidence), citing responses where useful |
 
 ## Retrieve a bee's answer

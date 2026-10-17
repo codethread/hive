@@ -42,7 +42,7 @@ For a stage you own:
 
 1. Satisfy acceptance and child work using the application's verification commands.
 2. Follow the brief's delivery instructions; in Bee execution, `bee response --help` owns answer publication and verification. Dispatched workers deliver before stage closure.
-3. Follow `busybee record-result --help` to save the original outcome before closing the stage through `br`. Narrative evidence belongs in comments; notes hold the saved result.
+3. Follow `busybee complete --help` to save the original outcome and close the stage.
 
 The driver runs `busybee collect RUN --json`, then reinspects active work. Read `collect --help` for progression and `choice --help` for direct submission of driver-handled outcomes. Busy Bee alone closes groups and the run.
 
@@ -52,6 +52,6 @@ In Bee execution, follow `bee finish --help` after completing your assigned run 
 
 ## Continue safely
 
-If collection reports missing or invalid saved data, recover the original outcome from evidence before resubmission. Inspect confirmed effects and retained IDs after any command failure; a failed response can follow partial publication.
+Inspect confirmed effects and retained IDs after any command failure; a failed response can follow partial publication. For closure refusal or interrupted completion, follow `complete --help` before retrying. If collection reports missing or invalid saved data, recover the original outcome from evidence before resubmission.
 
 For definition restoration failures, read the compatibility rules in [authoring](references/authoring.md). Retain run/task/evidence references and follow the task's recovery authorization; retrying does not authorize a duplicate run. A missing saved name needs the caller's workflow choice. Checkpoint locks retained after uncertain writes require inspection and explicit recovery; never steal them or force-close unfinished work.

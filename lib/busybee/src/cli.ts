@@ -11,7 +11,15 @@ import {
 	queryChangelog,
 	renderChangelog,
 } from "@hive/shared/changelog";
-import { discover, navigate, prepareDriver, recordResult, start, startNamed } from "./runtime.ts";
+import {
+	complete,
+	discover,
+	navigate,
+	prepareDriver,
+	recordResult,
+	start,
+	startNamed,
+} from "./runtime.ts";
 import { importDefinition, validate } from "./definition.ts";
 import { listWorkflows, namedDefinition } from "./catalogue.ts";
 import type { PreflightReport } from "./preflight.ts";
@@ -61,7 +69,7 @@ const navigationHelp = {
 		description:
 			"Advance from closed active tasks with saved results, including interrupted deliveries",
 		details:
-			"\nThe driver collects results saved with record-result before native task closure. " +
+			"\nWorkers use complete to save their outcomes and close their tasks; the driver collects them. " +
 			"Collection can advance both driver-handled and Bee-dispatched visits and publish new work. " +
 			"Busy Bee closes completed groups and reports status done when it closes the run. " +
 			"Requires --actor or BD_ACTOR; see busybee --help for global options.",
@@ -197,8 +205,9 @@ function commandOptions(): Command {
 		.option("--data-file <path>", "Event payload as a JSON file")
 		.addHelpText(
 			"after",
-			"\nWork: show RUN, discover RUN --json, perform the active task, record-result, " +
-				"br close TASK, then collect RUN. Busy Bee closes groups and the run.\n" +
+			"\nWork: show RUN, discover RUN --json, perform the active task, " +
+				"complete RUN TASK CHOICE, then the driver runs collect RUN. " +
+				"Busy Bee closes groups and the run.\n" +
 				"Inspect saved diagrams/state with preview RUN --json. " +
 				"Use busybee COMMAND --help for each command's purpose and prerequisites.",
 		);
@@ -309,7 +318,7 @@ function registerInspection(invocation: Invocation): void {
 		.addHelpText(
 			"after",
 			"\nUse --json for complete schemas, including nested/conditional fields. " +
-				"Use show for task instructions and record-result --help before saving an outcome. " +
+				"Use show for task instructions and complete --help before completing a stage. " +
 				"Discovery performs no native writes; it restores, starts and stops a workflow " +
 				"actor and calls author discovery/schema code. It is not a reservation.",
 		)
@@ -375,17 +384,38 @@ function registerNavigation(invocation: Invocation): void {
 	const { cli, services } = invocation;
 	const options = (): CliOptions => cli.opts<CliOptions>();
 	cli
-		.command("record-result <run> <task> <choice>")
-		.description(
-			"Validate and save original {choice,data} result notes before native task closure; does not advance",
+		.command("complete <run> <task> <choice>")
+		.description("Save the original outcome, then close the worker visit; does not advance")
+		.addHelpText(
+			"after",
+			"\nSatisfy acceptance and child work, and deliver any required answer before completion. " +
+				"Read discover RUN --json for CHOICE and its schema. Pass the original payload with " +
+				"--data JSON or --data-file FILE; omission supplies {}. Notes hold only {choice,data}; " +
+				"put narrative evidence in comments.\n" +
+				"Complete validates and saves the original JSON, finishes the checkpoint write and " +
+				"releases its lock, then attempts ordinary native closure with Beads acceptance and child gates. " +
+				"Closure refusal preserves the saved result. Inspect the task, resolve the refusal and retry " +
+				"with the same original choice and data. A matching retry can finish closure or acknowledge " +
+				"an already-closed stage, even after collection. Different or malformed saved results fail; " +
+				"a closed stage without saved evidence also fails.\n" +
+				"Supports driver-handled and Bee-dispatched visits. The driver separately runs collect RUN " +
+				"to advance. Use record-result --help when saving without closure. " +
+				"Requires --actor or BD_ACTOR; see busybee --help for global options.",
 		)
+		.action(async (id: string, bead: string, choice: string) => {
+			const data = await payload(options(), services);
+			writeResult(await complete({ id, bead, choice, data }, options(), services), invocation);
+		});
+	cli
+		.command("record-result <run> <task> <choice>")
+		.description("Validate and save original {choice,data} notes without closure or advancement")
 		.addHelpText(
 			"after",
 			"\nTASK must be an active, unclosed worker visit. Read discover RUN --json for " +
 				"CHOICE and its schema. Pass the original payload with --data JSON or --data-file FILE; " +
 				"omission supplies {}. Notes are reserved for this result; put narrative evidence in comments.\n" +
-				"After satisfying acceptance and child work, save the result, close your task through br, " +
-				"then let the driver collect RUN. This supports both driver-handled and Bee-dispatched visits. " +
+				"This save-only primitive supports driver-handled and Bee-dispatched visits. " +
+				"For ordinary stage completion, use complete --help; it saves before attempting native closure. " +
 				"Mutations require --actor or BD_ACTOR; see busybee --help for global options.",
 		)
 		.action(async (id: string, bead: string, choice: string) => {
@@ -429,11 +459,11 @@ function registerNavigation(invocation: Invocation): void {
 		.description("Submit a named outcome for a closed driver-handled task")
 		.addHelpText(
 			"after",
-			"\nDirect submission requires a still-active driver-handled visit already closed through br. " +
+			"\nDirect submission requires a still-active driver-handled visit already natively closed. " +
 				"Read discover RUN --json for its choices and schemas; next is shorthand for choice next " +
 				"and may also require a payload. Use --data JSON or --data-file FILE; omission supplies {}.\n" +
-				"For durable delivery across interruptions, use record-result before closure, then collect. " +
-				"Bee-dispatched visits require that saved-result path. " +
+				"For ordinary completion, use complete, then let the driver collect. " +
+				"Bee-dispatched visits require saved results and collection. " +
 				"Requires --actor or BD_ACTOR; see busybee --help for global options.",
 		)
 		.action(async (id: string, bead: string, choice: string) => {

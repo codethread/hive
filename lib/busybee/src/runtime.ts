@@ -1,3 +1,6 @@
+/* eslint-disable import/max-dependencies --
+ * Workflow projection composes native persistence, author definitions and original-result comparison.
+ */
 import type { ActiveEntry, Locator, Run } from "./checkpoint.ts";
 import type { BeadRecord, UpdateBead } from "@hive/beads";
 import {
@@ -35,6 +38,8 @@ import {
 import type { Snapshot } from "xstate";
 import type { Source } from "./catalogue.ts";
 import { compatibleWorkflowVersion } from "./compatibility.ts";
+// eslint-disable-next-line import/no-nodejs-modules -- Compare original JSON results at the persistence boundary.
+import { isDeepStrictEqual } from "node:util";
 import { namedDefinition } from "./catalogue.ts";
 import { readCheckpoint } from "./checkpoint.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Resolve author-selected files at the application boundary.
@@ -162,7 +167,7 @@ export interface DriverHandoff {
 	checkpoint: string;
 }
 export interface RecordResult extends RunTarget {
-	/** Still-active worker visit whose result is saved before closure. */
+	/** Worker visit whose original result is saved or matched on a completion retry. */
 	bead: string;
 	/** Author-defined outcome. */
 	choice: string;
@@ -242,22 +247,31 @@ export async function recordResult(
 	services: Services = createServices(),
 ) {
 	const endpoint = await resolveMutation(options, services);
-	const checkpoint = await checkpointBead(endpoint, request.id, services);
-	const lock = await acquire(endpoint, checkpoint, services);
-	return withCheckpointOwner({ endpoint, lock, runId: request.id }, services, async (writes) => {
-		const run = readCheckpoint(await readBead(endpoint, lock.checkpoint, services));
-		const { actor, definition } = await restore(run, endpoint, services);
-		try {
-			await saveResult({ actor, definition, endpoint, request, run }, writes);
-			await updateOwned(
-				{ endpoint, input: { description: JSON.stringify(run) }, locked: lock },
-				writes,
-			);
-			return { runId: request.id, stageId: request.bead, choice: request.choice };
-		} finally {
-			actor.stop();
-		}
-	});
+	return persistResult(request, { endpoint, services }, "record");
+}
+
+export async function complete(
+	request: RecordResult,
+	options: Options = {},
+	services: Services = createServices(),
+) {
+	const endpoint = await resolveMutation(options, services);
+	const result = await persistResult(request, { endpoint, services }, "complete");
+	try {
+		await closeTask(endpoint, request.bead, services);
+	} catch (error) {
+		throw new BusyBeeError(
+			"stage_close_failed",
+			`Result saved for task ${request.bead}, but native closure did not confirm success. ` +
+				"Inspect the task, resolve any closure refusal, then retry complete with the same " +
+				"original choice and data.",
+			{
+				cause: error,
+				context: { ...result, resultSaved: true },
+			},
+		);
+	}
+	return result;
 }
 
 export async function discover(
@@ -272,8 +286,8 @@ export async function discover(
 	return {
 		active: run.active.map((entry) => discoveryEntry(entry, definition)),
 		constraints:
-			"Save the original payload with record-result before native task closure; " +
-			"the driver then collects closed saved results. Read busybee record-result --help. " +
+			"Use complete to save the original outcome and close the task; " +
+			"the driver then collects saved results. Read busybee complete --help. " +
 			"Direct next/choice submissions require an already-closed driver-handled visit. " +
 			"Discovery is a snapshot, not a reservation.",
 		id,
@@ -318,6 +332,35 @@ export function frontier(
 }
 
 // --- Private functions ---
+
+async function persistResult(
+	request: RecordResult,
+	environment: { endpoint: MutationEndpoint; services: Services },
+	operation: "record" | "complete",
+) {
+	const { endpoint, services } = environment;
+	const checkpoint = await checkpointBead(endpoint, request.id, services);
+	const lock = await acquire(endpoint, checkpoint, services);
+	return withCheckpointOwner({ endpoint, lock, runId: request.id }, services, async (writes) => {
+		const run = readCheckpoint(await readBead(endpoint, lock.checkpoint, services));
+		const { actor, definition } = await restore(run, endpoint, services);
+		try {
+			const saved = await saveResult(
+				{ actor, definition, endpoint, request, run, operation },
+				writes,
+			);
+			if (saved) {
+				await updateOwned(
+					{ endpoint, input: { description: JSON.stringify(run) }, locked: lock },
+					writes,
+				);
+			}
+			return { runId: request.id, stageId: request.bead, choice: request.choice };
+		} finally {
+			actor.stop();
+		}
+	});
+}
 
 async function initialize(
 	locator: Locator,
@@ -823,7 +866,7 @@ function assertAgentReservation(bead: BeadRecord): void {
 	}
 }
 
-// Validate the still-active outcome before native result publication without advancing the actor.
+// Validate active outcomes; match collected completion retries against original saved notes.
 // eslint-disable-next-line max-statements
 async function saveResult(
 	input: {
@@ -832,11 +875,43 @@ async function saveResult(
 		endpoint: MutationEndpoint;
 		request: RecordResult;
 		run: Run;
+		operation: "record" | "complete";
 	},
 	services: Services,
-): Promise<void> {
-	const { actor, definition, endpoint, request, run } = input;
+): Promise<boolean> {
+	const { actor, definition, endpoint, request, run, operation } = input;
 	const entry = run.active.find((item) => item.bead === request.bead);
+	let matching = false;
+	if (operation === "complete") {
+		const known = entry?.meta.commands || run.history.some((item) => item.bead === request.bead);
+		if (!known) {
+			throw new BusyBeeError(
+				"inactive_task",
+				`Task ${request.bead} is not a worker visit of run ${run.id}.`,
+				{
+					context: { runId: run.id, bead: request.bead },
+				},
+			);
+		}
+		const task = await readBead(endpoint, request.bead, services);
+		assertAgentReservation(task);
+		if (task.notes || task.status === "closed") {
+			const saved = savedSubmission(task, { bead: task.id });
+			if (!isDeepStrictEqual(saved, { choice: request.choice, data: request.data })) {
+				throw new BusyBeeError(
+					"stage_result_conflict",
+					`Task ${task.id} has a different saved original result.`,
+					{
+						context: { runId: run.id, bead: task.id },
+					},
+				);
+			}
+			if (task.status === "closed" && !entry) {
+				return false;
+			}
+			matching = true;
+		}
+	}
 	if (!entry?.meta.commands?.[request.choice]) {
 		throw new BusyBeeError(
 			"unavailable_command",
@@ -851,6 +926,9 @@ async function saveResult(
 		request: { ...request, operation: "submit" },
 	});
 	submissionTarget(actor, { choice: request.choice, data, entry });
+	if (matching) {
+		return false;
+	}
 	const task = await readBead(endpoint, request.bead, services);
 	assertAgentReservation(task);
 	if (task.status === "closed") {
@@ -862,6 +940,7 @@ async function saveResult(
 		{ endpoint, task, notes: JSON.stringify({ choice: request.choice, data: request.data }) },
 		services,
 	);
+	return true;
 }
 
 async function saveResultNotes(
@@ -1063,7 +1142,10 @@ function submissionPayload(
 	return { choice: request.choice, data };
 }
 
-function savedSubmission(task: BeadRecord, entry: ActiveEntry): { choice: string; data: unknown } {
+function savedSubmission(
+	task: BeadRecord,
+	entry: Pick<ActiveEntry, "bead">,
+): { choice: string; data: unknown } {
 	try {
 		const saved: unknown = JSON.parse(task.notes);
 		return savedResultSchema.parse(saved);
@@ -1136,9 +1218,9 @@ function assertCompleted(task: BeadRecord, bead: string, endpoint: MutationEndpo
 	if (task.status !== "closed") {
 		throw new BusyBeeError(
 			"task_not_closed",
-			`Task ${bead} must be closed before submitting a result. Finish its work and ` +
-				`child tasks, then run br close ${bead} --db ` +
-				`${JSON.stringify(endpoint.db)} using your own --actor or BD_ACTOR first.`,
+			`Task ${bead} must be closed before direct next/choice submission. Finish its work and ` +
+				"child tasks; see busybee complete --help for ordered completion using " +
+				`--db ${JSON.stringify(endpoint.db)}.`,
 		);
 	}
 }
@@ -1392,13 +1474,14 @@ function taskDescription(
 		let delivery = "The driver files the run's final answer or synthesis.";
 		if (meta.bee) {
 			taskId = bead;
-			delivery = "File this stage's answer before saving its outcome and closing it.";
+			delivery = "File this stage's answer before completing it.";
 		}
 		completion =
 			`${delivery} ${renderResponseInstructions({ taskId })}\n\n` +
-			"Satisfy acceptance and child work, then save your original outcome payload with " +
-			`busybee --db ${JSON.stringify(endpoint.db)} record-result ${run.id} ` +
-			"TASK_ID CHOICE --data-file FILE before br close TASK_ID. Read busybee --help for options. " +
+			"Satisfy acceptance and child work, then use " +
+			`busybee --db ${JSON.stringify(endpoint.db)} complete ${run.id} ` +
+			"TASK_ID CHOICE to save the original outcome and close this stage. " +
+			"Read busybee complete --help for payload options and retries. " +
 			"The driver collects saved results; Busy Bee closes groups and the run.";
 	}
 	return (
