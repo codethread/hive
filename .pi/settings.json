@@ -1,3 +1,4 @@
 {
-	"extensions": ["../lib/scent/src/bin/pi.ts"]
+	"extensions": ["../lib/scent/src/bin/pi.ts"],
+	"subagents": false
 }

@@ -162,7 +162,7 @@ export function Inspector({ colonyId, id }: { colonyId: string; id: string }) {
 						<ResourceNotice resource={resource} />
 						<ResourceNotice
 							resource={annotationStatus(colonyId, [[id]], annotationEntries)}
-							label="Card icons"
+							label="Bee assignment and merge details"
 						/>
 						{detail && (
 							<>
@@ -263,7 +263,7 @@ export function Inspector({ colonyId, id }: { colonyId: string; id: string }) {
 									[hierarchy?.nodes.map((node) => node.id) ?? []],
 									annotationEntries,
 								)}
-								label="Card icons"
+								label="Bee assignment and merge details"
 							/>
 							{hierarchy && (
 								<BranchExplorer

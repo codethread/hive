@@ -220,7 +220,7 @@ export function WorkPage() {
 												],
 												annotationEntries,
 											)}
-											label="Card icons"
+											label="Bee assignment and merge details"
 										/>
 										<BeadBoard
 											board={board}
@@ -247,7 +247,7 @@ export function WorkPage() {
 											[board.cards.map((card) => card.id)],
 											annotationEntries,
 										)}
-										label="Card icons"
+										label="Bee assignment and merge details"
 									/>
 								)}
 								<BeeWorkspace colonyId={colonyId} inventory={inventory} board={board} />

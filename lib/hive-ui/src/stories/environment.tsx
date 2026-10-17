@@ -11,6 +11,7 @@ import {
 	redirect,
 } from "@tanstack/react-router";
 import {
+	annotations,
 	boards,
 	colonies,
 	details,
@@ -73,6 +74,7 @@ export function StoryEnvironment({
 // eslint-disable-next-line max-statements -- Reset each independent production store before a story starts.
 export function resetStoryState(): void {
 	boards.store.setState({ entries: {} });
+	annotations.store.setState({ entries: {} });
 	colonies.store.setState({ entries: {} });
 	details.store.setState({ entries: {} });
 	hierarchies.store.setState({ entries: {} });
