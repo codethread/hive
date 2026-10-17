@@ -1,5 +1,24 @@
 [
 	{
+		"version": "0.6.2",
+		"changes": [
+			{
+				"commit": "75bf2d8bea911ea44733528129a0f9f9babf5c8e",
+				"summary": "keep valid stale hierarchy readable",
+				"body": "Show valid exported hierarchy with a warning when the Beads export lags or changes\nduring a read. Native cards and details remain usable; unreadable or invalid\nhierarchy still reports an error.",
+				"breaking": [],
+				"adoption": []
+			},
+			{
+				"commit": "75bf2d8bea911ea44733528129a0f9f9babf5c8e",
+				"summary": "refresh visible views and open workflow previews",
+				"body": "Automatically refresh the current Beads or Bees view, selected bead, outline and\nopen workflow preview five seconds after each cycle settles. Pause new cycles\nwhile the tab is hidden and refresh on return when idle. Retain previous snapshots\nwith a notice during loading or failure, and keep open previews mounted when cards\nregroup.",
+				"breaking": [],
+				"adoption": []
+			}
+		]
+	},
+	{
 		"version": "0.6.1",
 		"changes": [
 			{
