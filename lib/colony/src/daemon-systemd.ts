@@ -1,5 +1,6 @@
 import type { DaemonSupervisor } from "./daemon-lifecycle.ts";
 import type { ServerTarget } from "./client.ts";
+import { daemonEnvironment } from "./daemon-environment.ts";
 import { entryCommand } from "./executables.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- State-local unit and log paths.
 import { join } from "node:path";
@@ -49,7 +50,9 @@ Description=Colony daemon
 Type=exec
 ExecStart=${argv.map((value) => unitWord(value.replaceAll("$", "$$"))).join(" ")}
 WorkingDirectory=${unitPath(target.state)}
-Environment=${unitWord(`PATH=${process.env["PATH"]!}`)}
+${Object.entries(daemonEnvironment(process.env))
+	.map(([name, value]) => `Environment=${unitWord(`${name}=${value}`)}`)
+	.join("\n")}
 StandardOutput=append:${unitPath(log)}
 StandardError=append:${unitPath(log)}
 KillMode=process

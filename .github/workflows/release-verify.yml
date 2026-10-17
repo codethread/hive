@@ -1,0 +1,137 @@
+name: Verify release candidate
+
+on:
+  workflow_dispatch:
+    inputs:
+      revision:
+        description: Immutable source commit (40 lowercase hexadecimal characters)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    outputs:
+      revision: ${{ steps.identity.outputs.revision }}
+      artifact-id: ${{ steps.candidate.outputs.artifact-id }}
+      artifact-digest: ${{ steps.candidate.outputs.artifact-digest }}
+    steps:
+      - name: Validate immutable revision
+        id: identity
+        env:
+          REVISION: ${{ inputs.revision }}
+        run: |
+          [[ "$REVISION" =~ ^[0-9a-f]{40}$ ]] || { echo 'Expected a full lowercase commit SHA' >&2; exit 1; }
+          echo "revision=$REVISION" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.identity.outputs.revision }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+      - run: bun install --frozen-lockfile --ignore-scripts
+      - name: Build the four-platform candidate once
+        env:
+          REVISION: ${{ steps.identity.outputs.revision }}
+        run: |
+          test "$(git rev-parse HEAD)" = "$REVISION"
+          bun run release build --revision "$REVISION" --output "$RUNNER_TEMP/candidate"
+      - name: Retain immutable candidate bytes
+        id: candidate
+        uses: actions/upload-artifact@v4
+        with:
+          name: hive-candidate-${{ steps.identity.outputs.revision }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/candidate/
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 30
+
+  native:
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: darwin-arm64
+            runner: macos-15
+            br-target: darwin_arm64
+            br-sha: 4e7619b919c0f720d0d520c51ce3b1c730387293cb6fe159e1f1cba8512ffad7
+            bv-target: darwin_arm64
+            bv-sha: 8ceb951f658a751f76ab30b33edf69db17adbc53c0b69a6d9c2740993fd32a58
+          - platform: darwin-x64
+            runner: macos-15-intel
+            br-target: darwin_amd64
+            br-sha: 38d2691fcf4921af6d1b4772b8c45c7c8c6dfdbea3b432064fb2ce6a71936e6e
+            bv-target: darwin_amd64
+            bv-sha: 73ec15519d7f8715b50dabd99dc8d2fa2047c66ec5d0dd6abdddb09744267e2a
+          - platform: linux-arm64
+            runner: ubuntu-24.04-arm
+            br-target: linux_musl_arm64
+            br-sha: 082d02cda1919d6b1587c0a932f5842fa510a7a18d80db0d2a85988959c4ae5b
+            bv-target: linux_arm64
+            bv-sha: a57f64b89851adace4f9b954723972f08f29abb5080fc005b3bd0734b6f3ae0e
+          - platform: linux-x64
+            runner: ubuntu-24.04
+            br-target: linux_musl_amd64
+            br-sha: 5263fa20f988588b88320856e7a1086505d28a2456628b85cc8f6ec51e0af732
+            bv-target: linux_amd64
+            bv-sha: 4c269087af7a0ddef6825609cb4cdf7db0163624d26d7b02030c38c260b1e199
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.build.outputs.revision }}
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+      - run: bun install --frozen-lockfile --ignore-scripts
+      - uses: actions/download-artifact@v4
+        with:
+          artifact-ids: ${{ needs.build.outputs.artifact-id }}
+          merge-multiple: true
+          path: ${{ runner.temp }}/candidate
+      - name: Download pinned native dependencies
+        env:
+          BR_TARGET: ${{ matrix.br-target }}
+          BR_SHA: ${{ matrix.br-sha }}
+          BV_TARGET: ${{ matrix.bv-target }}
+          BV_SHA: ${{ matrix.bv-sha }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/dependencies/br" "$RUNNER_TEMP/dependencies/bv" "$RUNNER_TEMP/proof"
+          cd "$RUNNER_TEMP/dependencies"
+          curl --fail --location --silent --show-error "https://github.com/Dicklesworthstone/beads_rust/releases/download/v0.7.4/br-0.7.4-$BR_TARGET.tar.gz" -o br.tar.gz
+          curl --fail --location --silent --show-error "https://github.com/Dicklesworthstone/beads_viewer/releases/download/v0.25.2/bv_0.25.2_$BV_TARGET.tar.gz" -o bv.tar.gz
+          printf '%s  br.tar.gz\n%s  bv.tar.gz\n' "$BR_SHA" "$BV_SHA" | shasum -a 256 -c -
+          tar -xzf br.tar.gz -C br
+          tar -xzf bv.tar.gz -C bv
+          test -x br/br
+          test -x bv/bv
+          echo "$RUNNER_TEMP/dependencies/br" >> "$GITHUB_PATH"
+          echo "$RUNNER_TEMP/dependencies/bv" >> "$GITHUB_PATH"
+          printf '{"br":{"version":"0.7.4","target":"%s","sha256":"%s"},"bv":{"version":"0.25.2","target":"%s","sha256":"%s"}}\n' "$BR_TARGET" "$BR_SHA" "$BV_TARGET" "$BV_SHA" > "$RUNNER_TEMP/proof/dependencies.json"
+      - name: Verify the original candidate natively
+        env:
+          REVISION: ${{ needs.build.outputs.revision }}
+          PLATFORM: ${{ matrix.platform }}
+          CANDIDATE_ARTIFACT_ID: ${{ needs.build.outputs.artifact-id }}
+          CANDIDATE_ARTIFACT_DIGEST: ${{ needs.build.outputs.artifact-digest }}
+        run: |
+          bun run lib/tooling/src/release-verify-cli.ts --artifacts "$RUNNER_TEMP/candidate" --revision "$REVISION" --platform "$PLATFORM" --output "$RUNNER_TEMP/proof/native.json" --actor release-ci
+      - name: Retain native proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hive-native-proof-${{ matrix.platform }}-${{ needs.build.outputs.revision }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/proof/
+          if-no-files-found: error
+          retention-days: 30

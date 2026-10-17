@@ -10,6 +10,7 @@ import type { ServerTarget } from "./client.ts";
 import { constants } from "node:fs";
 // eslint-disable-next-line import/no-nodejs-modules -- Hash the selected state into a native service label.
 import { createHash } from "node:crypto";
+import { daemonEnvironment } from "./daemon-environment.ts";
 import { daemonStopResponseSchema } from "@hive/shared";
 import { entryCommand } from "./executables.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- State-local supervisor files.
@@ -170,7 +171,9 @@ export async function startSupervisedServer(
 <plist version="1.0"><dict>
 <key>Label</key><string>${xml(label)}</string>
 <key>ProgramArguments</key><array>${argv.map((argument) => `<string>${xml(argument)}</string>`).join("")}</array>
-<key>EnvironmentVariables</key><dict><key>PATH</key><string>${xml(process.env["PATH"]!)}</string></dict>
+<key>EnvironmentVariables</key><dict>${Object.entries(daemonEnvironment(process.env))
+		.map(([name, value]) => `<key>${xml(name)}</key><string>${xml(value)}</string>`)
+		.join("")}</dict>
 <key>WorkingDirectory</key><string>${xml(target.state)}</string>
 <key>RunAtLoad</key><true/>
 <key>AbandonProcessGroup</key><true/>

@@ -112,7 +112,7 @@ export function homebrewFormula(manifest: ReleaseManifest, repository: string): 
 			.map((platform) => formulaSource(manifest, repository, platform));
 		return `  on_${system} do\n${arches.join("\n\n")}\n  end`;
 	});
-	return formulaBody(manifest.version, sources);
+	return formulaBody(sources);
 }
 
 // --- Private functions ---
@@ -133,7 +133,7 @@ function formulaSource(manifest: ReleaseManifest, repository: string, platform: 
 	);
 }
 
-function formulaBody(version: string, sources: string[]): string {
+function formulaBody(sources: string[]): string {
 	return `# typed: false
 # frozen_string_literal: true
 
@@ -141,7 +141,6 @@ function formulaBody(version: string, sources: string[]): string {
 class Hive < Formula
   desc "Coding agent tools: worktrees, workflows, workers and a local work board"
   homepage "https://github.com/codethread/hive"
-  version "${version}"
 
   depends_on "dicklesworthstone/tap/br"
   depends_on "dicklesworthstone/tap/bv"

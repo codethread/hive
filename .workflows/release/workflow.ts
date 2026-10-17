@@ -18,11 +18,13 @@ export const inputSchema = z.object({
 	tapRepository: repository.describe(
 		"Existing GitHub tap repository; an explicit tap URL also supports a source repository.",
 	),
-	tapCheckout: text.describe("Clean local checkout of that tap; formula path is Formula/hive.rb."),
+	tapCheckout: text.describe(
+		"Local tap repository anchor; create a separate worktree there for Formula/hive.rb.",
+	),
 	canonicalRoot: text.describe("Canonical Hive checkout retained after Land cleanup."),
 	beadsDb: text.describe("Permanent tracker endpoint, retained after Land cleanup."),
 	artifactDirectory: text.describe(
-		"Absolute output directory outside the disposable release worktree; must not exist.",
+		"Absolute candidate download/build directory outside the disposable release worktree; must not exist.",
 	),
 });
 
@@ -49,7 +51,7 @@ export function runBrief(input: ReleaseInput): { title: string; description: str
 			`update ${input.tapRepository} from ${input.tapCheckout}. Retain ${input.canonicalRoot}, ` +
 			`${input.beadsDb} and artifacts ${input.artifactDirectory}. This is a separately invoked release; ` +
 			"Land never starts it automatically. All packages advance together; Waggle is excluded from archives. " +
-			"Record evidence on visits, record-result before closure, then collect. Busy Bee closes the run. " +
+			"Follow docs/releases.md; preserve the annotated source tag when landing the later formula commit. " +
 			"After done, the authorized caller closes proven scope tasks and publishes final tracker evidence once. " +
 			"On retry inspect existing tags, releases and tap commits; " +
 			"never replace published artifacts or replay closed work.",
@@ -86,7 +88,8 @@ export const machine = setup({
 						"publishes its reachable source history; authorization must cover that disclosure. " +
 						"Fetch tags and inspect " +
 						"any existing tag/release before proceeding; an already published version requires reconciliation, " +
-						"not replacement. Verify the clean tap checkout remote and default branch. Verify br/bv upstream " +
+						"not replacement. Verify the tap repository anchor, remote and default branch; formula edits use " +
+						"a separate worktree after publication. Verify br/bv upstream " +
 						"formulae and consumed dependency contract; record versions. Retain canonical checkout and tracker. " +
 						"Use Honeycomb to create a nested release worktree for the version commit. Missing authorization, " +
 						"credentials, destinations or incompatible dependencies keep this visit open with a precise next action. " +
@@ -135,13 +138,13 @@ export const machine = setup({
 				commands: { next: "NEXT", changes: "CHANGES" },
 				task: ({ context }: { context: ReleaseContext }) => ({
 					instructions:
-						`From ${context.canonicalRoot}, run bun run release build --revision ${context.revision} ` +
-						`--output ${context.artifactDirectory}. Omit --target to build all four macOS/Linux arm64/x64 archives. ` +
-						"The command extracts the commit and installs frozen dependencies without repository setup hooks. " +
-						"Inspect manifest.json, SHA256SUMS and each embedded release.json for the same source revision, " +
-						`version ${context.nextVersion}, nine executables and no Waggle. Then run bun run release formula ` +
-						`--artifacts ${context.artifactDirectory} --repository ${context.releaseRepository} ` +
-						`--output ${context.artifactDirectory}/hive.rb. Validate Ruby syntax. On interruption inspect any ` +
+						`From ${context.canonicalRoot}, follow docs/releases.md to dispatch native candidate verification ` +
+						`for exact source ${context.revision} in ${context.releaseRepository}. Retain the Actions run and ` +
+						`candidate artifact identity; download its original bytes to ${context.artifactDirectory}. ` +
+						`Verify source, version ${context.nextVersion}, all four platforms and ten executables, excluding ` +
+						"Waggle. Generate hive.rb from that candidate for the release repository and validate Ruby syntax. " +
+						"Use the same archives for native proof and publication; recompilation invalidates that proof. " +
+						"On interruption inspect retained CI runs and any " +
 						"partial output and move owned unpublished output aside before retrying the same path. " +
 						"Never overwrite published artifacts. Choose changes for a source defect " +
 						"requiring repair and renewed Land.",
@@ -158,13 +161,10 @@ export const machine = setup({
 				commands: { next: "NEXT", changes: "CHANGES" },
 				task: ({ context }: { context: ReleaseContext }) => ({
 					instructions:
-						"Follow docs/releases.md verification. Check SHA256SUMS before extraction on native " +
-						"macOS arm64/x64 and Linux arm64/x64 runners. All nine --version outputs must equal " +
-						`${context.nextVersion}. Exercise public --help commands outside any checkout, qlock status, ` +
-						"Busy Bee loading a disposable installed-dependency workflow, and Hive UI embedded assets. " +
-						"Verify Colony companion resolution; do not launch production services. Check br/bv consumed " +
-						"contracts and Homebrew installation/test with local archive URLs in a disposable tap. " +
-						"Record platform-specific evidence; cross-compilation alone is not a native execution test. " +
+						"Follow docs/releases.md verification. Match all four native platform proofs to the retained " +
+						"Actions run, candidate artifact and archive hashes. All ten executable versions must equal " +
+						`${context.nextVersion}. Complete the dependency-contract and Homebrew checks outside CI; ` +
+						"record their evidence separately. Cross-compilation or emulation is not native execution proof. " +
 						"Missing runners keep this visit open. Choose changes for a source defect; the repair route " +
 						"requires a forward fix, renewed Land and fresh archives before verification. " +
 						`Artifacts: ${context.artifactDirectory}; source ${context.revision}.`,
@@ -200,7 +200,7 @@ export const machine = setup({
 				commands: { next: "NEXT" },
 				task: ({ context }: { context: ReleaseContext }) => ({
 					instructions:
-						`Reconfirm authorization and verified artifact evidence: ${context.evidence}. ` +
+						`Check the recorded authorization and verified artifact evidence: ${context.evidence}. ` +
 						`Publish annotated tag v${context.nextVersion} pointing exactly at ${context.revision} to ` +
 						`${context.releaseRepository}, following docs/releases.md. Create a draft GitHub release, ` +
 						"upload only the four archives, manifest.json, SHA256SUMS and hive.rb from the saved artifact " +
@@ -219,17 +219,18 @@ export const machine = setup({
 				commands: { next: "NEXT" },
 				task: ({ context }: { context: ReleaseContext }) => ({
 					instructions:
-						`In clean ${context.tapCheckout}, verify remote ${context.tapRepository} and fetch ` +
-						"its default branch. Copy the generated hive.rb to Formula/hive.rb without changing URLs/hashes. " +
+						`Use ${context.tapCheckout} as the repository anchor; verify remote ${context.tapRepository} ` +
+						"and fetch its default branch. Create or resume a separate nested Honeycomb worktree for the " +
+						"formula-only change. Copy the generated hive.rb to Formula/hive.rb without changing URLs/hashes. " +
 						"Run brew style, brew audit and an actual install/test against the published assets; verify all " +
-						"nine executable versions, mandatory br/bv dependencies and no install-time tracker or service " +
-						"startup. Follow that repository's commit/review/push policy. Wait for actual merged/pushed " +
+						"ten executable versions, mandatory br/bv dependencies and no install-time tracker or service " +
+						"startup. For Hive's same-repository tap, use ordinary Land beneath this Release run with " +
+						"completedTasks: []; preserve the source tag on its original commit. For another tap, follow " +
+						"that repository's commit/review/push policy. Wait for actual merged/pushed " +
 						"tap revision and verify clean-install availability using its fully qualified formula name. " +
 						"On retry retain matching existing formula/tap commits rather than duplicating updates. " +
 						"Comment on the Release run with source/tag, release URL, hashes, native tests, tap commit, " +
 						"installation and cleanup evidence. Missing credentials or failed install keeps this visit open. " +
-						"After saving/closing/collecting this result Busy Bee closes the run; the caller performs final " +
-						"scope closure and tracker publication. " +
 						`Published evidence: ${context.evidence}`,
 				}),
 			},

@@ -4,12 +4,9 @@ Hive distributes one versioned archive containing `beeswax`, `honeycomb`, `bee`,
 
 ## Homebrew installation
 
-The release tooling is ready to generate a formula from real archives. **No public Hive release or tap is established by this change.** The source repository is currently private. Before the first release, choose an existing public asset repository, a tap and the first version, and supply publication credentials. Do not use a private GitHub download URL in a formula intended for anonymous installs.
-
-After a release has published its generated `Formula/hive.rb`, use the tap's fully qualified formula name. For a same-repository tap, Homebrew accepts an explicit repository URL (the short form assumes a `homebrew-` repository prefix):
+Hive uses `codethread/hive` for public source, release assets and its Homebrew tap. Once the release and `Formula/hive.rb` are published, install through the explicit tap URL (Homebrew's short form assumes a `homebrew-` repository prefix):
 
 ```sh
-# If codethread/hive is the chosen accessible tap:
 brew tap codethread/hive https://github.com/codethread/hive.git
 brew install codethread/hive/hive
 brew test codethread/hive/hive
@@ -28,7 +25,9 @@ busybee input-schema release --json
 busybee run release --parent TASK_ID --owner HUMAN --input-file release-input.json --json
 ```
 
-The input requires `nextVersion` (stable `X.Y.Z`), the actual authorized `request`, `releaseRepository` and `tapRepository` (`owner/repository`), `tapCheckout`, `canonicalRoot`, permanent `beadsDb` and an absolute `artifactDirectory` outside the release worktree. Both repositories must already exist. This workflow does not create repositories or make private source public as a side effect.
+Use `codethread/hive` for both repository inputs. `tapCheckout` identifies the repository in which a separate formula worktree will be created; it may equal `canonicalRoot`. Retain the permanent `beadsDb` and an absolute `artifactDirectory` outside disposable worktrees. The input schema owns the remaining fields and constraints.
+
+Before first publication, verify recorded authorization covers public source and reachable history as well as assets. Review that history and the concrete release source before changing visibility. An explicit authorization remains valid throughout the run. Repository creation or a different disclosure destination requires its own authorization.
 
 Follow `show` and `discover` on the returned run. On retry resume that same run, inspect existing effects, and collect saved results; do not repeat closed work. Build or native verification defects take the repair route through renewed Land and fresh archives. The candidate keeps its unpublished version; a published version is never replaced. The chart orders destination checks, preparation, Land, immutable builds, native verification, GitHub publication and the Homebrew update. Missing credentials or platform runners keep their visit open with the next action recorded.
 
@@ -38,65 +37,65 @@ Preparation runs in a clean nested worktree:
 bun run release prepare 0.6.0
 ```
 
-The example version is illustrative, not a published version. It must exceed every current package and the newest reachable stable suite tag. Fetch the authoritative release repository's tags before preparation. The tool selects the highest stable `vX.Y.Z` tag merged into `HEAD`; unrelated package tags and prereleases are excluded. With no such tag, it explicitly uses all Git history for the initial release.
+Choose the authorized version; the example is not a publication claim. It must exceed every current package and the newest reachable stable suite tag. Fetch the authoritative release repository's tags before preparation. The tool selects the highest stable `vX.Y.Z` tag merged into `HEAD`; unrelated package tags and prereleases are excluded. With no such tag, it explicitly uses all Git history for the initial release.
 
 Preparation updates the root and every `lib/*/package.json`, refreshes `bun.lock` without lifecycle hooks, and writes `releases/vVERSION.md`. Each package's section lists commits touching its directory since the previous tag, or **No change.** These are package-local changes; a shared dependency can change runtime behavior without a package-local commit. The root section includes repository-wide history. Busy Bee's `busybee.toml` compatibility versions remain independent.
 
 The Release visit then starts or resumes the ordinary [Land workflow](../.workflows/land/workflow.ts) with `completedTasks: []`. Land owns check, review, commit, integration, local tool update and cleanup. Retain its exact integrated source commit and verify the changelog still covers that revision if concurrent integration changed the base. Defer final tracker publication until the surrounding Release finishes.
 
-## Build and inspect artifacts
+## Build and verify one candidate
 
-From the surviving canonical checkout, supply the full integrated commit SHA:
+Land [release-verify.yml](../.github/workflows/release-verify.yml) on the default branch before manual dispatch. Set `release_revision` to the retained full source SHA, then invoke:
 
 ```sh
-bun run release build --revision FULL_COMMIT_SHA --output /absolute/new-artifact-directory
-bun run release formula --artifacts /absolute/new-artifact-directory \
-  --repository OWNER/REPOSITORY --output /absolute/new-artifact-directory/hive.rb
-ruby -c /absolute/new-artifact-directory/hive.rb
+gh workflow run release-verify.yml --repo codethread/hive \
+  --field revision="$release_revision"
 ```
 
-The output directory must not exist; its parent must exist. A failed build retains partial output for inspection. Choose a fresh directory after diagnosing failure. `--target darwin-arm64` (or another supported platform) builds a single platform for investigation; formula generation requires all four. `bun run release --schema` prints the artifact manifest schema. Results and failures are single JSON documents.
+Retain the returned run URL/ID and inspect it with `gh run view`; `gh run watch --help` covers waiting. Record the repository, workflow revision, requested source revision, run ID and attempt. The workflow builds all four archives once from the exact source commit using `bun run release build`, frozen dependencies and disabled lifecycle hooks. Its four native jobs consume that uploaded candidate by artifact ID. They do not rebuild it. Linux archives use glibc. The workflow has read-only repository permissions and performs no publication.
 
-Build extracts the exact Git commit into temporary source, installs frozen dependencies with lifecycle hooks disabled, and invokes existing package builders. It never packages dirty files or stale workspace `dist/` output. Builders accept `HIVE_BUILD_TARGET` for cross-compilation; ordinary builds still target the host. Busy Bee retains package/TypeScript configuration loading, and Hive UI retains its embedded HTML/Tailwind asset build.
+The candidate artifact is named `hive-candidate-<revision>-<run_id>-<run_attempt>`. Each platform produces `hive-native-proof-<platform>-<revision>-<run_id>-<run_attempt>` for `darwin-arm64`, `darwin-x64`, `linux-arm64` and `linux-x64`. The workflow owns runner labels, pinned Bun/dependency versions and artifact retention; download evidence before it expires.
 
-The supported archive matrix is macOS and Linux, each on arm64 and x64, using Bun's `bun-darwin-arm64`, `bun-darwin-x64`, `bun-linux-arm64` and `bun-linux-x64` compiler targets. Linux artifacts use glibc. The release must verify native execution on all advertised platforms; compilation alone does not establish that.
+Use `gh run download --help` to select that exact run and each artifact by name. Put the candidate in the retained `artifactDirectory` and each platform proof in a separate directory outside disposable worktrees. The candidate contains four archives, `manifest.json` and `SHA256SUMS`; each archive holds `release.json` and `bin/` with the ten executables. Each proof artifact contains `native.json` and `dependencies.json` when those steps reached output. Failure uploads can be partial and are not acceptance evidence.
 
-Each archive contains only `bin/` with the ten executables and `release.json` (version, source commit, platform, Bun version and executable list). The output also includes `manifest.json` and `SHA256SUMS`. Formula generation rehashes each archive and rejects an incomplete platform set or a mismatched filename/digest. The generated formula is a real Ruby formula with immutable versioned URLs and actual checksums; no placeholder formula is committed before artifacts exist.
+Require all four native jobs to succeed. Check each `native.json` has `ok: true`, the requested source/platform and matching actual host OS/architecture. Match its `ci` repository, workflow ref/SHA, run ID/attempt and artifact ID/digest to the retained Actions records. Rehash the downloaded candidate and compare its files with every proof's `files`, its parsed `manifest` and `SHA256SUMS`. The artifact digest identifies the transport container; archive hashes identify the files that will be published. A rebuild from the same source SHA needs new native proof.
 
-On each platform, verify checksums, extract outside a checkout, and check every executable's `--version`. Exercise public `--help`, `qlock status --lock` with a disposable lock, Busy Bee discovery/loading of a disposable workflow whose packages are installed, and Hive UI startup plus HTTP delivery of embedded assets using a disposable tracker. Verify Colony resolves the companion executables next to its installed binary. Do not launch the shared production daemon for smoke tests.
+The [native verifier](../lib/tooling/src/release-verify-cli.ts) checks candidate/embedded metadata, exact companion placement, all executable versions, public help, qlock, an installed-dependency Busy Bee workflow and Hive UI HTTP assets using a disposable tracker. Run its `--help` for local invocation and prerequisites. Missing, skipped or failed platform jobs keep verification incomplete; cross-compilation and emulation do not establish native execution.
+
+Generate the formula from the downloaded candidate with `bun run release formula`; its `--help` supplies arguments and `--schema` the manifest contract. Formula generation rehashes all four archives and rejects mismatched names/digests. Validate the generated Ruby with `ruby -c` and retain it as `hive.rb` beside the candidate. Local `release build` is available for investigation; its output is a separate candidate requiring its own native verification. Inspect partial output before retrying and preserve failed-candidate evidence.
+
+## Complete checks outside CI
+
+Verify Colony resolves companion executables beside its installed binary; the CI inventory/version checks alone do not prove runtime resolution. Keep smoke tests isolated from production services.
 
 For a local Homebrew test, copy the generated formula into a disposable local tap and change only its download URLs to `file://` URLs for those exact archives. Run `brew install --build-from-source TAP/hive` and `brew test TAP/hive`, then remove that test installation/tap. Keep this local fixture separate from the published formula. Verify no `.beads` directory or service appears merely from installation. The formula's test checks all versions, help and a real qlock status operation.
 
-Verify the consumed Beads contract with `bun run test:contracts` against the release dependency versions. The initial investigation verified upstream formulae and local `br 0.7.4` / `bv 0.25.2`; later releases must recheck the current dependency contract. Homebrew dependencies follow the tap, so that observation is not a pin.
+Verify the consumed Beads contract with `bun run test:contracts` against the release dependency versions. `dependencies.json` identifies pinned download archives; `native.json.dependencies` records the versions and hashes of binaries actually executed. Check those versions against current upstream Homebrew formulae. The generated formula follows the dependency tap, so CI version checks do not establish the Homebrew dependency contract.
 
 ## Publish the verified bytes
 
-Only perform this section after the workflow's native verification and explicit publication authorization. Substitute the retained version, exact commit, public repository and artifact directory. Inspect existing tags/releases/assets first. Never force a tag or clobber an asset; after interruption, continue only effects whose identity and bytes match the retained manifest.
+Only perform this section after native verification and recorded publication authorization. Every release keeps an annotated `vX.Y.Z` tag on the exact versioned source commit in its manifest. Its GitHub assets and Homebrew formula must identify that same version and archive bytes. The later formula commit never changes the source tag.
+
+From the canonical checkout, set `release_version`, `release_revision` and `artifact_directory` to the retained version, exact commit and candidate directory. Inspect existing tags/releases/assets first. Never force a tag or clobber an asset; after interruption, continue only effects whose identity and bytes match the retained manifest.
 
 ```sh
-git tag -a vVERSION FULL_COMMIT_SHA -m 'Hive VERSION'
-git push git@github.com:OWNER/REPOSITORY.git refs/tags/vVERSION
-gh release create vVERSION --repo OWNER/REPOSITORY --verify-tag --draft \
-  --title 'Hive VERSION' --notes-file releases/vVERSION.md
-gh release upload vVERSION --repo OWNER/REPOSITORY \
-  /absolute/artifacts/hive-*.tar.gz /absolute/artifacts/manifest.json \
-  /absolute/artifacts/SHA256SUMS /absolute/artifacts/hive.rb
+git tag -a "v$release_version" "$release_revision" -m "Hive $release_version"
+git push git@github.com:codethread/hive.git "refs/tags/v$release_version"
+gh release create "v$release_version" --repo codethread/hive --verify-tag --draft \
+  --title "Hive $release_version" --notes-file "releases/v$release_version.md"
+gh release upload "v$release_version" --repo codethread/hive \
+  "$artifact_directory"/hive-*.tar.gz "$artifact_directory/manifest.json" \
+  "$artifact_directory/SHA256SUMS" "$artifact_directory/hive.rb"
 ```
 
 Read back the remote tag and compare its peeled commit with the manifest. Download the draft assets into a new directory with `gh release download`, compare hashes with the saved artifacts, and only then publish:
 
 ```sh
-gh release edit vVERSION --repo OWNER/REPOSITORY --draft=false
+gh release edit "v$release_version" --repo codethread/hive --draft=false
 ```
 
-Download the public URLs without authentication and verify hashes again. In the chosen clean tap checkout, copy the generated `hive.rb` to `Formula/hive.rb`, run `brew style`, `brew audit` and an actual installation/test against the published URLs, then follow that repository's review/commit/push policy. Record the actual tap commit and verify the fully qualified install command after publication.
+Download the public URLs without authentication and verify hashes again. Use Honeycomb to create a clean nested worktree from the tap's default branch, using `tapCheckout` as its repository anchor. Copy the generated `hive.rb` to `Formula/hive.rb` there, then run `brew style`, `brew audit` and an actual installation/test against the published URLs. Installation must create neither a tracker nor a service.
 
-A same-repository tap uses a later formula-only commit: its checksums cannot exist in the source revision being built. Land that update normally; do not move the release tag to chase a self-referential hash. The previous valid formula remains until replacement assets are publicly available.
+For Hive's same-repository tap, start or resume ordinary Land beneath the Release run with `completedTasks: []`. This is a formula-only commit: the archive's checksum cannot be part of its own source revision. Leave canonical source edits to Land's integration step and retain the original tag. Defer tracker publication until Release finishes. A different tap follows its repository's review/commit/push policy. Record the actual integrated tap commit and verify the fully qualified install command. The previous valid formula remains until replacement assets are publicly available.
 
 Record source/tag, release URL, archive hashes, platform test evidence, tap commit and installation results on the Release run. Busy Bee closes the run after all visits complete; the authorized caller then closes proven scope work and publishes final tracker evidence once. An unresolved external operation stays open with its specific blocker and required next action.
-
-## Tool choices and references
-
-[git-cliff](https://git-cliff.org/docs/usage/monorepos/) supports path-filtered monorepo changelogs, and [release-please](https://github.com/googleapis/release-please) manages release PRs and version strategies. Hive needs an explicit user-selected suite version and a simple commit list per package, and already owns its Land and Release coordination. Native Git history plus the existing Bun compiler meet that scope without adding a second release coordinator or a changelog tool dependency.
-
-The build follows [Bun's standalone executable documentation](https://bun.com/docs/bundler/executables). Formula rendering follows the [Homebrew cookbook](https://docs.brew.sh/Formula-Cookbook) and [tap contract](https://docs.brew.sh/Taps). Dependencies are the upstream [br formula](https://github.com/Dicklesworthstone/homebrew-tap/blob/main/Formula/br.rb) and [bv formula](https://github.com/Dicklesworthstone/homebrew-tap/blob/main/Formula/bv.rb). Publication uses [GitHub CLI's explicit tag verification](https://cli.github.com/manual/gh_release_create).
