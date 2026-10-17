@@ -2,13 +2,13 @@ import type { Board, Hierarchy } from "../contracts.ts";
 // Board composition combines column preferences, visibility and native family layout.
 /* eslint-disable import/max-dependencies */
 import { DEFAULT_COLUMN_ORDER, columnOrders } from "./column-settings.tsx";
+import { boardFamilies, railRows } from "../hierarchy.ts";
 import { useId, useState } from "react";
 import { useParams, useSearch } from "@tanstack/react-router";
 import { BeadCard } from "./bead-card.tsx";
 import type { BoardFamily } from "../hierarchy.ts";
 import { OutlineLink } from "./ui.tsx";
 import { WorkflowIndicator } from "./workflow-preview.tsx";
-import { boardFamilies } from "../hierarchy.ts";
 import { boardStatuses } from "./column-order.ts";
 import { preferences } from "./data.ts";
 import { statusName } from "./filter-controls.tsx";
@@ -78,7 +78,12 @@ export function BeadBoard({ board, hierarchy }: { board: Board; hierarchy: Hiera
 
 // --- Adaptive presentation over the complete native family ---
 function ColumnFamily({ family, status }: { family: BoardFamily; status: string }) {
-	const rows = family.visible.filter(({ node }) => node.status === status);
+	const [expanded, setExpanded] = useState(new Set<string>());
+	const matching = family.visible.filter(({ node }) => node.status === status);
+	const rows =
+		family.layout === "rails"
+			? railRows(family.rows, new Set(matching.map(({ node }) => node.id)), expanded)
+			: matching.map(({ node, depth }) => ({ node, depth, descendantCount: 0 }));
 	if (rows.length === 0) {
 		return null;
 	}
@@ -88,7 +93,7 @@ function ColumnFamily({ family, status }: { family: BoardFamily; status: string 
 			data-family-id={family.root.id}
 			data-layout={family.layout}
 		>
-			{rows.map(({ node, depth }, index) => (
+			{rows.map(({ node, depth, descendantCount }, index) => (
 				<div
 					key={node.id}
 					className={family.layout === "rails" && depth > 0 ? "bead-rail-child" : ""}
@@ -112,6 +117,25 @@ function ColumnFamily({ family, status }: { family: BoardFamily; status: string 
 						card={node}
 						compact={family.layout === "rails" && node.id !== family.root.id}
 						showStatus={false}
+						subcards={
+							descendantCount > 0
+								? {
+										count: descendantCount,
+										expanded: expanded.has(node.id),
+										handleToggle: () => {
+											setExpanded((current) => {
+												const next = new Set(current);
+												if (next.has(node.id)) {
+													next.delete(node.id);
+												} else {
+													next.add(node.id);
+												}
+												return next;
+											});
+										},
+									}
+								: undefined
+						}
 					/>
 				</div>
 			))}
@@ -120,7 +144,7 @@ function ColumnFamily({ family, status }: { family: BoardFamily; status: string 
 }
 
 function FamilyLane({ family, statuses }: { family: BoardFamily; statuses: string[] }) {
-	const [collapsed, setCollapsed] = useState(false);
+	const [collapsed, setCollapsed] = useState(true);
 	const hiddenCountId = useId();
 	const columns = statuses.map((status) => ({
 		status,

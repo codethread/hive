@@ -83,7 +83,7 @@ export function resetStoryState(): void {
 	preferences.setState({
 		showWorkflowBeads: false,
 		outlineClosed: false,
-		sidebarCollapsed: false,
+		sidebarCollapsed: true,
 		views: {},
 	});
 	columnOrders.store.setState({ byColony: {}, error: "" });

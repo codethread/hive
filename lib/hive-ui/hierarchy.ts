@@ -122,6 +122,37 @@ export function boardFamilies(board: Board, hierarchy: Hierarchy | null): BoardF
 		.filter((family) => family.visible.length > 0);
 }
 
+/** Fold rail rows; descendant counts include only IDs in the current board-page match set. */
+export function railRows(
+	rows: BranchRow[],
+	visible: Set<string>,
+	expanded: Set<string>,
+): (BranchRow & { descendantCount: number })[] {
+	let collapsedDepth = Infinity;
+	// eslint-disable-next-line max-statements -- Folding and counting use the same complete preorder branch.
+	return rows.flatMap((row, index) => {
+		if (row.depth <= collapsedDepth) {
+			collapsedDepth = Infinity;
+		}
+		if (!visible.has(row.node.id) || row.depth > collapsedDepth) {
+			return [];
+		}
+		let descendantCount = 0;
+		for (const next of rows.slice(index + 1)) {
+			if (next.depth <= row.depth) {
+				break;
+			}
+			if (visible.has(next.node.id)) {
+				descendantCount += 1;
+			}
+		}
+		if (!expanded.has(row.node.id)) {
+			collapsedDepth = row.depth;
+		}
+		return [{ ...row, descendantCount }];
+	});
+}
+
 // --- Board-only ancestry and shared graph traversal ---
 function nativeParents(hierarchy: Hierarchy): Map<string, string[]> {
 	return new Map(hierarchy.nodes.map((node) => [node.id, node.parentIds]));

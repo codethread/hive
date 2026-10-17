@@ -50,6 +50,8 @@ export const boardFilterSchema = inventoryFilterSchema.extend({
 	request: z.string().optional(),
 });
 export const navigationSchema = boardFilterSchema.extend({
+	/** Browser entry point, independent of the API's request-scope default. */
+	view: boardScopeSchema.shape.view.default("beads"),
 	/** One explicitly expanded ancestry chain, never a whole-history scan. */
 	ancestry: z.string().optional(),
 	/** Selected bead ID opens the detail inspector. */

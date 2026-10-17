@@ -5,6 +5,7 @@ import {
 	branchRows,
 	hasHierarchy,
 	outlineHierarchy,
+	railRows,
 } from "./hierarchy.ts";
 import { expect, test } from "bun:test";
 
@@ -233,4 +234,60 @@ test.each([
 	},
 ])("inspector outline availability uses native relationships: $name", ({ nodes, expected }) => {
 	expect(hasHierarchy({ nodes: [...nodes], fetchedAt: nodes[0].updatedAt }, "bead")).toBe(expected);
+});
+
+const RAIL_SUBCARD_COUNT = 3;
+const foldedRows = [
+	{ node: makeNode("root"), depth: 0 },
+	{ node: makeNode("child", "open", ["root"]), depth: 1 },
+	{ node: makeNode("grandchild", "open", ["child"]), depth: 2 },
+	{ node: makeNode("sibling", "open", ["root"]), depth: 1 },
+];
+
+test.each([
+	{ expanded: [], expected: [["root", RAIL_SUBCARD_COUNT]] },
+	{
+		expanded: ["root"],
+		expected: [
+			["root", RAIL_SUBCARD_COUNT],
+			["child", 1],
+			["sibling", 0],
+		],
+	},
+	{
+		expanded: ["root", "child"],
+		expected: [
+			["root", RAIL_SUBCARD_COUNT],
+			["child", 1],
+			["grandchild", 0],
+			["sibling", 0],
+		],
+	},
+	{ expanded: ["child"], expected: [["root", RAIL_SUBCARD_COUNT]] },
+])("inline board branches expand independently: $expanded", ({ expanded, expected }) => {
+	const visible = new Set(foldedRows.map(({ node }) => node.id));
+	expect(
+		railRows(foldedRows, visible, new Set(expanded)).map(({ node, descendantCount }) => [
+			node.id,
+			descendantCount,
+		]),
+	).toEqual(expected.map((row) => [...row]));
+});
+
+test("filtered inline ancestors do not hide matches or absorb a different branch", () => {
+	const visible = new Set(["child", "grandchild", "sibling"]);
+	expect(
+		railRows(foldedRows, visible, new Set()).map(({ node, descendantCount }) => [
+			node.id,
+			descendantCount,
+		]),
+	).toEqual([
+		["child", 1],
+		["sibling", 0],
+	]);
+	expect(
+		railRows(foldedRows, new Set(["root", "grandchild"]), new Set()).map(
+			({ node, descendantCount }) => [node.id, descendantCount],
+		),
+	).toEqual([["root", 1]]);
 });

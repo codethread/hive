@@ -1291,3 +1291,19 @@ body:has(.inspector[open], .filter-drawer[open]) {
 	bottom: -10px;
 	border-left: 1px solid var(--line);
 }
+
+.subcard-toggle {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	padding: 2px 5px;
+	border: 1px solid var(--line);
+	border-radius: 4px;
+	color: var(--muted);
+	font-size: 11px;
+	cursor: pointer;
+}
+.subcard-toggle:hover {
+	color: var(--ink);
+	background: var(--raised);
+}

@@ -7,6 +7,9 @@ import { preferences } from "../data.ts";
 const meta = {
 	title: "Workspace/Filter workspace",
 	component: FilterWorkspace,
+	beforeEach() {
+		preferences.setState({ sidebarCollapsed: false });
+	},
 	args: { board, children: <BeadBoard board={board} hierarchy={hierarchy} /> },
 	render: (args) => (
 		<main className="work-page">

@@ -71,7 +71,7 @@ export const provenance = createResource(provenanceSchema);
 export const preferences = createStore<Preferences>(() => ({
 	showWorkflowBeads: false,
 	outlineClosed: false,
-	sidebarCollapsed: false,
+	sidebarCollapsed: true,
 	theme: "moss",
 	views: {},
 }));

@@ -10,10 +10,12 @@ export function BeadCard({
 	card,
 	compact = false,
 	showStatus = true,
+	subcards,
 }: {
 	card: Card;
 	compact?: boolean;
 	showStatus?: boolean;
+	subcards?: { count: number; expanded: boolean; handleToggle: () => void } | undefined;
 }) {
 	const search = useSearch({ from: "/colonies/$colonyId" });
 	const [latest] = card.beeAssignments.toSorted((left, right) =>
@@ -29,6 +31,21 @@ export function BeadCard({
 				<div className="flex items-center justify-between gap-2">
 					<span className="font-mono text-[11px] text-muted">{card.id}</span>
 					<div className="flex items-center gap-1">
+						{subcards && (
+							<button
+								type="button"
+								className="subcard-toggle"
+								aria-label={
+									`${subcards.expanded ? "Collapse" : "Expand"} ${subcards.count} ` +
+									`${subcards.count === 1 ? "subcard" : "subcards"} of ${card.id}`
+								}
+								aria-expanded={subcards.expanded}
+								onClick={subcards.handleToggle}
+							>
+								<span aria-hidden="true">{subcards.expanded ? "▾" : "▸"}</span>
+								{subcards.count} {subcards.count === 1 ? "subcard" : "subcards"}
+							</button>
+						)}
 						<WorkflowIndicator id={card.id} isWorkflowGenerated={card.isWorkflowGenerated} />
 						<MergeLinks merges={card.merges} />
 						{!compact && <Label>P{card.priority}</Label>}
