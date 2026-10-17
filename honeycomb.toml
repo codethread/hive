@@ -3,7 +3,7 @@
 worktree_location = "nested"
 
 command = '''
-bun install && notif worktree wk "$WK_CREATED" ready
+bun install && beeswax sync && notif worktree wk "$WK_CREATED" ready
 '''
 
 [add]

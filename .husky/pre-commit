@@ -4,6 +4,7 @@
 
 # Hive application policy: tracker snapshots do not run code checks.
 if "$(git rev-parse --git-path beeswax/cli)" hooks is-tracker-snapshot; then exit 0; fi
+bun install --frozen-lockfile --ignore-scripts || exit $?
 bunx lint-staged || exit $?
 git diff --cached --check || exit $?
 bun run typecheck || exit $?
