@@ -62,7 +62,6 @@ async function prepare(root: string, version: string) {
 	return { version, previous, notes };
 }
 
-// eslint-disable-next-line max-statements -- Read every package against the same Git range.
 async function packageHistory(
 	root: string,
 	previous: string | undefined,
@@ -71,47 +70,48 @@ async function packageHistory(
 		"package.json",
 		...(await Array.fromAsync(new Bun.Glob("lib/*/package.json").scan(root))),
 	];
-	const packages: PackageHistory[] = [];
-	for (const file of files.toSorted()) {
-		const pkg = await readPackage(join(root, file));
-		let path = ".";
-		if (file !== "package.json") {
-			path = file.slice(FIRST, -"/package.json".length);
-		}
-		// Root history covers repository-wide changes; workspace histories use their own paths.
+	return Promise.all(
+		// eslint-disable-next-line max-statements -- Read every package against the same Git range.
+		files.toSorted().map(async (file) => {
+			const pkg = await readPackage(join(root, file));
+			let path = ".";
+			if (file !== "package.json") {
+				path = file.slice(FIRST, -"/package.json".length);
+			}
+			// Root history covers repository-wide changes; workspace histories use their own paths.
 
-		let range = "HEAD";
-		if (previous !== undefined) {
-			range = `${previous}..HEAD`;
-		}
-		const args = ["log", "--format=%H%x1f%B%x00", range];
-		if (path !== ".") {
-			args.push("--", path);
-		}
-		const history = await git(root, args);
-		packages.push({
-			directory: path,
-			name: pkg.name,
-			version: pkg.version,
-			commits: history
-				.split("\0")
-				.filter((record) => record.trim() !== "")
-				.map((record) => {
-					const separator = record.indexOf("\u001F");
-					return {
-						hash: z
-							.string()
-							.regex(/^[\da-f]{40}$/u)
-							.parse(record.slice(FIRST, separator).trim()),
-						message: z
-							.string()
-							.min(MINIMUM_LENGTH)
-							.parse(record.slice(separator + MINIMUM_LENGTH).trim()),
-					};
-				}),
-		});
-	}
-	return packages;
+			let range = "HEAD";
+			if (previous !== undefined) {
+				range = `${previous}..HEAD`;
+			}
+			const args = ["log", "--format=%H%x1f%B%x00", range];
+			if (path !== ".") {
+				args.push("--", path);
+			}
+			const history = await git(root, args);
+			return {
+				directory: path,
+				name: pkg.name,
+				version: pkg.version,
+				commits: history
+					.split("\0")
+					.filter((record) => record.trim() !== "")
+					.map((record) => {
+						const separator = record.indexOf("\u001F");
+						return {
+							hash: z
+								.string()
+								.regex(/^[\da-f]{40}$/u)
+								.parse(record.slice(FIRST, separator).trim()),
+							message: z
+								.string()
+								.min(MINIMUM_LENGTH)
+								.parse(record.slice(separator + MINIMUM_LENGTH).trim()),
+						};
+					}),
+			};
+		}),
+	);
 }
 
 async function requireClean(root: string): Promise<void> {

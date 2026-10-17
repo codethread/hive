@@ -1,15 +1,14 @@
 // oxlint-disable import/max-dependencies -- The composition root assembles the live service adapters.
-import type { Deps, PickerItem, PickerOptions, ProgressReporter } from "./services.ts";
-// oxlint-disable-next-line import/no-nodejs-modules -- Direct terminal IO belongs in the live picker boundary.
+import type { Deps, ProgressReporter } from "./services.ts";
+// oxlint-disable-next-line import/no-nodejs-modules -- Direct terminal IO belongs in the live terminal boundary.
 import { closeSync, openSync, readSync, writeFileSync } from "node:fs";
-import { PickerCancelled } from "./errors.ts";
 import { createBundledSkills } from "./bundled-skills.ts";
 import { createFileCdDirective } from "./integrations/cd-directive.ts";
 import { createLiveConfigService } from "./live-config-service.ts";
 import { createLiveGitRunner } from "./git/executor.ts";
 import { createLiveHookRunner } from "./hooks.ts";
 import { createLiveWorkspaceFiles } from "./setup.ts";
-import { fzf } from "./fzf.ts";
+import { pick } from "./live-picker.ts";
 import { selectMultiplexer } from "./integrations/tmux.ts";
 
 const ANSWER_BYTES = 1;
@@ -35,40 +34,7 @@ export function createLiveDeps(): Deps {
 	};
 }
 
-// Private terminal and picker helpers.
-function tmuxPopup(options: PickerOptions): string | undefined {
-	if (options.interactive) {
-		return "center,80%,70%";
-	}
-	return undefined;
-}
-
-async function pick(
-	items: PickerItem[],
-	header: string,
-	options: PickerOptions = {},
-): Promise<PickerItem> {
-	const [first] = items;
-	const byDisplay = new Map(items.map((item) => [item.display, item]));
-	const selection = await fzf(
-		items.map((item) => item.display),
-		{
-			delimiter: "\t",
-			header,
-			preview: first?.preview,
-			// Fzf switches below the list when the side preview would be under 80 columns.
-			previewWindow: "right,70%,wrap,<80(down,70%,wrap)",
-			tmux: tmuxPopup(options),
-			withNth: "2..",
-		},
-	);
-	const item = byDisplay.get(selection);
-	if (!item) {
-		throw new PickerCancelled();
-	}
-	return item;
-}
-
+// Private terminal helpers.
 // Keep synchronous terminal interaction inside an async boundary so IO errors reject the returned promise.
 // oxlint-disable-next-line eslint/require-await
 async function confirm(prompt: string): Promise<boolean> {
@@ -78,7 +44,7 @@ async function confirm(prompt: string): Promise<boolean> {
 		// oxlint-disable-next-line node/no-sync -- Display the prompt before the blocking terminal read.
 		writeFileSync(tty, prompt);
 		const answer = Buffer.alloc(ANSWER_BYTES);
-		// Read one byte at the descriptor's current position, as in the original prompt.
+		// Read one byte at the descriptor's current position.
 		// oxlint-disable-next-line node/no-sync
 		readSync(tty, answer);
 		// oxlint-disable-next-line node/no-sync -- Finish the prompt before returning control to the caller.

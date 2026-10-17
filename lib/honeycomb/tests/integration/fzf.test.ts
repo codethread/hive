@@ -60,10 +60,10 @@ describe("fzf", () => {
 	});
 
 	test("live picker requests a responsive preview layout", async () => {
-		const liveDepsModule = join(import.meta.dir, "../../src/live-deps.ts");
+		const livePickerModule = join(import.meta.dir, "../../src/live-picker.ts");
 		const script = `
-			const { createLiveDeps } = await import(${JSON.stringify(liveDepsModule)});
-			const item = await createLiveDeps().picker.pick(
+			const { pick } = await import(${JSON.stringify(livePickerModule)});
+			const item = await pick(
 				[{ key: "/a", display: "/a\\tfirst", preview: "echo preview" }],
 				"Select a worktree",
 				{ interactive: true },
