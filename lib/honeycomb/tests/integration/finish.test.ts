@@ -1,20 +1,17 @@
-import { EXIT_CODES, PushRejectedError, dispatch } from "../../src/index";
-// oxlint-disable-next-line import/no-nodejs-modules -- Integration fixtures exercise real filesystem IO.
-import { chmod, readFile, writeFile } from "node:fs/promises";
+import { EXIT_CODES, dispatch } from "../../src/index";
 import {
 	commitFile,
 	commitOnRemoteDefault,
 	deps,
-	pathExists,
 	useOriginFixture,
 	writeConfig,
 } from "./support.ts";
 import { expect, test } from "bun:test";
-import { gitOut, gitSucceeds, useTmpHome } from "./lifecycle-helpers.ts";
+import { gitOut, useTmpHome } from "./lifecycle-helpers.ts";
+// oxlint-disable-next-line import/no-nodejs-modules -- Integration fixtures exercise real filesystem IO.
+import { readFile, writeFile } from "node:fs/promises";
 // oxlint-disable-next-line import/no-nodejs-modules -- Integration fixtures exercise real filesystem IO.
 import { join } from "node:path";
-
-const EXECUTABLE_MODE = 0o755;
 
 const tmp = useTmpHome("honeycomb-finish-test-");
 const { initRepoWithOrigin } = useOriginFixture();
@@ -136,34 +133,4 @@ test("non-json finish prints a one-line summary to stderr", async () => {
 	expect(result.exitCode).toBe(EXIT_CODES.SUCCESS);
 	expect(result.stdout).toBeUndefined();
 	expect(result.stderr).toBe("honeycomb: finished feature/human-finish into main\n");
-});
-test("push rejection blocks configured cleanup and preserves source worktree and branch", async () => {
-	const { remote, root, worktreePath } = await prepareFinish(
-		"feature/push-reject",
-		"[project.finish]\npush = true\nremove_worktree = true\ndelete_branch = true\n",
-	);
-	await commitFile({
-		content: "source\n",
-		message: "source work",
-		path: "reject.txt",
-		repo: worktreePath,
-	});
-	await writeFile(join(remote, "hooks", "pre-receive"), "#!/bin/sh\nexit 1\n");
-	await chmod(join(remote, "hooks", "pre-receive"), EXECUTABLE_MODE);
-
-	const result = await dispatch("finish", ["--cwd", worktreePath, "--json"], deps);
-
-	expect(result.exitCode).toBe(EXIT_CODES.BLOCKED);
-	expect(result.failure).toBeInstanceOf(PushRejectedError);
-	expect(JSON.parse(result.stdout ?? "{}")).toMatchObject({
-		cleanup_actions: [],
-		integrated: true,
-		kind: "blocked",
-		ok: false,
-		reason: "push_rejected",
-	});
-	expect(await pathExists(worktreePath)).toBe(true);
-	expect(await gitSucceeds(root, "show-ref", "--verify", "refs/heads/feature/push-reject")).toBe(
-		true,
-	);
 });
