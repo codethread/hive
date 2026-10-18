@@ -1,5 +1,17 @@
 /* eslint-disable unicorn/max-nested-calls -- Boundary schemas keep complete discriminated variants visible together. */
+import {
+	workflowInstructionDiagramSchema,
+	workflowRunInspectionSchema,
+	workflowUnavailableDiagramSchema,
+} from "@hive/shared/workflow-inspect";
 import { z } from "zod";
+
+export { workflowLifecycleSchema, type WorkflowLifecycle } from "@hive/shared/workflow-lifecycle";
+export const workflowViewSchema = workflowRunInspectionSchema.extend({
+	/** The modal explicitly requests instruction expansion; failures retain native facts. */
+	diagram: z.union([workflowInstructionDiagramSchema, workflowUnavailableDiagramSchema]),
+});
+export type WorkflowView = z.infer<typeof workflowViewSchema>;
 
 export {
 	workflowInspectionSchema,

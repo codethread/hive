@@ -11,7 +11,7 @@ import {
 	queryChangelog,
 	renderChangelog,
 } from "@hive/shared/changelog";
-import { checkpointVersion, inspect, preview } from "./preview.ts";
+import { checkpointVersion, inspectDiagram, inspectRun, preview } from "./preview.ts";
 import {
 	complete,
 	discover,
@@ -27,14 +27,13 @@ import { settle, settlementRequestSchema, settlementResultSchema } from "./settl
 import {
 	workflowCheckpointSchema,
 	workflowInspectionSchema,
-	workflowLifecycleSchema,
+	workflowRunInspectionSchema,
 	workflowSimulationRequestSchema,
 	workflowSimulationSchema,
 } from "@hive/shared";
 import type { PreflightReport } from "./preflight.ts";
 import type { Source } from "./catalogue.ts";
 import changelog from "../changelog.json";
-import { inspectLifecycle } from "./lifecycle.ts";
 import { preflight } from "./preflight.ts";
 import { readSkills } from "./skills.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Explicit source paths resolve against the invoking directory.
@@ -284,37 +283,64 @@ function registerInspection(invocation: Invocation): void {
 	const options = (): CliOptions => cli.opts<CliOptions>();
 	cli
 		.command("inspect [run]")
-		.description("Read a run's native lifecycle without loading its workflow definition")
-		.option("--schema", "Read the lifecycle success envelope schema without tracker access")
+		.description("Read native lifecycle with optional saved diagram and instruction expansion")
+		.option(
+			"--schema",
+			"Read the success envelope schema, including expansions, without tracker access",
+		)
+		.option("--diagram", "Expand the saved structural diagram using trusted workflow source")
+		.option("--instructions", "Include instruction previews with --diagram")
 		.addHelpText(
 			"after",
-			"\nRUN is a workflow run ID. The read requires its native record and a valid related " +
-				"checkpoint, but no workflow source or Colony. Default success output is JSON; " +
+			"\nRUN is a workflow run ID. The default read requires its native record and a valid " +
+				"related checkpoint, but no workflow source or Colony. Default success output is JSON; " +
 				"--json adds the workflow_lifecycle envelope and machine-readable failures. " +
 				"Reports native status, lifecycle, follow-up resolution and publication timestamps, " +
 				"lock and settlement intent. Closed runs " +
 				"without lifecycle markers remain unclassified. A lock observation does not " +
 				"establish worker liveness.\n" +
-				"Use inspect --schema --json without a run ID for the success envelope schema. " +
-				"Use show for active briefs, discover for outcome schemas and preview or system " +
-				"preview for saved diagrams and instruction previews.",
+				"--diagram imports trusted source for structure; --diagram --instructions also " +
+				"includes frozen active briefs and previews rendered from saved actor context. " +
+				"Expansion performs no engine writes or actor progression; imports and renderers " +
+				"execute author code. A failed expansion returns diagram.kind=unavailable with " +
+				"a reason and bounded message, preserving native lifecycle. Native read failures " +
+				"fail the command. The graph retains its own checkpoint stamp; the reads are not atomic.\n" +
+				"Use inspect --schema --json without a run ID for the success envelope schema, " +
+				"show for active briefs and discover for outcome schemas.",
 		)
-		.action(async (id: string | undefined, selection: { schema?: boolean }) => {
-			invocation.kind = "workflow_lifecycle";
-			if (selection.schema) {
-				invocation.kind = "workflow_lifecycle_schema";
-				const schema = workflowLifecycleSchema.extend({
-					ok: z.literal(true),
-					kind: z.literal("workflow_lifecycle"),
-				});
-				writeResult({ schema: z.toJSONSchema(schema) }, invocation);
-				return;
-			}
-			if (!id) {
-				throw new BusyBeeError("usage", "inspect requires a workflow run ID.");
-			}
-			writeResult(await inspectLifecycle(id, options(), services), invocation);
-		});
+		.action(
+			// Validate read modes, offline discovery and the selected projection together.
+			// eslint-disable-next-line max-statements
+			async (
+				id: string | undefined,
+				selection: { schema?: boolean; diagram?: boolean; instructions?: boolean },
+			) => {
+				invocation.kind = "workflow_lifecycle";
+				if (selection.instructions && !selection.diagram) {
+					throw new BusyBeeError("usage", "--instructions requires --diagram.");
+				}
+				if (selection.schema) {
+					invocation.kind = "workflow_lifecycle_schema";
+					const schema = workflowRunInspectionSchema.extend({
+						ok: z.literal(true),
+						kind: z.literal("workflow_lifecycle"),
+					});
+					writeResult({ schema: z.toJSONSchema(schema) }, invocation);
+					return;
+				}
+				if (!id) {
+					throw new BusyBeeError("usage", "inspect requires a workflow run ID.");
+				}
+				let expansion: "none" | "structure" | "instructions" = "none";
+				if (selection.diagram) {
+					expansion = "structure";
+					if (selection.instructions) {
+						expansion = "instructions";
+					}
+				}
+				writeResult(await inspectRun({ id, expansion }, options(), services), invocation);
+			},
+		);
 	cli
 		.command("settle [run] [operation]")
 		.description("Cancel or fail unfinished scope, or acknowledge or replace an unsuccessful run")
@@ -469,7 +495,7 @@ function registerSystem(invocation: Invocation): void {
 			invocation.kind = "workflow_inspection";
 			requireSystemJson(invocation);
 			writeResult(
-				await inspect(id, invocation.cli.opts<CliOptions>(), invocation.services),
+				await inspectDiagram(id, invocation.cli.opts<CliOptions>(), invocation.services),
 				invocation,
 			);
 		});

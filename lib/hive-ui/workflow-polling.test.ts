@@ -1,12 +1,13 @@
 /* eslint-disable max-statements -- Exercise complete polling lifetimes and overlapping refresh outcomes. */
+import type { WorkflowInspection, WorkflowLifecycle, WorkflowView } from "./contracts.ts";
 import { createWorkflowResource, snapshot } from "./src/data.ts";
 import { expect, test } from "bun:test";
-import type { WorkflowInspection } from "./contracts.ts";
 import { pollVisibleWorkflow } from "./src/workflow-polling.ts";
 
 const INSPECTIONS = 2;
+const RECOVERY_INSPECTIONS = 3;
 const POLL_MS = 5000;
-const saved: WorkflowInspection = {
+const graph: WorkflowInspection = {
 	formatVersion: 1,
 	runId: "run",
 	title: "Workflow",
@@ -19,6 +20,18 @@ const saved: WorkflowInspection = {
 		sourceMatch: "exact",
 	},
 	actors: [],
+};
+const native: WorkflowLifecycle = {
+	runId: "run",
+	nativeStatus: "in_progress",
+	updatedAt: "updated",
+	publication: { checkpoint: "checkpoint", savedAt: "original", locked: false, settlement: "none" },
+	lifecycle: { kind: "pending" },
+	resolution: { kind: "unresolved" },
+};
+const saved: WorkflowView = {
+	...native,
+	diagram: { kind: "available", mode: "instructions", data: graph },
 };
 
 test("visible inspector polls every five seconds, pauses hidden and stops on close", () => {
@@ -48,14 +61,14 @@ test("opening in a hidden document waits for visibility before the initial read"
 	stop();
 });
 
-test("unchanged checkpoints retain the exact displayed resource and skip full inspection", async () => {
+test("unchanged native facts retain the exact displayed resource and skip full inspection", async () => {
 	let inspections = 0;
 	const resource = createWorkflowResource({
 		inspect: () => {
 			inspections += 1;
 			return Promise.resolve(saved);
 		},
-		checkpoint: () => Promise.resolve(saved),
+		lifecycle: () => Promise.resolve(native),
 	});
 	await resource.load("selected/run", "/workflow");
 	const original = resource.store.getState().entries["selected/run"];
@@ -65,7 +78,7 @@ test("unchanged checkpoints retain the exact displayed resource and skip full in
 });
 
 test("changed polling and manual requests coalesce without clearing the displayed snapshot", async () => {
-	const update = Promise.withResolvers<WorkflowInspection>();
+	const update = Promise.withResolvers<WorkflowView>();
 	let inspections = 0;
 	const resource = createWorkflowResource({
 		inspect: () => {
@@ -75,7 +88,8 @@ test("changed polling and manual requests coalesce without clearing the displaye
 			}
 			return update.promise;
 		},
-		checkpoint: () => Promise.resolve({ ...saved, savedAt: "newer" }),
+		lifecycle: () =>
+			Promise.resolve({ ...native, publication: { ...native.publication, savedAt: "newer" } }),
 	});
 	await resource.load("selected/run", "/workflow");
 	const original = resource.store.getState().entries["selected/run"];
@@ -85,26 +99,28 @@ test("changed polling and manual requests coalesce without clearing the displaye
 	expect(overlapping).toBe(polling);
 	expect(manual).toBe(polling);
 	expect(resource.store.getState().entries["selected/run"]).toBe(original);
-	update.resolve({ ...saved, savedAt: "newer" });
+	update.resolve({ ...saved, publication: { ...saved.publication, savedAt: "newer" } });
 	await polling;
 	expect(inspections).toBe(INSPECTIONS);
-	expect(snapshot(resource.store.getState().entries["selected/run"]!)?.savedAt).toBe("newer");
+	expect(
+		snapshot(resource.store.getState().entries["selected/run"]!)?.native.publication.savedAt,
+	).toBe("newer");
 });
 
 test("manual refresh promotes an overlapping unchanged probe to full inspection", async () => {
-	const checkpoint = Promise.withResolvers<WorkflowInspection>();
+	const checkpoint = Promise.withResolvers<WorkflowLifecycle>();
 	let inspections = 0;
 	const resource = createWorkflowResource({
 		inspect: () => {
 			inspections += 1;
 			return Promise.resolve(saved);
 		},
-		checkpoint: () => checkpoint.promise,
+		lifecycle: () => checkpoint.promise,
 	});
 	await resource.load("selected/run", "/workflow");
 	const polling = resource.load("selected/run", "/workflow", true);
 	expect(resource.load("selected/run", "/workflow")).toBe(polling);
-	checkpoint.resolve(saved);
+	checkpoint.resolve(native);
 	await polling;
 	expect(inspections).toBe(INSPECTIONS);
 });
@@ -118,7 +134,7 @@ test("an unchanged probe cannot clear a failed full inspection without successfu
 			}
 			return Promise.resolve(saved);
 		},
-		checkpoint: () => Promise.resolve(saved),
+		lifecycle: () => Promise.resolve(native),
 	});
 	await resource.load("selected/run", "/workflow");
 	fail = true;
@@ -130,7 +146,7 @@ test("an unchanged probe cannot clear a failed full inspection without successfu
 	expect(resource.store.getState().entries["selected/run"]?.kind).toBe("ready");
 });
 
-test.each(["checkpoint", "inspection"])(
+test.each(["lifecycle", "inspection"])(
 	"polling recovers after a failed %s read with the snapshot intact",
 	async (failure) => {
 		let fail = false;
@@ -141,24 +157,119 @@ test.each(["checkpoint", "inspection"])(
 				}
 				return Promise.resolve(saved);
 			},
-			checkpoint: () => {
-				if (fail && failure === "checkpoint") {
+			lifecycle: () => {
+				if (fail && failure === "lifecycle") {
 					return Promise.reject(new Error("Read failed"));
 				}
-				return Promise.resolve({ ...saved, savedAt: "newer" });
+				return Promise.resolve({
+					...native,
+					publication: { ...native.publication, savedAt: "newer" },
+				});
 			},
 		});
 		await resource.load("selected/run", "/workflow");
 		fail = true;
 		await resource.load("selected/run", "/workflow", true);
 		expect(resource.store.getState().entries["selected/run"]?.kind).toBe("failed");
-		expect(snapshot(resource.store.getState().entries["selected/run"]!)).toBe(saved);
+		const view = snapshot(resource.store.getState().entries["selected/run"]!)!;
+		expect(snapshot(view.diagram)).toBe(graph);
 		fail = false;
 		await resource.load("selected/run", "/workflow", true);
 		expect(resource.store.getState().entries["selected/run"]?.kind).toBe("ready");
-		expect(snapshot(resource.store.getState().entries["selected/run"]!)).toBe(saved);
+		const recovered = snapshot(resource.store.getState().entries["selected/run"]!)!;
+		expect(snapshot(recovered.diagram)).toBe(graph);
 	},
 );
+
+test.each([
+	{ kind: "acknowledged", actor: "reviewer", acknowledgedAt: "later", reason: "Accepted" },
+	{ kind: "superseded", replacementIds: ["replacement"] },
+] satisfies WorkflowLifecycle["resolution"][])(
+	"$kind refreshes native facts without replacing the graph",
+	async (resolution) => {
+		let current: WorkflowLifecycle = { ...native, resolution };
+		let inspections = 0;
+		const resource = createWorkflowResource({
+			inspect: () => {
+				inspections += 1;
+				return Promise.resolve(saved);
+			},
+			lifecycle: () => Promise.resolve(current),
+		});
+		await resource.load("selected/run", "/workflow");
+		const original = snapshot(resource.store.getState().entries["selected/run"]!)!;
+		await resource.load("selected/run", "/workflow", true);
+		const updated = snapshot(resource.store.getState().entries["selected/run"]!)!;
+		expect(updated.native.resolution).toEqual(resolution);
+		expect(updated.native.updatedAt).toBe(native.updatedAt);
+		expect(updated.native.publication).toEqual(native.publication);
+		expect(updated.diagram).toBe(original.diagram);
+		expect(inspections).toBe(1);
+		current = { ...current, publication: { ...native.publication, locked: true } };
+		await resource.load("selected/run", "/workflow", true);
+		expect(
+			snapshot(resource.store.getState().entries["selected/run"]!)!.native.publication.locked,
+		).toBe(true);
+	},
+);
+
+test(
+	"graph failure retains current lifecycle and last diagram " +
+		"then recovers with unchanged native stamps",
+	async () => {
+		let unavailable = false;
+		let inspections = 0;
+		const resource = createWorkflowResource({
+			inspect: () => {
+				inspections += 1;
+				if (unavailable) {
+					return Promise.resolve({
+						...saved,
+						diagram: {
+							kind: "unavailable",
+							reason: "source_missing",
+							message: "Definition unavailable",
+						},
+					});
+				}
+				return Promise.resolve(saved);
+			},
+			lifecycle: () => Promise.resolve(native),
+		});
+		await resource.load("selected/run", "/workflow");
+		unavailable = true;
+		await resource.load("selected/run", "/workflow");
+		const failed = snapshot(resource.store.getState().entries["selected/run"]!)!;
+		expect(failed.native).toEqual(native);
+		expect(failed.diagram.kind).toBe("failed");
+		expect(snapshot(failed.diagram)).toBe(graph);
+		unavailable = false;
+		await resource.load("selected/run", "/workflow", true);
+		expect(inspections).toBe(RECOVERY_INSPECTIONS);
+		expect(snapshot(resource.store.getState().entries["selected/run"]!)!.diagram.kind).toBe(
+			"ready",
+		);
+	},
+);
+
+test("an initial graph failure exposes native facts without fabricating a graph", async () => {
+	const resource = createWorkflowResource({
+		inspect: () =>
+			Promise.resolve({
+				...saved,
+				diagram: {
+					kind: "unavailable",
+					reason: "source_missing",
+					message: "Definition unavailable",
+				},
+			}),
+		lifecycle: () => Promise.resolve(native),
+	});
+	await resource.load("selected/run", "/workflow");
+	const view = snapshot(resource.store.getState().entries["selected/run"]!)!;
+	expect(view.native).toEqual(native);
+	expect(view.diagram).toMatchObject({ kind: "failed", previous: null });
+});
 
 function pollingFixture(initiallyVisible = true) {
 	const reads: boolean[] = [];

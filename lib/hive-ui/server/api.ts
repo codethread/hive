@@ -148,12 +148,12 @@ export async function api(
 				);
 			}
 			status = HTTP.badRequest;
-			const checkpointOnly = z
+			const lifecycleOnly = z
 				.enum(["true", "false"])
-				.parse(url.searchParams.get("checkpointOnly") ?? "false");
+				.parse(url.searchParams.get("lifecycleOnly") ?? "false");
 			status = HTTP.ok;
-			if (checkpointOnly === "true") {
-				return respond(await data.workflow(context, id, workflow.checkpoint));
+			if (lifecycleOnly === "true") {
+				return respond(await data.workflow(context, id, workflow.lifecycle));
 			}
 			return respond(await data.workflow(context, id, workflow.preview));
 		}

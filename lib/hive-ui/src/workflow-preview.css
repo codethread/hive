@@ -93,6 +93,15 @@
 	min-height: 0;
 	flex: 1;
 }
+.workflow-lifecycle {
+	flex-shrink: 0;
+	border-bottom: 1px solid var(--line);
+	padding: 8px var(--workflow-gutter);
+	font-size: var(--text-xs);
+}
+.workflow-lifecycle p {
+	margin-top: 4px;
+}
 .workflow-provenance {
 	color: var(--muted);
 	font-size: var(--text-xs);

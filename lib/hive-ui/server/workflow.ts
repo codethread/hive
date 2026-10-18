@@ -1,22 +1,19 @@
-import {
-	workflowCheckpointSchema,
-	workflowInspectionSchema,
-	workflowSimulationSchema,
-} from "@hive/shared";
+import { workflowLifecycleSchema, workflowSimulationSchema } from "@hive/shared";
 import type { Colony } from "../contracts.ts";
 import { CommandError } from "@hive/beads";
 import type { WorkflowSimulationRequest } from "@hive/shared";
+import { workflowViewSchema } from "../contracts.ts";
 import { z } from "zod";
 
 const resultSchema = z.compile(
-	workflowInspectionSchema.extend({
+	workflowViewSchema.extend({
 		ok: z.literal(true),
-		kind: z.literal("workflow_inspection"),
+		kind: z.literal("workflow_lifecycle"),
 	}),
 );
 const errorSchema = z.compile(z.object({ ok: z.literal(false), message: z.string() }));
-const checkpointResultSchema = z.compile(
-	workflowCheckpointSchema.extend({ ok: z.literal(true), kind: z.literal("workflow_checkpoint") }),
+const lifecycleResultSchema = z.compile(
+	workflowLifecycleSchema.extend({ ok: z.literal(true), kind: z.literal("workflow_lifecycle") }),
 );
 const simulationResultSchema = z.compile(
 	workflowSimulationSchema.extend({ ok: z.literal(true), kind: z.literal("workflow_simulation") }),
@@ -32,7 +29,7 @@ export function createWorkflowTools(execute: (argv: string[], cwd: string) => Pr
 		let output = "";
 		try {
 			output = await execute(
-				["busybee", "--repo", colony.root, "--db", colony.beadsDb, "system", ...args, "--json"],
+				["busybee", "--repo", colony.root, "--db", colony.beadsDb, ...args, "--json"],
 				colony.root,
 			);
 		} catch (error) {
@@ -44,20 +41,20 @@ export function createWorkflowTools(execute: (argv: string[], cwd: string) => Pr
 		return schema.parse(JSON.parse(output));
 	};
 	return {
-		checkpoint: async (colony: Colony, runId: string) => {
+		lifecycle: async (colony: Colony, runId: string) => {
 			const {
 				ok: _ok,
 				kind: _kind,
-				...checkpoint
-			} = await read(colony, ["checkpoint", runId], checkpointResultSchema);
-			return checkpoint;
+				...lifecycle
+			} = await read(colony, ["inspect", runId], lifecycleResultSchema);
+			return lifecycle;
 		},
 		preview: async (colony: Colony, runId: string) => {
 			const {
 				ok: _ok,
 				kind: _kind,
 				...preview
-			} = await read(colony, ["preview", runId], resultSchema);
+			} = await read(colony, ["inspect", runId, "--diagram", "--instructions"], resultSchema);
 			return preview;
 		},
 		simulate: async (colony: Colony, runId: string, request: WorkflowSimulationRequest) => {
@@ -67,7 +64,7 @@ export function createWorkflowTools(execute: (argv: string[], cwd: string) => Pr
 				...simulation
 			} = await read(
 				colony,
-				["simulate", runId, "--request", JSON.stringify(request)],
+				["system", "simulate", runId, "--request", JSON.stringify(request)],
 				simulationResultSchema,
 			);
 			return simulation;

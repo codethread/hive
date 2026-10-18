@@ -137,6 +137,14 @@ busybee inspect busy-8fp --json
 
 This read works after the workflow source is removed, provided the selected tracker retains the run and checkpoint. See the [lifecycle contract](./SPEC.md#native-lifecycle) for pending and unclassified records, and `busybee inspect --help` for schema discovery.
 
+To include the saved diagram and its instruction previews explicitly:
+
+```sh
+busybee inspect busy-8fp --diagram --instructions --json
+```
+
+The same lifecycle envelope gains `diagram`. When source is available, `diagram.kind` is `available`, `mode` is `instructions`, and `data` holds the graph and labelled briefs. If expansion fails, `diagram.kind` is `unavailable` with `reason` and `message`; the native lifecycle above remains visible. The [preview contract](./SPEC.md#saved-state-preview) defines provenance, privacy and execution limits.
+
 ## Settle unfinished work
 
 For an explicitly authorized withdrawal, read `busybee settle --help` first. These separate examples assume eligible inventory and owning-host execution clearance. IDs are illustrative; `busy-new` is an existing replacement beneath the same native parent as its predecessor.

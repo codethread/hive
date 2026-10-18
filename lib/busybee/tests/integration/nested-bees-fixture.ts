@@ -14,7 +14,7 @@ import type { Services } from "../../src/native.ts";
 import { captureCli } from "./support.ts";
 import { createMemoryBeads } from "@hive/beads";
 import { createServices } from "../../src/native.ts";
-import { inspect } from "../../src/preview.ts";
+import { inspectDiagram } from "../../src/preview.ts";
 
 const definition = { machine, commandSchemas, inputSchema, runBrief };
 const FIRST = 0;
@@ -75,7 +75,7 @@ export async function captureNestedBees() {
 		);
 	};
 	const beforeInspection = await records();
-	const started = workflowInspectionSchema.parse(await inspect(run.id, options, services));
+	const started = workflowInspectionSchema.parse(await inspectDiagram(run.id, options, services));
 	const afterInspection = await records();
 	const originalVisits = run.created;
 	const complete = async (path: string[], node: string) => {
@@ -91,7 +91,7 @@ export async function captureNestedBees() {
 		run = await navigate({ id: run.id, operation: "collect" }, options, services);
 	};
 	await complete(["api"], "nested-worker.implement");
-	const mixed = workflowInspectionSchema.parse(await inspect(run.id, options, services));
+	const mixed = workflowInspectionSchema.parse(await inspectDiagram(run.id, options, services));
 
 	const beforeSimulation = await records();
 	const request = {
@@ -135,7 +135,7 @@ export async function captureNestedBees() {
 	await complete(["api"], "nested-worker.verify");
 	await complete(["interface"], "nested-worker.implement");
 	await complete(["interface"], "nested-worker.verify");
-	const handoff = workflowInspectionSchema.parse(await inspect(run.id, options, services));
+	const handoff = workflowInspectionSchema.parse(await inspectDiagram(run.id, options, services));
 	await complete([], "nested-bees.handoff");
 	return {
 		captured: {

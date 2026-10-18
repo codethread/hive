@@ -468,6 +468,42 @@
 		"#test-119": {
 			"threshold": "SLOW",
 			"justification": "hv-00pk4.3: One public generated-brief/discovery scenario now creates its own workflow inside the body instead of reusing an explicit warm-up fixture; preserve both reachable guidance assertions. Observed 2.14ms complete cold body."
+		},
+		"#test-200": {
+			"threshold": "DANGER",
+			"justification": "Feature hv-00pk4 source C delegation; final consolidated ct review hv-00pk4.15 before landing. Exact lib/hive-ui/server/workflow.smoke.test.ts: real public inspection keeps failed lifecycle visible when the diagram source is absent. 601.87 ms fresh-file and 810.55 ms focused. Complete measured disposable Git/native Beads fixture, ordinary failed native closure plus retained checkpoint, actual candidate Busy Bee process through UI typed adapter, missing author source, native probe equality and unchanged-record proof. Existing focused seams handle ordinary parsing/resource/render cases; retain one actual public process/native join. No warming, hidden subject setup, timeout/cutoff/discovery/assertion changes. Complete serial changed-suite observation 1643.597 ms exceeds 1000 ms; DANGER retains this observed native/process cost rather than claiming the smaller focused values are a bound. The existing 5 s timeout remains unchanged."
+		},
+		"#test-201": {
+			"threshold": "SLOW",
+			"justification": "Feature hv-00pk4 source C delegation; final consolidated ct review hv-00pk4.15 before landing. Exact lib/hive-ui/tests/workflow-lifecycle.test.tsx: native $outcome stays visible with $resolution.kind follow-up. 4.31 ms cold resolved-success row and 3.39 ms later focused. Covers only the five existing succeeded/resolved, failed/unresolved, failed/acknowledged, failed/superseded and cancelled/superseded rows of this SSR component template. Actual React rendering/escaping/provenance are measured inside every body; only the first cold row had the cited overage. No warming or claim every row is slow."
+		},
+		"#test-202": {
+			"threshold": "SLOW",
+			"justification": "Feature hv-00pk4 source C delegation; final consolidated ct review hv-00pk4.15 before landing. Exact lib/hive-ui/server/api.test.ts: simulation HTTP route parses replay and selects the endpoint and owning run. 3.70 ms fresh-file and 3.42 ms focused after removing the existing warmup call and moving all memory workflow/native endpoint scenario construction inside each body. Retains every original selected-endpoint, replay, headers, response, telemetry and no-browser-endpoint authority assertion; no hidden setup or assertion loss."
+		},
+		"#test-203": {
+			"threshold": "SLOW",
+			"justification": "Feature hv-00pk4 source C delegation; final consolidated ct review hv-00pk4.15 before landing. Exact lib/busybee/tests/integration/inspection.test.ts: public inspection expands structure and instructions explicitly without native effects. 1.42 ms focused complete memory-backed public CLI scenario. Creates its own retained root/child fixture inside the body, requests structural and explicit instruction modes, verifies frozen brief/privacy and exact native records unchanged. Reuses existing validated graph fixture rather than new mock framework."
+		},
+		"#test-204": {
+			"threshold": "SLOW",
+			"justification": "Feature hv-00pk4 source C delegation; final consolidated ct review hv-00pk4.15 before landing. Exact lib/busybee/tests/integration/inspection.test.ts: public schema includes expansion failures and lone instructions reject before tracker access. 1.58 ms focused complete public Commander/offline JSON-schema scenario; rejecting endpoint services, schema discovery and usage refusal are measured in the body. No schema warm-up or endpoint effects."
+		},
+		"#test-205": {
+			"threshold": "SLOW",
+			"justification": "Feature hv-00pk4 source C delegation; final consolidated ct review hv-00pk4.15 before landing. Exact lib/busybee/tests/integration/lifecycle-inspection.test.ts: requested missing diagram preserves native facts and default inspection remains compact. 3.50 ms focused complete memory workflow/start/inspection scenario, using actual public default and expanded CLI paths with definition access rejected. Proves typed expansion failure retains native facts, compact default omits prompts and diagram, and definition import stays opt-in. All scenario construction is measured."
+		},
+		"#test-206": {
+			"threshold": "XSLOW",
+			"justification": "Feature hv-00pk4 source C delegation; final consolidated ct review hv-00pk4.15 before landing. Exact lib/busybee/tests/integration/inspection.test.ts: system preview freezes active briefs and renders retained actor contexts without effects. 5.33 ms focused, plus 4.05 ms earlier. Existing complete public inspection fixture/no-effects/privacy proof remains intact while graph inspection is renamed internally and reused by public expansion. The observed 5.33 ms exceeds SLOW; retain this whole scenario without artificial splitting or warming."
+		},
+		"#test-207": {
+			"threshold": "SLOW",
+			"justification": "Feature hv-00pk4 source C delegation; final consolidated ct review hv-00pk4.15 before landing. Exact lib/busybee/tests/integration/inspection.test.ts: checkpoint version reads no definition or callbacks and performs no writes. 2.39 ms earlier and 1.16 ms focused complete memory-backed public checkpoint scenario; existing body constructs retained root/child fixtures and verifies no author access, no effects and exact native checkpoint stamp. Existing scope/assertions stay intact."
+		},
+		"#test-208": {
+			"threshold": "SLOW",
+			"justification": "Feature hv-00pk4 source C delegation; final consolidated ct review hv-00pk4.15 before landing. Exact lib/busybee/tests/integration/inspection.test.ts: checkpoint schema is available without tracker access. 2.21 ms focused complete public offline schema scenario; service creation and Commander/schema generation occur within its body. Retains the established explicit public schema/no-tracker assertions without a warmup."
 		}
 	}
 }

@@ -89,14 +89,14 @@ Use `busybee --help` for the command flow and global options, then focused help 
 | --- | --- |
 | Bundled agent guidance | `busybee skills --help` |
 | Creation input | `busybee input-schema --help` |
-| Native run lifecycle, including when workflow source is unavailable | `busybee inspect --help` |
+| Native run lifecycle with optional diagram and instruction expansion | `busybee inspect --help` |
 | Cancel or fail unfinished scope; acknowledge or replace an unsuccessful run | `busybee settle --help` |
 | Active task briefs and run status | `busybee show --help` |
 | Outcome choices and payload schemas | `busybee discover --help` |
 | Saved diagrams and state for active or completed runs | `busybee preview --help` |
 | Checkpoint freshness, inspection and simulation for integrations | `busybee system --help` |
 
-The [lifecycle contract](./SPEC.md#native-lifecycle) defines portable closure facts and their classification. The [preview contract](./SPEC.md#saved-state-preview) covers structural diagrams, frozen briefs and rendered instruction previews. [Simulation](./SPEC.md#simulation) evaluates temporary outcomes without advancing the saved run; use `busybee system simulate --help` for requests and schema discovery. [Hive UI](../hive-ui/README.md#workflow-preview) presents both Saved and Simulate modes. The [authoring guide](../../docs/busybee-workflows.md) covers definitions and validation limits.
+Default inspection reads native lifecycle without workflow source. Requested diagram expansion reports its own availability, so an unavailable graph leaves lifecycle visible. The [lifecycle contract](./SPEC.md#native-lifecycle) owns closure classification; the [preview contract](./SPEC.md#saved-state-preview) owns structure, instruction provenance and trusted-code limits. [Simulation](./SPEC.md#simulation) evaluates temporary outcomes without advancing the saved run; use `busybee system simulate --help` for requests and schema discovery. [Hive UI](../hive-ui/README.md#workflow-preview) presents native lifecycle alongside Saved and Simulate modes. The [authoring guide](../../docs/busybee-workflows.md) covers definitions and validation limits.
 
 Before updating a named workflow, check the selected tracker's existing unfinished runs:
 

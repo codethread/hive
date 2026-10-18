@@ -8,6 +8,7 @@ import { invoke } from "./support.ts";
 import { z } from "zod";
 
 const FIRST = 0;
+const SUCCESS = 0;
 const scope = { actor: "worker", cwd: "/lifecycle", db: "/lifecycle/beads.db" };
 const definition = {
 	inputSchema: z.object({}),
@@ -57,6 +58,31 @@ const reasons = [
 		title: "#test-81 native closure classification retains invalid_lifecycle",
 	},
 ];
+
+test("#test-205 requested missing diagram preserves native facts and default inspection remains compact", async () => {
+	const selected = await fixture();
+	const plain = await invoke(["inspect", selected.run.id], selected.services);
+	expect(plain.code).toBe(SUCCESS);
+	expect(plain.stdout).not.toContain("diagram");
+	expect(plain.stdout).not.toContain("instructions");
+	const expanded = await invoke(
+		["inspect", selected.run.id, "--diagram", "--instructions"],
+		selected.services,
+	);
+	expect(expanded).toMatchObject({
+		code: 0,
+		stderr: "",
+		document: {
+			kind: "workflow_lifecycle",
+			lifecycle: { kind: "pending" },
+			diagram: {
+				kind: "unavailable",
+				reason: "diagram_unavailable",
+				message: "Definitions inaccessible",
+			},
+		},
+	});
+});
 
 test.each(reasons)("$title", async ({ reason, expected }) => {
 	const selected = await fixture();

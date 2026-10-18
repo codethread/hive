@@ -24,11 +24,11 @@ Ordinary Busy Bee closure writes a versioned JSON fact in the native bead's `clo
 
 Normal completion publishes `succeeded`: a visit after its original result is saved, a group when its authored stage finishes, and a run after the chart finishes and its checkpoint is published. An authored negative result, such as rejecting a proposal, can complete successfully. [Completion ordering](#work-and-progression) governs result preservation and native closure gates. Already-closed records retain their existing reasons.
 
-`inspect` reads the native run and its related checkpoint, validates the checkpoint header and run identity, and returns the `workflow_lifecycle` projection. It imports no definition, creates no actor, reads no Colony state and performs no writes. A recognized active format-1 checkpoint can continue through the existing control commands; its next genuine Busy Bee closure records the new fact.
+Default `inspect` reads the native run and its related checkpoint, validates the checkpoint header and run identity, and returns the `workflow_lifecycle` projection. It imports no definition, creates no actor, reads no Colony state and performs no writes. [Diagram expansion](#saved-state-preview) is explicit and has a separate availability result. A recognized active format-1 checkpoint can continue through the existing control commands; its next genuine Busy Bee closure records the new fact.
 
 Lifecycle classification is `pending` for an identified nonclosed run, `terminal` for a closed run with a valid matching fact, or `unavailable` with reason `unclassified_closure` for an unmarked closure. Inspection neither infers success from saved final-state names nor backfills older reasons. Malformed tagged facts and contradictions between a fact and the native run fail explicitly.
 
-The projection separates native disposition and follow-up resolution from publication condition: checkpoint identity, update time, lock observation and pending settlement intent. Terminal facts remain visible during uncertain publication. A lock establishes neither worker liveness nor closure success. Checkpoint timestamps include bookkeeping writes, as described in [saved-state preview](#saved-state-preview). Use `busybee inspect --help` for invocation and schema discovery; active briefs, choices and diagrams remain on their existing commands.
+The projection separates native disposition and follow-up resolution from publication condition: checkpoint identity, update time, lock observation and pending settlement intent. Terminal facts remain visible during uncertain publication. A lock establishes neither worker liveness nor closure success. Checkpoint timestamps include bookkeeping writes, as described in [saved-state preview](#saved-state-preview). Use `busybee inspect --help` for invocation and schema discovery.
 
 ### Unsuccessful settlement
 
@@ -83,15 +83,19 @@ Partial-effect creation errors retain the known `parentId`, even when the run cr
 
 `show` exposes active work, frozen task instructions and run status; `discover` exposes its outcome choices, payload schemas and author constraints. Both perform no native writes, but restore, start and stop an XState actor; discovery also calls author discovery/schema code. The preview interfaces below have a narrower execution boundary. See focused command help for usage.
 
+`inspect` can expand its native lifecycle projection with a saved diagram. The [Shared inspection schema](../shared/src/workflow-inspect.ts) owns the optional `diagram` union: an available structural or instruction projection, or an unavailable result with a reason and bounded message. Omission means no expansion was requested. An expansion failure preserves the successfully read native lifecycle; a native read failure fails the command. `busybee inspect --help` owns expansion options and offline schema discovery.
+
+Lifecycle and diagram reads share one selected endpoint but are not atomic. Each diagram retains its own checkpoint identity and update time. Consumers compare native facts and resolution as well as publication observations: acknowledgment or replacement can change without changing the run's `updatedAt` or checkpoint stamp. Graph expansion never determines lifecycle outcome.
+
 `system checkpoint RUN --json` returns the public `runId`, `checkpoint` and `savedAt` fields in a `workflow_checkpoint` success envelope. It validates the checkpoint header and run identity without importing a definition, rendering instructions, creating actors, acquiring locks or writing. The [Shared wire schema](../shared/src/workflow-preview.ts) owns the payload; `system schema --checkpoint --json` exposes its success schema without tracker access.
 
 `savedAt` is the native checkpoint's update time, including lock and other bookkeeping writes. A changed checkpoint stamp is a reason to inspect again, not proof of workflow progress or a state-entry timestamp. Compare all three fields within the same repository/database endpoint. Equality does not detect definition-only changes, run-title edits or changes to external renderer inputs.
 
-`preview RUN --json` reads an active or completed run's latest checkpoint and resolves its definition under the [existing version and hash rules](#contracts-and-authority). Its Shared payload carries source fingerprints and structural diagrams with original saved state value/status for the root and retained child machine actors.
+Structural expansion and `preview RUN --json` read an active or completed run's latest checkpoint and resolve its definition under the [existing version and hash rules](#contracts-and-authority). Their Shared payload carries source fingerprints and structural diagrams with original saved state value/status for the root and retained child machine actors.
 
 The structural allowlist preserves hierarchy, initial/final/history states and event, eventless, delayed, completion and invocation-result transitions. Each invocation exposes only its normalized `id` and `src` strings. Guards are descriptive labels. Context, input/output, task bodies, prompts, result history, metadata, actions and guard parameters stay out of the payload. Actors absent from the saved checkpoint are not reconstructed as historical visits. Missing or unsupported child logic, invalid state paths and incomplete parallel state fail explicitly; preview never substitutes a normalized state or recalculates the saved status.
 
-`system preview RUN --json` extends this structural projection with instruction text for tooling consumers such as Hive UI. It uses the same checkpoint/definition loading path, reading one checkpoint for both structure and instructions. Its `workflow_inspection` envelope has `formatVersion: 1`; each actor's `instructions` map is keyed by full state node ID, including the root:
+Instruction expansion and `system preview RUN --json` add instruction text to that structure, reading one checkpoint for both. Hive UI explicitly requests instruction expansion through `inspect`. The instruction payload has `formatVersion: 1`; each actor's `instructions` map is keyed by full state node ID, including the root:
 
 | Kind | Meaning |
 | --- | --- |
@@ -102,11 +106,11 @@ The structural allowlist preserves hierarchy, initial/final/history states and e
 
 The optional `bee` field describes dispatch provenance. On `frozen` instructions it contains the saved Bee `kind` and original published `request` ID, which may precede an explicit retry's replacement request. On `rendered` instructions it contains only the resolved `kind`: an authored dispatch preview with no request identity. Omission means no Bee dispatch metadata, including on grouping states; it does not classify a state as driver-handled. Neither variant establishes current assignment or worker liveness.
 
-Inspection substitutes no example or default context. It sends rendered text, not raw context, metadata or executable code. Structural and definition failures still fail the whole read. `system schema --json` exposes the inspection success envelope schema without tracker access; system interfaces require JSON.
+Instruction projection substitutes no example or default context. It sends rendered text, not raw context, metadata or executable code. Standalone `preview` and `system preview` fail on structural or definition errors; `inspect` reports those errors in its diagram result. `system preview` retains its `workflow_inspection` envelope, described by `system schema --json`; system interfaces require JSON.
 
 `definition.sourceMatch` is `exact` when the saved and current fingerprints match, otherwise `compatible` for an allowed named definition. A compatible chart may differ from the chart that produced the snapshot. Preview reports definition-loading failures without replacing the run or updating its provenance.
 
-Both preview interfaces create no actors, evaluate no transition guards or actions, advance no run, acquire no checkpoint lock and perform no engine writes. Ordinary `preview` calls no task renderers; system inspection calls only those described above. Trusted definition imports and render callbacks execute author code, so neither interface is an I/O sandbox. Consumers use the projection for display; Busy Bee retains authority over workflow progression.
+Diagram projection creates no actors, evaluates no transition guards or actions, advances no run, acquires no checkpoint lock and performs no engine writes. Structural modes call no task renderers; instruction modes call only those described above. Trusted definition imports and render callbacks execute author code, so these reads are not an I/O sandbox. Consumers use the projection for display; Busy Bee retains authority over workflow progression.
 
 ## Simulation
 

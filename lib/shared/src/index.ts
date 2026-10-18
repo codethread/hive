@@ -7,3 +7,4 @@ export * from "./spawn-request.ts";
 export * from "./workflow-preview.ts";
 export * from "./workflow-simulation.ts";
 export * from "./workflow-lifecycle.ts";
+export * from "./workflow-inspect.ts";
