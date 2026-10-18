@@ -7,6 +7,8 @@ description: Select focused and changed tests during Hive development. Also use 
 
 ## Running tests
 
+Use the configured default parallelism for normal test runs.
+
 From the worktree root, run focused files while iterating, for example `bun test ./lib/shared/src/bees.test.ts`.
 
 When the affected scope is a package, select its test script with Bun workspace filtering, for example `bun run --filter @hive/shared test`. Packages without a test script use focused files. Keep slow test selection scoped to the affected package.
@@ -25,7 +27,9 @@ Run `bun run test:changed` at intervals, such as completing a subtask, to check 
 
 Check runner-reported durations when adding or editing unit tests. New unit tests must run within 1ms; slower tests require explicit user authorisation, up to 5s.
 
-Use the [timing report guide](../../../lib/tooling/README.md#test-timing-report-and-landing-gate) to interpret runner warnings and failures. Address slow tests through the refactoring process below.
+Use the [timing report guide](../../../lib/tooling/README.md#test-timing-report-and-landing-gate) to interpret runner warnings and failures. If timing fails, use focused reruns or `--parallel=1` to diagnose resource contention or a slow individual test. Address slow tests through the refactoring process below.
+
+After diagnosis, verify the final candidate with the full completion check required by the [validation policy](../../../AGENTS.md#validation) at normal default parallelism.
 
 ### Addressing slow tests
 

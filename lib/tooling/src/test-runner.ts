@@ -67,7 +67,7 @@ async function runTests(selection: TestSelection, testArgs: string[]): Promise<n
 			[
 				process.execPath,
 				"test",
-				"--parallel=2",
+				"--parallel=6",
 				"--parallel-delay=0",
 				"--timeout=5000",
 				"--only-failures",
