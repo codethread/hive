@@ -5,7 +5,7 @@ import type { OnboardingConfig } from "./onboarding.ts";
 import type { WorkspaceIO } from "./services.ts";
 import { z } from "zod";
 
-const source = "https://github.com/codethread/hive/tree/main/skills/hive";
+const source = "https://github.com/codethread/hive/tree/main/lib/beeswax/skills/hive";
 const skill = "hive";
 const EMPTY = 0;
 const agents = {

@@ -48,7 +48,7 @@ The optional `hive` skill supplies work conventions for routing requests, planni
 For skill-only installation, run upstream directly from the consuming checkout, selecting the harnesses you use:
 
 ```sh
-npx --yes skills@1.7.2 add https://github.com/codethread/hive/tree/main/skills/hive \
+npx --yes skills@1.7.2 add https://github.com/codethread/hive/tree/main/lib/beeswax/skills/hive \
   --skill hive --agent claude-code codex pi --yes --json
 ```
 

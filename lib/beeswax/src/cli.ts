@@ -228,7 +228,7 @@ or search local checkouts.
 				"\nWorkflow skill: --install-workflow-skill opts in for this setup only; --yes alone does not.\n" +
 				"Requires Node >=22.20.0, npm/npx and network access. Uses skills@1.7.2 and the resolved\n" +
 				"--harness selection: claude maps to claude-code; codex and pi keep their names.\n" +
-				"Source: https://github.com/codethread/hive/tree/main/skills/hive (only skill hive).\n" +
+				"Source: https://github.com/codethread/hive/tree/main/lib/beeswax/skills/hive (only skill hive).\n" +
 				"Before setup writes, any entry at .agents/skills/hive or the selected Claude target\n" +
 				".claude/skills/hive stops installation. Omit the flag to retain it; review updates manually.\n" +
 				"Installation runs last. Its receipt confirms installer results and observed paths, not harness\n" +

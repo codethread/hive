@@ -59,7 +59,7 @@ test("installer curates one project skill with explicit agents and captures chil
 		return { exitCode: 0, stdout: JSON.stringify(installed), stderr: "upstream progress" };
 	};
 	expect(await installWorkflowSkill(root, plan, fx.deps)).toEqual({
-		source: "https://github.com/codethread/hive/tree/main/skills/hive",
+		source: "https://github.com/codethread/hive/tree/main/lib/beeswax/skills/hive",
 		skill: "hive",
 		agents: ["claude-code", "codex", "pi"],
 		paths: ["/repo/.agents/skills/hive", "/repo/.claude/skills/hive"],
@@ -72,7 +72,7 @@ test("installer curates one project skill with explicit agents and captures chil
 				"--yes",
 				"skills@1.7.2",
 				"add",
-				"https://github.com/codethread/hive/tree/main/skills/hive",
+				"https://github.com/codethread/hive/tree/main/lib/beeswax/skills/hive",
 				"--skill",
 				"hive",
 				"--agent",

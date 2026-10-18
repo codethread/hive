@@ -37,6 +37,11 @@
 			"skillPath": "skills/productivity/grilling/SKILL.md",
 			"computedHash": "4dd886b0196bf43729d954ae326016f2bd9f5f79d892500b407c33a753362f14"
 		},
+		"hive": {
+			"source": "./lib/beeswax/skills/hive",
+			"sourceType": "local",
+			"computedHash": "66c21b9e991825d2c8230595c5babdfa61824dc91f9f2f947a54170b9a51a367"
+		},
 		"implement": {
 			"source": "mattpocock/skills",
 			"sourceType": "github",
