@@ -18,13 +18,13 @@ import { chmod, mkdir, rename } from "node:fs/promises";
 import { colonyRequestSchema, resolveRepository } from "@hive/shared";
 // eslint-disable-next-line import/no-nodejs-modules -- Absolute socket and state paths are process boundaries.
 import { dirname, isAbsolute, join } from "node:path";
+import { inspectRepository, inspectRequest } from "./inspection.ts";
 import { loadPolicy, policySnapshot, policyView, updatePolicy } from "./policy.ts";
 import type { ActivePolicy } from "./policy.ts";
 import type { BeadsService } from "@hive/beads";
 import type { ColonyActivity } from "./colony.ts";
 import { claimServer } from "./server-ownership.ts";
 import { createColony } from "./colony.ts";
-import { inspectRepository } from "./inspection.ts";
 import { match } from "ts-pattern";
 import { openStore } from "./store.ts";
 import { waitFor } from "xstate";
@@ -161,6 +161,21 @@ export async function serve(options: ServerOptions, beads: BeadsService): Promis
 							}
 							return { ...inspection, colony };
 						})
+						.with(
+							{ kind: "inspect-request" },
+							async ({ repository, requestId }): Promise<ColonyResponse> => {
+								const canonical = await resolveRepository(repository.root, repository.beadsDb);
+								const current = colonies.get(canonical.root);
+								assertAuthority(canonical, current);
+								const inspection = inspectRequest(canonical, store, requestId);
+								let colony = null;
+								if (current) {
+									const { attempts: _attempts, ...summary } = colonyStatus(current, []);
+									colony = summary;
+								}
+								return { ...inspection, colony };
+							},
+						)
 						.with(
 							{ kind: "config" },
 							/* eslint-disable-next-line max-statements --

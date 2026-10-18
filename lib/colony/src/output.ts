@@ -104,6 +104,12 @@ function formatResult(result: Result): string {
 		.with({ kind: "assessments" }, formatAssessments)
 		.with({ kind: "events" }, formatHistory)
 		.with({ kind: "inspection" }, formatInspection)
+		.with(
+			{ kind: "request-inspection" },
+			({ repository, checkpoint, attempts }) =>
+				`Repository: ${repository.root}\nRequest: ${checkpoint?.id ?? "No checkpoint"}\n` +
+				`Retained attempts: ${attempts.length}`,
+		)
 		.exhaustive();
 }
 function formatColony(colony: ColonyStatus): string {

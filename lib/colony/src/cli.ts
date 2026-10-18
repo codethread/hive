@@ -295,7 +295,16 @@ Custom kinds, hook trust and first execution: colony skills file operations refe
 	repositoryOptions(
 		program
 			.command("explain <spawn-id>")
-			.description("Explain request progress without lifecycle effects"),
+			.description("Explain request progress without lifecycle effects")
+			.addHelpText(
+				"after",
+				`
+Read native facts, all retained attempts for this request, local-host capacity
+reservations and fresh process ownership. Use --json for evidence and diagnostics.
+Read times do not establish checkpoint age. Unavailable sources remain explicit.
+This read neither starts the daemon nor reconciles requests or reserves capacity.
+`,
+			),
 	).action(async (id: string, options: RepositoryOptions) => {
 		writeColonyResult(await deps.explain(id, options), argv.includes("--json"), deps.stdout);
 	});

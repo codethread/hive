@@ -48,6 +48,14 @@ export const colonyStatusSchema = z.discriminatedUnion("state", [
 	}),
 ]);
 
+const [awakeColonySchema, asleepColonySchema, failedColonySchema] = colonyStatusSchema.options;
+/** Live membership and policy metadata, excluding retained attempt history. */
+export const colonySummarySchema = z.discriminatedUnion("state", [
+	awakeColonySchema.omit({ attempts: true }),
+	asleepColonySchema.omit({ attempts: true }),
+	failedColonySchema.omit({ attempts: true }),
+]);
+
 /** Explicit live configuration operations never patch recipe defaults. */
 export const configCommandSchema = z.discriminatedUnion("operation", [
 	z.strictObject({ operation: z.literal("show") }),
@@ -148,6 +156,14 @@ export const colonyRequestSchema = z.discriminatedUnion("kind", [
 	/** Wait for reconciliation to finish or fail, then return status. */
 	z.strictObject({ kind: z.literal("recover") }),
 	z.strictObject({ kind: z.literal("inspect"), repository: repositoryEndpointSchema }),
+	z.strictObject({
+		/** Read one request's retained evidence without reconciliation. */
+		kind: z.literal("inspect-request"),
+		/** Canonical repository and selected tracker authority. */
+		repository: repositoryEndpointSchema,
+		/** Spawn request whose checkpoint and complete attempt history are selected. */
+		requestId: z.string().min(NONEMPTY),
+	}),
 	/** Bind stop to the caller's observed daemon lifetime with expectedId. */
 	z.strictObject({ kind: z.literal("stop"), expectedId: z.string().optional() }),
 	z.strictObject({
@@ -178,8 +194,31 @@ export const daemonStopResponseSchema = z.strictObject({
 	registrations: z.array(registrationHandoffSchema),
 });
 
+const occupantSchema = z.strictObject({
+	/** Captured canonical capacity bucket. */
+	bucket: z.string(),
+	/** Captured bee kind occupying this slot. */
+	kind: z.string(),
+});
+
 /** Public responses are validated by the CLI at the transport boundary. */
 export const colonyResponseSchema = z.discriminatedUnion("kind", [
+	z.strictObject({
+		/** All retained attempts for the selected request, including exited and failed attempts. */
+		attempts: z.array(attemptDetailsSchema),
+		/** Last persisted checkpoint for the selected request, or null when absent. */
+		checkpoint: requestCheckpointViewSchema.nullable(),
+		/** Current membership and policy metadata, or null without a colony in this daemon. */
+		colony: colonySummarySchema.nullable(),
+		/** Focused response to inspect-request. */
+		kind: z.literal("request-inspection"),
+		/** Inspection time; neither checkpoint age nor reconciliation time. */
+		observedAt: z.string(),
+		/** One entry per starting/running attempt bound by its request checkpoint to this host; duplicates count. */
+		occupied: z.array(occupantSchema),
+		/** Canonical repository and selected tracker for these reads. */
+		repository: repositoryEndpointSchema,
+	}),
 	z.strictObject({
 		attempts: z.array(attemptDetailsSchema),
 		/** Current membership, absent after removal or before registration. */
@@ -228,3 +267,5 @@ export type PolicyRevision = z.infer<typeof policyRevisionSchema>;
 export type RequestCheckpointView = z.infer<typeof requestCheckpointViewSchema>;
 export type AttemptDetails = z.infer<typeof attemptDetailsSchema>;
 export type ColonyInspection = Extract<ColonyResponse, { kind: "inspection" }>;
+
+export type ColonyRequestInspection = Extract<ColonyResponse, { kind: "request-inspection" }>;

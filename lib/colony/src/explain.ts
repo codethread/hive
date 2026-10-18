@@ -1,5 +1,5 @@
 /* eslint-disable unicorn/no-null -- Diagnostic JSON explicitly represents absent evidence and unknown record times. */
-import type { ColonyInspection, RepositoryEndpoint, SpawnDisposition } from "@hive/shared";
+import type { ColonyRequestInspection, RepositoryEndpoint, SpawnDisposition } from "@hive/shared";
 import { DaemonUnavailableError, requestServer } from "./client.ts";
 import { capacityConstraints, hasCapacity } from "./scheduler.ts";
 import { eligibility, launchBucket, launchReceiptSchema } from "./launch.ts";
@@ -74,11 +74,11 @@ interface TrackerFacts {
 }
 interface RuntimeFacts {
 	/** Live loop state and active policy from the selected daemon. */
-	colony: ColonyInspection["colony"];
+	colony: ColonyRequestInspection["colony"];
 	/** Last reconciled request, whose reconciliation timestamp is not retained. */
-	checkpoint: ColonyInspection["requests"][number] | null;
+	checkpoint: ColonyRequestInspection["checkpoint"];
 	/** Retained attempts for this request, without refreshing their checkpoint state. */
-	attempts: ColonyInspection["attempts"];
+	attempts: ColonyRequestInspection["attempts"];
 }
 interface CapacityFacts {
 	/** Same canonical kind/bucket as launch preparation. */
@@ -86,7 +86,7 @@ interface CapacityFacts {
 	/** Retained starting/running reservations counted by dispatch. */
 	occupied: Occupant[];
 	/** Active policy limits, not canonical configuration guesses. */
-	limits: NonNullable<NonNullable<ColonyInspection["colony"]>["policy"]>["limits"];
+	limits: NonNullable<NonNullable<ColonyRequestInspection["colony"]>["policy"]>["limits"];
 	/** Shared scheduler decision, not a slot reservation or queue-position prediction. */
 	available: boolean;
 }
@@ -137,14 +137,18 @@ export async function explainRequest(
 	const [tracker, inspection] = await Promise.all([
 		capture("native Beads show/ready", "sampled", () => trackerFacts(id, context)),
 		capture(`daemon inspect ${target.socket}`, "checkpoint_age_unknown", async () => {
-			const response = await requestServer(target, { kind: "inspect", repository });
-			if (response.kind !== "inspection") {
+			const response = await requestServer(target, {
+				kind: "inspect-request",
+				repository,
+				requestId: id,
+			});
+			if (response.kind !== "request-inspection") {
 				throw new Error("Expected inspection response");
 			}
 			return response;
 		}),
 	]);
-	const runtime = runtimeEvidence(id, inspection);
+	const runtime = runtimeEvidence(inspection);
 	const [capacity, processes] = await Promise.all([
 		capture(
 			"dispatch hasCapacity: active policy and retained reservations",
@@ -156,7 +160,7 @@ export async function explainRequest(
 				if (inspection.result.kind === "unavailable") {
 					throw new Error("Daemon inspection unavailable");
 				}
-				const { colony, attempts } = inspection.result.value;
+				const { colony, occupied } = inspection.result.value;
 				if (colony?.policy === null || colony === null) {
 					throw new Error("No active scheduling policy");
 				}
@@ -166,9 +170,7 @@ export async function explainRequest(
 				const { execution } = tracker.result.value;
 				const cwd = await realpath(resolve(repository.root, execution.cwd ?? "."));
 				const candidate = { bucket: await launchBucket(cwd), kind: execution.kind };
-				const occupied = attempts
-					.filter(({ state }) => state === "starting" || state === "running")
-					.map((attempt) => ({ bucket: attempt.bucket, kind: attempt.kind }));
+
 				return {
 					available: hasCapacity(candidate, occupied, colony.policy.limits),
 					candidate,
@@ -363,18 +365,18 @@ async function trackerFacts(
 		updatedAt: spawn.updated_at,
 	};
 }
-function runtimeEvidence(id: string, evidence: Evidence<ColonyInspection>): Evidence<RuntimeFacts> {
+function runtimeEvidence(evidence: Evidence<ColonyRequestInspection>): Evidence<RuntimeFacts> {
 	if (evidence.result.kind === "unavailable") {
 		return { ...evidence, result: evidence.result };
 	}
-	const { colony, requests, attempts } = evidence.result.value;
+	const { colony, checkpoint, attempts } = evidence.result.value;
 	return {
 		...evidence,
 		result: {
 			kind: "available",
 			value: {
-				attempts: attempts.filter(({ spawnId }) => spawnId === id),
-				checkpoint: requests.find((request) => request.id === id) ?? null,
+				attempts,
+				checkpoint,
 				colony,
 			},
 		},

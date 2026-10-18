@@ -51,6 +51,7 @@ export async function requestServer(
 function expectedResponse(request: ColonyRequest): string {
 	return match(request)
 		.with({ kind: "inspect" }, () => "inspection")
+		.with({ kind: "inspect-request" }, () => "request-inspection")
 		.with({ kind: "config" }, () => "config")
 		.with({ kind: "wake" }, () => "awake")
 		.with({ kind: "add" }, () => "registered")

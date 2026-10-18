@@ -36,6 +36,9 @@ const attemptRowSchema = z.strictObject({
 	state: z.enum(["starting", "running", "exited", "failed"]),
 	token: z.string(),
 });
+const attemptRowsSchema = z.array(attemptRowSchema);
+const trackerAuthorityRowsSchema = z.array(z.strictObject({ beadsDb: z.string() }));
+const occupantsSchema = z.array(z.strictObject({ bucket: z.string(), kind: z.string() }));
 const registrationRowSchema = z.strictObject({
 	beadsDb: z.string(),
 	intent: z.enum(["awake", "asleep"]),
@@ -79,31 +82,47 @@ export function openStore(state: string) {
  CREATE TABLE IF NOT EXISTS active_policies (root TEXT PRIMARY KEY, ` +
 			`revision_id TEXT NOT NULL REFERENCES policy_revisions(id));`,
 	);
+	database.exec(`CREATE INDEX IF NOT EXISTS attempts_by_request ON attempts(root, spawn_id);
+ CREATE INDEX IF NOT EXISTS live_attempts_by_root ON attempts(root) WHERE state IN ('starting', 'running');
+ CREATE INDEX IF NOT EXISTS attempts_by_tracker ON attempts(root, json_extract(snapshot, '$.beadsDb'));
+ CREATE INDEX IF NOT EXISTS requests_by_tracker ON requests(root, json_extract(snapshot, '$.beadsDb'));`);
 	const assertRepository = (repository: RepositoryEndpoint): void => {
-		const rows = z.array(z.strictObject({ beadsDb: z.string() })).parse(
+		// Tracker indexes let the extrema prove agreement without reading every historical snapshot.
+		const rows = trackerAuthorityRowsSchema.parse(
 			database
 				.query(
-					`SELECT beads_db AS beadsDb FROM repositories WHERE root = ?
- UNION SELECT json_extract(snapshot, '$.beadsDb') AS beadsDb FROM attempts WHERE root = ?
- UNION SELECT json_extract(snapshot, '$.beadsDb') AS beadsDb FROM requests WHERE root = ?`,
+					`SELECT beads_db AS beadsDb FROM repositories WHERE root = ?1
+ UNION SELECT beadsDb FROM (SELECT json_extract(snapshot, '$.beadsDb') AS beadsDb FROM attempts
+ WHERE root = ?1 ORDER BY json_extract(snapshot, '$.beadsDb') LIMIT 1)
+ UNION SELECT beadsDb FROM (SELECT json_extract(snapshot, '$.beadsDb') AS beadsDb FROM attempts
+ WHERE root = ?1 ORDER BY json_extract(snapshot, '$.beadsDb') DESC LIMIT 1)
+ UNION SELECT beadsDb FROM (SELECT json_extract(snapshot, '$.beadsDb') AS beadsDb FROM requests
+ WHERE root = ?1 ORDER BY json_extract(snapshot, '$.beadsDb') LIMIT 1)
+ UNION SELECT beadsDb FROM (SELECT json_extract(snapshot, '$.beadsDb') AS beadsDb FROM requests
+ WHERE root = ?1 ORDER BY json_extract(snapshot, '$.beadsDb') DESC LIMIT 1)`,
 				)
-				.all(repository.root, repository.root, repository.root),
+				.all(repository.root),
 		);
 		if (rows.some((row) => row.beadsDb !== repository.beadsDb)) {
 			throw new Error(`Repository ${repository.root} already uses a different Beads database`);
 		}
 	};
-	const attemptRows = (root: string) =>
-		z
-			.array(attemptRowSchema)
-			.parse(
-				database
-					.query(
-						"SELECT id, spawn_id AS spawnId, directory, token, snapshot, state " +
-							"FROM attempts WHERE root = ? ORDER BY rowid",
-					)
-					.all(root),
-			);
+	const attemptRows = (root: string, requestId?: string) => {
+		let selection = "WHERE root = ?";
+		const bindings = [root];
+		if (requestId !== undefined) {
+			selection += " AND spawn_id = ?";
+			bindings.push(requestId);
+		}
+		return attemptRowsSchema.parse(
+			database
+				.query(
+					"SELECT id, spawn_id AS spawnId, directory, token, snapshot, state " +
+						`FROM attempts ${selection} ORDER BY rowid`,
+				)
+				.all(...bindings),
+		);
+	};
 	const inventory = (root: string, requestIds?: Set<string>): Promise<AttemptInventory[]> => {
 		const rows = attemptRows(root).filter(
 			(row) => requestIds === undefined || requestIds.has(row.spawnId),
@@ -256,6 +275,29 @@ export function openStore(state: string) {
 		remove: (root: string) => {
 			database.query("DELETE FROM repositories WHERE root = ?").run(root);
 		},
+		request: (root: string, requestId: string): RequestRecord | undefined => {
+			const row = database
+				.query("SELECT snapshot FROM requests WHERE root = ? AND spawn_id = ?")
+				.get(root, requestId);
+			if (row === null) {
+				return;
+			}
+			const { snapshot } = z.object({ snapshot: z.string() }).parse(row);
+			return requestRecordSchema.parse(JSON.parse(snapshot));
+		},
+		retainedOccupants: (root: string): { bucket: string; kind: string }[] =>
+			occupantsSchema.parse(
+				database
+					.query(
+						"SELECT json_extract(snapshot, '$.bucket') AS bucket, " +
+							"json_extract(snapshot, '$.recipe.kind') AS kind FROM attempts " +
+							"WHERE root = ? AND state IN ('starting', 'running') " +
+							"AND EXISTS (SELECT 1 FROM requests WHERE requests.root = attempts.root " +
+							"AND requests.spawn_id = attempts.spawn_id AND json_extract(requests.snapshot, '$.host') = ?) " +
+							"ORDER BY rowid",
+					)
+					.all(root, hostname()),
+			),
 		requests: (root: string): RequestRecord[] =>
 			z
 				.array(z.object({ snapshot: z.string() }))
@@ -280,9 +322,9 @@ export function openStore(state: string) {
 					);
 				return advanceRequest(root, record, { id: receipt.id, type: "START" });
 			})(),
-		/** Retained reservations only: inspection must not refresh or persist process state. */
-		retainedInventory: (root: string): AttemptInventory[] =>
-			attemptRows(root).map((row) => ({
+		/** Retained attempts in every state; optional request selection precedes receipt hydration. */
+		retainedInventory: (root: string, requestId?: string): AttemptInventory[] =>
+			attemptRows(root, requestId).map((row) => ({
 				id: row.id,
 				receipt: launchReceiptSchema.parse(JSON.parse(row.snapshot)),
 				spawnId: row.spawnId,

@@ -18,7 +18,6 @@ test.each([
 		throw new Error("Expected runtime fixture");
 	}
 	result.runtime.result.value.colony = {
-		attempts: [],
 		intent: "awake",
 		message: "Tracker read failed",
 		policy: { limits, ranking: "fifo" },
@@ -263,7 +262,6 @@ function evidence(): Omit<Explanation, "diagnostics"> {
 					attempts: [],
 					checkpoint: null,
 					colony: {
-						attempts: [],
 						intent: "awake",
 						policy: { limits, ranking: "fifo" },
 						registration: "durable",
