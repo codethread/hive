@@ -49,7 +49,7 @@
 		"lib/honeycomb/{src/schemas.ts,scripts/config-schema.ts}": "bun run --filter @hive/honeycomb schema:stage",
 		"!(mockServiceWorker).{js,jsx,ts,tsx,mjs,cjs}": [
 			"oxlint --fix",
-			"oxfmt"
+			"oxfmt --no-error-on-unmatched-pattern"
 		],
 		"!(*.jsonl|mockServiceWorker.js)": "oxfmt --no-error-on-unmatched-pattern"
 	},

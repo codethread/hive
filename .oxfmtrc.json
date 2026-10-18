@@ -1,5 +1,6 @@
 {
 	"$schema": "./node_modules/oxfmt/configuration_schema.json",
 	"useTabs": true,
-	"proseWrap": "never"
+	"proseWrap": "never",
+	"ignorePatterns": [".pi/extensions/beeswax.js"]
 }
