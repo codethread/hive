@@ -166,7 +166,7 @@ Colony acquires claims immediately before launch using the captured friendly ide
 
 Before replacement or terminal cleanup, Colony proves the old execution stopped. It follows native child links beneath recorded claims and clears unfinished assignments still held by that identity. Closed tasks, human/HITL reservations, blocked states and other identities remain intact, including independent workflow workers. Related work outside that hierarchy is untouched. Revision checks expose concurrent changes; settlement replay can continue partial releases. Exhaustion preserves logs and receipts with its failure reason.
 
-Process fingerprints and observed descendant lineage include separate process groups, but sampled PID/start-time/token checks are not race-free OS handles. Cleanup refuses ambiguous ownership. Immediately detached descendants may escape observation; process titles are diagnostic only. Retained records pin tracker authority, and changed native identity/task links fail visibly.
+Managed execution covers the supervisor's process group. The harness inherits that group; processes that detach or create separate groups are outside managed cleanup. Colony verifies the ownership token and supervisor PID/start time before observation or signalling; sampled checks are not race-free OS handles. Cancellation sends TERM, allows one second for exit, then sends KILL if needed and waits up to five seconds for confirmation. Cleanup refuses ambiguous ownership and fails visibly if the group remains. Child exit publishes ownership state without recurring process-table scans or descendant-history rewrites. Process titles are diagnostic only. Retained records pin tracker authority, and changed native identity/task links fail visibly.
 
 ## Live configuration
 

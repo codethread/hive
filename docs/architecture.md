@@ -87,7 +87,7 @@ Colony's [client](../lib/colony/src/client.ts) uses the [Shared protocol](../lib
 
 Repository discovery, tracker selection and execution directory are independent. The canonical root identifies repository-wide configuration and registration. The selected absolute Beads path identifies tracker authority. The recipe's optional execution directory controls the harness working directory and capacity bucket. Choosing one never implicitly replaces another.
 
-The supervisor owns only its process tree and local artifacts; it does not reconcile Beads or write the daemon database. Colony reserves an attempt before starting the supervisor and persists the verified supervisor handoff before granting execution permission. Recovery uses the same ownership checks before adoption, cleanup or replacement. Detailed commands, defaults and supported limitations are in the [Bee and Colony guide](../lib/colony/README.md).
+The supervisor owns its process group and local artifacts; it does not reconcile Beads or write the daemon database. The harness inherits that group; processes that detach or create separate groups are outside managed cleanup. Colony reserves an attempt before starting the supervisor and persists the verified supervisor handoff before granting execution permission. Recovery uses the same ownership checks before adoption, cleanup or replacement. Detailed commands, defaults and supported limitations are in the [Bee and Colony guide](../lib/colony/README.md).
 
 ## Post-run advice
 
