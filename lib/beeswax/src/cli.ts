@@ -13,11 +13,15 @@ import {
 import { configSchema, hookAdapterSchema } from "./config.ts";
 import { integrationSchema, resolveSetup, setupRepository, trackerSchema } from "./setup.ts";
 import { isTrackerSnapshot, validateTrackerHook } from "./hooks.ts";
+import { trackerAlertObservationSchema, trackerRecoveryHandoffSchema } from "./beads/alerts.ts";
 import type { MergePaths } from "./git/merge.ts";
 import type { MergeResult } from "./git/merge-core.ts";
 import type { PackingResult } from "./git/pack.ts";
 import type { Selection } from "./beads/setup.ts";
 import type { SkillProvider } from "skills-handler";
+import type { TrackerAlertObservation } from "./beads/alerts.ts";
+import type { TrackerRecovery } from "./beads/alerts-publication.ts";
+import { addAlertHooks } from "./harness-alerts.ts";
 import { addPrime } from "./prime.ts";
 import changelog from "../changelog.json";
 import { lockSchema } from "./project.ts";
@@ -56,13 +60,27 @@ export interface Dependencies extends SetupDependencies {
 	environmentFile: string;
 	/** Bundled, version-matched agent instruction catalogue. */
 	skills: SkillProvider;
+	/** User-local observation receipt destination, independent of tracker files. */
+	alertReceiptPath: (database: string, session: { harness: string; id: string }) => string;
 	/** Native tracker operations behind the CLI seam. */
 	beads: {
 		setup: (repo: string, selection: Selection, flags: SetupFlags) => Promise<string>;
 		bootstrap: (repo: string, flags: SetupFlags) => Promise<string>;
 		initialize: (repo: string, flags: SetupFlags) => Promise<unknown>;
 		environment: (repo: string, database?: string) => Promise<{ BEADS_DB: string }>;
-		sync: (repo: string, database?: string, actor?: string) => Promise<void>;
+		sync: (
+			repo: string,
+			database?: string,
+			options?: { actor: string; recovery?: TrackerRecovery },
+		) => Promise<void>;
+		/** Read independent alert state without native Beads; undefined means no selected endpoint. */
+		alertStatus: (repo: string, database?: string) => Promise<TrackerAlertObservation | undefined>;
+		/** Wait up to the requested seconds for a receipt change without native Beads. */
+		alertWait: (
+			repo: string,
+			seconds: number,
+			database?: string,
+		) => Promise<TrackerAlertObservation>;
 		automatic: (repo: string, source: string) => Promise<string | undefined>;
 		sessionStart: (input: unknown, file: string) => Promise<void>;
 	};
@@ -192,6 +210,8 @@ or search local checkouts.
 				kind: "schemas",
 				configuration: z.toJSONSchema(configSchema),
 				projectLock: z.toJSONSchema(lockSchema),
+				trackerAlert: z.toJSONSchema(trackerAlertObservationSchema),
+				trackerRecoveryHandoff: z.toJSONSchema(trackerRecoveryHandoffSchema),
 				result,
 			});
 		});
@@ -334,6 +354,11 @@ or search local checkouts.
 	const hooks = program
 		.command("hooks")
 		.description("Tracker snapshot validation and classification for Git hooks");
+	addAlertHooks(program, {
+		...deps,
+		receiptPath: deps.alertReceiptPath,
+		observe: (cwd) => deps.beads.alertStatus(cwd),
+	});
 	hooks
 		.command("validate")
 		.description("Validate a staged tracker snapshot; ordinary application changes are untouched")

@@ -131,6 +131,7 @@ export function renderPrime(options: PrimeOptions): string {
 		"Inspect, claim available work, perform it, verify acceptance and close with evidence. " +
 			"Preserve other assignees and human/HITL reservations.",
 		"Publish tracker changes at repository-defined checkpoints; code pushes require separate authorization.",
+		"On tracker alerts or sync failure, pause Beads work and merges; read beeswax skills get tracker-recovery.",
 		"",
 		"| Tool | When to use it | Instructions |",
 		"| --- | --- | --- |",

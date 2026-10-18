@@ -23,6 +23,6 @@ Review the snapshot and any other staged changes before committing. Once the sna
 
 ## Recovery and cleanup
 
-Stop on conflicting claims, JSONL conflicts or synchronization failure; inspect and resolve the handoff while preserving history. Never force publication.
+On conflicting claims, JSONL conflicts or synchronization failure, stop tracker work and load `beeswax skills get tracker-recovery`. It owns waiting, authorization, writer quiescence and evidence-preserving recovery; `beeswax beads recover` prints the current incident handoff without changing it.
 
 Keep the permanent tracker worktree outside feature cleanup. Publish completion and verification from a surviving checkout.

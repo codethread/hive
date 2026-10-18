@@ -25,6 +25,7 @@ test("default onboarding contains only everyday tools", () => {
 	  Exclude automation-owned system beads from ordinary queries: br search/list/ready use --exclude-label system; BV uses bv --recipe work --robot-triage.
 	  Inspect, claim available work, perform it, verify acceptance and close with evidence. Preserve other assignees and human/HITL reservations.
 	  Publish tracker changes at repository-defined checkpoints; code pushes require separate authorization.
+	  On tracker alerts or sync failure, pause Beads work and merges; read beeswax skills get tracker-recovery.
 
 	  | Tool | When to use it | Instructions |
 	  | --- | --- | --- |
@@ -52,6 +53,7 @@ test("includes add optional tools once in canonical order", () => {
 	  Exclude automation-owned system beads from ordinary queries: br search/list/ready use --exclude-label system; BV uses bv --recipe work --robot-triage.
 	  Inspect, claim available work, perform it, verify acceptance and close with evidence. Preserve other assignees and human/HITL reservations.
 	  Publish tracker changes at repository-defined checkpoints; code pushes require separate authorization.
+	  On tracker alerts or sync failure, pause Beads work and merges; read beeswax skills get tracker-recovery.
 
 	  | Tool | When to use it | Instructions |
 	  | --- | --- | --- |
@@ -83,6 +85,7 @@ test("excludes remove defaults and win over includes", () => {
 	  Exclude automation-owned system beads from ordinary queries: br search/list/ready use --exclude-label system; BV uses bv --recipe work --robot-triage.
 	  Inspect, claim available work, perform it, verify acceptance and close with evidence. Preserve other assignees and human/HITL reservations.
 	  Publish tracker changes at repository-defined checkpoints; code pushes require separate authorization.
+	  On tracker alerts or sync failure, pause Beads work and merges; read beeswax skills get tracker-recovery.
 
 	  | Tool | When to use it | Instructions |
 	  | --- | --- | --- |"

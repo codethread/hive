@@ -18,6 +18,8 @@ When implementation inspection is needed, use `beeswax info --help` for release 
 
 For harness onboarding, follow setup/update help for selection and trust requirements. Commit the selected generated files with the contract and run sync in each checkout. Verify that the actual execution checkout has those files and the matching Beeswax executable on the harness's `PATH`.
 
+Selected adapters deliver the offline primer and observe tracker alerts at harness callbacks. Verify both delivery paths in the execution checkout; generated files alone do not establish runtime delivery or writer quiescence.
+
 For the optional customizable `hive` workflow, use setup's `--install-workflow-skill` only when requested. Follow `beeswax setup --help` for prerequisites, destinations and preservation rules. Review and commit the installed files and links; verify skill discovery separately from primer delivery. Use deliberate manual review for later workflow updates.
 
 ## Complete the handoff
@@ -39,3 +41,5 @@ On failure, inspect completed phases, any `trackerEffects` and installer diagnos
 - Changed hook paths, unsupported project metadata or ambiguous onboarding: [setup migration](references/setup-migration.md), also printed by `beeswax migrate setup`.
 
 At an authorized remote exchange or integration checkpoint, read [publication guidance](references/publication.md). Retrieve linked resources with `beeswax skills file repository-setup PATH`.
+
+For tracker alerts or synchronization failures, load `beeswax skills get tracker-recovery` before further tracker work. It separates observers waiting for clearance from explicitly authorized recovery.

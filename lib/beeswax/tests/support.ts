@@ -1,6 +1,8 @@
 /* eslint-disable require-await -- Async in-memory adapters satisfy the production IO interface. */
+import type { AlertStorage } from "../src/beads/alerts.ts";
 import type { Dependencies } from "../src/cli.ts";
 import type { SetupOptions } from "../src/setup.ts";
+import { createAlertStore } from "../src/beads/alerts.ts";
 import { createBundledSkills } from "../src/skills.ts";
 import { version } from "../package.json";
 
@@ -19,6 +21,7 @@ export function fixture() {
 		throw new Error("Unexpected test operation");
 	};
 	const deps: Dependencies = {
+		alertReceiptPath: (database, session) => `/state/${database}/${session.harness}-${session.id}`,
 		commandAvailable: () => false,
 		context: {
 			cwd: "/repo",
@@ -93,10 +96,30 @@ export function fixture() {
 			initialize: unexpected,
 			environment: unexpected,
 			sync: unexpected,
+			alertStatus: unexpected,
+			alertWait: unexpected,
 			automatic: unexpected,
 			sessionStart: unexpected,
 		},
 		git: { merge: unexpected, validate: unexpected, pack: unexpected },
 	};
 	return { deps, files, commands, output, errors, trackers };
+}
+
+export function alertFixture() {
+	const files = new Map<string, string>();
+	let sequence = 0;
+	const storage: AlertStorage = {
+		read: async (selected) => files.get(selected),
+		write: async (selected, contents) => {
+			files.set(selected, contents);
+		},
+		withLock: async (_selected, action) => action(),
+		id: () => {
+			sequence += SECOND;
+			return `incident-${sequence}`;
+		},
+		now: () => "2026-10-18T05:00:00.000Z",
+	};
+	return { files, storage, store: createAlertStore(storage) };
 }

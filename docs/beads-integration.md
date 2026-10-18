@@ -2,7 +2,7 @@
 
 Hive's default tracker is a permanent full checkout at `.worktrees/tracker--state`, on branch `tracker/state`. Local worktrees and bees share its ignored `.beads/beads.db`; separate clones have separate databases, even on one host. Tracker publication exchanges only the tracked `.beads/issues.jsonl` snapshot through Git.
 
-Native `br` reads and writes locally with automatic JSONL import/export enabled. Publication exchanges the whole shared snapshot, including colleagues' ongoing work, without closing their tasks. Never merge `tracker/state` into a code branch.
+Native `br` owns local reads and writes; its configured automatic import/export can affect JSONL during ordinary commands. Publication exchanges the whole shared snapshot, including colleagues' ongoing work, without closing their tasks. Never merge `tracker/state` into a code branch.
 
 ## Bootstrap a clone
 
@@ -41,15 +41,11 @@ For cross-clone shared work, agree task allocation or refresh, claim, successful
 
 ## Conflicts and recovery
 
-If synchronization fails, stop tracker work and preserve the evidence. Independent changes merge automatically; competing claims require review. Timestamps and forced synchronization are not ownership decisions. Use `br sync --help` for native diagnostics and modes.
+On a tracker alert or synchronization failure, pause Beads workflows, ordinary tracker operations and merges involving that tracker. Use `beeswax beads recover --beads-db "$BEADS_DB"` for the installed recovery handoff, including observer waiting and explicitly user-authorized recovery. [Beeswax](../lib/beeswax/README.md#operate-the-tracker) owns the reusable procedure and independent alert state.
 
-Manual recovery takes place in a separate human terminal with tracker writers paused:
+Hive retains the selected database, actor and permanent checkout conventions above. Apply its [publication checkpoints](#synchronization-checkpoints) and coordinate Bee/Colony writers through their owning tools. Recovery authorization must cover the affected endpoint and any publication; it does not authorize application-code pushes. Keep incident evidence outside the affected tracker until ordinary writes are safe.
 
-1. Explicitly flush SQLite and commit the tracker JSONL before integrating incoming Git changes, preserving local work and establishing its merge base.
-2. Integrate tracker commits using the JSONL merge driver. Resolve disputed records deliberately while retaining unrelated changes and respecting accepted reservations.
-3. Use native `br` with the selected `--db` to inspect `sync --status --json`, then run unforced `sync --merge`. Commit any resulting snapshot changes and run `bun run beads:sync` successfully before resuming tracker work.
-
-`jsonl_newer` compares content with the last certified hash, not timestamps. Auto-import can skip independently changed SQLite and JSONL with a warning; export can overwrite changed fields of existing tasks. A missing merge base with diverged state needs reviewed recovery, not forced synchronization.
+Once ordinary tracker writes are safe, record each new sync incident as an investigation/fix child of pinned `hv-1sylid` (Beads Rust / Hive sync issues); never claim or close that parent. Include symptoms, exact root cause or explicitly unknown cause, fix versus operational recovery, verification and original evidence, and the first fixed version (or full fix commit SHA for a fix predating versioned releases). Keep unresolved or unverified facts explicit; close the child only when its scope is complete. Preserve original task history and parentage; historical backfills link the original work and do not imply a new fix.
 
 ## Checkout maintenance
 

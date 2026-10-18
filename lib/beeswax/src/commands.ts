@@ -12,8 +12,11 @@ import {
 import type { Command } from "commander";
 import { Option } from "commander";
 import type { Selection } from "./beads/setup.ts";
+import type { TrackerRecovery } from "./beads/alerts-publication.ts";
+import { alertWaitSecondsSchema } from "./beads/alerts.ts";
 import { readProjectConfig } from "./config.ts";
 import { synchronizeProject } from "./synchronize.ts";
+import { trackerRecoverySchema } from "./beads/alerts-publication.ts";
 
 export function addBeads(
 	program: Command,
@@ -90,12 +93,35 @@ export function addBeads(
 	beads
 		.command("sync")
 		.option("--beads-db <path>", "Override BEADS_DB")
+		.option(
+			"--recover <id>",
+			"Clear this exact active incident after successful sync; requires --writers-paused and --evidence",
+		)
+		.option(
+			"--writers-paused",
+			"Attest all endpoint writers are paused and quiescence is independently verified",
+		)
+		.option(
+			"--evidence <text>",
+			"Retained evidence of explicit user authorization and reviewed reconciliation",
+		)
 		.description("Explicitly receive and publish the shared tracker snapshot")
 		.action(async function sync(this: Command) {
-			const options = this.optsWithGlobals<Options>();
-			await deps.beads.sync(await checkout(options, deps), options.beadsDb, options.actor);
+			const options = this.optsWithGlobals<
+				Options & {
+					recover?: string;
+					writersPaused?: boolean;
+					evidence?: string;
+				}
+			>();
+			const recovery = recoveryOptions(options);
+			await deps.beads.sync(options.repo ?? deps.context.cwd, options.beadsDb, {
+				actor: options.actor ?? deps.context.actor,
+				...recovery,
+			});
 			emit({ ok: true, kind: "tracker_published" });
 		});
+	addTrackerAlerts(beads, deps, emit);
 	beads
 		.command("session-start")
 		.option(
@@ -270,4 +296,94 @@ export function addProjectCommands(
 				);
 			});
 	}
+}
+
+/** Independent alert commands do not discover a Git checkout for known endpoints. */
+function addTrackerAlerts(beads: Command, deps: Dependencies, emit: (value: object) => void): void {
+	const alert = beads
+		.command("alert")
+		.description("Inspect user-local tracker alert receipts without opening the database");
+	alert
+		.command("status")
+		.option("--beads-db <path>", "Override BEADS_DB; does not open the database")
+		.description("Read the current alert receipt; alert:null does not verify clearance")
+		.action(async function status(this: Command) {
+			const options = this.optsWithGlobals<Options>();
+			const result = await deps.beads.alertStatus(
+				options.repo ?? deps.context.cwd,
+				options.beadsDb,
+			);
+			if (result === undefined) {
+				throw new BeeswaxError(
+					"tracker_unselected",
+					"No tracker is selected. Supply --beads-db or BEADS_DB.",
+				);
+			}
+			emit(result);
+		});
+	alert
+		.command("wait")
+		.option("--beads-db <path>", "Override BEADS_DB; does not open the database")
+		.requiredOption("--timeout <seconds>", "Maximum wait in seconds (0–3600)")
+		.description(
+			"Emit one observation on receipt change or timeout; timeout does not verify clearance",
+		)
+		.action(async function wait(this: Command) {
+			const options = this.optsWithGlobals<Options & { timeout: string }>();
+			const timeout = alertWaitSecondsSchema.parse(options.timeout);
+			emit(await deps.beads.alertWait(options.repo ?? deps.context.cwd, timeout, options.beadsDb));
+		});
+	beads
+		.command("recover")
+		.option("--beads-db <path>", "Override BEADS_DB; does not open the database")
+		.description(
+			"Print the current alert and manual recovery handoff without changing tracker state",
+		)
+		.action(async function recover(this: Command) {
+			const options = this.optsWithGlobals<Options>();
+			const observation = await deps.beads.alertStatus(
+				options.repo ?? deps.context.cwd,
+				options.beadsDb,
+			);
+			if (observation === undefined) {
+				throw new BeeswaxError(
+					"tracker_unselected",
+					"No tracker is selected. Supply --beads-db or BEADS_DB.",
+				);
+			}
+			emit({
+				ok: true,
+				kind: "tracker_recovery_handoff",
+				database: observation.database,
+				alert: observation.alert,
+				requiresUser: true,
+				prerequisites: [
+					"Obtain explicit user authorization for this incident and endpoint.",
+					"Pause all writers to the selected endpoint; observe quiescence independently.",
+					"Preserve evidence, then review and reconcile native tracker and Git state with the user.",
+				],
+				instructions: "beeswax skills get tracker-recovery",
+			});
+		});
+}
+
+function recoveryOptions(options: {
+	recover?: string;
+	writersPaused?: boolean;
+	evidence?: string;
+}): { recovery?: TrackerRecovery } {
+	if (
+		options.recover === undefined &&
+		options.writersPaused === undefined &&
+		options.evidence === undefined
+	) {
+		return {};
+	}
+	return {
+		recovery: trackerRecoverySchema.parse({
+			id: options.recover,
+			writersPaused: options.writersPaused,
+			evidence: options.evidence,
+		}),
+	};
 }

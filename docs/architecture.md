@@ -14,7 +14,7 @@ Hive's product packages are independently replaceable. They cooperate through co
 | `lib/busybee` | Workflow navigation, task visits and per-run checkpoints | XState chooses transitions; native `br` stores work and checkpoints; optional Bee requests delegate execution to Colony |
 | `lib/hive-ui` | Read-only work-board HTTP projections, route-driven browser snapshots and presentation | Imports Beads services and Shared contracts; selects repository/database pairs explicitly or through public Colony status and calls Busy Bee's public preview command |
 | `lib/scent` | Harness identity attribution and context | Resolves native identity or adopts supplied Bee identity; preserves the selected tracker |
-| `lib/beeswax` | Consumer repository setup, Beads environment/publication, JSONL merging/validation, Git/harness adapters and executable installation | Installed CLI; imports Shared/Beads contracts and invokes installed Honeycomb |
+| `lib/beeswax` | Consumer repository setup, Beads environment/publication, tracker alerts and recovery guidance, JSONL merging/validation, Git/harness adapters and executable installation | Installed CLI; imports Shared/Beads contracts and invokes installed Honeycomb |
 | `lib/tooling` | Repository test selection and release maintenance | Development tooling, independent of the Bee execution path |
 | `lib/qlock` | Ticketed local command admission, queue state and foreground child execution | Independent CLI; merge-target queues obtain repository identity through `honeycomb root` |
 
@@ -83,6 +83,7 @@ Colony's [client](../lib/colony/src/client.ts) uses the [Shared protocol](../lib
 | Attempt receipt and process artifacts | Colony and its detached supervisor | Captured invocation and ownership evidence for one attempt; process fingerprints must be verified before adoption or signalling |
 | Child stdout and stderr | Per-attempt local log files | Execution diagnostics; they are not copied into Beads |
 | Post-run assessments | Colony-private inspection checkpoints and artifacts | Advisory evidence about a settled request, not task acceptance, request outcome or permission to change work |
+| Tracker alert and clearance | Beeswax's persistent user-local receipt, keyed by selected database path independently of Beads | Whether this endpoint has a recorded incident or verified clearance; not a distributed writer lock or proof of quiescence |
 
 Repository discovery, tracker selection and execution directory are independent. The canonical root identifies repository-wide configuration and registration. The selected absolute Beads path identifies tracker authority. The recipe's optional execution directory controls the harness working directory and capacity bucket. Choosing one never implicitly replaces another.
 
@@ -100,7 +101,7 @@ Beeswax owns reusable setup and tracker publication. Product policy stays with i
 
 The committed Beeswax configuration and lock are accepted project intent; machine receipts only record local observations. Application policy stays in application hook files. Beeswax owns its marked validation sections, using the same configured actual hook pair in the application and permanent tracker checkout. Setup preserves the tracker's accepted files and history.
 
-The [Beeswax guide](../lib/beeswax/README.md) owns setup, synchronization and migration routes. [Beads integration](beads-integration.md) owns Hive's tracker exchange checkpoints and recovery.
+The [Beeswax guide](../lib/beeswax/README.md) owns setup, synchronization, tracker-alert delivery and installed recovery routes. Beeswax owns the reusable recovery procedure; [Beads integration](beads-integration.md) owns Hive's tracker exchange checkpoints, endpoint conventions and recovery authorization policy.
 
 ## Honeycomb's execution boundary
 

@@ -1,7 +1,13 @@
 /* eslint-disable import/max-dependencies -- This application boundary composes independent native adapters. */
 import { BeeswaxError, EXIT, errorMessage } from "./errors.ts";
+import { CapturedCommandError, runCommand } from "./beads/environment.ts";
 import type { ProcessResult, WorkspaceIO } from "./services.ts";
 import type { SetupFlags, SetupOptions } from "./setup.ts";
+import {
+	alertSessionReceiptPath,
+	alertStateHome,
+	createNativeAlertStore,
+} from "./beads/alerts-native.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Native filesystem adapter composition.
 import { appendFile, chmod, readdir, realpath, rm } from "node:fs/promises";
 // eslint-disable-next-line import/no-nodejs-modules -- Native executable paths.
@@ -15,7 +21,6 @@ import {
 // eslint-disable-next-line import/no-nodejs-modules -- Default human owner is the local account.
 import { homedir, userInfo } from "node:os";
 import { onboardingWizard, setupWizard } from "./wizard.ts";
-import { parseDatabase, resolveEnvironment, runCommand } from "./beads/environment.ts";
 import { syncBeads, withTrackerLock } from "./beads/publish.ts";
 import type { BootstrapServices } from "./beads/bootstrap.ts";
 import type { Dependencies } from "./cli.ts";
@@ -25,13 +30,17 @@ import { installArtifacts } from "./artifact-native.ts";
 import { installationInfo } from "./info.ts";
 import { mergeFiles } from "./git/merge.ts";
 import { packRepository } from "./git/pack.ts";
+import { publishWithAlert } from "./beads/alerts-publication.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Artifact destinations are resolved at the native boundary.
 import { runSessionStart } from "./beads/hook.ts";
+import { selectAlertDatabase } from "./beads/alerts-selection.ts";
 import { setupBeads } from "./beads/setup.ts";
 import { setupBeadsAutomatically } from "./beads/setup-auto.ts";
 import { validateStagedSnapshot } from "./git/validate.ts";
+import { waitForAlert } from "./beads/alerts.ts";
 
 /** Capture process context once and compose native adapters at the application boundary. */
+// eslint-disable-next-line max-statements -- Compose independent native adapters at this application boundary.
 export function createLiveDependencies(): Dependencies {
 	const environment: NodeJS.ProcessEnv = {
 		...process.env,
@@ -56,20 +65,26 @@ export function createLiveDependencies(): Dependencies {
 		readConfig: io.read,
 		write: io.write,
 	};
+	const stateHome = alertStateHome(environment.XDG_STATE_HOME, homedir());
+	const alerts = createNativeAlertStore(stateHome);
+	const selectedAlertDatabase = (repo: string, database?: string) =>
+		selectAlertDatabase(repo, database, {
+			beadsDb: environment.BEADS_DB,
+			observe: alerts.observe,
+			command: io.command,
+			exists: io.exists,
+			commandAvailable: (name, cwd) =>
+				Bun.which(name, { PATH: environment.PATH ?? "", cwd }) !== null,
+		});
 	const selectedEnvironment = async (repo: string, database?: string) => {
-		const selected = database ?? context.beadsDb;
-		if (selected) {
-			return { BEADS_DB: parseDatabase(selected) };
+		const selected = await selectedAlertDatabase(repo, database);
+		if (selected === undefined) {
+			throw new BeeswaxError(
+				"tracker_unselected",
+				"No tracker is selected. Supply --beads-db or BEADS_DB.",
+			);
 		}
-		const common = await io.command(
-			["git", "rev-parse", "--path-format=absolute", "--git-common-dir"],
-			repo,
-		);
-		const canonical = resolve(common, "../.worktrees/tracker--state/.beads/beads.db");
-		if (await io.exists(canonical)) {
-			return { BEADS_DB: canonical };
-		}
-		return await resolveEnvironment(repo, io.command);
+		return { BEADS_DB: selected };
 	};
 	const withActor = (flags: SetupFlags) => ({ ...services, actor: flags.actor ?? context.actor });
 	const integrations = (flags: SetupFlags) => ({
@@ -78,6 +93,7 @@ export function createLiveDependencies(): Dependencies {
 	});
 	return {
 		...io,
+		alertReceiptPath: (database, session) => alertSessionReceiptPath(stateHome, database, session),
 		commandAvailable: (name, cwd) =>
 			Bun.which(name, { PATH: environment.PATH ?? "", cwd }) !== null,
 		installationInfo: async () => installationInfo(await realpath(process.execPath), io),
@@ -137,34 +153,64 @@ export function createLiveDependencies(): Dependencies {
 					integrations(flags),
 				),
 			environment: selectedEnvironment,
-			sync: async (repo, database, actor) => {
-				const selected = await selectedEnvironment(repo, database);
-				if (!(await io.exists(selected.BEADS_DB))) {
-					throw new BeeswaxError("tracker_missing", `Tracker does not exist: ${selected.BEADS_DB}`);
+			alertStatus: async (repo, database) => {
+				const selected = await selectedAlertDatabase(repo, database);
+				if (selected === undefined) {
+					return;
 				}
+				return await alerts.observe(selected);
+			},
+			alertWait: async (repo, seconds, database) => {
+				const selected = await selectedAlertDatabase(repo, database);
+				if (selected === undefined) {
+					throw new BeeswaxError(
+						"tracker_unselected",
+						"No tracker is selected. Supply --beads-db or BEADS_DB.",
+					);
+				}
+				return await waitForAlert(selected, seconds, {
+					observe: alerts.observe,
+					now: () => performance.now(),
+					sleep: (milliseconds) => Bun.sleep(milliseconds),
+				});
+			},
+			sync: async (repo, database, options) => {
+				const selected = await selectedEnvironment(repo, database);
 				const publicationBeads = createNativeBeads({
 					execute: (argv, cwd) =>
-						runCommand(argv, cwd, { ...environment, BD_ACTOR: actor ?? context.actor }),
+						runCommand(argv, cwd, { ...environment, BD_ACTOR: options?.actor ?? context.actor }),
 				});
 				const notifications: string[] = [];
-				try {
-					await withTrackerLock(selected, () =>
-						syncBeads(
-							selected,
-							{ beads: publicationBeads, command: io.command },
-							{
-								notify: sendConflictNotification,
-								report: (message) => {
-									notifications.push(message);
-								},
-							},
-						),
-					);
-				} catch (error) {
-					throw new BeeswaxError("tracker_sync_failed", errorMessage(error), {
-						context: { database: selected.BEADS_DB, notifications },
-					});
-				}
+				await publishWithAlert(
+					selected.BEADS_DB,
+					{
+						alerts,
+						withPublicationLock: (action) => withTrackerLock(selected, action),
+						publish: async () => {
+							try {
+								await syncBeads(
+									selected,
+									{ beads: publicationBeads, command: io.command },
+									{
+										notify: sendConflictNotification,
+										report: (message) => {
+											notifications.push(message);
+										},
+									},
+								);
+							} catch (error) {
+								throw new BeeswaxError("tracker_sync_failed", errorMessage(error), {
+									context: {
+										database: selected.BEADS_DB,
+										notifications,
+										...nativeFailureContext(error),
+									},
+								});
+							}
+						},
+					},
+					options?.recovery,
+				);
 			},
 			automatic: (repo, source) => setupBeadsAutomatically(repo, source, services),
 			sessionStart: (input, file) =>
@@ -262,4 +308,14 @@ function installedExecutable(): string {
 		return process.execPath;
 	}
 	return resolve(homedir(), ".local/bin/beeswax");
+}
+
+function nativeFailureContext(error: unknown): Record<string, unknown> {
+	if (error instanceof CapturedCommandError) {
+		return { native: { code: error.code, stdout: error.stdout, stderr: error.stderr } };
+	}
+	if (error instanceof BeeswaxError) {
+		return error.context;
+	}
+	return {};
 }

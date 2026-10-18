@@ -9,6 +9,7 @@ import { version } from "../package.json";
 import { z } from "zod";
 
 const REVISION = 1;
+const bundledSkills = ["repository-setup", "tracker-recovery"];
 const componentSchema = z.strictObject({ revision: z.literal(REVISION) });
 export const lockSchema = z.strictObject({
 	format: z.literal(REVISION),
@@ -63,7 +64,8 @@ export function requireProjectVersion(lock: ProjectLock): void {
 /** Validate known generation identities independently of the selected release. */
 export function requireProjectGeneration(lock: ProjectLock, config: ProjectConfig): void {
 	if (
-		lock.skills.join("\n") !== "repository-setup" ||
+		(!Bun.deepEquals(lock.skills, bundledSkills) &&
+			!Bun.deepEquals(lock.skills, ["repository-setup"])) ||
 		Object.values(lock.hooks).some((hash) => hash !== digest(hookSection))
 	) {
 		throw projectMigration(
@@ -91,7 +93,7 @@ export async function writeProjectLock(root: string, io: WorkspaceIO): Promise<s
 		hooks: Object.fromEntries(
 			Object.values(config.hooks).map((path) => [path, digest(hookSection)]),
 		),
-		skills: ["repository-setup"],
+		skills: [...bundledSkills],
 		components: {
 			hooks: { revision: REVISION },
 			mergeDriver: { revision: REVISION },

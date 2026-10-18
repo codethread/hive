@@ -6,7 +6,7 @@ import { renderPrime } from "./prime.ts";
 import { z } from "zod";
 
 const marker = "Beeswax onboarding v1";
-const begin = "// beeswax:begin onboarding v1";
+const begin = "// beeswax:begin onboarding v2";
 const end = "// beeswax:end onboarding";
 const EMPTY = 0;
 const SINGLE = 1;
@@ -56,7 +56,12 @@ export async function applyOnboarding(
 			const path = join(root, target);
 			const current = await io.read(path);
 			const selected = config?.harnesses.some((name) => name === harness) ?? false;
-			if (!selected && !/Beeswax onboarding|beeswax:.*onboarding|beeswax prime/u.test(current)) {
+			if (
+				!selected &&
+				!/Beeswax (?:onboarding|tracker alerts)|beeswax:.*onboarding|beeswax (?:prime|harness-alert)/u.test(
+					current,
+				)
+			) {
 				return;
 			}
 			let replace: typeof replacePi = replaceHook;
@@ -110,9 +115,6 @@ function replaceHook({ current, selected, path }: Adapter, flags: string[]): str
 		throw handoff(path, "Several onboarding entries could be ours.", command);
 	}
 	const owned = matches.at(EMPTY);
-	if (!selected && !owned) {
-		return current;
-	}
 	if (
 		owned &&
 		(owned.event !== "SessionStart" ||
@@ -133,9 +135,6 @@ function replaceHook({ current, selected, path }: Adapter, flags: string[]): str
 		);
 	}
 	const desired = { type: "command", command, statusMessage: marker };
-	if (selected && owned && Bun.deepEquals(owned.handler, desired)) {
-		return current;
-	}
 	const groups = settings.hooks?.SessionStart ?? [];
 	if (owned) {
 		owned.group.hooks = owned.group.hooks.filter((handler) => handler !== owned.handler);
@@ -144,8 +143,71 @@ function replaceHook({ current, selected, path }: Adapter, flags: string[]): str
 	if (selected) {
 		remaining.push({ hooks: [desired] });
 	}
-	settings.hooks = { ...settings.hooks, SessionStart: remaining };
+	if (selected || owned) {
+		settings.hooks = { ...settings.hooks, SessionStart: remaining };
+	}
+	replaceAlertHooks(settings, { current, selected, path });
+	if (Bun.deepEquals(settings, JSON.parse(current || "{}"))) {
+		return current;
+	}
 	return `${JSON.stringify(settings, undefined, "\t")}\n`;
+}
+
+// eslint-disable-next-line max-statements -- Validate owned alert hooks before replacing them as a group.
+function replaceAlertHooks(settings: Settings, { selected, path }: Adapter): void {
+	let harness = "claude";
+	if (path.endsWith(targets.codex)) {
+		harness = "codex";
+	}
+	const command = `beeswax harness-alert --harness ${harness}`;
+	const events = ["SessionStart", "UserPromptSubmit", "PostToolUse"];
+	const seen = new Set<string>();
+	for (const [event, groups] of Object.entries(settings.hooks ?? {})) {
+		const emptied = new Set<object>();
+		for (const group of groups) {
+			group.hooks = group.hooks.filter((handler) => {
+				const ours =
+					String(handler.statusMessage).startsWith("Beeswax tracker alerts") ||
+					/^beeswax harness-alert\b/u.test(String(handler.command));
+				if (!ours) {
+					return true;
+				}
+				if (
+					seen.has(event) ||
+					!events.includes(event) ||
+					handler.type !== "command" ||
+					!/^Beeswax tracker alerts v\d+$/u.test(String(handler.statusMessage)) ||
+					handler.command !== command ||
+					Object.keys(handler).some((key) => !["type", "command", "statusMessage"].includes(key)) ||
+					Object.keys(group).some((key) => key !== "hooks")
+				) {
+					throw handoff(
+						path,
+						"The tracker-alert hook has unfamiliar ownership or execution options.",
+						command,
+					);
+				}
+				seen.add(event);
+				emptied.add(group);
+				return false;
+			});
+		}
+		settings.hooks = {
+			...settings.hooks,
+			[event]: groups.filter((group) => group.hooks.length > EMPTY || !emptied.has(group)),
+		};
+	}
+	if (selected) {
+		for (const event of events) {
+			settings.hooks = {
+				...settings.hooks,
+				[event]: [
+					...(settings.hooks?.[event] ?? []),
+					{ hooks: [{ type: "command", command, statusMessage: "Beeswax tracker alerts v1" }] },
+				],
+			};
+		}
+	}
 }
 
 // eslint-disable-next-line max-statements -- Keep bracket recognition and replacement together.
@@ -174,6 +236,33 @@ function replacePi({ current, selected, path }: Adapter, flags: string[]): strin
 			// eslint-disable-next-line no-template-curly-in-string -- This template is evaluated by the emitted Pi extension.
 			"\t\tif (result.code !== 0) throw new Error(`beeswax prime failed: ${result.stderr}`);",
 			"\t\tevent.systemPromptOptions.sections.beeswax = result.stdout.trimEnd();",
+			"\t});",
+			'\tpi.on("context", async (event, ctx) => {',
+			"\t\tconst payload = JSON.stringify({ session_id: ctx.sessionManager.getSessionId(), cwd: ctx.cwd, " +
+				'hook_event_name: "context" });',
+			"\t\tlet context;",
+			"\t\ttry {",
+			'\t\t\tconst result = await pi.exec("beeswax", ' +
+				'["harness-alert", "--harness", "pi", "--input", payload], { timeout: 5000 });',
+			"\t\t\tif (result.code !== 0) throw new Error(result.stderr);",
+			"\t\t\tconst output = JSON.parse(result.stdout);",
+			'\t\t\tif (typeof output.context !== "string") throw new Error("Invalid alert callback output");',
+			"\t\t\tcontext = output.context;",
+			"\t\t} catch (error) {",
+			'\t\t\tcontext = "Beeswax tracker alert check failed. ' +
+				"Stop Beads workflows and ordinary tracker operations on the selected endpoint; do not merge. " +
+				"Unrelated non-Beads work and explicitly user-authorized native tracker inspection/recovery may continue. " +
+				"Recheck independent alert status. With no known hold, a healthy check of this endpoint " +
+				"with no active incident restores baseline; do not announce clearance. " +
+				"Clearance is unverified for any known hold, including a handoff or sync failure. " +
+				"A failed check or missing receipt cannot release it. " +
+				"Announce verified matching or newer clearance before resuming that work. " +
+				'Diagnostics: " + String(error);',
+			"\t\t}",
+			'\t\tconst messages = event.messages.filter((message) => message.customType !== "beeswax-tracker-alert");',
+			'\t\tif (context) messages.push({ role: "custom", customType: "beeswax-tracker-alert", ' +
+				"content: context, display: true, timestamp: Date.now() });",
+			"\t\treturn { messages };",
 			"\t});",
 			"}",
 			end,

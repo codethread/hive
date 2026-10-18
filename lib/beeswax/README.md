@@ -68,15 +68,17 @@ beeswax update --harness claude --harness codex --harness pi --include colony --
 
 Beeswax generates the selected adapters in the consuming repository, preserving unrelated settings:
 
-| Harness | Repository file | Context delivery |
-| --- | --- | --- |
-| Claude Code | `.claude/settings.json` | `SessionStart` runs `beeswax prime` |
-| Codex | `.codex/hooks.json` | `SessionStart` runs `beeswax prime` |
-| Pi | `.pi/extensions/beeswax.js` | Runs `beeswax prime` before each agent run and supplies a named system-prompt section |
+| Harness | Repository file | Primer delivery | Tracker-alert callbacks |
+| --- | --- | --- | --- |
+| Claude Code | `.claude/settings.json` | `SessionStart` runs `beeswax prime` | `SessionStart`, `UserPromptSubmit`, `PostToolUse` |
+| Codex | `.codex/hooks.json` | `SessionStart` runs `beeswax prime` | `SessionStart`, `UserPromptSubmit`, `PostToolUse` |
+| Pi | `.pi/extensions/beeswax.js` | Runs `beeswax prime` before each agent run and supplies a named system-prompt section | `context` observes alerts before a model request |
 
 The adapters call the separately installed `beeswax` executable on the harness's `PATH`; onboarding writes no global harness settings. Read `beeswax update --help` for selection and filtering options. Unspecified headless options retain saved choices.
 
 These adapters load the primer, not skill bodies. Harness-discovered skill descriptions advertise when to load a skill; bodies and references enter context on demand. The primer's bundled-tool pointers work independently of harness skill discovery.
+
+Alert callbacks read independent state for the selected tracker and deliver hold or clearance guidance. They are advisory: they neither prevent arbitrary native writes nor stop workers, and an idle session receives no immediate push. Existing sessions need the current adapter loaded; verify delivery in each supported harness before relying on it. A missing receipt or failed check cannot clear a hold already observed by a session.
 
 Start a new session after setup. [Claude Code](https://code.claude.com/docs/en/hooks#sessionstart) and [Codex](https://learn.chatgpt.com/docs/hooks#sessionstart) add the command's output to model context. In Codex, trust the project and use `/hooks` to review and trust each new or changed hook definition. Pi loads project extensions after project trust is granted.
 
@@ -98,7 +100,11 @@ Ambiguous hooks or project metadata require interpretation: `beeswax migrate hoo
 
 ## Operate the tracker
 
-Use `beeswax beads env --json` to inspect the selected tracker. For Hive's publication checkpoints and recovery, see [Beads integration](../../docs/beads-integration.md). Discover merge and staged-validation protocols with `beeswax git --help`.
+Use `beeswax beads env --json` to inspect the selected tracker and `beeswax beads sync --help` for explicit snapshot exchange. Each consuming repository sets its publication checkpoints; Hive's are in [Beads integration](../../docs/beads-integration.md). Discover merge and staged-validation protocols with `beeswax git --help`.
+
+Failed native reconciliation or Git publication raises a durable alert outside the tracker, keyed by the selected database path. Alert state is user-local and is not exchanged with other clones or hosts. Pause Beads workflows, ordinary tracker operations and merges involving that tracker; independent non-Beads work may continue.
+
+Use `beeswax beads recover` for the non-mutating incident handoff and installed recovery instructions, available without Hive sources. Read `beeswax beads alert status --help` for inspection or `beeswax beads alert wait --help` for bounded waiting without opening SQLite. Recovery requires explicit user authorization; only successful recovery publication clears the current incident. Recovery automation through Bee is a future possibility, not part of this version.
 
 Hive's [setup recipe](../../docs/repository-commands.md#setup-and-automation) coordinates installation and local configuration. [CLI artifacts](../tooling/README.md#cli-artifacts) covers build and installation. For release lock refreshes, read `beeswax lock --help`.
 

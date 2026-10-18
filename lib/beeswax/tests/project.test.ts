@@ -3,6 +3,7 @@ import { expect, test } from "bun:test";
 import {
 	readProjectLock,
 	requireProjectConfig,
+	requireProjectGeneration,
 	requireProjectVersion,
 	writeProjectLock,
 } from "../src/project.ts";
@@ -27,14 +28,31 @@ async function prepareContract() {
 test("a committed contract reproduces intent without any local receipt", () => {
 	expect(() => requireProjectConfig(contract, config)).not.toThrow();
 	expect(() => requireProjectVersion(contract)).not.toThrow();
+	expect(() => requireProjectGeneration(contract, config)).not.toThrow();
 	expect(contract).toMatchObject({
-		skills: ["repository-setup"],
+		skills: ["repository-setup", "tracker-recovery"],
 		hooks: { ".husky/pre-commit": expect.any(String) },
 	});
 	expect([...files.keys()]).toEqual([
 		"/repo/.hive/beeswax/config.toml",
 		"/repo/.hive/beeswax/meta/lock.json",
 	]);
+});
+
+test("the known previous skill catalogue can advance to the recovery catalogue", async () => {
+	const fx = fixture();
+	const fresh = await prepareContract();
+	for (const [path, contents] of fresh.files) {
+		fx.files.set(path, contents);
+	}
+	const previous = { ...fresh.contract, skills: ["repository-setup"] };
+	fx.files.set("/repo/.hive/beeswax/meta/lock.json", JSON.stringify(previous));
+	expect(() => requireProjectGeneration(previous, config)).not.toThrow();
+
+	await writeProjectLock(root, fx.deps);
+
+	const updated = await readProjectLock(root, fx.deps);
+	expect(updated?.skills).toEqual(["repository-setup", "tracker-recovery"]);
 });
 
 test("configuration drift and release drift fail before implicit upgrades", () => {

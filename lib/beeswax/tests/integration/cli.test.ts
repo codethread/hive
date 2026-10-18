@@ -322,22 +322,32 @@ test("cancelled wizard does not start setup effects", async () => {
 	expect(fx.trackers).toEqual([]);
 });
 
-test("bundled instructions and resources work without any repository operations", async () => {
-	const fx = fixture();
-	expect(await runCli(["skills", "get", "repository-setup", "--json"], fx.deps)).toBe(EXIT.success);
-	const result = JSON.parse(fx.output.join(""));
-	expect(result.content).toStartWith("Use `beeswax setup --help`");
-	expect(result.content).not.toContain("---\nname:");
-	expect(fx.commands).toEqual([]);
-	fx.output.length = EMPTY;
-	expect(
-		await runCli(
-			["skills", "file", "repository-setup", "references/publication.md", "--json"],
-			fx.deps,
-		),
-	).toBe(EXIT.success);
-	expect(JSON.parse(fx.output.join("")).content).toContain("beeswax beads sync");
-});
+test.each([
+	{
+		name: "repository-setup",
+		start: "Use `beeswax setup --help`",
+		reference: "references/publication.md",
+	},
+	{
+		name: "tracker-recovery",
+		start: "Stop ordinary tracker operations",
+		reference: "references/manual-recovery.md",
+	},
+])(
+	"bundled $name and its reference need no repository operations",
+	async ({ name, start, reference }) => {
+		const fx = fixture();
+		expect(await runCli(["skills", "get", name, "--json"], fx.deps)).toBe(EXIT.success);
+		const result = JSON.parse(fx.output.join(""));
+		expect(result.content).toStartWith(start);
+		expect(result.content).not.toContain("---\nname:");
+		fx.output.length = EMPTY;
+		expect(await runCli(["skills", "file", name, reference, "--json"], fx.deps)).toBe(EXIT.success);
+		expect(JSON.parse(fx.output.join("")).content).toContain("beeswax beads sync");
+		expect([...fx.commands, ...fx.trackers]).toEqual([]);
+		expect(fx.files.size).toBe(EMPTY);
+	},
+);
 
 test("hook migration prints user-guided outcomes without performing repository operations", async () => {
 	const fx = fixture();
