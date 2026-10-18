@@ -47,6 +47,17 @@ const lifecycle = {
 	pause: () => Bun.sleep(POLL_INTERVAL_MS),
 };
 process.exitCode = await runCli(Bun.argv.slice(USER_ARGUMENTS_START), {
+	executionClearance: async (scope, options) => {
+		const result = await requestServer(target(options), {
+			kind: "execution-clearance",
+			scope,
+			repository: await resolveRepository(options.repo, options.beadsDb),
+		});
+		if (result.kind !== "execution-clearance") {
+			throw new Error("Expected execution clearance");
+		}
+		return result;
+	},
 	add: (options) =>
 		withDaemonLock(target(options), async () =>
 			requestLazyServer(

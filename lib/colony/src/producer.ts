@@ -14,6 +14,7 @@ import {
 	spawnRequestLabels,
 } from "@hive/shared";
 import type { TrackerCommands, TrackerContext } from "./tracker.ts";
+import { assertWorkflowAdmission, readWorkflowCompletion } from "./workflow-anchor.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Canonical config and submission cwd paths.
 import { join, resolve } from "node:path";
 /* eslint-disable-next-line import/no-nodejs-modules --
@@ -21,6 +22,7 @@ import { join, resolve } from "node:path";
  */
 import { mkdir, open, realpath, stat } from "node:fs/promises";
 import type { InitOptions } from "./initial-config.ts";
+import type { WorkflowCommands } from "./workflows.ts";
 import { createIdentity } from "./identity.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Submission binds execution to the requesting machine.
 import { hostname } from "node:os";
@@ -31,10 +33,14 @@ import { trackerScope } from "./tracker.ts";
 const NONE = 0;
 
 export interface ProducerCommands extends TrackerCommands {
+	/** Source-independent publication fence before admitting a driver request. */
+	workflows: Pick<WorkflowCommands, "inspect">;
 	/** Load the canonical submission policy and kinds at the command boundary. */
 	loadBeesConfig: typeof loadBeesConfig;
 }
 interface ProducerContext extends TrackerContext {
+	/** Driver publication observes the same public lifecycle contract as launch. */
+	workflows: Pick<WorkflowCommands, "inspect">;
 	/** Current configuration captured before the request is created. */
 	loadBeesConfig: typeof loadBeesConfig;
 }
@@ -72,7 +78,7 @@ export async function spawnWorkflowRequest(
 		assignment,
 		options,
 	}: { kind: string; assignment: WorkflowAssignment; options: SpawnOptions },
-	{ beads, resolveRepository, loadBeesConfig }: ProducerCommands,
+	{ beads, resolveRepository, loadBeesConfig, workflows }: ProducerCommands,
 ): Promise<SpawnResult> {
 	const endpoint = await resolveRepository(options.repo, options.beadsDb);
 	let anchor = assignment.runId;
@@ -80,7 +86,7 @@ export async function spawnWorkflowRequest(
 		anchor = assignment.stageId;
 	}
 	return createRequest(
-		{ beads, repository: endpoint, loadBeesConfig },
+		{ beads, repository: endpoint, loadBeesConfig, workflows },
 		{ assignment, kind, requestedIds: [anchor] },
 		options,
 	);
@@ -104,7 +110,7 @@ export async function validateRequestedTasks(
 export async function retryRequest(
 	id: string,
 	options: RetryOptions,
-	{ beads, resolveRepository, loadBeesConfig }: ProducerCommands,
+	{ beads, resolveRepository, loadBeesConfig, workflows }: ProducerCommands,
 ): Promise<SpawnResult> {
 	const endpoint = await resolveRepository(options.repo, options.beadsDb);
 	const bead = await beads.show(trackerScope(endpoint, options.actor), id);
@@ -121,7 +127,7 @@ export async function retryRequest(
 		throw new Error(`Request ${old.id} has no unfinished tasks`);
 	}
 	const replacement = await createRequest(
-		{ beads, repository: endpoint, loadBeesConfig },
+		{ beads, repository: endpoint, loadBeesConfig, workflows },
 		{
 			assignment: old.assignment,
 			kind: options.kind ?? old.recipe.kind,
@@ -146,7 +152,7 @@ export async function retryRequest(
  * Admission, recipe capture and provenance form one native submission boundary.
  */
 async function createRequest(
-	{ beads, repository: endpoint, loadBeesConfig }: ProducerContext,
+	{ beads, repository: endpoint, loadBeesConfig, workflows }: ProducerContext,
 	input: {
 		assignment: WorkflowAssignment;
 		kind: string;
@@ -156,6 +162,32 @@ async function createRequest(
 	options: SpawnOptions,
 ): Promise<SpawnResult> {
 	const { assignment, kind, requestedIds, supersedes } = input;
+	if (assignment.kind === "driver") {
+		const observed = await workflows.inspect(assignment.runId, {
+			repo: endpoint.root,
+			db: endpoint.beadsDb,
+			actor: options.actor,
+		});
+		if (
+			observed.runId !== assignment.runId ||
+			observed.lifecycle.kind !== "pending" ||
+			observed.publication.locked ||
+			observed.publication.settlement !== "none"
+		) {
+			throw new Error(`Workflow ${assignment.runId} is not available for driver publication`);
+		}
+	}
+	assertWorkflowAdmission(
+		await beads.show(trackerScope(endpoint, options.actor), assignment.runId),
+	);
+	const completion = await readWorkflowCompletion(
+		{ beads, repository: endpoint },
+		assignment,
+		options.actor,
+	);
+	if (completion.kind === "terminal") {
+		throw new Error(completion.message);
+	}
 	const { config } = await loadBeesConfig(endpoint.root);
 	const ids = await admitTasks(
 		{ beads, repository: endpoint },

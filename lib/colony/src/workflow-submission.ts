@@ -11,6 +11,7 @@ import type {
 } from "./workflows.ts";
 import type { SpawnOptions } from "./bee-cli.ts";
 import { WorkflowCommandError } from "./workflows.ts";
+import { assertWorkflowAdmission } from "./workflow-anchor.ts";
 import { resolve } from "node:path";
 import { spawnWorkflowRequest } from "./producer.ts";
 import { trackerScope } from "./tracker.ts";
@@ -86,6 +87,12 @@ export async function attachWorkflow(
 	commands: WorkflowSubmissionCommands,
 ): Promise<WorkflowSubmissionResult> {
 	const { endpoint } = await submissionContext(kind, options, commands);
+	assertWorkflowAdmission(
+		await commands.beads.show(
+			trackerScope({ root: endpoint.repo, beadsDb: endpoint.db }, endpoint.actor),
+			runId,
+		),
+	);
 	await assertOrphanRun(runId, endpoint, commands);
 	await commands.admit(runId, options);
 	const run = await commands.workflows.show(runId, endpoint);
@@ -233,12 +240,7 @@ async function assertStageParent(
 		// eslint-disable-next-line no-await-in-loop -- Each ancestor read identifies the next native parent.
 		task = await commands.beads.show(scope, parent.id);
 	}
-	if (task.status === "closed") {
-		throw new WorkflowSubmissionError("closed_workflow", `Workflow ${runId} is already closed.`, {
-			runId,
-			stageId,
-		});
-	}
+	assertWorkflowAdmission(task);
 }
 
 async function attachPrepared(

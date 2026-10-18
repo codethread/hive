@@ -1,10 +1,14 @@
 #!/usr/bin/env bun
+import { execute, resolveRepository } from "@hive/shared";
 import { createNativeBeads } from "@hive/beads";
+// eslint-disable-next-line import/no-nodejs-modules -- Bind fresh execution observations to this host.
+import { hostname } from "node:os";
 import { launch } from "../src/launch.ts";
 import { match } from "ts-pattern";
-import { resolveRepository } from "@hive/shared";
+import { observeExecution } from "../src/processes.ts";
 import { serve } from "../src/server.ts";
 import { version } from "../package.json";
+import { workflowCommands } from "../src/workflows.ts";
 import { z } from "zod";
 
 const USER_ARGUMENTS_START = 2;
@@ -15,6 +19,7 @@ if (Bun.argv.length === VERSION_ARGUMENT_COUNT && Bun.argv[USER_ARGUMENTS_START]
 	process.exit(SUCCESS);
 }
 const beads = createNativeBeads();
+const workflows = workflowCommands({ execute: (argv, cwd) => execute(argv, cwd, process.env) });
 const SOCKET_ARGUMENT = 2;
 const STATE_ARGUMENT = 4;
 const commandSchema = z.union([
@@ -46,9 +51,16 @@ try {
 	await match(command)
 		.with({ kind: "launch" }, async ({ id, repo, database, state }) => {
 			const endpoint = await resolveRepository(repo, database);
-			console.log(JSON.stringify(await launch({ ...endpoint, beads, id, state })));
+			console.log(JSON.stringify(await launch({ ...endpoint, beads, id, state, workflows })));
 		})
-		.with({ kind: "serve" }, ({ socket, state }) => serve({ socket, state }, beads))
+		.with({ kind: "serve" }, ({ socket, state }) =>
+			serve({ socket, state }, beads, {
+				workflows,
+				observe: observeExecution,
+				host: hostname(),
+				now: () => new Date().toISOString(),
+			}),
+		)
 		.exhaustive();
 } catch (error) {
 	if (error instanceof Error) {

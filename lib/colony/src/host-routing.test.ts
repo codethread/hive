@@ -1,6 +1,11 @@
 /* eslint-disable import/max-dependencies -- Public routing uses existing dispatch, label and native fixture seams. */
 import { afterAll, expect, test } from "bun:test";
-import { createSpawn, createTask, memoryTracker } from "./tracker.test-support.ts";
+import {
+	beforeTrackerWrite,
+	createSpawn,
+	createTask,
+	memoryTracker,
+} from "./tracker.test-support.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Host authority and disposable directory.
 import { hostname, tmpdir } from "node:os";
 // eslint-disable-next-line import/no-nodejs-modules -- Prepare and remove the private store outside behavior timing.
@@ -10,11 +15,17 @@ import type { BeadRecord } from "@hive/beads";
 import type { Store } from "./store.ts";
 import { ZodError } from "zod";
 import { beesConfigSchema } from "@hive/shared";
+import { createAdmissionGate } from "./admission.ts";
 import { dispatch } from "./dispatch.ts";
+import { executionClearance } from "./execution-clearance.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Match the established request-recovery private store fixture.
 import { join } from "node:path";
 import { openStore } from "./store.ts";
 import { trackerScope } from "./tracker.ts";
+
+const FIRST = 0;
+const ONCE = 1;
+const CLEARANCE_ADMISSION = 2;
 
 interface RoutingCase {
 	/** Native lifecycle path exercised by automatic routing. */
@@ -51,67 +62,11 @@ const origins = [
 const cases: RoutingCase[] = (["open", "closed"] as const).flatMap((status) =>
 	origins.map(({ origin, host }) => ({ status, origin, host })),
 );
-const prepared = await Promise.all(cases.map((input) => routingFixture(input)));
-const fixtures = new Map(
-	prepared.map((fixture) => [`${fixture.status}:${fixture.origin}`, fixture]),
-);
-const predecessor = await routingFixture({
-	status: "closed",
-	origin: "replacement",
-	host: "foreign-host",
-});
-const replacement = await createSpawn(predecessor.tracker, predecessor.task, {
-	deps: [
-		{ id: predecessor.task, type: "related" },
-		{ id: predecessor.id, type: "supersedes" },
-	],
-});
-predecessor.before = await predecessor.tracker.beads.show(
-	trackerScope(predecessor.tracker.repository, "fixture"),
-	predecessor.id,
-);
-
 const predecessorCases = [{ current: false }, { current: true }];
-const localPredecessors = await Promise.all(
-	predecessorCases.map(async ({ current }) => {
-		const fixture = await routingFixture({
-			status: "closed",
-			origin: String(current),
-			host: hostname(),
-		});
-		if (current) {
-			await fixture.tracker.beads.update(
-				trackerScope(fixture.tracker.repository, "fixture"),
-				[fixture.id],
-				{
-					setLabels: [
-						"system",
-						"bee",
-						"agent:worker",
-						"bee-outcome:succeeded",
-						"bee-resolution:resolved",
-					],
-				},
-			);
-		}
-		const id = await createSpawn(fixture.tracker, fixture.task, {
-			deps: [
-				{ id: fixture.task, type: "related" },
-				{ id: fixture.id, type: "supersedes" },
-			],
-		});
-		fixture.before = await fixture.tracker.beads.show(
-			trackerScope(fixture.tracker.repository, "fixture"),
-			fixture.id,
-		);
-		return { current, fixture, replacement: id };
-	}),
-);
-
 test.each(cases.filter(({ origin }) => origin !== "local"))(
-	"automatic $status routing excludes $origin before decoding workflow assignment",
-	async ({ status, origin }) => {
-		const fixture = fixtures.get(`${status}:${origin}`)!;
+	"#test-107 automatic $status routing excludes $origin before decoding workflow assignment",
+	async (input) => {
+		const fixture = await routingFixture(input);
 		await route(fixture);
 		const after = await fixture.tracker.beads.show(
 			trackerScope(fixture.tracker.repository, "fixture"),
@@ -128,9 +83,9 @@ test.each(cases.filter(({ origin }) => origin !== "local"))(
 );
 
 test.each(cases.filter(({ origin }) => origin === "local"))(
-	"automatic $status routing rejects a local request missing workflow assignment",
-	async ({ status, origin }) => {
-		const fixture = fixtures.get(`${status}:${origin}`)!;
+	"#test-112 automatic $status routing rejects a local request missing workflow assignment",
+	async (input) => {
+		const fixture = await routingFixture(input);
 		await expect(route(fixture)).rejects.toBeInstanceOf(ZodError);
 		const after = await fixture.tracker.beads.show(
 			trackerScope(fixture.tracker.repository, "fixture"),
@@ -141,6 +96,22 @@ test.each(cases.filter(({ origin }) => origin === "local"))(
 );
 
 test("automatic replacement publication leaves an unsupported foreign predecessor unchanged", async () => {
+	const predecessor = await routingFixture({
+		status: "closed",
+		origin: "replacement",
+		host: "foreign-host",
+	});
+	const replacement = await createSpawn(predecessor.tracker, predecessor.task, {
+		deps: [
+			{ id: predecessor.task, type: "related" },
+			{ id: predecessor.id, type: "supersedes" },
+		],
+	});
+	predecessor.before = await predecessor.tracker.beads.show(
+		trackerScope(predecessor.tracker.repository, "fixture"),
+		predecessor.id,
+	);
+
 	await publishRequestLabels(predecessor.tracker, "colony", replacement, hostname());
 	const after = await predecessor.tracker.beads.show(
 		trackerScope(predecessor.tracker.repository, "fixture"),
@@ -152,7 +123,7 @@ test("automatic replacement publication leaves an unsupported foreign predecesso
 test.each(predecessorCases)(
 	"local predecessor with current labels $current is validated before publication",
 	async ({ current }) => {
-		const selected = localPredecessors.find((fixture) => fixture.current === current)!;
+		const selected = await localPredecessorFixture(current);
 		await expect(
 			publishRequestLabels(selected.fixture.tracker, "colony", selected.replacement, hostname()),
 		).rejects.toBeInstanceOf(ZodError);
@@ -171,7 +142,19 @@ afterAll(async () => {
 
 function route(fixture: Fixture): Promise<void> {
 	if (fixture.status === "open") {
-		return dispatch({ ...fixture.tracker, state, store: { ...store, history } }, config, "fixture");
+		return dispatch(
+			{
+				...fixture.tracker,
+				state,
+				store: { ...store, history },
+				workflows: {
+					inspect: () => Promise.reject(new Error("Host routing must precede workflow inspection")),
+				},
+				withAdmission: (operation) => operation(),
+			},
+			config,
+			"fixture",
+		);
 	}
 	return reconcileClosedRequestLabels(fixture.tracker);
 }
@@ -192,4 +175,151 @@ async function routingFixture(input: RoutingCase): Promise<Fixture> {
 	}
 	const before = await tracker.beads.show(trackerScope(tracker.repository, "fixture"), id);
 	return { ...input, tracker, task, id, before };
+}
+
+/* eslint-disable-next-line max-statements --
+ * One joined race proves clearance cannot pass an in-flight dispatch reservation.
+ */
+test("#test-99 clearance waits for an in-flight admission and observes its reserved attempt", async () => {
+	const tracker = memoryTracker();
+	tracker.repository = { ...tracker.repository, root: state };
+	const runId = await createTask(tracker);
+	const id = await createSpawn(tracker, runId);
+	const claiming = Promise.withResolvers<void>();
+	const proceed = Promise.withResolvers<void>();
+	const queued = Promise.withResolvers<void>();
+	const gate = createAdmissionGate();
+	let locked = false;
+	let admissions = 0;
+	const withAdmission = <Result>(operation: () => Promise<Result>): Promise<Result> => {
+		admissions += ONCE;
+		if (admissions === CLEARANCE_ADMISSION) {
+			queued.resolve();
+		}
+		return gate(operation);
+	};
+	const workflows = {
+		inspect: () =>
+			Promise.resolve({
+				runId,
+				nativeStatus: "open",
+				updatedAt: "now",
+				publication: {
+					checkpoint: "checkpoint",
+					savedAt: "now",
+					locked,
+					settlement: "none" as const,
+				},
+				lifecycle: { kind: "pending" as const },
+				resolution: { kind: "unresolved" as const },
+			}),
+	};
+	const beads = beforeTrackerWrite(tracker.beads, async (_scope, _ids, input) => {
+		if (input.claim) {
+			claiming.resolve();
+			await proceed.promise;
+		}
+	});
+	const policy = beesConfigSchema.parse({
+		owner: "ct",
+		humans: ["ct"],
+		formulas: { fixture: { executable: "fixture", argv: ["{{prompt}}"] } },
+	});
+	const scan = dispatch(
+		{
+			...tracker,
+			beads,
+			state,
+			workflows,
+			withAdmission,
+			store: {
+				...store,
+				history,
+				reserve: (root, receipt, record) => {
+					store.reserve(root, receipt, record);
+					throw new Error("Injected interruption after durable attempt reservation");
+				},
+			},
+		},
+		policy,
+		"fixture",
+		/* eslint-disable-next-line promise/prefer-await-to-then, promise/prefer-await-to-callbacks --
+		 * Retain background rejection while admission is held.
+		 */
+	).catch((error: unknown) => error);
+	await claiming.promise;
+	locked = true;
+	let completed = false;
+	const observed: string[] = [];
+	const clearance = executionClearance(
+		{ runId, anchorIds: [runId] },
+		{
+			...tracker,
+			store,
+			registered: true,
+			withAdmission,
+			workflows,
+			host: hostname(),
+			now: () => "now",
+			observe: (receipt) => {
+				observed.push(receipt.spawnId);
+				return Promise.resolve({ kind: "live" });
+			},
+		},
+		/* eslint-disable-next-line promise/prefer-await-to-then --
+		 * Observe completion while independently releasing the blocked admission.
+		 */
+	).then((result) => {
+		completed = true;
+		return result;
+	});
+	await queued.promise;
+	expect(completed).toBe(false);
+	expect(observed).toEqual([]);
+	proceed.resolve();
+	expect(await scan).toBeInstanceOf(Error);
+	const observation = await clearance;
+	expect(observation.result).toMatchObject({
+		kind: "refused",
+		blockers: [{ reason: "live_execution", requestId: id }],
+	});
+	expect(observed).toEqual([id]);
+	expect(store.requests(state)[FIRST]).toMatchObject({
+		state: "executing",
+		context: { attempts: ONCE },
+	});
+});
+
+async function localPredecessorFixture(current: boolean) {
+	const fixture = await routingFixture({
+		status: "closed",
+		origin: String(current),
+		host: hostname(),
+	});
+	if (current) {
+		await fixture.tracker.beads.update(
+			trackerScope(fixture.tracker.repository, "fixture"),
+			[fixture.id],
+			{
+				setLabels: [
+					"system",
+					"bee",
+					"agent:worker",
+					"bee-outcome:succeeded",
+					"bee-resolution:resolved",
+				],
+			},
+		);
+	}
+	const id = await createSpawn(fixture.tracker, fixture.task, {
+		deps: [
+			{ id: fixture.task, type: "related" },
+			{ id: fixture.id, type: "supersedes" },
+		],
+	});
+	fixture.before = await fixture.tracker.beads.show(
+		trackerScope(fixture.tracker.repository, "fixture"),
+		fixture.id,
+	);
+	return { fixture, replacement: id };
 }

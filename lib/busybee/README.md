@@ -90,6 +90,7 @@ Use `busybee --help` for the command flow and global options, then focused help 
 | Bundled agent guidance | `busybee skills --help` |
 | Creation input | `busybee input-schema --help` |
 | Native run lifecycle, including when workflow source is unavailable | `busybee inspect --help` |
+| Cancel or fail unfinished scope; acknowledge or replace an unsuccessful run | `busybee settle --help` |
 | Active task briefs and run status | `busybee show --help` |
 | Outcome choices and payload schemas | `busybee discover --help` |
 | Saved diagrams and state for active or completed runs | `busybee preview --help` |
@@ -119,7 +120,7 @@ Both driver-handled and Bee-dispatched worker visits are workflow auto beads: Bu
 
 A definition can request a Bee kind for a task. Entering that task submits a Bee request immediately; an awake Colony executes it through the [Bee and Colony interface](../colony/README.md).
 
-The worker follows the [delegation and result flow](#delegate-a-workflow-to-bee). Closure means the work finished: a review result can still request changes.
+The worker follows the [delegation and result flow](#delegate-a-workflow-to-bee). A review result can request changes and still complete that visit successfully.
 
 ## Examples
 
@@ -171,7 +172,7 @@ Engine checkpoints use `formatVersion: 1`, independently of workflow SemVer. The
 
 For an incompatible named workflow that still exists, a bee may start a fresh run of the **same name for the same already-authorized scope without asking the user again**. Inspect `br show RUN --json` to recover its native parent and visit links, then `busybee input-schema NAME`. Prepare input for the current schema and use `busybee run NAME --parent ORIGINAL_PARENT --input-file FILE --owner HUMAN` with the retained repository, database and assignment options. Preserve the original request and authorization, source/target, scope, owner/assignment intent, tracker and old run/task/evidence references. Inspect completed and uncertain effects before execution; use the current workflow's triage and current evidence to continue remaining work without blindly replaying completed effects or bypassing checks and reviews. Retain the old run as history; starting fresh does not decide its closure.
 
-For abandoned, incompatible or uncertain partial work, inspect the retained run, visits, request IDs and comments (`br show ID --json`, `br comments ID --json`, and `bee status REQUEST --json`). Record completed effects, saved results, remaining acceptance and the next operator action in comments on unfinished work. Leave unfinished visits and runs open for an explicit handoff; a completed replacement does not satisfy an old sibling or allow their shared parent to close. Do not force-close unfinished work, detach history or steal a checkpoint lock to make completion appear successful. Busy Bee reports retained visit/request IDs and accepted-result references for incompatible runs, and an inspection command for partial writes.
+For abandoned, incompatible or uncertain partial work, inspect the retained run, visits, request IDs and comments (`br show ID --json`, `br comments ID --json`, and `bee status REQUEST --json`). Record completed effects, saved results, remaining acceptance and the next operator action in comments on unfinished work. For explicit retirement or follow-up, use `busybee settle --help`; the [settlement contract](./SPEC.md#unsuccessful-settlement) owns eligibility and publication recovery. Uncertain or ineligible scope stays open for a handoff. A completed replacement alone does not dispose of its predecessor or satisfy their parent's acceptance. Busy Bee reports retained visit/request IDs and accepted-result references for incompatible runs, and an inspection command for partial writes.
 
 If the saved workflow name no longer exists, **stop and ask the user which workflow to use**. Do not infer a replacement. A missing/malformed manifest in an existing workflow folder, invalid entry or unrelated I/O failure needs diagnosis of that failure. Busy Bee reports these separately from a missing name. It does not create a replacement run or migrate the saved snapshot. Explicit-file runs continue to identify their saved source file; the same-name recovery policy applies to named runs.
 

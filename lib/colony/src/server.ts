@@ -23,8 +23,11 @@ import { loadPolicy, policySnapshot, policyView, updatePolicy } from "./policy.t
 import type { ActivePolicy } from "./policy.ts";
 import type { BeadsService } from "@hive/beads";
 import type { ColonyActivity } from "./colony.ts";
+import type { ExecutionClearanceRuntime } from "./execution-clearance.ts";
 import { claimServer } from "./server-ownership.ts";
+import { createAdmissionGate } from "./admission.ts";
 import { createColony } from "./colony.ts";
+import { executionClearance } from "./execution-clearance.ts";
 import { match } from "ts-pattern";
 import { openStore } from "./store.ts";
 import { waitFor } from "xstate";
@@ -50,7 +53,11 @@ interface ServerOptions {
 
 /** Bind before serving repository mutations; a second socket owner fails clearly. */
 // eslint-disable-next-line max-statements -- The server owns registry, actors and orderly shutdown in one scope.
-export async function serve(options: ServerOptions, beads: BeadsService): Promise<void> {
+export async function serve(
+	options: ServerOptions,
+	beads: BeadsService,
+	execution: Pick<ExecutionClearanceRuntime, "workflows" | "observe" | "host" | "now">,
+): Promise<void> {
 	if (!isAbsolute(options.socket) || !isAbsolute(options.state)) {
 		throw new Error("Colony requires absolute socket and state paths");
 	}
@@ -59,12 +66,23 @@ export async function serve(options: ServerOptions, beads: BeadsService): Promis
 	const ownership = await claimServer(options);
 	const store = openStore(options.state);
 	const colonies = new Map<string, RunningColony>();
+	const withAdmission = createAdmissionGate();
 	const install = (
 		repository: RepositoryEndpoint,
 		registration: RunningColony["registration"],
 		activity: ColonyActivity,
 	) => {
-		const actor = createColony({ beads, repository, state: options.state, store }, activity);
+		const actor = createColony(
+			{
+				beads,
+				repository,
+				state: options.state,
+				store,
+				workflows: execution.workflows,
+				withAdmission,
+			},
+			activity,
+		);
 		const policy = match(activity)
 			.with({ state: "awake" }, ({ config, revisionId }) => ({ config, revisionId }))
 			/* eslint-disable-next-line unicorn/no-null --
@@ -108,6 +126,22 @@ export async function serve(options: ServerOptions, beads: BeadsService): Promis
 					}
 					const command = colonyRequestSchema.parse(await request.json());
 					const result = await match(command)
+						.with(
+							{ kind: "execution-clearance" },
+							async ({ repository, scope }): Promise<ColonyResponse> => {
+								const canonical = await resolveRepository(repository.root, repository.beadsDb);
+								const current = colonies.get(canonical.root);
+								assertAuthority(canonical, current);
+								return executionClearance(scope, {
+									...execution,
+									beads,
+									repository: canonical,
+									store,
+									registered: current !== undefined,
+									withAdmission,
+								});
+							},
+						)
 						.with(
 							{ kind: "status" },
 							{ kind: "recover" },

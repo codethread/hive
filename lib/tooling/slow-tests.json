@@ -316,6 +316,158 @@
 		"#test-81": {
 			"threshold": "SLOW",
 			"justification": "Cover only the full version-1 succeeded fact with scope='visit' and runId='wrong' on a closed run. The measured body creates and starts the memory workflow/checkpoint, closes the worker then run, and asserts source-independent inspection rejects with BusyBeeError and invalid_lifecycle. Before unique markers, this row and the malformed-JSON row shared a title: CPU-locked changed-suite durations were 1.118/1.056ms, without exact row attribution. Both exceeded 1ms. This row's fresh-process samples were 0.28/0.28/0.28ms; its uniquely tagged changed-suite sample was 0.217ms. SLOW permits through 5ms for this variable observed cost, without claiming every run exceeds 1ms or proving a lower bound."
+		},
+		"#test-82": {
+			"threshold": "DANGER",
+			"justification": "hv-00pk4.3: One complete real-native cancellation/replacement proof preserves earlier successful results and original notes through independent export/import, source removal and public inspection. Observed 3.389–4.263s focused; 3.781s serial changed."
+		},
+		"#test-83": {
+			"threshold": "DANGER",
+			"justification": "hv-00pk4.3: One joined native failed→acknowledged→replaced proof retains exact closure bytes/timestamp and verifies both native imports. The source explicitly permits serial check mode; the existing 5s timeout is unchanged. Observed 3.448s serial changed and 3.877–4.769s focused; a default parallel run timed out at 5.180s and remains failed evidence."
+		},
+		"#test-84": {
+			"threshold": "DANGER",
+			"justification": "hv-00pk4.3: A real native close is refused by a concurrent manual child after preflight; retained intent/lock and pending native facts remain observable. The observed values above 1000ms require DANGER rather than erasing them with a smaller sample. Observed 0.998s serial changed; 1.015–1.244s focused."
+		},
+		"#test-85": {
+			"threshold": "XSLOW",
+			"justification": "hv-00pk4.3: One complete memory-backed two-visit/group withdrawal and replacement scenario retains completed result bytes, existing run narrative and retired visit dispositions with author access rejected. Observed 9.58–31.35ms cold focused; 15.995ms serial changed."
+		},
+		"#test-86": {
+			"threshold": "XSLOW",
+			"justification": "hv-00pk4.3: One memory-backed failure/ack/repeated-ack/replacement sequence verifies exact failure preservation and resolution precedence; the 5.22ms sample exceeds SLOW. Observed 1.19–5.22ms cold focused; 2.230ms serial changed."
+		},
+		"#test-87": {
+			"threshold": "SLOW",
+			"justification": "hv-00pk4.3: Only the existing five-row manual, nested, human, hitl and other-agent refusal template, with each full workflow fixture and reservation mutation inside its body. Observed up to 2.05ms focused; manual/nested/human 1.886/1.578/1.176ms serial changed."
+		},
+		"#test-88": {
+			"threshold": "SLOW",
+			"justification": "hv-00pk4.3: Only both false/true lost-native-close-result variants of the existing template; preserve confirmed-vs-pending facts, intent, retained ownership and advancement/admission refusal. Observed up to 3.12ms focused; 1.018ms serial changed."
+		},
+		"#test-89": {
+			"threshold": "SLOW",
+			"justification": "hv-00pk4.3: A deterministic result-lock-release barrier retires the run before complete can close its saved visit; the original payload stays saved and the visit stays cancelled. Observed up to 1.73ms focused."
+		},
+		"#test-90": {
+			"threshold": "SLOW",
+			"justification": "hv-00pk4.3: A deterministic attempted concurrent settlement verifies the second short close phase holds the same checkpoint lock and releases it afterward. Observed up to 1.36ms focused."
+		},
+		"#test-91": {
+			"threshold": "XSLOW",
+			"justification": "hv-00pk4.3: One public Commander/schema scenario covers offline settlement discovery and forbidden succeed before any endpoint selection; the cold 5.27ms sample exceeds SLOW. Observed 1.06–5.27ms focused; 2.205ms serial changed."
+		},
+		"#test-92": {
+			"threshold": "SLOW",
+			"justification": "hv-00pk4.3: The complete memory-backed no-managed-request proof then missing-history refusal retains scope completeness and verifies that no process-exit observation was invented. Observed up to 3.64ms focused; 1.997ms serial changed."
+		},
+		"#test-93": {
+			"threshold": "SLOW",
+			"justification": "hv-00pk4.3: A full native-memory request plus retained attempt verifies missing ownership and contrary private history remain explicit refusal, including the array-containing blocker assertion. Observed 2.12–2.76ms focused."
+		},
+		"#test-94": {
+			"threshold": "XSLOW",
+			"justification": "hv-00pk4.3: One actual owned child lifetime uses existing runOwnedExecution/OS fingerprints: a closed request remains uncleared while live, then clears only after real exit. No live repository process is used. Observed 218.846ms serial changed; 267–287ms focused."
+		},
+		"#test-95": {
+			"threshold": "XSLOW",
+			"justification": "hv-00pk4.3: One scoped public CLI/Unix-socket/schema scenario verifies explicit no-request vs missing-history refusal, bounded output and offline schema without endpoint reads; keep the observed 5.59ms cost. Observed 5.59ms focused; 3.516ms serial changed."
+		},
+		"#test-96": {
+			"threshold": "XSLOW",
+			"justification": "hv-00pk4.3: Only the nine-row exit/finish/running × succeeded/cancelled/failed matrix. Each case retains actual owned-process artifacts, durable request state and native outcome reconciliation; every subject setup is measured. Observed 174–434ms focused; up to 359.056ms default changed and 278.372ms serial changed."
+		},
+		"#test-97": {
+			"threshold": "XSLOW",
+			"justification": "hv-00pk4.3: Only exit, self-success and self-blocked rows, verifying real owned exit, independent pending run history and request retry/blocked precedence. Observed up to 190.669ms default changed; 142.098–176.729ms serial changed."
+		},
+		"#test-98": {
+			"threshold": "XSLOW",
+			"justification": "hv-00pk4.3: Only exit and finish rows through actual owned-execution and reconciliation interfaces; a legacy unclassified anchor remains diagnostic rather than request success. Observed 152.645–175.582ms default changed; 109.315–122.437ms serial changed."
+		},
+		"#test-99": {
+			"threshold": "XSLOW",
+			"justification": "hv-00pk4.3: The joined actual dispatch claim barrier, SQLite reservation and queued clearance proves final admission cannot pass the shared gate unseen. Preserve the full ordering proof and injected live observation. Observed 14.21–17.649ms focused/default changed; 14.585ms serial changed."
+		},
+		"#test-100": {
+			"threshold": "XSLOW",
+			"justification": "hv-00pk4.3: Deliberately covers only the six existing role/run/stage/host/identity/tasks variants of this one authority-mismatch template. Only role has the cited overage; all six keep complete scenario construction inside measured bodies, with no claim that every row was slow. Observed role row 7.50ms cold focused, 3.444ms default changed and 3.084ms serial changed."
+		},
+		"#test-101": {
+			"threshold": "SLOW",
+			"justification": "hv-00pk4.3: One complete claim/conditional release scenario preserves owned, foreign, human and closed work with actual memory Beads operations. Observed 1.42ms focused; 2.975ms default changed and 3.605ms serial changed."
+		},
+		"#test-102": {
+			"threshold": "SLOW",
+			"justification": "hv-00pk4.3: One full hierarchy release scenario retains all native descendant, protected-claim and unrelated-work assertions after setup moved into the measured body. Observed 1.010ms default changed."
+		},
+		"#test-103": {
+			"threshold": "SLOW",
+			"justification": "hv-00pk4.3: Only the existing driver and stage cleanup rows; each measures hierarchy creation, claim release, preserved work and role-scoped reacquisition. Observed driver/stage cold focused 1.43/3.26ms."
+		},
+		"#test-104": {
+			"threshold": "SLOW",
+			"justification": "hv-00pk4.3: Only existing driver and stage restoration rows, retaining full request/retry checkpoint preparation and immutable-authority continuation inside each measured body. Observed driver 1.93ms focused; driver/stage 4.197/2.319ms serial changed."
+		},
+		"#test-105": {
+			"threshold": "SLOW",
+			"justification": "hv-00pk4.3: One full submission/reservation/duplicate-request scenario with native hierarchy and request preparation inside the measured body. Observed 1.618ms default changed and 1.774ms serial changed."
+		},
+		"#test-106": {
+			"threshold": "SLOW",
+			"justification": "hv-00pk4.3: One full workflow submission boundary scenario retains actual selected endpoint, public handoff and driver-anchor checks, with subject setup measured. Observed 1.568ms default changed and 1.231ms serial changed."
+		},
+		"#test-107": {
+			"threshold": "SLOW",
+			"justification": "hv-00pk4.3: Only the four open/closed × foreign/unbound rows of the existing host-exclusion template. The cited overage is open foreign; all four keep full native/store setup measured and preserve host authority checks. Observed open foreign row 1.446ms default changed and 2.058ms serial changed."
+		},
+		"#test-108": {
+			"threshold": "SLOW",
+			"justification": "hv-00pk4.3: Only the three existing run-do-work, run-land and explicit-source-start command rows. The cited overage is run-do-work; retain actual adapter argument/endpoint parsing and the same assertions. Observed run do-work row 1.296ms default changed."
+		},
+		"#test-109": {
+			"threshold": "SLOW",
+			"justification": "hv-00pk4.3: Only the six existing acquisition/unlaunched × succeeded/cancelled/failed rows; complete fixture/claim/settlement/native-label setup stays measured and unsuccessful anchors cannot become success. Observed acquisition cancelled 1.016ms default changed; acquisition succeeded 1.066ms serial changed."
+		},
+		"#test-110": {
+			"threshold": "XSLOW",
+			"justification": "hv-00pk4.3: Only the three existing result/checkpoint/release promise-barrier rows. Preserve original result/checkpoint/release ordering and the new second-phase close lock; setup and every assertion stay in the test body. Observed complete cold result/checkpoint/release bodies 8.06/1.48/1.14ms after removing all module-level scenario setup."
+		},
+		"#test-111": {
+			"threshold": "SLOW",
+			"justification": "hv-00pk4.3: One full native-memory succeeded-anchor launch-preparation scenario verifies no formula or process effects; previous module-level subject setup is now measured. Observed 1.810ms serial changed."
+		},
+		"#test-112": {
+			"threshold": "SLOW",
+			"justification": "hv-00pk4.3: Only existing open and closed local malformed-assignment rows, with full native/store setup measured and explicit parse failure before process authority. Observed open local row 1.184ms serial changed."
+		},
+		"#test-113": {
+			"threshold": "SLOW",
+			"justification": "hv-00pk4.3: Only existing unclassified and malformed closed-anchor rows; the cited overage is malformed, and both retain complete scenario setup and failure-before-process assertions. Observed malformed row 1.170ms serial changed."
+		},
+		"#test-114": {
+			"threshold": "SLOW",
+			"justification": "hv-00pk4.3: The complete memory/CLI child-close-refusal and identical retry scenario now creates its own workflow inside the body and retains saved original notes and released ownership. Observed 4.22ms complete cold body."
+		},
+		"#test-115": {
+			"threshold": "SLOW",
+			"justification": "hv-00pk4.3: The complete lost-close-receipt, retry, collection and post-collection retry sequence now measures its full workflow setup while preserving exact notes/history and one actual close. Observed 4.12ms complete cold body."
+		},
+		"#test-116": {
+			"threshold": "SLOW",
+			"justification": "hv-00pk4.3: One complete public invalid-payload scenario now measures workflow creation and CLI parsing before asserting no result or closure publication. Observed 3.23ms complete cold body."
+		},
+		"#test-117": {
+			"threshold": "SLOW",
+			"justification": "hv-00pk4.3: Only the four existing empty, malformed, missing-data and conflicting-result rows; all scenario setup and native closure now live inside each measured body. Initial complete cold rows reached 1.24ms; the later prose-review run measured the conflicting-result row at 12.17ms. That outlier exceeds this allowance; it is retained evidence, not a timing-gate pass."
+		},
+		"#test-118": {
+			"threshold": "SLOW",
+			"justification": "hv-00pk4.3: Only existing invalid_input and unavailable_command rows; retain matching saved evidence validation and unchanged closed task assertions, including full measured setup. Observed complete cold invalid_input row 1.75ms."
+		},
+		"#test-119": {
+			"threshold": "SLOW",
+			"justification": "hv-00pk4.3: One public generated-brief/discovery scenario now creates its own workflow inside the body instead of reusing an explicit warm-up fixture; preserve both reachable guidance assertions. Observed 2.14ms complete cold body."
 		}
 	}
 }

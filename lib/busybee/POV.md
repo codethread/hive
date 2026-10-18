@@ -116,7 +116,8 @@ busybee inspect busy-8fp --json
 	"publication": {
 		"checkpoint": "busy-c7q",
 		"savedAt": "2026-10-18T10:30:01Z",
-		"locked": false
+		"locked": false,
+		"settlement": "none"
 	},
 	"lifecycle": {
 		"kind": "terminal",
@@ -129,11 +130,32 @@ busybee inspect busy-8fp --json
 			"outcome": "succeeded",
 			"reason": "Authored workflow completed and checkpoint published."
 		}
-	}
+	},
+	"resolution": { "kind": "resolved" }
 }
 ```
 
 This read works after the workflow source is removed, provided the selected tracker retains the run and checkpoint. See the [lifecycle contract](./SPEC.md#native-lifecycle) for pending and unclassified records, and `busybee inspect --help` for schema discovery.
+
+## Settle unfinished work
+
+For an explicitly authorized withdrawal, read `busybee settle --help` first. These separate examples assume eligible inventory and owning-host execution clearance. IDs are illustrative; `busy-new` is an existing replacement beneath the same native parent as its predecessor.
+
+```sh
+busybee settle busy-old cancel --reason "The remaining work was withdrawn." --json
+busybee settle busy-failed fail --reason "The remaining workflow cannot be completed." --json
+busybee settle busy-failed ack --reason "The failure is accepted; no follow-up remains." --json
+busybee settle busy-replaced supersede --replacement busy-new --reason "Continue in the replacement run." --json
+```
+
+The failed run still reports `lifecycle.fact.outcome: "failed"` after acknowledgment, with `resolution.kind: "acknowledged"`. Superseding a pending run cancels its unfinished scope; its earlier successful visits retain their results. The settlement response includes `operation`, `closedIds` and the native lifecycle projection. The [settlement contract](./SPEC.md#unsuccessful-settlement) covers reservations, replacement provenance and uncertain publication.
+
+To discover the input and response shapes without a tracker or daemon:
+
+```sh
+busybee settle --schema --json
+colony system execution-clearance-schema --json
+```
 
 ## Run Hive's landing workflow
 

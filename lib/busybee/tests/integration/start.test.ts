@@ -200,7 +200,9 @@ test("show rejects a changed named checkpoint before import with authorized same
 	expect(error.message).toContain("Inspect completed and uncertain effects");
 	expect(error.message).toContain("Retain the old run as history");
 	expect(error.message).toContain("--parent ORIGINAL_PARENT");
-	expect(error.message).toContain("replacement completion does not complete them");
+	expect(error.message).toContain(
+		"Replacement completion alone does not dispose of old work or satisfy its parent.",
+	);
 	const response = await invoke(["show", fixture.id], fixture.io);
 	expect(response.document).toMatchObject({
 		ok: false,
@@ -284,7 +286,8 @@ test("changed explicit-file runs keep their source-based diagnostic #test-46", a
 		'"Workflow definition changed; inspect the current source at ' +
 			"/repo/.workflows/example/entry.ts and start a fresh run. Inspect br show mem-1 --json " +
 			"and retained visits first; preserve their evidence and native parent when handing off " +
-			'remaining work. Leave unfinished old work open; replacement completion does not complete it."',
+			"remaining work. Use busybee settle --help for explicit retirement; unresolved scope stays open " +
+			'for handoff. Replacement completion alone does not dispose of it."',
 	);
 	await fixture.assertPreserved();
 });

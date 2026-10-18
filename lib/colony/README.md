@@ -138,6 +138,8 @@ Foreground `daemon serve --json` emits its result when the server exits. Check r
 
 The captured execution directory defaults to the canonical worktree. Selecting another directory changes execution only; configuration and tracker authority remain tied to the selected repository.
 
+Manual launch records a request marker before its final workflow admission check. The [execution-clearance contract](../../docs/architecture.md#workflow-settlement-and-execution-clearance) refuses that marked scope because daemon history cannot prove the manual execution stopped. Use `colony system execution-clearance --help` for the public observation interface and offline schema discovery.
+
 ## Harness formulas
 
 Run `colony skills file operations references/configuration.md` for matching formulas, token rendering and role/execution delivery in interactive and managed invocations.
@@ -148,7 +150,7 @@ Hive's [configured formulas](../../.hive/bees.toml) show Codex and Pi role deliv
 
 ## Scheduling
 
-All unfinished linked work must be ready and available to the request identity. Closed work counts as satisfied; an all-closed request completes without launch. Requests use their highest task urgency, P0 before P1.
+Unfinished linked work must be ready and available to the request identity. Closed workflow anchors use their [native disposition](../../docs/agents/spawn-requests.md#workflow-anchors) to settle without launch. Pending publication locks and settlement intents fence launch admission. Requests use their highest task urgency, P0 before P1.
 
 Within a priority tier, default `bv-pagerank` uses the best linked task's score from the complete visible graph, including closed/ephemeral tasks and unflushed edits. The [BV boundary](../../docs/integrations.md#bee-and-colony-runtime) owns database authority and completeness. Its native multi-query read is not atomic across concurrent commits. `ranking = "fifo"` orders ties by creation time, then ID, without BV.
 

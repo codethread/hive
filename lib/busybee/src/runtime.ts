@@ -30,6 +30,8 @@ import {
 	targetActor,
 } from "./definition.ts";
 import {
+	nativeWorkflowState,
+	parseWorkflowSettlement,
 	readSpawnRequest,
 	renderResponseInstructions,
 	requestOutcome,
@@ -224,6 +226,7 @@ export async function prepareDriver(
 	const lock = await acquire(endpoint, checkpoint, services);
 	return withCheckpointOwner({ endpoint, lock, runId: id }, services, async (writes) => {
 		const run = readCheckpoint(await readBead(endpoint, lock.checkpoint, services));
+		await assertOrdinaryPublication(endpoint, run.id, services);
 		const { actor } = await restore(run, endpoint, services);
 		try {
 			const status = currentStatus(actor);
@@ -250,6 +253,26 @@ export async function recordResult(
 	return persistResult(request, { endpoint, services }, "record");
 }
 
+/** Publish native lifecycle effects under the existing checkpoint ownership contract. */
+export async function withRunPublication<Result>(
+	input: { id: string; options: Options; services: Services },
+	operation: (
+		publication: { run: Run; endpoint: MutationEndpoint; owner: string },
+		writes: Services,
+	) => Promise<Result>,
+): Promise<Result> {
+	const { id, options, services } = input;
+	const endpoint = await resolveMutation(options, services);
+	const lock = await acquire(endpoint, await checkpointBead(endpoint, id, services), services);
+	return withCheckpointOwner({ endpoint, lock, runId: id }, services, async (writes) => {
+		const run = readCheckpoint(await readBead(endpoint, lock.checkpoint, services));
+		if (run.id !== id) {
+			throw new BusyBeeError("invalid_checkpoint", `Checkpoint does not belong to ${id}.`);
+		}
+		return operation({ run, endpoint, owner: lock.owner }, writes);
+	});
+}
+
 export async function complete(
 	request: RecordResult,
 	options: Options = {},
@@ -258,6 +281,36 @@ export async function complete(
 	const endpoint = await resolveMutation(options, services);
 	const result = await persistResult(request, { endpoint, services }, "complete");
 	try {
+		await closeCompletedVisit(request, endpoint, services);
+	} catch (error) {
+		throw new BusyBeeError(
+			"stage_close_failed",
+			`Result saved for task ${request.bead}, but native closure did not confirm success. ` +
+				"Inspect the task and run disposition. Resolve any closure refusal; if the scope " +
+				"remains eligible, retry complete with the same original choice and data.",
+			{
+				cause: error,
+				context: { ...result, resultSaved: true },
+			},
+		);
+	}
+	return result;
+}
+
+/** A separate short phase fences retirement after result persistence released its lock. */
+async function closeCompletedVisit(
+	request: RecordResult,
+	endpoint: MutationEndpoint,
+	services: Services,
+): Promise<void> {
+	const lock = await acquire(
+		endpoint,
+		await checkpointBead(endpoint, request.id, services),
+		services,
+	);
+	try {
+		await assertOrdinaryPublication(endpoint, request.id, services);
+		assertSuccessfulVisit(await readBead(endpoint, request.bead, services), request.id);
 		await closeTask(
 			endpoint,
 			{
@@ -273,19 +326,10 @@ export async function complete(
 			},
 			services,
 		);
-	} catch (error) {
-		throw new BusyBeeError(
-			"stage_close_failed",
-			`Result saved for task ${request.bead}, but native closure did not confirm success. ` +
-				"Inspect the task, resolve any closure refusal, then retry complete with the same " +
-				"original choice and data.",
-			{
-				cause: error,
-				context: { ...result, resultSaved: true },
-			},
-		);
+		assertSuccessfulVisit(await readBead(endpoint, request.bead, services), request.id);
+	} finally {
+		await updateOwned({ endpoint, locked: lock, input: { notes: "" } }, services);
 	}
-	return result;
 }
 
 export async function discover(
@@ -357,6 +401,7 @@ async function persistResult(
 	const lock = await acquire(endpoint, checkpoint, services);
 	return withCheckpointOwner({ endpoint, lock, runId: request.id }, services, async (writes) => {
 		const run = readCheckpoint(await readBead(endpoint, lock.checkpoint, services));
+		await assertOrdinaryPublication(endpoint, run.id, services);
 		const { actor, definition } = await restore(run, endpoint, services);
 		try {
 			const saved = await saveResult(
@@ -611,7 +656,8 @@ export async function restoreDefinition(run: Run, endpoint: Endpoint, services: 
 				error.reason,
 				`${error.message} Inspect ${context.nextAction} and retained visits first; ` +
 					"preserve their evidence and native parent when handing off remaining work. " +
-					"Leave unfinished old work open; replacement completion does not complete it.",
+					"Use busybee settle --help for explicit retirement; unresolved scope stays open " +
+					"for handoff. Replacement completion alone does not dispose of it.",
 				{ cause: error, context },
 			);
 		}
@@ -631,9 +677,9 @@ export async function restoreDefinition(run: Run, endpoint: Endpoint, services: 
 					"uncertain effects and use the current workflow's triage to continue " +
 					"remaining work without blindly replaying completed effects. Retain " +
 					"the old run as history; do not migrate its snapshot or bypass " +
-					"current checks and reviews. Leave unfinished old visits and their run open " +
-					"with a documented blocker and next operator action; replacement completion " +
-					"does not complete them or permit their parent to close.",
+					"current checks and reviews. Use busybee settle --help for explicit retirement; " +
+					"unresolved scope stays open with its next operator action. Replacement " +
+					"completion alone does not dispose of old work or satisfy its parent.",
 			},
 			workflow_missing: {
 				state: "is missing",
@@ -790,6 +836,9 @@ function mutateOwned(
 	});
 }
 
+/* eslint-disable-next-line max-statements --
+ * Retain actual partial-effect context without changing lock recovery semantics.
+ */
 async function withCheckpointOwner<Result>(
 	input: { lock: Lock; endpoint: MutationEndpoint; runId: string; parentId?: string },
 	services: Services,
@@ -809,6 +858,10 @@ async function withCheckpointOwner<Result>(
 		return result;
 	} catch (error) {
 		if (effects) {
+			let context: Record<string, unknown> = {};
+			if (error instanceof BusyBeeError) {
+				({ context } = error);
+			}
 			throw new BusyBeeError(
 				"partial_effects",
 				"Mutation failed; checkpoint " +
@@ -819,6 +872,7 @@ async function withCheckpointOwner<Result>(
 				{
 					cause: error,
 					context: {
+						...context,
 						checkpoint: lock.checkpoint,
 						owner: lock.owner,
 						runId,
@@ -991,6 +1045,9 @@ async function saveResultNotes(
 	}
 }
 
+/* eslint-disable-next-line max-statements --
+ * Verify native retirement before restoring and preparing the authored transition.
+ */
 async function prepareMutation(
 	input: { lock: Lock; request: Mutation; endpoint: MutationEndpoint },
 	services: Services,
@@ -1003,6 +1060,7 @@ async function prepareMutation(
 	if (request.operation === "initialize") {
 		return { actor: restoredActor(request.definition, locked.state.snapshot), locked };
 	}
+	await assertOrdinaryPublication(endpoint, locked.state.id, services);
 	const { actor, definition } = await restore(locked.state, endpoint, services);
 	try {
 		await prepare({ actor, definition, endpoint, request, run: locked.state }, services);
@@ -1186,6 +1244,7 @@ function savedSubmission(
 
 function validateSubmission(entry: ActiveEntry, task: BeadRecord, input: Preparation): Submission {
 	const { request, definition, endpoint } = input;
+	assertSuccessfulVisit(task, input.run.id);
 	if (entry.request && request.operation !== "collect") {
 		throw new BusyBeeError("bee_dispatched_task", "Use collect for Bee-dispatched tasks");
 	}
@@ -1200,6 +1259,38 @@ function validateSubmission(entry: ActiveEntry, task: BeadRecord, input: Prepara
 	assertCompleted(task, entry.bead, endpoint);
 	const data = validatePayload({ entry, definition, payload, request });
 	return { choice: payload.choice, data, entry };
+}
+
+function assertSuccessfulVisit(task: BeadRecord, runId: string): void {
+	const lifecycle = nativeWorkflowState(task, { runId, scope: "visit" });
+	if (lifecycle.kind === "terminal" && lifecycle.fact.outcome !== "succeeded") {
+		throw new BusyBeeError(
+			"retired_visit",
+			`Task ${task.id} was retired without successful completion.`,
+			{
+				context: { runId, bead: task.id, outcome: lifecycle.fact.outcome },
+			},
+		);
+	}
+}
+
+async function assertOrdinaryPublication(
+	endpoint: Endpoint,
+	id: string,
+	services: Services,
+): Promise<void> {
+	const record = await readBead(endpoint, id, services);
+	if (parseWorkflowSettlement(record.notes)) {
+		throw new BusyBeeError("settlement_pending", `Workflow ${id} has an unfinished settlement.`, {
+			context: { runId: id },
+		});
+	}
+	const lifecycle = nativeWorkflowState(record, { runId: id, scope: "run" });
+	if (lifecycle.kind === "terminal" && lifecycle.fact.outcome !== "succeeded") {
+		throw new BusyBeeError("workflow_retired", `Workflow ${id} was ${lifecycle.fact.outcome}.`, {
+			context: { runId: id, outcome: lifecycle.fact.outcome },
+		});
+	}
 }
 
 function validatePayload(input: {

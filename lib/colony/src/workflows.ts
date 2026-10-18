@@ -1,4 +1,6 @@
 import { CommandError } from "@hive/beads";
+import type { WorkflowLifecycle } from "@hive/shared";
+import { workflowLifecycleSchema } from "@hive/shared";
 import { z } from "zod";
 
 const NONEMPTY = 1;
@@ -30,6 +32,8 @@ export type WorkflowSelection = { kind: "named"; name: string } | { kind: "sourc
 export type WorkflowRun = z.infer<typeof runSchema>;
 export type WorkflowHandoff = z.infer<typeof handoffSchema>;
 export interface WorkflowCommands {
+	/** Observe native lifecycle and publication fences without loading a definition. */
+	inspect: (runId: string, endpoint: WorkflowEndpoint) => Promise<WorkflowLifecycle>;
 	/** Validate caller input and initialize one durable workflow. */
 	start: (input: {
 		parent: string;
@@ -51,6 +55,8 @@ export interface WorkflowProcess {
 /** Translate the Busybee command contract once at the process boundary. */
 export function workflowCommands(process: WorkflowProcess): WorkflowCommands {
 	return {
+		inspect: async (runId, endpoint) =>
+			workflowLifecycleSchema.parse(await invoke(["inspect", runId], endpoint, process)),
 		start: async ({ parent, selection, inputFile, owner, endpoint }) => {
 			const command = startArguments(selection);
 			return runSchema.parse(

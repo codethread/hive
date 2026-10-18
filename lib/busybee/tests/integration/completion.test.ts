@@ -55,84 +55,65 @@ async function fixture() {
 }
 
 const barriers = ["result", "checkpoint", "release"];
-const pending = new Map(
-	await Promise.all(barriers.map(async (point) => [point, await fixture()] as const)),
-);
-const failed = new Map(
-	await Promise.all(barriers.map(async (point) => [point, await fixture()] as const)),
-);
-const refusal = await fixture();
-const lostReceipt = await fixture();
-const invalid = await fixture();
-const reordered = await fixture();
-const reserved = await fixture();
 const invalidEvidence = [
 	{ notes: "", reason: "invalid_stage_result" },
 	{ notes: "{", reason: "invalid_stage_result" },
 	{ notes: '{"choice":"next"}', reason: "invalid_stage_result" },
 	{ notes: '{"choice":"next","data":{"value":"different"}}', reason: "stage_result_conflict" },
 ];
-const conflicts = new Map(
-	await Promise.all(invalidEvidence.map(async ({ notes }) => [notes, await fixture()] as const)),
-);
 const invalidClosed = [
 	{ choice: "next", payload: { ...data, value: 13 }, reason: "invalid_input" },
 	{ choice: "missing", payload: data, reason: "unavailable_command" },
 ];
-const invalidClosedRuns = new Map(
-	await Promise.all(invalidClosed.map(async ({ reason }) => [reason, await fixture()] as const)),
-);
-const warmup = await fixture();
-await invoke(
-	["complete", warmup.run.id, warmup.request.bead, "next", "--data", JSON.stringify(data)],
-	warmup.io,
-);
-await navigate({ id: warmup.run.id, operation: "collect" }, {}, warmup.io);
 
-// Promise barriers cover every awaited publication boundary without clock races.
-// eslint-disable-next-line max-statements
-test.each(barriers)("complete cannot close while %s persistence is pending", async (point) => {
-	const { beads, checkpoint, io, request } = pending.get(point)!;
-	const reached = Promise.withResolvers<void>();
-	const release = Promise.withResolvers<void>();
-	let closes = FIRST;
-	const completing = complete(
-		request,
-		{},
-		{
-			...io,
-			beads: {
-				...beads,
-				update: async (selected, ids, input) => {
-					const selectedPoint = writePoint(ids, input, request.bead);
-					if (point === selectedPoint) {
-						reached.resolve();
-						await release.promise;
-					}
-					return beads.update(selected, ids, input);
-				},
-				close: async (selected, id, input) => {
-					closes += ONE;
-					expect(await beads.show(scope, checkpoint)).toMatchObject({ notes: "" });
-					return beads.close(selected, id, input);
+test.each(barriers)(
+	"#test-110 complete cannot close while %s persistence is pending",
+	// Promise barriers cover every awaited publication boundary without clock races.
+	// eslint-disable-next-line max-statements
+	async (point) => {
+		const { beads, checkpoint, io, request } = await fixture();
+		const reached = Promise.withResolvers<void>();
+		const release = Promise.withResolvers<void>();
+		let closes = FIRST;
+		const completing = complete(
+			request,
+			{},
+			{
+				...io,
+				beads: {
+					...beads,
+					update: async (selected, ids, input) => {
+						const selectedPoint = writePoint(ids, input, request.bead);
+						if (point === selectedPoint) {
+							reached.resolve();
+							await release.promise;
+						}
+						return beads.update(selected, ids, input);
+					},
+					close: async (selected, id, input) => {
+						closes += ONE;
+						const checkpointRecord = await beads.show(scope, checkpoint);
+						expect(checkpointRecord.notes).not.toBe("");
+						return beads.close(selected, id, input);
+					},
 				},
 			},
-		},
-	);
-	await reached.promise;
-	expect(closes).toBe(FIRST);
-	expect(await beads.show(scope, request.bead)).toMatchObject({ status: "in_progress" });
-	release.resolve();
-	await completing;
-	expect(closes).toBe(ONE);
-	expect(await beads.show(scope, request.bead)).toMatchObject({
-		status: "closed",
-		notes: JSON.stringify({ choice: "next", data }),
-	});
-});
+		);
+		await reached.promise;
+		expect(closes).toBe(FIRST);
+		expect(await beads.show(scope, request.bead)).toMatchObject({ status: "in_progress" });
+		release.resolve();
+		await completing;
+		expect(closes).toBe(ONE);
+		expect(await beads.show(scope, request.bead)).toMatchObject({
+			status: "closed",
+			notes: JSON.stringify({ choice: "next", data }),
+		});
+	},
+);
 
 test.each(barriers)("failed %s publication never attempts closure", async (point) => {
-	const { beads, checkpoint, io, request } = failed.get(point)!;
+	const { beads, checkpoint, io, request } = await fixture();
 	let closes = FIRST;
 	const result = await complete(
 		request,
@@ -163,8 +144,8 @@ test.each(barriers)("failed %s publication never attempts closure", async (point
 
 // Native child gates remain the close adapter's responsibility after successful saving.
 // eslint-disable-next-line max-statements
-test("native closure refusal preserves exact result and releases checkpoint for retry", async () => {
-	const { beads, checkpoint, io, request } = refusal;
+test("#test-114 native closure refusal preserves exact result and releases checkpoint for retry", async () => {
+	const { beads, checkpoint, io, request } = await fixture();
 	const child = await beads.create(scope, {
 		title: "Remaining child",
 		owner: "ct",
@@ -201,8 +182,8 @@ test("native closure refusal preserves exact result and releases checkpoint for 
 
 // A lost native close receipt is reconciled from saved original input and native closure.
 // eslint-disable-next-line max-statements
-test("identical retry after lost receipt and collection never recloses or rewrites the stage", async () => {
-	const { beads, checkpoint, io, request, run } = lostReceipt;
+test("#test-115 identical retry after lost receipt and collection never recloses or rewrites the stage", async () => {
+	const { beads, checkpoint, io, request, run } = await fixture();
 	let closes = FIRST;
 	const lost: Services = {
 		...io,
@@ -241,8 +222,8 @@ test("identical retry after lost receipt and collection never recloses or rewrit
 	expect(await navigate({ id: run.id, operation: "collect" }, {}, io)).toEqual(next);
 });
 
-test("complete validates payload before saving or closing", async () => {
-	const { beads, checkpoint, io, request } = invalid;
+test("#test-116 complete validates payload before saving or closing", async () => {
+	const { beads, checkpoint, io, request } = await fixture();
 	const result = await invoke(
 		["complete", request.id, request.bead, "next", "--data", '{"value":13}'],
 		io,
@@ -256,9 +237,9 @@ test("complete validates payload before saving or closing", async () => {
 });
 
 test.each(invalidEvidence)(
-	"closed visit refuses $reason evidence: $notes",
+	"#test-117 closed visit refuses $reason evidence: $notes",
 	async ({ notes, reason }) => {
-		const { beads, io, request } = conflicts.get(notes)!;
+		const { beads, io, request } = await fixture();
 		await beads.update(scope, [request.bead], { notes });
 		await beads.close(scope, request.bead);
 		const saved = await beads.show(scope, request.bead);
@@ -270,9 +251,9 @@ test.each(invalidEvidence)(
 );
 
 test.each(invalidClosed)(
-	"closed active visit validates matching saved $reason evidence",
+	"#test-118 closed active visit validates matching saved $reason evidence",
 	async ({ choice, payload, reason }) => {
-		const { beads, io, request } = invalidClosedRuns.get(reason)!;
+		const { beads, io, request } = await fixture();
 		await beads.update(scope, [request.bead], { notes: JSON.stringify({ choice, data: payload }) });
 		await beads.close(scope, request.bead);
 		const saved = await beads.show(scope, request.bead);
@@ -286,7 +267,7 @@ test.each(invalidClosed)(
 );
 
 test("matching open original payload accepts object key reordering without rewriting", async () => {
-	const { beads, io, request } = reordered;
+	const { beads, io, request } = await fixture();
 	await recordResult(request, {}, io);
 	const saved = await beads.show(scope, request.bead);
 	const result = await invoke(
@@ -314,7 +295,7 @@ test("matching open original payload accepts object key reordering without rewri
 });
 
 test("human reserved stage remains open without saved results", async () => {
-	const { beads, io, request } = reserved;
+	const { beads, io, request } = await fixture();
 	await beads.update(scope, [request.bead], { labels: ["hitl"] });
 	const result = await invoke(
 		["complete", request.id, request.bead, "next", "--data", JSON.stringify(data)],
@@ -324,8 +305,8 @@ test("human reserved stage remains open without saved results", async () => {
 	expect(await beads.show(scope, request.bead)).toMatchObject({ status: "in_progress", notes: "" });
 });
 
-test("generated worker guidance and discovery expose complete followed by driver collection", async () => {
-	const { beads, io, request } = warmup;
+test("#test-119 generated worker guidance and discovery expose complete followed by driver collection", async () => {
+	const { beads, io, request } = await fixture();
 	const stage = await beads.show(scope, request.bead);
 	expect(stage.description).toContain(`complete ${request.id} TASK_ID CHOICE`);
 	expect(stage.description).not.toContain("before br close");

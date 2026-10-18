@@ -15,9 +15,6 @@ const commands = workflowCommands({
 		return Promise.resolve(output);
 	},
 });
-// Compile the boundary schema outside the measured behavior tests.
-await commands.show(run.id, endpoint);
-calls.length = 0;
 
 test.each([
 	{ selection: { kind: "named" as const, name: "do-work" }, command: ["run", "do-work"] },
@@ -26,41 +23,44 @@ test.each([
 		selection: { kind: "source" as const, path: "/caller/workflow.ts" },
 		command: ["start", "/caller/workflow.ts"],
 	},
-])("workflow adapter forwards parent and endpoint for $command", async ({ selection, command }) => {
-	calls.length = 0;
-	const result = await commands.start({
-		parent: "original-1",
-		endpoint,
-		owner: "ct",
-		inputFile: "/caller/work.json",
-		selection,
-	});
-	expect(result).toEqual(run);
-	expect(calls).toEqual([
-		{
-			argv: [
-				"busybee",
-				"--repo",
-				"/execution",
-				"--db",
-				"/tracker/beads.db",
-				"--actor",
-				"agent",
-				"--json",
-				...command,
-				"--parent",
-				"original-1",
-				"--input-file",
-				"/caller/work.json",
-				"--owner",
-				"ct",
-				"--assignee",
-				"",
-			],
-			cwd: "/execution",
-		},
-	]);
-});
+])(
+	"#test-108 workflow adapter forwards parent and endpoint for $command",
+	async ({ selection, command }) => {
+		calls.length = 0;
+		const result = await commands.start({
+			parent: "original-1",
+			endpoint,
+			owner: "ct",
+			inputFile: "/caller/work.json",
+			selection,
+		});
+		expect(result).toEqual(run);
+		expect(calls).toEqual([
+			{
+				argv: [
+					"busybee",
+					"--repo",
+					"/execution",
+					"--db",
+					"/tracker/beads.db",
+					"--actor",
+					"agent",
+					"--json",
+					...command,
+					"--parent",
+					"original-1",
+					"--input-file",
+					"/caller/work.json",
+					"--owner",
+					"ct",
+					"--assignee",
+					"",
+				],
+				cwd: "/execution",
+			},
+		]);
+	},
+);
 
 const failure = {
 	ok: false,
@@ -80,8 +80,6 @@ const failed = workflowCommands({
 			}),
 		),
 });
-// Warm the error boundary too.
-await failed.show(run.id, endpoint).catch(() => {});
 
 test("Busybee partial failure retains its checkpoint and lock identity", async () => {
 	const failureResult: unknown = await failed
@@ -150,3 +148,44 @@ test.each([
 		expect(stderr).toEqual([]);
 	},
 );
+
+test("lifecycle adapter reads source-independent publication fences at the selected endpoint", async () => {
+	const lifecycle = {
+		runId: "run-1",
+		nativeStatus: "open",
+		updatedAt: "now",
+		publication: {
+			checkpoint: "checkpoint-1",
+			savedAt: "now",
+			locked: true,
+			settlement: "pending" as const,
+		},
+		lifecycle: { kind: "pending" as const },
+		resolution: { kind: "unresolved" as const },
+	};
+	const requests: string[][] = [];
+	const adapter = workflowCommands({
+		execute: (argv, cwd) => {
+			expect(cwd).toBe(endpoint.repo);
+			requests.push(argv);
+			return Promise.resolve(
+				JSON.stringify({ ok: true, kind: "workflow_lifecycle", ...lifecycle }),
+			);
+		},
+	});
+	expect(await adapter.inspect("run-1", endpoint)).toEqual(lifecycle);
+	expect(requests).toEqual([
+		[
+			"busybee",
+			"--repo",
+			endpoint.repo,
+			"--db",
+			endpoint.db,
+			"--actor",
+			endpoint.actor,
+			"--json",
+			"inspect",
+			"run-1",
+		],
+	]);
+});

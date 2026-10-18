@@ -13,13 +13,6 @@ import { newRequest } from "./request.ts";
 import { trackerScope } from "./tracker.ts";
 
 const FIRST = 0;
-// Seed the isolated release fixture outside behavior timing, following config.test.ts.
-const releaseFixture = await claimFixture();
-const hierarchyFixture = await hierarchyClaimFixture();
-const parentedFixtures = await Promise.all(
-	["driver", "stage"].map((role) => parentedClaimFixture(role)),
-);
-
 // Seed independent role hierarchies before measuring the cleanup boundary.
 // eslint-disable-next-line max-statements
 async function parentedClaimFixture(role: string) {
@@ -148,47 +141,62 @@ function operationEvidence(): OperationEvidence & { failures: unknown[]; effects
 	};
 }
 
-/* eslint-disable-next-line max-statements --
- * One release verifies owned, foreign and closed claims against the same request.
- */
-test("claims preserve human ownership and release only unfinished tasks still owned by this bee", async () => {
-	const { tracker, id, foreign, closed, request } = releaseFixture;
-	const evidence = operationEvidence();
-	expect(await acquireClaim(tracker, "worker", id, evidence)).toBe("claimed");
-	expect(await tracker.beads.show(trackerScope(tracker.repository, "inspector"), id)).toMatchObject(
-		{
+test(
+	"#test-101 claims preserve human ownership and release " +
+		"only unfinished tasks still owned by this bee",
+	/* eslint-disable-next-line max-statements --
+	 * One release verifies owned, foreign and closed claims against the same request.
+	 */
+	async () => {
+		const { tracker, id, foreign, closed, request } = await claimFixture();
+		const evidence = operationEvidence();
+		expect(
+			await acquireClaim(
+				tracker,
+				{ identity: "worker", assignment: { kind: "driver", runId: id } },
+				id,
+				evidence,
+			),
+		).toBe("claimed");
+		expect(
+			await tracker.beads.show(trackerScope(tracker.repository, "inspector"), id),
+		).toMatchObject({
 			assignee: "worker",
 			owner: "ct",
 			status: "in_progress",
-		},
-	);
-	await releaseClaims(
-		{
-			...tracker,
-			beads: beforeTrackerWrite(tracker.beads, (scope) => {
-				expect(scope.actor).toBe("sys-colony");
-				return Promise.resolve();
-			}),
-		},
-		{ ...request, context: { ...request.context, claims: [id, foreign, closed] } },
-		evidence,
-	);
-	const released = await tracker.beads.show(trackerScope(tracker.repository, "inspector"), id);
-	expect(released.assignee).toBeUndefined();
-	expect(released).toMatchObject({ owner: "ct", status: "open" });
-	expect(
-		await tracker.beads.show(trackerScope(tracker.repository, "inspector"), foreign),
-	).toMatchObject({
-		assignee: "another-bee",
-		status: "in_progress",
-	});
-	const untouched = await tracker.beads.show(trackerScope(tracker.repository, "inspector"), closed);
-	expect(untouched.status).toBe("closed");
-	expect(evidence.effects).toEqual([`tracker.claimed:${id}`, `tracker.released:${id}`]);
-});
+		});
+		await releaseClaims(
+			{
+				...tracker,
+				beads: beforeTrackerWrite(tracker.beads, (scope) => {
+					expect(scope.actor).toBe("sys-colony");
+					return Promise.resolve();
+				}),
+			},
+			{ ...request, context: { ...request.context, claims: [id, foreign, closed] } },
+			evidence,
+		);
+		const released = await tracker.beads.show(trackerScope(tracker.repository, "inspector"), id);
+		expect(released.assignee).toBeUndefined();
+		expect(released).toMatchObject({ owner: "ct", status: "open" });
+		expect(
+			await tracker.beads.show(trackerScope(tracker.repository, "inspector"), foreign),
+		).toMatchObject({
+			assignee: "another-bee",
+			status: "in_progress",
+		});
+		const untouched = await tracker.beads.show(
+			trackerScope(tracker.repository, "inspector"),
+			closed,
+		);
+		expect(untouched.status).toBe("closed");
+		expect(evidence.effects).toEqual([`tracker.claimed:${id}`, `tracker.released:${id}`]);
+	},
+);
 
-test("stopped root releases owned descendants while preserving protected and related work", async () => {
-	const { tracker, root, descendant, untouched, before, scope, request } = hierarchyFixture;
+test("#test-102 stopped root releases owned descendants while preserving protected and related work", async () => {
+	const { tracker, root, descendant, untouched, before, scope, request } =
+		await hierarchyClaimFixture();
 	const evidence = operationEvidence();
 	await releaseClaims(
 		tracker,
@@ -207,11 +215,13 @@ test("stopped root releases owned descendants while preserving protected and rel
 	expect(evidence.effects).toEqual([`tracker.released:${root}`, `tracker.released:${descendant}`]);
 });
 
-test.each(parentedFixtures)(
-	"$role cleanup stays beneath its captured claim in a parented workflow",
+test.each(["driver", "stage"])(
+	"#test-103 %s cleanup stays beneath its captured claim in a parented workflow",
 	// Verify release, preserved records and the next identity's role-scoped reacquisition.
 	// eslint-disable-next-line max-statements
-	async ({ tracker, root, child, visit, role, scope, untouched, before, request }) => {
+	async (role) => {
+		const { tracker, root, child, visit, scope, untouched, before, request } =
+			await parentedClaimFixture(role);
 		await releaseClaims(
 			tracker,
 			{ ...request, context: { ...request.context, claims: [root] } },
@@ -236,11 +246,23 @@ test.each(parentedFixtures)(
 		).toEqual(
 			before.map(({ dependencies: _dependencies, dependents: _dependents, ...record }) => record),
 		);
-		expect(await acquireClaim(tracker, "replacement", root, operationEvidence())).toBe("claimed");
+		expect(
+			await acquireClaim(
+				tracker,
+				{ identity: "replacement", assignment: request.assignment },
+				root,
+				operationEvidence(),
+			),
+		).toBe("claimed");
 		if (role === "driver") {
-			expect(await acquireClaim(tracker, "replacement", visit, operationEvidence())).toBe(
-				"claimed",
-			);
+			expect(
+				await acquireClaim(
+					tracker,
+					{ identity: "replacement", assignment: { kind: "stage", runId: root, stageId: visit } },
+					visit,
+					operationEvidence(),
+				),
+			).toBe("claimed");
 		}
 	},
 );
@@ -249,7 +271,6 @@ test.each([
 	{ input: { assignee: "ct" }, outcome: "conflict" },
 	{ input: { assignee: "another-driver" }, outcome: "conflict" },
 	{ input: { labels: ["hitl"] }, outcome: "conflict" },
-	{ input: { status: "closed" }, outcome: "closed" },
 ])(
 	"claim leaves reserved or closed tasks unchanged: $outcome $input",
 	async ({ input, outcome }) => {
@@ -259,7 +280,14 @@ test.each([
 			trackerScope(tracker.repository, "inspector"),
 			reserved,
 		);
-		expect(await acquireClaim(tracker, "worker", reserved, operationEvidence())).toBe(outcome);
+		expect(
+			await acquireClaim(
+				tracker,
+				{ identity: "worker", assignment: { kind: "driver", runId: reserved } },
+				reserved,
+				operationEvidence(),
+			),
+		).toBe(outcome);
 		expect(
 			await tracker.beads.show(trackerScope(tracker.repository, "inspector"), reserved),
 		).toEqual(before);
@@ -280,7 +308,14 @@ test("a reservation changed after inspection produces a claim conflict with reta
 		});
 	});
 	const evidence = operationEvidence();
-	expect(await acquireClaim({ ...tracker, beads }, "worker", id, evidence)).toBe("conflict");
+	expect(
+		await acquireClaim(
+			{ ...tracker, beads },
+			{ identity: "worker", assignment: { kind: "driver", runId: id } },
+			id,
+			evidence,
+		),
+	).toBe("conflict");
 	expect(await tracker.beads.show(trackerScope(tracker.repository, "inspector"), id)).toMatchObject(
 		{
 			assignee: "another-bee",

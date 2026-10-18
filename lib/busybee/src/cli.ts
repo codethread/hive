@@ -23,6 +23,7 @@ import {
 } from "./runtime.ts";
 import { importDefinition, validate } from "./definition.ts";
 import { listWorkflows, namedDefinition } from "./catalogue.ts";
+import { settle, settlementRequestSchema, settlementResultSchema } from "./settlement.ts";
 import {
 	workflowCheckpointSchema,
 	workflowInspectionSchema,
@@ -290,7 +291,8 @@ function registerInspection(invocation: Invocation): void {
 			"\nRUN is a workflow run ID. The read requires its native record and a valid related " +
 				"checkpoint, but no workflow source or Colony. Default success output is JSON; " +
 				"--json adds the workflow_lifecycle envelope and machine-readable failures. " +
-				"Reports native status, lifecycle and publication timestamps/lock. Closed runs " +
+				"Reports native status, lifecycle, follow-up resolution and publication timestamps, " +
+				"lock and settlement intent. Closed runs " +
 				"without lifecycle markers remain unclassified. A lock observation does not " +
 				"establish worker liveness.\n" +
 				"Use inspect --schema --json without a run ID for the success envelope schema. " +
@@ -313,6 +315,64 @@ function registerInspection(invocation: Invocation): void {
 			}
 			writeResult(await inspectLifecycle(id, options(), services), invocation);
 		});
+	cli
+		.command("settle [run] [operation]")
+		.description("Cancel or fail unfinished scope, or acknowledge or replace an unsuccessful run")
+		.option("--schema", "Read settlement input and success schemas without tracker access")
+		.option("--reason <text>", "Required explicit disposition or follow-up explanation")
+		.option("--replacement <run>", "Existing replacement workflow under the same native parent")
+		.addHelpText(
+			"after",
+			"\nOperations: cancel or fail retires pending scope; ack accepts an existing failed " +
+				"closure; supersede requires --replacement and cancels a pending predecessor or " +
+				"preserves its existing failed/cancelled outcome. Cancel and fail also accept " +
+				"--replacement. Every operation requires --reason and --actor or BD_ACTOR. " +
+				"Success comes only from authored workflow completion.\n\n" +
+				"Reads the native format-1 inventory without loading workflow source. Preserves " +
+				"completed visits and original results; refuses unfinished manual/nested work " +
+				"and human/HITL/other-agent reservations. Every operation requires clearance " +
+				"from the running owning-host Colony daemon registered for this endpoint, " +
+				"including all retained attempts. Settlement does not stop workers. See " +
+				"colony system execution-clearance --help.\n\n" +
+				"Use --json for the workflow_settlement envelope, including closedIds and the " +
+				"resulting lifecycle/resolution. On uncertain publication, inspect reported " +
+				"effect IDs, checkpoint ownership and run-note intent before explicit recovery; " +
+				"do not replay or clear the lock. Source-task acceptance remains with its caller.\n" +
+				"Offline discovery: busybee settle --schema --json returns inputSchema and the " +
+				"success schema without a run, actor, tracker or daemon.",
+		)
+		.action(
+			async (
+				id: string | undefined,
+				operation: string | undefined,
+				selection: { reason?: string; replacement?: string; schema?: boolean },
+			) => {
+				invocation.kind = "workflow_settlement";
+				if (selection.schema) {
+					invocation.kind = "workflow_settlement_schema";
+					const successSchema = settlementResultSchema.extend({
+						ok: z.literal(true),
+						kind: z.literal("workflow_settlement"),
+					});
+					const schema = z.toJSONSchema(successSchema);
+					writeResult(
+						{
+							inputSchema: z.toJSONSchema(settlementRequestSchema),
+							schema,
+						},
+						invocation,
+					);
+					return;
+				}
+				const request = settlementRequestSchema.parse({
+					id,
+					operation,
+					reason: selection.reason,
+					replacementId: selection.replacement,
+				});
+				writeResult(await settle(request, options(), services), invocation);
+			},
+		);
 	cli
 		.command("preview <run>")
 		.description("Preview an active or completed run's latest saved workflow state")
@@ -558,7 +618,8 @@ function registerNavigation(invocation: Invocation): void {
 				"--data JSON or --data-file FILE; omission supplies {}. Notes hold only {choice,data}; " +
 				"put narrative evidence in comments.\n" +
 				"Complete validates and saves the original JSON, finishes the checkpoint write and " +
-				"releases its lock, then attempts ordinary native closure with Beads acceptance and child gates. " +
+				"releases its lock, then reacquires it briefly to recheck retirement and attempt native " +
+				"closure with Beads acceptance and child gates. Retired scope cannot become success. " +
 				"Closure refusal preserves the saved result. Inspect the task, resolve the refusal and retry " +
 				"with the same original choice and data. A matching retry can finish closure or acknowledge " +
 				"an already-closed stage, even after collection. Different or malformed saved results fail; " +
