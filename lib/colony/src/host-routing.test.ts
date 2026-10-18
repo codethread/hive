@@ -171,7 +171,20 @@ afterAll(async () => {
 
 function route(fixture: Fixture): Promise<void> {
 	if (fixture.status === "open") {
-		return dispatch({ ...fixture.tracker, state, store: { ...store, history } }, config, "fixture");
+		return dispatch(
+			{
+				...fixture.tracker,
+				state,
+				store: { ...store, history },
+				nurse: {
+					start: () => Promise.reject(new Error("Unexpected nurse submission")),
+					attach: () => Promise.reject(new Error("Unexpected nurse attachment")),
+					show: () => Promise.reject(new Error("Unexpected nurse read")),
+				},
+			},
+			config,
+			"fixture",
+		);
 	}
 	return reconcileClosedRequestLabels(fixture.tracker);
 }

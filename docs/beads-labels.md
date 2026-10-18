@@ -43,6 +43,16 @@ Only the registered specialist may add or remove its evidence label within its a
 
 Classify by subject, not by the contributing agent. One record may serve multiple specialties, with each steward applying only its own registered label; reuse that record instead of duplicating histories. `evidence:testing` and `evidence:performance` are possible future values, not currently authorized labels. Register a value, steward and evidence contract before using it; topical relevance alone does not authorize inventing labels.
 
+## Nurse health records
+
+An automatic nurse audit authorizes provisional topic/inquiry records beneath its configured ongoing health parent. Manual advice requires an explicit curation assignment. Use ordinary `docs` records and the [filed-record lifecycle](./beads-meta.md#filed-specialist-evidence); `area:colony` is sufficient classification. This convention grants no new evidence label or architecture stewardship. Return architectural questions and outcomes to the librarian's existing evidence thread.
+
+Each topic description is a concise current snapshot: the question, observations, competing explanations, uncertainty and discriminating next evidence, with exact assessment/request/attempt and response IDs where available. Reuse topics when later evidence challenges them. Keep dated progress, corrections and outcomes in native comments or notes, and link the source tasks, audits and responses through nonblocking native relationships. Cite private assessments by ID; keep transcripts, credentials and private source files out of Beads. Filing a topic means recorded, not proven or resolved.
+
+The health parent's **design** field is the current-topic index: JSON `{"topics":["TOPIC_ID"]}`, at most 32 IDs in priority order. Its **notes** field belongs to Colony's machine control record. Keep indexed descriptions short: subsequent drones receive at most the first five topics fitting a 4 KiB JSON topic array, with freshness and omitted/unavailable context. The index selects existing records; it does not copy their history. Verify topic edits and index updates against the selected tracker.
+
+The supplied audit brief owns bounded investigation and completion. Required investigations belong beneath that audit and must deliver before it completes; continuing provisional questions belong in filed topics beneath health. Curation grants no authority to implement fixes, create change tasks, alter examined claims or request outcomes, or retry/repair examined work.
+
 ## Change labels without losing context
 
 `create --labels` sets the initial labels. For an existing permitted bead, inspect its current labels and use `update --add-label` / `--remove-label` for targeted changes. `update --labels` is an alias of `--set-labels` and replaces the entire set; do not use it for an incremental edit.

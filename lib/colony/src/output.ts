@@ -130,6 +130,10 @@ function formatPolicy(policy: PolicyView | null): string {
 	if (policy === null) {
 		return "Active policy: none";
 	}
+	let nurse = "disabled";
+	if (policy.autoNurse !== null) {
+		nurse = `${policy.autoNurse.kind}; health ${policy.autoNurse.parent}`;
+	}
 	return [
 		`Active policy revision: ${policy.revisionId}`,
 		`Formulas: ${policy.formulas.join(", ")}`,
@@ -138,6 +142,7 @@ function formatPolicy(policy: PolicyView | null): string {
 		`Retries: ${policy.maxRetries}; delay ${policy.retryDelayMs}ms`,
 		`Inactivity drone: ${policy.inactivityDrone ?? "disabled"}`,
 		`Post-run drone: ${policy.postRunDrone ?? "disabled"}`,
+		`Automatic nurse: ${nurse}`,
 	].join("\n");
 }
 function formatLimits(limits: PolicyView["limits"]): string {

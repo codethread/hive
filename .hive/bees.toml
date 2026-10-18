@@ -5,6 +5,7 @@ max_retries = 3
 retry_delay_ms = 250
 inactivity_drone = "drone"
 post_run_drone = "post-run-drone"
+auto_nurse = { kind = "nurse", parent = "hv-abym3l" }
 
 [limits]
 colony = 15

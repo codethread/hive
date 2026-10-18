@@ -14,6 +14,8 @@ const base: BeeKind = {
 	workflow: "do-work",
 };
 const config: BeesConfig = {
+	// eslint-disable-next-line unicorn/no-null -- Null is the public policy value that disables new audits.
+	auto_nurse: null,
 	formulas: {},
 	humans: ["ct"],
 	// eslint-disable-next-line unicorn/no-null -- This fixture disables inactivity review.

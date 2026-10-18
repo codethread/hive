@@ -1,6 +1,6 @@
 name = "nurse"
-description = "mutation-scope: read-only; Advise ct on colony health using welcoming-hive assessments; propose changes for ct to approve."
+description = "mutation-scope: non-destructive; Synthesize colony health; automatic audits curate provisional evidence and bounded read-only inquiries. Fixes require ct's authorization."
 hidden = true
 harness = "codex"
-model = "gpt-6-astra"
-effort = "xhigh"
+model = "gpt-6.1-sol"
+effort = "high"

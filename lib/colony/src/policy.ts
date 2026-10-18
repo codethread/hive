@@ -5,6 +5,7 @@ import { validateFormula } from "@hive/shared";
 
 export type PolicySnapshot = Pick<
 	BeesConfig,
+	| "auto_nurse"
 	| "post_run_drone"
 	| "formulas"
 	| "inactivity_drone"
@@ -38,6 +39,7 @@ export function updatePolicy(config: BeesConfig, change: PolicyChange): BeesConf
 /** Generic inspection deliberately excludes formula values and captured recipe defaults. */
 export function policyView({ config, revisionId }: ActivePolicy): PolicyView {
 	return {
+		autoNurse: config.auto_nurse,
 		formulas: Object.keys(config.formulas).toSorted(),
 		inactivityDrone: config.inactivity_drone,
 		postRunDrone: config.post_run_drone,
@@ -51,6 +53,7 @@ export function policyView({ config, revisionId }: ActivePolicy): PolicyView {
 /** The history snapshot contains scheduling/execution policy, never a recipe-default authority. */
 export function policySnapshot(config: BeesConfig): PolicySnapshot {
 	const {
+		auto_nurse,
 		post_run_drone,
 		formulas,
 		inactivity_drone,
@@ -60,6 +63,7 @@ export function policySnapshot(config: BeesConfig): PolicySnapshot {
 		retry_delay_ms,
 	} = config;
 	return {
+		auto_nurse,
 		post_run_drone,
 		formulas,
 		inactivity_drone,

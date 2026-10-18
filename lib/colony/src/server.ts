@@ -23,6 +23,7 @@ import { loadPolicy, policySnapshot, policyView, updatePolicy } from "./policy.t
 import type { ActivePolicy } from "./policy.ts";
 import type { BeadsService } from "@hive/beads";
 import type { ColonyActivity } from "./colony.ts";
+import type { NurseCommands } from "./nurse.ts";
 import { claimServer } from "./server-ownership.ts";
 import { createColony } from "./colony.ts";
 import { match } from "ts-pattern";
@@ -50,7 +51,11 @@ interface ServerOptions {
 
 /** Bind before serving repository mutations; a second socket owner fails clearly. */
 // eslint-disable-next-line max-statements -- The server owns registry, actors and orderly shutdown in one scope.
-export async function serve(options: ServerOptions, beads: BeadsService): Promise<void> {
+export async function serve(
+	options: ServerOptions,
+	beads: BeadsService,
+	nurse: NurseCommands,
+): Promise<void> {
 	if (!isAbsolute(options.socket) || !isAbsolute(options.state)) {
 		throw new Error("Colony requires absolute socket and state paths");
 	}
@@ -64,7 +69,7 @@ export async function serve(options: ServerOptions, beads: BeadsService): Promis
 		registration: RunningColony["registration"],
 		activity: ColonyActivity,
 	) => {
-		const actor = createColony({ beads, repository, state: options.state, store }, activity);
+		const actor = createColony({ beads, repository, state: options.state, store, nurse }, activity);
 		const policy = match(activity)
 			.with({ state: "awake" }, ({ config, revisionId }) => ({ config, revisionId }))
 			/* eslint-disable-next-line unicorn/no-null --

@@ -74,6 +74,12 @@ export const policyChangeSchema = z.discriminatedUnion("kind", [
 	}),
 ]);
 export const beesConfigSchema = z.strictObject({
+	/** Automatic audit kind and ongoing native health parent; null disables new batches. */
+	auto_nurse: z
+		.strictObject({ kind: z.string().min(NONEMPTY), parent: z.string().min(NONEMPTY) })
+		.nullable()
+		// eslint-disable-next-line unicorn/no-null -- Null is the canonical disabled policy value.
+		.default(null),
 	formulas: z.record(z.string(), formulaSchema),
 	humans: z.array(z.string().min(NONEMPTY)),
 	/** Named kind used for one-shot reviews after fifteen minutes without stdout; null disables reviews. */
@@ -111,6 +117,14 @@ export function parseBeesConfig(text: string): BeesConfig {
 /** Validate the complete effective configuration after kind sources have been combined. */
 // eslint-disable-next-line max-statements -- Validate effective kind references and formula syntax together.
 export function validateBeesConfig(config: BeesConfig): void {
+	if (config.auto_nurse !== null) {
+		const nurse = config.kinds[config.auto_nurse.kind];
+		if (!nurse || !config.formulas[nurse.harness]) {
+			throw new Error(
+				`Automatic nurse ${config.auto_nurse.kind} requires a configured kind and formula`,
+			);
+		}
+	}
 	for (const [name, kind] of Object.entries(config.kinds)) {
 		let selectors: string[] = [];
 		if ("allow" in kind) {
