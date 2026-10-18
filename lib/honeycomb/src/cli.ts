@@ -29,6 +29,7 @@ const registrations = [
 	registerStatus,
 	registerCopy,
 	registerFinish,
+	registerIntegrate,
 	registerPick,
 	registerShellInit,
 	registerConfig,
@@ -203,6 +204,18 @@ function registerRemove(program: Command, deps: Deps): void {
 		.option("--force", "Force removal")
 		.option("--keep-branch", "Remove/free worktree without deleting branch")
 		.option(
+			"--integrated-into-local <branch>",
+			"Prove pinned local ancestry and remove a regular --self checkout",
+		)
+		.option(
+			"--expected-source <oid>",
+			"Full reviewed source OID; required by --integrated-into-local",
+		)
+		.option(
+			"--expected-target <oid>",
+			"Full local destination OID; required by --integrated-into-local",
+		)
+		.option(
 			"--integrated-into <origin/ref>",
 			"Delete a clean branch only after proving its content is in this fetched ref",
 		)
@@ -257,6 +270,33 @@ function registerFinish(program: Command, deps: Deps): void {
 		)
 		.addHelpText("after", HELP.finish)
 		.action((_opts, command) => runAction("finish", optsToArgs(command.optsWithGlobals()), deps));
+}
+
+function registerIntegrate(program: Command, deps: Deps): void {
+	program
+		.command("integrate")
+		.summary("Fast-forward an explicit local feature worktree")
+		.description(
+			"Integrate the current task checkout into a pinned registered noncanonical feature checkout.",
+		)
+		.option(
+			"--into <branch>",
+			"Explicit local feature destination branch; required for integration",
+		)
+		.option("--expected-source <oid>", "Full reviewed source commit OID; required for integration")
+		.option(
+			"--expected-target <oid>",
+			"Full validated destination commit OID; required for integration",
+		)
+		.option(
+			"--schema",
+			"Print integration, local cleanup and failure JSON schemas without repository access",
+		)
+		.option("--json", "Machine-readable output")
+		.addHelpText("after", HELP.integrate)
+		.action((_opts, command) =>
+			runAction("integrate", optsToArgs(command.optsWithGlobals()), deps),
+		);
 }
 
 function registerPick(program: Command, deps: Deps): void {

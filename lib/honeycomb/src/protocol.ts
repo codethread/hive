@@ -15,6 +15,7 @@ const BOOLEAN_OPTIONS = new Set([
 	"--no-network",
 	"--skip-command",
 	"--self",
+	"--schema",
 ]);
 
 const NO_OUTPUT: JsonLog = { diagnostics: [], setup_output: [] };

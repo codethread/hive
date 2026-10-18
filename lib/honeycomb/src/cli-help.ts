@@ -106,6 +106,42 @@ Examples:
   honeycomb finish --title "feat: add search"   # squash policy
   honeycomb config explain --json
 `,
+	integrate: `
+Use when:
+  Delivering reviewed task commits into an explicit local feature branch. Run
+  inside the task checkout or select it with global --cwd TASK_PATH.
+
+Preconditions:
+  --into selects one registered destination. Both checkouts must be distinct,
+  clean, unlocked and noncanonical, each on a uniquely checked-out local branch
+  other than the default. Live paths, branches and repository identity must match.
+  Local origin/HEAD must symbolically designate the default name; it may dangle,
+  with no origin remote or cached origin commits. Missing designation fails.
+  Both full lowercase OID pins must match current HEADs. The destination must be
+  an ancestor of the source. Nonempty destination branch mergeOptions are refused.
+
+Effects:
+  Native ff-only integration uses local objects (Git 2.45+) and preserves the
+  source. No Honeycomb setup/finish policy, fetch, push, cleanup or shell/session
+  handoff runs. Merge hooks and recursive submodule updates are disabled.
+  Native Git filters are not a network sandbox.
+
+Caller sequence:
+  Hold qlock --merge-target BRANCH and exclusive source/target checkout use
+  through integration, postcondition proof and local cleanup. The queue identity
+  does not select the destination. Finish reviews before entering the queue.
+  On stale pins, release it, refresh, revalidate/review and requeue.
+  After success, see remove --help for --integrated-into-local cleanup.
+
+Receipts:
+  --json reports checkout identities and pinned/observed OIDs. Failures can retain
+  integrated=true. After integration_attempted=true, absent integrated means
+  unknown; target_after_oid is present only if observed. Inspect native Git and
+  filesystem state after failure or interruption before repair/retry. Pins and
+  receipts do not make the operation atomic; no automatic rollback or retry runs.
+  honeycomb integrate --schema --json exposes integration, cleanup and failure
+  envelopes without repository access.
+`,
 	list: `
 Use when:
   Discovering existing worktrees, identifying the canonical root, or inspecting
@@ -134,9 +170,8 @@ JSON output:
   diagnostics.
 
 Safety:
-  Unforced destructive operations refuse dirty, ahead, local-only, canonical-root,
-  or otherwise ambiguous states. Use --force only when discarding local work is
-  intentional. finish can push and clean up according to configured policy.
+  Cleanup protects the canonical root. Read remove --help for branch-deletion
+  proofs and force behavior. finish can push and clean up according to policy.
 
 Use honeycomb <command> --help for command behaviour, flags, and examples.
 `,
@@ -170,7 +205,7 @@ Use when:
   path when a wrapper or agent wants to remove the checkout it is operating in.
   Pooled removal recycles an existing slot without initializing it or other slots.
 
-Safety:
+Ordinary removal:
   The canonical root is protected. Without --force, removal refuses dirty or
   otherwise ambiguous work. Without --keep-branch, it also refuses ahead,
   local-only, or unmerged branches. --keep-branch removes only the clean
@@ -179,6 +214,21 @@ Safety:
   target and requires its source-relative changes to be content-equivalent before
   removing both checkout and branch. It cannot be combined with --force or
   --keep-branch.
+
+Local feature delivery:
+  --self --integrated-into-local BRANCH uses integrate's checkout, default-name
+  and full-pin checks; see integrate --help for caller sequencing and schemas.
+  Keep --expected-source at the reviewed OID; set --expected-target to the observed
+  current destination OID after integration. Cleanup proves source ancestry in
+  that target, removes the regular task worktree without force, then deletes its
+  branch only if the ref still matches the source pin. No upstream or origin
+  history is needed. Pooled sources and --branch, --force, --keep-branch,
+  --integrated-into or --interactive combinations are refused.
+  Run from a surviving checkout with global --cwd TASK_PATH selecting the source.
+  Continue workflow commands from that surviving checkout after removal.
+  Failures retain confirmed cleanup_actions, including removal before failed
+  branch deletion. Inspect native state before repair/retry; the receipt is not
+  an atomic transaction log.
 
 Related:
   finish can integrate a completed worktree and then clean it up as one

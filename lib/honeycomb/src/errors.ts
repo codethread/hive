@@ -24,10 +24,26 @@ export interface FailureContext {
 	slot_path?: string | undefined;
 	/** Setup command exit status, when setup failed. */
 	setup_exit_code?: number | undefined;
-	/** Whether finish integrated the source before failing. */
+	/** Whether integration is confirmed after a failure; absent when unknown. */
 	integrated?: boolean | undefined;
-	/** Finish cleanup actions that completed before failing. */
+	/** Cleanup actions that completed before failing. */
 	cleanup_actions?: string[] | undefined;
+	/** Canonical root identifying a local delivery repository. */
+	root?: string | undefined;
+	/** Registered local destination checkout. */
+	target_worktree_path?: string | undefined;
+	/** Local source branch verified for delivery. */
+	source_branch?: string | undefined;
+	/** Explicit local destination branch. */
+	target_branch?: string | undefined;
+	/** Verified source commit. */
+	source_oid?: string | undefined;
+	/** Verified destination before mutation. */
+	target_before_oid?: string | undefined;
+	/** Destination commit observed after a mutation, when known. */
+	target_after_oid?: string | undefined;
+	/** Whether a local integration mutation was attempted. */
+	integration_attempted?: boolean | undefined;
 }
 
 /** Base of every expected failure; the CLI boundary formats it for humans and machines. */
@@ -150,6 +166,12 @@ export class NonFastForwardCanonicalError extends BlockedError {
 // oxlint-disable-next-line unicorn/custom-error-definition
 export class TargetNotFreshError extends BlockedError {
 	override readonly reason = "target_not_fresh";
+}
+
+// HoneycombError derives the concrete name from new.target.
+// oxlint-disable-next-line unicorn/custom-error-definition
+export class SourceNotFreshError extends BlockedError {
+	override readonly reason = "source_not_fresh";
 }
 
 // HoneycombError derives the concrete name from new.target, including external subclasses.

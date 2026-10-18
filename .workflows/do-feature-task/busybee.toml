@@ -1,0 +1,3 @@
+description = "Deliver one isolated feature task through exact Architect review, local integration and cleanup"
+version = "0.1.0"
+run = "./workflow.ts"

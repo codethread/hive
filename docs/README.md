@@ -16,6 +16,7 @@
 - [Busy Bee](../lib/busybee/README.md) — run workflows as Beads tasks.
 - [Busy Bee specification](../lib/busybee/SPEC.md) — read before changing workflow projection or completion.
 - [Authoring Busy Bee workflows](./busybee-workflows.md) — read before authoring or refactoring definitions; explicit charts and visualizer visibility.
+- [Independent feature tasks](../lib/busybee/README.md#deliver-independent-feature-tasks) — plan vertical slices and dispatch each through reviewed local feature-base delivery.
 - [Landing agreed work](../lib/busybee/README.md#landing-from-the-current-state) — triage, enforced completion checks, review and integration in the [Land definition](../.workflows/land/workflow.ts).
 
 ## Design and contracts

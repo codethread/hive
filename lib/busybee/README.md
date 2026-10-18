@@ -138,6 +138,18 @@ bun lib/busybee/examples/change-review/demo.ts --owner ct --actor codex
 
 The demo creates its original work bead and prints `repo`, `db`, `parent`, `inputFile` and `run`. For your own change, use `input-schema --source` on the definition: input includes `title`, `request`, full base commit `base` and `execution: {"mode":"driver-handled"}`. For Bee dispatch, use `execution: {"mode":"bee-dispatched","kind":"worker"}` with a kind listed by `bee kinds`. Agents supply revision fingerprints; Busy Bee does not calculate them independently.
 
+## Deliver independent feature tasks
+
+Hive's repository catalogue includes [do-feature-task](../../.workflows/do-feature-task/workflow.ts). The original planning agent prepares the feature brief and a clean feature-base worktree, then defines independently deliverable vertical slices as native tasks. Record prerequisites between slices and a separate dependent task for feature-wide acceptance. Each task bee drives its own run; no additional feature coordinator is needed. Native prerequisites and Colony capacity govern admission.
+
+Establish the accepted workflow catalogue in the canonical checkout before queuing tasks, then read `busybee --repo CANONICAL_ROOT input-schema do-feature-task --json`. Fill the input from original briefs, native task relationships, checkout/tracker identities and prior delivery receipts. The feature base must be distinct from the canonical checkout and default branch. Input records explicit authorization for local commits, feature-base integration and post-done source closure; supplying `true` does not grant that authority.
+
+Use `bee spawn --help` to dispatch a `slow-worker` with `--workflow do-feature-task --parent SOURCE_ID --input-file FILE --cwd CANONICAL_ROOT`. Repeat beneath each source task and retain its request and run IDs. The kind's default `do-work` remains suitable for report helpers; select `do-feature-task` explicitly for this delivery. The workflow and specialist kinds are repository configuration: installing the executables alone does not add them to another repository.
+
+Keep workflow controls and helper requests in that canonical checkout; the run brief owns selection and recovery procedures. Work occurs in the isolated child and integrates into the feature base, so changing the feature's catalogue cannot replace the active control definition. Canonical catalogue or tool upgrades still require preflight and coordination with active runs.
+
+Each driver creates a regular isolated child from the latest eligible base and follows the active briefs through Bookworm, complete locked checks, independent Reviewer and exact combined-candidate Architect review. Required Librarian consultations still apply; [specialist guidance](../../docs/agents/specialists.md#operational-architecture) owns authority and outcomes. [Honeycomb's local-delivery guide](../honeycomb/README.md#local-feature-delivery) routes to the integration and cleanup contracts. After cleanup and Busy Bee `done`, the same authorized driver closes only its satisfied source task to release dependents. A failed caller tail leaves that source open and the completed run done. Feature acceptance, main landing, pushes, installs and tracker publication require their own authorization.
+
 ## Landing from the current state
 
 The repository's [Land workflow](../../.workflows/land/workflow.ts) owns triage, completion checks, review, integration, local tool refresh and cleanup. It requires an explicit user request to land the agreed scope. Read `busybee input-schema land`, then the run and active stage briefs; starting a workflow does not grant landing authority.

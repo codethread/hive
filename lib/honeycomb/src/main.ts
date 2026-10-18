@@ -1,3 +1,4 @@
+/* eslint-disable import/max-dependencies -- Compose public command handlers at the dispatch boundary. */
 import type { CommandResult, OutputMode } from "./protocol.ts";
 import {
 	configCommand,
@@ -14,6 +15,7 @@ import type { Deps } from "./services.ts";
 import { UsageError } from "./errors.ts";
 import { addCommand } from "./commands/add.ts";
 import { finishCommand } from "./commands/finish.ts";
+import { integrateCommand } from "./commands/integrate.ts";
 import { pickCommand } from "./commands/pick.ts";
 import { removeCommand } from "./commands/remove.ts";
 import { shellInitCommand } from "./commands/shell-init.ts";
@@ -27,6 +29,7 @@ const handlers: Partial<
 	copy: copyCommand,
 	ensure: ensureCommand,
 	finish: finishCommand,
+	integrate: integrateCommand,
 	list: listCommand,
 	path: pathCommand,
 	pick: pickCommand,

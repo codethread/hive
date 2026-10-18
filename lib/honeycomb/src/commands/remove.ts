@@ -1,3 +1,4 @@
+/* eslint-disable import/max-dependencies -- Route local proof cleanup alongside the existing lifecycle command. */
 import type { CommandResult, OutputMode } from "../protocol.ts";
 import { HoneycombError, UsageError, withFailureContext } from "../errors.ts";
 import type { ProjectConfig, TreesConfig, WorktreeLocation } from "../domain/config.ts";
@@ -17,6 +18,7 @@ import type { Deps } from "../services.ts";
 import type { Worktree } from "../domain/worktree.ts";
 import { planLeaveWorktree } from "../application/interactive.ts";
 import { recycleSlot } from "../application/pool.ts";
+import { removeLocalCommand } from "./remove-local.ts";
 import { runPreRemoteCheck } from "../application/hooks.ts";
 
 interface RemoveRequest {
@@ -62,7 +64,14 @@ interface RemoveOperation {
 	target: Worktree;
 }
 
-export async function removeCommand(args: string[], deps: Deps): Promise<CommandResult> {
+export function removeCommand(args: string[], deps: Deps): Promise<CommandResult> {
+	if (args.includes("--integrated-into-local")) {
+		return removeLocalCommand(args, deps);
+	}
+	return removeStandardCommand(args, deps);
+}
+
+async function removeStandardCommand(args: string[], deps: Deps): Promise<CommandResult> {
 	const request = parseRemoveRequest(args);
 	let targetPath: string | undefined = undefined;
 	try {
@@ -96,6 +105,9 @@ function optionalRef(value: string | boolean | undefined): string | null {
 
 function parseRemoveRequest(args: string[]): RemoveRequest {
 	const opts = parseOptions(args);
+	if (opts["expected-source"] || opts["expected-target"]) {
+		throw new UsageError("review pins require --integrated-into-local");
+	}
 	const request: RemoveRequest = {
 		branch: optionalRef(opts.branch),
 		cwd: requireOption(opts, "cwd"),

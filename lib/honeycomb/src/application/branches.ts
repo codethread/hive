@@ -90,6 +90,11 @@ export async function readLocalDefaultBranch(git: GitRunner, root: string): Prom
 	const args = ["-C", root, "symbolic-ref", "--quiet", "refs/remotes/origin/HEAD"];
 	const symbolic = await git.runRaw(args);
 	if (symbolic.exitCode === EXIT_CODES.SUCCESS) {
+		if (!symbolic.stdout.trim().startsWith("refs/remotes/origin/")) {
+			throw new TrunkDetectionError(
+				"origin/HEAD must designate an origin remote-tracking branch name",
+			);
+		}
 		return parseTrunkFromSymbolicRef(symbolic.stdout);
 	}
 	if (symbolic.exitCode !== NOT_SYMBOLIC) {

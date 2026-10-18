@@ -135,6 +135,18 @@ Use this to see what config applies to the current repository:
 honeycomb config explain --json
 ```
 
+## Local feature delivery
+
+`integrate` fast-forwards reviewed task commits into an explicit local feature checkout. A separate `remove --integrated-into-local` proves commit ancestry before deleting the regular task checkout and its branch. Use `finish` for the configured canonical/default-branch lifecycle.
+
+See command help for required revision pins, checkout checks, local default-branch metadata, caller serialization, cleanup and recovery after partial changes:
+
+```bash
+honeycomb integrate --help
+honeycomb remove --help
+honeycomb integrate --schema --json
+```
+
 ## Worktree ancestry tree
 
 ```nu
