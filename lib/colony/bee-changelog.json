@@ -1,5 +1,17 @@
 [
 	{
+		"version": "0.7.0",
+		"changes": [
+			{
+				"commit": "ca1f4b0c6595de80263b22cb38f053bb82b3663f",
+				"summary": "remove bee list",
+				"body": "The `bee list` command has been removed.\n\nRequired: update `bee list` callers to use focused native Beads queries for\nrequest discovery, then use exact request IDs with `bee status`, `bee result`\nor `bee stop`. Read each command's focused `--help` before use.",
+				"breaking": ["remove bee list"],
+				"adoption": []
+			}
+		]
+	},
+	{
 		"version": "0.6.3",
 		"changes": [
 			{

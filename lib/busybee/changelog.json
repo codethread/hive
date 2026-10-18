@@ -1,5 +1,9 @@
 [
 	{
+		"version": "0.7.0",
+		"changes": []
+	},
+	{
 		"version": "0.6.3",
 		"changes": [
 			{

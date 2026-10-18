@@ -1,5 +1,19 @@
 [
 	{
+		"version": "0.7.0",
+		"changes": [
+			{
+				"commit": "1ffa13b7c791d662713295a23b1c85e762f76d6d",
+				"summary": "relocate the Hive workflow skill source",
+				"body": "The optional hive workflow skill now lives at lib/beeswax/skills/hive.\nBeeswax setup and the documented manual installer use\nhttps://github.com/codethread/hive/tree/main/lib/beeswax/skills/hive.\nThe skill content is unchanged. Hive also adopts it locally through the\nupstream installer, retaining its project copy and generated lock entry.\n\nRequired: update saved installer commands that use the former public source\nURL to the new URL. If using Beeswax setup to install the skill, upgrade to\na Beeswax release with the new source URL first.\n\nOptional: install the skill for a consuming repository that wants these\ncustomizable work conventions. Follow beeswax setup --help or the Beeswax\nREADME's skill-only installer example and review the installed files.\nExisting installed copies need no migration; Beeswax sync and update leave\nthem unchanged.\n\nBREAKING CHANGE: the public source moves from skills/hive to\nlib/beeswax/skills/hive. Saved installer URLs and older Beeswax releases\nstill target the removed source path.",
+				"breaking": [
+					"the public source moves from skills/hive to\nlib/beeswax/skills/hive. Saved installer URLs and older Beeswax releases\nstill target the removed source path."
+				],
+				"adoption": []
+			}
+		]
+	},
+	{
 		"version": "0.6.3",
 		"changes": [
 			{
