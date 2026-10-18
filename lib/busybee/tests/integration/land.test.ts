@@ -14,9 +14,14 @@ import { createMemoryBeads } from "@hive/beads";
 import { createServices } from "../../src/native.ts";
 import { invoke } from "./support.ts";
 import manifest from "../../../../.workflows/land/busybee.toml" with { type: "text" };
+import { spawnRequestLabels } from "@hive/shared";
 
 const FIRST = 0;
 const ID_ARGUMENT = 1;
+const ONE_REQUEST = 1;
+const DISPATCH_STAGE_ARGUMENT = 3;
+const DISPATCH_RUN_ARGUMENT = 5;
+const DISPATCH_PREFIX = 6;
 const worktreeTarget = { kind: "worktree", branch: "simulated-work" } as const;
 const evidence = "SIMULATED transport evidence only; no real approval, merge or publication.";
 const outcome = { evidence };
@@ -170,6 +175,110 @@ const closureWarmup = await closureFixture(closureCases[FIRST]!);
 await closureWarmup.beads.close(closureWarmup.scope, closureWarmup.run.active[FIRST]!.bead);
 await navigate({ id: closureWarmup.run.id, operation: "collect" }, {}, closureWarmup.io);
 
+// Warm dispatch parsing before measuring independently prepared publication and collection cases.
+const reviewerWarmup = await reviewerFixture("check");
+await saveReviewOutcome(reviewerWarmup, "passed", outcome);
+await navigate({ id: reviewerWarmup.run.id, operation: "collect" }, {}, reviewerWarmup.io);
+const dispatchRun = await reviewerFixture("check");
+await saveReviewOutcome(dispatchRun, "passed", outcome);
+const reviewCases: { choice: "approved" | "changes"; target: "commit" | "implement" }[] = [
+	{ choice: "approved", target: "commit" },
+	{ choice: "changes", target: "implement" },
+];
+const reviewRuns = new Map(
+	await Promise.all(
+		reviewCases.map(async ({ choice }) => {
+			const fixture = await reviewerFixture("review");
+			let data: typeof outcome | typeof reviewed = outcome;
+			const receipt = { ...review, bead: fixture.run.active[FIRST]!.bead };
+			if (choice === "approved") {
+				data = { evidence, review: receipt };
+			}
+			await saveReviewOutcome(fixture, choice, data);
+			return [choice, { ...fixture, receipt }] as const;
+		}),
+	),
+);
+
+const repairRun = await reviewerFixture("review");
+const previousReview = repairRun.run.active[FIRST]!;
+await saveReviewOutcome(repairRun, "changes", outcome);
+repairRun.run = await navigate({ id: repairRun.run.id, operation: "collect" }, {}, repairRun.io);
+await saveReviewOutcome(repairRun, "next", outcome);
+repairRun.run = await navigate({ id: repairRun.run.id, operation: "collect" }, {}, repairRun.io);
+await saveReviewOutcome(repairRun, "passed", outcome);
+
+// The authored workflow drives dispatch; only the process and tracker adapters are replaced.
+// eslint-disable-next-line max-statements
+test("Land dispatches its existing review visit after the driver's passing checks", async () => {
+	const { beads, calls, io, run, scope } = dispatchRun;
+	expect(calls).toEqual([]);
+	const reviewing = await navigate({ id: run.id, operation: "collect" }, {}, io);
+	const stage = reviewing.active[FIRST]!;
+	expect(stage.title).toBe(`${titles.review}: worktree ${worktreeTarget.branch}`);
+	expect(calls[FIRST]!.slice(FIRST, DISPATCH_PREFIX)).toEqual([
+		"bee",
+		"dispatch-stage",
+		"reviewer",
+		stage.bead,
+		"--run",
+		run.id,
+	]);
+	const task = await beads.show(scope, stage.bead);
+	expect(task).toMatchObject({
+		dependencies: expect.arrayContaining([
+			expect.objectContaining({ id: run.id, dependency_type: "parent-child" }),
+		]),
+	});
+	expect(task.assignee).toBeUndefined();
+	expect(await beads.show(scope, stage.request!)).toMatchObject({
+		description: expect.stringContaining(
+			JSON.stringify({ kind: "stage", runId: run.id, stageId: stage.bead }),
+		),
+	});
+	expect(await navigate({ id: run.id, operation: "collect" }, {}, io)).toEqual(reviewing);
+	expect(calls).toHaveLength(ONE_REQUEST);
+});
+
+test.each(reviewCases)(
+	"Land collects reviewer $choice into driver-owned $target",
+	async ({ choice, target }) => {
+		const { beads, calls, io, run, scope, receipt } = reviewRuns.get(choice)!;
+		const next = await navigate({ id: run.id, operation: "collect" }, {}, io);
+		expect(next.active).toMatchObject([
+			{ title: `${titles[target]}: worktree ${worktreeTarget.branch}`, context: { evidence } },
+		]);
+		expect(next.active[FIRST]!.request).toBeNull();
+		expect(await beads.show(scope, next.active[FIRST]!.bead)).toMatchObject({
+			assignee: "land-driver",
+		});
+		if (choice === "approved") {
+			expect(next.active[FIRST]!.context["review"]).toEqual(receipt);
+		} else {
+			expect(next.active[FIRST]!.context["review"]).toBeUndefined();
+		}
+		expect(calls).toHaveLength(ONE_REQUEST);
+	},
+);
+
+test("Land dispatches a fresh reviewer visit after driver repair and checks", async () => {
+	const { calls, io, run } = repairRun;
+	const next = await navigate({ id: run.id, operation: "collect" }, {}, io);
+	const stage = next.active[FIRST]!;
+	expect(stage.title).toBe(`${titles.review}: worktree ${worktreeTarget.branch}`);
+	expect(stage.bead).not.toBe(previousReview.bead);
+	expect(stage.request).not.toBe(previousReview.request);
+	expect(stage.context["review"]).toBeUndefined();
+	expect(calls.at(-ONE_REQUEST)!.slice(FIRST, DISPATCH_PREFIX)).toEqual([
+		"bee",
+		"dispatch-stage",
+		"reviewer",
+		stage.bead,
+		"--run",
+		run.id,
+	]);
+});
+
 test.each(paths)(
 	"the actual land chart navigates $name without executing landing effects",
 	({ target, steps }) => {
@@ -195,15 +304,15 @@ test("landing briefs keep the passing check gate with the worker before agent re
 	const checkTask = landingTask(check);
 	expect(checkTask.instructions).toContain("Run `bun run check` for the complete change");
 	expect(checkTask.instructions).toContain(
-		"Choose passed only when `bun run check` exits successfully for that revision",
+		"Choose passed only when `bun run check` exits successfully",
 	);
 	const [reviewing] = transition(machine, check, { data: outcome, type: "PASSED" });
 	const reviewTask = landingTask(reviewing);
 	expect(reviewTask.instructions).toContain(
-		"reviewer consultation only after `bun run check` passes for this revision",
+		"driver owns the passing `bun run check` prerequisite and its evidence",
 	);
 	expect(reviewTask.instructions).toContain(
-		"reviewer assesses code and test quality without rerunning checks or auditing test-run evidence",
+		"Assess code and test quality without rerunning checks or auditing test-run evidence",
 	);
 });
 
@@ -388,6 +497,76 @@ async function closureFixture({ caller, completeParent }: (typeof closureCases)[
 	return { beads: io.beads, completed: completed.id, io, order, parent: parent.id, run, scope };
 }
 
+// Prepare the authored frontier with only memory tracker and process adapters.
+// eslint-disable-next-line max-statements
+async function reviewerFixture(initial: "check" | "review") {
+	const repo = "/land-review";
+	const db = "/land-review-tracker/beads.db";
+	const scope = { actor: "land-driver", cwd: repo, db };
+	const beads = createMemoryBeads({ db });
+	const calls: string[][] = [];
+	const input = landingInput(db, "/surviving", worktreeTarget);
+	const io = {
+		...createServices(),
+		actor: scope.actor,
+		cwd: repo,
+		beads,
+		importModule: () => Promise.resolve({ commandSchemas, inputSchema, machine, runBrief }),
+		readBytes: () => Promise.resolve(new ArrayBuffer(FIRST)),
+		readText: () => Promise.resolve(JSON.stringify(input)),
+		execute: async (argv: string[]) => {
+			calls.push(argv);
+			const stageId = argv[DISPATCH_STAGE_ARGUMENT]!;
+			const runId = argv[DISPATCH_RUN_ARGUMENT]!;
+			const request = await beads.create(scope, {
+				title: "Simulated reviewer request",
+				owner: "ct",
+				assignee: "simulated-reviewer",
+				labels: spawnRequestLabels("reviewer"),
+				description: JSON.stringify({
+					cwd: repo,
+					effort: "low",
+					harness: "fixture",
+					kind: "reviewer",
+					model: "fixture",
+					prompt: "Review assigned visit",
+					system_prompt: "Reviewer",
+					assignment: { kind: "stage", runId, stageId },
+				}),
+			});
+			await beads.dep.add(scope, request.id, stageId, "related");
+			return JSON.stringify({ ok: true, request: { id: request.id } });
+		},
+	};
+	const parent = await beads.create(scope, { title: "Original work", owner: "ct" });
+	const run = await start(
+		"workflow.ts",
+		{ owner: "ct", assignee: scope.actor, parent: parent.id, inputFile: "input.json" },
+		io,
+	);
+	const triage = run.active[FIRST]!.bead;
+	await recordResult({ id: run.id, bead: triage, choice: initial, data: outcome }, {}, io);
+	await beads.close(scope, triage);
+	return {
+		beads,
+		calls,
+		io,
+		run: await navigate({ id: run.id, operation: "collect" }, {}, io),
+		scope,
+	};
+}
+
+async function saveReviewOutcome(
+	fixture: Awaited<ReturnType<typeof reviewerFixture>>,
+	choice: string,
+	data: typeof outcome | typeof reviewed,
+) {
+	const { beads, io, run, scope } = fixture;
+	const { bead } = run.active[FIRST]!;
+	await recordResult({ id: run.id, bead, choice, data }, {}, io);
+	await beads.close(scope, bead);
+}
+
 function assertPureTransition([snapshot, effects]: [SnapshotFrom<typeof machine>, unknown[]]) {
 	expect(effects).toEqual([]);
 	return snapshot;
@@ -436,6 +615,11 @@ function assertChartTask(
 		}
 	}
 	expect(task.commands?.[choice]).toBe(events[choice]);
+	if (stage === "review") {
+		expect(task.bee).toEqual({ kind: "reviewer" });
+	} else {
+		expect(task.bee).toBeUndefined();
+	}
 	assertRetainedContext(task.instructions, input);
 }
 

@@ -103,7 +103,11 @@ export function beadHandlers(source: Hierarchy, detail: (id: string) => Detail) 
 			const nodes = new Map(
 				ids.flatMap((id) => fixtureFamily(id, source).nodes).map((node) => [node.id, node]),
 			);
-			return HttpResponse.json({ fetchedAt: OBSERVED_AT, nodes: [...nodes.values()] });
+			return HttpResponse.json({
+				stale: source.stale,
+				fetchedAt: OBSERVED_AT,
+				nodes: [...nodes.values()],
+			});
 		}),
 		http.get("/api/colonies/:colony/beads/:id", ({ params }) =>
 			HttpResponse.json(detail(String(params["id"]))),

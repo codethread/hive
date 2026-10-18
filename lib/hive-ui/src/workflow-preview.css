@@ -1,40 +1,3 @@
-.workflow-workshop {
-	min-height: 100vh;
-	padding: 32px;
-	background: var(--canvas);
-}
-.workflow-workshop-header {
-	display: flex;
-	align-items: start;
-	justify-content: space-between;
-	gap: 24px;
-	margin-bottom: 24px;
-}
-.workflow-eyebrow {
-	font-family: monospace;
-	color: var(--muted);
-	font-size: 11px;
-	letter-spacing: 0.1em;
-}
-.workflow-workshop-header h1 {
-	font-size: clamp(24px, 3vw, 36px);
-	font-weight: 500;
-	letter-spacing: -0.04em;
-	margin: 10px 0;
-}
-.workflow-workshop-header p:last-child {
-	color: var(--muted);
-	font-size: 14px;
-}
-.workflow-source-notice {
-	display: flex;
-	align-items: center;
-	gap: 10px;
-	padding: 14px 0;
-	border-top: 1px solid var(--line);
-	color: var(--muted);
-	font-size: 12px;
-}
 .workflow-status-dot {
 	display: inline-block;
 	width: 6px;
@@ -43,37 +6,6 @@
 	background: var(--accent);
 	flex-shrink: 0;
 }
-.workflow-sample-board {
-	display: grid;
-	grid-template-columns: repeat(3, minmax(0, 1fr));
-	gap: 20px;
-	min-height: 60vh;
-}
-.workflow-sample-column {
-	background: var(--panel);
-	border: 1px solid var(--line);
-	border-radius: 12px;
-	padding: 16px;
-}
-.workflow-sample-column h2 {
-	display: flex;
-	justify-content: space-between;
-	font-size: 13px;
-	color: var(--muted);
-	margin: 0 0 24px;
-}
-.workflow-sample-column h2 span {
-	opacity: 0.6;
-}
-.workflow-card-caption {
-	font-size: 11px;
-	color: var(--muted);
-	margin: 14px 4px;
-}
-.workflow-card-caption code {
-	color: var(--accent);
-	margin-left: 6px;
-}
 .workflow-overlay {
 	position: fixed;
 	inset: 0;
@@ -81,6 +13,8 @@
 	background: #0008;
 }
 .workflow-dialog {
+	--workflow-gap: 8px;
+	--workflow-gutter: 12px;
 	position: fixed;
 	z-index: 61;
 	display: flex;
@@ -91,53 +25,67 @@
 	box-shadow: 0 24px 80px #0006;
 }
 .workflow-dialog-modal {
-	inset: 4vh 3vw;
-	border-radius: 14px;
+	inset: var(--workflow-gap);
+	border-radius: 8px;
 	overflow: hidden;
 }
 .workflow-dialog-heading {
-	padding: 12px 20px;
+	position: relative;
+	min-height: 44px;
+	padding: 4px var(--workflow-gutter);
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
+	gap: var(--workflow-gap);
+	flex-shrink: 0;
 	border-bottom: 1px solid var(--line);
 }
-.workflow-dialog-heading h2 {
+.workflow-run-heading {
 	display: flex;
 	align-items: center;
-	gap: 8px;
-	font-size: 13px;
+	gap: var(--workflow-gap);
+	flex: 1;
+	min-width: 0;
 }
-.workflow-dialog-heading h2 svg {
-	width: 16px;
-	color: var(--accent);
+.workflow-run-heading h3 {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-size: var(--text-sm);
+	font-weight: var(--font-weight-medium);
 }
-.workflow-preview-heading {
-	padding: 20px 24px;
-}
-.workflow-preview-heading h3 {
-	font-size: 20px;
-	font-weight: 500;
-	letter-spacing: -0.025em;
-	margin: 8px 0 14px;
-}
-.workflow-preview-facts {
-	display: flex;
-	flex-wrap: wrap;
-	align-items: center;
-	gap: 12px;
-	font-size: 11px;
+.workflow-run-id {
+	font-family: var(--font-mono);
+	font-size: var(--text-xs);
 	color: var(--muted);
+	white-space: nowrap;
+}
+.workflow-dialog-actions {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	flex-shrink: 0;
 }
 .workflow-current-state {
 	display: inline-flex;
+	flex-shrink: 0;
 	align-items: center;
-	gap: 7px;
+	gap: 6px;
 	border: 1px solid var(--line);
-	border-radius: 20px;
-	padding: 5px 10px;
+	border-radius: 6px;
+	padding: 3px 8px;
 	color: var(--accent);
-	font-family: monospace;
+	font-family: var(--font-mono);
+	font-size: var(--text-xs);
+	max-width: 30%;
+	overflow: hidden;
+	white-space: nowrap;
+}
+.workflow-state-value {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
 }
 .workflow-preview-body {
 	display: flex;
@@ -145,75 +93,79 @@
 	min-height: 0;
 	flex: 1;
 }
-.workflow-preview-toolbar {
-	padding: 10px 20px;
-	border-block: 1px solid var(--line);
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	gap: 12px;
-}
-.workflow-preview-toolbar output {
-	color: var(--muted);
-	font-size: 11px;
-}
-.workflow-editor {
-	flex: 1;
-	min-height: 180px;
-	position: relative;
-	background: var(--panel);
-}
-.workflow-editor iframe {
-	display: block;
-	width: 100%;
-	height: 100%;
-	position: absolute;
-	inset: 0;
-	border: 0;
-}
 .workflow-provenance {
-	padding: 12px 20px;
-	border-top: 1px solid var(--line);
 	color: var(--muted);
-	font-size: 11px;
-	max-height: 160px;
-	overflow: auto;
+	font-size: var(--text-xs);
 }
 .workflow-provenance summary {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+	min-width: 32px;
+	min-height: 32px;
+	padding: 4px 8px;
+	border-radius: 6px;
 	cursor: pointer;
+	list-style: none;
 }
-.workflow-provenance p {
-	margin-top: 10px;
-	max-width: 100ch;
+.workflow-provenance summary::-webkit-details-marker {
+	display: none;
+}
+.workflow-provenance summary:hover,
+.workflow-provenance[open] summary {
+	background: var(--raised);
+	color: var(--ink);
+}
+.workflow-provenance summary:focus-visible {
+	outline: 2px solid var(--accent);
+	outline-offset: 2px;
+}
+.workflow-provenance[data-source-match="compatible"] summary {
+	color: var(--active);
+}
+.workflow-provenance-content {
+	position: absolute;
+	z-index: 20;
+	top: calc(100% + var(--workflow-gap));
+	right: var(--workflow-gutter);
+	width: min(480px, calc(100vw - 48px));
+	max-height: 65dvh;
+	overflow: auto;
+	padding: 16px;
+	border: 1px solid var(--line);
+	border-radius: 8px;
+	background: var(--panel);
+	box-shadow: 0 8px 32px #0004;
+	line-height: 1.6;
+}
+.workflow-provenance-content p {
+	margin-top: var(--workflow-gap);
+}
+.workflow-source-facts {
+	display: grid;
+	gap: 4px;
+}
+.workflow-source-facts > div {
+	display: grid;
+	grid-template-columns: 72px minmax(0, 1fr);
+	gap: var(--workflow-gap);
+}
+.workflow-source-facts dd {
+	color: var(--ink);
+	overflow-wrap: anywhere;
 }
 @media (max-width: 760px) {
-	.workflow-workshop {
-		padding: 16px;
-	}
-	.workflow-sample-board {
-		grid-template-columns: 1fr;
-		min-height: 0;
-	}
-	.workflow-sample-column {
-		padding: 12px;
-	}
-	.workflow-sample-column h2 {
-		margin-bottom: 12px;
-	}
 	.workflow-dialog-modal {
 		inset: 0;
 		width: 100%;
 		border-radius: 0;
 	}
-	.workflow-preview-heading {
-		padding: 12px;
+	.workflow-run-id {
+		display: none;
 	}
-	.workflow-preview-heading h3 {
-		font-size: 16px;
-	}
-	.workflow-preview-toolbar {
-		flex-wrap: wrap;
-		padding: 10px 12px;
+	.workflow-provenance summary span {
+		display: none;
 	}
 }
 

@@ -1,0 +1,1007 @@
+{
+	"started": {
+		"runId": "mem-1.2",
+		"title": "Nested Bee work",
+		"checkpoint": "mem-3",
+		"savedAt": "2026-01-01T00:00:00.015Z",
+		"definition": {
+			"label": "Explicit workflow",
+			"savedHash": "ba7efae86965d9f54a6d8fb4f449c77456a87cac2a393386642f58235f53ed51",
+			"currentHash": "ba7efae86965d9f54a6d8fb4f449c77456a87cac2a393386642f58235f53ed51",
+			"sourceMatch": "exact"
+		},
+		"actors": [
+			{
+				"id": "actor:[]",
+				"path": [],
+				"machine": {
+					"id": "nested-bees",
+					"type": "compound",
+					"initial": "team",
+					"states": {
+						"team": {
+							"id": "nested-bees.team",
+							"type": "parallel",
+							"states": {
+								"api": {
+									"id": "nested-bees.team.api",
+									"type": "compound",
+									"initial": "working",
+									"states": {
+										"working": {
+											"id": "nested-bees.team.api.working",
+											"type": "atomic",
+											"on": {
+												"xstate.done.actor.api": [
+													{
+														"target": ["#nested-bees.team.api.done"]
+													}
+												]
+											},
+											"invoke": [
+												{
+													"id": "api",
+													"src": "worker"
+												}
+											]
+										},
+										"done": {
+											"id": "nested-bees.team.api.done",
+											"type": "final"
+										}
+									}
+								},
+								"interface": {
+									"id": "nested-bees.team.interface",
+									"type": "compound",
+									"initial": "working",
+									"states": {
+										"working": {
+											"id": "nested-bees.team.interface.working",
+											"type": "atomic",
+											"on": {
+												"xstate.done.actor.interface": [
+													{
+														"target": ["#nested-bees.team.interface.done"]
+													}
+												]
+											},
+											"invoke": [
+												{
+													"id": "interface",
+													"src": "worker"
+												}
+											]
+										},
+										"done": {
+											"id": "nested-bees.team.interface.done",
+											"type": "final"
+										}
+									}
+								}
+							},
+							"on": {
+								"xstate.done.state.nested-bees.team": [
+									{
+										"target": ["#nested-bees.handoff"]
+									}
+								]
+							}
+						},
+						"handoff": {
+							"id": "nested-bees.handoff",
+							"type": "atomic",
+							"on": {
+								"REPORTED": [
+									{
+										"target": ["#nested-bees.done"]
+									}
+								]
+							}
+						},
+						"done": {
+							"id": "nested-bees.done",
+							"type": "final"
+						}
+					}
+				},
+				"snapshot": {
+					"value": {
+						"team": {
+							"api": "working",
+							"interface": "working"
+						}
+					},
+					"status": "active"
+				},
+				"instructions": {
+					"nested-bees": {
+						"kind": "none"
+					},
+					"nested-bees.team": {
+						"kind": "frozen",
+						"title": "Build both branches",
+						"instructions": "Wait for both child machines to finish implementation and review. Each visit is delegated to a separate Bee.",
+						"bead": "mem-1.2.4"
+					},
+					"nested-bees.team.api": {
+						"kind": "frozen",
+						"title": "API branch",
+						"instructions": "Complete the API child machine's work and review.",
+						"bead": "mem-1.2.4.5"
+					},
+					"nested-bees.team.api.working": {
+						"kind": "none"
+					},
+					"nested-bees.team.api.done": {
+						"kind": "none"
+					},
+					"nested-bees.team.interface": {
+						"kind": "frozen",
+						"title": "Interface branch",
+						"instructions": "Complete the interface child machine's work and review.",
+						"bead": "mem-1.2.4.6"
+					},
+					"nested-bees.team.interface.working": {
+						"kind": "none"
+					},
+					"nested-bees.team.interface.done": {
+						"kind": "none"
+					},
+					"nested-bees.handoff": {
+						"kind": "rendered",
+						"title": "Summarize both branches",
+						"instructions": "Synthesize the four completed Bee-dispatched visits."
+					},
+					"nested-bees.done": {
+						"kind": "none"
+					}
+				}
+			},
+			{
+				"id": "actor:[\"api\"]",
+				"path": ["api"],
+				"machine": {
+					"id": "nested-worker",
+					"type": "compound",
+					"initial": "implement",
+					"states": {
+						"implement": {
+							"id": "nested-worker.implement",
+							"type": "atomic",
+							"on": {
+								"IMPLEMENTED": [
+									{
+										"target": ["#nested-worker.verify"]
+									}
+								]
+							}
+						},
+						"verify": {
+							"id": "nested-worker.verify",
+							"type": "atomic",
+							"on": {
+								"VERIFIED": [
+									{
+										"target": ["#nested-worker.done"]
+									}
+								]
+							}
+						},
+						"done": {
+							"id": "nested-worker.done",
+							"type": "final"
+						}
+					}
+				},
+				"snapshot": {
+					"value": "implement",
+					"status": "active"
+				},
+				"instructions": {
+					"nested-worker": {
+						"kind": "none"
+					},
+					"nested-worker.implement": {
+						"kind": "frozen",
+						"title": "Implement API",
+						"instructions": "Implement the API change and record focused verification.",
+						"bead": "mem-1.2.4.5.7",
+						"bee": {
+							"kind": "worker",
+							"request": "mem-8"
+						}
+					},
+					"nested-worker.verify": {
+						"kind": "rendered",
+						"title": "Verify API",
+						"instructions": "Inspect the API result and its verification evidence.",
+						"bee": {
+							"kind": "reviewer"
+						}
+					},
+					"nested-worker.done": {
+						"kind": "none"
+					}
+				}
+			},
+			{
+				"id": "actor:[\"interface\"]",
+				"path": ["interface"],
+				"machine": {
+					"id": "nested-worker",
+					"type": "compound",
+					"initial": "implement",
+					"states": {
+						"implement": {
+							"id": "nested-worker.implement",
+							"type": "atomic",
+							"on": {
+								"IMPLEMENTED": [
+									{
+										"target": ["#nested-worker.verify"]
+									}
+								]
+							}
+						},
+						"verify": {
+							"id": "nested-worker.verify",
+							"type": "atomic",
+							"on": {
+								"VERIFIED": [
+									{
+										"target": ["#nested-worker.done"]
+									}
+								]
+							}
+						},
+						"done": {
+							"id": "nested-worker.done",
+							"type": "final"
+						}
+					}
+				},
+				"snapshot": {
+					"value": "implement",
+					"status": "active"
+				},
+				"instructions": {
+					"nested-worker": {
+						"kind": "none"
+					},
+					"nested-worker.implement": {
+						"kind": "frozen",
+						"title": "Implement interface",
+						"instructions": "Implement the interface change and record focused verification.",
+						"bead": "mem-1.2.4.6.9",
+						"bee": {
+							"kind": "worker",
+							"request": "mem-10"
+						}
+					},
+					"nested-worker.verify": {
+						"kind": "rendered",
+						"title": "Verify interface",
+						"instructions": "Inspect the interface result and its verification evidence.",
+						"bee": {
+							"kind": "reviewer"
+						}
+					},
+					"nested-worker.done": {
+						"kind": "none"
+					}
+				}
+			}
+		],
+		"formatVersion": 1
+	},
+	"mixed": {
+		"runId": "mem-1.2",
+		"title": "Nested Bee work",
+		"checkpoint": "mem-3",
+		"savedAt": "2026-01-01T00:00:00.026Z",
+		"definition": {
+			"label": "Explicit workflow",
+			"savedHash": "ba7efae86965d9f54a6d8fb4f449c77456a87cac2a393386642f58235f53ed51",
+			"currentHash": "ba7efae86965d9f54a6d8fb4f449c77456a87cac2a393386642f58235f53ed51",
+			"sourceMatch": "exact"
+		},
+		"actors": [
+			{
+				"id": "actor:[]",
+				"path": [],
+				"machine": {
+					"id": "nested-bees",
+					"type": "compound",
+					"initial": "team",
+					"states": {
+						"team": {
+							"id": "nested-bees.team",
+							"type": "parallel",
+							"states": {
+								"api": {
+									"id": "nested-bees.team.api",
+									"type": "compound",
+									"initial": "working",
+									"states": {
+										"working": {
+											"id": "nested-bees.team.api.working",
+											"type": "atomic",
+											"on": {
+												"xstate.done.actor.api": [
+													{
+														"target": ["#nested-bees.team.api.done"]
+													}
+												]
+											},
+											"invoke": [
+												{
+													"id": "api",
+													"src": "worker"
+												}
+											]
+										},
+										"done": {
+											"id": "nested-bees.team.api.done",
+											"type": "final"
+										}
+									}
+								},
+								"interface": {
+									"id": "nested-bees.team.interface",
+									"type": "compound",
+									"initial": "working",
+									"states": {
+										"working": {
+											"id": "nested-bees.team.interface.working",
+											"type": "atomic",
+											"on": {
+												"xstate.done.actor.interface": [
+													{
+														"target": ["#nested-bees.team.interface.done"]
+													}
+												]
+											},
+											"invoke": [
+												{
+													"id": "interface",
+													"src": "worker"
+												}
+											]
+										},
+										"done": {
+											"id": "nested-bees.team.interface.done",
+											"type": "final"
+										}
+									}
+								}
+							},
+							"on": {
+								"xstate.done.state.nested-bees.team": [
+									{
+										"target": ["#nested-bees.handoff"]
+									}
+								]
+							}
+						},
+						"handoff": {
+							"id": "nested-bees.handoff",
+							"type": "atomic",
+							"on": {
+								"REPORTED": [
+									{
+										"target": ["#nested-bees.done"]
+									}
+								]
+							}
+						},
+						"done": {
+							"id": "nested-bees.done",
+							"type": "final"
+						}
+					}
+				},
+				"snapshot": {
+					"value": {
+						"team": {
+							"api": "working",
+							"interface": "working"
+						}
+					},
+					"status": "active"
+				},
+				"instructions": {
+					"nested-bees": {
+						"kind": "none"
+					},
+					"nested-bees.team": {
+						"kind": "frozen",
+						"title": "Build both branches",
+						"instructions": "Wait for both child machines to finish implementation and review. Each visit is delegated to a separate Bee.",
+						"bead": "mem-1.2.4"
+					},
+					"nested-bees.team.api": {
+						"kind": "frozen",
+						"title": "API branch",
+						"instructions": "Complete the API child machine's work and review.",
+						"bead": "mem-1.2.4.5"
+					},
+					"nested-bees.team.api.working": {
+						"kind": "none"
+					},
+					"nested-bees.team.api.done": {
+						"kind": "none"
+					},
+					"nested-bees.team.interface": {
+						"kind": "frozen",
+						"title": "Interface branch",
+						"instructions": "Complete the interface child machine's work and review.",
+						"bead": "mem-1.2.4.6"
+					},
+					"nested-bees.team.interface.working": {
+						"kind": "none"
+					},
+					"nested-bees.team.interface.done": {
+						"kind": "none"
+					},
+					"nested-bees.handoff": {
+						"kind": "rendered",
+						"title": "Summarize both branches",
+						"instructions": "Synthesize the four completed Bee-dispatched visits."
+					},
+					"nested-bees.done": {
+						"kind": "none"
+					}
+				}
+			},
+			{
+				"id": "actor:[\"api\"]",
+				"path": ["api"],
+				"machine": {
+					"id": "nested-worker",
+					"type": "compound",
+					"initial": "implement",
+					"states": {
+						"implement": {
+							"id": "nested-worker.implement",
+							"type": "atomic",
+							"on": {
+								"IMPLEMENTED": [
+									{
+										"target": ["#nested-worker.verify"]
+									}
+								]
+							}
+						},
+						"verify": {
+							"id": "nested-worker.verify",
+							"type": "atomic",
+							"on": {
+								"VERIFIED": [
+									{
+										"target": ["#nested-worker.done"]
+									}
+								]
+							}
+						},
+						"done": {
+							"id": "nested-worker.done",
+							"type": "final"
+						}
+					}
+				},
+				"snapshot": {
+					"value": "verify",
+					"status": "active"
+				},
+				"instructions": {
+					"nested-worker": {
+						"kind": "none"
+					},
+					"nested-worker.implement": {
+						"kind": "rendered",
+						"title": "Implement API",
+						"instructions": "Implement the API change and record focused verification.",
+						"bee": {
+							"kind": "worker"
+						}
+					},
+					"nested-worker.verify": {
+						"kind": "frozen",
+						"title": "Verify API",
+						"instructions": "Inspect the API result and its verification evidence.",
+						"bead": "mem-1.2.4.5.11",
+						"bee": {
+							"kind": "reviewer",
+							"request": "mem-12"
+						}
+					},
+					"nested-worker.done": {
+						"kind": "none"
+					}
+				}
+			},
+			{
+				"id": "actor:[\"interface\"]",
+				"path": ["interface"],
+				"machine": {
+					"id": "nested-worker",
+					"type": "compound",
+					"initial": "implement",
+					"states": {
+						"implement": {
+							"id": "nested-worker.implement",
+							"type": "atomic",
+							"on": {
+								"IMPLEMENTED": [
+									{
+										"target": ["#nested-worker.verify"]
+									}
+								]
+							}
+						},
+						"verify": {
+							"id": "nested-worker.verify",
+							"type": "atomic",
+							"on": {
+								"VERIFIED": [
+									{
+										"target": ["#nested-worker.done"]
+									}
+								]
+							}
+						},
+						"done": {
+							"id": "nested-worker.done",
+							"type": "final"
+						}
+					}
+				},
+				"snapshot": {
+					"value": "implement",
+					"status": "active"
+				},
+				"instructions": {
+					"nested-worker": {
+						"kind": "none"
+					},
+					"nested-worker.implement": {
+						"kind": "frozen",
+						"title": "Implement interface",
+						"instructions": "Implement the interface change and record focused verification.",
+						"bead": "mem-1.2.4.6.9",
+						"bee": {
+							"kind": "worker",
+							"request": "mem-10"
+						}
+					},
+					"nested-worker.verify": {
+						"kind": "rendered",
+						"title": "Verify interface",
+						"instructions": "Inspect the interface result and its verification evidence.",
+						"bee": {
+							"kind": "reviewer"
+						}
+					},
+					"nested-worker.done": {
+						"kind": "none"
+					}
+				}
+			}
+		],
+		"formatVersion": 1
+	},
+	"handoff": {
+		"runId": "mem-1.2",
+		"title": "Nested Bee work",
+		"checkpoint": "mem-3",
+		"savedAt": "2026-01-01T00:00:00.057Z",
+		"definition": {
+			"label": "Explicit workflow",
+			"savedHash": "ba7efae86965d9f54a6d8fb4f449c77456a87cac2a393386642f58235f53ed51",
+			"currentHash": "ba7efae86965d9f54a6d8fb4f449c77456a87cac2a393386642f58235f53ed51",
+			"sourceMatch": "exact"
+		},
+		"actors": [
+			{
+				"id": "actor:[]",
+				"path": [],
+				"machine": {
+					"id": "nested-bees",
+					"type": "compound",
+					"initial": "team",
+					"states": {
+						"team": {
+							"id": "nested-bees.team",
+							"type": "parallel",
+							"states": {
+								"api": {
+									"id": "nested-bees.team.api",
+									"type": "compound",
+									"initial": "working",
+									"states": {
+										"working": {
+											"id": "nested-bees.team.api.working",
+											"type": "atomic",
+											"on": {
+												"xstate.done.actor.api": [
+													{
+														"target": ["#nested-bees.team.api.done"]
+													}
+												]
+											},
+											"invoke": [
+												{
+													"id": "api",
+													"src": "worker"
+												}
+											]
+										},
+										"done": {
+											"id": "nested-bees.team.api.done",
+											"type": "final"
+										}
+									}
+								},
+								"interface": {
+									"id": "nested-bees.team.interface",
+									"type": "compound",
+									"initial": "working",
+									"states": {
+										"working": {
+											"id": "nested-bees.team.interface.working",
+											"type": "atomic",
+											"on": {
+												"xstate.done.actor.interface": [
+													{
+														"target": ["#nested-bees.team.interface.done"]
+													}
+												]
+											},
+											"invoke": [
+												{
+													"id": "interface",
+													"src": "worker"
+												}
+											]
+										},
+										"done": {
+											"id": "nested-bees.team.interface.done",
+											"type": "final"
+										}
+									}
+								}
+							},
+							"on": {
+								"xstate.done.state.nested-bees.team": [
+									{
+										"target": ["#nested-bees.handoff"]
+									}
+								]
+							}
+						},
+						"handoff": {
+							"id": "nested-bees.handoff",
+							"type": "atomic",
+							"on": {
+								"REPORTED": [
+									{
+										"target": ["#nested-bees.done"]
+									}
+								]
+							}
+						},
+						"done": {
+							"id": "nested-bees.done",
+							"type": "final"
+						}
+					}
+				},
+				"snapshot": {
+					"value": "handoff",
+					"status": "active"
+				},
+				"instructions": {
+					"nested-bees": {
+						"kind": "none"
+					},
+					"nested-bees.team": {
+						"kind": "rendered",
+						"title": "Build both branches",
+						"instructions": "Wait for both child machines to finish implementation and review. Each visit is delegated to a separate Bee."
+					},
+					"nested-bees.team.api": {
+						"kind": "rendered",
+						"title": "API branch",
+						"instructions": "Complete the API child machine's work and review."
+					},
+					"nested-bees.team.api.working": {
+						"kind": "none"
+					},
+					"nested-bees.team.api.done": {
+						"kind": "none"
+					},
+					"nested-bees.team.interface": {
+						"kind": "rendered",
+						"title": "Interface branch",
+						"instructions": "Complete the interface child machine's work and review."
+					},
+					"nested-bees.team.interface.working": {
+						"kind": "none"
+					},
+					"nested-bees.team.interface.done": {
+						"kind": "none"
+					},
+					"nested-bees.handoff": {
+						"kind": "frozen",
+						"title": "Summarize both branches",
+						"instructions": "Synthesize the four completed Bee-dispatched visits.",
+						"bead": "mem-1.2.15"
+					},
+					"nested-bees.done": {
+						"kind": "none"
+					}
+				}
+			}
+		],
+		"formatVersion": 1
+	},
+	"unsupported": {
+		"message": "Saved actor children or actor references require live coordination",
+		"ok": false,
+		"reason": "simulation_unsupported",
+		"kind": "workflow_simulation",
+		"target": "mem-1.2"
+	},
+	"childSaved": {
+		"formatVersion": 1,
+		"runId": "mem-1.2",
+		"actor": {
+			"id": "actor:[\"api\"]",
+			"path": ["api"],
+			"machine": {
+				"id": "nested-worker",
+				"type": "compound",
+				"initial": "implement",
+				"states": {
+					"implement": {
+						"id": "nested-worker.implement",
+						"type": "atomic",
+						"on": {
+							"IMPLEMENTED": [
+								{
+									"target": ["#nested-worker.verify"]
+								}
+							]
+						}
+					},
+					"verify": {
+						"id": "nested-worker.verify",
+						"type": "atomic",
+						"on": {
+							"VERIFIED": [
+								{
+									"target": ["#nested-worker.done"]
+								}
+							]
+						}
+					},
+					"done": {
+						"id": "nested-worker.done",
+						"type": "final"
+					}
+				}
+			},
+			"snapshot": {
+				"value": "verify",
+				"status": "active"
+			},
+			"instructions": {
+				"nested-worker": {
+					"kind": "none"
+				},
+				"nested-worker.implement": {
+					"kind": "rendered",
+					"title": "Implement API",
+					"instructions": "Implement the API change and record focused verification.",
+					"bee": {
+						"kind": "worker"
+					}
+				},
+				"nested-worker.verify": {
+					"kind": "frozen",
+					"title": "Verify API",
+					"instructions": "Inspect the API result and its verification evidence.",
+					"bead": "mem-1.2.4.5.11",
+					"bee": {
+						"kind": "reviewer",
+						"request": "mem-12"
+					}
+				},
+				"nested-worker.done": {
+					"kind": "none"
+				}
+			}
+		},
+		"choices": [
+			{
+				"node": "nested-worker.verify",
+				"title": "Verify API",
+				"command": "next",
+				"event": "VERIFIED",
+				"schema": {
+					"$schema": "https://json-schema.org/draft/2020-12/schema",
+					"type": "object",
+					"properties": {}
+				}
+			}
+		],
+		"inputSchema": {
+			"$schema": "https://json-schema.org/draft/2020-12/schema",
+			"type": "object",
+			"properties": {}
+		}
+	},
+	"childSimulation": {
+		"formatVersion": 1,
+		"runId": "mem-1.2",
+		"actor": {
+			"id": "actor:[\"api\"]",
+			"path": ["api"],
+			"machine": {
+				"id": "nested-worker",
+				"type": "compound",
+				"initial": "implement",
+				"states": {
+					"implement": {
+						"id": "nested-worker.implement",
+						"type": "atomic",
+						"on": {
+							"IMPLEMENTED": [
+								{
+									"target": ["#nested-worker.verify"]
+								}
+							]
+						}
+					},
+					"verify": {
+						"id": "nested-worker.verify",
+						"type": "atomic",
+						"on": {
+							"VERIFIED": [
+								{
+									"target": ["#nested-worker.done"]
+								}
+							]
+						}
+					},
+					"done": {
+						"id": "nested-worker.done",
+						"type": "final"
+					}
+				}
+			},
+			"snapshot": {
+				"value": "done",
+				"status": "done"
+			},
+			"instructions": {
+				"nested-worker": {
+					"kind": "none"
+				},
+				"nested-worker.implement": {
+					"kind": "rendered",
+					"title": "Implement API",
+					"instructions": "Implement the API change and record focused verification.",
+					"bee": {
+						"kind": "worker"
+					}
+				},
+				"nested-worker.verify": {
+					"kind": "rendered",
+					"title": "Verify API",
+					"instructions": "Inspect the API result and its verification evidence.",
+					"bee": {
+						"kind": "reviewer"
+					}
+				},
+				"nested-worker.done": {
+					"kind": "none"
+				}
+			}
+		},
+		"choices": [],
+		"inputSchema": {
+			"$schema": "https://json-schema.org/draft/2020-12/schema",
+			"type": "object",
+			"properties": {}
+		}
+	},
+	"interfaceSimulation": {
+		"formatVersion": 1,
+		"runId": "mem-1.2",
+		"actor": {
+			"id": "actor:[\"interface\"]",
+			"path": ["interface"],
+			"machine": {
+				"id": "nested-worker",
+				"type": "compound",
+				"initial": "implement",
+				"states": {
+					"implement": {
+						"id": "nested-worker.implement",
+						"type": "atomic",
+						"on": {
+							"IMPLEMENTED": [
+								{
+									"target": ["#nested-worker.verify"]
+								}
+							]
+						}
+					},
+					"verify": {
+						"id": "nested-worker.verify",
+						"type": "atomic",
+						"on": {
+							"VERIFIED": [
+								{
+									"target": ["#nested-worker.done"]
+								}
+							]
+						}
+					},
+					"done": {
+						"id": "nested-worker.done",
+						"type": "final"
+					}
+				}
+			},
+			"snapshot": {
+				"value": "verify",
+				"status": "active"
+			},
+			"instructions": {
+				"nested-worker": {
+					"kind": "none"
+				},
+				"nested-worker.implement": {
+					"kind": "rendered",
+					"title": "Implement interface",
+					"instructions": "Implement the interface change and record focused verification.",
+					"bee": {
+						"kind": "worker"
+					}
+				},
+				"nested-worker.verify": {
+					"kind": "rendered",
+					"title": "Verify interface",
+					"instructions": "Inspect the interface result and its verification evidence.",
+					"bee": {
+						"kind": "reviewer"
+					}
+				},
+				"nested-worker.done": {
+					"kind": "none"
+				}
+			}
+		},
+		"choices": [
+			{
+				"node": "nested-worker.verify",
+				"title": "Verify interface",
+				"command": "next",
+				"event": "VERIFIED",
+				"schema": {
+					"$schema": "https://json-schema.org/draft/2020-12/schema",
+					"type": "object",
+					"properties": {}
+				}
+			}
+		],
+		"inputSchema": {
+			"$schema": "https://json-schema.org/draft/2020-12/schema",
+			"type": "object",
+			"properties": {}
+		}
+	}
+}

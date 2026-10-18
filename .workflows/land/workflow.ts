@@ -219,12 +219,11 @@ export const machine = setup({
 						"Remove only this work's scratch/debug/generated leftovers and dead " +
 						"code; inspect git status and the cumulative diff for secrets, local " +
 						"configuration and unintended files. Keep the diff scoped and " +
-						"documentation truthful. Have bookworm write/review changed prose, including embedded prompts " +
-						"and help, using docs/agents/specialists.md for the context handoff. Include the exact source and " +
-						"final squash messages and verify their per-tool coverage under " +
-						"docs/releases.md#author-tool-changelog-records. " +
-						"Retain its coverage and " +
-						"edits in the review evidence; reuse a completed pass only while its scope and content remain " +
+						"documentation truthful. Have bookworm review and edit changed prose, including embedded prompts " +
+						"and help, following docs/agents/specialists.md. Supply the exact source and final squash " +
+						"messages for per-tool changelog coverage and adoption guidance under " +
+						"docs/releases.md#author-tool-changelog-records. Retain its coverage and edits in the review " +
+						"evidence; reuse a completed pass only while its scope and content remain " +
 						"current. Run `bun run check` for the complete change; " +
 						"its full suite prints the complete timing report and fails on " +
 						"unapproved DANGER. Return timing failures through changes with a " +
@@ -233,9 +232,11 @@ export const machine = setup({
 						"measured cost is necessary, keep this task open and propose the " +
 						"exact lib/tooling/slow-tests.json allowance and justification for " +
 						"explicit user sign-off before editing it; landing remains blocked " +
-						"until checks pass. Record the exact base/revision, commands and " +
-						"results concisely in bead comments. Choose passed only when `bun run check` exits " +
-						"successfully for that revision; choose changes with a concrete " +
+						"until checks pass. Record the exact base, cumulative content fingerprint, " +
+						"included file scope and reproducible read-only fingerprint method with " +
+						"commands/results in bead comments. Keep that content stable while review " +
+						"is pending. Choose passed only when `bun run check` exits " +
+						"successfully for that content; choose changes with a concrete " +
 						"repair brief for code failures. A known infrastructure failure keeps " +
 						"the task open with a next action rather than inventing a code fix. " +
 						`Any modifications invalidate prior review evidence.\n\n${retainedContext(context)}`,
@@ -253,22 +254,23 @@ export const machine = setup({
 				commands: { approved: "APPROVED", changes: "CHANGES" },
 				task: ({ context }: { context: LandingContext }) => ({
 					title: `Review the current change locally: ${targetTitle(context)}`,
+					bee: { kind: "reviewer" },
 					instructions:
-						"Run a local code review of the complete change against its task " +
-						"acceptance and repository standards, using the required reviewer " +
-						"consultation only after `bun run check` passes for this revision. " +
-						"The landing worker owns check execution and its evidence; the " +
-						"reviewer assesses code and test quality without rerunning checks or " +
-						"auditing test-run evidence. Include staged, unstaged and relevant " +
-						"untracked files, not just committed changes. Inspect previous " +
-						"findings and their fixes. Record base, cumulative diff fingerprint, " +
-						"reviewer identity and concise dispositions with response-ID pointers in this worker bead's " +
-						"comments (and link that evidence from the scope beads). A completed " +
-						"review may request changes: close this review with changes and a " +
-						"concrete repair brief so implementation can proceed. Choose approved " +
-						"only with no unresolved findings, supplying this bead and the exact " +
-						"reviewed base/revision as the receipt. Reviewers do not edit during " +
-						`the review. Do not treat task closure as approval.\n\n${retainedContext(context)}`,
+						"Review the complete change read-only against task acceptance and repository standards, " +
+						"including staged, unstaged and relevant untracked files. Perform the " +
+						"review here; do not spawn another reviewer or review workflow. The driver " +
+						"owns the passing `bun run check` prerequisite and its evidence. Assess " +
+						"code and test quality without rerunning checks or auditing test-run " +
+						"evidence. Inspect prior findings and fixes alongside retained specialist " +
+						"evidence. Using the retained read-only fingerprint method and file scope, " +
+						"record the exact base and cumulative content fingerprint at review start " +
+						"and recompute both at the end. Choose changes if either moved or " +
+						"findings remain, with concrete repair evidence and the next action. Choose " +
+						"approved only for unchanged content with no unresolved findings, supplying " +
+						"this stage bead and the exact reviewed base/revision as the receipt. " +
+						"Record reviewer identity, findings/dispositions, fingerprint values and " +
+						"response-ID pointers in this stage's comments; link that " +
+						`evidence from the scope beads.\n\n${retainedContext(context)}`,
 				}),
 			},
 			on: {
@@ -283,9 +285,12 @@ export const machine = setup({
 				task: ({ context }: { context: LandingContext }) => ({
 					title: `Commit the reviewed change: ${targetTitle(context)}`,
 					instructions:
-						"Commit the scoped approved content with normal hooks and the exact message retained in review " +
-						"evidence. Record final " +
-						"source commits alongside expectedCommits and their relation to the review receipt. Choose " +
+						"Before committing, compare the current base and scoped content with the review receipt " +
+						"using the recorded fingerprint method. Staging/commit bookkeeping alone does not change " +
+						"content identity. Choose changed for a mismatch or later edits to reviewed content. " +
+						"Commit matching scoped content with normal hooks and the exact message retained in review " +
+						"evidence. Record final source commits alongside expectedCommits and their relation to the " +
+						"review receipt. Choose " +
 						"changed if hooks, conflict repair or other edits alter reviewed content; choose next only for a " +
 						"clean tree matching the approved receipt. Failed hooks or unrelated dirty work block completion. " +
 						`\n\n${retainedContext(context)}`,

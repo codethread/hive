@@ -26,13 +26,29 @@ Presentation vocabulary nested under the [shared Hive glossary](../../GLOSSARY.m
 
 **Branch explorer**: The foldable native family tree beside a selected bead. _Avoid_: Bead outline when referring to the inspector tree.
 
-**Workflow preview**: A read-only diagram of a workflow run with its latest saved state highlighted, opened from the run or one of its generated beads.
+**Workflow preview**: A modal opened from a workflow run or one of its generated beads, with a diagram and task instructions. Saved shows recorded state and Simulate explores temporary outcomes without changing the actual run.
 
 **Bead inspector**: The selected bead's detail surface, including acceptance criteria, relationships, comments and its branch explorer.
 
 **Family lane**: A horizontal board group for a bead family spanning statuses or containing many active descendants.
 
 **Family rails**: A compact tree presentation for a small bead family sharing one active status.
+
+## Workflow preview
+
+**Canvas**: The navigable workflow diagram and its task instructions panel.
+
+**Cards**: The workflow step presentations, including workflow position and independent Bee status indicators.
+
+**Edges**: The connections between workflow steps, showing possible outcomes and their visual states.
+
+**Simulation**: A temporary workflow walkthrough from saved state or explicit initial input, separate from the actual run.
+
+**Nested actors**: The root and child workflow views within one run, each with its own state and instructions.
+
+**Refresh**: The workflow preview's saved-state update and recovery presentation, including updates received during simulation.
+
+**Inspection**: The workflow preview's completed-run and unavailable-preview presentations.
 
 ## Workspace
 

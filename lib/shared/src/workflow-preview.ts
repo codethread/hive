@@ -1,5 +1,15 @@
 import { z } from "zod";
 
+const INSPECTION_FORMAT_VERSION = 1;
+
+/** Public checkpoint identity and native update time. */
+export const workflowCheckpointSchema = z.object({
+	runId: z.string(),
+	checkpoint: z.string(),
+	savedAt: z.string(),
+});
+export type WorkflowCheckpoint = z.infer<typeof workflowCheckpointSchema>;
+
 type StateValue = string | { [key: string]: StateValue };
 const stateValueSchema: z.ZodType<StateValue> = z.union([
 	z.string(),
@@ -35,3 +45,34 @@ export const workflowPreviewSchema = z.object({
 });
 
 export type WorkflowPreview = z.infer<typeof workflowPreviewSchema>;
+
+const authoredBeeSchema = z.object({ kind: z.string() });
+const publishedBeeSchema = authoredBeeSchema.extend({ request: z.string() });
+const instructionSchema = z.discriminatedUnion("kind", [
+	z.object({
+		kind: z.literal("frozen"),
+		title: z.string(),
+		instructions: z.string(),
+		bead: z.string(),
+		bee: publishedBeeSchema.optional(),
+	}),
+	z.object({
+		kind: z.literal("rendered"),
+		title: z.string(),
+		instructions: z.string(),
+		bee: authoredBeeSchema.optional(),
+	}),
+	z.object({ kind: z.literal("none") }),
+	z.object({ kind: z.literal("unavailable"), message: z.string() }),
+]);
+
+/** Tooling inspection with frozen published briefs and labelled saved-context previews. */
+const inspectionActorSchema = actorSchema.extend({
+	instructions: z.record(z.string(), instructionSchema),
+});
+export const workflowInspectionSchema = workflowPreviewSchema.extend({
+	formatVersion: z.literal(INSPECTION_FORMAT_VERSION),
+	actors: z.array(inspectionActorSchema),
+});
+
+export type WorkflowInspection = z.infer<typeof workflowInspectionSchema>;

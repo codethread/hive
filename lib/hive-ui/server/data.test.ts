@@ -10,6 +10,7 @@ const scope = { cwd: colony.root, db: colony.beadsDb, actor: "fixture" };
 const filter = boardFilterSchema.parse({ view: "beads", closed: true });
 const COLD_AND_RECOVERY_READS = 2;
 const seeded = await workflowFixture();
+const workflowCache = await workflowFixture();
 const linked = await mergeFixture();
 const emptyRequest = await linked.beads.create(scope, {
 	title: "Request without tasks",
@@ -28,7 +29,12 @@ async function workflowFixture() {
 		description: JSON.stringify({ id: root.id, created: [] }),
 	});
 	await beads.dep.add(scope, root.id, checkpoint.id, "related");
-	return { manual, context: { beads, colony, requestId: "test", log: async () => {} } };
+	return {
+		root,
+		checkpoint,
+		manual,
+		context: { beads, colony, requestId: "test", log: async () => {} },
+	};
 }
 
 async function mergeFixture() {
@@ -101,6 +107,31 @@ test("ordinary children cannot open an ancestor workflow", async () => {
 		.catch((error: unknown) => error);
 	expect(result).toBeInstanceOf(Error);
 	expect(calls).toBe(0);
+});
+
+// eslint-disable-next-line max-statements -- Verify native index reuse and fresh generated-visit discovery together.
+test("workflow polling reuses the identity index and immediately refreshes a missing visit", async () => {
+	let reads = 0;
+	const context = {
+		...workflowCache.context,
+		beads: {
+			...workflowCache.context.beads,
+			listProjected: (...args: Parameters<typeof workflowCache.context.beads.listProjected>) => {
+				reads += 1;
+				return workflowCache.context.beads.listProjected(...args);
+			},
+		},
+	};
+	const data = createBoardData(unrequestedTopology, () => 1);
+	const inspect = (_endpoint: unknown, id: string) => Promise.resolve(id);
+	await data.workflow(context, workflowCache.root.id, inspect);
+	await data.workflow(context, workflowCache.root.id, inspect);
+	expect(reads).toBe(1);
+	await context.beads.update(scope, [workflowCache.checkpoint.id], {
+		description: JSON.stringify({ id: workflowCache.root.id, created: [{ bead: "new-visit" }] }),
+	});
+	expect(await data.workflow(context, "new-visit", inspect)).toBe(workflowCache.root.id);
+	expect(reads).toBe(COLD_AND_RECOVERY_READS);
 });
 
 test("primary cards and families never hydrate tasks or wait for merge and assignment icons", async () => {

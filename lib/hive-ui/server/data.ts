@@ -34,7 +34,6 @@ import { SUMMARY_FIELDS, readHierarchy } from "./hierarchy.ts";
 import { beadFamilies, branchRows } from "../hierarchy.ts";
 import type { ReadTopology } from "./topology.ts";
 import type { SummaryBead } from "./hierarchy.ts";
-import type { WorkflowPreview } from "@hive/shared";
 import { formatBeadsQuery } from "@hive/beads";
 import { mergeLink } from "./merges.ts";
 import { taskSelection } from "./query.ts";
@@ -373,12 +372,15 @@ export function createBoardData(readTopology: ReadTopology, now: () => number = 
 				fetchedAt: new Date(now()).toISOString(),
 			};
 		},
-		workflow: async (
+		workflow: async <Value>(
 			context: ReadContext,
 			id: string,
-			preview: (colony: Colony, runId: string) => Promise<WorkflowPreview>,
-		): Promise<WorkflowPreview> => {
-			const runs = await workflows(context, now());
+			preview: (colony: Colony, runId: string) => Promise<Value>,
+		): Promise<Value> => {
+			let runs = await workflows(context, 0);
+			if (!runs.value.has(id)) {
+				runs = await workflows(context, Math.max(now(), runs.startedAt + 1));
+			}
 			const runId = runs.value.get(id);
 			if (runId === undefined) {
 				throw new Error(`Bead ${id} is not a workflow-generated record.`);

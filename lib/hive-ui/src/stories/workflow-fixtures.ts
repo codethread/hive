@@ -1,7 +1,8 @@
 import type { Detail, Hierarchy, HierarchyNode } from "../../contracts.ts";
 import { OBSERVED_AT, fixtureFamily } from "./fixtures.ts";
+import { workflowSamples } from "./workflow-samples.ts";
 
-/** Persisted native records only: chart states without visits have no fixture bead. */
+/** Model native task records; chart states without visits have no fixture bead. */
 export const workflowHierarchy: Hierarchy = {
 	stale: false,
 	fetchedAt: OBSERVED_AT,
@@ -95,8 +96,23 @@ export const singleWorkflow = fixtureFamily("hv-keyboard", workflowHierarchy);
 export const multipleWorkflows = fixtureFamily("hv-search", workflowHierarchy);
 export const nestedWorkflows = fixtureFamily("hv-release", workflowHierarchy);
 
-export function workflowDetail(id: string): Detail {
-	const selected = workflowHierarchy.nodes.find((entry) => entry.id === id)!;
+export const previewSample = workflowSamples[0]!;
+export const previewHierarchy: Hierarchy = {
+	...workflowHierarchy,
+	nodes: [
+		...workflowHierarchy.nodes,
+		{
+			...workflowHierarchy.nodes[0]!,
+			id: "hv-workflow-preview",
+			title: "Inspect the Land workflow in Hive UI",
+			parentIds: [],
+		},
+		{ ...previewSample.card, parentIds: ["hv-workflow-preview"] },
+	],
+};
+
+export function workflowDetail(id: string, source = workflowHierarchy): Detail {
+	const selected = source.nodes.find((entry) => entry.id === id)!;
 	return {
 		card: { ...selected, bees: [] },
 		design: "",
@@ -104,8 +120,8 @@ export function workflowDetail(id: string): Detail {
 		description:
 			"Original work, workflow runs and generated visits are ordinary native beads. " +
 			"Use the branch explorer to follow the containing work and higher ancestors, " +
-			"or open a descendant outline for this scope. The earlier search attempt remains " +
-			"unfinished; the completed implementation stays available with Include closed.",
+			"or open the bead outline for this scope’s descendants. " +
+			"Include closed reveals completed runs and visits.",
 		acceptanceCriteria:
 			"- [x] Keep the native containing task and ancestors\n- [ ] Complete the selected work and verify its children",
 		comments: [

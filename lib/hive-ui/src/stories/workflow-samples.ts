@@ -1,11 +1,19 @@
-import type { Card, WorkflowPreview } from "../../contracts.ts";
+import type { Card, WorkflowInspection } from "../../contracts.ts";
+import {
+	exampleVisit,
+	renderInstructions,
+	sampleContext,
+	stepIds,
+	steps,
+} from "./workflow-explorer-data.ts";
 import land from "./workflow-land.json";
+import { z } from "zod";
 
 /** Captured native runs for the workflow preview workshop. */
 export interface WorkflowSample {
 	/** Native run card; labels, relationships and request enrichment omitted from this preview. */
 	card: Card;
-	/** Comparison-board heading. */
+	/** Short label for the captured run. */
 	label: string;
 	/** Native system record containing this snapshot. */
 	checkpoint: string;
@@ -120,8 +128,9 @@ export const workflowSamples: WorkflowSample[] = [
 ];
 
 /** Pair frozen saved state with the chart captured for these samples. */
-export function samplePreview(sample: WorkflowSample): WorkflowPreview {
+export function samplePreview(sample: WorkflowSample): WorkflowInspection {
 	return {
+		formatVersion: 1,
 		runId: sample.card.id,
 		title: sample.card.title,
 		checkpoint: sample.checkpoint,
@@ -138,7 +147,58 @@ export function samplePreview(sample: WorkflowSample): WorkflowPreview {
 				path: [],
 				machine: sample.machine,
 				snapshot: { value: sample.state, status: sample.snapshotStatus },
+				instructions: sampleInstructions(sample),
 			},
 		],
+	};
+}
+
+// Captured graphs use synthetic briefs; no private checkpoint instructions are copied into fixtures.
+function sampleInstructions(
+	sample: WorkflowSample,
+): WorkflowInspection["actors"][number]["instructions"] {
+	const states = z
+		.record(z.string(), z.object({ id: z.string().optional() }))
+		.parse(sample.machine["states"]);
+	const { context } = exampleVisit(sampleContext, "example").snapshot;
+	return {
+		[String(sample.machine["id"])]: { kind: "none" },
+		...Object.fromEntries(
+			Object.entries(states).map(
+				([key, state]): [string, WorkflowInspection["actors"][number]["instructions"][string]] => {
+					const id = state.id ?? `${String(sample.machine["id"])}.${key}`;
+					if (sample.definition.startsWith("land")) {
+						const step = stepIds.find((candidate) => candidate === key)!;
+						if (steps[step].kind !== "task") {
+							return [id, { kind: "none" }];
+						}
+						const brief = renderInstructions(step, context);
+						return [
+							id,
+							key === sample.state
+								? {
+										kind: "frozen",
+										title: brief.title,
+										instructions: brief.instructions,
+										bead: sample.card.id,
+									}
+								: { kind: "rendered", title: brief.title, instructions: brief.instructions },
+						];
+					}
+					return [
+						id,
+						key === sample.state && key !== "done"
+							? {
+									kind: "frozen",
+									title: sample.card.title,
+									instructions:
+										"Inspect the graph and use the divider to adjust the instructions panel.",
+									bead: sample.card.id,
+								}
+							: { kind: "none" },
+					];
+				},
+			),
+		),
 	};
 }

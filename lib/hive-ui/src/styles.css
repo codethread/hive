@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "./workflow-preview.css";
+@import "./workflow-explorer.css";
 @import "@xyflow/react/dist/style.css";
 
 @theme inline {

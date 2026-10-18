@@ -11,6 +11,7 @@ import {
 	queryChangelog,
 	renderChangelog,
 } from "@hive/shared/changelog";
+import { checkpointVersion, inspect, preview } from "./preview.ts";
 import {
 	complete,
 	discover,
@@ -22,14 +23,20 @@ import {
 } from "./runtime.ts";
 import { importDefinition, validate } from "./definition.ts";
 import { listWorkflows, namedDefinition } from "./catalogue.ts";
+import {
+	workflowCheckpointSchema,
+	workflowInspectionSchema,
+	workflowSimulationRequestSchema,
+	workflowSimulationSchema,
+} from "@hive/shared";
 import type { PreflightReport } from "./preflight.ts";
 import type { Source } from "./catalogue.ts";
 import changelog from "../changelog.json";
 import { preflight } from "./preflight.ts";
-import { preview } from "./preview.ts";
 import { readSkills } from "./skills.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Explicit source paths resolve against the invoking directory.
 import { resolve } from "node:path";
+import { simulate } from "./simulation.ts";
 import { version as suiteVersion } from "../package.json";
 import { z } from "zod";
 
@@ -269,6 +276,7 @@ function registerCreation(invocation: Invocation): void {
 
 function registerInspection(invocation: Invocation): void {
 	registerSkills(invocation);
+	registerSystem(invocation);
 	const { cli, services } = invocation;
 	const options = (): CliOptions => cli.opts<CliOptions>();
 	cli
@@ -326,6 +334,129 @@ function registerInspection(invocation: Invocation): void {
 			const result = await discover(id, options(), services);
 			writeResult(result, invocation, printDiscovery(result));
 		});
+}
+
+function registerSystem(invocation: Invocation): void {
+	const system = invocation.cli
+		.command("system")
+		.description("JSON tooling interfaces; use show, discover or preview for routine work")
+		.addHelpText(
+			"after",
+			"\nTooling output is intended for applications. Working agents should use show for briefs, " +
+				"discover for choices and preview for structural saved-state diagrams.",
+		);
+	system
+		.command("checkpoint <run>")
+		.description(
+			"Read checkpoint identity and update time without importing a definition; requires --json",
+		)
+		.action(async (id: string) => {
+			invocation.kind = "workflow_checkpoint";
+			requireSystemJson(invocation);
+			writeResult(
+				await checkpointVersion(id, invocation.cli.opts<CliOptions>(), invocation.services),
+				invocation,
+			);
+		});
+	system
+		.command("preview <run>")
+		.description("Inspect saved graphs and labelled instruction previews; requires --json")
+		.addHelpText(
+			"after",
+			"\nReads one checkpoint without starting actors, evaluating actions or guards, advancing " +
+				"the run, acquiring locks or performing engine writes. " +
+				"Published active briefs remain frozen; other task callbacks run against each retained " +
+				"actor's saved context and are labelled rendered or unavailable. These are previews, " +
+				"not published task briefs. Imports and callbacks execute trusted author code; " +
+				"this is not an I/O sandbox. " +
+				"Use system schema --json for the success envelope schema.",
+		)
+		.action(async (id: string) => {
+			invocation.kind = "workflow_inspection";
+			requireSystemJson(invocation);
+			writeResult(
+				await inspect(id, invocation.cli.opts<CliOptions>(), invocation.services),
+				invocation,
+			);
+		});
+	system
+		.command("simulate <run>")
+		.description("Replay simulated outcomes without advancing saved work; requires --json")
+		.requiredOption("--request <json>", "Baseline, actor, explicit start and original event list")
+		.addHelpText(
+			"after",
+			"\nRead system preview RUN --json first. Copy checkpoint and savedAt from that inspection, " +
+				"choose actorId from actors[].id, and set definitionHash to definition.currentHash. " +
+				"Set start.kind to saved, or use initial with explicit start.input for the root actor. " +
+				"Original creation input is not retained. Supply events as {node, command, data} entries " +
+				"using original JSON data; an empty list inspects the starting point. " +
+				"Read system schema --simulation --json for request and success schemas.\n" +
+				"A changed baseline requires a fresh preview. Replay evaluates trusted author calculations " +
+				"and rejects encountered actor coordination, timers and custom effects; it starts no live " +
+				"actors and performs no engine writes. This is not an I/O sandbox or proof of completed work.",
+		)
+		.action(async (id: string, selection: { request: string }) => {
+			invocation.kind = "workflow_simulation";
+			requireSystemJson(invocation);
+			const request = workflowSimulationRequestSchema.parse(
+				JSON.parse(selection.request) as unknown,
+			);
+			writeResult(
+				await simulate({ id, request }, invocation.cli.opts<CliOptions>(), invocation.services),
+				invocation,
+			);
+		});
+	system
+		.command("schema")
+		.description(
+			"Read tooling schemas without tracker access; defaults to workflow_inspection; requires --json",
+		)
+		.option("--simulation", "Read simulation request and success schemas")
+		.option("--checkpoint", "Read the checkpoint success schema")
+		.action(
+			// eslint-disable-next-line max-statements -- Publish the requested tooling schema without tracker access.
+			(selection: { simulation?: boolean; checkpoint?: boolean }) => {
+				if (selection.checkpoint) {
+					invocation.kind = "workflow_checkpoint_schema";
+					requireSystemJson(invocation);
+					const schema = workflowCheckpointSchema.extend({
+						ok: z.literal(true),
+						kind: z.literal("workflow_checkpoint"),
+					});
+					writeResult({ schema: z.toJSONSchema(schema) }, invocation);
+					return;
+				}
+				if (selection.simulation) {
+					invocation.kind = "workflow_simulation_schema";
+					requireSystemJson(invocation);
+					const simulationSchema = workflowSimulationSchema.extend({
+						ok: z.literal(true),
+						kind: z.literal("workflow_simulation"),
+					});
+					writeResult(
+						{
+							requestSchema: z.toJSONSchema(workflowSimulationRequestSchema),
+							schema: z.toJSONSchema(simulationSchema),
+						},
+						invocation,
+					);
+					return;
+				}
+				invocation.kind = "workflow_inspection_schema";
+				requireSystemJson(invocation);
+				const schema = workflowInspectionSchema.extend({
+					ok: z.literal(true),
+					kind: z.literal("workflow_inspection"),
+				});
+				writeResult({ schema: z.toJSONSchema(schema) }, invocation);
+			},
+		);
+}
+
+function requireSystemJson(invocation: Invocation): void {
+	if (!invocation.json) {
+		throw new BusyBeeError("json_required", "System tooling commands require --json");
+	}
 }
 
 function registerSkills(invocation: Invocation): void {

@@ -18,7 +18,9 @@ import {
 	inventoryKey,
 	provenanceSchema,
 	requestInventorySchema,
-	workflowPreviewSchema,
+	workflowCheckpointSchema,
+	workflowInspectionSchema,
+	workflowSimulationSchema,
 } from "../contracts.ts";
 import type {
 	BoardFilter,
@@ -28,12 +30,19 @@ import type {
 	Hierarchy,
 	InventoryFilter,
 	Navigation,
+	WorkflowCheckpoint,
+	WorkflowInspection,
+	WorkflowSimulationRequest,
 } from "../contracts.ts";
 import { beadFamilies } from "../hierarchy.ts";
 import { createStore } from "zustand/vanilla";
 import type { z } from "zod";
 
 const CACHE_MS = 10_000;
+const workflowReads = {
+	inspect: (path: string) => request(path, workflowInspectionSchema),
+	checkpoint: (path: string) => request(`${path}?checkpointOnly=true`, workflowCheckpointSchema),
+};
 let lastLoadKeys = { page: "", bead: "", ancestry: "" };
 export type Resource<Value> =
 	| { kind: "empty" }
@@ -66,7 +75,7 @@ export const annotations = createCardAnnotationsResource();
 export const details = createResource(detailSchema);
 export const hierarchies = createHierarchyResource();
 export const outlines = createResource(hierarchySchema);
-export const workflows = createResource(workflowPreviewSchema);
+export const workflows = createWorkflowResource();
 export const workflowSelection = createStore<
 	{ kind: "closed" } | { kind: "open"; colony: string; id: string; trigger: HTMLButtonElement }
 >(() => ({ kind: "closed" }));
@@ -79,12 +88,86 @@ export const preferences = createStore<Preferences>(() => ({
 	views: {},
 }));
 
-/** Opening or refreshing always reads a new saved checkpoint. */
-export function loadWorkflow(colony: string, id: string): Promise<void> {
+/** Open/manual reads inspect unconditionally; automatic polls check the checkpoint first. */
+export function loadWorkflow(colony: string, id: string, conditional = false): Promise<void> {
 	return workflows.load(
 		`${colony}/${id}`,
 		`/api/colonies/${colony}/workflow/${encodeURIComponent(id)}`,
-		true,
+		conditional,
+	);
+}
+
+/** Workflow reads coalesce and keep the displayed snapshot during background refresh. */
+export function createWorkflowResource(
+	read: {
+		inspect: (path: string) => Promise<WorkflowInspection>;
+		checkpoint: (path: string) => Promise<WorkflowCheckpoint>;
+	} = workflowReads,
+) {
+	const store = createStore<ResourceState<WorkflowInspection>>(() => ({ entries: {} }));
+	const pending = new Map<string, { work: Promise<void>; selection: { full: boolean } }>();
+	const put = (key: string, value: Resource<WorkflowInspection>) => {
+		store.setState((state) => ({ entries: { ...state.entries, [key]: value } }));
+	};
+	// eslint-disable-next-line max-statements -- Own coalescing, checkpoint checks and snapshot retention.
+	const load = (key: string, path: string, conditional = false): Promise<void> => {
+		const active = pending.get(key);
+		if (active) {
+			active.selection.full ||= !conditional;
+			return active.work;
+		}
+		const previous = store.getState().entries[key] ?? EMPTY;
+		const saved = snapshot(previous);
+		const selection = { full: !conditional || previous.kind === "failed" };
+		if (saved === null) {
+			put(key, { kind: "loading", previous: null });
+		}
+		// eslint-disable-next-line max-statements -- Keep checkpoint comparison and recovery within one read.
+		const refresh = async () => {
+			try {
+				let data = saved;
+				if (!selection.full && saved !== null) {
+					const checkpoint = await read.checkpoint(path);
+					if (
+						checkpoint.runId !== saved.runId ||
+						checkpoint.checkpoint !== saved.checkpoint ||
+						checkpoint.savedAt !== saved.savedAt
+					) {
+						selection.full = true;
+					}
+				}
+				if (selection.full || saved === null) {
+					data = await read.inspect(path);
+				}
+				if (data !== saved || previous.kind !== "ready") {
+					put(key, { kind: "ready", data: data!, receivedAt: Date.now() });
+				}
+			} catch (error) {
+				put(key, {
+					kind: "failed",
+					previous: saved,
+					message: error instanceof Error ? error.message : String(error),
+				});
+			} finally {
+				pending.delete(key);
+			}
+		};
+		const work = refresh();
+		pending.set(key, { work, selection });
+		return work;
+	};
+	return { store, load };
+}
+
+export function simulateWorkflow(colony: string, id: string, input: WorkflowSimulationRequest) {
+	return request(
+		`/api/colonies/${colony}/workflow/${encodeURIComponent(id)}/simulate`,
+		workflowSimulationSchema,
+		{
+			method: "POST",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify(input),
+		},
 	);
 }
 
@@ -473,14 +556,18 @@ function publishHierarchy(
 
 // Account for every fetch, decode and validation outcome in one transport boundary.
 // eslint-disable-next-line max-statements
-async function request<Value>(path: string, schema: z.ZodType<Value>): Promise<Value> {
+async function request<Value>(
+	path: string,
+	schema: z.ZodType<Value>,
+	init?: RequestInit,
+): Promise<Value> {
 	const start = performance.now();
 	let requestId: string | null = null;
 	let status: number | null = null;
 	let bytes: number | null = null;
 	let outcome = "error";
 	try {
-		const response = await fetch(path);
+		const response = await fetch(path, init);
 		requestId = response.headers.get("x-request-id");
 		({ status } = response);
 		const text = await response.text();

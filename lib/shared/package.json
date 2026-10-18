@@ -6,6 +6,7 @@
 	"exports": {
 		".": "./src/index.ts",
 		"./workflow-preview": "./src/workflow-preview.ts",
+		"./workflow-simulation": "./src/workflow-simulation.ts",
 		"./changelog": "./src/changelog.ts"
 	},
 	"scripts": {

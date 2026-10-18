@@ -1,7 +1,20 @@
 /* eslint-disable unicorn/max-nested-calls -- Boundary schemas keep complete discriminated variants visible together. */
 import { z } from "zod";
 
-export { workflowPreviewSchema, type WorkflowPreview } from "@hive/shared/workflow-preview";
+export {
+	workflowInspectionSchema,
+	workflowCheckpointSchema,
+	type WorkflowCheckpoint,
+	workflowPreviewSchema,
+	type WorkflowInspection,
+	type WorkflowPreview,
+} from "@hive/shared/workflow-preview";
+export {
+	workflowSimulationRequestSchema,
+	workflowSimulationSchema,
+	type WorkflowSimulationRequest,
+	type WorkflowSimulation,
+} from "@hive/shared/workflow-simulation";
 
 export const PAGE_SIZE = 60;
 export const ANNOTATION_BATCH = 100;

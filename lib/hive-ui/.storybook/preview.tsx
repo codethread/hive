@@ -38,13 +38,24 @@ const preview: Preview = {
 		},
 		docs: { theme: workshopTheme, story: { inline: false, height: "640px" } },
 		controls: { expanded: true },
-		options: { storySort: { order: ["Bees", "Beads", "Workspace", "Foundations"] } },
+		options: {
+			storySort: {
+				order: [
+					"Bees",
+					"Beads",
+					"Workflow preview",
+					["Canvas", "Cards", "Edges", "Inspection", "Simulation", "Nested actors", "Refresh"],
+					"Workspace",
+					"Foundations",
+				],
+			},
+		},
 	},
 	beforeEach: resetStoryState,
 	decorators: [
 		(Story, context) => (
 			<StoryEnvironment
-				key={context.id}
+				key={`${context.id}:${context.globals["theme"]}`}
 				theme={z.enum(["moss", "paper"]).parse(context.globals["theme"])}
 				navigation={storyNavigationSchema.parse(context.parameters["navigation"] ?? {})}
 				shell={context.parameters["shell"] === true}

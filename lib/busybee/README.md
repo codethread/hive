@@ -85,15 +85,16 @@ Repeat until `status` is `done`. A closed task stays active until Busy Bee accep
 
 Use `busybee --help` for the command flow and global options, then focused help to choose a read:
 
-| Need                                                  | Help                          |
-| ----------------------------------------------------- | ----------------------------- |
-| Bundled agent guidance                                | `busybee skills --help`       |
-| Creation input                                        | `busybee input-schema --help` |
-| Active task briefs and run status                     | `busybee show --help`         |
-| Outcome choices and payload schemas                   | `busybee discover --help`     |
-| Saved diagrams and state for active or completed runs | `busybee preview --help`      |
+| Need                                                             | Help                          |
+| ---------------------------------------------------------------- | ----------------------------- |
+| Bundled agent guidance                                           | `busybee skills --help`       |
+| Creation input                                                   | `busybee input-schema --help` |
+| Active task briefs and run status                                | `busybee show --help`         |
+| Outcome choices and payload schemas                              | `busybee discover --help`     |
+| Saved diagrams and state for active or completed runs            | `busybee preview --help`      |
+| Checkpoint freshness, inspection and simulation for integrations | `busybee system --help`       |
 
-The [preview contract](./SPEC.md#saved-state-preview) defines its payload, source-matching limits and execution boundary; [Hive UI](../hive-ui/README.md#workflow-preview) displays it in a modal. The [authoring guide](../../docs/busybee-workflows.md) covers definitions and validation limits.
+The [preview contract](./SPEC.md#saved-state-preview) distinguishes structural preview from tooling inspection with frozen briefs and rendered instruction previews. [Simulation](./SPEC.md#simulation) evaluates temporary outcomes without advancing the saved run; use `busybee system simulate --help` for requests and schema discovery. [Hive UI](../hive-ui/README.md#workflow-preview) presents both Saved and Simulate modes. The [authoring guide](../../docs/busybee-workflows.md) covers definitions and validation limits.
 
 Before updating a named workflow, check the selected tracker's existing unfinished runs:
 
@@ -126,6 +127,7 @@ The worker follows the [delegation and result flow](#delegate-a-workflow-to-bee)
 | [Parallel work](./examples/parallel/workflow.ts) | Sequences, nested groups, concurrent tasks, joins and loop visits |
 | [Groceries](./examples/groceries/workflow.ts) | Context, guards, branching and replanning |
 | [Change review](./examples/change-review/workflow.ts) | Planner-authored briefs, dynamic reviewers, revision-aware results and repair loops |
+| [Nested bees](./examples/nested-bees/README.md) | Child machines, Bee-dispatched visits and captured inspector examples |
 | [Land](../../.workflows/land/workflow.ts) | One triage entry for unfinished work, reviewed changes or existing PRs; implementation/review and PR feedback loops |
 
 To prepare a disposable change-review repository and stop at its first planner task:
@@ -139,6 +141,8 @@ The demo creates its original work bead and prints `repo`, `db`, `parent`, `inpu
 ## Landing from the current state
 
 The repository's [Land workflow](../../.workflows/land/workflow.ts) owns triage, completion checks, review, integration, local tool refresh and cleanup. It requires an explicit user request to land the agreed scope. Read `busybee input-schema land`, then the run and active stage briefs; starting a workflow does not grant landing authority.
+
+Entering `review` automatically dispatches a `reviewer` bee for a read-only assessment of the complete change. The driver retains the other stages, including check execution and its evidence; Bookworm and librarian consultations depend on the changed scope. The driver reads the review response and collects its saved outcome through the [delegation and result flow](#delegate-a-workflow-to-bee): `approved` carries a receipt for the exact reviewed diff, while `changes` returns to implementation. Published visits retain their frozen briefs and dispatch; new review visits use the current definition.
 
 Land retains the authorized task IDs, canonical checkout and tracker endpoint through cleanup. Its run brief assigns post-done task closure and tracker publication to the authorized caller/driver. Follow that retained brief even after the feature checkout is removed. Busy Bee validates transitions and payloads; workers verify external Git/PR/review evidence.
 
@@ -162,7 +166,7 @@ Concurrent submissions require one live database. Tracker synchronization does n
 
 ## Delegate a workflow to Bee
 
-Read `bee spawn --help` to submit a workflow assignment. Drivers coordinate the run; Bee-dispatched workers own their assigned stage. [Response delivery](../../docs/agents/responses.md) routes complete answers separately from workflow outcomes.
+Read `bee spawn --help` to submit a workflow assignment. Drivers coordinate the run; Bee-dispatched workers own their assigned stage. Use `bee result --help` to retrieve worker answers. [Response delivery](../../docs/agents/responses.md) routes complete answers separately from workflow outcomes.
 
 Follow `busybee complete --help` for stage completion and `busybee collect --help` for driver progression, including interrupted deliveries. The [work and progression contract](./SPEC.md#work-and-progression) owns lifecycle rules. Bee-dispatched workers leave collection/navigation to the driver.
 
