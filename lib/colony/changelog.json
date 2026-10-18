@@ -1,5 +1,48 @@
 [
 	{
+		"version": "0.7.1",
+		"changes": [
+			{
+				"commit": "79e60633c9082b0433e2a5dc436574b1f1cbc582",
+				"summary": "replace recurring process scans with owned-group supervision",
+				"body": "Managed executions now observe their child handle without continuous process-table scans or\ndescendant-history rewrites. Cancellation sends TERM to the verified supervisor process group,\nallows one second for exit, then sends KILL if needed and waits up to five seconds for\nconfirmation. Cleanup fails visibly if the group remains. Processes that detach or create\nseparate groups are outside managed cleanup.\n\nRequired: drain or stop old attempts with the old Colony runtime before upgrading, install all\nmatching Colony companion binaries, then restart the daemon and resume unfinished work.\nRestarting the daemon alone leaves old supervisors and their scan loops alive. Old ownership\nartifacts are not supported by the new runtime.",
+				"breaking": ["replace recurring process scans with owned-group supervision"],
+				"adoption": [
+					{
+						"requirement": "required",
+						"text": "drain or stop old attempts with the old Colony runtime before upgrading, install all\nmatching Colony companion binaries, then restart the daemon and resume unfinished work.\nRestarting the daemon alone leaves old supervisors and their scan loops alive. Old ownership\nartifacts are not supported by the new runtime."
+					}
+				]
+			},
+			{
+				"commit": "12b6e0d2b38e64b3251b31d4d6085e697905c6f9",
+				"summary": "submit observer reports through Bee system protocols",
+				"body": "Generated inactivity and post-run assessment instructions use `bee system report`\nand `bee system assess`. The assessment wrapper owns its submission protocol and\nconstraints; the configured role supplies assessment guidance. Foreground operation\nremains `colony daemon serve`.\n\nRequired: upgrade Colony with the matching Bee executable and update custom\nobserver prompts that embed the former report or assess command paths.",
+				"breaking": [],
+				"adoption": [
+					{
+						"requirement": "required",
+						"text": "upgrade Colony with the matching Bee executable and update custom\nobserver prompts that embed the former report or assess command paths."
+					}
+				]
+			},
+			{
+				"commit": "8894387849681c26f231906ffb84530561808bf8",
+				"summary": "bound request explanations to relevant runtime evidence",
+				"body": "`colony explain` reads the selected checkpoint and complete attempt history.\nCapacity keeps one kind/bucket entry per retained starting/running attempt\nbound by its request checkpoint to the daemon's host. Unrelated terminal\nhistory and policy revisions are excluded; `colony inspect` and `status`\nretain their existing output.\n\nRequired: update Colony and its companion executables together, coordinate\nactive work, and refresh any running daemon. Follow\n`colony daemon restart --help`, preserving the selected state/socket.\nAn older daemon cannot handle `inspect-request`; explain reports unavailable\nruntime evidence without falling back to full inspection.\n\nBREAKING CHANGE: `colony explain --json` omits\n`runtime.result.value.colony.attempts`. Use `runtime.result.value.attempts`\nfor the selected request's complete history, or `colony inspect` for\nrepository-wide history. The new socket command requires an updated daemon.",
+				"breaking": [
+					"`colony explain --json` omits\n`runtime.result.value.colony.attempts`. Use `runtime.result.value.attempts`\nfor the selected request's complete history, or `colony inspect` for\nrepository-wide history. The new socket command requires an updated daemon."
+				],
+				"adoption": [
+					{
+						"requirement": "required",
+						"text": "update Colony and its companion executables together, coordinate\nactive work, and refresh any running daemon. Follow\n`colony daemon restart --help`, preserving the selected state/socket.\nAn older daemon cannot handle `inspect-request`; explain reports unavailable\nruntime evidence without falling back to full inspection."
+					}
+				]
+			}
+		]
+	},
+	{
 		"version": "0.7.0",
 		"changes": []
 	},

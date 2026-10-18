@@ -1,6 +1,6 @@
 {
 	"name": "@hive/busybee",
-	"version": "0.7.0",
+	"version": "0.7.1",
 	"private": true,
 	"bin": {
 		"busybee": "./bin/busybee.ts"

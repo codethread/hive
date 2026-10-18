@@ -1,5 +1,29 @@
 [
 	{
+		"version": "0.7.1",
+		"changes": [
+			{
+				"commit": "12b6e0d2b38e64b3251b31d4d6085e697905c6f9",
+				"summary": "group workflow and observer protocols under system",
+				"body": "Busy Bee stage dispatch uses `bee system dispatch-stage`. Colony's auxiliary\nobservers submit through `bee system assess` and `bee system report`. The former\ntop-level paths are removed. Ordinary workers continue to use `bee finish`.\n\nRequired: upgrade Bee, Busy Bee and Colony together. Update custom integration\ncalls and observer prompts to the system paths; use `bee system --help` for the\nprotocols and their callers.",
+				"breaking": ["group workflow and observer protocols under system"],
+				"adoption": [
+					{
+						"requirement": "required",
+						"text": "upgrade Bee, Busy Bee and Colony together. Update custom integration\ncalls and observer prompts to the system paths; use `bee system --help` for the\nprotocols and their callers."
+					}
+				]
+			},
+			{
+				"commit": "66cc8d97df8147d1fbf7ba41084fe3a2951c2e53",
+				"summary": "add an operational Architect to Hive's bee catalogue",
+				"body": "Hive's repository configuration adds a read-only Pi/Astra-high Architect\nfor feature continuity review and task unblocking. Detailed code/test review\nremains Reviewer's role; Librarian retains architectural memory.\n\nOptional: adopt the repository kind and specialist protocol with a compatible\nPi formula. Installing Bee alone does not copy repository kind configuration.",
+				"breaking": [],
+				"adoption": []
+			}
+		]
+	},
+	{
 		"version": "0.7.0",
 		"changes": [
 			{

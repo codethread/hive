@@ -1,5 +1,29 @@
 [
 	{
+		"version": "0.7.1",
+		"changes": [
+			{
+				"commit": "f03762dcf200b66cc90a980b69fa4d984476e2f9",
+				"summary": "explore workflows with a local canvas and nested navigation",
+				"body": "Render workflow cards, edges and instructions locally with React Flow and ELK.\nShow nested states as scope boxes with collapse, expand and focus controls.\nNavigate retained child workflows from invoking cards and return through shared\nworkflow/scope breadcrumbs; unmatched retained children remain available as\ncontextual links. Blue Current and green Direct target indicators remain\nindependent of orange Bee dispatch and recorded request status.\n\nThe shared preview dialog survives card regrouping, opens within the native\nbead inspector when triggered there, and keeps its instruction divider usable.\nThe Storybook catalogue separates Canvas, Cards, Edges, Simulation, Nested\nactors, Refresh and Inspection, with shell and inspector integration examples.\n\nRequired: upgrade Busy Bee alongside Hive UI so its PATH installation supports\n`system preview`, `system checkpoint` and `system simulate`.\nOptional: run `mise run hive-ui:storybook` to explore the component catalogue.",
+				"breaking": [],
+				"adoption": [
+					{
+						"requirement": "required",
+						"text": "upgrade Busy Bee alongside Hive UI so its PATH installation supports\n`system preview`, `system checkpoint` and `system simulate`."
+					}
+				]
+			},
+			{
+				"commit": "f03762dcf200b66cc90a980b69fa4d984476e2f9",
+				"summary": "simulate outcomes and poll saved checkpoints efficiently",
+				"body": "Use Saved and Simulate modes to inspect published instructions or explore\ntemporary outcomes with editable event data, examples, Back and Reset controls.\nRoot workflows also accept explicit initial input. Simulation pins its starting\ninspection and selected actor while saved updates arrive; returning to Saved\ndiscards the walkthrough and displays the latest inspection.\n\nThe open dialog owns its initial full read and visibility-aware five-second\ncheckpoint polling. Unchanged checkpoints retain the diagram without importing\nthe definition again; changed checkpoints, manual Refresh and failure recovery\nrequest full inspection. Refresh preserves selection, viewport, zoom and panel\nsize. Manual Refresh also detects definition-only changes. Preview and\nsimulation leave the actual run unchanged.",
+				"breaking": [],
+				"adoption": []
+			}
+		]
+	},
+	{
 		"version": "0.7.0",
 		"changes": []
 	},

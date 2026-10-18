@@ -1,5 +1,55 @@
 [
 	{
+		"version": "0.7.1",
+		"changes": [
+			{
+				"commit": "12b6e0d2b38e64b3251b31d4d6085e697905c6f9",
+				"summary": "move driver admission into system tooling",
+				"body": "Bee's driver admission integration uses `busybee system prepare-driver RUN --json`;\nthe former top-level path is removed. Like the other system interfaces, this\noperation requires `--json`. Busy Bee dispatches stage workers through\n`bee system dispatch-stage`.\n\nRequired: upgrade Busy Bee with Bee and Colony so both integration directions use\nthe matching paths. Update custom driver-admission callers to include `system`\nand `--json`. Ordinary orphan recovery uses `bee attach-workflow`; failed drivers\nuse `bee retry`.",
+				"breaking": ["move driver admission into system tooling"],
+				"adoption": [
+					{
+						"requirement": "required",
+						"text": "upgrade Busy Bee with Bee and Colony so both integration directions use\nthe matching paths. Update custom driver-admission callers to include `system`\nand `--json`. Ordinary orphan recovery uses `bee attach-workflow`; failed drivers\nuse `bee retry`."
+					}
+				]
+			},
+			{
+				"commit": "66cc8d97df8147d1fbf7ba41084fe3a2951c2e53",
+				"summary": "add Architect-gated autonomous feature-task delivery",
+				"body": "Hive's repository workflow catalogue adds `do-feature-task` for isolated,\nreviewed local integration into a named feature base. Exact candidate\napproval, stale-base repair, partial-effect inspection and post-done source\nclosure keep native prerequisites from releasing early. Native reconstruction\nrequires a matching recorded uncertainty origin for the current candidate.\n\nOptional: adopt the repository workflow, its module dependencies and required\nArchitect/Reviewer/Bookworm configuration with Honeycomb's local-delivery\ncommands. Installing Busy Bee alone does not add this workflow. Dispatch each\ntask with `--workflow do-feature-task --cwd CANONICAL_ROOT` and explicit local\ndelivery authority. Keep workflow controls and helper requests in that stable\ncheckout while implementation and integration target the isolated task and\nfeature base. Coordinate canonical catalogue/tool upgrades with active runs.\nNative prerequisites and Colony retain scheduling authority. Main landing,\npushes, tool installation, tracker publication and feature closure require\nseparate authorization.",
+				"breaking": [],
+				"adoption": []
+			},
+			{
+				"commit": "f03762dcf200b66cc90a980b69fa4d984476e2f9",
+				"summary": "expose workflow inspection and checkpoint tooling",
+				"body": "Add JSON-only `system preview`, `system checkpoint` and `system schema`\ninterfaces for applications. Inspection combines retained actor graphs with\nfrozen published briefs and labelled instruction previews rendered from saved\ncontext. Normalized invocation IDs connect invoking states to retained children.\nCheckpoint reads return the run, checkpoint and update time without importing\nthe workflow definition.\n\nOptional: use `busybee system --help` and the focused subcommand help when\nintegrating tooling. Routine agents continue to discover briefs and outcomes\nthrough `show` and `discover`; `preview` retains structural saved-state output.\nInspection callbacks execute trusted author code without an I/O sandbox.",
+				"breaking": [],
+				"adoption": []
+			},
+			{
+				"commit": "f03762dcf200b66cc90a980b69fa4d984476e2f9",
+				"summary": "simulate workflow outcomes without advancing saved work",
+				"body": "Replay original outcome data from a retained actor's saved state, or from\nexplicit initial input for the root actor. Validate payloads and guards, retain\nuntouched published briefs, and render instructions for simulated visits.\nReject stale checkpoint or definition baselines and encountered actor\ncoordination, timers or custom effects. Replay starts no live actors and\nperforms no engine writes; trusted author calculations are not sandboxed.\n\nOptional: read `busybee system simulate --help` and\n`busybee system schema --simulation --json` for the replay contract. Simulation\ndoes not establish acceptance or completion of real work.",
+				"breaking": [],
+				"adoption": []
+			},
+			{
+				"commit": "f03762dcf200b66cc90a980b69fa4d984476e2f9",
+				"summary": "dispatch Land review visits to a dedicated reviewer",
+				"body": "Land 4.1 dispatches new review visits to the `reviewer` Bee kind after the driver\nrecords passing checks. The reviewer compares the complete scoped content and\nbase at the start and end, returning an approval receipt or repair findings.\nCommit compares that receipt again; staging alone does not change content\nidentity. Retain the existing Bookworm review of exact source and squash\nmessages, including per-tool changelog coverage and adoption guidance.\n\nRequired when adopting this Land definition: configure the `reviewer` Bee kind\nand make Colony execution available for dispatched reviews. Land 4.1 preserves\nthe saved 4.0 state, context and outcome contracts; already published visits\nkeep their frozen briefs and dispatch ownership.",
+				"breaking": [],
+				"adoption": [
+					{
+						"requirement": "required",
+						"text": "When adopting this Land definition: configure the `reviewer` Bee kind\nand make Colony execution available for dispatched reviews. Land 4.1 preserves\nthe saved 4.0 state, context and outcome contracts; already published visits\nkeep their frozen briefs and dispatch ownership."
+					}
+				]
+			}
+		]
+	},
+	{
 		"version": "0.7.0",
 		"changes": []
 	},

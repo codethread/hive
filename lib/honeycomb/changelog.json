@@ -1,5 +1,17 @@
 [
 	{
+		"version": "0.7.1",
+		"changes": [
+			{
+				"commit": "66cc8d97df8147d1fbf7ba41084fe3a2951c2e53",
+				"summary": "integrate reviewed tasks into a pinned local feature base",
+				"body": "Use `integrate --into` with full source/target commit pins for local-only\nfast-forward delivery into an explicit registered feature worktree. Local\ncleanup uses `remove --self --integrated-into-local` with containment and\nexpected-old-ref proof. Existing default-branch finish policy is unchanged.\n\nOptional: use the new commands for independently delivered feature tasks.\nWhen adopting them, hold the matching target queue with exclusive checkout\nuse and inspect partial-effect receipts. Run cleanup from a surviving\ncheckout, selecting the source with `--cwd`. Local default-name identification\nrequires an `origin/HEAD` symbolic NAME designation, which may be dangling;\nintegration and containment need no remote history.",
+				"breaking": [],
+				"adoption": []
+			}
+		]
+	},
+	{
 		"version": "0.7.0",
 		"changes": []
 	},
