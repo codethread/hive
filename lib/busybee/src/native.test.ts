@@ -98,11 +98,19 @@ test("closure reads state before marking a write and leaves an already closed ta
 			calls.push("beforeWrite");
 		},
 	};
-	await closeTask(endpoint, task.id, services);
-	await closeTask(endpoint, task.id, services);
+	const fact = {
+		kind: "busybee-lifecycle",
+		formatVersion: 1,
+		scope: "visit",
+		runId: "run",
+		outcome: "succeeded",
+		reason: "Worker completed.",
+	} as const;
+	await closeTask(endpoint, { id: task.id, fact }, services);
+	await closeTask(endpoint, { id: task.id, fact }, services);
 	expect(calls).toEqual(["show", "beforeWrite", "close", "show"]);
 	await expect(beads.show(scope, task.id)).resolves.toMatchObject({
-		close_reason: "Completed: XState step finished.",
+		close_reason: JSON.stringify(fact),
 		status: "closed",
 	});
 });

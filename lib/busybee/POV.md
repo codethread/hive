@@ -98,6 +98,43 @@ busybee collect busy-8fp --json
 
 The next task is “Choose quick recipes,” with context including `busyWeek: true` and `plannedMeals: 4`. Repeat the inspect, work, complete and collect cycle until `status` is `done`.
 
+## Read a completed run's lifecycle
+
+After the groceries run reports `done`, read its native closure:
+
+```sh
+busybee inspect busy-8fp --json
+```
+
+```json
+{
+	"ok": true,
+	"kind": "workflow_lifecycle",
+	"runId": "busy-8fp",
+	"nativeStatus": "closed",
+	"updatedAt": "2026-10-18T10:30:00Z",
+	"publication": {
+		"checkpoint": "busy-c7q",
+		"savedAt": "2026-10-18T10:30:01Z",
+		"locked": false
+	},
+	"lifecycle": {
+		"kind": "terminal",
+		"closedAt": "2026-10-18T10:30:00Z",
+		"fact": {
+			"kind": "busybee-lifecycle",
+			"formatVersion": 1,
+			"scope": "run",
+			"runId": "busy-8fp",
+			"outcome": "succeeded",
+			"reason": "Authored workflow completed and checkpoint published."
+		}
+	}
+}
+```
+
+This read works after the workflow source is removed, provided the selected tracker retains the run and checkpoint. See the [lifecycle contract](./SPEC.md#native-lifecycle) for pending and unclassified records, and `busybee inspect --help` for schema discovery.
+
 ## Run Hive's landing workflow
 
 The [land definition](../../.workflows/land/workflow.ts) records an existing user request to land; starting it does not authorize landing. Inspect its input with `busybee input-schema land`. For authorized work, `/tmp/land-input.json` might contain:

@@ -280,6 +280,42 @@
 		"#test-72": {
 			"threshold": "DANGER",
 			"justification": "ct explicitly approved allowing this existing timing-only blocker through during merges on 2026-10-15: qlock timeout retains a new ticket and resumed exec preserves FIFO without allocation. Preserve real integration behavior, assertions, test timeouts and global timing cutoffs."
+		},
+		"#test-73": {
+			"threshold": "DANGER",
+			"justification": "Retain the complete mandatory real-native Busy Bee joined proof: authored negative chart completion, ordinary child-closure refusal/retry, original result preservation, native run/visit/group close_reason and timestamps, independent export/import, source removal and public inspection without a daemon. Architect hv-l7a9b4 and Librarian hv-vsef0d require preserving this joined acceptance boundary. One bounded optimization batches redundant reads and removes warming without hiding subject work or weakening assertions; measured approximately 2.4-3.1 seconds after optimization versus approximately 3.7-4.6 seconds before. No global cutoff, test timeout, discovery filter, invocation or assertion change. This entry requires ct explicit approval before addition."
+		},
+		"#test-74": {
+			"threshold": "XSLOW",
+			"justification": "Measure the complete memory-backed lost-close-receipt scenario in the test body: create and start the workflow, save and complete the original worker result, collect through native closure and its lost receipt, inspect confirmed success through invoke/runCli, and assert retained checkpoint ownership. Earlier body-only figures omitted fixture preparation and worker completion; they are not comparable complete-scenario measurements. Repaired fresh-process samples were 3.08/3.09/3.64ms; CPU-locked changed-suite samples were 7.552/1.715ms. The observed 7.552ms exceeds SLOW; XSLOW permits through 1000ms, not a numeric 7.552ms cap. These variable samples establish neither a speedup nor an unavoidable lower bound."
+		},
+		"#test-75": {
+			"threshold": "SLOW",
+			"justification": "Measure public inspect --schema discovery with normal service creation, the rejecting endpoint-selection method, Commander construction/parsing, schema generation and the success assertion inside the test body. The unused workflow fixture was removed. Earlier body-only figures excluded service/fixture preparation and are not comparable complete-scenario measurements. Repaired fresh-process samples were 1.16/1.37/1.17ms; CPU-locked changed-suite samples were 2.425/1.192ms. SLOW permits through 5ms for this observed cost; the samples establish neither a speedup nor an unavoidable lower bound."
+		},
+		"#test-76": {
+			"threshold": "SLOW",
+			"justification": "Cover only the valid JSON reason {\"kind\":\"busybee-lifecycle\"} with required fields missing. The measured body creates and starts the memory workflow/checkpoint, closes the worker then run with historical reasons, and asserts source-independent inspection rejects with BusyBeeError and invalid_lifecycle. Earlier body-only figures omitted workflow preparation and closures. Complete-scenario fresh-process samples were 0.81/0.82/0.94ms; CPU-locked changed-suite samples were 2.577/0.716ms. SLOW permits through 5ms for this row's variable observed cost, not the other classification rows; no speedup or unavoidable lower bound is established."
+		},
+		"#test-77": {
+			"threshold": "SLOW",
+			"justification": "Measure the complete memory-backed final-close-refusal scenario in the test body: create and start the workflow, save and complete the original worker result, collect through refused closure, then assert partial_effects, pending native lifecycle, retained publication ownership and no close_reason. Earlier body-only figures omitted fixture preparation and worker completion. Complete-scenario fresh-process samples were 0.59/0.64/0.67ms; CPU-locked changed-suite samples were 2.801/0.590ms. SLOW permits through 5ms for the observed variable cost; these samples establish neither a speedup nor an unavoidable lower bound."
+		},
+		"#test-78": {
+			"threshold": "SLOW",
+			"justification": "Cover only Shared's existing four-row invalid-tagged-fact test template: unsupported formatVersion 2, scope task, outcome done, and empty runId must throw ZodError at the native read boundary. The changed-suite report recorded 1.025ms under their identical title and does not identify which row; independent Architect samples for all four rows were 0.01-0.11ms. Approval would deliberately cover all four variants of this named template, not assert that all four were slow or waive other lifecycle tests. Preserve actual cold parsing and assertions; no warming, hidden setup, timeout, global cutoff or discovery change. SLOW permits only through 5ms."
+		},
+		"#test-79": {
+			"threshold": "XSLOW",
+			"justification": "Cover only the Busy Bee classification row with reason 'Completed by older engine' and expected unavailable. Its measured body creates and starts a valid memory workflow/checkpoint, closes the worker then run with historical reasons, and inspects the unclassified closure with author source inaccessible. Fresh-process samples were 4.06/4.09/4.32ms; CPU-locked changed-suite samples were 10.585/2.238ms. XSLOW covers the observed 10.585ms above 5ms and permits through 1000ms, not a numeric 10.585ms cap. Later smaller samples do not erase that observed cost or establish an unavoidable lower bound."
+		},
+		"#test-80": {
+			"threshold": "SLOW",
+			"justification": "Cover only the malformed tagged JSON reason {\"kind\":\"busybee-lifecycle\" with its closing brace missing. The measured body creates and starts the memory workflow/checkpoint, closes the worker then run, and asserts source-independent inspection rejects with BusyBeeError and invalid_lifecycle. Before unique markers, this row and the wrong-scope/run row shared a title: CPU-locked changed-suite durations were 1.118/1.056ms, without exact row attribution. Both exceeded 1ms. This row's fresh-process samples were 0.29/0.29/0.31ms; its uniquely tagged changed-suite sample was 0.359ms. SLOW permits through 5ms for this variable observed cost, without claiming every run exceeds 1ms or proving a lower bound."
+		},
+		"#test-81": {
+			"threshold": "SLOW",
+			"justification": "Cover only the full version-1 succeeded fact with scope='visit' and runId='wrong' on a closed run. The measured body creates and starts the memory workflow/checkpoint, closes the worker then run, and asserts source-independent inspection rejects with BusyBeeError and invalid_lifecycle. Before unique markers, this row and the malformed-JSON row shared a title: CPU-locked changed-suite durations were 1.118/1.056ms, without exact row attribution. Both exceeded 1ms. This row's fresh-process samples were 0.28/0.28/0.28ms; its uniquely tagged changed-suite sample was 0.217ms. SLOW permits through 5ms for this variable observed cost, without claiming every run exceeds 1ms or proving a lower bound."
 		}
 	}
 }

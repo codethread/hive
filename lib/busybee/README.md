@@ -85,16 +85,17 @@ Repeat until `status` is `done`. A closed task stays active until Busy Bee accep
 
 Use `busybee --help` for the command flow and global options, then focused help to choose a read:
 
-| Need                                                             | Help                          |
-| ---------------------------------------------------------------- | ----------------------------- |
-| Bundled agent guidance                                           | `busybee skills --help`       |
-| Creation input                                                   | `busybee input-schema --help` |
-| Active task briefs and run status                                | `busybee show --help`         |
-| Outcome choices and payload schemas                              | `busybee discover --help`     |
-| Saved diagrams and state for active or completed runs            | `busybee preview --help`      |
-| Checkpoint freshness, inspection and simulation for integrations | `busybee system --help`       |
+| Need | Help |
+| --- | --- |
+| Bundled agent guidance | `busybee skills --help` |
+| Creation input | `busybee input-schema --help` |
+| Native run lifecycle, including when workflow source is unavailable | `busybee inspect --help` |
+| Active task briefs and run status | `busybee show --help` |
+| Outcome choices and payload schemas | `busybee discover --help` |
+| Saved diagrams and state for active or completed runs | `busybee preview --help` |
+| Checkpoint freshness, inspection and simulation for integrations | `busybee system --help` |
 
-The [preview contract](./SPEC.md#saved-state-preview) distinguishes structural preview from tooling inspection with frozen briefs and rendered instruction previews. [Simulation](./SPEC.md#simulation) evaluates temporary outcomes without advancing the saved run; use `busybee system simulate --help` for requests and schema discovery. [Hive UI](../hive-ui/README.md#workflow-preview) presents both Saved and Simulate modes. The [authoring guide](../../docs/busybee-workflows.md) covers definitions and validation limits.
+The [lifecycle contract](./SPEC.md#native-lifecycle) defines portable closure facts and their classification. The [preview contract](./SPEC.md#saved-state-preview) covers structural diagrams, frozen briefs and rendered instruction previews. [Simulation](./SPEC.md#simulation) evaluates temporary outcomes without advancing the saved run; use `busybee system simulate --help` for requests and schema discovery. [Hive UI](../hive-ui/README.md#workflow-preview) presents both Saved and Simulate modes. The [authoring guide](../../docs/busybee-workflows.md) covers definitions and validation limits.
 
 Before updating a named workflow, check the selected tracker's existing unfinished runs:
 

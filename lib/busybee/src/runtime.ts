@@ -258,7 +258,21 @@ export async function complete(
 	const endpoint = await resolveMutation(options, services);
 	const result = await persistResult(request, { endpoint, services }, "complete");
 	try {
-		await closeTask(endpoint, request.bead, services);
+		await closeTask(
+			endpoint,
+			{
+				id: request.bead,
+				fact: {
+					kind: "busybee-lifecycle",
+					formatVersion: 1,
+					scope: "visit",
+					runId: request.id,
+					outcome: "succeeded",
+					reason: "Original worker result saved; visit completed.",
+				},
+			},
+			services,
+		);
 	} catch (error) {
 		throw new BusyBeeError(
 			"stage_close_failed",
@@ -527,6 +541,15 @@ export async function checkpointBead(
 	id: string,
 	services: Services,
 ): Promise<BeadRecord> {
+	const { checkpoint } = await checkpointRecords(endpoint, id, services);
+	return checkpoint;
+}
+
+export async function checkpointRecords(
+	endpoint: { repo: string; db: string },
+	id: string,
+	services: Services,
+): Promise<{ run: BeadRecord; checkpoint: BeadRecord }> {
 	const parent = await readBead(endpoint, id, services);
 	const related = await Promise.all(
 		parent.dependencies
@@ -542,7 +565,7 @@ export async function checkpointBead(
 			`Expected one related workflow checkpoint for ${id}`,
 		);
 	}
-	return checkpoints[FIRST]!;
+	return { run: parent, checkpoint: checkpoints[FIRST]! };
 }
 
 async function restore(
@@ -1338,7 +1361,21 @@ async function publish(
 	run.snapshot = snapshotFor(actor);
 	await updateOwned({ input: { description: JSON.stringify(run) }, endpoint, locked }, services);
 	if (currentStatus(actor) === "done") {
-		await closeTask(endpoint, run.id, services);
+		await closeTask(
+			endpoint,
+			{
+				id: run.id,
+				fact: {
+					kind: "busybee-lifecycle",
+					formatVersion: 1,
+					scope: "run",
+					runId: run.id,
+					outcome: "succeeded",
+					reason: "Authored workflow completed and checkpoint published.",
+				},
+			},
+			services,
+		);
 	}
 }
 
@@ -1351,7 +1388,21 @@ async function closeDepartedGroups(
 	for (const old of run.active.toReversed()) {
 		if (!keys.has(old.key) && !old.meta.commands) {
 			// eslint-disable-next-line no-await-in-loop -- Close nested groups before their native parents.
-			await closeTask(endpoint, old.bead, services);
+			await closeTask(
+				endpoint,
+				{
+					id: old.bead,
+					fact: {
+						kind: "busybee-lifecycle",
+						formatVersion: 1,
+						scope: "group",
+						runId: run.id,
+						outcome: "succeeded",
+						reason: "Authored group finished.",
+					},
+				},
+				services,
+			);
 		}
 	}
 }

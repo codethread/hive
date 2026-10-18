@@ -2,6 +2,7 @@ import type { BeadRecord, BeadsScope, BeadsService, UpdateBead } from "@hive/bea
 import { CommandError, createNativeBeads } from "@hive/beads";
 // eslint-disable-next-line import/no-nodejs-modules -- Filesystem access is injected at this native adapter.
 import { mkdir, readdir, stat, writeFile } from "node:fs/promises";
+import type { WorkflowClosure } from "@hive/shared";
 import defaultManifest from "../../../.workflows/do-work/busybee.toml" with { type: "text" };
 // @ts-expect-error -- Bun's text loader imports TypeScript source as a string; tsc sees the chart's exports.
 // Bun text imports have a string default export.
@@ -208,14 +209,15 @@ export async function createTask(
 
 export async function closeTask(
 	endpoint: MutationEndpoint,
-	id: string,
+	closure: { id: string; fact: WorkflowClosure },
 	services: Services,
 ): Promise<void> {
+	const { id, fact } = closure;
 	const task = await readBead(endpoint, id, services);
 	if (task.status !== "closed") {
 		services.beforeWrite();
 		await services.beads.close({ actor: endpoint.actor, cwd: endpoint.repo, db: endpoint.db }, id, {
-			reason: "Completed: XState step finished.",
+			reason: JSON.stringify(fact),
 		});
 	}
 }

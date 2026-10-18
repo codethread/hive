@@ -26,12 +26,14 @@ import { listWorkflows, namedDefinition } from "./catalogue.ts";
 import {
 	workflowCheckpointSchema,
 	workflowInspectionSchema,
+	workflowLifecycleSchema,
 	workflowSimulationRequestSchema,
 	workflowSimulationSchema,
 } from "@hive/shared";
 import type { PreflightReport } from "./preflight.ts";
 import type { Source } from "./catalogue.ts";
 import changelog from "../changelog.json";
+import { inspectLifecycle } from "./lifecycle.ts";
 import { preflight } from "./preflight.ts";
 import { readSkills } from "./skills.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Explicit source paths resolve against the invoking directory.
@@ -279,6 +281,38 @@ function registerInspection(invocation: Invocation): void {
 	registerSystem(invocation);
 	const { cli, services } = invocation;
 	const options = (): CliOptions => cli.opts<CliOptions>();
+	cli
+		.command("inspect [run]")
+		.description("Read a run's native lifecycle without loading its workflow definition")
+		.option("--schema", "Read the lifecycle success envelope schema without tracker access")
+		.addHelpText(
+			"after",
+			"\nRUN is a workflow run ID. The read requires its native record and a valid related " +
+				"checkpoint, but no workflow source or Colony. Default success output is JSON; " +
+				"--json adds the workflow_lifecycle envelope and machine-readable failures. " +
+				"Reports native status, lifecycle and publication timestamps/lock. Closed runs " +
+				"without lifecycle markers remain unclassified. A lock observation does not " +
+				"establish worker liveness.\n" +
+				"Use inspect --schema --json without a run ID for the success envelope schema. " +
+				"Use show for active briefs, discover for outcome schemas and preview or system " +
+				"preview for saved diagrams and instruction previews.",
+		)
+		.action(async (id: string | undefined, selection: { schema?: boolean }) => {
+			invocation.kind = "workflow_lifecycle";
+			if (selection.schema) {
+				invocation.kind = "workflow_lifecycle_schema";
+				const schema = workflowLifecycleSchema.extend({
+					ok: z.literal(true),
+					kind: z.literal("workflow_lifecycle"),
+				});
+				writeResult({ schema: z.toJSONSchema(schema) }, invocation);
+				return;
+			}
+			if (!id) {
+				throw new BusyBeeError("usage", "inspect requires a workflow run ID.");
+			}
+			writeResult(await inspectLifecycle(id, options(), services), invocation);
+		});
 	cli
 		.command("preview <run>")
 		.description("Preview an active or completed run's latest saved workflow state")
