@@ -6,7 +6,7 @@
 		".husky/pre-commit": "a11e58c7c8203220f5cc3aa3f615f97293df4b9b16dc7759d12fe468248f7a25",
 		".husky/pre-merge-commit": "a11e58c7c8203220f5cc3aa3f615f97293df4b9b16dc7759d12fe468248f7a25"
 	},
-	"skills": ["repository-setup"],
+	"skills": ["repository-setup", "tracker-recovery"],
 	"components": {
 		"hooks": {
 			"revision": 1

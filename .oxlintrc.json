@@ -52,6 +52,16 @@
 	},
 	"overrides": [
 		{
+			"files": [".pi/extensions/beeswax.js"],
+			"rules": {
+				"max-statements": "off",
+				"init-declarations": "off",
+				"prefer-destructuring": "off",
+				"prefer-template": "off",
+				"@stylistic/max-len": "off"
+			}
+		},
+		{
 			"files": ["lib/beads/**/*.{ts,tsx}"],
 			"rules": {
 				"no-restricted-imports": [
