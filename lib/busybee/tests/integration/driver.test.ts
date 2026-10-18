@@ -539,6 +539,7 @@ await Promise.all(
 	),
 );
 const replacementStage = await replacementFixture();
+const cancelledStage = await replacementFixture("cancelled");
 // Warm the distinct supersedes decoding path before measuring continuation.
 const retryWarmup = await replacementFixture();
 await navigate({ id: retryWarmup.run.id, operation: "collect" }, {}, retryWarmup.io);
@@ -618,6 +619,42 @@ describe("Bee-dispatched stage coordination", () => {
 			request: replacement,
 		});
 	});
+
+	// Retain one complete cancellation-to-result contract through the runtime boundary.
+	// eslint-disable-next-line max-statements
+	test("cancelled stage replacement completes and collects its saved result on the original run", async () => {
+		const { beads, io, run, stage, replacement } = cancelledStage;
+		const original = await beads.show(scope, stage.request!);
+		expect(await navigate({ id: run.id, operation: "collect" }, {}, io)).toEqual(run);
+		const worker = await beads.show(scope, replacement);
+		await beads.update(scope, [stage.bead], { assignee: worker.assignee });
+		await filedResponse(cancelledStage, stage.bead, replacement);
+		await complete(
+			{ id: run.id, bead: stage.bead, choice: "selected", data: payload },
+			{ actor: worker.assignee! },
+			io,
+		);
+		await beads.close(scope, replacement, { reason: "completed" });
+		expect(await navigate({ id: run.id, operation: "collect" }, {}, io)).toMatchObject({
+			status: "done",
+			active: [],
+		});
+		const {
+			dependencies: _dependencies,
+			dependents: _dependents,
+			...retained
+		} = await beads.show(scope, stage.request!);
+		const {
+			dependencies: _originalDependencies,
+			dependents: _originalDependents,
+			...before
+		} = original;
+		expect(retained).toEqual(before);
+		expect(await beads.show(scope, stage.bead)).toMatchObject({
+			notes: JSON.stringify({ choice: "selected", data: payload }),
+			status: "closed",
+		});
+	});
 });
 
 /** Generic filed artifact fixture; Busy Bee consumes machine outcomes, not response storage. */
@@ -655,10 +692,10 @@ async function filedResponse(
 	return current.beads.show(scope, created.id);
 }
 
-async function replacementFixture() {
+async function replacementFixture(reason = "blocked") {
 	const current = await beeFixture();
-	const { beads, run, stage } = current;
-	await beads.close(scope, stage.request!, { reason: "blocked" });
+	const { beads, stage } = current;
+	await beads.close(scope, stage.request!, { reason });
 	const replacement = await beads.create(scope, {
 		title: "Retry",
 		owner: "ct",
@@ -666,7 +703,7 @@ async function replacementFixture() {
 		labels: spawnRequestLabels("worker"),
 		description: JSON.stringify({
 			...recipe,
-			assignment: { kind: "stage", runId: run.id, stageId: stage.bead },
+			assignment: { kind: "stage", runId: current.run.id, stageId: stage.bead },
 		}),
 	});
 	await beads.dep.add(scope, replacement.id, stage.bead, "related");

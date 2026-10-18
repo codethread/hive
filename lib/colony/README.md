@@ -36,7 +36,7 @@ Run `colony skills file operations references/configuration.md` for required fie
 
 ## Retry an unsuccessful request
 
-Use `bee retry --help`; replacement retains the workflow assignment. [Workflow recovery](../busybee/README.md#resume-and-failures) covers incompatible or abandoned runs. `bee result --help` explains exact-request answer selection.
+Use `bee retry --help` for failed-request recovery or deliberate cancellation resumption, including eligibility and process verification. Replacement retains the workflow assignment; the [spawn contract](../../docs/agents/spawn-requests.md#transitions-and-resolution) defines retained history and replacement provenance. [Workflow recovery](../busybee/README.md#resume-and-failures) covers incompatible or abandoned runs. `bee result --help` explains exact-request answer selection.
 
 ## Acknowledge a failure
 

@@ -164,7 +164,7 @@ async function assertOrphanRun(
 				`${runId}` +
 				" already has driver request " +
 				`${driver.id}` +
-				"; inspect it or retry an eligible failed request.",
+				"; inspect it with bee status and read bee retry --help for replacement eligibility.",
 			{
 				runId,
 				requestId: driver.id,

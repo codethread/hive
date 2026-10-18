@@ -11,6 +11,8 @@ import {
 	readSpawnRequest,
 	recipeSchema,
 	requestNeedsAttention,
+	requestOutcome,
+	requestResolution,
 	spawnRequestLabels,
 } from "@hive/shared";
 import type { TrackerCommands, TrackerContext } from "./tracker.ts";
@@ -96,7 +98,7 @@ export async function validateRequestedTasks(
 	await admitTasks({ beads, repository }, { actor: options.actor, ids: requestedIds }, config);
 }
 
-/** Replace a terminal failure using current defaults and unfinished work only. */
+/** Replace an unresolved failure or explicitly resume cancellation with current defaults. */
 /* eslint-disable-next-line max-statements --
  * Keep admission, replacement creation and predecessor publication ordered at the
  * command boundary.
@@ -109,9 +111,15 @@ export async function retryRequest(
 	const endpoint = await resolveRepository(options.repo, options.beadsDb);
 	const bead = await beads.show(trackerScope(endpoint, options.actor), id);
 	const old = readSpawnRequest(bead);
-	if (!requestNeedsAttention(bead)) {
+	const resumeCancelled =
+		options.resumeCancelled === true &&
+		requestOutcome(bead) === "cancelled" &&
+		requestResolution(bead).kind === "resolved";
+	if (!requestNeedsAttention(bead) && !resumeCancelled) {
 		await publishRequestLabels({ beads, repository: endpoint }, options.actor, old.id);
-		throw new Error(`Request ${old.id} is not an unresolved unsuccessful request`);
+		throw new Error(
+			`Request ${old.id} is ineligible for replacement; read bee retry --help for failure and cancellation eligibility`,
+		);
 	}
 	const tasks = await Promise.all(
 		old.taskIds.map((taskId) => beads.show(trackerScope(endpoint, options.actor), taskId)),

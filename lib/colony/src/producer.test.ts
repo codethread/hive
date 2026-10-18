@@ -1,4 +1,12 @@
-import { beesConfigSchema, readSpawnRequest, readSpawnRequestSummary } from "@hive/shared";
+import {
+	BEE_ACKNOWLEDGMENT_PREFIX,
+	beesConfigSchema,
+	readSpawnRequest,
+	readSpawnRequestSummary,
+	requestDisposition,
+	requestNeedsAttention,
+	requestResolution,
+} from "@hive/shared";
 import { beforeTrackerWrite, createTask, memoryTracker } from "./tracker.test-support.ts";
 import { expect, test } from "bun:test";
 import { retryRequest, spawnWorkflowRequest, validateRequestedTasks } from "./producer.ts";
@@ -32,16 +40,20 @@ function commands(tracker: ReturnType<typeof memoryTracker>): ProducerCommands {
 const admission = memoryTracker();
 const task = await createTask(admission);
 const reserved = await createTask(admission, { assignee: "ct" });
-const retry = memoryTracker();
-const unfinished = await createTask(retry);
-const predecessorRequest = await spawnWorkflowRequest(
-	{ kind: "worker", assignment: { kind: "driver", runId: unfinished }, options },
-	commands(retry),
+const partialRetries = await Promise.all(
+	["exhausted", "Stopped by Bee"].map(async (reason) => {
+		const retry = memoryTracker();
+		const unfinished = await createTask(retry);
+		const created = await spawnWorkflowRequest(
+			{ kind: "worker", assignment: { kind: "driver", runId: unfinished }, options },
+			commands(retry),
+		);
+		await retry.beads.close(trackerScope(retry.repository, "worker"), created.request.id, {
+			reason,
+		});
+		return { retry, unfinished, predecessor: created.request.id, reason };
+	}),
 );
-const predecessor = predecessorRequest.request.id;
-await retry.beads.close(trackerScope(retry.repository, "worker"), predecessor, {
-	reason: "exhausted",
-});
 
 test("submission rejects human reservations and admits one open request per task", async () => {
 	const context = commands(admission);
@@ -154,6 +166,129 @@ const retryCases = await Promise.all(
 	}),
 );
 
+const cancelled = await Promise.all(
+	(["driver", "stage"] as const).map(async (kind) => {
+		const tracker = memoryTracker();
+		const runId = await createTask(tracker);
+		let assignment: WorkflowAssignment = { kind: "driver", runId };
+		if (kind === "stage") {
+			assignment = { kind, runId, stageId: await createTask(tracker, { parent: runId }) };
+		}
+		const created = await spawnWorkflowRequest(
+			{ kind: "worker", assignment, options },
+			commands(tracker),
+		);
+		const scope = trackerScope(tracker.repository, "operator");
+		await tracker.beads.close(scope, created.request.id, { reason: "Stopped by Bee" });
+		const original = await tracker.beads.show(scope, created.request.id);
+		return { kind, assignment, tracker, scope, original };
+	}),
+);
+
+test.each(cancelled)(
+	"$kind cancellation requires opt-in and retains native history on replacement and repetition",
+	// Verify the public replacement and retained native facts as one recovery boundary.
+	// eslint-disable-next-line max-statements
+	async ({ assignment, tracker, scope, original }) => {
+		const context = commands(tracker);
+		await expect(retryRequest(original.id, options, context)).rejects.toBeInstanceOf(Error);
+		const replacement = await retryRequest(
+			original.id,
+			{ ...options, resumeCancelled: true, model: "current-override" },
+			context,
+		);
+		const request = readSpawnRequest(await tracker.beads.show(scope, replacement.request.id));
+		expect(request).toMatchObject({
+			assignment,
+			host: hostname(),
+			recipe: { model: "current-override" },
+		});
+		expect(request.identity).not.toBe(original.assignee);
+		expect(request.taskIds).toEqual(readSpawnRequest(original).taskIds);
+		const retained = await tracker.beads.show(scope, original.id);
+		expect(retained).toMatchObject({
+			status: "closed",
+			close_reason: original.close_reason,
+			closed_at: original.closed_at,
+			assignee: original.assignee,
+			description: original.description,
+		});
+		expect(requestDisposition(retained)).toEqual({ outcome: "cancelled", resolution: "resolved" });
+		expect(requestNeedsAttention(retained)).toBe(false);
+		expect(requestResolution(retained)).toEqual({
+			kind: "superseded",
+			replacementIds: [request.id],
+		});
+		await expect(
+			retryRequest(original.id, { ...options, resumeCancelled: true }, context),
+		).rejects.toBeInstanceOf(Error);
+		const repeated = await tracker.beads.show(scope, original.id);
+		expect(repeated.dependents).toEqual(retained.dependents);
+	},
+);
+
+const refusals = await Promise.all(
+	["closed-anchor", "human", "hitl", "open-request", "acknowledged", "ambiguous", "succeeded"].map(
+		// Assemble each native refusal before timing the unchanged public retry boundary.
+		// eslint-disable-next-line max-statements
+		async (reason) => {
+			const tracker = memoryTracker();
+			const scope = trackerScope(tracker.repository, "operator");
+			const runId = await createTask(tracker);
+			const stageId = await createTask(tracker, { parent: runId });
+			const assignment = { kind: "stage", runId, stageId } as const;
+			const context = commands(tracker);
+			const created = await spawnWorkflowRequest({ kind: "worker", assignment, options }, context);
+			let closeReason = "cancelled";
+			if (reason === "acknowledged") {
+				closeReason = "blocked";
+			} else if (reason === "succeeded") {
+				closeReason = "completed";
+			}
+			await tracker.beads.close(scope, created.request.id, { reason: closeReason });
+			if (reason === "closed-anchor") {
+				await tracker.beads.close(scope, stageId);
+			} else if (reason === "human") {
+				await tracker.beads.update(scope, [stageId], { assignee: "ct" });
+			} else if (reason === "hitl") {
+				await tracker.beads.update(scope, [stageId], { addLabels: ["hitl"] });
+			} else if (reason === "acknowledged") {
+				const old = await tracker.beads.show(scope, created.request.id);
+				await tracker.beads.comments.add(
+					scope,
+					old.id,
+					`${BEE_ACKNOWLEDGMENT_PREFIX} ${JSON.stringify({ closedAt: old.closed_at, reason: "accepted" })}`,
+				);
+			} else if (reason === "open-request") {
+				await spawnWorkflowRequest({ kind: "worker", assignment, options }, context);
+			} else if (reason === "ambiguous") {
+				await Promise.all(
+					["First replacement", "Second replacement"].map((title) =>
+						tracker.beads.create(scope, {
+							title,
+							owner: "ct",
+							deps: [{ id: created.request.id, type: "supersedes" }],
+						}),
+					),
+				);
+			}
+			return { reason, tracker, scope, id: created.request.id };
+		},
+	),
+);
+
+test.each(refusals)(
+	"explicit cancellation resumption preserves $reason refusal",
+	async ({ tracker, scope, id }) => {
+		const before = await tracker.beads.show(scope, id);
+		await expect(
+			retryRequest(id, { ...options, resumeCancelled: true }, commands(tracker)),
+		).rejects.toBeInstanceOf(Error);
+		const after = await tracker.beads.show(scope, id);
+		expect(after.dependents).toEqual(before.dependents);
+	},
+);
+
 test.each(retryCases)(
 	"$assignment.kind retry retains its existing anchor with current execution defaults",
 	// Preserve request role and the containing work while recording replacement provenance.
@@ -209,33 +344,50 @@ test.each(retryCases)(
 	},
 );
 
-// Verify the retained replacement and unchanged predecessor after a partial write.
-// eslint-disable-next-line max-statements
-test("retry retains a created replacement when predecessor label publication fails", async () => {
-	const beads = beforeTrackerWrite(retry.beads, () => {
-		throw new Error("publication unavailable");
-	});
-	const failure: unknown = await retryRequest(
-		predecessor,
-		options,
-		commands({ ...retry, beads }),
-	).catch((error: unknown) => error);
-	expect(failure).toBeInstanceOf(RequestPublicationError);
-	if (!(failure instanceof RequestPublicationError)) {
-		throw new Error("Expected retained replacement evidence");
-	}
-	const [replacementId] = failure.replacementIds;
-	const replacement = await retry.beads.show(
-		trackerScope(retry.repository, "inspector"),
-		replacementId!,
-	);
-	expect(
-		replacement.dependencies.map(({ id, dependency_type }) => ({ id, dependency_type })),
-	).toEqual([
-		{ id: unfinished, dependency_type: "related" },
-		{ id: predecessor, dependency_type: "supersedes" },
-	]);
-	expect(replacement.status).toBe("open");
-	const original = await retry.beads.show(trackerScope(retry.repository, "inspector"), predecessor);
-	expect(original.close_reason).toBe("exhausted");
-});
+test.each(partialRetries)(
+	"retry retains $reason replacement when predecessor label publication fails",
+	// Verify the retained replacement and unchanged predecessor after a partial write.
+	// eslint-disable-next-line max-statements
+	async ({ retry, predecessor, unfinished, reason }) => {
+		const beads = beforeTrackerWrite(retry.beads, () => {
+			throw new Error("publication unavailable");
+		});
+		const failure: unknown = await retryRequest(
+			predecessor,
+			{ ...options, resumeCancelled: true },
+			commands({ ...retry, beads }),
+		).catch((error: unknown) => error);
+		expect(failure).toBeInstanceOf(RequestPublicationError);
+		if (!(failure instanceof RequestPublicationError)) {
+			throw new Error("Expected retained replacement evidence");
+		}
+		const [replacementId] = failure.replacementIds;
+		const replacement = await retry.beads.show(
+			trackerScope(retry.repository, "inspector"),
+			replacementId!,
+		);
+		expect(
+			replacement.dependencies.map(({ id, dependency_type }) => ({ id, dependency_type })),
+		).toEqual([
+			{ id: unfinished, dependency_type: "related" },
+			{ id: predecessor, dependency_type: "supersedes" },
+		]);
+		expect(replacement.status).toBe("open");
+		const original = await retry.beads.show(
+			trackerScope(retry.repository, "inspector"),
+			predecessor,
+		);
+		expect(original.close_reason).toBe(reason);
+		await expect(
+			retryRequest(predecessor, { ...options, resumeCancelled: true }, commands(retry)),
+		).rejects.toBeInstanceOf(Error);
+		const repeated = await retry.beads.show(
+			trackerScope(retry.repository, "inspector"),
+			predecessor,
+		);
+		expect(requestResolution(repeated)).toEqual({
+			kind: "superseded",
+			replacementIds: [replacementId!],
+		});
+	},
+);

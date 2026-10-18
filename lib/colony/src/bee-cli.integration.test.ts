@@ -72,6 +72,20 @@ test.each([
 	});
 });
 
+test("retry forwards explicit cancellation resumption independently of recipe overrides", async () => {
+	await invoke(
+		["retry", "request-0", "--resume-cancelled", "--model", "current", "--json"],
+		SUCCESS,
+		{
+			retry: (id, options) => {
+				expect(id).toBe("request-0");
+				expect(options).toMatchObject({ resumeCancelled: true, model: "current" });
+				return Promise.resolve({ kind: "spawn_created", request: native });
+			},
+		},
+	);
+});
+
 test.each([
 	{
 		args: ["system", "assess", "--file", "report.json"],

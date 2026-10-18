@@ -1064,8 +1064,8 @@ async function assertBeeRequests(
 					`${request.close_reason ?? "cancelled"}` +
 					". Inspect bee status " +
 					`${request.id}` +
-					". Resolve the blocker and use bee retry for eligible failed requests; " +
-					"cancellation requires an explicit operator decision before redispatch.",
+					". Read bee retry --help for failed-request recovery or deliberate " +
+					"cancellation resumption with --resume-cancelled.",
 				{
 					context: {
 						bead: entry.bead,

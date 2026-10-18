@@ -119,10 +119,23 @@ Report active or inactive for the supplied target. Colony owns cleanup and retry
 decisions. Ordinary task completion uses bee finish instead.
 `,
 	retry: `
-Replace a failed unresolved request after fixing its blocker. Only unfinished
-work is included; the same workflow run/stage is retained. Current kind defaults
-and explicit overrides supply the recipe; old overrides are not carried forward.
+Replace a failed unresolved request after fixing its blocker. To deliberately
+resume a cancelled request, add --resume-cancelled. Before resuming, verify that its
+old execution has stopped. colony inspect --help locates retained runtime evidence;
+neither native closure nor a stale observation proves that a process stopped.
+
+Acknowledged failures and requests with an existing replacement remain ineligible.
+Only unfinished work is included. Human/HITL reservations and conflicting open
+requests still prevent submission; other identities' task claims stay unchanged.
+The replacement retains the same workflow run/stage, gets a fresh identity and
+binds to the submitting host. Current kind defaults and explicit overrides supply
+the recipe; old overrides are not carried forward.
 --kind changes the role; prompt overrides follow bee spawn --help.
+
+The original cancellation, closure time and identity remain history. bee status
+OLD --json exposes resolution.replacementIds; cancellation stays resolved and
+outside failure attention. Inspect confirmed IDs after partial publication;
+repeating a superseded request repairs query labels and refuses a duplicate.
 Retain the replacement request.id; see bee result --help for response lineage.
 `,
 	run: `
@@ -153,7 +166,7 @@ busybee show. Submission is separate from execution and workflow completion.
 
 Partial failures retain confirmed IDs and publication uncertainty. Inspect incoming
 request links before recovery. Attach a confirmed orphan with bee attach-workflow
-KIND RUN; use bee retry for a failed driver or bee status for an open one.
+KIND RUN; read bee retry --help for a closed driver or bee status for an open one.
 Waiting drivers consume quota; the user must raise limits if they starve workers.
 `,
 	status: `

@@ -24,7 +24,9 @@ All other combinations, duplicate labels and unknown values are invalid projecti
 
 ## Transitions and resolution
 
-Automatic retries preserve the request and identity. Explicit `bee retry` creates `replacement --supersedes--> original`; only successful creation resolves the original failure. A failed replacement needs its own follow-up while the predecessor remains resolved. `related` edges identify work; `supersedes` edges identify replacements.
+Automatic retries preserve the request and identity. Explicit `bee retry` creates `replacement --supersedes--> original`; only successful creation resolves an unresolved failure. Deliberate cancellation resumption requires `--resume-cancelled`. Read `bee retry --help` for eligibility, process verification and recipe selection. `related` edges identify work; `supersedes` edges identify replacements.
+
+A replaced cancellation retains its native close reason, closure time, identity and `cancelled`/`resolved` disposition. Its resolution provenance becomes `superseded` with the actual replacement IDs; `needsAttention` remains false. A failed replacement needs its own follow-up while the predecessor remains resolved. Busy Bee follows this provenance for the same dispatched stage, preserving the saved run and visits.
 
 `bee ack` resolves attention without changing failure outcome, task state or execution history. `bee stop` on an already-closed request preserves its outcome and resolution. It does not acknowledge failure.
 

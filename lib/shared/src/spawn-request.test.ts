@@ -151,20 +151,26 @@ test.each([
 	},
 );
 
-test("a replacement resolves its predecessor regardless of replacement outcome", () => {
-	const bead = beadSchema.parse({
-		close_reason: "exhausted",
-		created_at: "fixture",
-		dependents: [{ dependency_type: "supersedes", id: "test-new", status: "closed" }],
-		id: "test-old",
-		priority: 2,
-		status: "closed",
-		updated_at: "fixture",
-	});
-	expect(requestResolution(bead)).toEqual({ kind: "superseded", replacementIds: ["test-new"] });
-	expect(requestNeedsAttention(bead)).toBe(false);
-	expect(requestDisposition(bead)).toEqual({ outcome: "failed", resolution: "resolved" });
-});
+test.each([
+	{ reason: "exhausted", outcome: "failed" },
+	{ reason: "Stopped by Bee", outcome: "cancelled" },
+])(
+	"a replacement exposes provenance while preserving $outcome disposition",
+	({ reason, outcome }) => {
+		const bead = beadSchema.parse({
+			close_reason: reason,
+			created_at: "fixture",
+			dependents: [{ dependency_type: "supersedes", id: "test-new", status: "closed" }],
+			id: "test-old",
+			priority: 2,
+			status: "closed",
+			updated_at: "fixture",
+		});
+		expect(requestResolution(bead)).toEqual({ kind: "superseded", replacementIds: ["test-new"] });
+		expect(requestNeedsAttention(bead)).toBe(false);
+		expect(requestDisposition(bead)).toEqual({ outcome, resolution: "resolved" });
+	},
+);
 
 test("publication normalizes both namespaces and retains unrelated labels", () => {
 	const bead = {

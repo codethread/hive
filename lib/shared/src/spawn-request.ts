@@ -122,7 +122,7 @@ export interface SpawnRequestAttribution extends Pick<SpawnRequest, "id" | "iden
 	recipe: Pick<Recipe, "harness" | "kind" | "model">;
 }
 
-/** Failure attention is independent of the retained native outcome. */
+/** Resolution provenance is independent of the retained native outcome. */
 export type RequestResolution =
 	| {
 			/** No completion, cancellation, acknowledgment or replacement resolves this request. */
@@ -137,7 +137,7 @@ export type RequestResolution =
 			kind: "acknowledged";
 	  }
 	| {
-			/** A successfully created replacement resolves the original failure. */
+			/** A created replacement supersedes a failed or cancelled request without changing its outcome. */
 			kind: "superseded";
 			/** Native incoming supersedes links identify replacement requests. */
 			replacementIds: string[];
@@ -260,7 +260,7 @@ export function requestResolution(bead: Bead): RequestResolution {
 	if (outcome === "pending") {
 		return { kind: "unresolved" };
 	}
-	if (outcome !== "failed") {
+	if (outcome === "succeeded") {
 		return { kind: "resolved" };
 	}
 	const replacements = bead.dependents.filter(
@@ -268,6 +268,9 @@ export function requestResolution(bead: Bead): RequestResolution {
 	);
 	if (replacements.length > NONE) {
 		return { kind: "superseded", replacementIds: replacements.map(({ id }) => id) };
+	}
+	if (outcome === "cancelled") {
+		return { kind: "resolved" };
 	}
 	if (requestAcknowledgment(bead)) {
 		return { kind: "acknowledged" };
