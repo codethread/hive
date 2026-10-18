@@ -1,5 +1,5 @@
 /* eslint-disable unicorn/no-null -- Public JSON explicitly distinguishes absent closure and observation facts. */
-import type { AckOptions, InspectionOptions, ListOptions, StopOptions } from "./bee-cli.ts";
+import type { AckOptions, InspectionOptions, StopOptions } from "./bee-cli.ts";
 import {
 	BEE_ACKNOWLEDGMENT_PREFIX,
 	COLONY_OBSERVATION_PREFIX,
@@ -125,15 +125,6 @@ interface RequestResultBase {
 export type RequestResult = RequestResultBase &
 	({ kind: "request_status"; response: ResponseResolution } | { kind: "request_stopped" });
 
-export interface RequestListResult {
-	/** Stable JSON result discriminator. */
-	kind: "request_list";
-	/** Explicit canonical repository and tracker authority. */
-	repository: RepositoryEndpoint;
-	/** Active requests and unresolved failures, or all historical requests when requested. */
-	requests: RequestView[];
-}
-
 export interface AcknowledgmentResult {
 	/** Acceptance or an already-resolved failure, with current query labels. */
 	kind: "request_acknowledged";
@@ -166,43 +157,6 @@ export async function inspectRequest(
 		),
 		repository,
 		request: await requestView({ beads, repository }, request, ready),
-	};
-}
-/* eslint-disable-next-line max-statements --
- * Keep candidate discovery, authoritative filtering and selected detail reads ordered
- * together.
- */
-export async function listRequests(
-	options: ListOptions,
-	{ beads, resolveRepository }: TrackerCommands,
-): Promise<RequestListResult> {
-	const repository = await resolveRepository(options.repo, options.beadsDb);
-	const labels: string[] = [...SPAWN_REQUEST_LABELS];
-	if (!options.all) {
-		labels.push("bee-resolution:unresolved");
-	}
-	const listing = await beads.list(trackerScope(repository), {
-		all: true,
-		labels,
-		limit: 0,
-	});
-	const candidates = await Promise.all(
-		listing.issues.map(({ id }) => beads.show(trackerScope(repository), id)),
-	);
-	// Acknowledgment or supersession can resolve a candidate before its labels are published.
-	const requests = candidates.filter(
-		(request) => options.all || request.status !== "closed" || requestNeedsAttention(request),
-	);
-	if (requests.length < NONEMPTY) {
-		return { kind: "request_list", repository, requests: [] };
-	}
-	const ready = await readyTasks({ beads, repository });
-	return {
-		kind: "request_list",
-		repository,
-		requests: await Promise.all(
-			requests.map((request) => requestView({ beads, repository }, request, ready)),
-		),
 	};
 }
 /** Closing a request records intent; an awake Colony performs owned execution cleanup. */

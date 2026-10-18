@@ -3,7 +3,7 @@
  * Paths and filesystem validation are owned by the application I/O boundary.
  */
 /* eslint-disable import/max-dependencies -- CLI composes offline tracker commands and execution-report transports. */
-import { acknowledgeRequest, inspectRequest, listRequests, stopRequest } from "../src/requests.ts";
+import { acknowledgeRequest, inspectRequest, stopRequest } from "../src/requests.ts";
 import { attachWorkflow, dispatchStage, submitWorkflow } from "../src/workflow-submission.ts";
 import { dirname, join } from "node:path";
 import { execute, resolveRepository } from "@hive/shared";
@@ -67,7 +67,6 @@ process.exitCode = await runBeeCli(Bun.argv.slice(USER_ARGUMENTS_START), {
 	dispatchStage: (kind, stageId, options) => dispatchStage({ kind, stageId, options }, submission),
 	finish: submitFinish,
 	kinds: listKinds,
-	list: (options) => listRequests(options, tracker),
 	responsePublish: (task, options) =>
 		publishTaskResponse(task, options, {
 			...tracker,

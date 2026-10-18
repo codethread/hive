@@ -1,12 +1,7 @@
 /* eslint-disable import/max-dependencies --
  * CLI composes request, workflow submission, advisory and inspection result contracts.
  */
-import type {
-	AcknowledgmentResult,
-	RequestListResult,
-	RequestResult,
-	RequestView,
-} from "./requests.ts";
+import type { AcknowledgmentResult, RequestResult, RequestView } from "./requests.ts";
 import type { BeeSetupOptions, BeeSetupResult } from "./setup.ts";
 import type { KindOptions, KindsResult } from "./kinds.ts";
 import type {
@@ -50,7 +45,6 @@ type BeeResult =
 	| AcknowledgmentResult
 	| AssessmentSubmission
 	| RequestResult
-	| RequestListResult
 	| SpawnResult
 	| WorkflowSubmissionResult
 	| FinishResult
@@ -87,10 +81,6 @@ export interface InspectionOptions {
 	repo: string;
 	/** Explicit tracker database; inspection does not need daemon state. */
 	beadsDb: string;
-}
-export interface ListOptions extends InspectionOptions {
-	/** Include closed requests as well as open ones. */
-	all: boolean;
 }
 export interface StopOptions extends InspectionOptions {
 	/** Actor attributed to the native request closure. */
@@ -132,8 +122,6 @@ export interface BeeDependencies {
 	finish: (outcome: string, options: { reason?: string }) => Promise<FinishResult>;
 	/** Read native request, task and last observation facts. */
 	status: (id: string, options: InspectionOptions) => Promise<RequestResult>;
-	/** Inspect requests in the explicitly selected tracker. */
-	list: (options: ListOptions) => Promise<RequestListResult>;
 	/** Close a validated request without daemon or process access. */
 	stop: (id: string, options: StopOptions) => Promise<RequestResult>;
 	/** Initialize one workflow assignment and submit its driver request. */
@@ -379,16 +367,6 @@ Use --json for a machine-readable result. Read br query --help to run saved quer
 		);
 	inspectionOptions(
 		program
-			.command("list")
-			.description("List open requests and unresolved failures; observations may be stale")
-			.addHelpText("after", HELP.list),
-	)
-		.option("--all", "Include resolved historical requests", false)
-		.action(async (options: ListOptions) => {
-			writeResult(await deps.list(options), { json: argv.includes("--json") }, deps.stdout);
-		});
-	inspectionOptions(
-		program
 			.command("ack <spawn-id>")
 			.description("Acknowledge a failed request and resolve its attention")
 			.addHelpText("after", HELP.ack),
@@ -632,14 +610,6 @@ function writeResult(
 		);
 		return;
 	}
-	if (result.kind === "request_list") {
-		if (result.requests.length === SUCCESS) {
-			stdout("No matching bee requests.\n");
-		} else {
-			stdout(`${result.requests.map((request) => formatRequest(request)).join("\n\n")}\n`);
-		}
-		return;
-	}
 	if (result.kind === "request_acknowledged") {
 		const { request } = result;
 		const lines = [
@@ -688,9 +658,6 @@ function jsonResult(result: BeeResult, includePrompt: boolean) {
 					supersedes: request.supersedes,
 				},
 			};
-		}
-		case "request_list": {
-			return { ...result, requests: result.requests.map(withoutPrompt) };
 		}
 		case "request_status": {
 			if (includePrompt) {

@@ -3,7 +3,6 @@ import {
 	RequestPublicationError,
 	acknowledgeRequest,
 	inspectRequest,
-	listRequests,
 	publishRequestLabels,
 	stopRequest,
 } from "./requests.ts";
@@ -66,14 +65,11 @@ test("offline inspection derives dependency readiness from the injected tracker"
 	expect(ready.request.disposition).toEqual({ outcome: "pending", resolution: "unresolved" });
 });
 
-test("offline stop publishes cancellation and default listing retains only unresolved requests", async () => {
+test("stop publishes cancellation with current request labels", async () => {
 	const { tracker, task, id } = cancellation;
-	const pending = await createSpawn(tracker, task);
 	const result = await stopRequest(id, options, tracker);
 	expect(result.request.disposition).toEqual({ outcome: "cancelled", resolution: "resolved" });
 	expect(result.request.labelPublication).toBe("current");
-	const unresolved = await listRequests({ ...options, all: false }, tracker);
-	expect(unresolved.requests.map((request) => request.id)).toEqual([pending]);
 	expect(result.request.tasks).toContainEqual({
 		assignee: null,
 		id: task,

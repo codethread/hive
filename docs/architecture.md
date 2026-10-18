@@ -18,7 +18,7 @@ Hive's product packages are independently replaceable. They cooperate through co
 | `lib/tooling` | Repository test selection and release maintenance | Development tooling, independent of the Bee execution path |
 | `lib/qlock` | Ticketed local command admission, queue state and foreground child execution | Independent CLI; merge-target queues obtain repository identity through `honeycomb root` |
 
-Use Shared when actual consumers need the same contract. Spawn-request representation belongs there because submission, offline inspection and execution must agree; scheduling and request-specific terminal formatting stay in Colony. The consumed changelog schema, pure query and plain content formatter belong in Shared; records retain Markdown bodies alongside summaries, source revisions, breaking details and reviewed adoption notes. Product packages own their histories, Commander registration, streams/I/O and product-specific CLI presentation. Tooling parses the [authored commit records](releases.md#author-tool-changelog-records) into release candidates. Busy Bee's workflow rules remain independent of Colony execution; its [specification](../lib/busybee/SPEC.md) defines progression and checkpoint authority.
+Use Shared when actual consumers need the same contract. Spawn-request representation belongs there because submission, reads from the selected database and execution must agree; scheduling and request-specific terminal formatting stay in Colony. The consumed changelog schema, pure query and plain content formatter belong in Shared; records retain Markdown bodies alongside summaries, source revisions, breaking details and reviewed adoption notes. Product packages own their histories, Commander registration, streams/I/O and product-specific CLI presentation. Tooling parses the [authored commit records](releases.md#author-tool-changelog-records) into release candidates. Busy Bee's workflow rules remain independent of Colony execution; its [specification](../lib/busybee/SPEC.md) defines progression and checkpoint authority.
 
 Beads' native adapter owns CLI arguments and output parsing. Consumer entry points inject that adapter; behavior tests inject its in-memory counterpart. Native conformance tests belong to Beads; filesystem, Git and process-boundary tests stay with the modules owning those effects.
 
@@ -36,7 +36,7 @@ Managed delegation follows the separate request flow below:
 bee spawn -> canonical .hive configuration + selected Beads database
                  | capture recipe, identity, related tasks
                  v
-             spawn bead <----------------------- bee status/list/stop
+             spawn bead <----------------------- bee status/result/stop
                  |                                    Beads only
                  v
 Colony: awake colony -> prepare -> rank -> claim -> reserve attempt

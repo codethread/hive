@@ -6,7 +6,7 @@ Read this contract before inspecting spawn requests, interpreting failures/super
 
 Submission captures the requesting machine's hostname. Only that host's Colony may dispatch, claim, observe, settle or repair the request automatically; manual `colony launch` enforces the same binding. Automatic attempts retain it; a changed native host invalidates retained authority. `bee retry` binds its replacement to the submitting host.
 
-`bee status` and `bee list` expose the host. Missing provenance appears as `null`/`unbound`. Foreign and unbound requests remain inspectable but are not automatically adopted, including label repair. Explicit stop, acknowledgment and retry remain operator actions. To execute unbound queued work, deliberately close the old request and submit from the intended host.
+`bee status` exposes the host. Missing provenance appears as `null`/`unbound`. Foreign and unbound requests remain inspectable but are not automatically adopted, including label repair. Explicit stop, acknowledgment and retry remain operator actions. To execute unbound queued work, deliberately close the old request and submit from the intended host.
 
 Native status answers whether work remains requested. Spawns stay `open` through execution; task status belongs to their linked work. Closure records intent or settlement, not proof that a process stopped.
 
@@ -60,16 +60,16 @@ The drone reports active/inactive only. Colony owns task claims, process cleanup
 
 ## Find requests with native Beads
 
-Use the selected `BEADS_DB`. Repeated `--label` filters are ANDed. Failed requests are closed, so attention/history queries need `--all`; `--limit 0` avoids truncation. For example:
+Use the selected `BEADS_DB` with focused filters and bounded output. Repeated `--label` filters are ANDed. Failed requests are closed, so attention/history queries need `--all`. For example:
 
 ```sh
 br list --label system --label bee --label bee-outcome:failed \
-  --label bee-resolution:unresolved --all --limit 0 --db "$BEADS_DB" --json
+  --label bee-resolution:unresolved --all --limit 20 --db "$BEADS_DB" --json
 ```
 
-For full history, keep `system` and `bee` and omit disposition labels. Read `br list --help`, `br search --help` and `br query --help` for native filtering and saved queries. `br show ID --json` reads exact provenance and comments.
+Read `br list --help`, `br search --help` and `br query --help` for native filtering, pagination and saved queries. `br show ID --json` reads exact provenance and comments.
 
-`bee list` discovers unresolved candidates, including closed failures, then checks native closure, acknowledgment and supersession before loading tasks. Already-resolved facts exclude a candidate even when its labels lag. `bee list --all` or exact `bee status` can reveal records absent from label-filtered discovery. Default listing does not scan history to compensate for stale projections.
+Query labels can lag native facts or be absent. Inspect selected IDs with `bee status ID --json` for closure, acknowledgment, supersession and label publication state. When investigating missing records, use focused native queries without disposition labels.
 
 ## Saved presets
 

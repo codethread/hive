@@ -149,19 +149,12 @@ test("stop preserves closure and resolution facts without reporting process comp
 	});
 });
 
-test.each([
-	{ args: ["status", request.id], expected: summary },
-	{ args: ["list"], expected: [summary] },
-])(
-	"$args omits captured prompts while preserving request decisions",
-	async ({ args, expected }) => {
-		const result = await invoke([...args, "--json"]);
-		const output = JSON.parse(result.stdout);
-		expect(output.request ?? output.requests).toEqual(expected);
-		expect(result.stdout.length).toBeLessThan(PROMPT.length);
-		expect(request.recipe).toMatchObject({ prompt: PROMPT, system_prompt: ROLE });
-	},
-);
+test("status omits captured prompts while preserving request decisions", async () => {
+	const result = await invoke(["status", request.id, "--json"]);
+	expect(JSON.parse(result.stdout).request).toEqual(summary);
+	expect(result.stdout.length).toBeLessThan(PROMPT.length);
+	expect(request.recipe).toMatchObject({ prompt: PROMPT, system_prompt: ROLE });
+});
 
 test("explicit JSON status returns both full captured prompt fields", async () => {
 	const result = await invoke(["status", request.id, "--include-prompt", "--json"]);
@@ -240,7 +233,6 @@ async function invoke(
 		dispatchStage: () => Promise.resolve({ kind: "spawn_created", request: native }),
 		finish: unexpected,
 		kinds: unexpected,
-		list: () => Promise.resolve({ kind: "request_list", repository, requests: [request] }),
 		report: unexpected,
 		retry: () => Promise.resolve({ kind: "spawn_created", request: native }),
 		run: unexpected,

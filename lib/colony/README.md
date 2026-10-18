@@ -44,9 +44,9 @@ Use `bee ack --help` when failed work needs no further action. The [acknowledgme
 
 Managed workers follow `bee finish --help`. The [self-report contract](../../docs/agents/spawn-requests.md#report-your-own-execution-finished) owns submission, settlement and injected provenance.
 
-## Inspect or close requests offline
+## Inspect or close requests
 
-`bee list`, `status`, `result` and `stop` use the selected tracker without a daemon or kind configuration; read their focused help. `bee response --help` covers authored delivery and historical evidence. Native outcome/resolution and publication recovery belong to the [spawn contract](../../docs/agents/spawn-requests.md).
+Discover requests through [native Beads queries](../../docs/agents/spawn-requests.md#find-requests-with-native-beads). `bee status`, `bee result` and `bee stop` use exact request IDs and the selected database; read their focused help. `bee response --help` covers authored delivery and historical evidence.
 
 Stdout activity is historical evidence, not a liveness verdict. `lastOutputAt` records the last modification of a nonempty attempt stdout log; `recordedAt` records publication. Empty log creation, stderr and polling do not count. A new attempt starts with unknown activity. Leave active logs unmodified.
 

@@ -10,9 +10,9 @@ import {
 	readResponseHistory,
 	readTaskResponse,
 } from "./responses.ts";
-import { inspectRequest, listRequests } from "./requests.ts";
 import type { BeadsService } from "@hive/beads";
 import type { BeeDependencies } from "./bee-cli.ts";
+import { inspectRequest } from "./requests.ts";
 import { publishResponse } from "./response-store.ts";
 import { runBeeCli } from "./bee-cli.ts";
 import { trackerScope } from "./tracker.ts";
@@ -431,8 +431,6 @@ test("filed search excludes bodies while exact corrections and status preserve i
 		responseIds: [old.responseId],
 	});
 	expect(status.stdout).not.toContain("Old driver result");
-	const list = await lineage.invoke(["list", "--all", "--json"]);
-	expect(list.stdout).not.toContain("responseIds");
 });
 
 test("schema discovery requires no tracker and public argument errors use one silent-stderr document", async () => {
@@ -475,7 +473,6 @@ async function fixture() {
 			run: unused,
 			spawn: unused,
 			stop: unused,
-			list: (options) => listRequests(options, deps),
 			status: (id, options) => inspectRequest(id, options, deps),
 			responsePublish: (id, options) =>
 				publishTaskResponse(id, options, {

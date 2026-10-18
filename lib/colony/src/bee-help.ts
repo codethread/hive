@@ -93,12 +93,6 @@ Visibility guides discovery, not spawn authority. To configure kinds, read:
 
 ${MUTATION_SCOPE_HELP}
 `,
-	list: `
-Lists submitted requests, not available kinds (use bee kinds for those).
-Defaults to open requests and unresolved failures. --all includes resolved history.
-This reads recorded facts, not live process or daemon health. Inspect a selected
-request with bee status <spawn-id>; its help includes execution diagnostics.
-`,
 	overview: `
 Agent delegation:
   1. Choose a role with bee kinds; read bee spawn --help for workflow input.
