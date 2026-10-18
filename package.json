@@ -23,7 +23,7 @@
 		"beads:setup": "beeswax beads setup",
 		"beads:env": "beeswax beads env",
 		"beads:sync": "beeswax beads sync",
-		"prepare": "beeswax prepare",
+		"prepare": "beeswax system prepare",
 		"waggle": "bun run ./lib/waggle/bin/waggle.ts",
 		"busybee": "bun run ./lib/busybee/bin/busybee.ts",
 		"release": "bun run ./lib/tooling/src/release-cli.ts",

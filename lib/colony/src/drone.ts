@@ -523,7 +523,8 @@ function droneReceipt(
 		`ownership.json, worker.json). Consider ` +
 		`legitimate long-running waits; PID existence or stdout silence alone ` +
 		`does not prove progress or inactivity. Report exactly one verdict ` +
-		`with: bee report ${target.spawnId} active|inactive. Do not close tasks, claim work, signal processes, ` +
+		`with: bee system report ${target.spawnId} active|inactive. ` +
+		`Do not close tasks, claim work, signal processes, ` +
 		`assign lifecycle states, launch another drone, or use bee finish. ` +
 		`Colony owns all lifecycle decisions.`;
 	const recipe = {

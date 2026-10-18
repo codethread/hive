@@ -58,6 +58,54 @@ test("headless setup uses explicit flags, shared defaults and one silent JSON re
 	});
 });
 
+test.each([
+	{
+		args: ["prepare", "--source", "/source"],
+		kind: "checkout_prepared",
+		call: ["/repo", "/source"],
+	},
+	{
+		args: ["git", "merge", "base", "ours", "theirs"],
+		kind: "merged",
+		call: [{ ancestor: "base", current: "ours", other: "theirs" }],
+	},
+	{ args: ["git", "validate-staged"], kind: "snapshot_valid", call: ["/repo"] },
+	{
+		args: ["beads", "session-start", "--environment-file", "/session.env"],
+		kind: "session_configured",
+		call: [{ cwd: "/worker" }, "/session.env"],
+	},
+])(
+	"system $args preserves its protocol and forwards inputs",
+	// eslint-disable-next-line max-statements -- Verify each adapter through the CLI with captured inputs.
+	async ({ args, kind, call }) => {
+		const fx = fixture();
+		const calls: (readonly unknown[])[] = [];
+		fx.deps.beads.automatic = (root, source) => {
+			calls.push([root, source]);
+			return Promise.resolve("/tracker/beads.db");
+		};
+		fx.deps.git.merge = (paths) => {
+			calls.push([paths]);
+			return Promise.resolve({ kind: "merged", contents: "" });
+		};
+		fx.deps.git.validate = (root) => {
+			calls.push([root]);
+			return Promise.resolve();
+		};
+		fx.deps.stdin = () => Promise.resolve(JSON.stringify({ cwd: "/worker" }));
+		fx.deps.beads.sessionStart = (input, file) => {
+			calls.push([input, file]);
+			return Promise.resolve();
+		};
+		expect(await runCli(["system", ...args, "--json"], fx.deps)).toBe(EXIT.success);
+		expect(calls).toEqual([call]);
+		expect(fx.output).toHaveLength(SINGLE);
+		expect(JSON.parse(fx.output.join(""))).toMatchObject({ ok: true, kind });
+		expect(fx.errors).toEqual([]);
+	},
+);
+
 test("interactive choices and explicit options reach the same deterministic setup", async () => {
 	const fx = fixture();
 	fx.deps.context.tty = true;

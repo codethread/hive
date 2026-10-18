@@ -85,14 +85,14 @@ Repeat until `status` is `done`. A closed task stays active until Busy Bee accep
 
 Use `busybee --help` for the command flow and global options, then focused help to choose a read:
 
-| Need                                                             | Help                          |
-| ---------------------------------------------------------------- | ----------------------------- |
-| Bundled agent guidance                                           | `busybee skills --help`       |
-| Creation input                                                   | `busybee input-schema --help` |
-| Active task briefs and run status                                | `busybee show --help`         |
-| Outcome choices and payload schemas                              | `busybee discover --help`     |
-| Saved diagrams and state for active or completed runs            | `busybee preview --help`      |
-| Checkpoint freshness, inspection and simulation for integrations | `busybee system --help`       |
+| Need                                                    | Help                          |
+| ------------------------------------------------------- | ----------------------------- |
+| Bundled agent guidance                                  | `busybee skills --help`       |
+| Creation input                                          | `busybee input-schema --help` |
+| Active task briefs and run status                       | `busybee show --help`         |
+| Outcome choices and payload schemas                     | `busybee discover --help`     |
+| Saved diagrams and state for active or completed runs   | `busybee preview --help`      |
+| Tooling inspection, simulation and Bee driver admission | `busybee system --help`       |
 
 The [preview contract](./SPEC.md#saved-state-preview) distinguishes structural preview from tooling inspection with frozen briefs and rendered instruction previews. [Simulation](./SPEC.md#simulation) evaluates temporary outcomes without advancing the saved run; use `busybee system simulate --help` for requests and schema discovery. [Hive UI](../hive-ui/README.md#workflow-preview) presents both Saved and Simulate modes. The [authoring guide](../../docs/busybee-workflows.md) covers definitions and validation limits.
 
@@ -182,6 +182,6 @@ Read `bee spawn --help` to submit a workflow assignment. Drivers coordinate the 
 
 Follow `busybee complete --help` for stage completion and `busybee collect --help` for driver progression, including interrupted deliveries. The [work and progression contract](./SPEC.md#work-and-progression) owns lifecycle rules. Bee-dispatched workers leave collection/navigation to the driver.
 
-`busybee prepare-driver RUN` prepares an active unassigned run for Bee under its checkpoint lock. It preserves closed runs, human reservations, blocked work and worker assignments. Use `bee attach-workflow KIND RUN` only after inspecting an orphan run and confirming absent driver publication. Existing failed drivers use `bee retry` on their request. These operations retain the same saved workflow input and version compatibility contract.
+Bee prepares driver admission through `busybee system prepare-driver`; its focused help owns the integration contract. Use `bee attach-workflow --help` after inspecting an orphan run and confirming absent driver publication, or `bee retry --help` for an existing failed driver. These operations retain the same saved workflow input and version compatibility contract.
 
 The driver reacquires unfinished unassigned driver-handled visits under its current identity, preserving other identities and human/HITL reservations. Closed visits with saved results are collected once. Bee-dispatched workers keep their stage claims; neither handoff nor retry reassigns the whole hierarchy.

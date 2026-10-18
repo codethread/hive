@@ -1,16 +1,18 @@
 import { BeeswaxError, EXIT } from "./errors.ts";
+import { hookSection, previousHookSection } from "./templates.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Versioned project contract is checkout-owned.
 import { isAbsolute, join } from "node:path";
 import type { ProjectConfig } from "./config.ts";
 import type { WorkspaceIO } from "./services.ts";
-import { hookSection } from "./templates.ts";
 import { readProjectConfig } from "./config.ts";
 import { version } from "../package.json";
 import { z } from "zod";
 
 const REVISION = 1;
+const HOOK_REVISION = 2;
 const bundledSkills = ["repository-setup", "tracker-recovery"];
 const componentSchema = z.strictObject({ revision: z.literal(REVISION) });
+const hookComponentSchema = z.strictObject({ revision: z.literal([REVISION, HOOK_REVISION]) });
 export const lockSchema = z.strictObject({
 	format: z.literal(REVISION),
 	beeswaxVersion: z.string(),
@@ -18,7 +20,7 @@ export const lockSchema = z.strictObject({
 	hooks: z.record(z.string(), z.string()),
 	skills: z.array(z.string()),
 	components: z.strictObject({
-		hooks: componentSchema,
+		hooks: hookComponentSchema,
 		mergeDriver: componentSchema,
 		skills: componentSchema,
 	}),
@@ -66,7 +68,9 @@ export function requireProjectGeneration(lock: ProjectLock, config: ProjectConfi
 	if (
 		(!Bun.deepEquals(lock.skills, bundledSkills) &&
 			!Bun.deepEquals(lock.skills, ["repository-setup"])) ||
-		Object.values(lock.hooks).some((hash) => hash !== digest(hookSection))
+		Object.values(lock.hooks).some(
+			(hash) => hash !== digest(hookSection) && hash !== digest(previousHookSection),
+		)
 	) {
 		throw projectMigration(
 			"The lock contains unsupported bundled instructions or generated section identities.",
@@ -95,7 +99,7 @@ export async function writeProjectLock(root: string, io: WorkspaceIO): Promise<s
 		),
 		skills: [...bundledSkills],
 		components: {
-			hooks: { revision: REVISION },
+			hooks: { revision: HOOK_REVISION },
 			mergeDriver: { revision: REVISION },
 			skills: { revision: REVISION },
 		},

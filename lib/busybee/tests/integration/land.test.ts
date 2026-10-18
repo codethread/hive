@@ -19,9 +19,9 @@ import { spawnRequestLabels } from "@hive/shared";
 const FIRST = 0;
 const ID_ARGUMENT = 1;
 const ONE_REQUEST = 1;
-const DISPATCH_STAGE_ARGUMENT = 3;
-const DISPATCH_RUN_ARGUMENT = 5;
-const DISPATCH_PREFIX = 6;
+const DISPATCH_STAGE_ARGUMENT = 4;
+const DISPATCH_RUN_ARGUMENT = 6;
+const DISPATCH_PREFIX = 7;
 const worktreeTarget = { kind: "worktree", branch: "simulated-work" } as const;
 const evidence = "SIMULATED transport evidence only; no real approval, merge or publication.";
 const outcome = { evidence };
@@ -218,6 +218,7 @@ test("Land dispatches its existing review visit after the driver's passing check
 	expect(stage.title).toBe(`${titles.review}: worktree ${worktreeTarget.branch}`);
 	expect(calls[FIRST]!.slice(FIRST, DISPATCH_PREFIX)).toEqual([
 		"bee",
+		"system",
 		"dispatch-stage",
 		"reviewer",
 		stage.bead,
@@ -271,6 +272,7 @@ test("Land dispatches a fresh reviewer visit after driver repair and checks", as
 	expect(stage.context["review"]).toBeUndefined();
 	expect(calls.at(-ONE_REQUEST)!.slice(FIRST, DISPATCH_PREFIX)).toEqual([
 		"bee",
+		"system",
 		"dispatch-stage",
 		"reviewer",
 		stage.bead,

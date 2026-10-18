@@ -2,7 +2,13 @@
 import { BeeswaxError, EXIT, errorMessage } from "./errors.ts";
 import { Command, CommanderError, Option } from "commander";
 import type { SetupDependencies, SetupFlags } from "./setup.ts";
-import { addBeads, addMigration, addProjectCommands, addSkills } from "./commands.ts";
+import {
+	addBeads,
+	addMigration,
+	addProjectCommands,
+	addSessionStart,
+	addSkills,
+} from "./commands.ts";
 import {
 	changelogHistorySchema,
 	changelogQuerySchema,
@@ -178,6 +184,9 @@ function createProgram(
 			}
 			deps.stdout(output);
 		});
+	const system = program
+		.command("system")
+		.description("Automation adapters for setup scripts, Git hooks and harness callbacks");
 	addPrime(program, emit);
 	program
 		.command("info")
@@ -263,7 +272,7 @@ or search local checkouts.
 			);
 			emit(await setupRepository(options, deps));
 		});
-	program
+	system
 		.command("prepare")
 		.description("Inherit an existing worktree tracker environment")
 		.option("--source <directory>", "Checkout supplying an existing selection", deps.source)
@@ -291,7 +300,7 @@ or search local checkouts.
 			]);
 			emit({ ok: true, kind: "artifacts_installed", artifacts });
 		});
-	const git = program.command("git").description("Git storage and snapshot protocols");
+	const git = program.command("git").description("Git storage maintenance");
 	git
 		.command("pack")
 		.description("Pack Git objects while preserving recovery history")
@@ -316,7 +325,10 @@ or search local checkouts.
 			const result = await deps.git.pack(await checkout(this.optsWithGlobals<Options>(), deps));
 			emit({ ok: true, kind: "git_packed", ...result });
 		});
-	git
+	const systemGit = system
+		.command("git")
+		.description("Snapshot merge and staged-validation protocols");
+	systemGit
 		.command("merge <ancestor> <current> <other>")
 		.description(
 			"Three-way merge; overwrites current, exits 1 for conflicts and 2 for invalid input",
@@ -342,7 +354,7 @@ or search local checkouts.
 				emit({ ok: true, kind: "merged" });
 			}
 		});
-	git
+	systemGit
 		.command("validate-staged")
 		.description("Validate the staged tracker JSONL, independent of the working file")
 		.action(async function validate(this: Command) {
@@ -351,10 +363,10 @@ or search local checkouts.
 				emit({ ok: true, kind: "snapshot_valid" });
 			}
 		});
-	const hooks = program
+	const hooks = system
 		.command("hooks")
 		.description("Tracker snapshot validation and classification for Git hooks");
-	addAlertHooks(program, {
+	addAlertHooks(system, {
 		...deps,
 		receiptPath: deps.alertReceiptPath,
 		observe: (cwd) => deps.beads.alertStatus(cwd),
@@ -384,6 +396,7 @@ or search local checkouts.
 				emit({ ok: true, kind: "tracker_snapshot_match", matched });
 			}
 		});
+	addSessionStart(system.command("beads").description("Tracker environment callbacks"), deps, emit);
 	addSkills(program, deps, emit);
 	addMigration(program, deps, emit);
 	addProjectCommands(program, deps, emit);

@@ -12,6 +12,11 @@ const calls: { argv: string[]; cwd: string }[] = [];
 const commands = workflowCommands({
 	execute: (argv, cwd) => {
 		calls.push({ argv, cwd });
+		if (argv.includes("prepare-driver")) {
+			return Promise.resolve(
+				JSON.stringify({ ok: true, runId: run.id, status: run.status, checkpoint: "checkpoint-1" }),
+			);
+		}
 		return Promise.resolve(output);
 	},
 });
@@ -58,6 +63,33 @@ test.each([
 				"",
 			],
 			cwd: "/execution",
+		},
+	]);
+});
+
+test("driver admission uses Busy Bee system with the selected endpoint", async () => {
+	calls.length = 0;
+	expect(await commands.prepareDriver(run.id, endpoint)).toEqual({
+		runId: run.id,
+		status: run.status,
+		checkpoint: "checkpoint-1",
+	});
+	expect(calls).toEqual([
+		{
+			argv: [
+				"busybee",
+				"--repo",
+				endpoint.repo,
+				"--db",
+				endpoint.db,
+				"--actor",
+				endpoint.actor,
+				"--json",
+				"system",
+				"prepare-driver",
+				run.id,
+			],
+			cwd: endpoint.repo,
 		},
 	]);
 });

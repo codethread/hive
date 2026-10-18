@@ -1510,6 +1510,7 @@ async function spawnBee(
 	const output = await services.execute(
 		[
 			"bee",
+			"system",
 			"dispatch-stage",
 			meta.bee!.kind,
 			bead,

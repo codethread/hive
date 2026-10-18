@@ -2,6 +2,8 @@
 
 Beeswax configures Beads trackers, snapshot publication, JSONL merging, Git hooks, executable installation and repository-local agent onboarding. Hive uses the same CLI as consuming repositories.
 
+Generated setup scripts, Git hooks and harness callbacks use the adapters listed by `beeswax system --help`.
+
 ## Install
 
 For Homebrew availability and installation, see [installation and releases](../../docs/releases.md#homebrew-installation). To build from a Hive checkout with dependencies installed:
@@ -92,7 +94,7 @@ The permanent tracker uses the same configured hook pair. Those files must alrea
 
 `beeswax sync` reproduces the committed contract locally; `beeswax update` advances it after review. Each checkout gets a launcher and observation receipt in Git metadata. The committed contract is authoritative; receipts describe local outputs. Run sync in each checkout and after relocating a clone.
 
-Setup, sync and update replace recognized versioned onboarding sections automatically, preserving unrelated JSON settings and code outside Pi's markers. `beeswax update --harness none --yes` removes recognized onboarding sections. Unfamiliar commands, execution options or ambiguous markers stop with the affected path, observed state, intended result and a `beeswax migrate setup` handoff for an agent to resolve with you.
+Setup, sync and update replace recognized versioned hook and onboarding sections automatically, preserving surrounding hook content, unrelated JSON settings and code outside Pi's markers. The permanent tracker prerequisites above still apply. `beeswax update --harness none --yes` removes recognized onboarding sections. Unfamiliar commands, execution options or ambiguous markers stop with the affected path, observed state, intended result and migration guidance for an agent to resolve with you.
 
 Onboarding reaches an agent only when its actual checkout contains the generated files, the harness loads and trusts them, and the matching Beeswax release is on its `PATH`. This also applies to Bee executions; sharing a repository or tracker does not copy adapters between worktrees.
 
@@ -100,7 +102,7 @@ Ambiguous hooks or project metadata require interpretation: `beeswax migrate hoo
 
 ## Operate the tracker
 
-Use `beeswax beads env --json` to inspect the selected tracker and `beeswax beads sync --help` for explicit snapshot exchange. Each consuming repository sets its publication checkpoints; Hive's are in [Beads integration](../../docs/beads-integration.md). Discover merge and staged-validation protocols with `beeswax git --help`.
+Use `beeswax beads env --json` to inspect the selected tracker and `beeswax beads sync --help` for explicit snapshot exchange. Each consuming repository sets its publication checkpoints; Hive's are in [Beads integration](../../docs/beads-integration.md). Discover merge and staged-validation protocols with `beeswax system git --help`.
 
 Failed native reconciliation or Git publication raises a durable alert outside the tracker, keyed by the selected database path. Alert state is user-local and is not exchanged with other clones or hosts. Pause Beads workflows, ordinary tracker operations and merges involving that tracker; independent non-Beads work may continue.
 

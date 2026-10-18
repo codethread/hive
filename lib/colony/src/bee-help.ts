@@ -6,6 +6,10 @@ Each scope permits its role's required reporting/completion writes.
 Markers grant no extra authority; role and assignment limits still apply.`;
 
 export const HELP = {
+	system: `
+Busy Bee calls dispatch-stage; Colony injects authority for assess and report.
+For ordinary delegation use bee spawn; assigned workers complete with bee finish.
+`,
 	response: `
 Delivery: file the complete answer or blocker, verify the returned ID with
 bee response get, then cite it with concise progress/verification in task comments.

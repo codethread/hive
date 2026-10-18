@@ -346,12 +346,13 @@ async function launchAssessment(
 		`uncertainty; distinguish native cumulative run totals (cached input ` +
 		`is a subset) from estimated/unavailable orientation attribution. ` +
 		`No dollar pricing, exact onboarding tokens or hard 30k threshold. ` +
-		`Do not change code, create/claim/close tasks, spawn agents, or use ` +
-		`bee finish/report. Use these exact CLI paths rather than a possibly ` +
+		`Leave repository files, beads and processes unchanged. Do not spawn ` +
+		`agents or use bee finish or bee system report. ` +
+		`Use these exact CLI paths rather than a possibly ` +
 		`different installed version on PATH. Obtain the report contract with ` +
 		`${colony} assessments --schema. Write your report only to ` +
 		`${join(directory, "report-input.json")}, then submit once with ${bee} ` +
-		`assess --file ${JSON.stringify(join(directory, "report-input.json"))} ` +
+		`system assess --file ${JSON.stringify(join(directory, "report-input.json"))} ` +
 		`before ${new Date(now + RUNTIME_MS).toISOString()}.`;
 	const recipe = {
 		cwd: repository.root,

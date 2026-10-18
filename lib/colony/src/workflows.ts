@@ -74,7 +74,7 @@ export function workflowCommands(process: WorkflowProcess): WorkflowCommands {
 		show: async (runId, endpoint) =>
 			runSchema.parse(await invoke(["show", runId], endpoint, process)),
 		prepareDriver: async (runId, endpoint) =>
-			handoffSchema.parse(await invoke(["prepare-driver", runId], endpoint, process)),
+			handoffSchema.parse(await invoke(["system", "prepare-driver", runId], endpoint, process)),
 	};
 }
 

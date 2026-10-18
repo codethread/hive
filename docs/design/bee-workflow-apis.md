@@ -82,7 +82,7 @@ Propose a single-bead execution primitive, with an explicit CLI seam for Busy Be
 
 ```sh
 # Workflow integration operation; creates no new workflow.
-bee dispatch-stage KIND STAGE --run RUN --json
+bee system dispatch-stage KIND STAGE --run RUN --json
 ```
 
 This reuses Bee's request creation, admission, identity, supervision and finish handling. It assigns one already-created stage. The driver submission uses the same lower-level producer to assign one run. The low-level primitive never selects a kind's default workflow.

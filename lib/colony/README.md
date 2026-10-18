@@ -14,6 +14,8 @@ Read `bee --help` for submission and result discovery, then `colony wake --help`
 
 `bee skills --help` and `colony skills --help` discover version-matched instructions and supporting resources offline, without configuration, tracker, daemon or source checkout. Load metadata first and content on demand; the application repository's policy remains authoritative.
 
+Use `bee system --help` for the protocols called by Busy Bee and Colony's auxiliary observers.
+
 ## Discover bee kinds
 
 Use `bee kinds --help` for selection and expanded configuration. Visibility guides discovery, not execution authority. Caller `allow` and `deny` lists are mutually exclusive: `allow` selects exactly its named kinds, including hidden ones; `deny` subtracts from the non-hidden baseline. Empty `allow` selects none; empty `deny` changes nothing. `"#self"` refers to the caller kind. Unknown selectors fail.
@@ -68,7 +70,7 @@ Drones have no claims or independent spawn request and consume no task-dispatch 
 
 Set canonical `post_run_drone` to a configured kind; omission disables new assessments. On settlement, a launched request queues one advisory assessment across its attempts, including failure/cancellation. Old terminal requests and zero-launch closures are not backfilled. Per repository, one inspector runs at a time with one launch and a five-minute deadline, outside task capacity. Assessments have no claims or spawn bead and cannot recurse or retry automatically.
 
-The evidence bundle separates captured role, optional execution direction and task snapshots read at settlement. Those snapshots are not launch-time copies. Execution evidence and private source pointers accompany the report contract. Inspectors submit through `bee assess --help` using injected authority. Missing/failed/late reports remain coverage gaps and cannot fail or retry the examined work. Recovery resumes recorded inspections; disabling new ones leaves running inspections intact.
+The evidence bundle separates captured role, optional execution direction and task snapshots read at settlement. Those snapshots are not launch-time copies. Execution evidence and private source pointers accompany the report contract. Inspectors submit through `bee system assess --help` using injected authority. Missing/failed/late reports remain coverage gaps and cannot fail or retry the examined work. Recovery resumes recorded inspections; disabling new ones leaves running inspections intact.
 
 Use `colony assessments --help` for summaries, full reports and source bundles. Reads work offline without creating state. Task-read failures remain explicit unavailable coverage; persistence and process-ownership failures remain infrastructure errors. Raw transcripts stay private.
 

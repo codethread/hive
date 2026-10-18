@@ -58,7 +58,7 @@ export async function applyOnboarding(
 			const selected = config?.harnesses.some((name) => name === harness) ?? false;
 			if (
 				!selected &&
-				!/Beeswax (?:onboarding|tracker alerts)|beeswax:.*onboarding|beeswax (?:prime|harness-alert)/u.test(
+				!/Beeswax (?:onboarding|tracker alerts)|beeswax:.*onboarding|beeswax (?:prime|(?:system )?harness-alert)/u.test(
 					current,
 				)
 			) {
@@ -159,7 +159,8 @@ function replaceAlertHooks(settings: Settings, { selected, path }: Adapter): voi
 	if (path.endsWith(targets.codex)) {
 		harness = "codex";
 	}
-	const command = `beeswax harness-alert --harness ${harness}`;
+	const command = `beeswax system harness-alert --harness ${harness}`;
+	const previousCommand = `beeswax harness-alert --harness ${harness}`;
 	const events = ["SessionStart", "UserPromptSubmit", "PostToolUse"];
 	const seen = new Set<string>();
 	for (const [event, groups] of Object.entries(settings.hooks ?? {})) {
@@ -168,7 +169,7 @@ function replaceAlertHooks(settings: Settings, { selected, path }: Adapter): voi
 			group.hooks = group.hooks.filter((handler) => {
 				const ours =
 					String(handler.statusMessage).startsWith("Beeswax tracker alerts") ||
-					/^beeswax harness-alert\b/u.test(String(handler.command));
+					/^beeswax (?:system )?harness-alert\b/u.test(String(handler.command));
 				if (!ours) {
 					return true;
 				}
@@ -177,7 +178,7 @@ function replaceAlertHooks(settings: Settings, { selected, path }: Adapter): voi
 					!events.includes(event) ||
 					handler.type !== "command" ||
 					!/^Beeswax tracker alerts v\d+$/u.test(String(handler.statusMessage)) ||
-					handler.command !== command ||
+					(handler.command !== command && handler.command !== previousCommand) ||
 					Object.keys(handler).some((key) => !["type", "command", "statusMessage"].includes(key)) ||
 					Object.keys(group).some((key) => key !== "hooks")
 				) {
@@ -243,7 +244,7 @@ function replacePi({ current, selected, path }: Adapter, flags: string[]): strin
 			"\t\tlet context;",
 			"\t\ttry {",
 			'\t\t\tconst result = await pi.exec("beeswax", ' +
-				'["harness-alert", "--harness", "pi", "--input", payload], { timeout: 5000 });',
+				'["system", "harness-alert", "--harness", "pi", "--input", payload], { timeout: 5000 });',
 			"\t\t\tif (result.code !== 0) throw new Error(result.stderr);",
 			"\t\t\tconst output = JSON.parse(result.stdout);",
 			'\t\t\tif (typeof output.context !== "string") throw new Error("Invalid alert callback output");',

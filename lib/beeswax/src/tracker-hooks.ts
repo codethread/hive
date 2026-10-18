@@ -34,7 +34,11 @@ export async function verifyTrackerInitialization(
 		}),
 	);
 	for (const body of bodies) {
-		updateHookSection(body);
+		if (updateHookSection(body) !== body) {
+			throw hookMigration(
+				"Prepare the current validation section in the configured tracker hooks before binding.",
+			);
+		}
 	}
 }
 
@@ -77,7 +81,11 @@ export async function installTrackerHooks(
 					"Prepare the same configured hook files in the tracker with the user.",
 			);
 		}
-		updateHookSection(body);
+		if (updateHookSection(body) !== body) {
+			throw hookMigration(
+				"Prepare the current validation section in the configured tracker hooks before binding.",
+			);
+		}
 	}
 	await bindCheckout(root, executable, io);
 	await bootstrapHooks(root, config.bootstrap.hooks, io);

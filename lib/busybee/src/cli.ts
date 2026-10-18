@@ -342,9 +342,27 @@ function registerSystem(invocation: Invocation): void {
 		.description("JSON tooling interfaces; use show, discover or preview for routine work")
 		.addHelpText(
 			"after",
-			"\nTooling output is intended for applications. Working agents should use show for briefs, " +
-				"discover for choices and preview for structural saved-state diagrams.",
+			"\nApplications use these JSON interfaces; Bee uses prepare-driver for driver admission.\n" +
+				"Working agents use show for briefs, discover for choices and preview for saved-state diagrams.\n" +
+				"All system commands require --json.",
 		);
+	system
+		.command("prepare-driver <run>")
+		.description(
+			"Bee integration: prepare an active run for driver admission under its checkpoint lock",
+		)
+		.addHelpText(
+			"after",
+			"\nRequires --json. Preserves closed runs, human reservations, blocked work and worker assignments.\n" +
+				"For an orphan run, use bee attach-workflow --help; for a failed driver, use bee retry --help.",
+		)
+		.action(async (id: string) => {
+			requireSystemJson(invocation);
+			writeResult(
+				await prepareDriver(id, invocation.cli.opts<CliOptions>(), invocation.services),
+				invocation,
+			);
+		});
 	system
 		.command("checkpoint <run>")
 		.description(
@@ -552,15 +570,6 @@ function registerNavigation(invocation: Invocation): void {
 		.action(async (id: string, bead: string, choice: string) => {
 			const data = await payload(options(), services);
 			writeResult(await recordResult({ id, bead, choice, data }, options(), services), invocation);
-		});
-	cli
-		.command("prepare-driver <run>")
-		.description(
-			"Validate and open an active run for driver admission under its checkpoint lock; " +
-				"preserve driver-handled reservations and completed runs",
-		)
-		.action(async (id: string) => {
-			writeResult(await prepareDriver(id, options(), services), invocation);
 		});
 	for (const operation of ["show", "collect"] as const) {
 		cli

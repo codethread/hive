@@ -21,9 +21,9 @@ const FIRST = 0;
 const ONE = 1;
 const FAILURE = 1;
 const INITIAL_RECORDS = 4;
-const DISPATCH_PREFIX = 6;
-const RECIPE_RUN_ARG = 5;
-const RECIPE_STAGE_ARG = 3;
+const DISPATCH_PREFIX = 7;
+const RECIPE_RUN_ARG = 6;
+const RECIPE_STAGE_ARG = 4;
 const LOCK_TIMEOUT = 10_000;
 const recipe = {
 	cwd: "/driver-repo",
@@ -149,7 +149,7 @@ test("default author distinguishes the run while preserving the actual stage ass
 
 // Compile the injected chart/checkpoint schemas and CLI boundary once before measured cases.
 const warmup = await fixture();
-await invoke(["prepare-driver", warmup.run.id], warmup.io);
+await invoke(["system", "prepare-driver", warmup.run.id], warmup.io);
 await recordResult(
 	{ id: warmup.run.id, bead: warmup.run.active[FIRST]!.bead, choice: "selected", data: payload },
 	{},
@@ -266,7 +266,7 @@ describe("driver coordination", () => {
 			}
 			await beads.update(scope, [bead], { assignee, owner, labels });
 			const before = await beads.show(scope, run.id);
-			const result = await invoke(["prepare-driver", run.id], io);
+			const result = await invoke(["system", "prepare-driver", run.id], io);
 			expect(result.code).toBe(FAILURE);
 			expect(result.document).toMatchObject({
 				ok: false,
@@ -282,7 +282,7 @@ describe("driver coordination", () => {
 	test("initially completed run stays closed and requires no driver", async () => {
 		const { beads, checkpoint, io, run } = doneRun;
 		const before = await beads.show(scope, run.id);
-		const result = await invoke(["prepare-driver", run.id], io);
+		const result = await invoke(["system", "prepare-driver", run.id], io);
 		expect(result.document).toEqual({
 			ok: true,
 			kind: "prepare-driver",
@@ -400,7 +400,7 @@ describe("driver coordination", () => {
 	test("handoff preserves an existing agent driver claim", async () => {
 		const { beads, io, run } = assignedRun;
 		await beads.update(scope, [run.id], { assignee: "existing-driver" });
-		const result = await invoke(["prepare-driver", run.id], io);
+		const result = await invoke(["system", "prepare-driver", run.id], io);
 		expect(result.document).toMatchObject({
 			reason: "run_assigned",
 			runId: run.id,
@@ -548,6 +548,7 @@ describe("Bee-dispatched stage coordination", () => {
 		const { calls, run, stage } = dispatch;
 		expect(calls[FIRST]!.slice(FIRST, DISPATCH_PREFIX)).toEqual([
 			"bee",
+			"system",
 			"dispatch-stage",
 			"worker",
 			stage.bead,

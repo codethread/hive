@@ -10,7 +10,7 @@ const alertHook = {
 	hooks: [
 		{
 			type: "command",
-			command: "beeswax harness-alert --harness codex",
+			command: "beeswax system harness-alert --harness codex",
 			statusMessage: "Beeswax tracker alerts v1",
 		},
 	],
@@ -107,6 +107,14 @@ test("recognized older JSON entries update automatically while preserving user s
 			PostToolUse: [alertHook],
 		},
 	});
+});
+
+test("owned alert callbacks adopt the system command while preserving user hooks", async () => {
+	const fx = configured();
+	const current = fx.files.get(codex)!;
+	fx.files.set(codex, current.replaceAll("beeswax system harness-alert", "beeswax harness-alert"));
+	await applyOnboarding(root, config, fx.deps);
+	expect(fx.files.get(codex)).toBe(current);
 });
 
 test("Pi section updates and removal preserve source outside the owned brackets", async () => {

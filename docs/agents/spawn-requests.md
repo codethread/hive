@@ -54,7 +54,7 @@ Colony injects request/attempt identity, token and private state location. Prese
 
 ## Report an inactivity verdict
 
-Only a Colony-launched inactivity drone uses `bee report`; read its help. Injected review/target context and the recorded executing attempt authorize one immutable `verdict.json`. Every duplicate is rejected, including an identical repeat. Stale, mismatched, replaced, settling or late reports are rejected; malformed/invalid artifacts remain evidence without affecting the target.
+Only a Colony-launched inactivity drone uses `bee system report`; read its help. Injected review/target context and the recorded executing attempt authorize one immutable `verdict.json`. Every duplicate is rejected, including an identical repeat. Stale, mismatched, replaced, settling or late reports are rejected; malformed/invalid artifacts remain evidence without affecting the target.
 
 The drone reports active/inactive only. Colony owns task claims, process cleanup and retry decisions. The [runtime guide](../../lib/colony/README.md#review-quiet-bees-with-a-drone) owns trigger, deadline and missing-verdict policy; [`drone.ts`](../../lib/colony/src/drone.ts) owns report validation.
 

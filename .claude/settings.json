@@ -5,7 +5,7 @@
 				"hooks": [
 					{
 						"type": "command",
-						"command": "beeswax beads session-start"
+						"command": "beeswax system beads session-start"
 					}
 				]
 			},
@@ -22,7 +22,7 @@
 				"hooks": [
 					{
 						"type": "command",
-						"command": "beeswax harness-alert --harness claude",
+						"command": "beeswax system harness-alert --harness claude",
 						"statusMessage": "Beeswax tracker alerts v1"
 					}
 				]
@@ -33,7 +33,7 @@
 				"hooks": [
 					{
 						"type": "command",
-						"command": "beeswax harness-alert --harness claude",
+						"command": "beeswax system harness-alert --harness claude",
 						"statusMessage": "Beeswax tracker alerts v1"
 					}
 				]
@@ -44,7 +44,7 @@
 				"hooks": [
 					{
 						"type": "command",
-						"command": "beeswax harness-alert --harness claude",
+						"command": "beeswax system harness-alert --harness claude",
 						"statusMessage": "Beeswax tracker alerts v1"
 					}
 				]

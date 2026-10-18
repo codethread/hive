@@ -18,9 +18,9 @@ import { inspect } from "../../src/preview.ts";
 
 const definition = { machine, commandSchemas, inputSchema, runBrief };
 const FIRST = 0;
-const KIND_ARGUMENT = 2;
-const STAGE_ARGUMENT = 3;
-const RUN_ARGUMENT = 5;
+const KIND_ARGUMENT = 3;
+const STAGE_ARGUMENT = 4;
+const RUN_ARGUMENT = 6;
 const db = "/nested-bees-fixture/beads.db";
 const repo = "/nested-bees-fixture";
 const scope = { actor: "example-driver", cwd: repo, db };
