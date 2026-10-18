@@ -24,6 +24,10 @@ const ownershipSchema = z.strictObject({
 	supervisor: processFingerprintSchema,
 	token: z.string(),
 });
+const ownershipIdentitySchema = z.object({
+	supervisor: processFingerprintSchema,
+	token: z.string(),
+});
 export type ProcessFingerprint = z.infer<typeof processFingerprintSchema>;
 type Fingerprint = ProcessFingerprint;
 type Ownership = z.infer<typeof ownershipSchema>;
@@ -258,7 +262,9 @@ async function executionSupervisor(ref: ExecutionRef): Promise<ProcessFingerprin
 	if (!(await Bun.file(join(ref.directory, "ownership.json")).exists())) {
 		return awaitSupervisor(ref);
 	}
-	const owned = ownershipSchema.parse(await Bun.file(join(ref.directory, "ownership.json")).json());
+	const owned = ownershipIdentitySchema.parse(
+		await Bun.file(join(ref.directory, "ownership.json")).json(),
+	);
 	if (owned.token !== ref.token) {
 		throw new Error(`Execution ${ref.directory} has a mismatched ownership token`);
 	}
