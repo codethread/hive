@@ -3,14 +3,26 @@
 		"version": "0.7.1",
 		"changes": [
 			{
+				"commit": "0a26469635bd13c11dc53e39d9a615a2974cf4f3",
+				"summary": "read group ownership independently of writer history",
+				"body": "Group observation and cleanup read the recorded supervisor identity and token without\nvalidating unused writer fields. Retained attempt and assessment artifacts with discarded\nprocess-history fields no longer block cleanup. Token, supervisor lifetime and process-group\nchecks remain in force; new ownership writes remain unchanged.\n\nRequired: drain or stop old attempts with the old Colony runtime before replacing binaries.\nInstall all matching Colony companion executables, then restart the daemon and resume\nunfinished work. Old supervisors keep their scan loops until stopped.",
+				"breaking": [],
+				"adoption": [
+					{
+						"requirement": "required",
+						"text": "Drain or stop old attempts with the old Colony runtime before replacing binaries. Install all matching Colony companion executables, then restart the daemon and resume unfinished work. Old supervisors keep their scan loops until stopped."
+					}
+				]
+			},
+			{
 				"commit": "79e60633c9082b0433e2a5dc436574b1f1cbc582",
 				"summary": "replace recurring process scans with owned-group supervision",
-				"body": "Managed executions now observe their child handle without continuous process-table scans or\ndescendant-history rewrites. Cancellation sends TERM to the verified supervisor process group,\nallows one second for exit, then sends KILL if needed and waits up to five seconds for\nconfirmation. Cleanup fails visibly if the group remains. Processes that detach or create\nseparate groups are outside managed cleanup.\n\nRequired: drain or stop old attempts with the old Colony runtime before upgrading, install all\nmatching Colony companion binaries, then restart the daemon and resume unfinished work.\nRestarting the daemon alone leaves old supervisors and their scan loops alive. Old ownership\nartifacts are not supported by the new runtime.",
+				"body": "Managed executions now observe their child handle without continuous process-table scans or\ndescendant-history rewrites. Cancellation sends TERM to the verified supervisor process group,\nallows one second for exit, then sends KILL if needed and waits up to five seconds for\nconfirmation. Cleanup fails visibly if the group remains. Processes that detach or create\nseparate groups are outside managed cleanup.\n\nRequired: drain or stop old attempts with the old Colony runtime before upgrading, install all\nmatching Colony companion binaries, then restart the daemon and resume unfinished work.\nRestarting the daemon alone leaves old supervisors and their scan loops alive.",
 				"breaking": ["replace recurring process scans with owned-group supervision"],
 				"adoption": [
 					{
 						"requirement": "required",
-						"text": "drain or stop old attempts with the old Colony runtime before upgrading, install all\nmatching Colony companion binaries, then restart the daemon and resume unfinished work.\nRestarting the daemon alone leaves old supervisors and their scan loops alive. Old ownership\nartifacts are not supported by the new runtime."
+						"text": "drain or stop old attempts with the old Colony runtime before upgrading, install all\nmatching Colony companion binaries, then restart the daemon and resume unfinished work.\nRestarting the daemon alone leaves old supervisors and their scan loops alive."
 					}
 				]
 			},
