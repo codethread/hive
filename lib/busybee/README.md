@@ -65,10 +65,13 @@ Use the returned IDs to inspect the work and its choices:
 ```sh
 RUN=example-run-id
 TASK=example-active-task-id
+br show "$RUN" --json
 busybee show "$RUN" --json
 busybee discover "$RUN"
 br show "$TASK" --json
 ```
+
+Read the full native run and task briefs on entry, including caller completion instructions; refresh them when relevant scope, state or authority changes. Use compact run views between those reads; `busybee show --help` describes their fields and optional frozen instructions.
 
 The groceries example first asks about the week ahead. After doing that work and completing any child tasks, complete the task with its original outcome payload, then collect it as the driver:
 
@@ -85,14 +88,14 @@ Repeat until `status` is `done`. A closed task stays active until Busy Bee accep
 
 Use `busybee --help` for the command flow and global options, then focused help to choose a read:
 
-| Need                                                    | Help                          |
-| ------------------------------------------------------- | ----------------------------- |
-| Bundled agent guidance                                  | `busybee skills --help`       |
-| Creation input                                          | `busybee input-schema --help` |
-| Active task briefs and run status                       | `busybee show --help`         |
-| Outcome choices and payload schemas                     | `busybee discover --help`     |
-| Saved diagrams and state for active or completed runs   | `busybee preview --help`      |
-| Tooling inspection, simulation and Bee driver admission | `busybee system --help`       |
+| Need                                                       | Help                          |
+| ---------------------------------------------------------- | ----------------------------- |
+| Bundled agent guidance                                     | `busybee skills --help`       |
+| Creation input                                             | `busybee input-schema --help` |
+| Run status, active visits and optional frozen instructions | `busybee show --help`         |
+| Outcome choices and payload schemas                        | `busybee discover --help`     |
+| Saved diagrams and state for active or completed runs      | `busybee preview --help`      |
+| Tooling inspection, simulation and Bee driver admission    | `busybee system --help`       |
 
 The [preview contract](./SPEC.md#saved-state-preview) distinguishes structural preview from tooling inspection with frozen briefs and rendered instruction previews. [Simulation](./SPEC.md#simulation) evaluates temporary outcomes without advancing the saved run; use `busybee system simulate --help` for requests and schema discovery. [Hive UI](../hive-ui/README.md#workflow-preview) presents both Saved and Simulate modes. The [authoring guide](../../docs/busybee-workflows.md) covers definitions and validation limits.
 

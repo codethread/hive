@@ -25,16 +25,16 @@ The parent IDs name existing nonclosed ordinary work in the selected tracker. Ea
 		{
 			"bead": "busy-2rm.1",
 			"title": "Prepare change",
-			"instructions": "Identify the change to implement.",
 			"commands": ["next"]
 		}
 	]
 }
 ```
 
-The run ID identifies the workflow; the task ID identifies the work to submit. Inspect active work, its native brief and its outcome schemas:
+The run ID identifies the workflow; the task ID identifies the work to submit. Read the native run brief for caller completion instructions and the active task brief for its work and authority:
 
 ```sh
+br show busy-2rm --json
 busybee show busy-2rm --json
 br show busy-2rm.1 --json
 busybee discover busy-2rm
@@ -45,7 +45,7 @@ busy-2rm.1: Prepare change
 Choice: next
 ```
 
-No fields follow `next`, so it needs no payload. Use `discover --json` for complete schemas.
+No fields follow `next`, so it needs no payload. Use `discover --json` for complete schemas. Run views stay compact; `busybee show --help` describes optional frozen instruction expansion.
 
 ## Complete the task, then collect
 
@@ -96,7 +96,7 @@ busybee complete busy-8fp busy-8fp.1 busy --data '{"meals":4}' --json
 busybee collect busy-8fp --json
 ```
 
-The next task is “Choose quick recipes,” with context including `busyWeek: true` and `plannedMeals: 4`. Repeat the inspect, work, complete and collect cycle until `status` is `done`.
+The next task is “Choose quick recipes.” Read each new visit's full native brief, then repeat the work, complete and collect cycle until `status` is `done`.
 
 ## Run Hive's landing workflow
 

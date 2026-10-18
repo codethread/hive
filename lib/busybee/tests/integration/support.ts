@@ -5,10 +5,9 @@ import { afterEach, beforeEach, expect } from "bun:test";
 import { createMemoryBeads, createNativeBeads } from "@hive/beads";
 import { createServices, readBead } from "../../src/native.ts";
 import { mkdir, mkdtemp, rm, symlink } from "node:fs/promises";
+import { runCli, runSummarySchema } from "../../src/cli.ts";
 import { execute } from "@hive/shared";
 import { join } from "node:path";
-import { runCli } from "../../src/cli.ts";
-import { runViewSchema } from "../../src/runtime.ts";
 import { tmpdir } from "node:os";
 
 const SUCCESS = 0;
@@ -125,7 +124,7 @@ export async function view(
 ) {
 	const result = await invoke([...optionsArgs(fixture), ...command], services);
 	expect(result.code, result.stdout).toBe(SUCCESS);
-	return runViewSchema.parse(result.document);
+	return runSummarySchema.parse(result.document);
 }
 
 export function record(fixture: RepositoryFixture, id: string) {

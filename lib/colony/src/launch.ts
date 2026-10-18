@@ -230,8 +230,11 @@ export function renderExecutionRecipe({
 		.with(
 			{ kind: "driver" },
 			({ runId }) =>
-				`Coordinate existing Busy Bee run ${runId}; resume it on retry. Read its brief, ` +
-				`busybee show ${runId} --json and busybee discover ${runId} --json. ` +
+				`Coordinate existing Busy Bee run ${runId}; resume it on retry. Read its full native ` +
+				`brief once with br show ${runId} --json, then busybee show ${runId} --json and ` +
+				`busybee discover ${runId} --json. Read br show TASK --json once per active visit; ` +
+				"refresh native briefs when relevant scope, state or authority changes. Use compact " +
+				"run views between those reads; busybee show --help covers instruction expansion. " +
 				"Follow the active stage briefs. Claim only unassigned or self-owned driver-handled " +
 				"visits; preserve other identities and human/HITL reservations. Collect saved " +
 				`closed-stage results with busybee collect ${runId} --json, including interrupted ` +

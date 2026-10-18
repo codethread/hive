@@ -18,6 +18,7 @@ import {
 	navigate,
 	prepareDriver,
 	recordResult,
+	runViewSchema,
 	start,
 	startNamed,
 } from "./runtime.ts";
@@ -30,6 +31,7 @@ import {
 	workflowSimulationSchema,
 } from "@hive/shared";
 import type { PreflightReport } from "./preflight.ts";
+import type { RunView } from "./runtime.ts";
 import type { Source } from "./catalogue.ts";
 import changelog from "../changelog.json";
 import { preflight } from "./preflight.ts";
@@ -43,6 +45,9 @@ import { z } from "zod";
 const SUCCESS = 0;
 const FAILURE = 1;
 const INDENT = 2;
+export const runSummarySchema = runViewSchema.extend({
+	active: z.array(runViewSchema.shape.active.element.omit({ context: true, instructions: true })),
+});
 const constraintKeys = new Set([
 	"const",
 	"enum",
@@ -64,10 +69,13 @@ const constraintKeys = new Set([
 ]);
 const navigationHelp = {
 	show: {
-		description: "Read run status, active task briefs and generated visit references",
+		description: "Read compact run status, active tasks and generated visit references",
 		details:
-			"\nReturns active task IDs, commands, context, instructions, request IDs and actor paths. " +
-			"Read each native task brief with br show TASK --json for delivery/closure instructions. " +
+			"\nRun views from run/start/show/collect/next/choice omit actor context and instruction bodies. " +
+			"They retain run status, active task IDs, titles, commands, request IDs, actor paths and visit references. " +
+			"Use show RUN --instructions --json to include each active visit's exact saved instruction text. " +
+			"Read br show RUN --json for caller completion instructions and br show TASK --json for the full " +
+			"native brief, acceptance, assignment, children, blockers and delivery/closure instructions. " +
 			"Use discover --json for outcome payload schemas. " +
 			"Performs no native writes, but restores, starts and stops a workflow actor. " +
 			"For saved diagrams/state without creating actors, use preview --help.",
@@ -215,6 +223,7 @@ function commandOptions(): Command {
 			"\nWork: show RUN, discover RUN --json, perform the active task, " +
 				"complete RUN TASK CHOICE, then the driver runs collect RUN. " +
 				"Busy Bee closes groups and the run.\n" +
+				"Run views are compact; see show --help for instruction expansion.\n" +
 				"Inspect saved diagrams/state with preview RUN --json. " +
 				"Use busybee COMMAND --help for each command's purpose and prerequisites.",
 		);
@@ -260,13 +269,13 @@ function registerCreation(invocation: Invocation): void {
 		.command("run <name>")
 		.description("Start a named workflow beneath --parent work")
 		.action(async (name: string) => {
-			writeResult(await startNamed(name, options(), services), invocation);
+			writeRunView(await startNamed(name, options(), services), invocation);
 		});
 	cli
 		.command("start <source>")
 		.description("Start an explicit definition beneath --parent work")
 		.action(async (source: string) => {
-			writeResult(await start(source, options(), services), invocation);
+			writeRunView(await start(source, options(), services), invocation);
 		});
 	cli.command("validate <source>").action(async (source: string) => {
 		const result = await validate(resolve(services.cwd, source), options().inputFile, services);
@@ -326,7 +335,7 @@ function registerInspection(invocation: Invocation): void {
 		.addHelpText(
 			"after",
 			"\nUse --json for complete schemas, including nested/conditional fields. " +
-				"Use show for task instructions and complete --help before completing a stage. " +
+				"Use show --help for active-work inspection and complete --help before completing a stage. " +
 				"Discovery performs no native writes; it restores, starts and stops a workflow " +
 				"actor and calls author discovery/schema code. It is not a reservation.",
 		)
@@ -343,7 +352,7 @@ function registerSystem(invocation: Invocation): void {
 		.addHelpText(
 			"after",
 			"\nApplications use these JSON interfaces; Bee uses prepare-driver for driver admission.\n" +
-				"Working agents use show for briefs, discover for choices and preview for saved-state diagrams.\n" +
+				"Working agents use show for active tasks, discover for choices and preview for saved-state diagrams.\n" +
 				"All system commands require --json.",
 		);
 	system
@@ -571,21 +580,13 @@ function registerNavigation(invocation: Invocation): void {
 			const data = await payload(options(), services);
 			writeResult(await recordResult({ id, bead, choice, data }, options(), services), invocation);
 		});
-	for (const operation of ["show", "collect"] as const) {
-		cli
-			.command(`${operation} <run>`)
-			.description(navigationHelp[operation].description)
-			.addHelpText("after", navigationHelp[operation].details)
-			.action(async (id: string) => {
-				writeResult(await navigate({ id, operation }, options(), services), invocation);
-			});
-	}
+	registerRunViews(invocation);
 	cli
 		.command("next <run> <task>")
 		.description("Submit outcome next for a closed driver-handled task; see choice --help")
 		.action(async (id: string, bead: string) => {
 			const data = await payload(options(), services);
-			writeResult(
+			writeRunView(
 				await navigate(
 					{ bead, choice: "next", data, id, operation: "submit" },
 					options(),
@@ -608,11 +609,31 @@ function registerNavigation(invocation: Invocation): void {
 		)
 		.action(async (id: string, bead: string, choice: string) => {
 			const data = await payload(options(), services);
-			writeResult(
+			writeRunView(
 				await navigate({ bead, choice, data, id, operation: "submit" }, options(), services),
 				invocation,
 			);
 		});
+}
+
+function registerRunViews(invocation: Invocation): void {
+	const { cli, services } = invocation;
+	for (const operation of ["show", "collect"] as const) {
+		const command = cli
+			.command(`${operation} <run>`)
+			.description(navigationHelp[operation].description)
+			.addHelpText("after", navigationHelp[operation].details);
+		if (operation === "show") {
+			command.option("--instructions", "Include exact saved instructions for active visits");
+		}
+		command.action(async (id: string, selection: { instructions?: boolean }) => {
+			writeRunView(
+				await navigate({ id, operation }, cli.opts<CliOptions>(), services),
+				invocation,
+				selection.instructions === true,
+			);
+		});
+	}
 }
 
 async function schemaSource(
@@ -640,6 +661,23 @@ async function payload(options: CliOptions, services: Services): Promise<unknown
 		return JSON.parse(await services.readText(options.dataFile)) as unknown;
 	}
 	return JSON.parse(options.data ?? "{}") as unknown;
+}
+
+function writeRunView(result: RunView, invocation: Invocation, instructions = false): void {
+	const active = result.active.map((entry) => {
+		const summary = {
+			bead: entry.bead,
+			commands: entry.commands,
+			path: entry.path,
+			request: entry.request,
+			title: entry.title,
+		};
+		if (instructions) {
+			return { ...summary, instructions: entry.instructions };
+		}
+		return summary;
+	});
+	writeResult({ ...result, active }, invocation);
 }
 
 function writeResult(result: object, invocation: Invocation, readable?: string): void {

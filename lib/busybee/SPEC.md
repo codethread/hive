@@ -46,7 +46,9 @@ Partial-effect creation errors retain the known `parentId`, even when the run cr
 
 ## Saved-state preview
 
-`show` exposes active work, frozen task instructions and run status; `discover` exposes its outcome choices, payload schemas and author constraints. Both perform no native writes, but restore, start and stop an XState actor; discovery also calls author discovery/schema code. The preview interfaces below have a narrower execution boundary. See focused command help for usage.
+Public CLI run views (`run`, `start`, `show`, `collect`, `next`, `choice`) expose run status and visit references without actor context or instruction bodies. `show --instructions` adds the exact frozen text from each active visit's saved `meta.instructions`; it does not rerender that brief or expose raw context. Runtime APIs, checkpoints and native task descriptions retain their full content. Native run/task briefs remain authoritative for current work and caller completion instructions. See `show --help` for fields and inspection commands.
+
+`discover` exposes outcome choices, payload schemas and author constraints. Like `show`, it performs no native writes, but restores, starts and stops an XState actor; discovery also calls author discovery/schema code. The preview interfaces below have a narrower execution boundary.
 
 `system checkpoint RUN --json` returns the public `runId`, `checkpoint` and `savedAt` fields in a `workflow_checkpoint` success envelope. It validates the checkpoint header and run identity without importing a definition, rendering instructions, creating actors, acquiring locks or writing. The [Shared wire schema](../shared/src/workflow-preview.ts) owns the payload; `system schema --checkpoint --json` exposes its success schema without tracker access.
 
