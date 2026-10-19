@@ -1,6 +1,6 @@
 import { BusyBeeError, createServices } from "../../src/native.ts";
+import { advance, complete, recordResult, start } from "../../src/runtime.ts";
 import { assign, createMachine } from "xstate";
-import { complete, discover, navigate, recordResult, start } from "../../src/runtime.ts";
 import { expect, test } from "bun:test";
 import type { Services } from "../../src/native.ts";
 import type { UpdateBead } from "@hive/beads";
@@ -200,7 +200,7 @@ test("#test-115 identical retry after lost receipt and collection never recloses
 	const saved = await beads.show(scope, request.bead);
 	expect(await beads.show(scope, checkpoint)).toMatchObject({ notes: "" });
 	await complete(request, {}, lost);
-	const next = await navigate({ id: run.id, operation: "collect" }, {}, io);
+	const next = await advance({ id: run.id, mode: "results" }, {}, io);
 	expect(next).toMatchObject({ status: "done", active: [], created: run.created });
 	await complete(request, {}, lost);
 	expect(closes).toBe(ONE);
@@ -219,7 +219,7 @@ test("#test-115 identical retry after lost receipt and collection never recloses
 		},
 	]);
 	expect(state.snapshot).toMatchObject({ context: { saved: { ...data, value: 13 } } });
-	expect(await navigate({ id: run.id, operation: "collect" }, {}, io)).toEqual(next);
+	expect(await advance({ id: run.id, mode: "results" }, {}, io)).toEqual(next);
 });
 
 test("#test-116 complete validates payload before saving or closing", async () => {
@@ -310,8 +310,20 @@ test("#test-119 generated worker guidance and discovery expose complete followed
 	const stage = await beads.show(scope, request.bead);
 	expect(stage.description).toContain(`complete ${request.id} TASK_ID CHOICE`);
 	expect(stage.description).not.toContain("before br close");
-	const discovery = await discover(request.id, {}, io);
-	expect(discovery.constraints).toContain("complete");
+	const inspected = await invoke(["inspect", request.id, "--work"], io);
+	expect(inspected.document).toMatchObject({
+		ok: true,
+		lifecycle: { kind: "pending" },
+		work: {
+			kind: "available",
+			data: {
+				id: request.id,
+				checkpoint: expect.any(String),
+				savedAt: expect.any(String),
+				active: [{ bead: request.bead, choices: [{ choice: "next", schema: expect.any(Object) }] }],
+			},
+		},
+	});
 });
 
 function writePoint(ids: readonly string[], input: UpdateBead, stage: string): string {

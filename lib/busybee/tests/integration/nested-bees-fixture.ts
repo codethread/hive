@@ -1,10 +1,10 @@
+import { advance, recordResult, start } from "../../src/runtime.ts";
 import {
 	commandSchemas,
 	inputSchema,
 	machine,
 	runBrief,
 } from "../../examples/nested-bees/workflow.ts";
-import { navigate, recordResult, start } from "../../src/runtime.ts";
 import {
 	spawnRequestLabels,
 	workflowInspectionSchema,
@@ -18,9 +18,9 @@ import { inspectDiagram } from "../../src/preview.ts";
 
 const definition = { machine, commandSchemas, inputSchema, runBrief };
 const FIRST = 0;
-const KIND_ARGUMENT = 2;
-const STAGE_ARGUMENT = 3;
-const RUN_ARGUMENT = 5;
+const KIND_ARGUMENT = 3;
+const STAGE_ARGUMENT = 4;
+const RUN_ARGUMENT = 6;
 const db = "/nested-bees-fixture/beads.db";
 const repo = "/nested-bees-fixture";
 const scope = { actor: "example-driver", cwd: repo, db };
@@ -88,7 +88,7 @@ export async function captureNestedBees() {
 			services,
 		);
 		await beads.close(scope, visit.bead);
-		run = await navigate({ id: run.id, operation: "collect" }, options, services);
+		run = await advance({ id: run.id, mode: "results" }, options, services);
 	};
 	await complete(["api"], "nested-worker.implement");
 	const mixed = workflowInspectionSchema.parse(await inspectDiagram(run.id, options, services));

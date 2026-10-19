@@ -1,3 +1,4 @@
+import { advance, recordResult, start } from "../../src/runtime.ts";
 import {
 	commandSchemas,
 	inputSchema,
@@ -7,7 +8,6 @@ import {
 import { describe, expect, test } from "bun:test";
 import { initialTransition, transition } from "xstate";
 import { metadataSchema, renderTask } from "../../src/definition.ts";
-import { navigate, recordResult, start } from "../../src/runtime.ts";
 import type { ResolvedTask } from "../../src/definition.ts";
 import type { SnapshotFrom } from "xstate";
 import { createMemoryBeads } from "@hive/beads";
@@ -19,9 +19,9 @@ import { spawnRequestLabels } from "@hive/shared";
 const FIRST = 0;
 const ID_ARGUMENT = 1;
 const ONE_REQUEST = 1;
-const DISPATCH_STAGE_ARGUMENT = 3;
-const DISPATCH_RUN_ARGUMENT = 5;
-const DISPATCH_PREFIX = 6;
+const DISPATCH_STAGE_ARGUMENT = 4;
+const DISPATCH_RUN_ARGUMENT = 6;
+const DISPATCH_PREFIX = 7;
 const worktreeTarget = { kind: "worktree", branch: "simulated-work" } as const;
 const evidence = "SIMULATED transport evidence only; no real approval, merge or publication.";
 const outcome = { evidence };
@@ -173,12 +173,12 @@ const closureRuns = new Map(
 // Warm the runtime's done projection before measuring independently prepared lifecycle cases.
 const closureWarmup = await closureFixture(closureCases[FIRST]!);
 await closureWarmup.beads.close(closureWarmup.scope, closureWarmup.run.active[FIRST]!.bead);
-await navigate({ id: closureWarmup.run.id, operation: "collect" }, {}, closureWarmup.io);
+await advance({ id: closureWarmup.run.id, mode: "results" }, {}, closureWarmup.io);
 
 // Warm dispatch parsing before measuring independently prepared publication and collection cases.
 const reviewerWarmup = await reviewerFixture("check");
 await saveReviewOutcome(reviewerWarmup, "passed", outcome);
-await navigate({ id: reviewerWarmup.run.id, operation: "collect" }, {}, reviewerWarmup.io);
+await advance({ id: reviewerWarmup.run.id, mode: "results" }, {}, reviewerWarmup.io);
 const dispatchRun = await reviewerFixture("check");
 await saveReviewOutcome(dispatchRun, "passed", outcome);
 const reviewCases: { choice: "approved" | "changes"; target: "commit" | "implement" }[] = [
@@ -203,9 +203,9 @@ const reviewRuns = new Map(
 const repairRun = await reviewerFixture("review");
 const previousReview = repairRun.run.active[FIRST]!;
 await saveReviewOutcome(repairRun, "changes", outcome);
-repairRun.run = await navigate({ id: repairRun.run.id, operation: "collect" }, {}, repairRun.io);
+repairRun.run = await advance({ id: repairRun.run.id, mode: "results" }, {}, repairRun.io);
 await saveReviewOutcome(repairRun, "next", outcome);
-repairRun.run = await navigate({ id: repairRun.run.id, operation: "collect" }, {}, repairRun.io);
+repairRun.run = await advance({ id: repairRun.run.id, mode: "results" }, {}, repairRun.io);
 await saveReviewOutcome(repairRun, "passed", outcome);
 
 // The authored workflow drives dispatch; only the process and tracker adapters are replaced.
@@ -213,11 +213,12 @@ await saveReviewOutcome(repairRun, "passed", outcome);
 test("Land dispatches its existing review visit after the driver's passing checks", async () => {
 	const { beads, calls, io, run, scope } = dispatchRun;
 	expect(calls).toEqual([]);
-	const reviewing = await navigate({ id: run.id, operation: "collect" }, {}, io);
+	const reviewing = await advance({ id: run.id, mode: "results" }, {}, io);
 	const stage = reviewing.active[FIRST]!;
 	expect(stage.title).toBe(`${titles.review}: worktree ${worktreeTarget.branch}`);
 	expect(calls[FIRST]!.slice(FIRST, DISPATCH_PREFIX)).toEqual([
 		"bee",
+		"system",
 		"dispatch-stage",
 		"reviewer",
 		stage.bead,
@@ -236,7 +237,7 @@ test("Land dispatches its existing review visit after the driver's passing check
 			JSON.stringify({ kind: "stage", runId: run.id, stageId: stage.bead }),
 		),
 	});
-	expect(await navigate({ id: run.id, operation: "collect" }, {}, io)).toEqual(reviewing);
+	expect(await advance({ id: run.id, mode: "results" }, {}, io)).toEqual(reviewing);
 	expect(calls).toHaveLength(ONE_REQUEST);
 });
 
@@ -244,7 +245,7 @@ test.each(reviewCases)(
 	"Land collects reviewer $choice into driver-owned $target",
 	async ({ choice, target }) => {
 		const { beads, calls, io, run, scope, receipt } = reviewRuns.get(choice)!;
-		const next = await navigate({ id: run.id, operation: "collect" }, {}, io);
+		const next = await advance({ id: run.id, mode: "results" }, {}, io);
 		expect(next.active).toMatchObject([
 			{ title: `${titles[target]}: worktree ${worktreeTarget.branch}`, context: { evidence } },
 		]);
@@ -263,7 +264,7 @@ test.each(reviewCases)(
 
 test("Land dispatches a fresh reviewer visit after driver repair and checks", async () => {
 	const { calls, io, run } = repairRun;
-	const next = await navigate({ id: run.id, operation: "collect" }, {}, io);
+	const next = await advance({ id: run.id, mode: "results" }, {}, io);
 	const stage = next.active[FIRST]!;
 	expect(stage.title).toBe(`${titles.review}: worktree ${worktreeTarget.branch}`);
 	expect(stage.bead).not.toBe(previousReview.bead);
@@ -271,6 +272,7 @@ test("Land dispatches a fresh reviewer visit after driver repair and checks", as
 	expect(stage.context["review"]).toBeUndefined();
 	expect(calls.at(-ONE_REQUEST)!.slice(FIRST, DISPATCH_PREFIX)).toEqual([
 		"bee",
+		"system",
 		"dispatch-stage",
 		"reviewer",
 		stage.bead,
@@ -328,7 +330,7 @@ test.each(closureCases)(
 		expect(await beads.show(scope, completed)).toMatchObject({ status: "open" });
 		expect(await beads.comments.list(scope, run.id)).toMatchObject([{ text: evidence }]);
 		await beads.close(scope, stage);
-		const done = await navigate({ id: run.id, operation: "collect" }, {}, io);
+		const done = await advance({ id: run.id, mode: "results" }, {}, io);
 		expect(done).toMatchObject({ status: "done", active: [] });
 		expect(await beads.show(scope, run.id)).toMatchObject({ status: "closed" });
 		expect(await beads.show(scope, completed)).toMatchObject({ status: "open" });
@@ -485,7 +487,7 @@ async function closureFixture({ caller, completeParent }: (typeof closureCases)[
 		const stage = run.active[FIRST]!.bead;
 		await recordResult({ id: run.id, bead: stage, choice, data: outcome }, {}, io);
 		await beads.close(scope, stage);
-		run = await navigate({ id: run.id, operation: "collect" }, {}, io);
+		run = await advance({ id: run.id, mode: "results" }, {}, io);
 	}
 	/* eslint-enable no-await-in-loop */
 	await beads.comments.add(scope, run.id, evidence);
@@ -551,7 +553,7 @@ async function reviewerFixture(initial: "check" | "review") {
 		beads,
 		calls,
 		io,
-		run: await navigate({ id: run.id, operation: "collect" }, {}, io),
+		run: await advance({ id: run.id, mode: "results" }, {}, io),
 		scope,
 	};
 }

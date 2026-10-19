@@ -95,7 +95,7 @@ export async function attachWorkflow(
 	);
 	await assertOrphanRun(runId, endpoint, commands);
 	await commands.admit(runId, options);
-	const run = await commands.workflows.show(runId, endpoint);
+	const run = await commands.workflows.work(runId, endpoint);
 	return attachPrepared({ kind, run, endpoint, options, initialization: {} }, commands);
 }
 
@@ -322,7 +322,7 @@ async function prepareDriver(
 	commands: WorkflowSubmissionCommands,
 ) {
 	try {
-		return await commands.workflows.prepareDriver(run.id, endpoint);
+		return await commands.workflows.advance({ runId: run.id, mode: "prepare-driver" }, endpoint);
 	} catch (error) {
 		throw new WorkflowSubmissionError(
 			"workflow_handoff_failed",

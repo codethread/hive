@@ -10,7 +10,7 @@ For definition authoring, read [authoring](references/authoring.md) with `busybe
 ## Select the run
 
 ```text
-Existing run ID? -- yes --> show + discover --> continue saved visits
+Existing run ID? -- yes --> inspect --work --> continue saved visits
        |
        no
        v
@@ -21,11 +21,10 @@ For an existing run, start with:
 
 ```sh
 br show RUN --json
-busybee show RUN --json
-busybee discover RUN --json
+busybee inspect RUN --work --json
 ```
 
-Read each active task with `br show TASK --json` for its full brief, children, assignment and blockers. `show` identifies visits and dispatch requests; `discover` supplies legal outcomes and payload schemas. On retry, resume the supplied run and collect saved closed-stage results before doing more work.
+Read each active task with `br show TASK --json` for its full brief, children, assignment and blockers. Require pending native lifecycle and available `work` before continuing. `work.data` contains frozen visits, dispatch requests, legal outcomes and payload schemas; its actor status is separate from native disposition. Read `inspect --help` for expansion availability and trusted-author execution. On retry, resume the supplied run and use `advance` to consume saved closed-stage results before doing more work.
 
 For authorized new work, use `busybee list` and `busybee input-schema NAME --json`, then `busybee run NAME --parent WORK_ID --owner HUMAN --input-file INPUT.json --json` with matching input. Retain the run ID. When the checkout needs the bundled `do-work` definition, follow `busybee init --help` before input discovery. Existing definitions must resolve their imports in the execution checkout; `list` reads manifests without importing code.
 
@@ -44,7 +43,7 @@ For a stage you own:
 2. Follow the brief's delivery instructions; in Bee execution, `bee response --help` owns answer publication and verification. Dispatched workers deliver before stage closure.
 3. Follow `busybee complete --help` to save the original outcome and close the stage.
 
-The driver runs `busybee collect RUN --json`, then reinspects active work. Read `collect --help` for progression and `choice --help` for direct submission of driver-handled outcomes. Busy Bee alone closes groups and the run.
+The driver follows `busybee advance --help`, then reinspects active work. Busy Bee alone closes groups and the run; `--prepare-driver` is a separate admission mode, not progression.
 
 Remain running while workers are pending; waiting drivers consume ordinary quota. If limits starve workers, ask the user to raise them. Read worker answers through `bee result --help` for the final synthesis. The driver is complete when the run reports `done`, its synthesis is delivered and the run brief's caller completion instructions are satisfied. The original parent requires its own acceptance and closure authority.
 
@@ -52,6 +51,8 @@ In Bee execution, follow `bee finish --help` after completing your assigned run 
 
 ## Continue safely
 
-Inspect confirmed effects and retained IDs after any command failure; a failed response can follow partial publication. For closure refusal or interrupted completion, follow `complete --help` before retrying. If collection reports missing or invalid saved data, recover the original outcome from evidence before resubmission.
+Inspect confirmed effects and retained IDs after any command failure; a failed response can follow partial publication. For closure refusal or interrupted completion, follow `complete --help` before retrying. If advancement reports missing or invalid saved data, recover the original outcome from evidence before resubmission.
 
 For definition restoration failures, read the compatibility rules in [authoring](references/authoring.md). Retain run/task/evidence references and follow the task's recovery authorization; retrying does not authorize a duplicate run. A missing saved name needs the caller's workflow choice. Checkpoint locks retained after uncertain writes require inspection and explicit recovery; never steal them or force-close unfinished work.
+
+For a tool cutover or an incompatible run requiring retirement/replacement, read `beeswax skills file repository-setup references/workflow-adoption.md`. It covers frozen old briefs, owning-host clearance and coherent service adoption; it grants no new deployment authority.

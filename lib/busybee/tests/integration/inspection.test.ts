@@ -23,13 +23,19 @@ test("#test-206 system preview freezes active briefs and renders retained actor 
 	const fixture = await inspectionFixture();
 	const before = await fixture.records();
 	const result = await captureCli(
-		[...command, "system", "preview", fixture.id, "--json"],
+		[...command, "inspect", fixture.id, "--diagram", "--instructions", "--json"],
 		fixture.services,
 	);
 	expect(result.code, result.stdout).toBe(SUCCESS);
 	expect(result.stderr).toBe("");
-	const document = JSON.parse(result.stdout);
-	expect(document).toMatchObject({ ok: true, kind: "workflow_inspection", formatVersion: 1 });
+	const envelope = JSON.parse(result.stdout);
+	const document = envelope.diagram.data;
+	expect(envelope).toMatchObject({
+		ok: true,
+		kind: "workflow_lifecycle",
+		diagram: { kind: "available" },
+	});
+	expect(document).toMatchObject({ formatVersion: 1 });
 	const inspection = workflowInspectionSchema.parse(document);
 	expect(inspection.definition).toMatchObject({
 		savedHash: "old-source",
@@ -121,11 +127,19 @@ test(
 
 test("ordinary preview stays structural and never invokes instruction renderers", async () => {
 	const fixture = await inspectionFixture();
-	const result = await captureCli([...command, "preview", fixture.id, "--json"], fixture.services);
+	const result = await captureCli(
+		[...command, "inspect", fixture.id, "--diagram", "--json"],
+		fixture.services,
+	);
 	expect(result.code).toBe(SUCCESS);
 	expect(result.stderr).toBe("");
-	const document = JSON.parse(result.stdout);
-	expect(document).toMatchObject({ ok: true, kind: "workflow_preview" });
+	const envelope = JSON.parse(result.stdout);
+	const document = envelope.diagram.data;
+	expect(envelope).toMatchObject({
+		ok: true,
+		kind: "workflow_lifecycle",
+		diagram: { kind: "available" },
+	});
 	expect(workflowPreviewSchema.parse(document).actors).toHaveLength(ACTOR_COUNT);
 	expect(result.stdout).not.toContain("instructions");
 	expect(fixture.rendered()).toEqual([]);
@@ -138,28 +152,34 @@ test("system schema is discoverable without tracker access and tooling requires 
 	expect(result.stderr).toBe("");
 	expect(JSON.parse(result.stdout)).toMatchObject({
 		ok: true,
-		kind: "workflow_inspection_schema",
-		schema: { properties: { formatVersion: { const: 1 }, kind: { const: "workflow_inspection" } } },
+		kind: "workflow_lifecycle_schema",
+		schema: {
+			properties: {
+				lifecycle: expect.any(Object),
+				kind: { const: "workflow_lifecycle" },
+				diagram: expect.any(Object),
+			},
+		},
 	});
-	const human = await captureCli(["system", "preview", "run"], services);
+	const human = await captureCli(["system", "checkpoint", "run"], services);
 	expect(human.code).toBe(FAILURE);
 	expect(human.stdout).toBe("");
 	expect(human.stderr).toContain("--json");
 });
 
-test("system preview fails visibly on malformed projection before rendering callbacks", async () => {
+test("unavailable diagram preserves native lifecycle before rendering callbacks", async () => {
 	const fixture = await inspectionFixture("missing");
 	const result = await captureCli(
-		[...command, "system", "preview", fixture.id, "--json"],
+		[...command, "inspect", fixture.id, "--diagram", "--instructions", "--json"],
 		fixture.services,
 	);
-	expect(result.code).toBe(FAILURE);
+	expect(result.code).toBe(SUCCESS);
 	expect(result.stderr).toBe("");
 	expect(JSON.parse(result.stdout)).toMatchObject({
-		ok: false,
-		kind: "workflow_inspection",
-		reason: "preview_unavailable",
-		target: fixture.id,
+		ok: true,
+		kind: "workflow_lifecycle",
+		lifecycle: { kind: "pending" },
+		diagram: { kind: "unavailable", reason: "preview_unavailable" },
 	});
 	expect(fixture.rendered()).toEqual([]);
 });

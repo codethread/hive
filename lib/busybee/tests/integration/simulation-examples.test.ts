@@ -459,9 +459,12 @@ async function exampleFixture(
 		importModule: () => Promise.resolve(definition),
 	};
 	const args = ["--repo", repo, "--db", db];
-	const baseline = await captureCli([...args, "system", "preview", parent.id, "--json"], services);
+	const baseline = await captureCli(
+		[...args, "inspect", parent.id, "--diagram", "--instructions", "--json"],
+		services,
+	);
 	expect(baseline.code, baseline.stdout).toBe(SUCCESS);
-	const inspection = workflowInspectionSchema.parse(JSON.parse(baseline.stdout));
+	const inspection = workflowInspectionSchema.parse(JSON.parse(baseline.stdout).diagram.data);
 	const request: WorkflowSimulationRequest = {
 		checkpoint: inspection.checkpoint,
 		savedAt: inspection.savedAt,

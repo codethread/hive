@@ -1,4 +1,5 @@
 import { BusyBeeError, createServices } from "../../src/native.ts";
+import { advance, readWork, recordResult, startNamed } from "../../src/runtime.ts";
 import {
 	commandSchemas,
 	inputSchema,
@@ -9,7 +10,6 @@ import {
 } from "../../../../.workflows/do-feature-task/workflow.ts";
 import { createMachine, initialTransition } from "xstate";
 import { expect, test } from "bun:test";
-import { navigate, recordResult, startNamed } from "../../src/runtime.ts";
 import type { Services } from "../../src/native.ts";
 import { createMemoryBeads } from "@hive/beads";
 
@@ -105,29 +105,21 @@ test.each(["prepare", "report"] as const)(
 		const stage = run.active[FIRST]!.bead;
 		const beforeStage = await beads.show(scope, stage);
 		featureChanged = true;
-		const failure = await navigate(
-			{ id: run.id, operation: "show" },
-			{ db, repo: basePath },
-			io,
-		).catch((error: unknown) => error);
+		const failure = await readWork(run.id, { db, repo: basePath }, io).catch(
+			(error: unknown) => error,
+		);
 		expect(failure).toBeInstanceOf(BusyBeeError);
 		expect(failure).toMatchObject({
 			reason: "definition_changed",
 			context: { savedVersion: "0.1.0", proposedVersion: "0.2.0" },
 		});
-		const removedCheckout = await navigate(
-			{ id: run.id, operation: "show" },
-			{ db, repo: isolationPath },
-			io,
-		).catch((error: unknown) => error);
+		const removedCheckout = await readWork(run.id, { db, repo: isolationPath }, io).catch(
+			(error: unknown) => error,
+		);
 		expect(removedCheckout).toBeInstanceOf(Error);
 		expect(removedCheckout).toMatchObject({ code: "ENOENT" });
 		expect(await beads.show(scope, stage)).toEqual(beforeStage);
-		const restored = await navigate(
-			{ id: run.id, operation: "show" },
-			{ db, repo: canonicalRoot },
-			io,
-		);
+		const restored = await readWork(run.id, { db, repo: canonicalRoot }, io);
 		expect(restored.active).toMatchObject([{ bead: stage }]);
 		if (position === "prepare") {
 			await beads.close(scope, prerequisite.id);
@@ -140,11 +132,7 @@ test.each(["prepare", "report"] as const)(
 		}
 		await recordResult({ id: run.id, bead: stage, choice, data }, { db, repo: canonicalRoot }, io);
 		await beads.close(scope, stage);
-		const next = await navigate(
-			{ id: run.id, operation: "collect" },
-			{ db, repo: canonicalRoot },
-			io,
-		);
+		const next = await advance({ id: run.id, mode: "results" }, { db, repo: canonicalRoot }, io);
 		expect(imports.every((path) => path.startsWith(`${canonicalRoot}/`))).toBe(true);
 		expect(await beads.show(scope, source.id)).toMatchObject({ status: "open", assignee: actor });
 		expect(await beads.ready(scope)).not.toContainEqual(

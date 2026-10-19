@@ -272,10 +272,10 @@ export function renderExecutionRecipe({
 			{ kind: "driver" },
 			({ runId }) =>
 				`Coordinate existing Busy Bee run ${runId}; resume it on retry. Read its brief, ` +
-				`busybee show ${runId} --json and busybee discover ${runId} --json. ` +
+				`busybee inspect ${runId} --work --json. ` +
 				"Follow the active stage briefs. Claim only unassigned or self-owned driver-handled " +
 				"visits; preserve other identities and human/HITL reservations. Collect saved " +
-				`closed-stage results with busybee collect ${runId} --json, including interrupted ` +
+				`closed-stage results with busybee advance ${runId} --json, including interrupted ` +
 				"deliveries. Read busybee --help for options. Bee-dispatched workers own " +
 				"their stage claims; read their responses for your final synthesis.\n\n" +
 				"Remain running while workers are pending. Waiting uses ordinary quota; ask the " +
@@ -288,8 +288,7 @@ export function renderExecutionRecipe({
 			({ stageId, runId }) =>
 				`Perform only Bee-dispatched stage ${stageId} in run ${runId}. Read its full ` +
 				"brief, acceptance criteria and result schema; follow its delivery and closure " +
-				"instructions. The driver collects your saved result and Busy Bee advances the " +
-				"workflow; leave navigation and group/run closure to them. Report bee finish " +
+				"instructions. Report bee finish " +
 				"success only after your stage and its required child work are complete.",
 		)
 		.exhaustive();

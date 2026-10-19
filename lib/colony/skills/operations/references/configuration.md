@@ -64,6 +64,6 @@ For an authorized live formula change, read `colony config update --help` for th
 
 1. Read back the configured kind as above. In its intended execution checkout, use `busybee skills get workflow-execution` to prepare and discover the kind's workflow and input schema.
 2. Choose a bounded assignment under existing onboarding work that leaves application files unchanged. Require an authored response, confirmation of received onboarding context and normal completion reporting. Submit through `bee spawn --help`, then deliberately activate the selected repository with `colony wake --help`.
-3. Retain the request and run IDs. Use `bee result --help` to read the response, `busybee show` to confirm the run reports `done`, and `colony explain --help` to verify execution settlement and released capacity. Confirm application files remain unchanged.
+3. Retain the request and run IDs. Use `bee result --help` to read the response, `busybee inspect` to verify native successful closure, and `colony explain --help` to verify execution settlement and released capacity. Confirm application files remain unchanged.
 
 If any check disagrees, retain the IDs and observations and follow [stalled-execution diagnosis](../SKILL.md#diagnose-stalled-execution) before submitting another check. Generated files and schema discovery alone do not prove runtime readiness.

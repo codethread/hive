@@ -26,6 +26,8 @@ Users open direct conversations with `bee run KIND`; agents delegate through `be
 
 `bee spawn --help` owns workflow input, execution selection and partial-submission recovery. Submission creates `original work -> workflow run -> stages`; the original parent's claim and completion remain separate. Drivers coordinate runs; dispatched workers execute stages. [Busy Bee](../busybee/README.md#delegate-a-workflow-to-bee) owns progression and group/run closure.
 
+Colony uses Busy Bee's public `inspect`, `inspect --work` and `advance --prepare-driver` operations for lifecycle, attachment and admission. Emitted driver instructions use `inspect --work`, `complete` and `advance`; admission preparation never consumes results.
+
 Bee adds [delivery guidance](../../docs/agents/responses.md#runtime-guidance) at launch. Captured recipes retain the original role; receipts retain the actual invocation. Assessments and inactivity drones use separate protocols. The [spawn contract](../../docs/agents/spawn-requests.md#facts-and-authority) owns host binding and native lifecycle authority.
 
 ## Kind files
@@ -68,7 +70,7 @@ Drones have no claims or independent spawn request and consume no task-dispatch 
 
 Set canonical `post_run_drone` to a configured kind; omission disables new assessments. On settlement, a launched request queues one advisory assessment across its attempts, including failure/cancellation. Old terminal requests and zero-launch closures are not backfilled. Per repository, one inspector runs at a time with one launch and a five-minute deadline, outside task capacity. Assessments have no claims or spawn bead and cannot recurse or retry automatically.
 
-The evidence bundle separates captured role, optional execution direction and task snapshots read at settlement. Those snapshots are not launch-time copies. Execution evidence and private source pointers accompany the report contract. Inspectors submit through `bee assess --help` using injected authority. Missing/failed/late reports remain coverage gaps and cannot fail or retry the examined work. Recovery resumes recorded inspections; disabling new ones leaves running inspections intact.
+The evidence bundle separates captured role, optional execution direction and task snapshots read at settlement. Those snapshots are not launch-time copies. Execution evidence and private source pointers accompany the report contract. Inspectors submit through `bee system assess --help` using injected authority. Missing/failed/late reports remain coverage gaps and cannot fail or retry the examined work. Recovery resumes recorded inspections; disabling new ones leaves running inspections intact.
 
 Use `colony assessments --help` for summaries, full reports and source bundles. Reads work offline without creating state. Task-read failures remain explicit unavailable coverage; persistence and process-ownership failures remain infrastructure errors. Raw transcripts stay private.
 
@@ -86,7 +88,7 @@ Use `colony --help` for membership and daemon commands, then focused help for re
 
 `daemon stop` stops the selected server and pauses all its colonies. Detached workers survive sleep, removal and daemon stop; use repository sleep to pause one colony while keeping the others awake.
 
-For native startup prerequisites, an installed runtime update or deliberate replacement, follow `colony daemon restart --help`. It owns the supported supervisor, verification, recovery and result contract; retain the selected state/socket throughout.
+For a coordinated Busy Bee/Bee/Colony cutover, follow [workflow tool adoption](../beeswax/README.md#workflow-tool-adoption) before replacing controls. For native startup prerequisites, an installed runtime update or deliberate replacement, follow `colony daemon restart --help`. It owns the supported supervisor, verification, recovery and result contract; retain the selected state/socket throughout.
 
 Native service registration carries the caller's explicit `PATH`, `CODEX_HOME`, `XDG_CONFIG_HOME`, `XDG_DATA_HOME`, `XDG_CACHE_HOME` and `XDG_STATE_HOME` values into launchd or systemd. These select tool and configuration locations, including where a harness reads its existing authentication. Registration copies neither credential files nor arbitrary session/attempt environment. After changing these paths, deliberately restart the selected daemon from an environment containing the intended values; an already-running daemon keeps its previous environment.
 

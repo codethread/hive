@@ -16,6 +16,8 @@ Bun is a build-only dependency. Git, Beads (`br`) and Beads Viewer (`bv`) are re
 
 Machine installation is separate from project setup. Each project supplies its Beads database, Bee configuration, workflow catalogue and workflow module dependencies. Busy Bee embeds Bun but loads trusted workflow modules from the selected checkout. Install that checkout's dependencies before running its workflows. Hive's clone setup is in [Contributing](../CONTRIBUTING.md#set-up-a-source-checkout).
 
+For workflow-control breaking changes, follow [workflow tool adoption](../lib/beeswax/README.md#workflow-tool-adoption) before replacing binaries or reopening admission. It covers active-run inventory, frozen briefs and coordinated service refresh.
+
 After upgrading, verify `beeswax --version` and run `beeswax update --yes` in each adopting project to refresh its saved contract and onboarding. `beeswax sync` reproduces the existing lock; it does not adopt the new version.
 
 ## Read tool changelogs
@@ -71,7 +73,7 @@ Use `codethread/hive` as `releaseRepository`. Retain `canonicalRoot` and the per
 
 Before first publication, verify authorization covers public source and reachable history. Review that history and the selected source before changing visibility. Existing explicit authorization remains valid throughout the run.
 
-Follow the run's active briefs with `busybee show` and `busybee discover`. On retry, resume the same run, inspect existing tags, releases and formula commits, then use `busybee collect` for saved closed-stage results. Follow focused `--help` for delivery and recovery. Busy Bee alone closes the run.
+Follow the run's active briefs with `busybee inspect --work`. On retry, resume the same run, inspect existing tags, releases and formula commits, then use `busybee advance` for saved closed-stage results. Follow focused `--help` for delivery and recovery. Busy Bee alone closes the run.
 
 Fetch the release repository's tags, then use a clean nested Honeycomb worktree for preparation:
 

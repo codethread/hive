@@ -2,7 +2,7 @@
  * Keep complete scenario setup and observable retirement assertions in each measured test.
  */
 import { BusyBeeError, createServices } from "../../src/native.ts";
-import { complete, navigate, prepareDriver, start } from "../../src/runtime.ts";
+import { advance, complete, start } from "../../src/runtime.ts";
 import { expect, test } from "bun:test";
 import type { ExecutionClearanceSelection } from "@hive/shared";
 import { createMachine } from "xstate";
@@ -58,7 +58,7 @@ test("#test-85 settlement preserves completed results and retires remaining work
 	const first = selected.run.active.find((entry) => entry.commands.includes("next"))!.bead;
 	const data = { decision: "reject", extra: ["preserved"] };
 	await complete({ id: selected.run.id, bead: first, choice: "next", data }, {}, selected.services);
-	await navigate({ id: selected.run.id, operation: "collect" }, {}, selected.services);
+	await advance({ id: selected.run.id, mode: "results" }, {}, selected.services);
 	const before = await selected.beads.show(scope, first);
 	await selected.beads.update(scope, [selected.run.id], {
 		notes: "Retain the original run narrative.",
@@ -234,9 +234,11 @@ test.each([false, true])(
 			expect(observed.lifecycle.fact.outcome).toBe("failed");
 		}
 		await expect(
-			navigate({ id: selected.run.id, operation: "collect" }, {}, selected.services),
+			advance({ id: selected.run.id, mode: "results" }, {}, selected.services),
 		).rejects.toMatchObject({ reason: "checkpoint_locked" });
-		await expect(prepareDriver(selected.run.id, {}, selected.services)).rejects.toMatchObject({
+		await expect(
+			advance({ id: selected.run.id, mode: "prepare-driver" }, {}, selected.services),
+		).rejects.toMatchObject({
 			reason: "checkpoint_locked",
 		});
 	},

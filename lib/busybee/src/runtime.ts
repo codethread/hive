@@ -115,26 +115,11 @@ interface RunTarget {
 	/** Existing workflow run ID. */
 	id: string;
 }
-interface InspectRun extends RunTarget {
-	/** Read the current run without submission. */
-	operation: "show";
-}
-interface CollectRun extends RunTarget {
-	/** Collect durable results from closed worker visits. */
+interface WorkRequest extends RunTarget {
+	/** Consume original saved results from closed visits. */
 	operation: "collect";
 }
-interface SubmitTask extends RunTarget {
-	/** Submit an author-defined outcome independently of runner operations. */
-	operation: "submit";
-	/** Active native worker visit. */
-	bead: string;
-	/** Author-defined command name; no runner names are reserved. */
-	choice: string;
-	/** External payload, parsed through the author schema. */
-	data?: unknown;
-}
-export type Navigation = InspectRun | CollectRun | SubmitTask;
-type WorkRequest = CollectRun | SubmitTask;
+export type Advance = { id: string; mode: "results" } | { id: string; mode: "prepare-driver" };
 interface InitializeRun extends RunTarget {
 	/** Publish the initial frontier using the definition loaded for creation. */
 	operation: "initialize";
@@ -199,24 +184,29 @@ export function start(
 	return initialize({ kind: "source", source }, { kind: "file", source }, { options, services });
 }
 
-export async function navigate(
-	request: Navigation,
+export function advance(
+	request: { id: string; mode: "results" },
+	options?: Options,
+	services?: Services,
+): Promise<RunView>;
+export function advance(
+	request: { id: string; mode: "prepare-driver" },
+	options?: Options,
+	services?: Services,
+): Promise<DriverHandoff>;
+export async function advance(
+	request: Advance,
 	options: Options = {},
 	services: Services = createServices(),
-): Promise<RunView> {
-	if (request.operation === "show") {
-		const endpoint = await resolveEndpoint(options, services);
-		const run = await readRun(endpoint, request.id, services);
-		const { actor } = await restore(run, endpoint, services);
-		const result = view(run, actor);
-		actor.stop();
-		return result;
+): Promise<RunView | DriverHandoff> {
+	if (request.mode === "prepare-driver") {
+		return prepareDriver(request.id, options, services);
 	}
 	const endpoint = await resolveMutation(options, services);
-	return mutate(request, endpoint, services);
+	return mutate({ id: request.id, operation: "collect" }, endpoint, services);
 }
 
-export async function prepareDriver(
+async function prepareDriver(
 	id: string,
 	options: Options = {},
 	services: Services = createServices(),
@@ -332,36 +322,39 @@ async function closeCompletedVisit(
 	}
 }
 
-export async function discover(
+/** Expand the executable frontier with its original briefs and outcome contracts. */
+export async function readWork(
 	id: string,
 	options: Options = {},
 	services: Services = createServices(),
 ) {
 	const endpoint = await resolveEndpoint(options, services);
-	const run = await readRun(endpoint, id, services);
+	const checkpoint = await checkpointBead(endpoint, id, services);
+	const run = readCheckpoint(checkpoint);
 	const { actor, definition } = await restore(run, endpoint, services);
-	actor.stop();
-	return {
-		active: run.active.map((entry) => discoveryEntry(entry, definition)),
-		constraints:
-			"Use complete to save the original outcome and close the task; " +
-			"the driver then collects saved results. Read busybee complete --help. " +
-			"Direct next/choice submissions require an already-closed driver-handled visit. " +
-			"Discovery is a snapshot, not a reservation.",
-		id,
-	};
-}
-
-function discoveryEntry(entry: ActiveEntry, definition: Definition) {
-	return {
-		...definition.describe?.(entry),
-		bead: entry.bead,
-		choices: Object.keys(entry.meta.commands ?? {}).map((choice) => ({
-			choice,
-			schema: z.toJSONSchema(commandSchema(definition, entry, choice), { io: "input" }),
-		})),
-		title: entry.meta.title,
-	};
+	try {
+		const result = view(run, actor);
+		return {
+			id: result.id,
+			status: result.status,
+			checkpoint: checkpoint.id,
+			savedAt: checkpoint.updated_at,
+			active: result.active.map((entry) => {
+				const saved = run.active.find((item) => item.bead === entry.bead)!;
+				const expanded = {};
+				return Object.assign(expanded, definition.describe?.(saved), entry, {
+					choices: Object.keys(saved.meta.commands ?? {}).map((choice) => ({
+						choice,
+						schema: z.toJSONSchema(commandSchema(definition, saved, choice), { io: "input" }),
+					})),
+				});
+			}),
+			constraints:
+				"Complete visits with original choice/data; then advance the run. Inspection is not a reservation.",
+		};
+	} finally {
+		actor.stop();
+	}
 }
 
 /** Read the current actor task frontier without starting or advancing it. */
@@ -570,15 +563,6 @@ async function createRun(
 		endpoint,
 		services,
 	);
-}
-
-async function readRun(
-	endpoint: { repo: string; db: string },
-	id: string,
-	services: Services,
-): Promise<Run> {
-	const record = await checkpointBead(endpoint, id, services);
-	return readCheckpoint(record);
 }
 
 export async function checkpointBead(
@@ -1000,7 +984,7 @@ async function saveResult(
 		definition,
 		entry,
 		payload: request,
-		request: { ...request, operation: "submit" },
+		source: "completion",
 	});
 	submissionTarget(actor, { choice: request.choice, data, entry });
 	if (matching) {
@@ -1088,7 +1072,7 @@ async function prepare(input: Preparation, services: Services): Promise<void> {
 	const { run, actor } = input;
 	const submissions = await collectSubmissions(input, services);
 	for (const submission of submissions) {
-		advance(actor, submission);
+		sendOutcome(actor, submission);
 		run.history.push({
 			bead: submission.entry.bead,
 			command: submission.choice,
@@ -1104,19 +1088,16 @@ async function prepare(input: Preparation, services: Services): Promise<void> {
 // Validate the complete closed result batch before diagnosing terminal requests.
 // eslint-disable-next-line max-statements
 async function collectSubmissions(input: Preparation, services: Services): Promise<Submission[]> {
-	const selected = input.run.active.filter((entry) => selectedTask(entry, input.request));
-	if (input.request.operation !== "collect" && selected.length === FIRST) {
-		throw new BusyBeeError("inactive_task", `Task ${input.request.bead} is no longer active`);
-	}
+	const selected = input.run.active.filter((entry) => Boolean(entry.meta.commands));
 	const submissions: Submission[] = [];
 	for (const entry of selected) {
-		// eslint-disable-next-line no-await-in-loop -- Read and validate selected tasks in their stable publication order.
+		// eslint-disable-next-line no-await-in-loop -- Read closed results in stable publication order.
 		const task = await readBead(input.endpoint, entry.bead, services);
-		if (input.request.operation !== "collect" || task.status === "closed") {
+		if (task.status === "closed") {
 			submissions.push(validateSubmission(entry, task, input));
 		}
 	}
-	if (input.request.operation === "collect" && submissions.length === FIRST) {
+	if (submissions.length === FIRST) {
 		await assertBeeRequests({ entries: selected, runId: input.run.id }, input.endpoint, services);
 	}
 	return submissions;
@@ -1201,28 +1182,6 @@ function assertStageRequest(
 	}
 }
 
-function selectedTask(entry: ActiveEntry, request: WorkRequest): boolean {
-	if (request.operation === "collect") {
-		return Boolean(entry.meta.commands);
-	}
-	return entry.bead === request.bead;
-}
-
-function submissionPayload(
-	request: WorkRequest,
-	task: BeadRecord,
-	entry: ActiveEntry,
-): { choice: string; data: unknown } {
-	if (request.operation === "collect") {
-		return savedSubmission(task, entry);
-	}
-	let { data } = request;
-	if (data === undefined) {
-		data = {};
-	}
-	return { choice: request.choice, data };
-}
-
 function savedSubmission(
 	task: BeadRecord,
 	entry: Pick<ActiveEntry, "bead">,
@@ -1243,12 +1202,9 @@ function savedSubmission(
 }
 
 function validateSubmission(entry: ActiveEntry, task: BeadRecord, input: Preparation): Submission {
-	const { request, definition, endpoint } = input;
+	const { definition } = input;
 	assertSuccessfulVisit(task, input.run.id);
-	if (entry.request && request.operation !== "collect") {
-		throw new BusyBeeError("bee_dispatched_task", "Use collect for Bee-dispatched tasks");
-	}
-	const payload = submissionPayload(request, task, entry);
+	const payload = savedSubmission(task, entry);
 	if (!entry.meta.commands?.[payload.choice]) {
 		throw new BusyBeeError(
 			"unavailable_command",
@@ -1256,8 +1212,7 @@ function validateSubmission(entry: ActiveEntry, task: BeadRecord, input: Prepara
 			{ context: { bead: entry.bead, choice: payload.choice } },
 		);
 	}
-	assertCompleted(task, entry.bead, endpoint);
-	const data = validatePayload({ entry, definition, payload, request });
+	const data = validatePayload({ entry, definition, payload, source: "saved-result" });
 	return { choice: payload.choice, data, entry };
 }
 
@@ -1297,15 +1252,15 @@ function validatePayload(input: {
 	entry: ActiveEntry;
 	definition: Definition;
 	payload: { choice: string; data: unknown };
-	request: WorkRequest;
+	source: "completion" | "saved-result";
 }): unknown {
-	const { entry, definition, payload, request } = input;
+	const { entry, definition, payload } = input;
 	try {
 		const data = commandSchema(definition, entry, payload.choice).parse(payload.data);
 		definition.validateCommand?.(entry, payload.choice, data);
 		return data;
 	} catch (error) {
-		if (request.operation !== "collect") {
+		if (input.source === "completion") {
 			throw error;
 		}
 		throw new BusyBeeError(
@@ -1326,17 +1281,6 @@ function commandSchema(definition: Definition, entry: ActiveEntry, choice: strin
 		);
 	}
 	return schema;
-}
-
-function assertCompleted(task: BeadRecord, bead: string, endpoint: MutationEndpoint): void {
-	if (task.status !== "closed") {
-		throw new BusyBeeError(
-			"task_not_closed",
-			`Task ${bead} must be closed before direct next/choice submission. Finish its work and ` +
-				"child tasks; see busybee complete --help for ordered completion using " +
-				`--db ${JSON.stringify(endpoint.db)}.`,
-		);
-	}
 }
 
 async function assertOpenParents(
@@ -1416,7 +1360,7 @@ function titledAncestor(node: WorkflowNode) {
 	return ancestor;
 }
 
-function advance(root: WorkflowActor, submission: Submission): void {
+function sendOutcome(root: WorkflowActor, submission: Submission): void {
 	const { actor, type } = submissionTarget(root, submission);
 	actor.send({ data: submission.data, type });
 	const snapshot = root.getSnapshot();
@@ -1547,7 +1491,7 @@ async function enter(input: EntryInput, services: Services): Promise<ActiveEntry
 		request = await spawnBee(
 			{
 				bead,
-				description: taskDescription(prepared.meta, { run, endpoint, bead }),
+				description: taskDescription(prepared.meta, { run, endpoint, bead }, "launch"),
 				endpoint,
 				meta: prepared.meta,
 				run: run.id,
@@ -1576,7 +1520,7 @@ function entryCreation(input: EntryInput) {
 	const visit = (run.visits[entry.key] ?? FIRST) + ONE;
 	run.visits[entry.key] = visit;
 	const creation = nativeTaskOptions(meta, identity, {
-		description: taskDescription(meta, { run, endpoint }),
+		description: taskDescription(meta, { run, endpoint }, "native"),
 		parent,
 		title: `${meta.title} [${String(entry.context["role"] ?? entry.node)}; visit ${visit}]`,
 	});
@@ -1609,29 +1553,37 @@ function nativeTaskOptions(
 function taskDescription(
 	meta: ActiveEntry["meta"],
 	{ run, endpoint, bead = "TASK_ID" }: { run: Run; endpoint: MutationEndpoint; bead?: string },
+	delivery: "native" | "launch",
 ): string {
 	let completion = "Busy Bee closes this grouping bead after its workers finish; leave it open.";
 	if (meta.commands) {
-		let taskId = run.id;
-		let delivery = "The driver files the run's final answer or synthesis.";
-		if (meta.bee) {
-			taskId = bead;
-			delivery = "File this stage's answer before completing it.";
+		let response = "";
+		if (delivery === "native") {
+			response = nativeTaskResponse(meta, run.id, bead);
 		}
 		completion =
-			`${delivery} ${renderResponseInstructions({ taskId })}\n\n` +
-			"Satisfy acceptance and child work, then use " +
+			`${response}Satisfy acceptance and child work, then use ` +
 			`busybee --db ${JSON.stringify(endpoint.db)} complete ${run.id} ` +
 			"TASK_ID CHOICE to save the original outcome and close this stage. " +
 			"Read busybee complete --help for payload options and retries. " +
-			"The driver collects saved results; Busy Bee closes groups and the run.";
+			"The driver uses advance to consume saved results; Busy Bee closes groups and the run.";
 	}
 	return (
 		`${meta.instructions}\n\n${completion}\n\n` +
 		`Discover choices and payload schemas: busybee --db ${JSON.stringify(endpoint.db)} ` +
-		`discover ${run.id} --json. Use the checkout (or --repo) containing the definition. ` +
+		`inspect ${run.id} --work --json. Use the checkout (or --repo) containing the definition. ` +
 		"TASK_ID is this stage's bead ID."
 	);
+}
+
+function nativeTaskResponse(meta: ActiveEntry["meta"], runId: string, bead: string): string {
+	let taskId = runId;
+	let label = "The driver files the run's final answer or synthesis.";
+	if (meta.bee) {
+		taskId = bead;
+		label = "Before stage closure:";
+	}
+	return `${label} ${renderResponseInstructions({ taskId })}\n\n`;
 }
 
 async function spawnBee(
@@ -1652,6 +1604,7 @@ async function spawnBee(
 	const output = await services.execute(
 		[
 			"bee",
+			"system",
 			"dispatch-stage",
 			meta.bee!.kind,
 			bead,

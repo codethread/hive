@@ -1,6 +1,6 @@
 ---
 name: repository-setup
-description: Set up or update repository trackers, Git hooks and harness onboarding with Beeswax; resolve migration handoffs and tracker publication.
+description: Set up or update repository trackers, hooks and harness onboarding; coordinate workflow tool adoption, migration handoffs and tracker publication.
 ---
 
 Use `beeswax setup --help` for options and first-initialization prerequisites. Supply explicit choices as an agent. Preserve the selected database and accepted tracker history:
@@ -13,6 +13,8 @@ Git integration only      -> none
 ```
 
 For an existing project contract, use `beeswax sync --help` to reproduce it locally or `beeswax update --help` for a reviewed change. Use `beeswax schema` for configuration and lock formats. Keep machine paths and actors out of the committed contract.
+
+Before a Busy Bee/Bee/Colony cutover or incompatible-run replacement, read [workflow adoption](references/workflow-adoption.md). It owns inventory, execution clearance, frozen-brief mapping and coordinated service adoption; setup itself retires no workflows.
 
 When implementation inspection is needed, use `beeswax info --help` for release provenance and source retrieval. It reports source availability explicitly; do not infer a matching source tree from an unrelated checkout.
 

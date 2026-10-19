@@ -1,69 +1,9 @@
 import { BusyBeeError, createServices, readBead, resolveEndpoint } from "./native.ts";
 import type { Endpoint, Options, Services } from "./native.ts";
-import type {
-	WorkflowCheckpoint,
-	WorkflowInspection,
-	WorkflowPreview,
-	WorkflowRunInspection,
-} from "@hive/shared";
+import type { WorkflowCheckpoint, WorkflowInspection, WorkflowPreview } from "@hive/shared";
 import { checkpointBead, restoreDefinition } from "./runtime.ts";
 import { inspectActors, previewActors } from "./definition-preview.ts";
-import { inspectLifecycleAt } from "./lifecycle.ts";
 import { readCheckpoint } from "./checkpoint.ts";
-
-const DIAGNOSTIC_LIMIT = 1000;
-const FIRST = 0;
-
-/** Native facts survive a separately requested diagram's loading failure. */
-export async function inspectRun(
-	{
-		id,
-		expansion,
-	}: {
-		/** Explicit native workflow identity. */
-		id: string;
-		/** Author code loads only for a requested graph mode. */
-		expansion: "none" | "structure" | "instructions";
-	},
-	options: Options,
-	services: Services,
-): Promise<WorkflowRunInspection> {
-	const endpoint = await resolveEndpoint(options, services);
-	const lifecycle = await inspectLifecycleAt(id, endpoint, services);
-	if (expansion === "none") {
-		return lifecycle;
-	}
-	try {
-		const { projection, definition, run } = await loadSavedPreviewAt(id, endpoint, services);
-		if (expansion === "instructions") {
-			return {
-				...lifecycle,
-				diagram: {
-					kind: "available",
-					mode: "instructions",
-					data: {
-						...projection,
-						formatVersion: 1,
-						actors: inspectActors(definition.machine, run.snapshot, run.active),
-					},
-				},
-			};
-		}
-		return {
-			...lifecycle,
-			diagram: {
-				kind: "available",
-				mode: "structure",
-				data: {
-					...projection,
-					actors: previewActors(definition.machine, run.snapshot),
-				},
-			},
-		};
-	} catch (error) {
-		return { ...lifecycle, diagram: unavailableDiagram(error) };
-	}
-}
 
 /** Read the saved checkpoint stamp without restoring or importing author code. */
 export async function checkpointVersion(
@@ -154,16 +94,4 @@ function definitionLabel(definition: { kind: "named"; name: string } | { kind: "
 		return definition.name;
 	}
 	return "Explicit workflow";
-}
-
-function unavailableDiagram(error: unknown) {
-	let reason = "diagram_unavailable";
-	let message = "Diagram expansion failed.";
-	if (error instanceof Error) {
-		({ message } = error);
-	}
-	if (error instanceof BusyBeeError) {
-		({ reason } = error);
-	}
-	return { kind: "unavailable" as const, reason, message: message.slice(FIRST, DIAGNOSTIC_LIMIT) };
 }

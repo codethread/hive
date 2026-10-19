@@ -1,3 +1,4 @@
+import { advance as advanceRun, recordResult, start } from "../../src/runtime.ts";
 import {
 	commandSchemas,
 	inputSchema,
@@ -9,7 +10,6 @@ import {
 import { createMachine, initialTransition, transition } from "xstate";
 import { expect, test } from "bun:test";
 import { metadataSchema, renderTask } from "../../src/definition.ts";
-import { navigate, recordResult, start } from "../../src/runtime.ts";
 import type { SnapshotFrom } from "xstate";
 import { createMemoryBeads } from "@hive/beads";
 import { createServices } from "../../src/native.ts";
@@ -511,7 +511,7 @@ test(
 			expect.objectContaining({ id: dependent.id }),
 		);
 		await beads.close(scope, stage);
-		const done = await navigate({ id: run.id, operation: "collect" }, {}, io);
+		const done = await advanceRun({ id: run.id, mode: "results" }, {}, io);
 		expect(done).toMatchObject({ status: "done", active: [] });
 		expect(await beads.show(scope, source.id)).toMatchObject({
 			status: "open",

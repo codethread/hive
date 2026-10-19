@@ -1,6 +1,6 @@
+import { workflowLifecycleSchema, workflowRunInspectionSchema } from "@hive/shared";
 import { CommandError } from "@hive/beads";
 import type { WorkflowLifecycle } from "@hive/shared";
-import { workflowLifecycleSchema } from "@hive/shared";
 import { z } from "zod";
 
 const NONEMPTY = 1;
@@ -11,6 +11,7 @@ const runSchema = z.object({
 	status: text,
 	active: z.array(visitSchema),
 });
+const workInspectionSchema = workflowRunInspectionSchema.required({ work: true });
 const handoffSchema = z.object({ runId: text, status: text, checkpoint: text });
 const failureSchema = z
 	.object({
@@ -43,9 +44,12 @@ export interface WorkflowCommands {
 		endpoint: WorkflowEndpoint;
 	}) => Promise<WorkflowRun>;
 	/** Inspect the saved frontier without changing workflow state. */
-	show: (runId: string, endpoint: WorkflowEndpoint) => Promise<WorkflowRun>;
+	work: (runId: string, endpoint: WorkflowEndpoint) => Promise<WorkflowRun>;
 	/** Busybee owns readiness and preparation of an existing active run. */
-	prepareDriver: (runId: string, endpoint: WorkflowEndpoint) => Promise<WorkflowHandoff>;
+	advance: (
+		request: { runId: string; mode: "prepare-driver" },
+		endpoint: WorkflowEndpoint,
+	) => Promise<WorkflowHandoff>;
 }
 export interface WorkflowProcess {
 	/** Captured subprocess transport, supplied by the executable composition root. */
@@ -77,10 +81,21 @@ export function workflowCommands(process: WorkflowProcess): WorkflowCommands {
 				),
 			);
 		},
-		show: async (runId, endpoint) =>
-			runSchema.parse(await invoke(["show", runId], endpoint, process)),
-		prepareDriver: async (runId, endpoint) =>
-			handoffSchema.parse(await invoke(["prepare-driver", runId], endpoint, process)),
+		work: async (runId, endpoint) => {
+			const inspection = workInspectionSchema.parse(
+				await invoke(["inspect", runId, "--work"], endpoint, process),
+			);
+			const expansion = inspection.work;
+			if (expansion.kind === "unavailable") {
+				throw new WorkflowCommandError(
+					{ ok: false, reason: expansion.reason, message: expansion.message, ...expansion.context },
+					inspection,
+				);
+			}
+			return runSchema.parse(expansion.data);
+		},
+		advance: async ({ runId }, endpoint) =>
+			handoffSchema.parse(await invoke(["advance", runId, "--prepare-driver"], endpoint, process)),
 	};
 }
 

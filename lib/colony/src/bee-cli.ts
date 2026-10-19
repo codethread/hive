@@ -152,6 +152,10 @@ export async function runBeeCli(argv: string[], deps: BeeDependencies): Promise<
 		.configureOutput({ writeErr: () => {}, writeOut: deps.stdout })
 		.exitOverride();
 	responseCommands(program, argv, deps);
+	const system = program
+		.command("system")
+		.description("Automation protocols for Busy Bee and Colony")
+		.addHelpText("after", HELP.system);
 
 	program
 		.command("changelog")
@@ -296,7 +300,7 @@ Use --json for a machine-readable result. Read br query --help to run saved quer
 		);
 	});
 	submissionOptions(
-		program
+		system
 			.command("dispatch-stage <kind> <stage>")
 			.description(
 				"Workflow integration: execute one existing Bee-dispatched stage without wrapping it",
@@ -332,14 +336,14 @@ Use --json for a machine-readable result. Read br query --help to run saved quer
 				deps.stdout,
 			);
 		});
-	program
+	system
 		.command("assess")
 		.description("Submit a post-run advisory report under injected assessment authority")
 		.requiredOption("--file <path>", "JSON report; contract: colony assessments --schema")
 		.action(async (options: { file: string }) => {
 			writeResult(await deps.assess(options.file), { json: argv.includes("--json") }, deps.stdout);
 		});
-	program
+	system
 		.command("report <spawn-id> <verdict>")
 		.description("Report active or inactive from this Colony inactivity drone")
 		.addHelpText("after", HELP.report)

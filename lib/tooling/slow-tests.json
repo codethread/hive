@@ -281,10 +281,6 @@
 			"threshold": "DANGER",
 			"justification": "ct explicitly approved allowing this existing timing-only blocker through during merges on 2026-10-15: qlock timeout retains a new ticket and resumed exec preserves FIFO without allocation. Preserve real integration behavior, assertions, test timeouts and global timing cutoffs."
 		},
-		"#test-73": {
-			"threshold": "DANGER",
-			"justification": "Retain the complete mandatory real-native Busy Bee joined proof: authored negative chart completion, ordinary child-closure refusal/retry, original result preservation, native run/visit/group close_reason and timestamps, independent export/import, source removal and public inspection without a daemon. Architect hv-l7a9b4 and Librarian hv-vsef0d require preserving this joined acceptance boundary. One bounded optimization batches redundant reads and removes warming without hiding subject work or weakening assertions; measured approximately 2.4-3.1 seconds after optimization versus approximately 3.7-4.6 seconds before. No global cutoff, test timeout, discovery filter, invocation or assertion change. This entry requires ct explicit approval before addition."
-		},
 		"#test-74": {
 			"threshold": "XSLOW",
 			"justification": "Measure the complete memory-backed lost-close-receipt scenario in the test body: create and start the workflow, save and complete the original worker result, collect through native closure and its lost receipt, inspect confirmed success through invoke/runCli, and assert retained checkpoint ownership. Earlier body-only figures omitted fixture preparation and worker completion; they are not comparable complete-scenario measurements. Repaired fresh-process samples were 3.08/3.09/3.64ms; CPU-locked changed-suite samples were 7.552/1.715ms. The observed 7.552ms exceeds SLOW; XSLOW permits through 1000ms, not a numeric 7.552ms cap. These variable samples establish neither a speedup nor an unavoidable lower bound."
@@ -317,25 +313,17 @@
 			"threshold": "SLOW",
 			"justification": "Cover only the full version-1 succeeded fact with scope='visit' and runId='wrong' on a closed run. The measured body creates and starts the memory workflow/checkpoint, closes the worker then run, and asserts source-independent inspection rejects with BusyBeeError and invalid_lifecycle. Before unique markers, this row and the malformed-JSON row shared a title: CPU-locked changed-suite durations were 1.118/1.056ms, without exact row attribution. Both exceeded 1ms. This row's fresh-process samples were 0.28/0.28/0.28ms; its uniquely tagged changed-suite sample was 0.217ms. SLOW permits through 5ms for this variable observed cost, without claiming every run exceeds 1ms or proving a lower bound."
 		},
-		"#test-82": {
-			"threshold": "DANGER",
-			"justification": "hv-00pk4.3: One complete real-native cancellation/replacement proof preserves earlier successful results and original notes through independent export/import, source removal and public inspection. Observed 3.389–4.263s focused; 3.781s serial changed."
-		},
-		"#test-83": {
-			"threshold": "DANGER",
-			"justification": "hv-00pk4.3: One joined native failed→acknowledged→replaced proof retains exact closure bytes/timestamp and verifies both native imports. The source explicitly permits serial check mode; the existing 5s timeout is unchanged. Observed 3.448s serial changed and 3.877–4.769s focused; a default parallel run timed out at 5.180s and remains failed evidence."
-		},
 		"#test-84": {
 			"threshold": "DANGER",
-			"justification": "hv-00pk4.3: A real native close is refused by a concurrent manual child after preflight; retained intent/lock and pending native facts remain observable. The observed values above 1000ms require DANGER rather than erasing them with a smaller sample. Observed 0.998s serial changed; 1.015–1.244s focused."
+			"justification": "hv-00pk4.3: A real native close is refused by a concurrent manual child after preflight; retained intent/lock and pending native facts remain observable. The observed values above 1000ms require DANGER rather than erasing them with a smaller sample. Observed 0.998s serial changed; 1.015\u20131.244s focused."
 		},
 		"#test-85": {
 			"threshold": "XSLOW",
-			"justification": "hv-00pk4.3: One complete memory-backed two-visit/group withdrawal and replacement scenario retains completed result bytes, existing run narrative and retired visit dispositions with author access rejected. Observed 9.58–31.35ms cold focused; 15.995ms serial changed."
+			"justification": "hv-00pk4.3: One complete memory-backed two-visit/group withdrawal and replacement scenario retains completed result bytes, existing run narrative and retired visit dispositions with author access rejected. Observed 9.58\u201331.35ms cold focused; 15.995ms serial changed."
 		},
 		"#test-86": {
 			"threshold": "XSLOW",
-			"justification": "hv-00pk4.3: One memory-backed failure/ack/repeated-ack/replacement sequence verifies exact failure preservation and resolution precedence; the 5.22ms sample exceeds SLOW. Observed 1.19–5.22ms cold focused; 2.230ms serial changed."
+			"justification": "hv-00pk4.3: One memory-backed failure/ack/repeated-ack/replacement sequence verifies exact failure preservation and resolution precedence; the 5.22ms sample exceeds SLOW. Observed 1.19\u20135.22ms cold focused; 2.230ms serial changed."
 		},
 		"#test-87": {
 			"threshold": "SLOW",
@@ -355,7 +343,7 @@
 		},
 		"#test-91": {
 			"threshold": "XSLOW",
-			"justification": "hv-00pk4.3: One public Commander/schema scenario covers offline settlement discovery and forbidden succeed before any endpoint selection; the cold 5.27ms sample exceeds SLOW. Observed 1.06–5.27ms focused; 2.205ms serial changed."
+			"justification": "hv-00pk4.3: One public Commander/schema scenario covers offline settlement discovery and forbidden succeed before any endpoint selection; the cold 5.27ms sample exceeds SLOW. Observed 1.06\u20135.27ms focused; 2.205ms serial changed."
 		},
 		"#test-92": {
 			"threshold": "SLOW",
@@ -363,11 +351,11 @@
 		},
 		"#test-93": {
 			"threshold": "SLOW",
-			"justification": "hv-00pk4.3: A full native-memory request plus retained attempt verifies missing ownership and contrary private history remain explicit refusal, including the array-containing blocker assertion. Observed 2.12–2.76ms focused."
+			"justification": "hv-00pk4.3: A full native-memory request plus retained attempt verifies missing ownership and contrary private history remain explicit refusal, including the array-containing blocker assertion. Observed 2.12\u20132.76ms focused."
 		},
 		"#test-94": {
 			"threshold": "XSLOW",
-			"justification": "hv-00pk4.3: One actual owned child lifetime uses existing runOwnedExecution/OS fingerprints: a closed request remains uncleared while live, then clears only after real exit. No live repository process is used. Observed 218.846ms serial changed; 267–287ms focused."
+			"justification": "hv-00pk4.3: One actual owned child lifetime uses existing runOwnedExecution/OS fingerprints: a closed request remains uncleared while live, then clears only after real exit. No live repository process is used. Observed 218.846ms serial changed; 267\u2013287ms focused."
 		},
 		"#test-95": {
 			"threshold": "XSLOW",
@@ -375,19 +363,19 @@
 		},
 		"#test-96": {
 			"threshold": "XSLOW",
-			"justification": "hv-00pk4.3: Only the nine-row exit/finish/running × succeeded/cancelled/failed matrix. Each case retains actual owned-process artifacts, durable request state and native outcome reconciliation; every subject setup is measured. Observed 174–434ms focused; up to 359.056ms default changed and 278.372ms serial changed."
+			"justification": "hv-00pk4.3: Only the nine-row exit/finish/running \u00d7 succeeded/cancelled/failed matrix. Each case retains actual owned-process artifacts, durable request state and native outcome reconciliation; every subject setup is measured. Observed 174\u2013434ms focused; up to 359.056ms default changed and 278.372ms serial changed."
 		},
 		"#test-97": {
 			"threshold": "XSLOW",
-			"justification": "hv-00pk4.3: Only exit, self-success and self-blocked rows, verifying real owned exit, independent pending run history and request retry/blocked precedence. Observed up to 190.669ms default changed; 142.098–176.729ms serial changed."
+			"justification": "hv-00pk4.3: Only exit, self-success and self-blocked rows, verifying real owned exit, independent pending run history and request retry/blocked precedence. Observed up to 190.669ms default changed; 142.098\u2013176.729ms serial changed."
 		},
 		"#test-98": {
 			"threshold": "XSLOW",
-			"justification": "hv-00pk4.3: Only exit and finish rows through actual owned-execution and reconciliation interfaces; a legacy unclassified anchor remains diagnostic rather than request success. Observed 152.645–175.582ms default changed; 109.315–122.437ms serial changed."
+			"justification": "hv-00pk4.3: Only exit and finish rows through actual owned-execution and reconciliation interfaces; a legacy unclassified anchor remains diagnostic rather than request success. Observed 152.645\u2013175.582ms default changed; 109.315\u2013122.437ms serial changed."
 		},
 		"#test-99": {
 			"threshold": "XSLOW",
-			"justification": "hv-00pk4.3: The joined actual dispatch claim barrier, SQLite reservation and queued clearance proves final admission cannot pass the shared gate unseen. Preserve the full ordering proof and injected live observation. Observed 14.21–17.649ms focused/default changed; 14.585ms serial changed."
+			"justification": "hv-00pk4.3: The joined actual dispatch claim barrier, SQLite reservation and queued clearance proves final admission cannot pass the shared gate unseen. Preserve the full ordering proof and injected live observation. Observed 14.21\u201317.649ms focused/default changed; 14.585ms serial changed."
 		},
 		"#test-100": {
 			"threshold": "XSLOW",
@@ -419,7 +407,7 @@
 		},
 		"#test-107": {
 			"threshold": "SLOW",
-			"justification": "hv-00pk4.3: Only the four open/closed × foreign/unbound rows of the existing host-exclusion template. The cited overage is open foreign; all four keep full native/store setup measured and preserve host authority checks. Observed open foreign row 1.446ms default changed and 2.058ms serial changed."
+			"justification": "hv-00pk4.3: Only the four open/closed \u00d7 foreign/unbound rows of the existing host-exclusion template. The cited overage is open foreign; all four keep full native/store setup measured and preserve host authority checks. Observed open foreign row 1.446ms default changed and 2.058ms serial changed."
 		},
 		"#test-108": {
 			"threshold": "SLOW",
@@ -427,7 +415,7 @@
 		},
 		"#test-109": {
 			"threshold": "SLOW",
-			"justification": "hv-00pk4.3: Only the six existing acquisition/unlaunched × succeeded/cancelled/failed rows; complete fixture/claim/settlement/native-label setup stays measured and unsuccessful anchors cannot become success. Observed acquisition cancelled 1.016ms default changed; acquisition succeeded 1.066ms serial changed."
+			"justification": "hv-00pk4.3: Only the six existing acquisition/unlaunched \u00d7 succeeded/cancelled/failed rows; complete fixture/claim/settlement/native-label setup stays measured and unsuccessful anchors cannot become success. Observed acquisition cancelled 1.016ms default changed; acquisition succeeded 1.066ms serial changed."
 		},
 		"#test-110": {
 			"threshold": "XSLOW",

@@ -41,6 +41,16 @@ Run `beeswax setup` in the consuming repository. The interactive wizard handles 
 
 Setup's readiness receipt separates configured artifacts from pending execution checks and reports effective [Honeycomb configuration](../honeycomb/README.md#config) for review. Preserve valid existing policy. For managed workers, continue with [Bee and Colony setup](../colony/README.md#install-and-try-it); repository plumbing alone does not establish runtime readiness.
 
+## Workflow tool adoption
+
+Before a Busy Bee/Bee/Colony cutover or incompatible-run replacement, read the bundled procedure:
+
+```sh
+beeswax skills file repository-setup references/workflow-adoption.md
+```
+
+It composes public inventory, owning-host clearance, compatible continuation and supported retirement/replacement, including command mapping for frozen briefs. This is guidance only: setup/update performs no workflow reset, binary deployment or service refresh.
+
 ## Install a customizable workflow
 
 The optional `hive` skill supplies work conventions for routing requests, planning Beads tasks and coordinating completion. It is separate from prime's safety baseline and the installed tools' command manuals. Add `--install-workflow-skill` to an intended setup invocation, or choose the default-off wizard option. Read `beeswax setup --help` for prerequisites, harness selection, existing-content protection and failure handling.

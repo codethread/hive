@@ -1,8 +1,8 @@
 /* eslint-disable unicorn/no-null -- Saved checkpoints encode absent requests as null. */
 import type { BeadsScope, UpdateBead } from "@hive/beads";
 import { BusyBeeError, createServices, readBead } from "../../src/native.ts";
+import { advance, readWork, runViewSchema } from "../../src/runtime.ts";
 import { captureCli, invoke } from "./support.ts";
-import { discover, navigate, runViewSchema } from "../../src/runtime.ts";
 import { expect, test } from "bun:test";
 import type { Services } from "../../src/native.ts";
 import { createMachine } from "xstate";
@@ -203,15 +203,21 @@ test("show rejects a changed named checkpoint before import with authorized same
 	expect(error.message).toContain(
 		"Replacement completion alone does not dispose of old work or satisfy its parent.",
 	);
-	const response = await invoke(["show", fixture.id], fixture.io);
+	const response = await invoke(["inspect", fixture.id, "--work"], fixture.io);
 	expect(response.document).toMatchObject({
-		ok: false,
-		kind: "show",
-		reason: "definition_changed",
-		runId: fixture.id,
-		stageIds: ["completed"],
-		stageRequestIds: ["completed-request"],
-		nextAction: `br show ${fixture.id} --json`,
+		ok: true,
+		kind: "workflow_lifecycle",
+		lifecycle: { kind: "pending" },
+		work: {
+			kind: "unavailable",
+			reason: "definition_changed",
+			context: {
+				runId: fixture.id,
+				stageIds: ["completed"],
+				stageRequestIds: ["completed-request"],
+				nextAction: `br show ${fixture.id} --json`,
+			},
+		},
 	});
 	expect(response.stderr).toBe("");
 	await fixture.assertPreserved();
@@ -295,9 +301,9 @@ test("changed explicit-file runs keep their source-based diagnostic #test-46", a
 async function inspect(operation: string, fixture: { id: string; io: Services }): Promise<Error> {
 	const { id, io } = fixture;
 	const inspections: Record<string, () => Promise<unknown>> = {
-		show: () => navigate({ id, operation: "show" }, {}, io),
-		collect: () => navigate({ id, operation: "collect" }, {}, io),
-		discover: () => discover(id, {}, io),
+		show: () => readWork(id, {}, io),
+		collect: () => advance({ id, mode: "results" }, {}, io),
+		discover: () => readWork(id, {}, io),
 	};
 	try {
 		await inspections[operation]!();

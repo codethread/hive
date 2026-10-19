@@ -23,6 +23,5 @@ Use the returned `id` as `RUN` below. For an existing run, resume its ID. Read t
 
 ```sh
 br show RUN --json
-busybee show RUN --json
-busybee discover RUN --json
+busybee inspect RUN --work --json
 ```

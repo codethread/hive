@@ -18,7 +18,7 @@ hive-ui --beads-db /absolute/path/to/.beads/beads.db
 
 The build writes `lib/hive-ui/dist/hive-ui`; installation copies it to `~/.local/bin`. Use `install:bin --directory /path/to/bin` for another destination. It does not start a service.
 
-`BEADS_DB` supplies the default database when set. `--repo` selects the repository discovery directory. The server binds to `127.0.0.1:4318`; use `--port 0` for a free port. Use `--host 0.0.0.0 --port 4324` to make an explicitly configured preview reachable over the LAN. Run `bun run --cwd lib/hive-ui start --help` for all options. Native `br`, `bv` (Beads Viewer, tested with v0.25.2) and `honeycomb` must be on PATH; workflow previews also require a [Busy Bee installation](../busybee/README.md#install) supporting `busybee system preview` and the selected repository's workflow definitions.
+`BEADS_DB` supplies the default database when set. `--repo` selects the repository discovery directory. The server binds to `127.0.0.1:4318`; use `--port 0` for a free port. Use `--host 0.0.0.0 --port 4324` to make an explicitly configured preview reachable over the LAN. Run `bun run --cwd lib/hive-ui start --help` for all options. Native `br`, `bv` (Beads Viewer, tested with v0.25.2) and `honeycomb` must be on PATH; workflow previews also require a [Busy Bee installation](../busybee/README.md#install) supporting `busybee inspect RUN --diagram --instructions` and the selected repository's workflow definitions.
 
 To discover the running daemon's registered repository/database pairs at startup:
 

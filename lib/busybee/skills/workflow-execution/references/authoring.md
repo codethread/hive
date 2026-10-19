@@ -54,7 +54,7 @@ For spawned actors, set input/context `group` to the containing state node ID an
 
 ## Validate and evolve
 
-Run `busybee validate PATH --input-file INPUT.json --json` before creating work. It checks input, definition resolution and the pure initial transition without a tracker or native writes. Imports and initialization calculations still execute trusted code. Success proves initialization only: exercise representative outcomes, branches, joins and loops separately, and inspect rendered briefs and schemas through `show` and `discover` in a disposable tracker.
+Run `busybee validate PATH --input-file INPUT.json --json` before creating work. It checks input, definition resolution and the pure initial transition without a tracker or native writes. Imports and initialization calculations still execute trusted code. Success proves initialization only: exercise representative outcomes, branches, joins and loops separately, and inspect rendered briefs and schemas through `inspect --work` in a disposable tracker.
 
 Before updating a named definition with unfinished runs, run `busybee preflight NAME --json` against the selected tracker and proposed checkout. `--source PATH` checks a proposed module but leaves manifest compatibility unchecked. Preflight examines snapshot restoration, active states, frozen command mappings and current task rendering. `resumeSchema` additionally checks raw persisted root context without migrating it. Future paths, child-context schemas and external effects remain unproved; an `unchecked` report is not a complete compatibility guarantee.
 

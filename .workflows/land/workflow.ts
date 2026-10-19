@@ -427,7 +427,10 @@ export const machine = setup({
 					title: `Build and update local tools: ${targetTitle(context)}`,
 					instructions:
 						"From the retained canonicalRoot on clean synchronized main, record " +
-						"the integrated HEAD being installed. Refresh dependencies with " +
+						"the integrated HEAD being installed. For workflow-control breaking changes, " +
+						"follow beeswax skills file repository-setup references/workflow-adoption.md " +
+						"before replacing controls; retain this run and its original outcomes when compatible. " +
+						"Refresh dependencies with " +
 						"`bun install --frozen-lockfile`, then run `bun run --filter '*' build` " +
 						"for every workspace, not just changed packages. Only after the full " +
 						"build succeeds, run `bun run --filter '*' install:bin` to replace " +
@@ -438,7 +441,8 @@ export const machine = setup({
 						"bootstrap or publish tracker state in this step.\n\nVerify every " +
 						"installed artifact matches its fresh package dist/ build, is " +
 						"executable, and resolves to that installation on the user's PATH " +
-						"rather than an older shadowing command. Smoke-test the public CLIs " +
+						"rather than an older shadowing command. Read each changed tool's changelog " +
+						"and apply required adoption actions. Smoke-test the public CLIs " +
 						"with their documented help/read-only commands, including Busy Bee " +
 						"loading the land definition from the canonical checkout. Installation " +
 						"updates future invocations, not running processes: inspect running " +
@@ -447,7 +451,10 @@ export const machine = setup({
 						"then run `colony daemon restart --json` for the selected state/socket. " +
 						"Retain its verified restarted result, or record a deliberate deferral " +
 						"with its reason and owner without claiming the running service was " +
-						"refreshed.\n\nA failed dependency install, build, installation, restart " +
+						"refreshed. Keep incompatible admission paused during any deferral. " +
+						"Continue this run with inspect --work, complete and advance from canonicalRoot; " +
+						"preserve the publish/report and post-done caller tail.\n\n" +
+						"A failed dependency install, build, installation, restart " +
 						"or smoke check keeps this task open with diagnostics, confirmed effects " +
 						"and the next action; do not continue after a failed command. Inspect " +
 						"partial installation before retrying. A post-merge code defect needs " +

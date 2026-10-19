@@ -617,9 +617,12 @@ async function simulationFixture(
 		importModule: () => Promise.resolve(definition),
 	};
 	const inspect = async () => {
-		const result = await captureCli([...args, "system", "preview", parent.id, "--json"], services);
+		const result = await captureCli(
+			[...args, "inspect", parent.id, "--diagram", "--instructions", "--json"],
+			services,
+		);
 		expect(result.code, result.stdout).toBe(SUCCESS);
-		return workflowInspectionSchema.parse(JSON.parse(result.stdout));
+		return workflowInspectionSchema.parse(JSON.parse(result.stdout).diagram.data);
 	};
 	const baseline = await inspect();
 	const request: WorkflowSimulationRequest = {

@@ -35,28 +35,22 @@ The parent IDs name existing nonclosed ordinary work in the selected tracker. Ea
 The run ID identifies the workflow; the task ID identifies the work to submit. Inspect active work, its native brief and its outcome schemas:
 
 ```sh
-busybee show busy-2rm --json
+busybee inspect busy-2rm --work --json
 br show busy-2rm.1 --json
-busybee discover busy-2rm
 ```
 
-```text
-busy-2rm.1: Prepare change
-Choice: next
-```
+Read `work.data.active[].choices` for each outcome and its complete JSON schema. The parallel example's `next` accepts `{}`; require `work.kind: available` before using this expansion.
 
-No fields follow `next`, so it needs no payload. Use `discover --json` for complete schemas.
-
-## Complete the task, then collect
+## Complete the task, then advance
 
 After identifying the change and completing any subtasks:
 
 ```sh
 busybee complete busy-2rm busy-2rm.1 next --json
-busybee collect busy-2rm --json
+busybee advance busy-2rm --json
 ```
 
-The returned `active` work now contains these groups and workers:
+Advance returns compact bead/request IDs. Reinspect with `inspect --work --json` for the next briefs; the work expansion contains these groups and workers:
 
 | Bead             | Title          | Commands |
 | ---------------- | -------------- | -------- |
@@ -68,7 +62,7 @@ The returned `active` work now contains these groups and workers:
 
 API and documentation work can proceed concurrently. Each worker uses `complete` for its own task; the driver collects results. Busy Bee closes the groups once their work finishes. These tasks belong to open groups, not the closed preparation task. Read `busybee complete --help` for payload options, closure refusal and retries.
 
-Driver-handled visits also support direct `next` and `choice` submission after closure; see `busybee choice --help`. Bee-dispatched visits require saved results and collection.
+Both dispatch modes use `complete` followed by driver advancement. An outcome named `next` is data for `complete`, not a separate command.
 
 ## Submit a structured outcome
 
@@ -76,27 +70,19 @@ The groceries definition starts with “Read the week ahead”:
 
 ```sh
 busybee run groceries --parent EXISTING_MEAL_PLAN_ID --owner ct --json
-busybee discover busy-8fp
+busybee inspect busy-8fp --work --json
 ```
 
-Using illustrative returned IDs, discovery shows:
-
-```text
-busy-8fp.1: Read the week ahead
-Choice: busy
-meals (required, integer)  {"exclusiveMinimum":0,"maximum":9007199254740991}
-Choice: flexible
-meals (required, integer)  {"exclusiveMinimum":0,"maximum":9007199254740991}
-```
+For illustrative task `busy-8fp.1`, `work.data.active[].choices` offers `busy` and `flexible`; both require a positive integer `meals` payload.
 
 After checking the calendar:
 
 ```sh
 busybee complete busy-8fp busy-8fp.1 busy --data '{"meals":4}' --json
-busybee collect busy-8fp --json
+busybee advance busy-8fp --json
 ```
 
-The next task is “Choose quick recipes,” with context including `busyWeek: true` and `plannedMeals: 4`. Repeat the inspect, work, complete and collect cycle until `status` is `done`.
+The next task is “Choose quick recipes,” with context including `busyWeek: true` and `plannedMeals: 4`. Repeat the inspect, work, complete and advance cycle until `status` is `done`.
 
 ## Read a completed run's lifecycle
 
@@ -184,7 +170,7 @@ The [land definition](../../.workflows/land/workflow.ts) records an existing use
 busybee run land --parent hv-widget --owner ct --input-file /tmp/land-input.json --json
 ```
 
-The run is “Land worktree feature/widget” and the first task is “Triage the authorized landing: worktree feature/widget.” Inspect `discover` and its brief, then choose the outcome matching the actual work: `implement`, `check`, `review`, `commit`, `reviewed` or `integrated`. Later tasks can return to implementation, review or PR readiness rather than advancing in a fixed sequence.
+The run is “Land worktree feature/widget” and the first task is “Triage the authorized landing: worktree feature/widget.” Inspect `inspect --work` and its brief, then choose the outcome matching the actual work: `implement`, `check`, `review`, `commit`, `reviewed` or `integrated`. Later tasks can return to implementation, review or PR readiness rather than advancing in a fixed sequence.
 
 Every landing outcome, including `next`, requires an `evidence` payload describing the observed result and next brief. Put narrative verification in comments. Complete the stage with that outcome and payload, then collect the saved result. Outcomes `approved`, `commit` and `reviewed` also require the current local-review receipt (`bead`, `base`, `revision`); see [landing from the current state](./README.md#landing-from-the-current-state). Leave unresolved blockers open rather than inventing evidence to advance.
 

@@ -61,7 +61,7 @@ const { prompt: _prompt, system_prompt: _role, ...metadata } = request.recipe;
 const summary = { ...request, recipe: metadata };
 
 test.each([
-	{ args: ["dispatch-stage", "worker", "task-1", "--run", "run-1"] },
+	{ args: ["system", "dispatch-stage", "worker", "task-1", "--run", "run-1"] },
 	{ args: ["retry", "request-0"] },
 ])("$args returns the next-command identifiers without native metadata", async ({ args }) => {
 	const result = await invoke([...args, "--actor", "test", "--json"]);

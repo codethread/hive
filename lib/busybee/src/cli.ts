@@ -4,6 +4,7 @@
 import { BusyBeeError, installDefaultWorkflow } from "./native.ts";
 import { Command, CommanderError } from "commander";
 import type { Options, Services } from "./native.ts";
+import { advance, complete, recordResult, start, startNamed } from "./runtime.ts";
 import {
 	changelogHistorySchema,
 	changelogQuerySchema,
@@ -11,22 +12,12 @@ import {
 	queryChangelog,
 	renderChangelog,
 } from "@hive/shared/changelog";
-import { checkpointVersion, inspectDiagram, inspectRun, preview } from "./preview.ts";
-import {
-	complete,
-	discover,
-	navigate,
-	prepareDriver,
-	recordResult,
-	start,
-	startNamed,
-} from "./runtime.ts";
 import { importDefinition, validate } from "./definition.ts";
 import { listWorkflows, namedDefinition } from "./catalogue.ts";
 import { settle, settlementRequestSchema, settlementResultSchema } from "./settlement.ts";
 import {
+	workflowAdvanceSchema,
 	workflowCheckpointSchema,
-	workflowInspectionSchema,
 	workflowRunInspectionSchema,
 	workflowSimulationRequestSchema,
 	workflowSimulationSchema,
@@ -34,6 +25,8 @@ import {
 import type { PreflightReport } from "./preflight.ts";
 import type { Source } from "./catalogue.ts";
 import changelog from "../changelog.json";
+import { checkpointVersion } from "./preview.ts";
+import { inspect } from "./inspection.ts";
 import { preflight } from "./preflight.ts";
 import { readSkills } from "./skills.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Explicit source paths resolve against the invoking directory.
@@ -64,26 +57,6 @@ const constraintKeys = new Set([
 	"minProperties",
 	"maxProperties",
 ]);
-const navigationHelp = {
-	show: {
-		description: "Read run status, active task briefs and generated visit references",
-		details:
-			"\nReturns active task IDs, commands, context, instructions, request IDs and actor paths. " +
-			"Read each native task brief with br show TASK --json for delivery/closure instructions. " +
-			"Use discover --json for outcome payload schemas. " +
-			"Performs no native writes, but restores, starts and stops a workflow actor. " +
-			"For saved diagrams/state without creating actors, use preview --help.",
-	},
-	collect: {
-		description:
-			"Advance from closed active tasks with saved results, including interrupted deliveries",
-		details:
-			"\nWorkers use complete to save their outcomes and close their tasks; the driver collects them. " +
-			"Collection can advance both driver-handled and Bee-dispatched visits and publish new work. " +
-			"Busy Bee closes completed groups and reports status done when it closes the run. " +
-			"Requires --actor or BD_ACTOR; see busybee --help for global options.",
-	},
-};
 interface CliOptions extends Options {
 	/** Inline task payload, mutually exclusive with a file. */
 	data?: string;
@@ -214,10 +187,10 @@ function commandOptions(): Command {
 		.option("--data-file <path>", "Event payload as a JSON file")
 		.addHelpText(
 			"after",
-			"\nWork: show RUN, discover RUN --json, perform the active task, " +
-				"complete RUN TASK CHOICE, then the driver runs collect RUN. " +
+			"\nWork: inspect RUN --work --json, perform the active task, " +
+				"complete RUN TASK CHOICE, then the driver runs advance RUN. " +
 				"Busy Bee closes groups and the run.\n" +
-				"Inspect saved diagrams/state with preview RUN --json. " +
+				"Read native lifecycle with inspect RUN; add --diagram for saved structure. " +
 				"Use busybee COMMAND --help for each command's purpose and prerequisites.",
 		);
 }
@@ -283,42 +256,41 @@ function registerInspection(invocation: Invocation): void {
 	const options = (): CliOptions => cli.opts<CliOptions>();
 	cli
 		.command("inspect [run]")
-		.description("Read native lifecycle with optional saved diagram and instruction expansion")
+		.description("Read native lifecycle; explicitly expand trusted work or diagrams")
+		.option("--schema", "Read inspection success schema without tracker access")
 		.option(
-			"--schema",
-			"Read the success envelope schema, including expansions, without tracker access",
+			"--work",
+			"Expand active briefs, choices and payload schemas through trusted author code",
 		)
-		.option("--diagram", "Expand the saved structural diagram using trusted workflow source")
-		.option("--instructions", "Include instruction previews with --diagram")
+		.option("--diagram", "Expand saved structural diagrams through trusted author code")
+		.option("--instructions", "Include labelled instruction previews; requires --diagram")
 		.addHelpText(
 			"after",
-			"\nRUN is a workflow run ID. The default read requires its native record and a valid " +
-				"related checkpoint, but no workflow source or Colony. Default success output is JSON; " +
+			"\nRUN is a workflow run ID. Unexpanded inspection requires its native record and a valid related " +
+				"checkpoint, but no workflow source or Colony. Default success output is JSON; " +
 				"--json adds the workflow_lifecycle envelope and machine-readable failures. " +
 				"Reports native status, lifecycle, follow-up resolution and publication timestamps, " +
 				"lock and settlement intent. Closed runs " +
 				"without lifecycle markers remain unclassified. A lock observation does not " +
 				"establish worker liveness.\n" +
-				"--diagram imports trusted source for structure; --diagram --instructions also " +
-				"includes frozen active briefs and previews rendered from saved actor context. " +
-				"Expansion performs no engine writes or actor progression; imports and renderers " +
-				"execute author code. A failed expansion returns diagram.kind=unavailable with " +
-				"a reason and bounded message, preserving native lifecycle. Native read failures " +
-				"fail the command. The graph retains its own checkpoint stamp; the reads are not atomic.\n" +
-				"Use inspect --schema --json without a run ID for the success envelope schema, " +
-				"show for active briefs and discover for outcome schemas.",
+				"Add --work for frozen active briefs, dispatch request IDs, choices, payload schemas " +
+				"and author constraints; add --diagram for saved structure and --instructions for " +
+				"labelled instruction previews. --instructions requires --diagram.\n\n" +
+				"Requested expansions report kind available with data, or unavailable with reason, " +
+				"message and context. Available diagrams identify mode structure or instructions. " +
+				"Expansion failure preserves native facts and a successful inspection exit; malformed " +
+				"native facts fail the command. Work and diagram carry their own checkpoint samples. " +
+				"A terminal run can retain active actor history; inspection grants no admission.\n\n" +
+				"Expansions load trusted author code. Work restores, starts and stops an actor; " +
+				"diagram instructions can invoke render callbacks. They perform no engine writes " +
+				"but are not I/O sandboxes. Use inspect --schema --json offline for the success schema.",
 		)
 		.action(
-			// Validate read modes, offline discovery and the selected projection together.
-			// eslint-disable-next-line max-statements
 			async (
 				id: string | undefined,
-				selection: { schema?: boolean; diagram?: boolean; instructions?: boolean },
+				selection: { schema?: boolean; work?: boolean; diagram?: boolean; instructions?: boolean },
 			) => {
 				invocation.kind = "workflow_lifecycle";
-				if (selection.instructions && !selection.diagram) {
-					throw new BusyBeeError("usage", "--instructions requires --diagram.");
-				}
 				if (selection.schema) {
 					invocation.kind = "workflow_lifecycle_schema";
 					const schema = workflowRunInspectionSchema.extend({
@@ -331,14 +303,7 @@ function registerInspection(invocation: Invocation): void {
 				if (!id) {
 					throw new BusyBeeError("usage", "inspect requires a workflow run ID.");
 				}
-				let expansion: "none" | "structure" | "instructions" = "none";
-				if (selection.diagram) {
-					expansion = "structure";
-					if (selection.instructions) {
-						expansion = "instructions";
-					}
-				}
-				writeResult(await inspectRun({ id, expansion }, options(), services), invocation);
+				writeResult(await inspect({ id, ...selection }, options(), services), invocation);
 			},
 		);
 	cli
@@ -399,22 +364,6 @@ function registerInspection(invocation: Invocation): void {
 				writeResult(await settle(request, options(), services), invocation);
 			},
 		);
-	cli
-		.command("preview <run>")
-		.description("Preview an active or completed run's latest saved workflow state")
-		.addHelpText(
-			"after",
-			"\nRUN is the workflow run ID, not a generated stage or group ID. " +
-				"Use --json for the workflow_preview envelope: structural graphs, original saved " +
-				"root/retained-child state and source provenance.\n" +
-				"Imports trusted workflow code; creates no actors, calls no workflow callbacks " +
-				"and writes no beads. Excludes context, task bodies and implementations. " +
-				"Use show for active work and discover --json for outcome payload schemas.",
-		)
-		.action(async (id: string) => {
-			invocation.kind = "workflow_preview";
-			writeResult(await preview(id, options(), services), invocation);
-		});
 	cli.command("list").action(async () => {
 		const result = await listWorkflows(options().repo, services);
 		let readable = "";
@@ -440,30 +389,16 @@ function registerInspection(invocation: Invocation): void {
 			};
 			writeResult(result, invocation, printDiscovery(result));
 		});
-	cli
-		.command("discover <run>")
-		.description("Read active outcome choices, payload schemas and author constraints")
-		.addHelpText(
-			"after",
-			"\nUse --json for complete schemas, including nested/conditional fields. " +
-				"Use show for task instructions and complete --help before completing a stage. " +
-				"Discovery performs no native writes; it restores, starts and stops a workflow " +
-				"actor and calls author discovery/schema code. It is not a reservation.",
-		)
-		.action(async (id: string) => {
-			const result = await discover(id, options(), services);
-			writeResult(result, invocation, printDiscovery(result));
-		});
 }
 
 function registerSystem(invocation: Invocation): void {
 	const system = invocation.cli
 		.command("system")
-		.description("JSON tooling interfaces; use show, discover or preview for routine work")
+		.description("Checkpoint and simulation tooling; use inspect for run reads")
 		.addHelpText(
 			"after",
-			"\nTooling output is intended for applications. Working agents should use show for briefs, " +
-				"discover for choices and preview for structural saved-state diagrams.",
+			"\nUse inspect --help for lifecycle, work and diagram reads. " +
+				"System commands require --json; focused help owns their schemas and baselines.",
 		);
 	system
 		.command("checkpoint <run>")
@@ -479,34 +414,14 @@ function registerSystem(invocation: Invocation): void {
 			);
 		});
 	system
-		.command("preview <run>")
-		.description("Inspect saved graphs and labelled instruction previews; requires --json")
-		.addHelpText(
-			"after",
-			"\nReads one checkpoint without starting actors, evaluating actions or guards, advancing " +
-				"the run, acquiring locks or performing engine writes. " +
-				"Published active briefs remain frozen; other task callbacks run against each retained " +
-				"actor's saved context and are labelled rendered or unavailable. These are previews, " +
-				"not published task briefs. Imports and callbacks execute trusted author code; " +
-				"this is not an I/O sandbox. " +
-				"Use system schema --json for the success envelope schema.",
-		)
-		.action(async (id: string) => {
-			invocation.kind = "workflow_inspection";
-			requireSystemJson(invocation);
-			writeResult(
-				await inspectDiagram(id, invocation.cli.opts<CliOptions>(), invocation.services),
-				invocation,
-			);
-		});
-	system
 		.command("simulate <run>")
 		.description("Replay simulated outcomes without advancing saved work; requires --json")
 		.requiredOption("--request <json>", "Baseline, actor, explicit start and original event list")
 		.addHelpText(
 			"after",
-			"\nRead system preview RUN --json first. Copy checkpoint and savedAt from that inspection, " +
-				"choose actorId from actors[].id, and set definitionHash to definition.currentHash. " +
+			"\nRead inspect RUN --diagram --instructions --json first. Require diagram.kind available " +
+				"and mode instructions. From diagram.data copy checkpoint and savedAt, choose actorId " +
+				"from actors[].id, and set definitionHash to definition.currentHash. " +
 				"Set start.kind to saved, or use initial with explicit start.input for the root actor. " +
 				"Original creation input is not retained. Supply events as {node, command, data} entries " +
 				"using original JSON data; an empty list inspects the starting point. " +
@@ -529,7 +444,7 @@ function registerSystem(invocation: Invocation): void {
 	system
 		.command("schema")
 		.description(
-			"Read tooling schemas without tracker access; defaults to workflow_inspection; requires --json",
+			"Read tooling schemas without tracker access; defaults to the inspect success envelope; requires --json",
 		)
 		.option("--simulation", "Read simulation request and success schemas")
 		.option("--checkpoint", "Read the checkpoint success schema")
@@ -562,11 +477,11 @@ function registerSystem(invocation: Invocation): void {
 					);
 					return;
 				}
-				invocation.kind = "workflow_inspection_schema";
+				invocation.kind = "workflow_lifecycle_schema";
 				requireSystemJson(invocation);
-				const schema = workflowInspectionSchema.extend({
+				const schema = workflowRunInspectionSchema.extend({
 					ok: z.literal(true),
-					kind: z.literal("workflow_inspection"),
+					kind: z.literal("workflow_lifecycle"),
 				});
 				writeResult({ schema: z.toJSONSchema(schema) }, invocation);
 			},
@@ -640,7 +555,7 @@ function registerNavigation(invocation: Invocation): void {
 		.addHelpText(
 			"after",
 			"\nSatisfy acceptance and child work, and deliver any required answer before completion. " +
-				"Read discover RUN --json for CHOICE and its schema. Pass the original payload with " +
+				"Read inspect RUN --work --json for CHOICE and its schema. Pass the original payload with " +
 				"--data JSON or --data-file FILE; omission supplies {}. Notes hold only {choice,data}; " +
 				"put narrative evidence in comments.\n" +
 				"Complete validates and saves the original JSON, finishes the checkpoint write and " +
@@ -650,7 +565,7 @@ function registerNavigation(invocation: Invocation): void {
 				"with the same original choice and data. A matching retry can finish closure or acknowledge " +
 				"an already-closed stage, even after collection. Different or malformed saved results fail; " +
 				"a closed stage without saved evidence also fails.\n" +
-				"Supports driver-handled and Bee-dispatched visits. The driver separately runs collect RUN " +
+				"Supports driver-handled and Bee-dispatched visits. The driver separately runs advance RUN " +
 				"to advance. Use record-result --help when saving without closure. " +
 				"Requires --actor or BD_ACTOR; see busybee --help for global options.",
 		)
@@ -663,7 +578,7 @@ function registerNavigation(invocation: Invocation): void {
 		.description("Validate and save original {choice,data} notes without closure or advancement")
 		.addHelpText(
 			"after",
-			"\nTASK must be an active, unclosed worker visit. Read discover RUN --json for " +
+			"\nTASK must be an active, unclosed worker visit. Read inspect RUN --work --json for " +
 				"CHOICE and its schema. Pass the original payload with --data JSON or --data-file FILE; " +
 				"omission supplies {}. Notes are reserved for this result; put narrative evidence in comments.\n" +
 				"This save-only primitive supports driver-handled and Bee-dispatched visits. " +
@@ -675,56 +590,66 @@ function registerNavigation(invocation: Invocation): void {
 			writeResult(await recordResult({ id, bead, choice, data }, options(), services), invocation);
 		});
 	cli
-		.command("prepare-driver <run>")
+		.command("advance [run]")
 		.description(
-			"Validate and open an active run for driver admission under its checkpoint lock; " +
-				"preserve driver-handled reservations and completed runs",
+			"Consume saved closed-stage results or prepare mutually exclusive driver admission",
 		)
-		.action(async (id: string) => {
-			writeResult(await prepareDriver(id, options(), services), invocation);
-		});
-	for (const operation of ["show", "collect"] as const) {
-		cli
-			.command(`${operation} <run>`)
-			.description(navigationHelp[operation].description)
-			.addHelpText("after", navigationHelp[operation].details)
-			.action(async (id: string) => {
-				writeResult(await navigate({ id, operation }, options(), services), invocation);
-			});
-	}
-	cli
-		.command("next <run> <task>")
-		.description("Submit outcome next for a closed driver-handled task; see choice --help")
-		.action(async (id: string, bead: string) => {
-			const data = await payload(options(), services);
-			writeResult(
-				await navigate(
-					{ bead, choice: "next", data, id, operation: "submit" },
-					options(),
-					services,
-				),
-				invocation,
-			);
-		});
-	cli
-		.command("choice <run> <task> <choice>")
-		.description("Submit a named outcome for a closed driver-handled task")
+		.option(
+			"--prepare-driver",
+			"Validate driver admission under the checkpoint lock without consuming results",
+		)
+		.option("--schema", "Read progression success schemas without tracker access")
 		.addHelpText(
 			"after",
-			"\nDirect submission requires a still-active driver-handled visit already natively closed. " +
-				"Read discover RUN --json for its choices and schemas; next is shorthand for choice next " +
-				"and may also require a payload. Use --data JSON or --data-file FILE; omission supplies {}.\n" +
-				"For ordinary completion, use complete, then let the driver collect. " +
-				"Bee-dispatched visits require saved results and collection. " +
-				"Requires --actor or BD_ACTOR; see busybee --help for global options.",
+			"\nThe driver consumes original saved {choice,data} results from closed active visits, " +
+				"including interrupted deliveries. Workers use complete first; advance accepts no " +
+				"choice or payload. Busy Bee publishes the next frontier and closes finished groups " +
+				"and the run. Reinspect with inspect RUN --work --json for briefs and schemas.\n\n" +
+				"--prepare-driver selects admission preparation instead: it never consumes results. " +
+				"It requires an active unassigned run, preserves reservations and worker assignments, " +
+				"and may publish readiness/checkpoint bookkeeping under the checkpoint lock. " +
+				"It neither claims a driver nor grants a durable lease.\n\n" +
+				"--json returns a compact workflow_advance acknowledgment: mode results includes " +
+				"runId, status and active bead/request IDs; mode prepare-driver includes runId, status " +
+				"and checkpoint. No briefs or history are repeated. Mutations require --actor or " +
+				"BD_ACTOR. Use advance --schema --json offline for both success shapes.",
 		)
-		.action(async (id: string, bead: string, choice: string) => {
-			const data = await payload(options(), services);
-			writeResult(
-				await navigate({ bead, choice, data, id, operation: "submit" }, options(), services),
-				invocation,
-			);
-		});
+		.action(
+			// eslint-disable-next-line max-statements -- Keep schema discovery and exclusive modes at the CLI boundary.
+			async (id: string | undefined, selection: { prepareDriver?: boolean; schema?: boolean }) => {
+				invocation.kind = "workflow_advance";
+				if (selection.schema) {
+					invocation.kind = "workflow_advance_schema";
+					const envelope = z.object({ ok: z.literal(true), kind: z.literal("workflow_advance") });
+					const schema = z.toJSONSchema(workflowAdvanceSchema.and(envelope));
+					writeResult({ schema }, invocation);
+					return;
+				}
+				if (!id) {
+					throw new BusyBeeError("usage", "advance requires a workflow run ID.");
+				}
+				if (selection.prepareDriver) {
+					writeResult(
+						{
+							mode: "prepare-driver",
+							...(await advance({ id, mode: "prepare-driver" }, options(), services)),
+						},
+						invocation,
+					);
+					return;
+				}
+				const result = await advance({ id, mode: "results" }, options(), services);
+				writeResult(
+					{
+						mode: "results",
+						runId: result.id,
+						status: result.status,
+						active: result.active.map(({ bead, request }) => ({ bead, request })),
+					},
+					invocation,
+				);
+			},
+		);
 }
 
 async function schemaSource(

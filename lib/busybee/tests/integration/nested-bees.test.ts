@@ -5,7 +5,7 @@ const FIRST = 0;
 const DISPATCHES = 4;
 const ACTORS = 3;
 const FAILURE = 1;
-const STAGE_PREFIX_LENGTH = 3;
+const STAGE_PREFIX_LENGTH = 4;
 const fixture = await captureNestedBees();
 
 // eslint-disable-next-line max-statements -- Verify dispatch, hierarchy and closure of one authored run.
@@ -29,10 +29,10 @@ test("nested Bee authoring publishes grouped child visits and independent dispat
 	}
 	expect(calls).toHaveLength(DISPATCHES);
 	expect(calls.map((call) => call.slice(FIRST, STAGE_PREFIX_LENGTH))).toEqual([
-		["bee", "dispatch-stage", "worker"],
-		["bee", "dispatch-stage", "worker"],
-		["bee", "dispatch-stage", "reviewer"],
-		["bee", "dispatch-stage", "reviewer"],
+		["bee", "system", "dispatch-stage", "worker"],
+		["bee", "system", "dispatch-stage", "worker"],
+		["bee", "system", "dispatch-stage", "reviewer"],
+		["bee", "system", "dispatch-stage", "reviewer"],
 	]);
 	expect(fixture.finalRun.status).toBe("done");
 	expect(fixture.parent.status).toBe("open");

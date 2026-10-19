@@ -1,5 +1,5 @@
 import { BusyBeeError, createServices } from "../../src/native.ts";
-import { complete, navigate, start } from "../../src/runtime.ts";
+import { advance, complete, start } from "../../src/runtime.ts";
 import { expect, test } from "bun:test";
 import { createMachine } from "xstate";
 import { createMemoryBeads } from "@hive/beads";
@@ -118,9 +118,9 @@ test("#test-74 uncertain final closure retains lock and exposes only confirmed n
 			},
 		},
 	};
-	await expect(
-		navigate({ id: run.id, operation: "collect" }, {}, publishing),
-	).rejects.toMatchObject({ reason: "partial_effects" });
+	await expect(advance({ id: run.id, mode: "results" }, {}, publishing)).rejects.toMatchObject({
+		reason: "partial_effects",
+	});
 	const result = await invoke(["inspect", run.id], services);
 	expect(result).toMatchObject({
 		code: 0,
@@ -144,7 +144,7 @@ test("#test-77 refused final closure leaves lifecycle pending under retained pub
 		beads: { ...refused.beads, close: () => Promise.reject(new Error("Native closure refused")) },
 	};
 	await expect(
-		navigate({ id: refused.run.id, operation: "collect" }, {}, publishing),
+		advance({ id: refused.run.id, mode: "results" }, {}, publishing),
 	).rejects.toMatchObject({ reason: "partial_effects" });
 	const inspected = await inspectLifecycle(refused.run.id, {}, refused.services);
 	expect(inspected).toMatchObject({
@@ -158,6 +158,14 @@ test("#test-77 refused final closure leaves lifecycle pending under retained pub
 
 test("#test-75 lifecycle schema discovery never selects a native endpoint", async () => {
 	const services = createServices();
+	const progression = await invoke(["advance", "--schema"], {
+		...services,
+		beads: { ...services.beads, where: () => Promise.reject(new Error("No tracker access")) },
+	});
+	expect(progression).toMatchObject({
+		code: 0,
+		document: { kind: "workflow_advance_schema", ok: true },
+	});
 	const result = await invoke(["inspect", "--schema"], {
 		...services,
 		beads: { ...services.beads, where: () => Promise.reject(new Error("No tracker access")) },

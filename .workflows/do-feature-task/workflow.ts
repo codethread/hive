@@ -516,7 +516,7 @@ export const machine = setup({
 						"Read full feature/source/run briefs and verify the run's control-checkout contract before claiming or " +
 						"creating anything. Inspect native canonical identity, actual request recipe.cwd with bee status, and " +
 						"the selected tracker. From canonicalRoot inspect the named catalogue/input schema and restore THIS " +
-						"run with show/discover --repo CANONICAL_ROOT. Record the current manifest version and successful " +
+						"run with inspect --work --repo CANONICAL_ROOT. Record the current manifest version and successful " +
 						"compatible restoration. A mismatch requires explicit recovery. " +
 						"Verify native ancestry: this run is rooted beneath " +
 						"source.id and source.parentId belongs to the feature; preserve inherited prerequisites. Inspect native " +
@@ -998,7 +998,7 @@ export const machine = setup({
 						"Record exact checks, Reviewer, Librarian, Architect request/response/revision bindings, actual " +
 						"integration/cleanup proof and verification limits in run comments. Read all worker answers with " +
 						"bee result and synthesize the complete run response before reported. Source task stays OPEN until " +
-						"Busy Bee collects this visit and reports done. Continue control commands from canonicalRoot, then " +
+						"Busy Bee advances from this visit and reports done. Continue control commands from canonicalRoot, then " +
 						`follow the run brief's post-done caller tail.\n\n${retained(context)}`,
 				}),
 			},

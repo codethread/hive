@@ -1,7 +1,7 @@
 /* eslint-disable import/max-dependencies -- Driver contracts also exercise the bundled author definition. */
 import { BusyBeeError, createServices } from "../../src/native.ts";
+import { advance, complete, recordResult, start } from "../../src/runtime.ts";
 import { assign, createMachine } from "xstate";
-import { complete, navigate, prepareDriver, recordResult, start } from "../../src/runtime.ts";
 import { describe, expect, test } from "bun:test";
 import {
 	runBrief as doWorkBrief,
@@ -21,9 +21,9 @@ const FIRST = 0;
 const ONE = 1;
 const FAILURE = 1;
 const INITIAL_RECORDS = 4;
-const DISPATCH_PREFIX = 6;
-const RECIPE_RUN_ARG = 5;
-const RECIPE_STAGE_ARG = 3;
+const DISPATCH_PREFIX = 7;
+const RECIPE_RUN_ARG = 6;
+const RECIPE_STAGE_ARG = 4;
 const LOCK_TIMEOUT = 10_000;
 const recipe = {
 	cwd: "/driver-repo",
@@ -149,17 +149,17 @@ test("default author distinguishes the run while preserving the actual stage ass
 
 // Compile the injected chart/checkpoint schemas and CLI boundary once before measured cases.
 const warmup = await fixture();
-await invoke(["prepare-driver", warmup.run.id], warmup.io);
+await invoke(["advance", warmup.run.id, "--prepare-driver"], warmup.io);
 await recordResult(
 	{ id: warmup.run.id, bead: warmup.run.active[FIRST]!.bead, choice: "selected", data: payload },
 	{},
 	warmup.io,
 );
 await warmup.beads.close(scope, warmup.run.active[FIRST]!.bead);
-await navigate({ id: warmup.run.id, operation: "collect" }, {}, warmup.io);
+await advance({ id: warmup.run.id, mode: "results" }, {}, warmup.io);
 const beeWarmup = await beeFixture();
 await beeWarmup.beads.close(scope, beeWarmup.stage.request!, { reason: "blocked" });
-await invoke(["collect", beeWarmup.run.id], beeWarmup.io);
+await invoke(["advance", beeWarmup.run.id], beeWarmup.io);
 await recordResult(
 	{
 		id: beeWarmup.run.id,
@@ -171,7 +171,7 @@ await recordResult(
 	beeWarmup.io,
 );
 await beeWarmup.beads.close(scope, beeWarmup.stage.bead);
-await navigate({ id: beeWarmup.run.id, operation: "collect" }, {}, beeWarmup.io);
+await advance({ id: beeWarmup.run.id, mode: "results" }, {}, beeWarmup.io);
 await invoke(["init"], {
 	...warmup.io,
 	execute: () => Promise.resolve(repo),
@@ -234,7 +234,7 @@ describe("driver coordination", () => {
 	test("driver handoff opens only the run and preserves driver-handled stage reservation", async () => {
 		const { beads, checkpoint, io, run } = handoff;
 		await beads.update(scope, [run.active[FIRST]!.bead], { assignee: "caller" });
-		const result = await prepareDriver(run.id, {}, io);
+		const result = await advance({ id: run.id, mode: "prepare-driver" }, {}, io);
 		expect(result).toEqual({
 			checkpoint,
 			runId: run.id,
@@ -266,11 +266,11 @@ describe("driver coordination", () => {
 			}
 			await beads.update(scope, [bead], { assignee, owner, labels });
 			const before = await beads.show(scope, run.id);
-			const result = await invoke(["prepare-driver", run.id], io);
+			const result = await invoke(["advance", run.id, "--prepare-driver"], io);
 			expect(result.code).toBe(FAILURE);
 			expect(result.document).toMatchObject({
 				ok: false,
-				kind: "prepare-driver",
+				kind: "workflow_advance",
 				reason: "human_reserved",
 				bead,
 			});
@@ -282,10 +282,11 @@ describe("driver coordination", () => {
 	test("initially completed run stays closed and requires no driver", async () => {
 		const { beads, checkpoint, io, run } = doneRun;
 		const before = await beads.show(scope, run.id);
-		const result = await invoke(["prepare-driver", run.id], io);
+		const result = await invoke(["advance", run.id, "--prepare-driver"], io);
 		expect(result.document).toEqual({
 			ok: true,
-			kind: "prepare-driver",
+			mode: "prepare-driver",
+			kind: "workflow_advance",
 			runId: run.id,
 			status: "done",
 			checkpoint,
@@ -297,7 +298,11 @@ describe("driver coordination", () => {
 	test("handoff refuses a natively closed active run", async () => {
 		const { beads, checkpoint, io, run } = closedRun;
 		await beads.close(scope, run.id, { force: true });
-		expect(await prepareDriver(run.id, {}, io).catch((error: unknown) => error)).toMatchObject({
+		expect(
+			await advance({ id: run.id, mode: "prepare-driver" }, {}, io).catch(
+				(error: unknown) => error,
+			),
+		).toMatchObject({
 			reason: "run_not_ready",
 		});
 		expect(await beads.show(scope, run.id)).toMatchObject({ status: "closed" });
@@ -309,8 +314,8 @@ describe("driver coordination", () => {
 		const notes = JSON.stringify({ owner: "other-operation", pid: 22 });
 		await beads.update(scope, [checkpoint], { notes });
 		let now = FIRST;
-		const failure: unknown = await prepareDriver(
-			run.id,
+		const failure: unknown = await advance(
+			{ id: run.id, mode: "prepare-driver" },
 			{},
 			{
 				...io,
@@ -331,8 +336,8 @@ describe("driver coordination", () => {
 
 	test("uncertain handoff write retains ownership and reports partial effects", async () => {
 		const { beads, checkpoint, io, run } = failedWrite;
-		const failure: unknown = await prepareDriver(
-			run.id,
+		const failure: unknown = await advance(
+			{ id: run.id, mode: "prepare-driver" },
 			{},
 			{
 				...io,
@@ -362,11 +367,11 @@ describe("driver coordination", () => {
 			notes: JSON.stringify({ choice: "selected", data: payload }),
 		});
 		await beads.close(scope, run.active[FIRST]!.bead);
-		await prepareDriver(run.id, {}, io);
-		const next = await navigate({ id: run.id, operation: "collect" }, {}, io);
+		await advance({ id: run.id, mode: "prepare-driver" }, {}, io);
+		const next = await advance({ id: run.id, mode: "results" }, {}, io);
 		expect(next.active[FIRST]!.context["saved"]).toEqual(payload);
 		expect(next.active[FIRST]!.bead).not.toBe(run.active[FIRST]!.bead);
-		expect(await navigate({ id: run.id, operation: "collect" }, {}, io)).toEqual(next);
+		expect(await advance({ id: run.id, mode: "results" }, {}, io)).toEqual(next);
 		expect(readCheckpoint(await beads.show(scope, checkpoint)).history).toEqual([
 			{
 				bead: run.active[FIRST]!.bead,
@@ -389,7 +394,7 @@ describe("driver coordination", () => {
 			const { bead } = run.active[FIRST]!;
 			await beads.update(scope, [bead], { notes });
 			await beads.close(scope, bead);
-			const result = await invoke(["collect", run.id], io);
+			const result = await invoke(["advance", run.id], io);
 			expect(result.code).toBe(FAILURE);
 			expect(result.document).toMatchObject({ reason: "invalid_stage_result", bead });
 			expect(readCheckpoint(await beads.show(scope, checkpoint)).history).toEqual([]);
@@ -400,7 +405,7 @@ describe("driver coordination", () => {
 	test("handoff preserves an existing agent driver claim", async () => {
 		const { beads, io, run } = assignedRun;
 		await beads.update(scope, [run.id], { assignee: "existing-driver" });
-		const result = await invoke(["prepare-driver", run.id], io);
+		const result = await invoke(["advance", run.id, "--prepare-driver"], io);
 		expect(result.document).toMatchObject({
 			reason: "run_assigned",
 			runId: run.id,
@@ -435,7 +440,7 @@ describe("driver coordination", () => {
 		});
 		expect(readCheckpoint(await beads.show(scope, checkpoint)).history).toEqual([]);
 		await beads.close(scope, bead);
-		const next = await navigate({ id: run.id, operation: "collect" }, {}, io);
+		const next = await advance({ id: run.id, mode: "results" }, {}, io);
 		expect(next.active[FIRST]!.context["saved"]).toEqual({ choice: data.choice, value: 13 });
 	});
 
@@ -475,7 +480,7 @@ describe("driver coordination", () => {
 		const data = ["standalone", "array"];
 		await recordResult({ id: run.id, bead, choice: "selected", data }, {}, io);
 		await beads.close(scope, bead);
-		const next = await navigate({ id: run.id, operation: "collect" }, {}, io);
+		const next = await advance({ id: run.id, mode: "results" }, {}, io);
 		expect(next.active[FIRST]!.context["saved"]).toEqual(data);
 	});
 });
@@ -541,13 +546,14 @@ await Promise.all(
 const replacementStage = await replacementFixture();
 // Warm the distinct supersedes decoding path before measuring continuation.
 const retryWarmup = await replacementFixture();
-await navigate({ id: retryWarmup.run.id, operation: "collect" }, {}, retryWarmup.io);
+await advance({ id: retryWarmup.run.id, mode: "results" }, {}, retryWarmup.io);
 
 describe("Bee-dispatched stage coordination", () => {
 	test("Bee dispatch uses the stage seam and response target with the existing run and endpoint", async () => {
 		const { calls, run, stage } = dispatch;
 		expect(calls[FIRST]!.slice(FIRST, DISPATCH_PREFIX)).toEqual([
 			"bee",
+			"system",
 			"dispatch-stage",
 			"worker",
 			stage.bead,
@@ -568,7 +574,8 @@ describe("Bee-dispatched stage coordination", () => {
 			]),
 		);
 		const prompt = calls[FIRST]![calls[FIRST]!.indexOf("--prompt") + ONE]!;
-		expect(prompt).toContain(renderResponseInstructions({ taskId: stage.bead }));
+		expect(prompt).toContain(`Workflow task ${stage.bead}.`);
+		expect(prompt).toContain(`complete ${run.id} TASK_ID CHOICE`);
 		expect(prompt).not.toContain(renderResponseInstructions({ taskId: run.id }));
 		const task = await dispatch.beads.show(scope, stage.bead);
 		expect(task.description).toContain(renderResponseInstructions({ taskId: "TASK_ID" }));
@@ -580,7 +587,7 @@ describe("Bee-dispatched stage coordination", () => {
 		async (reason) => {
 			const { beads, io, run, stage } = ended.get(reason)!;
 			await beads.close(scope, stage.request!, { reason });
-			const result = await invoke(["collect", run.id], io);
+			const result = await invoke(["advance", run.id], io);
 			expect(result.code).toBe(FAILURE);
 			expect(result.document).toMatchObject({
 				reason: "bee_execution_unsuccessful",
@@ -592,7 +599,7 @@ describe("Bee-dispatched stage coordination", () => {
 
 	test("closed stage result is collected with its response independently of a blocked request", async () => {
 		const { beads, io, run } = closedStage;
-		expect(await navigate({ id: run.id, operation: "collect" }, {}, io)).toMatchObject({
+		expect(await advance({ id: run.id, mode: "results" }, {}, io)).toMatchObject({
 			status: "done",
 			active: [],
 		});
@@ -609,9 +616,9 @@ describe("Bee-dispatched stage coordination", () => {
 
 	test("collection follows a pending replacement and reports its terminal failure", async () => {
 		const { beads, io, run, replacement } = replacementStage;
-		expect(await navigate({ id: run.id, operation: "collect" }, {}, io)).toEqual(run);
+		expect(await advance({ id: run.id, mode: "results" }, {}, io)).toEqual(run);
 		await beads.close(scope, replacement, { reason: "exhausted" });
-		const result = await invoke(["collect", run.id], io);
+		const result = await invoke(["advance", run.id], io);
 		expect(result.document).toMatchObject({
 			reason: "bee_execution_unsuccessful",
 			request: replacement,

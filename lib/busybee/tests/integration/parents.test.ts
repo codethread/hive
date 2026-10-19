@@ -1,7 +1,14 @@
 import { CommandError, createMemoryBeads } from "@hive/beads";
+import {
+	advance,
+	complete,
+	recordResult,
+	runViewSchema,
+	start,
+	startNamed,
+} from "../../src/runtime.ts";
 import { createMachine, setup } from "xstate";
 import { expect, test } from "bun:test";
-import { navigate, recordResult, runViewSchema, start, startNamed } from "../../src/runtime.ts";
 import type { CreateBead } from "@hive/beads";
 import type { Services } from "../../src/native.ts";
 import { createServices } from "../../src/native.ts";
@@ -88,18 +95,12 @@ const nestedWarmupRun = await start(
 	nestedIo,
 );
 const nestedWarmupWorker = nestedWarmupRun.active.find((entry) => entry.title === "Work")!;
-await nestedWarmup.beads.close(scope, nestedWarmupWorker.bead);
-await navigate(
-	{
-		id: nestedWarmupRun.id,
-		operation: "submit",
-		bead: nestedWarmupWorker.bead,
-		choice: "next",
-		data: {},
-	},
+await complete(
+	{ id: nestedWarmupRun.id, bead: nestedWarmupWorker.bead, choice: "next", data: {} },
 	{},
 	nestedIo,
 );
+await advance({ id: nestedWarmupRun.id, mode: "results" }, {}, nestedIo);
 const nested = await fixture();
 const nestedRun = await start(
 	source,
@@ -131,11 +132,7 @@ await recordResult(
 	replacementIo,
 );
 await retainedSibling.beads.close(scope, replacementVisit);
-const replacementDone = await navigate(
-	{ id: replacement.id, operation: "collect" },
-	{},
-	replacementIo,
-);
+const replacementDone = await advance({ id: replacement.id, mode: "results" }, {}, replacementIo);
 
 test.each(commands.flatMap((command) => ordinaryTypes.map((type) => ({ command, type }))))(
 	"$command creates exactly one native edge to ordinary $type work without claiming it",
@@ -213,12 +210,8 @@ test("nested actors keep visits below the run, a related checkpoint and an unclo
 	expect(records.issues.map(({ id }) => id).toSorted()).toEqual(
 		[parent.id, nestedRun.id, checkpoint.id, group.bead, worker.bead].toSorted(),
 	);
-	await beads.close(scope, worker.bead);
-	const done = await navigate(
-		{ id: nestedRun.id, operation: "submit", bead: worker.bead, choice: "next", data: {} },
-		{},
-		io,
-	);
+	await complete({ id: nestedRun.id, bead: worker.bead, choice: "next", data: {} }, {}, io);
+	const done = await advance({ id: nestedRun.id, mode: "results" }, {}, io);
 	expect(done.status).toBe("done");
 	expect(await beads.show(scope, nestedRun.id)).toMatchObject({ status: "closed" });
 	expect(await beads.show(scope, group.bead)).toMatchObject({ status: "closed" });

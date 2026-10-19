@@ -1,6 +1,6 @@
+import { advance, complete, readWork, startNamed } from "../../src/runtime.ts";
 import { assign, createMachine } from "xstate";
 import { expect, test } from "bun:test";
-import { navigate, startNamed } from "../../src/runtime.ts";
 import type { Services } from "../../src/native.ts";
 import { assessRun } from "../../src/preflight.ts";
 import { createMemoryBeads } from "@hive/beads";
@@ -125,34 +125,22 @@ test.each([
 		const parent = await beads.create(scope, { title: "Original work", owner: "ct" });
 		let view = await startNamed("example", { owner: "ct", parent: parent.id }, io);
 		if (position === "review") {
-			await beads.close(scope, view.active[FIRST]!.bead);
-			view = await navigate(
-				{
-					id: view.id,
-					operation: "submit",
-					bead: view.active[FIRST]!.bead,
-					choice: "next",
-					data: {},
-				},
+			await complete(
+				{ id: view.id, bead: view.active[FIRST]!.bead, choice: "next", data: {} },
 				{},
 				io,
 			);
+			view = await advance({ id: view.id, mode: "results" }, {}, io);
 		}
 		machine = proposedChart;
 		version = "1.1.0";
 		contents = new TextEncoder().encode("edited").buffer;
-		await beads.close(scope, view.active[FIRST]!.bead);
-		const result = await navigate(
-			{
-				id: view.id,
-				operation: "submit",
-				bead: view.active[FIRST]!.bead,
-				choice: "next",
-				data: {},
-			},
+		await complete(
+			{ id: view.id, bead: view.active[FIRST]!.bead, choice: "next", data: {} },
 			{},
 			io,
 		);
+		const result = await advance({ id: view.id, mode: "results" }, {}, io);
 		if (position === "prepare") {
 			expect(result.active).toMatchObject([{ title: "Extra" }]);
 		} else {
@@ -174,7 +162,7 @@ test.each([
 		});
 		if (position === "prepare") {
 			version = "1.0.1";
-			await expect(navigate({ id: result.id, operation: "show" }, {}, io)).rejects.toMatchObject({
+			await expect(readWork(result.id, {}, io)).rejects.toMatchObject({
 				reason: "definition_changed",
 				context: { savedVersion: "1.1.0", proposedVersion: "1.0.1" },
 			});
@@ -215,13 +203,9 @@ test(
 		const parent = await beads.create(scope, { title: "Original work", owner: "ct" });
 		const view = await startNamed("example", { owner: "ct", parent: parent.id }, io);
 		const left = view.active.find((entry) => entry.title === "Left")!;
-		await beads.close(scope, left.bead);
+		await complete({ id: view.id, bead: left.bead, choice: "left", data: {} }, {}, io);
 		concurrentSave = true;
-		await navigate(
-			{ id: view.id, operation: "submit", bead: left.bead, choice: "left", data: {} },
-			{},
-			io,
-		);
+		await advance({ id: view.id, mode: "results" }, {}, io);
 		const listing = await beads.list(scope, {
 			labels: ["busybee-checkpoint"],
 			all: true,

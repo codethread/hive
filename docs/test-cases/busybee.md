@@ -1,14 +1,14 @@
 # Parked Busy Bee test cases
 
-These are removed executable checks, recorded for reconsideration rather than a new behavior contract. Remaining tests may cover portions. The 45 removed original cases measured over 1000ms; faster siblings and the unmeasured repository-default tracker-selection row remain.
+These are removed executable checks, recorded for reconsideration rather than a new behavior contract. Remaining tests may cover portions. The original 45 removed cases measured over 1000ms; faster siblings and the unmeasured repository-default tracker-selection row remain. Three later joined native checks are recorded under [lifecycle and settlement transport](#lifecycle-and-settlement-transport). Removing coverage supplies no passing evidence for those scenarios or the complete suite.
 
-Historical delivery wording below is not a new response contract. The current [response protocol](../agents/responses.md) keeps authored answers separate from saved `{choice,data}` outcomes and concise verification comments. Current [driver tests](../../lib/busybee/tests/integration/driver.test.ts) exercise response targeting and collection without treating response artifacts as workflow children.
+Historical command names, error reasons and delivery wording below are restoration evidence, not current contracts. Use `busybee inspect --work`, `complete` and `advance` for current execution; the [specification](../../lib/busybee/SPEC.md) owns their semantics. The current [response protocol](../agents/responses.md) keeps authored answers separate from saved `{choice,data}` outcomes and concise verification comments. Current [driver tests](../../lib/busybee/tests/integration/driver.test.ts) exercise response targeting and collection without treating response artifacts as workflow children.
 
-The record contains 27 scenarios and 7 scenario outlines (46 instances after expanding examples), representing 45 original cases. L5 and L6 split one original case; all other mappings are one-to-one after expansion. Sources: `hv-luv2v` comment 4466 and `hv-hu8eo.4` comments 4393/4402. Follow-up: `hv-luv2v`.
+The original record contains 27 scenarios and 7 scenario outlines (46 instances after expanding examples), representing 45 cases. L5 and L6 split one original case; all other mappings are one-to-one after expansion. Sources: `hv-luv2v` comment 4466 and `hv-hu8eo.4` comments 4393/4402. Follow-up: `hv-luv2v`. With the three later scenarios, this record contains 30 scenarios and 7 outlines: 49 instances representing 48 removed cases.
 
 ## Reading and restoration
 
-All source pointers below refer to revision `61e736f8e1f4bfad9b7338e140d33938d0426f71`, beneath `lib/busybee/tests/integration/`. Restore with `git show <revision>:<path>` and retain the file helpers, imported definitions and `support.ts`.
+Source pointers for the original 45 cases refer to revision `61e736f8e1f4bfad9b7338e140d33938d0426f71`, beneath `lib/busybee/tests/integration/`. The later transport section names its own revision. Restore with `git show <revision>:<path>` and retain the file helpers, imported definitions and `support.ts`.
 
 The native fixture (`support.ts:29`) used disposable Git repositories, real Beads CLI/database storage and real XState/Zod definitions. Worker outcomes, notes and closures were scripted. Landing did not execute checks, reviews, commits, merges, pushes or GitHub requests. Concurrent collection used Hive's Bee wrapper with a non-model executable; it did not test a model provider. Lock races used barriers or an injected clock, and failure scenarios deliberately injected errors.
 
@@ -483,16 +483,78 @@ Restoration mapping (original registration titles):
 | C1 | `catalogue.test.ts:100` | helper changes reject restoration before import or checkpoint mutation |
 | C2 | `catalogue.test.ts:118` | a named run continues from an unchanged surviving checkout with separate tracker storage |
 
+## Lifecycle and settlement transport
+
+These three joined native scenarios were removed during D's reconciliation onto delivered C, under ct's superseding direction in `hv-00pk4.5.1` comment 25592 to delete slow tests causing retry stalls. Earlier Architect response `hv-600c3h` and nested advice `hv-kiq73y` recommended environmental diagnosis; neither approved these deletions. Their retained failed check reports #73 at 5396.85ms, #82 at 5334.27ms and #83 at 5451.81ms against the unchanged 5000ms timeout. Removal is a coverage gap, not a timing improvement or successful native proof. No removal-only tests replace them.
+
+Restoration source: B revision `10c3e5b408c05ac532d17d93bf8119a77446bc9b`, beneath `lib/busybee/tests/integration/`. Its `navigate`/`collect` calls are historical; adapt them to the current [progression contract](../../lib/busybee/SPEC.md#work-and-progression). Preserve the complete measured setup, native export/import, source removal and final assertions when reconsidering coverage. The fixtures used disposable native endpoints and scripted outcomes; settlement supplied a no-managed-requests clearance result rather than exercising a live daemon or worker.
+
+### J1
+
+```gherkin
+Scenario: Authored rejection remains successful after independent native exchange
+  Given a native run with a grouped rejection visit and an open child
+  When complete saves the original rejection payload but native closure refuses
+  Then the visit and run remain open without closure facts and the checkpoint lock is released
+  When the child closes and completion is retried with the same original payload
+  And the driver consumes the saved result
+  Then the visit, group and run have succeeded facts and the visit retains its original result
+  When native records are exported and imported into an independent database and source is removed
+  Then source-independent inspection reports succeeded with no lock
+  And the imported generated records equal the originals and the compact output remains below its bound
+```
+
+### J2
+
+```gherkin
+Scenario: Cancellation preserves completed work and replacement provenance through transport
+  Given a native run with one completed visit, one unfinished visit and a same-parent replacement
+  When source is removed and remaining scope is cancelled with that replacement
+  Then the run is cancelled and superseded with no remaining lock or settlement intent
+  And the completed visit retains its exact notes, closure reason and timestamps
+  And the unfinished visit is cancelled with empty result notes
+  When native records are exported and imported into an independent database
+  Then source-independent inspection retains cancelled disposition and replacement provenance
+  And the imported run, visits and replacement equal their original records
+```
+
+### J3
+
+```gherkin
+Scenario: Acknowledgment and replacement resolve follow-up without rewriting failure
+  Given a native run and a same-parent replacement with source removed
+  When the run fails and its exact closure is acknowledged
+  Then the run remains failed with acknowledgment actor and reason
+  When records are exported and imported into an independent database
+  Then source-independent inspection retains failed disposition and acknowledgment
+  When the original run is superseded and transported again
+  Then inspection retains failed disposition with replacement provenance
+  And the original closure reason and closed timestamp are unchanged
+```
+
+Restoration mapping (original registration titles):
+
+| Scenario | Source at B revision | Original title |
+| --- | --- | --- |
+| J1 | `lifecycle.test.ts:18` | #test-73 authored rejection survives independent native exchange as successful execution |
+| J2 | `settlement-native.test.ts:23` | #test-82 cancelled replacement and preserved successful visit survive native export/import without source |
+| J3 | `settlement-native.test.ts:121` | #test-83 failed acknowledgment and replacement remain failed after independent native transport |
+
+Restore J1 with its whole file and the native fixture in `support.ts`. J2/J3 require the original imports, definition body at `settlement-native.test.ts:16`, `scenario` at line 256 and `transport` at line 290. The retained #test-84 ordinary native close-refusal check does not replace these transport assertions; memory-backed lifecycle/settlement tests also do not establish native exchange behavior.
+
 ## Reconciliation
 
-| Original file        | Removed cases | Scenario instances |
-| -------------------- | ------------: | -----------------: |
-| `native.test.ts`     |            18 |                 18 |
-| `land.test.ts`       |            11 |                 12 |
-| `navigation.test.ts` |             8 |                  8 |
-| `visits.test.ts`     |             2 |                  2 |
-| `failure.test.ts`    |             4 |                  4 |
-| `catalogue.test.ts`  |             2 |                  2 |
-| Total                |            45 |                 46 |
+| Original file               | Removed cases | Scenario instances |
+| --------------------------- | ------------: | -----------------: |
+| `native.test.ts`            |            18 |                 18 |
+| `land.test.ts`              |            11 |                 12 |
+| `navigation.test.ts`        |             8 |                  8 |
+| `visits.test.ts`            |             2 |                  2 |
+| `failure.test.ts`           |             4 |                  4 |
+| `catalogue.test.ts`         |             2 |                  2 |
+| Original subtotal           |            45 |                 46 |
+| `lifecycle.test.ts`         |             1 |                  1 |
+| `settlement-native.test.ts` |             2 |                  2 |
+| Total                       |            48 |                 49 |
 
-The navigation and visits files were removed in full. Only listed cases and table rows were removed from the other files. Native storage, lock races and parent/child closure are external boundaries to reconsider; navigation and receipt behavior may be exercised with an injected tracker after a focused native adapter contract is validated. Keep simulated outcomes distinct from actual checks or integration effects when restoring coverage.
+The navigation, visits and lifecycle files were removed in full. Only listed cases and table rows were removed from the other files; #test-84 remains in `settlement-native.test.ts`. Native storage, lock races and parent/child closure are external boundaries to reconsider; navigation and receipt behavior may be exercised with an injected tracker after a focused native adapter contract is validated. Keep simulated outcomes distinct from actual checks or integration effects when restoring coverage.

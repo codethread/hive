@@ -4,6 +4,8 @@ import { CommandError } from "@hive/beads";
 import { reportFailure } from "./cli.ts";
 
 const endpoint = { actor: "agent", db: "/tracker/beads.db", repo: "/execution" };
+const FIRST = 0;
+const WORK_ARGUMENTS = -3;
 // Unpublished Bee dispatch requests have explicit null identity in the Busybee response.
 // eslint-disable-next-line unicorn/no-null
 const run = { id: "run-1", status: "active", active: [{ bead: "stage-1", request: null }] };
@@ -83,7 +85,7 @@ const failed = workflowCommands({
 
 test("Busybee partial failure retains its checkpoint and lock identity", async () => {
 	const failureResult: unknown = await failed
-		.prepareDriver(run.id, endpoint)
+		.advance({ runId: run.id, mode: "prepare-driver" }, endpoint)
 		.catch((error: unknown) => error);
 	expect(failureResult).toBeInstanceOf(WorkflowCommandError);
 	expect(failureResult).toMatchObject({
@@ -189,3 +191,73 @@ test("lifecycle adapter reads source-independent publication fences at the selec
 		],
 	]);
 });
+
+const workExpansion = {
+	id: "run-1",
+	status: "active",
+	checkpoint: "checkpoint-1",
+	savedAt: "now",
+	constraints: "Read original choice schemas",
+	active: [
+		{
+			...run.active[FIRST],
+			title: "Work",
+			instructions: "Frozen brief",
+			context: {},
+			commands: ["next"],
+			path: [],
+			choices: [{ choice: "next", schema: { type: "object" } }],
+		},
+	],
+};
+const workCases = [
+	{ expansion: { kind: "available", data: workExpansion }, reason: "" },
+	{
+		expansion: {
+			kind: "unavailable",
+			reason: "definition_changed",
+			message: "Version changed",
+			context: { runId: "run-1", savedVersion: "1.0.0" },
+		},
+		reason: "definition_changed",
+	},
+];
+
+test.each(workCases)(
+	"work adapter preserves typed expansion availability: $reason",
+	async ({ expansion, reason }) => {
+		const requests: string[][] = [];
+		const adapter = workflowCommands({
+			execute: (argv) => {
+				requests.push(argv);
+				return Promise.resolve(
+					JSON.stringify({
+						ok: true,
+						kind: "workflow_lifecycle",
+						runId: "run-1",
+						nativeStatus: "open",
+						updatedAt: "now",
+						publication: {
+							checkpoint: "checkpoint-1",
+							savedAt: "now",
+							locked: false,
+							settlement: "none",
+						},
+						lifecycle: { kind: "pending" },
+						resolution: { kind: "unresolved" },
+						work: expansion,
+					}),
+				);
+			},
+		});
+		if (reason) {
+			await expect(adapter.work("run-1", endpoint)).rejects.toMatchObject({
+				reason,
+				context: { runId: "run-1", savedVersion: "1.0.0" },
+			});
+		} else {
+			expect(await adapter.work("run-1", endpoint)).toEqual(run);
+		}
+		expect(requests[FIRST]?.slice(WORK_ARGUMENTS)).toEqual(["inspect", "run-1", "--work"]);
+	},
+);

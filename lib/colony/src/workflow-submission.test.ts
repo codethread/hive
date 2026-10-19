@@ -68,8 +68,8 @@ async function fixture() {
 				// eslint-disable-next-line unicorn/no-null
 				return { id: runId, status: "active", active: [{ bead: stage, request: null }] };
 			},
-			show: (id) => Promise.resolve({ id, status: "active", active: [] }),
-			prepareDriver: (id) => {
+			work: (id) => Promise.resolve({ id, status: "active", active: [] }),
+			advance: ({ runId: id }) => {
 				handoffs += ONE;
 				return Promise.resolve({ runId: id, status: "active", checkpoint: "checkpoint-1" });
 			},
@@ -213,7 +213,7 @@ test("stage dispatch uses native ancestry during initial frontier publication", 
 	};
 	const workflows = {
 		...dispatched.commands.workflows,
-		show: () => {
+		work: () => {
 			throw new Error("checkpoint is not yet published");
 		},
 	};
