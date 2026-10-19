@@ -4,8 +4,8 @@
 class Hive < Formula
   desc "Coding agent tools: worktrees, workflows, workers and a local work board"
   homepage "https://github.com/codethread/hive"
-  url "https://github.com/codethread/hive/archive/refs/tags/v0.7.1.tar.gz"
-  sha256 "d3cca95fbf78c615a0637df04b62700535a3f2a052943e45536d8feb1a524f98"
+  url "https://github.com/codethread/hive/archive/refs/tags/v0.8.0.tar.gz"
+  sha256 "e85ba4c58288d51f1f19f91d40840d00ec970bd50e29ccee49b15d5339481f01"
 
   depends_on "oven-sh/bun/bun" => :build
   depends_on "dicklesworthstone/tap/br"
@@ -25,6 +25,7 @@ class Hive < Formula
       "busybee"   => %w[busybee],
       "qlock"     => %w[qlock],
       "hive-ui"   => %w[hive-ui],
+      "scent"     => %w[scent],
     }.each do |package, commands|
       cd "lib/#{package}" do
         system "bun", "run", "build"
@@ -35,7 +36,7 @@ class Hive < Formula
 
   test do
     %w[beeswax honeycomb bee colony colony-runtime colony-worker colony-watchdog busybee qlock
-       hive-ui].each do |command|
+       hive-ui scent].each do |command|
       assert_equal version.to_s, shell_output("#{bin}/#{command} --version").strip
     end
     system bin/"honeycomb", "--help"
