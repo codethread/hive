@@ -2,6 +2,7 @@
 import type { DaemonStatus, DaemonSupervisor, RestartCheckpoint } from "./daemon-lifecycle.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Native service files and ownership receipts.
 import { access, mkdir, readFile, rename } from "node:fs/promises";
+import { daemonStatusResponseSchema, daemonStopResponseSchema } from "@hive/shared";
 import { observeProcess, processFingerprintSchema } from "./processes.ts";
 import { prepareSystemdServer, startSystemdServer, systemdMainPid } from "./daemon-systemd.ts";
 import { Database } from "bun:sqlite";
@@ -11,7 +12,6 @@ import { constants } from "node:fs";
 // eslint-disable-next-line import/no-nodejs-modules -- Hash the selected state into a native service label.
 import { createHash } from "node:crypto";
 import { daemonEnvironment } from "./daemon-environment.ts";
-import { daemonStopResponseSchema } from "@hive/shared";
 import { entryCommand } from "./executables.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- State-local supervisor files.
 import { join } from "node:path";
@@ -24,8 +24,32 @@ const NO_PID = "-";
 const HASH_LENGTH = 20;
 const LAUNCHD_PID = 1;
 const pendingSchema = z.object({
+	/** Retained restart disposition; only unfinished checkpoints can resume. */
 	state: z.enum(["running", "failed", "done"]),
+	/** Original durable membership and attempt manifest, absent before handoff. */
 	registrations: daemonStopResponseSchema.shape.registrations.nullable(),
+	/** Original daemon identity and process ownership, absent when unobserved. */
+	previous: z
+		.object({
+			/** Original daemon lifetime identifier. */
+			id: z.string(),
+			/** Original daemon process identifier. */
+			pid: z.number().int().positive(),
+			/** Process fingerprint used to prove the original daemon exited. */
+			owner: processFingerprintSchema,
+		})
+		.nullable(),
+	/** Observed replacement, absent before readiness; its recovery may still be incomplete. */
+	daemon: daemonStatusResponseSchema.nullable(),
+	/** Confirmed restart effects in their original order. */
+	confirmedEffects: z.array(z.string()),
+	/** Endpoint selected when this restart was recorded. */
+	target: z.object({
+		/** Selected absolute Unix socket path. */
+		socket: z.string(),
+		/** Selected absolute daemon state directory. */
+		state: z.string(),
+	}),
 });
 const ownerSchema = z.object({
 	id: z.string(),
@@ -69,15 +93,18 @@ export async function readDaemonHandoff(target: ServerTarget) {
 	return handoff;
 }
 
-/** An unfinished restart's manifest stays authoritative until its recovery checks pass. */
+/** Read the complete unfinished restart checkpoint and require the same selected endpoint. */
 export async function readPendingRestart(target: ServerTarget) {
 	const source = await readOptionalJson(join(target.state, "restart.json"));
 	if (source === undefined) {
 		return;
 	}
-	const pending = pendingSchema.parse(source);
-	if (pending.state !== "done" && pending.registrations !== null) {
-		return pending.registrations;
+	const { target: recordedTarget, ...pending } = pendingSchema.parse(source);
+	if (recordedTarget.socket !== target.socket || recordedTarget.state !== target.state) {
+		throw new Error("Restart receipt does not match the selected endpoint");
+	}
+	if (pending.state !== "done") {
+		return pending;
 	}
 	// eslint-disable-next-line unicorn/no-useless-undefined -- Explicit return preserves the optional result type.
 	return undefined;
@@ -212,8 +239,8 @@ export async function verifySupervisedServer(
 	}
 }
 
-// --- Private functions ---
-function selectedSupervisor(target: ServerTarget): DaemonSupervisor {
+/** Derive the native service target from the platform and selected state directory. */
+export function selectedSupervisor(target: ServerTarget): DaemonSupervisor {
 	const hash = createHash("sha256").update(target.state).digest("hex").slice(FIRST, HASH_LENGTH);
 	if (process.platform === "linux") {
 		return { kind: "systemd", service: `dev.hive.colony.${hash}.service` };
@@ -225,6 +252,8 @@ function selectedSupervisor(target: ServerTarget): DaemonSupervisor {
 		"Independent Colony startup requires macOS launchd or a Linux systemd user manager",
 	);
 }
+
+// --- Private functions ---
 // eslint-disable-next-line max-statements -- Parse the documented legacy list columns for the selected service only.
 async function serviceStatus(
 	supervisor: DaemonSupervisor,

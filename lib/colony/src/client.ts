@@ -41,25 +41,25 @@ export async function requestServer(
 	if (result.kind === "error") {
 		throw new Error(result.message);
 	}
-	if (!response.ok || result.kind !== expectedResponse(request)) {
+	if (!response.ok || !expectedResponse(request).includes(result.kind)) {
 		throw new Error(`Unexpected daemon response ${response.status}: ${result.kind}`);
 	}
 	return result;
 }
 
 // --- Private functions ---
-function expectedResponse(request: ColonyRequest): string {
+function expectedResponse(request: ColonyRequest): string[] {
 	return match(request)
-		.with({ kind: "inspect" }, () => "inspection")
-		.with({ kind: "inspect-request" }, () => "request-inspection")
-		.with({ kind: "config" }, () => "config")
-		.with({ kind: "wake" }, () => "awake")
-		.with({ kind: "add" }, () => "registered")
-		.with({ kind: "sleep" }, () => "slept")
-		.with({ kind: "remove" }, () => "removed")
-		.with({ kind: "stop" }, () => "stopped")
-		.with({ kind: "status" }, () => "status")
-		.with({ kind: "recover" }, () => "status")
+		.with({ kind: "inspect" }, () => ["inspection"])
+		.with({ kind: "inspect-request" }, () => ["request-inspection"])
+		.with({ kind: "config" }, () => ["config"])
+		.with({ kind: "wake" }, () => ["awake"])
+		.with({ kind: "add" }, () => ["registered"])
+		.with({ kind: "sleep" }, () => ["slept"])
+		.with({ kind: "remove" }, () => ["removed"])
+		.with({ kind: "stop" }, () => ["stopped"])
+		.with({ kind: "status" }, () => ["status"])
+		.with({ kind: "recover" }, () => ["status", "recovering"])
 		.exhaustive();
 }
 export function connectionUnavailable(error: unknown): boolean {

@@ -157,7 +157,7 @@ export const attemptDetailsSchema = attemptStatusSchema.extend({
 /** One operation per HTTP request on the selected local Unix socket. */
 export const colonyRequestSchema = z.discriminatedUnion("kind", [
 	z.strictObject({ kind: z.literal("status") }),
-	/** Wait for reconciliation to finish or fail, then return status. */
+	/** Poll recovery: return recovering until each installed colony has reached idle, asleep or failed, then status. */
 	z.strictObject({ kind: z.literal("recover") }),
 	z.strictObject({ kind: z.literal("inspect"), repository: repositoryEndpointSchema }),
 	z.strictObject({
@@ -205,6 +205,22 @@ const occupantSchema = z.strictObject({
 	kind: z.string(),
 });
 
+/** Current daemon observation, also retained in restart receipts; status alone does not prove recovery. */
+export const daemonStatusResponseSchema = z.strictObject({
+	/** Registered colonies with their current activity and retained attempts. */
+	colonies: z.array(colonyStatusSchema),
+	/** Identifier for this daemon process lifetime. */
+	id: z.string(),
+	/** Full daemon observation; recovery callers must also verify its contents. */
+	kind: z.literal("status"),
+	/** Operating-system process identifier for this daemon. */
+	pid: z.number().int().positive(),
+	/** Absolute Unix socket served by this daemon. */
+	socket: z.string(),
+	/** Absolute state directory owned by this daemon. */
+	state: z.string(),
+});
+
 /** Public responses are validated by the CLI at the transport boundary. */
 export const colonyResponseSchema = z.discriminatedUnion("kind", [
 	z.strictObject({
@@ -234,14 +250,9 @@ export const colonyResponseSchema = z.discriminatedUnion("kind", [
 		repository: repositoryEndpointSchema,
 		requests: z.array(requestCheckpointViewSchema),
 	}),
-	z.strictObject({
-		colonies: z.array(colonyStatusSchema),
-		id: z.string(),
-		kind: z.literal("status"),
-		pid: z.number().int().positive(),
-		socket: z.string(),
-		state: z.string(),
-	}),
+	daemonStatusResponseSchema,
+	/** Recovery is still pending; identity fields bind subsequent probes to this daemon. */
+	daemonStatusResponseSchema.omit({ colonies: true }).extend({ kind: z.literal("recovering") }),
 	daemonStopResponseSchema,
 	z.strictObject({ kind: z.literal("awake"), repository: repositoryEndpointSchema }),
 	z.strictObject({ kind: z.literal("registered"), repository: repositoryEndpointSchema }),

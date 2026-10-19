@@ -1,5 +1,5 @@
 // eslint-disable-next-line import/no-nodejs-modules -- Disposable Git and hook fixtures.
-import { chmod, mkdir, mkdtemp, rm } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, rm, symlink } from "node:fs/promises";
 import { expect, test } from "bun:test";
 // eslint-disable-next-line import/no-nodejs-modules -- Fixture paths.
 import { join } from "node:path";
@@ -49,14 +49,19 @@ async function prepare(root: string, branch: string, env: ReturnType<typeof envi
 	await mkdir(join(root, "bin"));
 	await writeExecutable(
 		join(root, "bin/bunx"),
-		'printf "lint\\n" >> "$HOOK_LOG"\nexit "$LINT_EXIT"\n',
-	);
-	await writeExecutable(
-		join(root, "bin/bun"),
-		`printf '%s\\n' "$*" >> "$HOOK_LOG"
+		`case "$0" in
+*/bunx)
+printf "lint\\n" >> "$HOOK_LOG"
+exit "$LINT_EXIT"
+;;
+*/bun)
+printf '%s\\n' "$*" >> "$HOOK_LOG"
 exit "$TYPECHECK_EXIT"
+;;
+esac
 `,
 	);
+	await symlink("bunx", join(root, "bin/bun"));
 
 	await Bun.write(join(root, ".husky/pre-commit"), applicationHook);
 	await Bun.write(env.HOOK_LOG, "");

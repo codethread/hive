@@ -434,23 +434,32 @@ Policy diagnosis and activation: colony skills file operations references/recove
 		.addHelpText(
 			"after",
 			`
-Use colony daemon restart --json for a verified replacement. Native startup requires
-the macOS GUI launchd domain or a reachable Linux systemd user manager via
-systemctl --user. Platform, manager, runtime access and PATH are checked before
-stopping a daemon. Service setup adds no login startup or automatic restart policy.
-The operation drains the old daemon, proves its process exited, then verifies a
-distinct ready daemon, independent native ownership and repository recovery.
+Use colony daemon restart --json for a verified replacement or to finish an
+interrupted restart. Native startup requires the macOS GUI launchd domain or a
+reachable Linux systemd user manager via systemctl --user. Platform, manager,
+runtime access and PATH are checked before stopping a daemon. Service setup adds
+no login startup or automatic restart policy.
+
+A fresh restart drains the old daemon, proves its process exited, then verifies
+a distinct ready daemon, independent native ownership and repository recovery.
+Recovery is polled with a 10-minute deadline; connection or verification errors
+can fail sooner.
 
 Durable registrations, Beads database selections, awake/asleep intent and surviving
 attempts are preserved. Temporary registrations and policy overrides end with the
 old daemon. Detached bees continue running.
 
-JSON success has kind restarted, previous (id/pid or null when already unavailable),
+When an unfinished receipt records a replacement, retry with the same state/socket.
+A matching daemon with verified native ownership resumes checks against the
+original registration and attempt manifest without another stop/start. An
+unavailable, mismatched or unowned replacement fails before changing the receipt.
+
+JSON success has kind restarted, previous (original id/pid or null when unobserved),
 daemon, supervisor (kind launchd or systemd) and confirmedEffects.
 Failure kind error with reason daemon_lifecycle_incomplete includes target,
 checkpoint, confirmedEffects, receipt path and diagnostics. Retain restart.json
 and daemon-handoff.json when present; inspect confirmed effects and resolve the
-failure before retrying the same target.
+failure before retrying. Pending recovery is not successful completion.
 `,
 		);
 	try {
