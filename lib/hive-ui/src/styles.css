@@ -135,7 +135,7 @@ input[type="checkbox"] {
 	.inspector-body {
 		@apply min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 pb-8 break-words sm:px-8;
 	}
-	.markdown-content :where(p, ul, ol, pre, blockquote, table) {
+	.markdown-content :where(p, ul, ol, pre, blockquote, .markdown-table) {
 		@apply my-3;
 	}
 	.markdown-content > :first-child {
@@ -180,11 +180,17 @@ input[type="checkbox"] {
 	.markdown-content blockquote {
 		@apply border-l-2 border-line pl-4 text-muted;
 	}
-	.markdown-content table {
-		@apply block max-w-full overflow-x-auto border-collapse;
+	.markdown-table {
+		@apply max-w-full overflow-x-auto;
+		container-type: inline-size;
+	}
+	.markdown-table table {
+		@apply w-max border-collapse;
 	}
 	.markdown-content :where(th, td) {
-		@apply border border-line px-3 py-2 text-left;
+		@apply min-w-32 border border-line px-3 py-2 text-left align-top;
+		max-width: min(28rem, 100cqi);
+		overflow-wrap: anywhere;
 	}
 	.board-columns {
 		@apply grid auto-cols-[minmax(245px,1fr)] grid-flow-col gap-4 overflow-x-auto px-5 pb-5;

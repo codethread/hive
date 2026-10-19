@@ -1,6 +1,8 @@
 # Hive UI
 
-A local, read-only work board for ordinary Beads and Bee requests. Beads use native-status kanban; Open and Completed bees offer Outline and Graph views with shared request selection. Cards lead with native task status, priority and labels. Ordinary cards show native assignment and update time; Bee views add identity and timestamped observations. Select a card for its description, Markdown acceptance criteria (including read-only task checkboxes), relationships and comments, or select a Bee and use Load ancestry to add inferred provenance and historical context. Bee page search matches loaded request IDs, identities, kinds, requesters and linked task IDs; native bead filters apply to the selected request’s linked work.
+A local, read-only work board for ordinary Beads and Bee requests. Beads use native-status kanban; Open and Completed bees offer Outline and Graph views with shared request selection. Cards lead with native task status, priority and labels. Ordinary cards show native assignment and update time; Bee views add identity and timestamped observations. Select a card for its details and relationships, or select a Bee and use Load ancestry to add inferred provenance and historical context. Bee page search matches loaded request IDs, identities, kinds, requesters and linked task IDs; native bead filters apply to the selected request’s linked work.
+
+Bead descriptions, acceptance criteria, design, notes and comments render as Markdown, including read-only task checkboxes. Raw HTML is not rendered.
 
 From the repository root, install workspace dependencies with `bun install`, then run:
 

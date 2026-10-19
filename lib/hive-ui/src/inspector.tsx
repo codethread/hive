@@ -203,9 +203,7 @@ export function Inspector({ colonyId, id }: { colonyId: string; id: string }) {
 								</p>
 								<section aria-label="Description">
 									<h3 className="section-title">Description</h3>
-									<p className="whitespace-pre-wrap text-sm leading-relaxed">
-										{detail.description || "No description."}
-									</p>
+									<MarkdownText>{detail.description || "No description."}</MarkdownText>
 								</section>
 								<section
 									aria-label="Acceptance criteria"
@@ -213,9 +211,7 @@ export function Inspector({ colonyId, id }: { colonyId: string; id: string }) {
 								>
 									<h3 className="section-title">Acceptance criteria</h3>
 									{detail.acceptanceCriteria ? (
-										<Suspense fallback={<p className="text-sm text-muted">Loading…</p>}>
-											<MarkdownContent>{detail.acceptanceCriteria}</MarkdownContent>
-										</Suspense>
+										<MarkdownText>{detail.acceptanceCriteria}</MarkdownText>
 									) : (
 										<p className="text-sm text-muted">No acceptance criteria.</p>
 									)}
@@ -244,9 +240,7 @@ export function Inspector({ colonyId, id }: { colonyId: string; id: string }) {
 									text.trim() ? (
 										<details key={title} className="mt-6 border-t border-line pt-3">
 											<summary className="text-xs text-muted">{title}</summary>
-											<p className="mt-4 whitespace-pre-wrap break-words text-sm leading-relaxed">
-												{text}
-											</p>
+											<MarkdownText className="mt-4">{text}</MarkdownText>
 										</details>
 									) : null,
 								)}
@@ -260,9 +254,7 @@ export function Inspector({ colonyId, id }: { colonyId: string; id: string }) {
 												<p className="text-[11px] text-muted">
 													{comment.author} · {time(comment.at)}
 												</p>
-												<p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed">
-													{comment.text}
-												</p>
+												<MarkdownText className="mt-1">{comment.text}</MarkdownText>
 											</li>
 										))}
 									</ol>
@@ -302,6 +294,16 @@ export function Inspector({ colonyId, id }: { colonyId: string; id: string }) {
 }
 
 // --- Selected-bead relationships and request context ---
+function MarkdownText({ children, className }: { children: string; className?: string }) {
+	return (
+		<Suspense fallback={<p className="text-sm text-muted">Loading…</p>}>
+			<div className={className}>
+				<MarkdownContent>{children}</MarkdownContent>
+			</div>
+		</Suspense>
+	);
+}
+
 function Relations({
 	direction,
 	relations,

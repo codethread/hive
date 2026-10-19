@@ -270,14 +270,14 @@ export const relationsSchema = z.object({
 	total: z.number().int().nonnegative(),
 });
 export const detailSchema = z.object({
-	/** Verbatim native acceptance_criteria; empty when none were recorded. */
+	/** Verbatim native acceptance_criteria Markdown; empty when none were recorded. */
 	acceptanceCriteria: z.string(),
 	/** Selected bead summary with attribution from the current raw request page. */
 	card: cardSchema.extend({
 		/** Requests on the loaded page that link this task; empty in ordinary Beads. */
 		bees: z.array(beeSchema),
 	}),
-	/** Comments load only with the selected bead, never in board responses. */
+	/** Comment bodies render as Markdown; comments load only with the selected bead. */
 	comments: z.array(
 		observationSchema.extend({
 			/** Native comment ID used to distinguish entries on the selected bead. */
@@ -288,11 +288,11 @@ export const detailSchema = z.object({
 	dependencies: relationsSchema,
 	/** Native incoming edges: selected bead is the edge target. */
 	dependents: relationsSchema,
-	/** Native bead description displayed as plain text in the inspector. */
+	/** Native bead description rendered as Markdown in the inspector. */
 	description: z.string(),
-	/** Verbatim native design; empty when no design was recorded. */
+	/** Verbatim native design Markdown; empty when no design was recorded. */
 	design: z.string(),
-	/** Verbatim native notes; empty when no notes were recorded. */
+	/** Verbatim native notes Markdown; empty when no notes were recorded. */
 	notes: z.string(),
 	/** Server timestamp when this selected-bead read completed. */
 	fetchedAt: z.string(),
