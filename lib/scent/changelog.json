@@ -1,1 +1,14 @@
-[]
+[
+	{
+		"version": "0.8.0",
+		"changes": [
+			{
+				"commit": "25b7991d854244789e7e6ce036e9cb131f539c2d",
+				"summary": "ship a standalone identity runtime",
+				"body": "The compiled `scent` executable supplies Claude Code and Codex native hook protocols and\nexports a self-contained Node-compatible Pi extension for Beeswax's loader. Pi runs that\nmodule inside its own host. Identity delivery needs no Hive source checkout, application\ndependencies or Bun on the harness PATH. Existing identity semantics and\nselected-tracker preservation remain unchanged. Scent now provides its own offline\n`changelog` command and release history; the source hook entry points and optional Codex\nplugin are removed.\n\nRequired: install Scent with the matching Hive suite and use Beeswax's harness\nselections to generate repository integration. Remove old source hooks, explicit Pi\nScent extension registrations and the optional Codex Scent plugin wherever present\nbefore loading the generated adapters. Run `beeswax update --yes` in each adopting\ncheckout, review and commit the generated files, then restart and trust the native hooks\nor extensions.",
+				"breaking": ["ship a standalone identity runtime"],
+				"adoption": []
+			}
+		]
+	}
+]

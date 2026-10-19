@@ -1,5 +1,24 @@
 [
 	{
+		"version": "0.8.0",
+		"changes": [
+			{
+				"commit": "19bb4ec9987cc79a6287c28784f247d20b993fde",
+				"summary": "omit context and instructions from default run views",
+				"body": "The public `run`, `start`, `show`, `collect`, `next` and `choice` commands\nomit `active[].context` and `active[].instructions` from their default\noutput. Run status, task IDs, titles, commands, request IDs, actor paths\nand generated visit references remain available.\n\n`busybee show RUN --instructions --json` adds each active visit's exact\nsaved instruction text without rerendering it or exposing actor context.\nRuntime APIs, saved checkpoints and native task descriptions are unchanged.\n\nRequired: update consumers that expect either omitted field. Read the full\nnative run brief with `br show RUN --json` on entry and each active task\nbrief with `br show TASK --json` once per visit; refresh them when relevant\nscope, state or authority changes, or required context is missing. Use\ncompact run views between these reads, `busybee discover RUN --json` for\noutcome schemas and `busybee show RUN --instructions --json` when frozen\ninstruction text is needed. Remove reliance on `active[].context` for work\ndetails; use the native brief. See `busybee show --help` for the contract.",
+				"breaking": ["omit context and instructions from default run views"],
+				"adoption": []
+			},
+			{
+				"commit": "96890e1cc9e77aefa99a9dd24cc2bd467c9e41eb",
+				"summary": "follow replacements of cancelled stage requests",
+				"body": "Collection follows native replacement provenance from a cancelled Bee-dispatched\nstage to its actual replacement. Pending replacement work remains pending; a\ngenuine closed-stage result advances the original run. The saved run and visit\nremain intact, and ambiguous replacement links still fail explicitly.\n\nOptional: use `bee retry --help` for deliberate cancellation resumption, then\ncontinue the existing run with `busybee collect RUN --json`. Cancellation does\nnot trigger automatic resumption.\n\nRequired: upgrade Busy Bee together with Bee before collecting stages resumed\nwith `--resume-cancelled`; an older Busy Bee does not follow cancelled-request\nreplacement provenance.",
+				"breaking": [],
+				"adoption": []
+			}
+		]
+	},
+	{
 		"version": "0.7.1",
 		"changes": [
 			{

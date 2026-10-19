@@ -1,5 +1,24 @@
 [
 	{
+		"version": "0.8.0",
+		"changes": [
+			{
+				"commit": "21ff0601bbe94f92279a35359103b8c2858d91a8",
+				"summary": "schedule cumulative nurse audits after 25 new reports",
+				"body": "Automatic audits freeze the oldest 25 unaudited completed reports and retain\nfailed-assessment gaps. Colony advances coverage only after the nurse workflow,\ncurrent request, authored response, native receipt and required investigations\nhave completed. Failed or uncertain delivery keeps the same batch outstanding.\nLater drones receive bounded provisional topic snapshots within their existing\nscope and deadline; health-scope requests are excluded from assessments.\n\nRequired for this Hive checkout: after installing the integrated Bee/Colony\nartifacts, follow `colony daemon restart --help` for the selected server and\n`colony wake --help` to load the committed policy. The configured ongoing health\nparent is `hv-abym3l`; keep its machine notes intact and leave it open. Verify\n`colony config show` reports the intended `autoNurse` selection. Activation has\nno historical backfill; in-flight assessments count when they finish.\n\nOptional for other repositories: provision an ordinary ongoing health parent\nand configured nurse kind/formula, then set top-level\n`auto_nurse = { kind = \"nurse\", parent = \"<ordinary health scope>\" }` before\nreloading policy. Omission disables new batches. Baseline, backlog and any\nactive audit survive disable/re-enable; retain the same parent, kind, tracker,\nhost and state. See the Colony guide's automatic-nurse section for recovery.",
+				"breaking": [],
+				"adoption": []
+			},
+			{
+				"commit": "19bb4ec9987cc79a6287c28784f247d20b993fde",
+				"summary": "launch drivers with compact workflow reading guidance",
+				"body": "New driver execution attempts receive explicit native run/task brief reads\nand a pointer to Busy Bee's instruction expansion help. Routine status\nchecks use compact run views; relevant scope, state or authority changes\ntrigger a fresh native brief read.\n\nNo configuration change is required. Claim ownership, worker waiting,\nresult delivery and Busy Bee's completion authority are unchanged.",
+				"breaking": [],
+				"adoption": []
+			}
+		]
+	},
+	{
 		"version": "0.7.1",
 		"changes": [
 			{

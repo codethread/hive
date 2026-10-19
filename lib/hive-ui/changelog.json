@@ -1,5 +1,38 @@
 [
 	{
+		"version": "0.8.0",
+		"changes": [
+			{
+				"commit": "f3e2bd04b2a58c2d2e24cb8686f85a7e100df2e2",
+				"summary": "reduce repeated metadata reads",
+				"body": "Warm refreshes reuse unchanged workflow identities and fetch only new or changed\ncheckpoint descriptions. A cold index still loads all retained descriptions.\nSelected details classify their own relationships before display; merge icons\nload separately. Overlapping annotation reads share fresh results while retaining\nsource observation times and visible failures.\n\nNo adoption action is required.",
+				"breaking": [],
+				"adoption": []
+			},
+			{
+				"commit": "5810b1b380239ee9e236b465caa79063c6a4e9a6",
+				"summary": "keep refresh feedback from shifting the board",
+				"body": "Loading, refresh and stale hierarchy states stay quiet while the Refresh icon\nrotates gently. Errors appear as dismissible toasts that remain usable with dialogs\nopen. Polling reports an unchanged read failure once until a successful read\nresets it. Previous snapshots remain usable, and the board summary and active\nfilters share a fixed-height row with horizontal overflow.",
+				"breaking": [],
+				"adoption": []
+			},
+			{
+				"commit": "ffeffab0ea84a86f2915ac78ae6d91eb30f8b3ad",
+				"summary": "render readable Markdown bead details",
+				"body": "Bead descriptions, design, notes and comments render as Markdown alongside\nacceptance criteria. Tables scroll horizontally with wrapping columns that fit\nnarrow panels; long links and identifiers stay inside their cells.\n\nRequired: restart the Hive UI server after installing the updated build.",
+				"breaking": [],
+				"adoption": []
+			},
+			{
+				"commit": "5b5db07ad3db16820aa734cc8633e7a3f9e3994e",
+				"summary": "show background refresh through rotating icons",
+				"body": "Keep background refresh from shifting board, bead details and hierarchy layouts.\nMove Refresh and Columns into the sidebar footer, keeping the controls available\nwhen collapsed and on mobile. Refresh icons rotate gently while fetching,\nincluding when the operating system requests reduced motion.\n\nRestart Hive UI and reload the browser to use the updated controls.",
+				"breaking": [],
+				"adoption": []
+			}
+		]
+	},
+	{
 		"version": "0.7.1",
 		"changes": [
 			{

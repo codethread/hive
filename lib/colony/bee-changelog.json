@@ -1,5 +1,31 @@
 [
 	{
+		"version": "0.8.0",
+		"changes": [
+			{
+				"commit": "21ff0601bbe94f92279a35359103b8c2858d91a8",
+				"summary": "give the nurse scoped batch-audit instructions",
+				"body": "Hive's nurse now uses gpt-6.1-sol with high reasoning. Automatic audit briefs\nauthorize provisional health records and bounded read-only investigations,\nrequire exact report coverage and verified delivery, and preserve examined\ncode, claims and request outcomes. Manual health advice remains advice unless\nits assignment explicitly grants curation or investigation scope.\n\nRequired for automatic audits: deploy the updated nurse role and Colony\nruntime together. New requests capture the current role; existing captured\nrecipes remain unchanged. Use `bee kinds nurse --verbose` to inspect defaults\nand the Colony guide for activation. No action is required for manual advice.",
+				"breaking": [],
+				"adoption": []
+			},
+			{
+				"commit": "19bb4ec9987cc79a6287c28784f247d20b993fde",
+				"summary": "guide workflow drivers through focused brief reads",
+				"body": "Managed workflow drivers read the full native run brief on entry and each\nactive task brief once per visit. They refresh briefs when relevant scope,\nstate or authority changes and use compact Busy Bee views between reads.\nThis keeps caller completion instructions and stage authority explicit.\n\nOptional: align custom driver prompts with this reading procedure and use\n`busybee show --help` to discover frozen instruction expansion.",
+				"breaking": [],
+				"adoption": []
+			},
+			{
+				"commit": "96890e1cc9e77aefa99a9dd24cc2bd467c9e41eb",
+				"summary": "resume explicitly cancelled workflow assignments",
+				"body": "`bee retry REQUEST --resume-cancelled` permits deliberate replacement of a\ncancelled request with unfinished work and no existing replacement. It retains\nthe workflow assignment, captures current kind defaults and explicit overrides,\nand creates a fresh identity bound to the submitting host. Human/HITL\nreservations, conflicting open requests and existing task claims retain their\nnormal treatment. Acknowledged failures remain ineligible.\n\nThe old request retains its cancellation, closure time and identity. `bee status`\nexposes replacement IDs while the old disposition stays cancelled/resolved and\noutside failure attention. Interrupted publication retains confirmed IDs;\nrepeating a superseded request repairs query labels and refuses a duplicate.\n\nOptional: after verifying the old execution has stopped and deciding to resume\nits assignment, read `bee retry --help` and invoke the explicit option with any\nneeded recipe overrides. Request closure alone is not process verification.\n\nRequired when adopting this recovery path: install Bee and Busy Bee from the\nsame updated Hive revision. Keep Bee's Colony CLI, runtime, worker and watchdog\ncompanions together. Coordinate active work before deliberately restarting an\nupgraded daemon; follow `colony daemon restart --help` with its retained selection.",
+				"breaking": [],
+				"adoption": []
+			}
+		]
+	},
+	{
 		"version": "0.7.1",
 		"changes": [
 			{
