@@ -8,7 +8,7 @@ import { dispatch } from "./dispatch.ts";
 import { hostname } from "node:os";
 import { match } from "ts-pattern";
 
-const POLL_MILLISECONDS = 1000;
+const POLL_MILLISECONDS = 5000;
 export type ColonyActivity =
 	| { state: "awake"; config: BeesConfig; revisionId: string }
 	| { state: "asleep" }
