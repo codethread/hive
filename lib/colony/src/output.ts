@@ -84,6 +84,7 @@ function formatResult(result: Result): string {
 			({ repository, attempts }) =>
 				`Colony removed: ${repository.root}\nRetained attempts: ${attempts.length}`,
 		)
+		.with({ kind: "recovering" }, ({ id }) => `Daemon repository recovery pending: ${id}`)
 		.with({ kind: "status" }, ({ id, pid, socket, state, colonies }) =>
 			[
 				`Daemon ${id} (PID ${pid})`,

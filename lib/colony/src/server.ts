@@ -32,7 +32,6 @@ import { openStore } from "./store.ts";
 import { waitFor } from "xstate";
 
 const SOCKET_MODE = 0o600;
-const RECOVERY_TIMEOUT_MS = 10_000;
 interface RunningColony {
 	/** Explicit repository authority. */
 	repository: RepositoryEndpoint;
@@ -42,6 +41,8 @@ interface RunningColony {
 	policy: ActivePolicy | null;
 	/** Lifecycle actor for this repository. */
 	actor: ReturnType<typeof createColony>;
+	/** Has reached idle, asleep or failed at least once; later scheduling passes keep this observation. */
+	recovered: boolean;
 }
 interface ServerOptions {
 	/** Absolute selected Unix socket. */
@@ -55,7 +56,18 @@ interface ServerOptions {
 export async function serve(
 	options: ServerOptions,
 	beads: BeadsService,
-	{ nurse, workReview }: { nurse: NurseCommands; workReview: WorkReviewCommands },
+	{
+		nurse,
+		workReview,
+		loadActivity,
+	}: {
+		/** Commands used by automatic nurse reconciliation. */
+		nurse: NurseCommands;
+		/** Commands used by automatic work-review reconciliation. */
+		workReview: WorkReviewCommands;
+		/** Load canonical policy for activation and restoration. */
+		loadActivity: typeof loadColonyActivity;
+	},
 ): Promise<void> {
 	if (!isAbsolute(options.socket) || !isAbsolute(options.state)) {
 		throw new Error("Colony requires absolute socket and state paths");
@@ -88,7 +100,13 @@ export async function serve(
 			 * JSON explicitly distinguishes absent effective policy from loaded policy.
 			 */
 			.otherwise(() => null);
-		colonies.set(repository.root, { actor, policy, registration, repository });
+		const colony = { actor, policy, registration, repository, recovered: false };
+		actor.subscribe((snapshot) => {
+			if (snapshot.matches("idle") || snapshot.matches("asleep") || snapshot.matches("failed")) {
+				colony.recovered = true;
+			}
+		});
+		colonies.set(repository.root, colony);
 		actor.start();
 	};
 	/* eslint-disable-next-line max-params --
@@ -125,45 +143,39 @@ export async function serve(
 					}
 					const command = colonyRequestSchema.parse(await request.json());
 					const result = await match(command)
-						.with(
-							{ kind: "status" },
-							{ kind: "recover" },
-							async ({ kind }): Promise<ColonyResponse> => {
-								if (kind === "recover") {
-									await Promise.all(
-										[...colonies.values()].map(({ actor }) =>
-											waitFor(
-												actor,
-												(snapshot) =>
-													snapshot.matches("idle") ||
-													snapshot.matches("asleep") ||
-													snapshot.matches("failed"),
-												{ timeout: RECOVERY_TIMEOUT_MS },
-											),
-										),
-									);
-								}
+						.with({ kind: "status" }, { kind: "recover" }, ({ kind }): ColonyResponse => {
+							if (
+								kind === "recover" &&
+								[...colonies.values()].some(({ recovered }) => !recovered)
+							) {
 								return {
-									colonies: [...colonies.values()].map((colony) =>
-										colonyStatus(
-											colony,
-											store
-												.retainedInventory(colony.repository.root)
-												.map(({ id, spawnId, state }) => ({
-													id,
-													spawnId,
-													state,
-												})),
-										),
-									),
+									kind: "recovering",
 									id: ownership.id,
-									kind: "status",
 									pid: process.pid,
 									socket: options.socket,
 									state: options.state,
 								};
-							},
-						)
+							}
+							return {
+								colonies: [...colonies.values()].map((colony) =>
+									colonyStatus(
+										colony,
+										store
+											.retainedInventory(colony.repository.root)
+											.map(({ id, spawnId, state }) => ({
+												id,
+												spawnId,
+												state,
+											})),
+									),
+								),
+								id: ownership.id,
+								kind: "status",
+								pid: process.pid,
+								socket: options.socket,
+								state: options.state,
+							};
+						})
 						.with({ kind: "inspect" }, async ({ repository }): Promise<ColonyResponse> => {
 							const canonical = await resolveRepository(repository.root, repository.beadsDb);
 							const current = colonies.get(canonical.root);
@@ -430,17 +442,8 @@ export async function serve(
 	console.error(`Colony listening on ${options.socket} (pid ${process.pid})`);
 }
 
-// --- Private functions ---
-async function drain(actor: ReturnType<typeof createColony>): Promise<void> {
-	actor.send({ type: "STOP" });
-	await waitFor(actor, (snapshot) => snapshot.status === "done" || snapshot.matches("failed"));
-	if (actor.getSnapshot().matches("failed")) {
-		actor.send({ type: "STOP" });
-		await waitFor(actor, (snapshot) => snapshot.status === "done");
-	}
-	actor.stop();
-}
-async function loadActivity(
+/** Load canonical policy, returning a failed activity when repository or configuration loading fails. */
+export async function loadColonyActivity(
 	repository: RepositoryEndpoint,
 ): Promise<{ state: "awake"; config: BeesConfig } | { state: "failed"; message: string }> {
 	try {
@@ -454,6 +457,17 @@ async function loadActivity(
 		console.error(`Colony ${repository.root} failed: ${message}`);
 		return { message, state: "failed" };
 	}
+}
+
+// --- Private functions ---
+async function drain(actor: ReturnType<typeof createColony>): Promise<void> {
+	actor.send({ type: "STOP" });
+	await waitFor(actor, (snapshot) => snapshot.status === "done" || snapshot.matches("failed"));
+	if (actor.getSnapshot().matches("failed")) {
+		actor.send({ type: "STOP" });
+		await waitFor(actor, (snapshot) => snapshot.status === "done");
+	}
+	actor.stop();
 }
 function assertAuthority(repository: RepositoryEndpoint, current: RunningColony | undefined): void {
 	if (current && current.repository.beadsDb !== repository.beadsDb) {

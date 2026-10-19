@@ -124,7 +124,7 @@ Use `colony --help` for membership and daemon commands, then focused help for re
 
 `daemon stop` stops the selected server and pauses all its colonies. Detached workers survive sleep, removal and daemon stop; use repository sleep to pause one colony while keeping the others awake.
 
-For native startup prerequisites, an installed runtime update or deliberate replacement, follow `colony daemon restart --help`. It owns the supported supervisor, verification, recovery and result contract; retain the selected state/socket throughout.
+For native startup prerequisites, an installed runtime update, deliberate replacement or resuming an interrupted restart, follow `colony daemon restart --help`. It owns the supported supervisor, verification, recovery and result contract; retain the selected state/socket throughout.
 
 Native service registration carries the caller's explicit `PATH`, `CODEX_HOME`, `XDG_CONFIG_HOME`, `XDG_DATA_HOME`, `XDG_CACHE_HOME` and `XDG_STATE_HOME` values into launchd or systemd. These select tool and configuration locations, including where a harness reads its existing authentication. Registration copies neither credential files nor arbitrary session/attempt environment. After changing these paths, deliberately restart the selected daemon from an environment containing the intended values; an already-running daemon keeps its previous environment.
 

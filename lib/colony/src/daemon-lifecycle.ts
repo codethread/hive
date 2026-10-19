@@ -4,6 +4,7 @@ import type { ProcessFingerprint } from "./processes.ts";
 import { connectionUnavailable } from "./client.ts";
 
 const TIMEOUT_MS = 10_000;
+const RECOVERY_TIMEOUT_MS = 600_000;
 export type DaemonStatus = Extract<DaemonResponse, { kind: "status" }>;
 export type Stopped = Extract<DaemonResponse, { kind: "stopped" }>;
 export interface DaemonSupervisor {
@@ -29,8 +30,8 @@ export interface DaemonLifecycle {
 	prepare: (target: ServerTarget) => Promise<void>;
 	/** Recover the last quiescent handoff after an unavailable daemon. */
 	handoff: (target: ServerTarget) => Promise<Stopped | undefined>;
-	/** Preserve unfinished recovery checks across a caller interruption or partial failure. */
-	pending: (target: ServerTarget) => Promise<Stopped["registrations"] | undefined>;
+	/** Read the original manifest, identities and effects of an unfinished restart for this target. */
+	pending: (target: ServerTarget) => Promise<RestartCheckpoint | undefined>;
 	/** Atomically retain the restart handoff and effects. */
 	record: (target: ServerTarget, checkpoint: RestartCheckpoint) => Promise<void>;
 	/** Validated local socket protocol. */
@@ -44,6 +45,8 @@ export interface DaemonLifecycle {
 		target: ServerTarget,
 		effect: (value: string) => Promise<void>,
 	) => Promise<DaemonSupervisor>;
+	/** Select the native service for this state directory without starting it. */
+	supervisor: (target: ServerTarget) => DaemonSupervisor;
 	/** Prove native service membership and independent process ownership. */
 	verify: (
 		target: ServerTarget,
@@ -58,7 +61,7 @@ export interface DaemonLifecycle {
 export interface RestartedDaemon {
 	/** Verified daemon replacement result. */
 	kind: "restarted";
-	/** Previous lifetime, absent when the daemon was already unavailable. */
+	/** Original daemon lifetime, absent when no prior identity was observed. */
 	previous: { id: string; pid: number } | null;
 	/** Distinct ready daemon and recovered repository state. */
 	daemon: DaemonStatus;
@@ -135,23 +138,37 @@ export async function restartServer(
 	};
 	/* eslint-enable unicorn/no-null */
 	const effect = async (value: string) => {
-		effects.push(value);
+		if (!effects.includes(value)) {
+			effects.push(value);
+		}
 		await deps.record(target, checkpoint);
 	};
 	try {
 		await deps.prepare(target);
 		const pending = await deps.pending(target);
-		registrations = pending;
 		if (pending) {
-			checkpoint.registrations = pending;
+			effects.push(...pending.confirmedEffects);
+			Object.assign(checkpoint, pending, { confirmedEffects: effects, state: "running" });
+			registrations = pending.registrations ?? undefined;
+			if (pending.previous) {
+				previous = { id: pending.previous.id, pid: pending.previous.pid };
+			}
 		}
 		const before = await availableStatus(target, deps);
-		if (pending && before) {
-			const recovery = await deps.request(target, { kind: "recover" });
-			if (recovery.kind !== "status") {
-				throw new Error("Expected recovery status");
+		if (pending?.daemon) {
+			if (!before) {
+				throw new Error("Recorded replacement daemon is unavailable");
 			}
-			verifyRecovery(pending, recovery);
+			assertReplacement(target, before, pending.daemon, previous);
+			const supervisor = deps.supervisor(target);
+			await deps.verify(target, before, supervisor);
+			recording = true;
+			const daemon = await finishRecovery(target, deps, checkpoint, supervisor, effect);
+			return { confirmedEffects: effects, daemon, kind: "restarted", previous, supervisor };
+		}
+		if (registrations && before) {
+			const recovery = await waitForRecovery(target, deps, before);
+			verifyRecovery(registrations, recovery);
 		}
 		recording = true;
 		await deps.record(target, checkpoint);
@@ -164,7 +181,7 @@ export async function restartServer(
 			if (stopped.kind !== "stopped" || stopped.id !== before.id) {
 				throw new Error("Stop did not acknowledge the selected daemon lifetime");
 			}
-			({ registrations } = stopped);
+			registrations ??= stopped.registrations;
 			checkpoint.registrations = registrations;
 			await effect("stop_acknowledged");
 			await waitForExit(owner, deps);
@@ -172,7 +189,7 @@ export async function restartServer(
 		} else {
 			const handoff = await deps.handoff(target);
 			if (handoff) {
-				({ registrations } = handoff);
+				registrations ??= handoff.registrations;
 			}
 			if (registrations) {
 				checkpoint.registrations = registrations;
@@ -182,21 +199,7 @@ export async function restartServer(
 		const ready = await waitForServer(target, deps);
 		checkpoint.daemon = ready;
 		await effect("replacement_observed");
-		const daemon = await deps.request(target, { kind: "recover" });
-		if (
-			daemon.kind !== "status" ||
-			daemon.id !== ready.id ||
-			daemon.pid !== ready.pid ||
-			(previous && daemon.id === previous.id)
-		) {
-			throw new Error("Replacement daemon identity was not established");
-		}
-		await deps.verify(target, daemon, supervisor);
-		checkpoint.daemon = daemon;
-		await effect("replacement_ready");
-		verifyRecovery(registrations, daemon);
-		checkpoint.state = "done";
-		await effect("recovery_verified");
+		const daemon = await finishRecovery(target, deps, checkpoint, supervisor, effect);
 		return { confirmedEffects: effects, daemon, kind: "restarted", previous, supervisor };
 	} catch (error) {
 		checkpoint.state = "failed";
@@ -214,6 +217,70 @@ export async function restartServer(
 }
 
 // --- Private functions ---
+// eslint-disable-next-line max-params -- Recovery binds checkpoint updates to native ownership and effect recording.
+async function finishRecovery(
+	target: ServerTarget,
+	deps: DaemonLifecycle,
+	checkpoint: RestartCheckpoint,
+	supervisor: DaemonSupervisor,
+	effect: (value: string) => Promise<void>,
+): Promise<DaemonStatus> {
+	const ready = checkpoint.daemon!;
+	const daemon = await waitForRecovery(target, deps, ready, checkpoint.previous);
+	await deps.verify(target, daemon, supervisor);
+	checkpoint.daemon = daemon;
+	await effect("replacement_ready");
+	verifyRecovery(checkpoint.registrations ?? undefined, daemon);
+	checkpoint.state = "done";
+	await effect("recovery_verified");
+	return daemon;
+}
+// eslint-disable-next-line max-params, max-statements -- Keep deadline and identity checks beside each recovery probe.
+async function waitForRecovery(
+	target: ServerTarget,
+	deps: DaemonLifecycle,
+	ready: DaemonStatus,
+	previous?: RestartedDaemon["previous"],
+): Promise<DaemonStatus> {
+	const deadline = deps.now() + RECOVERY_TIMEOUT_MS;
+	/* eslint-disable no-await-in-loop -- Probe recovery sequentially, checking the deadline between responses. */
+	while (deps.now() < deadline) {
+		const response = await deps.request(target, { kind: "recover" });
+		if (deps.now() >= deadline) {
+			break;
+		}
+		if (response.kind === "status") {
+			assertReplacement(target, response, ready, previous);
+			return response;
+		}
+		if (response.kind !== "recovering") {
+			throw new Error("Expected daemon status or recovery progress");
+		}
+		assertReplacement(target, response, ready, previous);
+		await deps.pause();
+	}
+	/* eslint-enable no-await-in-loop */
+	throw new Error("Daemon repository recovery did not finish before the recovery deadline");
+}
+// eslint-disable-next-line max-params -- Check the selected endpoint, replacement identity and original lifetime.
+function assertReplacement(
+	target: ServerTarget,
+	daemon: Pick<DaemonStatus, "id" | "pid" | "socket" | "state">,
+	ready: DaemonStatus,
+	previous?: RestartedDaemon["previous"],
+): void {
+	if (
+		daemon.id !== ready.id ||
+		daemon.pid !== ready.pid ||
+		daemon.socket !== target.socket ||
+		daemon.state !== target.state ||
+		ready.socket !== target.socket ||
+		ready.state !== target.state ||
+		(previous && daemon.id === previous.id)
+	) {
+		throw new Error("Replacement daemon identity or selected endpoint does not match");
+	}
+}
 async function availableStatus(
 	target: ServerTarget,
 	deps: DaemonLifecycle,

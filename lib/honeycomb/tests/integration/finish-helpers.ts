@@ -13,20 +13,22 @@ export interface FinishFixture {
 }
 
 export async function readCheckoutState(repo: string) {
-	return {
-		head: await gitOut(repo, "rev-parse", "HEAD"),
-		index: await gitText(repo, "ls-files", "--stage"),
-		status: await gitOut(repo, "status", "--porcelain=v1"),
-	};
+	const [head, index, status] = await Promise.all([
+		gitOut(repo, "rev-parse", "HEAD"),
+		gitText(repo, "ls-files", "--stage"),
+		gitOut(repo, "status", "--porcelain=v1"),
+	]);
+	return { head, index, status };
 }
 
 export async function readFinishState(fixture: FinishFixture) {
-	return {
-		canonical: await readCheckoutState(fixture.root),
-		remoteHead: await gitOut(fixture.remote, "rev-parse", "HEAD"),
-		sourceBranchHead: await gitOut(fixture.root, "rev-parse", `refs/heads/${fixture.branch}`),
-		sourceExists: await pathExists(fixture.worktreePath),
-	};
+	const [canonical, remoteHead, sourceBranchHead, sourceExists] = await Promise.all([
+		readCheckoutState(fixture.root),
+		gitOut(fixture.remote, "rev-parse", "HEAD"),
+		gitOut(fixture.root, "rev-parse", `refs/heads/${fixture.branch}`),
+		pathExists(fixture.worktreePath),
+	]);
+	return { canonical, remoteHead, sourceBranchHead, sourceExists };
 }
 
 export function finishPolicy(strategy: string, fresh = false, cleanup = false): string {
