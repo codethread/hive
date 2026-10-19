@@ -16,7 +16,7 @@ For an existing project contract, use `beeswax sync --help` to reproduce it loca
 
 When implementation inspection is needed, use `beeswax info --help` for release provenance and source retrieval. It reports source availability explicitly; do not infer a matching source tree from an unrelated checkout.
 
-For harness onboarding, follow setup/update help for selection and trust requirements. Commit the selected generated files with the contract and run sync in each checkout. Verify that the actual execution checkout has those files and the matching Beeswax executable on the harness's `PATH`.
+For harness onboarding, follow setup/update help for selection, committed adapters, ignored Pi output and per-checkout preparation. Verify the required files and matching Beeswax executable on the harness's `PATH` in the actual execution checkout.
 
 Selected adapters deliver the offline primer and observe tracker alerts at harness callbacks. Verify both delivery paths in the execution checkout; generated files alone do not establish runtime delivery or writer quiescence.
 

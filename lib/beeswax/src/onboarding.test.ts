@@ -1,7 +1,9 @@
 import { expect, test } from "bun:test";
+import { piPayloadPath, renderPreviousPiSection } from "./pi-onboarding.ts";
 import { BeeswaxError } from "./errors.ts";
-import type { OnboardingConfig } from "./onboarding.ts";
+import type { OnboardingConfig } from "./config.ts";
 import { applyOnboarding } from "./onboarding.ts";
+import { defaultProjectConfig } from "./config.ts";
 import { fixture } from "../tests/support.ts";
 
 const root = "/repo";
@@ -22,10 +24,12 @@ const config: OnboardingConfig = {
 	exclude: ["bee"],
 };
 const template = fixture();
-await applyOnboarding(root, config, template.deps);
+await applyOnboarding(root, { ...defaultProjectConfig("none"), onboarding: config }, template.deps);
 // Execute only our generated fixture, without filesystem or a live harness.
 // eslint-disable-next-line no-new-func -- Verify emitted JavaScript through its public extension API.
-const piAdapter = new Function(`${template.files.get(pi)?.replace("export default", "return")} `)();
+const piAdapter = new Function(
+	`${template.files.get(`${root}/${piPayloadPath}`)?.replace("export default", "return")} `,
+)();
 const FIRST = 0;
 const USER_GROUPS = 2;
 const LAST = -1;
@@ -64,7 +68,9 @@ test("selected repo-local hooks invoke the filtered primer and repeated setup is
 		alertHook,
 	]);
 	const before = new Map(fx.files);
-	expect(await applyOnboarding(root, config, fx.deps)).toEqual([]);
+	expect(
+		await applyOnboarding(root, { ...defaultProjectConfig("none"), onboarding: config }, fx.deps),
+	).toEqual([]);
 	expect(fx.files).toEqual(before);
 });
 
@@ -86,7 +92,7 @@ test("recognized older JSON entries update automatically while preserving user s
 			},
 		}),
 	);
-	await applyOnboarding(root, config, fx.deps);
+	await applyOnboarding(root, { ...defaultProjectConfig("none"), onboarding: config }, fx.deps);
 	expect(JSON.parse(fx.files.get(codex) ?? "")).toEqual({
 		preferences: { keep: true },
 		hooks: {
@@ -113,29 +119,45 @@ test("owned alert callbacks adopt the system command while preserving user hooks
 	const fx = configured();
 	const current = fx.files.get(codex)!;
 	fx.files.set(codex, current.replaceAll("beeswax system harness-alert", "beeswax harness-alert"));
-	await applyOnboarding(root, config, fx.deps);
+	await applyOnboarding(root, { ...defaultProjectConfig("none"), onboarding: config }, fx.deps);
 	expect(fx.files.get(codex)).toBe(current);
 });
 
 test("Pi section updates and removal preserve source outside the owned brackets", async () => {
 	const fx = configured();
 	const generated = fx.files.get(pi) ?? "";
-	fx.files.set(pi, `// before\n${generated.replace("onboarding v2", "onboarding v0")}// after\n`);
-	await applyOnboarding(root, config, fx.deps);
+	fx.files.set(pi, `// before\n${renderPreviousPiSection(config)}// after\n`);
+	await applyOnboarding(root, { ...defaultProjectConfig("none"), onboarding: config }, fx.deps);
 	expect(fx.files.get(pi)).toBe(`// before\n${generated}// after\n`);
-	await applyOnboarding(root, undefined, fx.deps);
+	await applyOnboarding(root, defaultProjectConfig("none"), fx.deps);
 	expect(fx.files.get(pi)).toBe("// before\n// after\n");
 	expect(fx.files.get(codex)).not.toContain("Beeswax onboarding");
 });
 
 test("deselection removes an otherwise empty generated Pi file", async () => {
 	const fx = configured();
-	await applyOnboarding(root, undefined, fx.deps);
+	await applyOnboarding(root, defaultProjectConfig("none"), fx.deps);
 	expect(fx.files.has(pi)).toBe(false);
+});
+
+test("Pi selection and deselection preserve an initially empty shared gitignore", async () => {
+	const fx = fixture();
+	const ignore = `${root}/.gitignore`;
+	fx.files.set(ignore, "");
+	await applyOnboarding(root, { ...defaultProjectConfig("none"), onboarding: config }, fx.deps);
+	await applyOnboarding(root, defaultProjectConfig("none"), fx.deps);
+	expect(fx.files.get(ignore)).toBe("");
+	expect(fx.files.has(`${root}/${piPayloadPath}`)).toBe(false);
 });
 
 test.each([
 	{ path: codex, content: "invalid JSON" },
+	{
+		path: codex,
+		content:
+			'{"hooks":{"SessionStart":[{"hooks":[{"type":"command", "command":"beeswax prime",' +
+			' "statusMessage":"Beeswax onboarding v99"}]}]}}',
+	},
 	{
 		path: codex,
 		content:
@@ -167,9 +189,11 @@ test.each([
 		const fx = configured();
 		fx.files.set(path, content);
 		const before = new Map(fx.files);
-		const failure: unknown = await applyOnboarding(root, config, fx.deps).catch(
-			(error: unknown) => error,
-		);
+		const failure: unknown = await applyOnboarding(
+			root,
+			{ ...defaultProjectConfig("none"), onboarding: config },
+			fx.deps,
+		).catch((error: unknown) => error);
 		expect(failure).toBeInstanceOf(BeeswaxError);
 		expect(failure).toMatchObject({
 			reason: "onboarding_ambiguous",
@@ -188,7 +212,7 @@ test.each([
 test("unselected unrelated settings are left alone", async () => {
 	const fx = fixture();
 	fx.files.set(codex, "unrelated invalid settings");
-	expect(await applyOnboarding(root, undefined, fx.deps)).toEqual([]);
+	expect(await applyOnboarding(root, defaultProjectConfig("none"), fx.deps)).toEqual([]);
 	expect(fx.files.get(codex)).toBe("unrelated invalid settings");
 });
 
@@ -199,7 +223,7 @@ test("alert callback ownership preserves user groups and rejects edited executio
 	const unrelated = { matcher: "Bash", hooks: [{ type: "command", command: "echo user" }] };
 	settings.hooks.PostToolUse.unshift(unrelated, { hooks: [] });
 	fx.files.set(codex, JSON.stringify(settings));
-	await applyOnboarding(root, config, fx.deps);
+	await applyOnboarding(root, { ...defaultProjectConfig("none"), onboarding: config }, fx.deps);
 	expect(JSON.parse(fx.files.get(codex) ?? "").hooks.PostToolUse.slice(FIRST, USER_GROUPS)).toEqual(
 		[unrelated, { hooks: [] }],
 	);
@@ -207,7 +231,11 @@ test("alert callback ownership preserves user groups and rejects edited executio
 	fx.files.set(codex, JSON.stringify(settings));
 	const before = new Map(fx.files);
 	expect(
-		await applyOnboarding(root, config, fx.deps).catch((error: unknown) => error),
+		await applyOnboarding(
+			root,
+			{ ...defaultProjectConfig("none"), onboarding: config },
+			fx.deps,
+		).catch((error: unknown) => error),
 	).toBeInstanceOf(BeeswaxError);
 	expect(fx.files).toEqual(before);
 });
@@ -217,7 +245,7 @@ test("deselection removes alert callbacks even when the startup primer was alrea
 	const settings = JSON.parse(fx.files.get(codex) ?? "");
 	settings.hooks.SessionStart.shift();
 	fx.files.set(codex, JSON.stringify(settings));
-	await applyOnboarding(root, undefined, fx.deps);
+	await applyOnboarding(root, defaultProjectConfig("none"), fx.deps);
 	expect(fx.files.get(codex)).not.toContain("harness-alert");
 });
 
@@ -303,3 +331,46 @@ function configured() {
 	}
 	return fx;
 }
+
+test.each([
+	{
+		path: pi,
+		content:
+			"// beeswax:begin onboarding v99\nexport default function () {}\n// beeswax:end onboarding\n",
+	},
+	{
+		path: pi,
+		content:
+			"// beeswax:begin onboarding v2\nexport default function edited() {}\n// beeswax:end onboarding\n",
+	},
+	{ path: `${root}/${piPayloadPath}`, content: "// user file\n" },
+	{ path: `${root}/${piPayloadPath}`, content: "" },
+	{
+		path: `${root}/${piPayloadPath}`,
+		content: template.files
+			.get(`${root}/${piPayloadPath}`)!
+			.replace('"format":1', '"format":1,"format":1'),
+	},
+	{
+		path: `${root}/${piPayloadPath}`,
+		content: template.files
+			.get(`${root}/${piPayloadPath}`)!
+			.replace("pi-payload {", "pi-payload { "),
+	},
+	{
+		path: `${root}/.gitignore`,
+		content: "# beeswax:begin pi-payload v1\n*\n# beeswax:end pi-payload\n",
+	},
+])("edited or unfamiliar owned output at $path is preserved", async ({ path, content }) => {
+	const fx = configured();
+	fx.files.set(path, content);
+	const before = new Map(fx.files);
+	expect(
+		await applyOnboarding(
+			root,
+			{ ...defaultProjectConfig("none"), onboarding: config },
+			fx.deps,
+		).catch((error: unknown) => error),
+	).toBeInstanceOf(BeeswaxError);
+	expect(fx.files).toEqual(before);
+});

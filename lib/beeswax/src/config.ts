@@ -1,14 +1,16 @@
 import { BeeswaxError, EXIT, errorMessage } from "./errors.ts";
+import { getStaticTOMLValue, parseTOML } from "toml-eslint-parser";
 // eslint-disable-next-line import/no-nodejs-modules -- Visible project configuration stays checkout-relative.
 import { isAbsolute, join } from "node:path";
 import { parse, stringify } from "smol-toml";
-import type { OnboardingConfig } from "./onboarding.ts";
+import type { AST } from "toml-eslint-parser";
 import type { WorkspaceIO } from "./services.ts";
-import { onboardingSchema } from "./onboarding.ts";
 import { renderPrime } from "./prime.ts";
 import { z } from "zod";
 
 const NONEMPTY = 1;
+const FIRST = 0;
+const SECOND = 1;
 const pathSchema = z
 	.string()
 	.min(NONEMPTY)
@@ -19,6 +21,12 @@ const pathSchema = z
 export const hookAdapterSchema = z.enum(["husky", "git", "none"]);
 export type HookAdapter = z.infer<typeof hookAdapterSchema>;
 const hooksSchema = z.strictObject({ pre_commit: pathSchema, pre_merge_commit: pathSchema });
+export const onboardingSchema = z.strictObject({
+	harnesses: z.array(z.enum(["claude", "codex", "pi"])).nonempty(),
+	include: z.array(z.string()),
+	exclude: z.array(z.string()),
+});
+export type OnboardingConfig = z.infer<typeof onboardingSchema>;
 export const configSchema = z.strictObject({
 	bootstrap: z.strictObject({ hooks: hookAdapterSchema }),
 	hooks: hooksSchema,
@@ -41,10 +49,11 @@ export async function readProjectConfig(
 	root: string,
 	io: WorkspaceIO,
 ): Promise<ProjectConfig | undefined> {
-	const contents = await io.read(join(root, configPath));
-	if (contents === "") {
+	const path = join(root, configPath);
+	if (!(await io.exists(path))) {
 		return undefined;
 	}
+	const contents = await io.read(path);
 	try {
 		return configSchema.parse(parse(contents));
 	} catch (error) {
@@ -57,12 +66,55 @@ export async function readProjectConfig(
 	}
 }
 
+// eslint-disable-next-line max-statements -- Preserve user syntax through one ordered range-edit plan.
 export async function writeProjectConfig(
 	root: string,
 	config: ProjectConfig,
 	io: WorkspaceIO,
 ): Promise<void> {
-	await io.write(join(root, configPath), stringify(config));
+	const path = join(root, configPath);
+	if (!(await io.exists(path))) {
+		await io.write(path, stringify(config));
+		return;
+	}
+	const current = await io.read(path);
+	const saved = await readProjectConfig(root, io);
+	if (Bun.deepEquals(saved, config)) {
+		return;
+	}
+	const ast = parseTOML(current, { tomlVersion: "1.1.0" });
+	const edits: { start: number; end: number; text: string }[] = [];
+	for (const entry of ast.body[FIRST].body) {
+		if (entry.type === "TOMLTable") {
+			if (entry.resolvedKey[FIRST] === "onboarding" && !config.onboarding) {
+				edits.push({
+					start: entry.range[FIRST],
+					end: current.indexOf("]", entry.key.range[SECOND]) + SECOND,
+					text: "",
+				});
+				for (const node of entry.body) {
+					edits.push({ start: node.range[FIRST], end: node.range[SECOND], text: "" });
+				}
+			} else {
+				edits.push(...editConfigValues(entry.body, entry.resolvedKey.map(String), config));
+			}
+		} else if (getStaticTOMLValue(entry.key)[FIRST] === "onboarding" && !config.onboarding) {
+			edits.push({ start: entry.range[FIRST], end: entry.range[SECOND], text: "" });
+		} else {
+			edits.push(...editConfigValues([entry], [], config));
+		}
+	}
+	let next = current;
+	for (const edit of edits.toSorted((left, right) => right.start - left.start)) {
+		next = next.slice(FIRST, edit.start) + edit.text + next.slice(edit.end);
+	}
+	if (!saved?.onboarding && config.onboarding) {
+		if (!next.endsWith("\n")) {
+			next += "\n";
+		}
+		next += stringify({ onboarding: config.onboarding });
+	}
+	await io.write(path, next);
 }
 
 export function defaultProjectConfig(adapter: HookAdapter): ProjectConfig {
@@ -130,4 +182,45 @@ export function selectOnboardingConfig(
 	const result: OnboardingConfig = selected.data;
 	renderPrime(result);
 	return { ...base, onboarding: result };
+}
+
+export function digestConfig(config: ProjectConfig): string {
+	return new Bun.CryptoHasher("sha256")
+		.update(
+			JSON.stringify({
+				bootstrap: config.bootstrap,
+				hooks: config.hooks,
+				onboarding: config.onboarding,
+			}),
+		)
+		.digest("hex");
+}
+
+// --- Private functions ---
+
+function editConfigValues(
+	entries: AST.TOMLKeyValue[],
+	prefix: string[],
+	config: ProjectConfig,
+): { start: number; end: number; text: string }[] {
+	return entries.flatMap((entry) => {
+		const path = [...prefix, ...getStaticTOMLValue(entry.key)];
+		if (entry.value.type === "TOMLInlineTable") {
+			return editConfigValues(entry.value.body, path, config);
+		}
+		const desired = path.reduce<unknown>(
+			(value, key) => (value as Record<string, unknown>)[key],
+			config,
+		);
+		if (Bun.deepEquals(getStaticTOMLValue(entry.value), desired)) {
+			return [];
+		}
+		return [
+			{
+				start: entry.value.range[FIRST],
+				end: entry.value.range[SECOND],
+				text: JSON.stringify(desired),
+			},
+		];
+	});
 }

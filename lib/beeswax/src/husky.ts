@@ -1,8 +1,8 @@
 /* eslint-disable no-await-in-loop -- Hook bootstrap effects are ordered and activated last. */
+import { hookMigration, planGitIntegration } from "./hooks.ts";
 import { EXIT } from "./errors.ts";
 import type { HookAdapter } from "./config.ts";
 import type { WorkspaceIO } from "./services.ts";
-import { hookMigration } from "./hooks.ts";
 import huskyLicense from "../assets/HUSKY-LICENSE" with { type: "text" };
 import huskyRunner from "../assets/husky.sh" with { type: "text" };
 // eslint-disable-next-line import/no-nodejs-modules -- Concrete Husky bootstrap paths.
@@ -55,9 +55,19 @@ export async function bootstrapHooks(
 			`Existing hooksPath ${existing} needs an agreed integration. Set bootstrap.hooks to none when retaining it.`,
 		);
 	}
+	const common = await io.command(
+		["git", "rev-parse", "--path-format=absolute", "--git-common-dir"],
+		root,
+	);
+	const values = { "core.hooksPath": ".husky/_" };
+	let previous: Record<string, string> | undefined = undefined;
+	if (existing === ".husky/_") {
+		previous = values;
+	}
+	const plan = await planGitIntegration({ root, common, kind: "hooks-path", values, previous }, io);
 	await installHuskyRuntime(root, io);
-	if (existing !== ".husky/_") {
-		await io.command(["git", "config", "--local", "core.hooksPath", ".husky/_"], root);
+	if (plan.before !== plan.after) {
+		await io.write(plan.path, plan.after);
 	}
 }
 
@@ -71,7 +81,7 @@ export async function installHuskyRuntime(root: string, io: WorkspaceIO): Promis
 	];
 	for (const file of files) {
 		const previous = await io.read(file.path);
-		if (previous !== "" && previous !== file.contents) {
+		if ((await io.exists(file.path)) && previous !== file.contents) {
 			throw hookMigration(`Existing Husky bootstrap file differs: ${file.path}.`);
 		}
 	}

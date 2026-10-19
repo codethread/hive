@@ -1,10 +1,10 @@
 import { BeeswaxError, EXIT } from "./errors.ts";
+import { digestConfig, readProjectConfig } from "./config.ts";
 import { hookSection, previousHookSection } from "./templates.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Versioned project contract is checkout-owned.
 import { isAbsolute, join } from "node:path";
 import type { ProjectConfig } from "./config.ts";
 import type { WorkspaceIO } from "./services.ts";
-import { readProjectConfig } from "./config.ts";
 import { version } from "../package.json";
 import { z } from "zod";
 
@@ -32,11 +32,11 @@ export async function readProjectLock(
 	root: string,
 	io: WorkspaceIO,
 ): Promise<ProjectLock | undefined> {
-	const path = join(root, ".hive/beeswax/meta/lock.json");
-	const contents = await io.read(path);
-	if (contents === "") {
+	const path = join(root, ".hive/beeswax/lock.json");
+	if (!(await io.exists(path))) {
 		return undefined;
 	}
+	const contents = await io.read(path);
 	try {
 		return lockSchema.parse(JSON.parse(contents));
 	} catch {
@@ -104,7 +104,7 @@ export async function writeProjectLock(root: string, io: WorkspaceIO): Promise<s
 			skills: { revision: REVISION },
 		},
 	};
-	const path = join(root, ".hive/beeswax/meta/lock.json");
+	const path = join(root, ".hive/beeswax/lock.json");
 	if (!Bun.deepEquals(await readProjectLock(root, io), lock)) {
 		await io.write(path, `${JSON.stringify(lock, undefined, "\t")}\n`);
 	}
@@ -153,16 +153,6 @@ export function requireProjectConfig(lock: ProjectLock, config: ProjectConfig): 
 			},
 		);
 	}
-}
-
-export function digestConfig(config: ProjectConfig): string {
-	return digest(
-		JSON.stringify({
-			bootstrap: config.bootstrap,
-			hooks: config.hooks,
-			onboarding: config.onboarding,
-		}),
-	);
 }
 
 // --- Private functions ---

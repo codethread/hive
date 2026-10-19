@@ -59,6 +59,22 @@ test("headless setup uses explicit flags, shared defaults and one silent JSON re
 });
 
 test.each([
+	{ file: "config.toml", receipt: { reason: "migration_required" } },
+	{
+		file: "lock.json",
+		receipt: { reason: "setup_failed", cause: "migration_required", completed: [] },
+	},
+])("setup refuses existing empty $file before effects", async ({ file, receipt }) => {
+	const fx = preparedHead();
+	fx.files.set(`/repo/.hive/beeswax/${file}`, "");
+	const before = new Map(fx.files);
+	expect(await runCli(["setup", "--tracker", "init", "--json"], fx.deps)).toBe(EXIT.failure);
+	expect(JSON.parse(fx.output.join(""))).toMatchObject(receipt);
+	expect(fx.files).toEqual(before);
+	expect(fx.trackers).toEqual([]);
+});
+
+test.each([
 	{
 		args: ["prepare", "--source", "/source"],
 		kind: "checkout_prepared",
@@ -119,7 +135,9 @@ test("interactive choices and explicit options reach the same deterministic setu
 	expect(fx.files.get("/repo/.git/beeswax/cli")).toContain("exec '/opt/bin/beeswax'");
 	expect(fx.files.get("/repo/.husky/pre-commit")).toContain("git rev-parse --git-path beeswax/cli");
 	expect(fx.files.get("/repo/.husky/_/h")).toContain("node_modules/.bin");
-	expect(fx.commands).toContainEqual(["git", "config", "--local", "core.hooksPath", ".husky/_"]);
+	expect(fx.files.get("/repo/.git/config")).toContain(
+		'# beeswax:begin hooks-path v1\n[core]\n\thooksPath = ".husky/_"',
+	);
 });
 
 test("headless setup with no known tracker asks for a concrete flag before writes", async () => {
@@ -205,7 +223,7 @@ test.each([false, true])(
 		const receipt = JSON.parse(fx.output.join(""));
 		expect(receipt.completed.includes("workflow_skill")).toBe(install);
 		expect(fx.files.get("/repo/.hive/beeswax/config.toml")).not.toContain("install_workflow");
-		expect(fx.files.get("/repo/.hive/beeswax/meta/lock.json")).not.toContain("workflowSkill");
+		expect(fx.files.get("/repo/.hive/beeswax/lock.json")).not.toContain("workflowSkill");
 	},
 );
 

@@ -1,15 +1,23 @@
+import {
+	isPreviousPiSection,
+	piAdapterSection,
+	piPayloadPath,
+	renderPiPayload,
+	requireOwnedPiPayload,
+} from "./pi-onboarding.ts";
 import { BeeswaxError } from "./errors.ts";
+import type { ProjectConfig } from "./config.ts";
 import type { WorkspaceIO } from "./services.ts";
+import { digestConfig } from "./config.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Generated adapters stay inside the supplied checkout.
 import { join } from "node:path";
 import { renderPrime } from "./prime.ts";
 import { z } from "zod";
 
 const marker = "Beeswax onboarding v1";
-const begin = "// beeswax:begin onboarding v2";
-const end = "// beeswax:end onboarding";
 const EMPTY = 0;
 const SINGLE = 1;
+const DELIMITERS = 2;
 const targets = {
 	claude: ".claude/settings.json",
 	codex: ".codex/hooks.json",
@@ -21,12 +29,6 @@ const settingsSchema = z.looseObject({
 	hooks: z.record(z.string(), z.array(groupSchema)).optional(),
 });
 
-export const onboardingSchema = z.strictObject({
-	harnesses: z.array(z.enum(["claude", "codex", "pi"])).nonempty(),
-	include: z.array(z.string()),
-	exclude: z.array(z.string()),
-});
-export type OnboardingConfig = z.infer<typeof onboardingSchema>;
 type Settings = z.infer<typeof settingsSchema>;
 interface Adapter {
 	/** Destination in the target checkout. */
@@ -40,9 +42,10 @@ interface Adapter {
 /** Replace recognized owned adapters, preserving surrounding settings and source text. */
 export async function applyOnboarding(
 	root: string,
-	config: OnboardingConfig | undefined,
+	project: ProjectConfig,
 	io: WorkspaceIO,
 ): Promise<string[]> {
+	const config = project.onboarding;
 	const flags = [
 		...(config?.include ?? []).flatMap((name) => ["--include", name]),
 		...(config?.exclude ?? []).flatMap((name) => ["--exclude", name]),
@@ -64,17 +67,18 @@ export async function applyOnboarding(
 			) {
 				return;
 			}
-			let replace: typeof replacePi = replaceHook;
+			let replace = (adapter: Adapter): string | undefined => replaceHook(adapter, flags);
 			if (harness === "pi") {
 				replace = replacePi;
 			}
-			const contents = replace({ path, current, selected }, flags);
+			const contents = replace({ path, current, selected });
 			if (contents === current) {
 				return;
 			}
 			return { path, contents };
 		}),
 	);
+	planned.push(...(await planPiPayload(root, project, io)));
 	const changes = planned.filter((change) => change !== undefined);
 	await Promise.all(
 		changes.map(async ({ path, contents }) => {
@@ -119,7 +123,7 @@ function replaceHook({ current, selected, path }: Adapter, flags: string[]): str
 		owned &&
 		(owned.event !== "SessionStart" ||
 			owned.handler.type !== "command" ||
-			!/^Beeswax onboarding v\d+$/u.test(String(owned.handler.statusMessage)) ||
+			!/^Beeswax onboarding v[01]$/u.test(String(owned.handler.statusMessage)) ||
 			!/^beeswax prime(?: --(?:include|exclude) [a-z][a-z-]*)*$/u.test(
 				String(owned.handler.command),
 			) ||
@@ -177,7 +181,7 @@ function replaceAlertHooks(settings: Settings, { selected, path }: Adapter): voi
 					seen.has(event) ||
 					!events.includes(event) ||
 					handler.type !== "command" ||
-					!/^Beeswax tracker alerts v\d+$/u.test(String(handler.statusMessage)) ||
+					handler.statusMessage !== "Beeswax tracker alerts v1" ||
 					(handler.command !== command && handler.command !== previousCommand) ||
 					Object.keys(handler).some((key) => !["type", "command", "statusMessage"].includes(key)) ||
 					Object.keys(group).some((key) => key !== "hooks")
@@ -212,7 +216,7 @@ function replaceAlertHooks(settings: Settings, { selected, path }: Adapter): voi
 }
 
 // eslint-disable-next-line max-statements -- Keep bracket recognition and replacement together.
-function replacePi({ current, selected, path }: Adapter, flags: string[]): string | undefined {
+function replacePi({ current, selected, path }: Adapter): string | undefined {
 	const section =
 		/^\/\/ beeswax:begin onboarding v\d+\n[\s\S]*?^\/\/ beeswax:end onboarding(?:\n|$)/gmu;
 	const matches = [...current.matchAll(section)];
@@ -227,48 +231,17 @@ function replacePi({ current, selected, path }: Adapter, flags: string[]): strin
 			"A repo-local Pi primer extension",
 		);
 	}
+	const owned = matches.at(EMPTY)?.[EMPTY];
+	if (owned && owned !== piAdapterSection && !isPreviousPiSection(owned)) {
+		throw handoff(
+			path,
+			"The Pi section was edited or has an unsupported version.",
+			piAdapterSection,
+		);
+	}
 	let replacement = "";
 	if (selected) {
-		replacement = [
-			begin,
-			"export default function (pi) {",
-			'\tpi.on("before_agent_start", async (event) => {',
-			`\t\tconst result = await pi.exec("beeswax", ${JSON.stringify(["prime", ...flags])});`,
-			// eslint-disable-next-line no-template-curly-in-string -- This template is evaluated by the emitted Pi extension.
-			"\t\tif (result.code !== 0) throw new Error(`beeswax prime failed: ${result.stderr}`);",
-			"\t\tevent.systemPromptOptions.sections.beeswax = result.stdout.trimEnd();",
-			"\t});",
-			'\tpi.on("context", async (event, ctx) => {',
-			"\t\tconst payload = JSON.stringify({ session_id: ctx.sessionManager.getSessionId(), cwd: ctx.cwd, " +
-				'hook_event_name: "context" });',
-			"\t\tlet context;",
-			"\t\ttry {",
-			'\t\t\tconst result = await pi.exec("beeswax", ' +
-				'["system", "harness-alert", "--harness", "pi", "--input", payload], { timeout: 5000 });',
-			"\t\t\tif (result.code !== 0) throw new Error(result.stderr);",
-			"\t\t\tconst output = JSON.parse(result.stdout);",
-			'\t\t\tif (typeof output.context !== "string") throw new Error("Invalid alert callback output");',
-			"\t\t\tcontext = output.context;",
-			"\t\t} catch (error) {",
-			'\t\t\tcontext = "Beeswax tracker alert check failed. ' +
-				"Stop Beads workflows and ordinary tracker operations on the selected endpoint; do not merge. " +
-				"Unrelated non-Beads work and explicitly user-authorized native tracker inspection/recovery may continue. " +
-				"Recheck independent alert status. With no known hold, a healthy check of this endpoint " +
-				"with no active incident restores baseline; do not announce clearance. " +
-				"Clearance is unverified for any known hold, including a handoff or sync failure. " +
-				"A failed check or missing receipt cannot release it. " +
-				"Announce verified matching or newer clearance before resuming that work. " +
-				'Diagnostics: " + String(error);',
-			"\t\t}",
-			'\t\tconst messages = event.messages.filter((message) => message.customType !== "beeswax-tracker-alert");',
-			'\t\tif (context) messages.push({ role: "custom", customType: "beeswax-tracker-alert", ' +
-				"content: context, display: true, timestamp: Date.now() });",
-			"\t\treturn { messages };",
-			"\t});",
-			"}",
-			end,
-			"",
-		].join("\n");
+		replacement = piAdapterSection;
 	}
 	let next = replacement;
 	if (matches.length === SINGLE) {
@@ -295,4 +268,72 @@ function handoff(path: string, observed: string, desired: string): BeeswaxError 
 			},
 		},
 	);
+}
+
+// eslint-disable-next-line max-statements -- Validate one exact ignore section and retain outside bytes.
+function replacePayloadIgnore(path: string, current: string, selected: boolean): string {
+	const section =
+		"# beeswax:begin pi-payload v1\n/.hive/beeswax/generated/pi-beeswax.js\n# beeswax:end pi-payload\n";
+	const matches = [
+		...current.matchAll(
+			/^# beeswax:begin pi-payload[^\n]*\n[\s\S]*?^# beeswax:end pi-payload(?:\n|$)/gmu,
+		),
+	];
+	const delimiters = current.match(/^# beeswax:(?:begin|end) pi-payload/gmu) ?? [];
+	if (
+		matches.length > SINGLE ||
+		delimiters.length !== matches.length * DELIMITERS ||
+		(matches.length === SINGLE && matches[EMPTY]![EMPTY] !== section)
+	) {
+		throw handoff(
+			path,
+			"The Pi payload ignore section is edited, duplicated or unsupported.",
+			section,
+		);
+	}
+	if (matches.length === SINGLE) {
+		let replacement = "";
+		if (selected) {
+			replacement = section;
+		}
+		return current.replace(matches[EMPTY]![EMPTY], () => replacement);
+	}
+	if (!selected) {
+		return current;
+	}
+	let separator = "";
+	if (current !== "" && !current.endsWith("\n")) {
+		separator = "\n";
+	}
+	return `${current}${separator}${section}`;
+}
+
+// eslint-disable-next-line max-statements -- Preflight payload and portable ignore before adapter writes.
+async function planPiPayload(root: string, project: ProjectConfig, io: WorkspaceIO) {
+	const config = project.onboarding;
+	const planned: { path: string; contents: string | undefined }[] = [];
+	const payload = join(root, piPayloadPath);
+	const previous = await io.read(payload);
+	if (await io.exists(payload)) {
+		requireOwnedPiPayload(payload, previous);
+	}
+	const selected = config?.harnesses.includes("pi") ?? false;
+	let desired = "";
+	if (selected && config) {
+		desired = renderPiPayload(config, digestConfig(project));
+	}
+	if (previous !== desired) {
+		let contents: string | undefined = desired;
+		if (!selected) {
+			contents = undefined;
+		}
+		planned.push({ path: payload, contents });
+	}
+	const ignorePath = join(root, ".gitignore");
+	const currentIgnore = await io.read(ignorePath);
+	const nextIgnore = replacePayloadIgnore(ignorePath, currentIgnore, selected);
+	if (currentIgnore !== nextIgnore) {
+		planned.push({ path: ignorePath, contents: nextIgnore });
+	}
+	return planned;
 }

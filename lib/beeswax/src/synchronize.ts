@@ -38,7 +38,7 @@ export async function synchronizeProject(
 		if (!lock) {
 			throw new BeeswaxError(
 				"project_not_configured",
-				"Run beeswax setup to create .hive/beeswax/meta/lock.json first",
+				"Run beeswax setup to create .hive/beeswax/lock.json first",
 			);
 		}
 		const saved = await readProjectConfig(root, io);
@@ -73,7 +73,7 @@ export async function synchronizeProject(
 		}
 		await bootstrapHooks(root, config.bootstrap.hooks, io);
 		completed.push("hook_bootstrap");
-		const onboarding = await applyOnboarding(root, config.onboarding, io);
+		const onboarding = await applyOnboarding(root, config, io);
 		if (onboarding.length >= NONEMPTY) {
 			completed.push("onboarding");
 		}

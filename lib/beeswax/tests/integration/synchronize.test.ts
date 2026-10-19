@@ -23,14 +23,14 @@ function configured() {
 
 test("sync materializes committed intent without publishing tracker state or rewriting the lock", async () => {
 	const fx = configured();
-	const lock = fx.files.get("/repo/.hive/beeswax/meta/lock.json");
+	const lock = fx.files.get("/repo/.hive/beeswax/lock.json");
 	expect(await runCli(["sync", "--json"], fx.deps)).toBe(success);
 	expect(JSON.parse(fx.output.join(""))).toMatchObject({
 		ok: true,
 		kind: "project_synchronized",
 		projectLockUpdated: false,
 	});
-	expect(fx.files.get("/repo/.hive/beeswax/meta/lock.json")).toBe(lock);
+	expect(fx.files.get("/repo/.hive/beeswax/lock.json")).toBe(lock);
 	expect(fx.errors).toEqual([]);
 });
 
@@ -45,15 +45,15 @@ test("update uses command availability at the project root without persisting ma
 			commands: ["beeswax changelog"],
 		},
 	});
-	expect(fx.files.get("/repo/.hive/beeswax/meta/lock.json")).toBe(
-		template.files.get("/repo/.hive/beeswax/meta/lock.json"),
+	expect(fx.files.get("/repo/.hive/beeswax/lock.json")).toBe(
+		template.files.get("/repo/.hive/beeswax/lock.json"),
 	);
 });
 
 // eslint-disable-next-line max-statements -- Verify section replacement and recorded intent through one public update.
 test("update replaces the previous owned hook generation and records the new hashes", async () => {
 	const fx = configured();
-	const path = "/repo/.hive/beeswax/meta/lock.json";
+	const path = "/repo/.hive/beeswax/lock.json";
 	const lock = lockSchema.parse(JSON.parse(fx.files.get(path) ?? ""));
 	for (const target of Object.keys(lock.hooks)) {
 		lock.hooks[target] = new Bun.CryptoHasher("sha256").update(previousHookSection).digest("hex");
@@ -104,22 +104,40 @@ test("moving configured hook files requires an agent to account for the old sect
 	expect(fx.files).toEqual(before);
 });
 
-test("partial synchronization identifies completed effects when the local launcher was edited", async () => {
-	const fx = configured();
-	fx.files.set("/repo/.git/beeswax/cli", "echo custom\n");
-	expect(await runCli(["sync", "--json"], fx.deps)).toBe(failure);
-	expect(JSON.parse(fx.output.join(""))).toMatchObject({
-		reason: "migration_required",
-		nextCommand: "beeswax migrate hooks",
-		completed: ["hook_sections"],
-	});
-	expect(fx.files.get("/repo/.git/beeswax/cli")).toBe("echo custom\n");
-	expect(fx.errors).toEqual([]);
-});
+test.each(["echo custom\n", ""])(
+	"partial synchronization reports an edited launcher: %s",
+	async (body) => {
+		const fx = configured();
+		fx.files.set("/repo/.git/beeswax/cli", body);
+		expect(await runCli(["sync", "--json"], fx.deps)).toBe(failure);
+		expect(JSON.parse(fx.output.join(""))).toMatchObject({
+			reason: "migration_required",
+			nextCommand: "beeswax migrate hooks",
+			completed: ["hook_sections"],
+		});
+		expect(fx.files.get("/repo/.git/beeswax/cli")).toBe(body);
+		expect(fx.errors).toEqual([]);
+	},
+);
+
+test.each(["config.toml", "lock.json"])(
+	"sync preserves existing empty %s before effects",
+	async (file) => {
+		const fx = configured();
+		fx.files.set(`/repo/.hive/beeswax/${file}`, "");
+		const before = new Map(fx.files);
+		expect(await runCli(["sync", "--json"], fx.deps)).toBe(failure);
+		expect(JSON.parse(fx.output.join(""))).toMatchObject({
+			reason: "migration_required",
+			completed: [],
+		});
+		expect(fx.files).toEqual(before);
+	},
+);
 
 test("release pin refresh changes portable metadata without installing machine integration", async () => {
 	const fx = configured();
-	const path = "/repo/.hive/beeswax/meta/lock.json";
+	const path = "/repo/.hive/beeswax/lock.json";
 	const lock = lockSchema.parse(JSON.parse(fx.files.get(path) ?? ""));
 	fx.files.set(path, JSON.stringify({ ...lock, beeswaxVersion: "0.0.1" }));
 	expect(await runCli(["lock", "--json"], fx.deps)).toBe(success);
@@ -151,7 +169,7 @@ test.each([
 
 function withUnknownIdentity(identity: string) {
 	const fx = configured();
-	const path = "/repo/.hive/beeswax/meta/lock.json";
+	const path = "/repo/.hive/beeswax/lock.json";
 	const lock = lockSchema.parse(JSON.parse(fx.files.get(path) ?? ""));
 	if (identity === "skills") {
 		lock.skills = ["unknown-required-skill"];

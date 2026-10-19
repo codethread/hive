@@ -86,15 +86,17 @@ Start a new session after setup. [Claude Code](https://code.claude.com/docs/en/h
 
 ## Commit the project contract
 
-Commit `.hive/beeswax/config.toml`, `.hive/beeswax/meta/lock.json` and the selected generated harness files. Configuration names the actual Git hook files, bootstrap adapter, selected harnesses and guidance filters. The lock records the accepted release, configuration digest and Git hook generation. Discover their schemas with `beeswax schema`.
+Commit `.hive/beeswax/config.toml`, `.hive/beeswax/lock.json`, the selected native harness adapters and Beeswax's generated `.gitignore` section. Configuration is editable intent: actual Git hook files, bootstrap adapter, harnesses and guidance filters. The lock records the accepted release, configuration digest and component generations. Discover their schemas with `beeswax schema`.
+
+For Pi, `.pi/extensions/beeswax.js` is the tracked adapter; `.hive/beeswax/generated/pi-beeswax.js` is its ignored, reproducible payload. The adapter validates the checkout's accepted contract before loading that payload. Read `beeswax update --help` for preparation and trust requirements.
 
 Beeswax owns only the marked `tracker-validation` section in each configured hook, preserving surrounding bytes and file mode. It validates snapshot-only commits on `tracker/state`, then returns to the surrounding hook. Application checks, commit-message policy and any snapshot exemption remain application-owned.
 
 The permanent tracker uses the same configured hook pair. Those files must already contain the exact validation section before setup binds the installed CLI and bootstraps the framework; setup leaves tracked tracker hooks unchanged.
 
-`beeswax sync` reproduces the committed contract locally; `beeswax update` advances it after review. Each checkout gets a launcher and observation receipt in Git metadata. The committed contract is authoritative; receipts describe local outputs. Run sync in each checkout and after relocating a clone.
+`beeswax sync` reproduces the accepted contract locally and rejects changed configuration or release; `beeswax update` accepts reviewed changes. Run sync in each checkout and after relocating a clone. Each checkout's `cli` launcher and `receipt.json` live in the directory reported by `git rev-parse --path-format=absolute --git-path beeswax`; the merge-driver receipt is shared at `<git-common-dir>/beeswax/merge-driver.local.json`. Resolve the common directory with `git rev-parse --path-format=absolute --git-common-dir`. These local observations stay outside the committed contract.
 
-Setup, sync and update replace recognized versioned hook and onboarding sections automatically, preserving surrounding hook content, unrelated JSON settings and code outside Pi's markers. The permanent tracker prerequisites above still apply. `beeswax update --harness none --yes` removes recognized onboarding sections. Unfamiliar commands, execution options or ambiguous markers stop with the affected path, observed state, intended result and migration guidance for an agent to resolve with you.
+Setup, sync and update replace recognized owned sections, preserving surrounding hook content and modes, unrelated JSON settings and code outside Pi's markers. JSON ownership uses the recognized `statusMessage` version and exact supported command shape. Git configuration, attributes and ignore entries use versioned fences. The permanent tracker prerequisites above still apply. `beeswax update --harness none --yes` removes recognized onboarding sections and Pi output. Unfamiliar commands, edited payloads or ambiguous ownership stop for review through `beeswax migrate setup`.
 
 Onboarding reaches an agent only when its actual checkout contains the generated files, the harness loads and trusts them, and the matching Beeswax release is on its `PATH`. This also applies to Bee executions; sharing a repository or tracker does not copy adapters between worktrees.
 

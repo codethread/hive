@@ -28,19 +28,25 @@ export async function bindCheckout(
 	const path = join(directory, "cli");
 	const contents = `#!/usr/bin/env sh\nexec ${shellQuote(executable)} "$@"\n`;
 	const current = await io.read(path);
-	const previous = await io.read(join(directory, "receipt.json"));
-	if (current !== "" && current !== contents) {
-		const receipt = receiptSchema.safeParse(parseReceipt(previous));
-		if (!receipt.success || receipt.data.launcher !== digest(current)) {
-			throw hookMigration(`The local Beeswax launcher was edited: ${path}.`);
-		}
+	const receiptPath = join(directory, "receipt.json");
+	const previous = await io.read(receiptPath);
+	const receipt = receiptSchema.safeParse(parseReceipt(previous));
+	if ((await io.exists(receiptPath)) && !receipt.success) {
+		throw hookMigration(`Invalid local Beeswax binding receipt: ${receiptPath}.`);
+	}
+	if (
+		(await io.exists(path)) &&
+		current !== contents &&
+		(!receipt.success || receipt.data.launcher !== digest(current))
+	) {
+		throw hookMigration(`The local Beeswax launcher was edited: ${path}.`);
 	}
 	if (current !== contents) {
 		await io.write(path, contents);
 	}
 	await io.chmod(path, mode);
 	await io.write(
-		join(directory, "receipt.json"),
+		receiptPath,
 		`${JSON.stringify(
 			{
 				format: FORMAT,

@@ -1,18 +1,25 @@
-// eslint-disable-next-line import/no-nodejs-modules -- Local receipts follow the permanent Git common directory.
-import { dirname, join } from "node:path";
 import { BeeswaxError } from "./errors.ts";
 import type { WorkspaceIO } from "./services.ts";
+// eslint-disable-next-line import/no-nodejs-modules -- Local receipts follow the permanent Git common directory.
+import { join } from "node:path";
 import { version } from "../package.json";
 import { z } from "zod";
 
 const FORMAT = 1;
+const REVISION = 2;
 const mergeReceiptSchema = z.strictObject({
 	format: z.literal(FORMAT),
 	beeswaxVersion: z.string(),
 	generator: z.literal("merge-driver"),
-	revision: z.literal(FORMAT),
-	config: z.record(z.string(), z.string()),
-	attribute: z.string(),
+	revision: z.union([z.literal(FORMAT), z.literal(REVISION)]),
+	config: z.strictObject({
+		"merge.hive-beads.name": z.literal("Hive Beads JSONL merge driver"),
+		"merge.hive-beads.driver": z
+			.string()
+			.regex(/^'(?:[^']|'\\'')*' (?:system )?git merge "%O" "%A" "%B"$/u),
+		"merge.hive-beads.recursive": z.literal("hive-beads"),
+	}),
+	attribute: z.literal(".beads/issues.jsonl text eol=lf merge=hive-beads"),
 });
 export type MergeReceipt = z.infer<typeof mergeReceiptSchema>;
 
@@ -20,11 +27,11 @@ export async function readMergeReceipt(
 	common: string,
 	io: WorkspaceIO,
 ): Promise<MergeReceipt | undefined> {
-	const path = join(dirname(common), ".hive/beeswax/meta/merge-driver.local.json");
-	const content = await io.read(path);
-	if (content === "") {
+	const path = join(common, "beeswax/merge-driver.local.json");
+	if (!(await io.exists(path))) {
 		return undefined;
 	}
+	const content = await io.read(path);
 	try {
 		return mergeReceiptSchema.parse(JSON.parse(content));
 	} catch {
@@ -38,24 +45,19 @@ export async function readMergeReceipt(
 
 export async function writeMergeReceipt(
 	common: string,
-	generated: { config: Record<string, string>; attribute: string },
+	generated: Pick<MergeReceipt, "config" | "attribute">,
 	io: WorkspaceIO,
 ): Promise<void> {
 	const receipt: MergeReceipt = {
 		format: FORMAT,
 		generator: "merge-driver",
-		revision: FORMAT,
+		revision: REVISION,
 		beeswaxVersion: version,
 		...generated,
 	};
-	const excludes = join(common, "info/exclude");
-	const current = await io.read(excludes);
-	const entry = "/.hive/beeswax/meta/*.local.json";
-	if (!current.split("\n").includes(entry)) {
-		await io.write(excludes, `${current.trimEnd()}\n${entry}\n`);
+	const path = join(common, "beeswax/merge-driver.local.json");
+	const contents = `${JSON.stringify(receipt, undefined, "\t")}\n`;
+	if ((await io.read(path)) !== contents) {
+		await io.write(path, contents);
 	}
-	await io.write(
-		join(dirname(common), ".hive/beeswax/meta/merge-driver.local.json"),
-		`${JSON.stringify(receipt, undefined, "\t")}\n`,
-	);
 }

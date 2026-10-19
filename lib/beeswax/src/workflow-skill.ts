@@ -1,7 +1,7 @@
 import { BeeswaxError, EXIT, errorMessage } from "./errors.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Installer destinations belong to the selected checkout.
 import { dirname, join } from "node:path";
-import type { OnboardingConfig } from "./onboarding.ts";
+import type { OnboardingConfig } from "./config.ts";
 import type { WorkspaceIO } from "./services.ts";
 import { z } from "zod";
 

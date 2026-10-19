@@ -31,6 +31,7 @@ import { addAlertHooks } from "./harness-alerts.ts";
 import { addPrime } from "./prime.ts";
 import changelog from "../changelog.json";
 import { lockSchema } from "./project.ts";
+import { verifyPiOnboarding } from "./pi-check.ts";
 import { version } from "../package.json";
 import { z } from "zod";
 
@@ -187,6 +188,18 @@ function createProgram(
 	const system = program
 		.command("system")
 		.description("Automation adapters for setup scripts, Git hooks and harness callbacks");
+	system
+		.command("pi-check")
+		.description("Verify the accepted checkout Pi payload without materializing it")
+		.action(async function checkPi(this: Command) {
+			const identity = await verifyPiOnboarding(
+				await checkout(this.optsWithGlobals<Options>(), deps),
+				deps,
+			);
+			if (program.opts<Options>().json) {
+				emit({ ok: true, kind: "pi_payload_valid", ...identity });
+			}
+		});
 	addPrime(program, emit);
 	program
 		.command("info")
@@ -452,6 +465,10 @@ export function onboardingOptions(command: Command): Command {
 			"\nOnboarding adapters are generated only in this repository. Repeat --harness to select several;\n" +
 				"use --harness none alone to remove recognized adapters. Omitted headless options retain saved choices.\n" +
 				"Includes add to prime's defaults; excludes win. See beeswax prime --help for tool names.\n" +
+				"Commit selected native adapters and the generated .gitignore section with the project contract.\n" +
+				"Pi delegates to ignored .hive/beeswax/generated/pi-beeswax.js. Run beeswax sync in each checkout\n" +
+				"with the accepted release before loading Pi, including after branch changes or beeswax lock.\n" +
+				"Missing or stale Pi output fails at load; review edited payloads before regenerating.\n" +
 				"Ambiguous onboarding stops with an agent handoff: beeswax migrate setup.\n" +
 				"Codex requires project trust and /hooks review; Pi requires project trust.\n",
 		);

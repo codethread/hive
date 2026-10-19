@@ -1,6 +1,6 @@
 /* eslint-disable import/max-dependencies -- Setup composes repository adapters. */
 import { BeeswaxError, EXIT, errorMessage } from "./errors.ts";
-import type { HookAdapter, OnboardingFlags, ProjectConfig } from "./config.ts";
+import type { HookAdapter, OnboardingConfig, OnboardingFlags, ProjectConfig } from "./config.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Setup paths and inferred issue prefix.
 import { basename, join, resolve } from "node:path";
 import {
@@ -19,6 +19,7 @@ import {
 	preflightWorkflowSkill,
 } from "./workflow-skill.ts";
 import {
+	projectMigration,
 	readProjectLock,
 	requireProjectConfig,
 	requireProjectGeneration,
@@ -26,7 +27,6 @@ import {
 	verifyExecutable,
 	writeProjectLock,
 } from "./project.ts";
-import type { OnboardingConfig } from "./onboarding.ts";
 import type { WorkspaceIO } from "./services.ts";
 import { applyOnboarding } from "./onboarding.ts";
 import { bindCheckout } from "./binding.ts";
@@ -35,6 +35,8 @@ import { setupReadiness } from "./readiness.ts";
 import { z } from "zod";
 
 const NONEMPTY = 1;
+const EMPTY = 0;
+const DELIMITERS = 2;
 
 export const trackerSchema = z.enum(["init", "bootstrap", "adopt", "none"]);
 export const integrationSchema = z.enum(["mise", "none"]);
@@ -235,7 +237,7 @@ export async function setupRepository(options: SetupOptions, deps: SetupDependen
 		}
 		await bootstrapHooks(options.repo, options.config.bootstrap.hooks, deps);
 		completed.push("hooks");
-		const onboarding = await applyOnboarding(options.repo, options.config.onboarding, deps);
+		const onboarding = await applyOnboarding(options.repo, options.config, deps);
 		if (onboarding.length >= NONEMPTY) {
 			completed.push("onboarding");
 		}
@@ -323,6 +325,7 @@ function applyFlags(defaults: SetupOptions, flags: SetupFlags): SetupOptions {
 }
 
 /** Local runtime selections and nested worktrees do not belong to application history. */
+// eslint-disable-next-line max-statements -- Verify one exact local section before appending it.
 async function installLocalExcludes(root: string, io: WorkspaceIO): Promise<void> {
 	const common = await io.command(
 		["git", "rev-parse", "--path-format=absolute", "--git-common-dir"],
@@ -330,11 +333,26 @@ async function installLocalExcludes(root: string, io: WorkspaceIO): Promise<void
 	);
 	const path = join(common, "info/exclude");
 	const contents = await io.read(path);
-	const present = new Set(contents.split("\n"));
-	const missing = ["/.worktrees/", "/mise.local.toml", "/.codex/config.toml"].filter(
-		(entry) => !present.has(entry),
-	);
-	if (missing.length >= NONEMPTY) {
-		await io.write(path, `${contents.trimEnd()}\n${missing.join("\n")}\n`);
+	const section =
+		"# beeswax:begin local-excludes v1\n/.worktrees/\n/mise.local.toml\n# beeswax:end local-excludes\n";
+	const matches = [
+		...contents.matchAll(
+			/^# beeswax:begin local-excludes[^\n]*\n[\s\S]*?^# beeswax:end local-excludes(?:\n|$)/gmu,
+		),
+	];
+	const delimiters = contents.match(/^# beeswax:(?:begin|end) local-excludes/gmu) ?? [];
+	if (
+		matches.length > NONEMPTY ||
+		delimiters.length !== matches.length * DELIMITERS ||
+		(matches.length === NONEMPTY && matches[EMPTY]![EMPTY] !== section)
+	) {
+		throw projectMigration(`${path}: edited, duplicated or unsupported local-excludes section.`);
+	}
+	if (matches.length === EMPTY) {
+		let separator = "";
+		if (contents !== "" && !contents.endsWith("\n")) {
+			separator = "\n";
+		}
+		await io.write(path, `${contents}${separator}${section}`);
 	}
 }

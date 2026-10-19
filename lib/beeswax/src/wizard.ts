@@ -1,9 +1,8 @@
 import { BeeswaxError, EXIT } from "./errors.ts";
-import type { HookAdapter, OnboardingFlags } from "./config.ts";
+import type { HookAdapter, OnboardingConfig, OnboardingFlags } from "./config.ts";
 import type { SetupFlags, SetupOptions, TrackerMode } from "./setup.ts";
 import { confirm, intro, isCancel, multiselect, outro, select, text } from "@clack/prompts";
 import type { CANCEL_SYMBOL } from "@clack/prompts";
-import type { OnboardingConfig } from "./onboarding.ts";
 import { selectHookConfig } from "./config.ts";
 
 const EMPTY = 0;
