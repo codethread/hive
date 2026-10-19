@@ -4,17 +4,25 @@ Tools for running coding agents, managing Git worktrees and coordinating Beads w
 
 ## Set up the Hive stack
 
-Install with Homebrew:
+For a Hive source checkout, follow the [source prerequisites](./docs/beads-integration.md#bootstrap-a-clone), then use Mise's bootstrap in the checkout you will use, before starting your harness:
+
+```sh
+mise run
+```
+
+This installs matching tools and prepares the checkout through Beeswax sync. See [source bootstrap](./docs/repository-commands.md#setup-and-automation) for the recipe and [per-checkout preparation](./lib/beeswax/README.md#prepare-each-checkout) for later syncs. Keep [shared project intent and personal settings](./lib/beeswax/README.md#commit-the-project-contract) separate.
+
+To use packaged executables in another repository, install with Homebrew:
 
 ```sh
 brew tap codethread/hive https://github.com/codethread/hive.git
-brew install oven-sh/bun/bun dicklesworthstone/tap/br dicklesworthstone/tap/bv codethread/hive/hive
+brew install mise oven-sh/bun/bun dicklesworthstone/tap/br dicklesworthstone/tap/bv codethread/hive/hive
 ```
 
 Then, from the repository you want to configure:
 
 ```sh
-beeswax setup
+beeswax setup --environment mise
 ```
 
 See [repository setup](./lib/beeswax/README.md#configure-a-repository) for details, including headless setup and managed workers.

@@ -39,9 +39,9 @@ For Hive-owned CLI improvements, breaking changes and adoption actions, follow p
 
 ## Configure a repository
 
-Run `beeswax setup` in the consuming repository. The interactive wizard handles tracker selection, permanent tracker prerequisites, Git integration and harness onboarding. Read `beeswax setup --help` for headless options and first-initialization prerequisites. Setup stays local; `beeswax beads sync` receives and publishes tracker changes.
+Run `beeswax setup --environment mise` in the consuming repository for the recommended Mise path. The interactive wizard handles tracker selection, permanent tracker prerequisites, Git integration and harness onboarding. Read `beeswax setup --help` for headless options and first-initialization prerequisites. Setup stays local; `beeswax beads sync` receives and publishes tracker changes.
 
-Tracker environment configuration is separate from harness onboarding. Use `beeswax beads setup --help` for local Mise configuration and `beeswax beads env --help` for endpoint selection precedence.
+Use Mise as the project environment source, keeping your machine's tracker selection in ignored `mise.local.toml`. You manage shell startup and activation. Tracker environment configuration is separate from harness onboarding; use `beeswax beads setup --help` for local Mise configuration and `beeswax beads env --help` for endpoint selection precedence. Beeswax also supports standalone setup without Mise through `--environment none`.
 
 Setup's readiness receipt separates configured artifacts from pending execution checks and reports effective [Honeycomb configuration](../honeycomb/README.md#config) for review. Preserve valid existing policy. For managed workers, continue with [Bee and Colony setup](../colony/README.md#install-and-try-it); repository plumbing alone does not establish runtime readiness.
 
@@ -88,11 +88,35 @@ Alert callbacks read independent state for the selected tracker and deliver hold
 
 Start a new session after setup. [Claude Code](https://code.claude.com/docs/en/hooks#sessionstart) and [Codex](https://learn.chatgpt.com/docs/hooks#sessionstart) add the command's output to model context. In Codex, trust the project and use `/hooks` to review and trust each new or changed hook definition. Pi loads project extensions after project trust is granted.
 
-Codex GUI sessions use the same native hooks. When a Codex `SessionStart` hook inherits no `BEADS_DB`, it adds Mise command guidance to model context. This does not change the command-tool environment; use `beeswax beads env --help` for endpoint selection and explicit database flags.
+### Environment capability and guidance
+
+Core integration covers the selected primer, tracker alerts and Scent identity described above. Startup environment delivery is a separate capability:
+
+| Harness | Core integration | Startup environment capability | Additional agent guidance |
+| --- | --- | --- | --- |
+| Pi | Supported through the selected extensions | Hive's [Pi extension](../../.pi/extensions/beads.ts) resolves and sets `BEADS_DB` at session start. | Less environment guidance when the extension supplies the command environment. |
+| Claude Code | Supported through native hooks | `beeswax system beads session-start` can export the selected endpoint through `CLAUDE_ENV_FILE` when configured, as in [Hive's settings](../../.claude/settings.json). | Less environment guidance when the hook supplies the command environment. |
+| Codex CLI | Supported through native hooks | Can inherit the project environment from the user's launching shell. | Missing inherited `BEADS_DB` triggers Mise command guidance. |
+| Codex GUI | Supported through the same native hooks | A GUI launch may lack the user's shell environment. | The same guidance keeps project commands usable through Mise. |
+
+The Pi and Claude environment bridges above are configured separately in Hive. Selecting portable Beeswax onboarding alone does not install either bridge.
+
+Codex hook commands invoke Beeswax directly, capturing inherited `BEADS_DB` before project lookup. Endpoint selection follows an explicit database flag, then the inherited value, the project's Mise environment and conventional tracker discovery. At `SessionStart`, absent or empty inherited `BEADS_DB` triggers guidance even if lookup resolves a tracker. A nonempty inherited value suppresses that guidance without proving the command tool inherited it. Hook output changes model context, not the command-tool environment.
+
+When needed, run `mise exec -- <command>` from the project checkout. Preserve an explicit invocation or assignment using the command's database flag after `mise exec` (`br --db`, `beeswax --beads-db`); read `beeswax beads env --help` for selection checks.
+
+For a future harness without startup environment injection, deliver these instructions through its available instruction channel. This approach needs no bespoke environment configuration branch; support still depends on that harness's implemented integration.
 
 ## Commit the project contract
 
-Commit `.hive/beeswax/config.toml`, `.hive/beeswax/lock.json`, the selected native harness adapters and Beeswax's generated `.gitignore` section. Configuration is editable intent: actual Git hook files, bootstrap adapter, harnesses and guidance filters. The lock records the accepted release, configuration digest and component generations. Discover their schemas with `beeswax schema`.
+Commit the shared project contract and keep machine-specific selections local:
+
+| Content | Ownership and commit policy |
+| --- | --- |
+| Shared intent | Commit editable `.hive/beeswax/config.toml` and repository bootstrap tasks. Share actual Git hook choices, bootstrap adapter, harness selections and guidance filters. |
+| Accepted contract | Commit `.hive/beeswax/lock.json`; it records the accepted release, configuration digest and component generations. Discover config and lock schemas with `beeswax schema`. |
+| Personal machine settings | Keep `mise.local.toml` ignored and untracked. Absolute tracker paths belong here or in explicit process/invocation settings, not shared project configuration. |
+| Native adapters and generated output | Commit selected thin harness adapters and Beeswax's generated `.gitignore` section. Regenerate the ignored Pi payload in each checkout; preserve user content outside owned sections. |
 
 For Pi, `.pi/extensions/beeswax.js` is the tracked adapter; `.hive/beeswax/generated/pi-beeswax.js` is its ignored, reproducible payload. The adapter validates the checkout's accepted contract before loading that payload. Follow [per-checkout preparation](#prepare-each-checkout) before loading Pi; the separate `.pi/extensions/scent.js` loader obtains identity behavior from the installed Scent runtime.
 
