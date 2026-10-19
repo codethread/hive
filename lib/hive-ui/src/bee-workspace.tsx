@@ -8,6 +8,7 @@ import { useCallback, useMemo } from "react";
 import type { BeeScene } from "./bee-scene.ts";
 import { BeeSearch } from "./board-search.tsx";
 import type { GraphProps } from "./graph-loader.ts";
+import { RefreshCw } from "lucide-react";
 import { useStore } from "zustand";
 
 const MAX_VISIBLE_DEPTH = 4;
@@ -137,7 +138,13 @@ export function BeeWorkspace({
 					aria-label="Selected bee request"
 				>
 					{selected ? (
-						<RequestSummary bee={selected} board={board} colonyId={colonyId} ancestry={ancestry} />
+						<RequestSummary
+							bee={selected}
+							board={board}
+							colonyId={colonyId}
+							ancestry={ancestry}
+							fetching={ancestryResource.kind === "loading"}
+						/>
 					) : (
 						<div className="py-8 text-sm text-muted">
 							<h2 className="mb-2 font-medium text-ink">Select a bee request</h2>
@@ -280,11 +287,13 @@ function RequestSummary({
 	board,
 	colonyId,
 	ancestry,
+	fetching,
 }: {
 	bee: Bee;
 	board: Board | null;
 	colonyId: string;
 	ancestry: Provenance | null;
+	fetching: boolean;
 }) {
 	const search = useSearch({ from: "/colonies/$colonyId" });
 	const navigate = useNavigate({ from: "/colonies/$colonyId" });
@@ -302,14 +311,23 @@ function RequestSummary({
 			<h3 className="section-title">Recorded requester</h3>
 			<p className="break-words text-sm">{bee.requester ?? "Not recorded"}</p>
 			<button
-				className="button mt-3"
+				className="button mt-3 inline-flex items-center gap-2"
 				type="button"
+				aria-label={search.ancestry === bee.id && ancestry ? "Refresh ancestry" : "Load ancestry"}
+				title={search.ancestry === bee.id && ancestry ? "Refresh ancestry" : "Load ancestry"}
+				aria-busy={fetching}
+				disabled={fetching}
 				onClick={() => {
 					void loadProvenance(colonyId, bee.id, search.ancestry === bee.id);
 					void navigate({ search: (current) => ({ ...current, ancestry: bee.id }) });
 				}}
 			>
-				{search.ancestry === bee.id && ancestry ? "Refresh ancestry" : "Load ancestry"}
+				<RefreshCw
+					size={16}
+					aria-hidden="true"
+					className={fetching ? "refresh-rotating" : undefined}
+				/>
+				{!(search.ancestry === bee.id && ancestry) && "Load ancestry"}
 			</button>
 			<div className="mt-4">
 				<BeeActivity bee={bee} />

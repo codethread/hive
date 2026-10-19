@@ -131,13 +131,9 @@ export function ResourceNotice<Value>({
 			</p>
 		);
 	}
-	if (resource.kind === "loading") {
+	if (resource.kind === "loading" && resource.previous === null) {
 		return (
-			<output className="px-5 py-2 text-xs text-muted">
-				{resource.previous === null
-					? `Loading ${label.toLowerCase()}…`
-					: `Refreshing ${label.toLowerCase()}…`}
-			</output>
+			<output className="px-5 py-2 text-xs text-muted">{`Loading ${label.toLowerCase()}…`}</output>
 		);
 	}
 	return null;

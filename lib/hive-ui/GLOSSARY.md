@@ -66,11 +66,13 @@ Presentation vocabulary nested under the [shared Hive glossary](../../GLOSSARY.m
 
 ## Foundations
 
+**Animations**: The shared motion catalogue for production components.
+
 **Tabs**: The selectable panes used for inspector Bead and Outline presentations.
 
 **Markdown content**: The rendered native Markdown in acceptance criteria, including read-only task checkboxes.
 
-**Resource notice**: The visible loading, refresh, stale or failed state beside a data snapshot.
+**Resource notice**: Feedback for initial loading, stale data or a failed read.
 
 **Bead metadata**: The compact labels and recorded Bee assignment accompanying a task bead.
 

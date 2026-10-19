@@ -1,9 +1,12 @@
+import { HttpResponse, delay, http } from "msw";
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import { board, hierarchy, worker } from "./fixtures.ts";
 import { previewHierarchy, previewSample, workflowDetail } from "./workflow-fixtures.ts";
 import { WorkPage } from "../work-page.tsx";
 import { beadHandlers } from "./handlers.ts";
-import { worker } from "./fixtures.ts";
 import { workflowHandlers } from "./workflow-simulation-fixture.ts";
+
+const FETCH_DELAY_MS = 1500;
 
 const meta = {
 	title: "Workspace/Work board",
@@ -31,3 +34,18 @@ export const BeadInspector: Story = {
 };
 
 export const Paper: Story = { globals: { theme: "paper" } };
+
+export const SlowRefresh: Story = {
+	parameters: {
+		msw: [
+			http.get("/api/colonies/:colony/board", async () => {
+				await delay(FETCH_DELAY_MS);
+				return HttpResponse.json(board);
+			}),
+			http.get("/api/colonies/:colony/hierarchy", async () => {
+				await delay(FETCH_DELAY_MS);
+				return HttpResponse.json(hierarchy);
+			}),
+		],
+	},
+};

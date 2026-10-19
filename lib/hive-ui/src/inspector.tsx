@@ -29,6 +29,7 @@ import { boardScopeSchema, detailKey, hierarchyKey } from "../contracts.ts";
 import { BranchExplorer } from "./branch-explorer.tsx";
 import { FilterableLabel } from "./filter-controls.tsx";
 import { MergeLinks } from "./merge-links.tsx";
+import { RefreshCw } from "lucide-react";
 import { WorkflowIndicator } from "./workflow-preview.tsx";
 import { hasHierarchy } from "../hierarchy.ts";
 import { useStore } from "zustand";
@@ -55,6 +56,14 @@ export function Inspector({ colonyId, id }: { colonyId: string; id: string }) {
 		(state) => state.entries[hierarchyKey(colonyId, [id])] ?? EMPTY,
 	);
 	const hierarchy = annotateHierarchy(snapshot(hierarchyResource), colonyId, annotationEntries);
+	const annotationResource = annotationStatus(
+		colonyId,
+		[[id], hierarchy?.nodes.map((node) => node.id) ?? []],
+		annotationEntries,
+	);
+	const fetching = [resource, hierarchyResource, annotationResource].some(
+		(entry) => entry.kind === "loading",
+	);
 	const isMerge = detail?.card.labels.includes("merge") === true;
 	const showOutline =
 		!isMerge && (hierarchy === null || hierarchy.stale || hasHierarchy(hierarchy, id));
@@ -112,15 +121,22 @@ export function Inspector({ colonyId, id }: { colonyId: string; id: string }) {
 				<div className="flex items-center gap-2">
 					{!isMerge && <OutlineLink id={id} />}
 					<button
-						className="button"
+						className="sidebar-action"
 						type="button"
-						disabled={resource.kind === "loading" || hierarchyResource.kind === "loading"}
+						aria-label="Refresh bead details"
+						title="Refresh bead details"
+						aria-busy={fetching}
+						disabled={fetching}
 						onClick={() => {
 							const refreshAfter = Date.now();
 							void loadBead(colonyId, id, { refreshAfter, scope });
 						}}
 					>
-						Refresh
+						<RefreshCw
+							size={18}
+							aria-hidden="true"
+							className={fetching ? "refresh-rotating" : undefined}
+						/>
 					</button>
 					<button
 						ref={closeRef}

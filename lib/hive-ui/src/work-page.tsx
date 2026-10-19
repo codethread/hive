@@ -35,6 +35,7 @@ import { FilterWorkspace } from "./filter-drawer.tsx";
 import { HeaderSearch } from "./board-search.tsx";
 import { Inspector } from "./inspector.tsx";
 import type { Navigation } from "../contracts.ts";
+import { RefreshCw } from "lucide-react";
 import { WorkflowDialog } from "./workflow-preview.tsx";
 import { useLiveRefresh } from "./use-live-refresh.ts";
 import { useStore } from "zustand";
@@ -135,6 +136,22 @@ export function WorkPage() {
 		(state) => state.entries[inventoryKey(colonyId, search)] ?? EMPTY,
 	);
 	const inventory = search.view === "beads" ? undefined : snapshot(inventoryResource);
+	const annotationResource = annotationStatus(
+		colonyId,
+		[
+			board?.cards.map((card) => card.id) ?? [],
+			snapshot(hierarchyResource)?.nodes.map((node) => node.id) ?? [],
+			snapshot(outlineResource)?.nodes.map((node) => node.id) ?? [],
+		],
+		annotationEntries,
+	);
+	const fetching = [
+		resource,
+		inventoryResource,
+		outlineResource,
+		hierarchyResource,
+		annotationResource,
+	].some((entry) => entry.kind === "loading");
 	const colony = useStore(colonies.store, (state) =>
 		snapshot(state.entries["colonies"] ?? EMPTY)?.colonies.find((entry) => entry.id === colonyId),
 	);
@@ -157,7 +174,39 @@ export function WorkPage() {
 
 	return (
 		<main className="work-page">
-			<FilterWorkspace board={board}>
+			<FilterWorkspace
+				board={board}
+				actions={
+					<>
+						{search.view === "beads" && search.outline === undefined && board && (
+							<ColumnSettings
+								key={colonyId}
+								colony={colonyId}
+								present={board.cards.map((card) => card.status)}
+								selected={search.statuses}
+								className="sidebar-action"
+							/>
+						)}
+						<button
+							className="sidebar-action refresh-action"
+							type="button"
+							aria-label="Refresh"
+							title="Refresh"
+							aria-busy={fetching}
+							disabled={fetching}
+							onClick={() => {
+								void loadView(colonyId, search, true);
+							}}
+						>
+							<RefreshCw
+								size={18}
+								aria-hidden="true"
+								className={fetching ? "refresh-rotating" : undefined}
+							/>
+						</button>
+					</>
+				}
+			>
 				<div
 					className={
 						"flex flex-wrap items-center justify-between gap-2 border-b " +
@@ -174,29 +223,6 @@ export function WorkPage() {
 					</div>
 					<div className="flex items-center gap-3">
 						{readAt !== null && <span>Updated {time(readAt)}</span>}
-						{search.view === "beads" && search.outline === undefined && board && (
-							<ColumnSettings
-								key={colonyId}
-								colony={colonyId}
-								present={board.cards.map((card) => card.status)}
-								selected={search.statuses}
-							/>
-						)}
-						<button
-							className="button"
-							type="button"
-							disabled={
-								resource.kind === "loading" ||
-								inventoryResource.kind === "loading" ||
-								outlineResource.kind === "loading" ||
-								hierarchyResource.kind === "loading"
-							}
-							onClick={() => {
-								void loadView(colonyId, search, true);
-							}}
-						>
-							Refresh
-						</button>
 					</div>
 				</div>
 				{search.outline === undefined && <ResourceNotice resource={resource} />}
@@ -212,14 +238,7 @@ export function WorkPage() {
 									<>
 										<HierarchyNotice resource={hierarchyResource} />
 										<ResourceNotice
-											resource={annotationStatus(
-												colonyId,
-												[
-													board.cards.map((card) => card.id),
-													snapshot(hierarchyResource)?.nodes.map((node) => node.id) ?? [],
-												],
-												annotationEntries,
-											)}
+											resource={annotationResource}
 											label="Bee assignment and merge details"
 										/>
 										<BeadBoard

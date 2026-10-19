@@ -11,6 +11,7 @@ import {
 	Trigger as DialogTrigger,
 } from "@radix-ui/react-dialog";
 import { boardStatuses, columnOrder, createColumnOrders, swapColumns } from "./column-order.ts";
+import { Columns3 } from "lucide-react";
 import { preferences } from "./data.ts";
 import { statusName } from "./filter-controls.tsx";
 import { useStore } from "zustand";
@@ -28,9 +29,16 @@ interface ColumnSettingsProps {
 	present: string[];
 	/** Current status filter, used only to determine visible columns. */
 	selected: string[];
+	/** CSS classes for the trigger button. */
+	className?: string;
 }
 
-export function ColumnSettings({ colony, present, selected }: ColumnSettingsProps) {
+export function ColumnSettings({
+	colony,
+	present,
+	selected,
+	className = "button",
+}: ColumnSettingsProps) {
 	const theme = useStore(preferences, (state) => state.theme);
 	const preferred = useStore(
 		columnOrders.store,
@@ -42,8 +50,9 @@ export function ColumnSettings({ colony, present, selected }: ColumnSettingsProp
 	return (
 		<Dialog>
 			<DialogTrigger asChild>
-				<button type="button" className="button">
-					Columns
+				<button type="button" className={className} aria-label="Columns" title="Columns">
+					<Columns3 size={16} aria-hidden="true" />
+					<span className="sidebar-action-label">Columns</span>
 				</button>
 			</DialogTrigger>
 			<DialogPortal>

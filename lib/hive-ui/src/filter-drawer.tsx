@@ -22,7 +22,15 @@ import { preferences } from "./data.ts";
 import { useStore } from "zustand";
 import { z } from "zod";
 
-export function FilterWorkspace({ board, children }: { board: Board | null; children: ReactNode }) {
+export function FilterWorkspace({
+	board,
+	actions,
+	children,
+}: {
+	board: Board | null;
+	actions?: ReactNode;
+	children: ReactNode;
+}) {
 	const search = useSearch({ from: "/colonies/$colonyId" });
 	const navigate = useNavigate({ from: "/colonies/$colonyId" });
 	const { colonyId, saved, views, selected, modified } = useViewPresets(search);
@@ -61,6 +69,7 @@ export function FilterWorkspace({ board, children }: { board: Board | null; chil
 				>
 					Filters & views
 				</button>
+				<div className="workspace-actions">{actions}</div>
 			</div>
 			<div className="filter-workspace-body">
 				<aside
@@ -98,6 +107,7 @@ export function FilterWorkspace({ board, children }: { board: Board | null; chil
 					<div id={`${id}-sidebar`} className="sidebar-content" hidden={collapsed}>
 						{filters}
 					</div>
+					<div className="sidebar-footer workspace-actions">{actions}</div>
 				</aside>
 				<div className="board-pane">
 					<section aria-label="Board filters" className="filter-summary">

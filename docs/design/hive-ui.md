@@ -31,6 +31,7 @@ The nested [Hive UI glossary](../../lib/hive-ui/GLOSSARY.md) owns the canonical 
 | Board navigation | `Workspace/Board navigation` | `BoardTabs`, `BeeHistory` |
 | Board search | `Workspace/Board search` | `HeaderSearch`, `BeeSearch` |
 | Column settings | `Workspace/Column settings` | `ColumnSettings` |
+| Animations | `Foundations/Animations` | `Button` |
 | Tabs | `Foundations/Tabs` | `Tabs`, `TabsList`, `TabsTrigger`, `TabsContent` |
 | Markdown content | `Foundations/Markdown content` | `MarkdownContent` |
 | Resource notice | `Foundations/Resource notice` | `ResourceNotice` |
@@ -39,6 +40,8 @@ The nested [Hive UI glossary](../../lib/hive-ui/GLOSSARY.md) owns the canonical 
 Storybook lives in the same package, with configuration in `lib/hive-ui/.storybook` and stories/fixtures in `lib/hive-ui/src/stories`. Its React/Vite builder processes the production stylesheet through Tailwind 4. This is a development workshop; the product still uses Bun's server and asset build. Package typechecking includes the workshop configuration and stories.
 
 Stories render the production components using a memory router, production stores and MSW fixture responses. The workshop never starts the native API or reads a tracker. Navigation, selection, filter changes, refresh and ancestry actions use deterministic responses; timestamps describe fixed observations. Stores, saved views and column preferences reset between stories in the workshop's browser origin.
+
+Keep gentle motion, including refresh rotation, visible when reduced motion is requested. Honor reduced motion for jarring transitions if introduced; the authored CSS currently has none. Review shared motion in **Foundations → Animations**.
 
 `Beads/Workflow preview` retains **Active run** as the overall experience. The separate **Workflow preview** section isolates its components and scenarios.
 

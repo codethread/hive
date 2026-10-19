@@ -154,11 +154,16 @@ function OpenWorkflowDialog({
 								className="size-8"
 								aria-label="Refresh workflow state"
 								title="Refresh workflow state"
+								aria-busy={resource.kind === "loading"}
+								disabled={resource.kind === "loading"}
 								onClick={() => {
 									void loadWorkflow(colonyId, id);
 								}}
 							>
-								<RefreshCw />
+								<RefreshCw
+									aria-hidden="true"
+									className={resource.kind === "loading" ? "refresh-rotating" : undefined}
+								/>
 							</Button>
 							<Close asChild>
 								<Button
