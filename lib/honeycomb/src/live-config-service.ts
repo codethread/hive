@@ -29,7 +29,7 @@ export function createLiveConfigService(
 			const context = { cwd: process.cwd(), home, normalizePath };
 			const config = parseConfig(readOptionalConfig(configPath) ?? "", context);
 			const canonicalRoot = normalizePath(root);
-			const local = readOptionalConfig(resolve(canonicalRoot, "honeycomb.toml"));
+			const local = readOptionalConfig(resolve(canonicalRoot, ".hive", "honeycomb.toml"));
 			if (local === undefined) {
 				return config;
 			}

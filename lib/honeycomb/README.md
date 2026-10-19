@@ -198,18 +198,18 @@ Global config is read from:
 ${XDG_CONFIG_HOME:-~/.config}/honeycomb.toml
 ```
 
-Repository-local config is read from `honeycomb.toml` at the **canonical root** (the path printed by `honeycomb root`). Commit that file to share setup and policy with the repository. Every worktree uses the canonical file, including commands invoked from a feature worktree or its subdirectories. A same-named file in a feature worktree is ignored; changes take effect when the canonical file changes.
+Repository config is read from `.hive/honeycomb.toml` under the **canonical root** (the path printed by `honeycomb root`). Commit that file to share setup and policy. Every worktree and its subdirectories use the canonical file; changes take effect when that file changes. Root-level `honeycomb.toml` and feature-worktree copies are ignored.
 
 Resolution order:
 
 1. built-in defaults, global `[defaults]` and top-level `worktree_location`;
 2. matching `[[rule]]` entries in file order;
 3. exact global `[[project]]` entry for the canonical root;
-4. repository-local `honeycomb.toml`.
+4. canonical `.hive/honeycomb.toml`.
 
 Later layers override earlier ones. Omitted local fields inherit the resolved global values. Nested `[finish]` fields merge individually, including explicit `false` values. A local `copy` list replaces the inherited list; `copy = []` disables inherited copying.
 
-`honeycomb config explain --json` reports global `matched_rules` and `project`, the local file's path and explicit settings in `local_config` when present, effective `add`/`finish`/`worktree_location`, and effective name, pool size and copy settings in `setup`. Local command and hook sources use `local:<canonical-root>/honeycomb.toml`; inherited values retain their global sources. The text output also shows the local path and effective setup.
+Use `honeycomb config explain --help` to inspect effective settings and their sources.
 
 ### Repository-local configuration
 
@@ -238,16 +238,16 @@ Choose the schema for the file you are editing:
 
 | Config file | Editor schema |
 | --- | --- |
-| Global XDG config | [`honeycomb.schema.json`](./honeycomb.schema.json) |
-| Canonical-root repository config | [`honeycomb.local.schema.json`](./honeycomb.local.schema.json) |
+| Global XDG `honeycomb.toml` | [`honeycomb.schema.json`](./honeycomb.schema.json) |
+| Canonical `.hive/honeycomb.toml` | [`honeycomb.local.schema.json`](./honeycomb.local.schema.json) |
 
-Copy the chosen schema beside your `honeycomb.toml`, then place the corresponding directive at the top of the TOML file. For repository-local config:
+For repository config, copy the local schema to `.hive/honeycomb.local.schema.json` in the canonical checkout and put this directive at the top of `.hive/honeycomb.toml`:
 
 ```toml
 #:schema ./honeycomb.local.schema.json
 ```
 
-For global config:
+For global config, copy the global schema beside the XDG `honeycomb.toml` and put this directive at the top of that file:
 
 ```toml
 #:schema ./honeycomb.schema.json

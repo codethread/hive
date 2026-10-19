@@ -2,7 +2,7 @@
 import { EXIT_CODES, dispatch } from "../../src/index.ts";
 import { afterAll, expect, test } from "bun:test";
 // oxlint-disable-next-line import/no-nodejs-modules -- Native Git fixtures use temporary files.
-import { chmod, cp, mkdtemp, realpath, rename, rm, writeFile } from "node:fs/promises";
+import { chmod, cp, mkdir, mkdtemp, realpath, rename, rm, writeFile } from "node:fs/promises";
 import { commitFile, createWorktree, initRepo, pathExists, testDeps } from "./support.ts";
 import { gitOut, gitSucceeds, gitText, runCli, useTmpHome } from "./lifecycle-helpers.ts";
 // oxlint-disable-next-line import/no-nodejs-modules -- Temporary checkout paths.
@@ -74,8 +74,9 @@ function pins(checkout: Awaited<ReturnType<typeof fixture>>, target = checkout.b
 
 test("public CLI integrates a pinned local-only task and preserves source and canonical checkouts", async () => {
 	const checkout = await fixture();
+	await mkdir(join(checkout.root, ".hive"));
 	await writeFile(
-		join(checkout.root, "honeycomb.toml"),
+		join(checkout.root, ".hive", "honeycomb.toml"),
 		'[finish]\nstrategy = "squash"\npush = true\nremove_worktree = true\ndelete_branch = true\n',
 	);
 	const canonical = await readCheckoutState(checkout.root);

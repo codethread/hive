@@ -70,7 +70,7 @@ enabled = false
 	);
 	expect(policy).toMatchObject({
 		addPolicy: "origin_default",
-		command: { command: "echo local", source: "local:/repo/honeycomb.toml" },
+		command: { command: "echo local", source: "local:/repo/.hive/honeycomb.toml" },
 		finishPolicy: {
 			deleteBranch: true,
 			enabled: false,
@@ -79,7 +79,7 @@ enabled = false
 			strategy: "squash",
 		},
 		globalProject: { name: "global-name", poolSize: 2 },
-		preRemoteCheck: { source: "local:/repo/honeycomb.toml", value: "echo local-check" },
+		preRemoteCheck: { source: "local:/repo/.hive/honeycomb.toml", value: "echo local-check" },
 		project: { copy: [], copyModeDefault: "symlink", name: "local-name", poolSize: 1 },
 		worktreeLocation: "sibling",
 	});

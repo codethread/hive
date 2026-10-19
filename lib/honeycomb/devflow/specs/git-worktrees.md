@@ -174,14 +174,7 @@ When no copy destinations are configured, the fenced block is removed on the nex
 
 ### Policy configuration
 
-Policy and inherited bootstrap command configuration describes default behavior for repositories that may not need exact project entries. It is resolved from four layers:
-
-1. built-in defaults and global `[defaults]`;
-2. matching `[[rule]]` entries, evaluated in file order with later matching fields winning;
-3. an exact global `[[project]]` entry for the canonical root, whose fields win over rules;
-4. `honeycomb.toml` at the canonical root, whose explicit fields override the resolved global settings.
-
-Rules match canonical root paths with an explicit `root_glob`. Glob matching is only for root selection; copy paths keep their stricter no-glob contract. Rules may provide an optional bootstrap `command` and optional `pre_remote_check`; matching rule values are evaluated in file order with later values winning. Pools and copy setup may be configured by an exact global project or the repository-local file. Exact projects may also exist only to override policy or command defaults for an exceptional repository. Local options inherit when omitted; finish patches merge field-by-field and copy arrays replace the inherited list, including an explicit empty list. All worktrees use the canonical file rather than a caller-worktree file.
+The [configuration guide](../../README.md#config) owns discovery, precedence and inheritance for global XDG configuration and canonical `.hive/honeycomb.toml`. Rules match canonical root paths with `root_glob`; this glob matching is only for root selection, while copy paths keep their stricter no-glob contract.
 
 ### Add freshness policy
 
@@ -440,7 +433,7 @@ Pooled cleanup reports `"recycle_worktree"` instead of `"remove_worktree"`. If p
 
 ### Config
 
-Global config is read from `honeycomb.toml` under XDG config home. Project entries define exact canonical roots for bootstrap, pools, copy setup, and exact policy overrides. Policy configuration also supports defaults and root-glob rules that can affect repositories without requiring bootstrap setup. A repository-local `honeycomb.toml` at the canonical root supplies a final patch using the same applicable option shapes, with no `root`, `root_glob`, `defaults`, `rule` or `project` selectors. See the [configuration guide](../../README.md#repository-local-configuration) for local syntax, inheritance, validation and editor schemas.
+The fields below describe global XDG `honeycomb.toml`. For canonical `.hive/honeycomb.toml` syntax, validation and editor schemas, see [repository-local configuration](../../README.md#repository-local-configuration).
 
 Top-level fields:
 

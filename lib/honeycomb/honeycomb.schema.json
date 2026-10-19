@@ -291,5 +291,5 @@
 		}
 	},
 	"additionalProperties": false,
-	"description": "HONEYCOMB configuration. Policy inheritance, canonical path matching and normalized path safety are also checked at runtime."
+	"description": "Global honeycomb.toml under XDG config home. Policy inheritance, canonical path matching and normalized path safety are also checked at runtime."
 }

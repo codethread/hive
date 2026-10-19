@@ -59,7 +59,7 @@ export function parseRepositoryConfig(
 	config: TreesConfig,
 	context: RepositoryConfigContext,
 ): TreesConfig {
-	const path = resolve(context.canonicalRoot, "honeycomb.toml");
+	const path = resolve(context.canonicalRoot, ".hive", "honeycomb.toml");
 	const result = RepositoryConfigSchema.safeParse(parseToml(toml, path));
 	if (!result.success) {
 		throw new ConfigError(`Invalid ${path}:\n${z.prettifyError(result.error)}`);
@@ -86,9 +86,8 @@ function validateRepositorySetup(
 		requiresCommand &&
 		resolveEffectiveCommand(config, context.canonicalRoot, context.normalizePath).command === null
 	) {
-		throw new ConfigError(
-			`${resolve(context.canonicalRoot, "honeycomb.toml")} requires an effective command for pooled or copy setup`,
-		);
+		const path = resolve(context.canonicalRoot, ".hive", "honeycomb.toml");
+		throw new ConfigError(`${path} requires an effective command for pooled or copy setup`);
 	}
 }
 

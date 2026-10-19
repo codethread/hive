@@ -68,10 +68,13 @@ Use when:
   certain way for a repository.
 
 Notes:
-  Resolution starts with built-in defaults, applies matching root_glob rules in
-  file order, then exact project overrides, then honeycomb.toml at the canonical
-  root. Omitted local fields inherit global values. Use --json for the matched
-  rules, global project, local file, command source, policies, and effective setup.
+  Reads global XDG honeycomb.toml and canonical .hive/honeycomb.toml. All worktrees
+  use the canonical repository file. Text output shows effective settings and sources.
+  With --json, matched_rules and project identify the global matches; local_config
+  gives the canonical file's path and explicit settings when present. Local command
+  and pre_remote_check sources use local:<canonical-root>/.hive/honeycomb.toml;
+  inherited values retain their global sources. add, finish and worktree_location
+  report effective policy; setup reports effective name, pool size and copy settings.
 `,
 	finish: `
 Use when:

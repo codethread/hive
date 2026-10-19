@@ -135,5 +135,5 @@
 		}
 	},
 	"additionalProperties": false,
-	"description": "Repository-local honeycomb.toml at the canonical root. Explicit fields override global settings; omitted fields inherit them."
+	"description": "Repository configuration at canonical .hive/honeycomb.toml. Explicit fields override global settings; omitted fields inherit them."
 }

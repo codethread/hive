@@ -101,7 +101,7 @@ const RepositoryOptionsShape = {
 export const RepositoryConfigSchema = z
 	.strictObject(RepositoryOptionsShape)
 	.describe(
-		"Repository-local honeycomb.toml at the canonical root. Explicit fields override global " +
+		"Repository configuration at canonical .hive/honeycomb.toml. Explicit fields override global " +
 			"settings; omitted fields inherit them.",
 	);
 
@@ -167,8 +167,8 @@ export function createConfigSchema(context: ConfigPathContext) {
 			refinement.addIssue({ code: "custom", message: issue.message, path: issue.path });
 		}
 	}).describe(
-		"HONEYCOMB configuration. Policy inheritance, canonical path matching and normalized path safety " +
-			"are also checked at runtime.",
+		"Global honeycomb.toml under XDG config home. Policy inheritance, canonical path matching " +
+			"and normalized path safety are also checked at runtime.",
 	);
 }
 // --- Private functions ---
