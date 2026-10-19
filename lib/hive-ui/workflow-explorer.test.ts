@@ -1,38 +1,64 @@
-import { expect, test } from "bun:test";
 import {
+	advance,
+	availableOutcomes,
+	exampleVisit,
 	renderInstructions,
+	sampleContext,
 	stepIds,
 	steps,
 	transitions,
 } from "./src/stories/workflow-explorer-data.ts";
 
-const exampleContext = {
-	request: "Example Land request",
-	target: { kind: "worktree" as const, branch: "example/land" },
-	canonicalRoot: "/example/hive",
-	beadsDb: "/example/hive/.beads/beads.db",
-	completedTasks: [],
-	expectedCommits: [],
-	evidence: "Example accumulated result",
-	review: undefined,
-};
+import { expect, test } from "bun:test";
+import { samplePreview, workflowSamples } from "./src/stories/workflow-samples.ts";
+import { sampleSimulation } from "./src/stories/workflow-simulation-fixture.ts";
 
-test("Land graph keeps distinct comment outcomes and both automatic branches", () => {
-	const feedback = transitions.comments.filter((edge) => edge.target === "pr");
-	expect(feedback.map((edge) => edge.event)).toEqual(["REBUTTED", "ADDRESSED"]);
-	expect(new Set(feedback.map((edge) => edge.id)).size).toBe(feedback.length);
-	expect(transitions.route.map((edge) => [edge.event, edge.guard, edge.target])).toEqual([
-		["", "isPr", "pr"],
-		["", null, "finish"],
-	]);
-	expect(new Set(transitions.route.map((edge) => edge.id)).size).toBe(transitions.route.length);
+const exampleContext = exampleVisit(sampleContext, "example").snapshot.context;
+
+test("Land graph shows review and delivery findings returning to checked work", () => {
+	expect(stepIds).toEqual(["check", "review", "finish", "verify", "local-update", "done"]);
+	for (const stage of ["review", "finish"] as const) {
+		expect(transitions[stage].map((edge) => [edge.event, edge.target])).toContainEqual([
+			"CHANGES",
+			"check",
+		]);
+	}
+	expect(steps.review).toMatchObject({ kind: "task", bee: "reviewer" });
 });
 
-test("Land worker instructions render the same example context across the full chart", () => {
+test("Land walkthrough follows real outcomes from checked work through local update", () => {
+	let { snapshot } = exampleVisit(sampleContext, "initial");
+	for (const command of ["passed", "approved", "next", "next", "next"]) {
+		const outcome = availableOutcomes(snapshot, sampleContext).find(
+			(entry) => entry.command === command,
+		)!;
+		expect(outcome.enabled).toBe(true);
+		({ snapshot } = advance(snapshot, outcome.event));
+		expect(snapshot.value).toBe(outcome.target);
+	}
+	expect(snapshot.status).toBe("done");
+});
+
+test("Land worker instructions render retained evidence and the final caller brief", () => {
 	const instructions = stepIds
 		.filter((id) => steps[id].kind === "task")
 		.map((id) => renderInstructions(id, exampleContext).instructions);
-	expect(instructions.every((text) => text.includes("Example Land request"))).toBe(true);
-	expect(instructions.every((text) => text.includes("Example accumulated result"))).toBe(true);
-	expect(instructions.every((text) => text.includes("/example/hive"))).toBe(true);
+	expect(instructions.every((text) => text.includes(sampleContext.evidence))).toBe(true);
+	expect(renderInstructions("done", exampleContext).instructions).toContain(sampleContext.request);
+});
+
+test("Land preview samples use the same chart as their simulation", () => {
+	for (const sample of workflowSamples.filter((entry) => entry.definition.startsWith("land"))) {
+		const preview = samplePreview(sample);
+		expect(Object.keys(preview.actors[0]!.machine["states"]!)).toEqual(stepIds);
+		const simulated = sampleSimulation(sample, {
+			checkpoint: sample.checkpoint,
+			savedAt: sample.savedAt,
+			definitionHash: preview.definition.currentHash,
+			actorId: "root",
+			start: { kind: "saved" },
+			events: [],
+		});
+		expect(simulated.actor.snapshot).toEqual(preview.actors[0]!.snapshot);
+	}
 });

@@ -144,11 +144,10 @@ export const InitialOrigin: Story = {
 					canonicalRoot: "/example/hive",
 					beadsDb: "/example/tracker/beads.db",
 					completedTasks: [],
-					expectedCommits: [],
 				}),
 			);
 			await userEvent.click(screen.getByRole("button", { name: "Start from beginning" }));
-			await expectStep("land.triage");
+			await expectStep("land.check");
 		});
 	},
 };

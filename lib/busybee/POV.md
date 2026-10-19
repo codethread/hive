@@ -107,7 +107,6 @@ The [land definition](../../.workflows/land/workflow.ts) records an existing use
 	"request": "The user asked to land the widget change in the current conversation.",
 	"canonicalRoot": "/work/hive",
 	"beadsDb": "/work/hive/.worktrees/tracker--state/.beads/beads.db",
-	"expectedCommits": ["7f3a91c"],
 	"completedTasks": ["hv-widget"],
 	"target": { "kind": "worktree", "branch": "feature/widget" }
 }
@@ -117,8 +116,13 @@ The [land definition](../../.workflows/land/workflow.ts) records an existing use
 busybee run land --parent hv-widget --owner ct --input-file /tmp/land-input.json --json
 ```
 
-The run is “Land worktree feature/widget” and the first task is “Triage the authorized landing: worktree feature/widget.” Inspect `discover` and its brief, then choose the outcome matching the actual work: `implement`, `check`, `review`, `commit`, `reviewed` or `integrated`. Later tasks can return to implementation, review or PR readiness rather than advancing in a fixed sequence.
+The run is “Land worktree feature/widget” and the first task is “Finish and check: worktree feature/widget.” Choose `passed` after completing the agreed work and checks, or `integrated` with proof the change already landed. The normal path continues through Bee-dispatched review, commit/integration, verification and local tool update; findings or changed content return to check.
 
-Every landing outcome, including `next`, requires an `evidence` payload describing the observed result and next brief. Put narrative verification in comments. Complete the stage with that outcome and payload, then collect the saved result. Outcomes `approved`, `commit` and `reviewed` also require the current local-review receipt (`bead`, `base`, `revision`); see [landing from the current state](./README.md#landing-from-the-current-state). Leave unresolved blockers open rather than inventing evidence to advance.
+Every outcome requires an `evidence` string. For example, after the first visit passes:
 
-If landing removes the feature checkout, continue from the retained canonical root with the same database and unchanged named definition. Before the final visit closes, comment on the run with integration, acceptance and verification evidence. Its brief retains the authorized `completedTasks`, paths and caller instructions. Collect the final saved `next` result and verify `status: done`; only then does the authorized standalone caller or Land driver close proven `hv-widget` and publish once with `bun run beads:sync`. The parent edge does not add closure permission for other tasks. See [landing from the current state](./README.md#landing-from-the-current-state) for the post-done failure handoff.
+```sh
+busybee complete RUN CHECK_TASK passed --data '{"evidence":"Complete change passes bun run check; base and diff recorded in stage comments."}' --json
+busybee collect RUN --json
+```
+
+Use the returned visit/request IDs to follow the [review delivery flow](./README.md#delegate-a-workflow-to-bee). If landing removes the feature checkout, continue from the retained canonical root with the same database and compatible named definition. After `status: done`, follow the run brief's caller completion instructions; [Land's user guide](./README.md#landing-from-the-current-state) explains standalone and nested publication.

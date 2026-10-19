@@ -136,6 +136,12 @@ export function renderPrime(options: PrimeOptions): string {
 			"br search/list/ready use --exclude-label system; BV uses bv --recipe work --robot-triage.",
 		"Inspect, claim available work, perform it, verify acceptance and close with evidence. " +
 			"Preserve other assignees and human/HITL reservations.",
+		"At pickup, read ancestor descriptions through the top-level task: " +
+			"follow br dep list TASK --type parent-child --json, repeating with depends_on_id until empty; " +
+			"then fetch known ancestors with br list --all --deferred --exclude-label system --id PARENT --id ANCESTOR " +
+			"--format csv --fields id,title,description (repeat --id as needed). " +
+			"Parent-child links carry scope; blocking dependencies carry prerequisites. " +
+			"Child descriptions add narrower scope rather than repeating parent prose.",
 		"Publish tracker changes at repository-defined checkpoints; code pushes require separate authorization.",
 		"On tracker alerts or sync failure, pause Beads work and merges; read beeswax skills get tracker-recovery.",
 		"",

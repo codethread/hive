@@ -1,6 +1,6 @@
 # Bee and Colony
 
-Bee opens configured roles with `bee run` or submits workflow assignments with `bee spawn`. Colony schedules and supervises their execution. Requests capture a recipe and friendly identity; Busy Bee run/stage beads hold the work. Canonical `.hive/bees.toml` supplies current harness formulas and runtime policy.
+Bee opens configured agent roles with `bee run` or delegates them with `bee spawn`. Busy Bee supplies the task workflow; Colony schedules and supervises execution. Requests capture a recipe and friendly identity; run/stage beads hold the work. Canonical `.hive/bees.toml` supplies current harness formulas and runtime policy.
 
 ## Install and try it
 
@@ -26,7 +26,7 @@ Users open direct conversations with `bee run KIND`; agents delegate through `be
 
 ## Create requests
 
-`bee spawn --help` owns workflow input, execution selection and partial-submission recovery. Submission creates `original work -> workflow run -> stages`; the original parent's claim and completion remain separate. Drivers coordinate runs; dispatched workers execute stages. [Busy Bee](../busybee/README.md#delegate-a-workflow-to-bee) owns progression and group/run closure.
+Use `bee spawn --help` to select a task-appropriate workflow, supply its input and choose execution settings. It also covers partial-submission recovery. Submission creates `original work -> workflow run -> stages`; the original parent's claim and completion remain separate. Drivers coordinate runs; dispatched workers execute stages. [Busy Bee](../busybee/README.md#delegate-a-workflow-to-bee) owns progression and group/run closure.
 
 Bee adds [delivery guidance](../../docs/agents/responses.md#runtime-guidance) at launch. Captured recipes retain the original role; receipts retain the actual invocation. Assessments and inactivity drones use separate protocols. The [spawn contract](../../docs/agents/spawn-requests.md#facts-and-authority) owns host binding and native lifecycle authority.
 

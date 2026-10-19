@@ -11,7 +11,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 
 const SUCCESS = 0;
-const FIRST = 0;
+const skillNames = ["workflow-execution", "workflow-authoring"];
 let directory = "";
 beforeEach(async () => {
 	directory = await mkdtemp(join(tmpdir(), "busybee-skills-"));
@@ -27,48 +27,39 @@ test("skills lists discovery metadata without loading instruction bodies", async
 	expect(document).toEqual({
 		ok: true,
 		kind: "skills_list",
-		skills: [
-			{
-				name: "workflow-execution",
-				description: expect.any(String),
-				files: ["SKILL.md", "references/authoring.md"],
-			},
-		],
+		skills: skillNames.map((name) => ({
+			name,
+			description: expect.any(String),
+			files: ["SKILL.md"],
+		})),
 	});
 	expect(await invokeSkills(["--json"])).toEqual(listed);
 	const text = await invokeSkills([]);
 	expect(text).toMatchObject({ code: 0, stderr: "" });
-	expect(text.stdout).toBe(`workflow-execution\t${document.skills[FIRST].description}\n`);
+	expect(text.stdout).toBe(
+		document.skills
+			.map(
+				({ name, description }: { name: string; description: string }) =>
+					`${name}\t${description}\n`,
+			)
+			.join(""),
+	);
 });
 
-test("skills returns Markdown bodies and lists retrievable references", async () => {
-	const text = await invokeSkills(["get", "workflow-execution"]);
+test.each(skillNames)("skills retrieves %s through get and file routes", async (name) => {
+	const text = await invokeSkills(["get", name]);
 	expect(text).toMatchObject({ code: 0, stderr: "" });
 	expect(text.stdout.startsWith("---")).toBe(false);
-	const json = await invokeSkills(["get", "workflow-execution", "--json"]);
+	const json = await invokeSkills(["get", name, "--json"]);
 	expect(JSON.parse(json.stdout)).toEqual({
 		ok: true,
 		kind: "skills_get",
-		name: "workflow-execution",
+		name,
 		path: "SKILL.md",
 		content: text.stdout.trimEnd(),
 	});
-	expect(await invokeSkills(["file", "workflow-execution", "SKILL.md"])).toEqual(text);
-	const reference = await invokeSkills(["file", "workflow-execution", "references/authoring.md"]);
-	expect(reference).toMatchObject({ code: 0, stderr: "" });
-	const referenceJson = await invokeSkills([
-		"file",
-		"workflow-execution",
-		"references/authoring.md",
-		"--json",
-	]);
-	expect(JSON.parse(referenceJson.stdout)).toEqual({
-		ok: true,
-		kind: "skills_get",
-		name: "workflow-execution",
-		path: "references/authoring.md",
-		content: reference.stdout,
-	});
+	expect(await invokeSkills(["file", name, "SKILL.md"])).toEqual(text);
+	expect(await invokeSkills(["file", name, "SKILL.md", "--json"])).toEqual(json);
 });
 
 test.each([
@@ -89,39 +80,42 @@ test.each([
 	expect(text.stderr).not.toBe("");
 });
 
-test("the executable reads bundled guidance with an empty PATH and isolated home", async () => {
-	const proc = Bun.spawn(
-		[
-			process.execPath,
-			new URL("../../bin/busybee.ts", import.meta.url).pathname,
-			"skills",
-			"get",
-			"workflow-execution",
-			"--json",
-		],
-		{
-			cwd: directory,
-			env: { HOME: directory, PATH: "", XDG_CONFIG_HOME: directory },
-			stdout: "pipe",
-			stderr: "pipe",
-		},
-	);
-	try {
-		const [stdout, stderr, code] = await Promise.all([
-			new Response(proc.stdout).text(),
-			new Response(proc.stderr).text(),
-			proc.exited,
-		]);
-		expect({ code, stderr }).toEqual({ code: 0, stderr: "" });
-		expect(JSON.parse(stdout)).toMatchObject({
-			ok: true,
-			kind: "skills_get",
-			name: "workflow-execution",
-		});
-	} finally {
-		proc.kill();
-	}
-});
+test.each(skillNames)(
+	"the executable reads %s with an empty PATH and isolated home",
+	async (name) => {
+		const proc = Bun.spawn(
+			[
+				process.execPath,
+				new URL("../../bin/busybee.ts", import.meta.url).pathname,
+				"skills",
+				"get",
+				name,
+				"--json",
+			],
+			{
+				cwd: directory,
+				env: { HOME: directory, PATH: "", XDG_CONFIG_HOME: directory },
+				stdout: "pipe",
+				stderr: "pipe",
+			},
+		);
+		try {
+			const [stdout, stderr, code] = await Promise.all([
+				new Response(proc.stdout).text(),
+				new Response(proc.stderr).text(),
+				proc.exited,
+			]);
+			expect({ code, stderr }).toEqual({ code: 0, stderr: "" });
+			expect(JSON.parse(stdout)).toMatchObject({
+				ok: true,
+				kind: "skills_get",
+				name,
+			});
+		} finally {
+			proc.kill();
+		}
+	},
+);
 
 function invokeSkills(args: readonly string[]) {
 	return captureCli(["skills", ...args], { ...createServices(), actor: undefined, cwd: directory });

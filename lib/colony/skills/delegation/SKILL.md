@@ -7,9 +7,9 @@ Follow the application's task policy and authorization. Read `bee --help` for th
 
 ## Submit a bounded assignment
 
-1. Read the existing parent task and acceptance criteria. Choose a kind by its description and default workflow with `bee kinds`.
-2. Follow `bee spawn --help` to submit workflow input. Select configuration, tracker and execution checkout independently; preserve supplied `BD_ACTOR` and `BEADS_DB`. Keep kind defaults unless the assignment needs an override.
-3. Retain `request.id` for delivery, `request.identity` for assignment and `workflow.runId` for workflow navigation. Submission does not establish that execution started. The parent keeps its own assignment and completion policy.
+Choose the role by description with `bee kinds`, then follow `bee spawn --help` to select a task-appropriate workflow and submit its input. Keep kind defaults unless the assignment needs an override; changing the workflow does not require replacing the role prompt. For role and prompt authoring, read `colony skills file operations references/configuration.md`.
+
+Retain `request.id` for delivery, `request.identity` for assignment and `workflow.runId` for workflow navigation. Submission does not establish that execution started. The parent keeps its own assignment and completion policy.
 
 ## Inspect before taking the next action
 
