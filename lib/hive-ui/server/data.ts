@@ -42,6 +42,7 @@ import { z } from "zod";
 const MAX_REQUESTS = 100;
 const METADATA_CONCURRENCY = 4;
 const TASK_MATCH_BATCH = 100;
+const METADATA_READ_BATCH = 100;
 const MAX_ANCESTORS = 8;
 const INVENTORY_TTL_MS = 10_000;
 // Read only the published identity index, independent of Busy Bee actor-state internals.
@@ -58,6 +59,14 @@ interface SourceSnapshot<Value> {
 	value: Value;
 	/** Monotonic source-read version, preserved on cache hits. */
 	version: number;
+}
+interface WorkflowIdentity {
+	/** Native checkpoint revision used to reuse its parsed public identities. */
+	updatedAt: string;
+	/** Owning run published by this workflow system bead. */
+	runId: string;
+	/** Run, visit and grouping bead IDs published by this workflow system bead. */
+	beadIds: string[];
 }
 interface ReadContext {
 	/** Injected tracker reads for this endpoint. */
@@ -81,7 +90,8 @@ export function createBoardData(readTopology: ReadTopology, now: () => number = 
 	// A refresh cutoff is shared by its inventory, board and detail requests. Zero uses the normal TTL.
 	const inventories = new Map<string, SourceSnapshot<Inventory>>();
 	const pendingInventories = new Map<string, Promise<Inventory>>();
-	const workflows = cachedRead(workflowRuns, observe, now);
+	const workflowIndexes = new Map<string, Map<string, WorkflowIdentity>>();
+	const workflows = cachedRead((context) => workflowRuns(context, workflowIndexes), observe, now);
 	const merges = cachedRead(taskMerges, observe, now);
 	const branches = new Map<string, { startedAt: number; value: Hierarchy }>();
 	const pendingBranches = new Map<string, Promise<Hierarchy>>();
@@ -285,11 +295,11 @@ export function createBoardData(readTopology: ReadTopology, now: () => number = 
 				inventory(context, scope, refreshAfter),
 				show(context, id),
 			]);
-			const [base, references] = await Promise.all([
+			const [base, mergeIds] = await Promise.all([
 				cards(context, [bead], refreshAfter),
-				merges(context, refreshAfter),
+				mergeRelationIds(context, bead),
 			]);
-			const summary = { ...base[0]!, merges: references.value.get(id) ?? [] };
+			const summary = base[0]!;
 			let bees: Bee[] = [];
 			if (current.value.kind === "loaded") {
 				({ bees } = current.value);
@@ -308,16 +318,12 @@ export function createBoardData(readTopology: ReadTopology, now: () => number = 
 				})),
 				dependencies: relations(
 					bead.dependencies.filter(
-						(edge) =>
-							edge.dependency_type !== "parent-child" &&
-							!summary.merges.some((merge) => merge.id === edge.id),
+						(edge) => edge.dependency_type !== "parent-child" && !mergeIds.has(edge.id),
 					),
 				),
 				dependents: relations(
 					bead.dependents.filter(
-						(edge) =>
-							edge.dependency_type !== "parent-child" &&
-							!summary.merges.some((merge) => merge.id === edge.id),
+						(edge) => edge.dependency_type !== "parent-child" && !mergeIds.has(edge.id),
 					),
 				),
 				description: bead.description,
@@ -392,24 +398,66 @@ export function createBoardData(readTopology: ReadTopology, now: () => number = 
 }
 
 // --- Native I/O and projections ---
-/** Index workflow-generated identities from workflow system beads in one native read. */
-async function workflowRuns(context: ReadContext): Promise<Map<string, string>> {
+/** Refresh public workflow identities, hydrating only new or changed checkpoint descriptions. */
+// eslint-disable-next-line max-statements -- Publish the endpoint index only after complete enumeration and hydration.
+async function workflowRuns(
+	context: ReadContext,
+	indexes: Map<string, Map<string, WorkflowIdentity>>,
+): Promise<Map<string, string>> {
 	const selection = { all: true, labels: ["system", "busybee-checkpoint"], limit: 0 };
-	const fields = ["description"] as const;
+	const fields = ["id", "updated_at"] as const;
 	const { issues: systems } = await read(
 		context,
 		[...formatBeadsQuery(selection), "--fields", fields.join(",")],
 		() => context.beads.listProjected(readScope(context), selection, fields),
 	);
-	const beads = new Map<string, string>();
+	const previous = indexes.get(context.colony.id) ?? new Map<string, WorkflowIdentity>();
+	const current = new Map<string, WorkflowIdentity>();
+	const changed: string[] = [];
 	for (const system of systems) {
-		// Busy Bee owns this JSON; projection reads its published identities, never its actor state.
-		const workflow = workflowSystemSchema.parse(JSON.parse(system.description));
-		beads.set(workflow.id, workflow.id);
-		for (const visit of workflow.created) {
-			beads.set(visit.bead, workflow.id);
+		const saved = previous.get(system.id);
+		if (saved?.updatedAt === system.updated_at) {
+			current.set(system.id, saved);
+		} else {
+			changed.push(system.id);
 		}
 	}
+	const batches: BeadSelection[] = [];
+	if (previous.size === 0 && changed.length > 0) {
+		batches.push(selection);
+	} else {
+		for (let offset = 0; offset < changed.length; offset += METADATA_READ_BATCH) {
+			const ids = changed.slice(offset, offset + METADATA_READ_BATCH);
+			batches.push({ ...selection, ids, limit: ids.length });
+		}
+	}
+	for (const batch of batches) {
+		const columns = ["id", "updated_at", "description"] as const;
+		// eslint-disable-next-line no-await-in-loop -- Serialize warm batches; cold startup uses one description read.
+		const { issues } = await read(
+			context,
+			[...formatBeadsQuery(batch), "--fields", columns.join(",")],
+			() => context.beads.listProjected(readScope(context), batch, columns),
+		);
+		if (issues.length !== (batch.ids?.length ?? systems.length)) {
+			throw new Error("Workflow checkpoints changed while loading identities. Refresh to reload.");
+		}
+		for (const system of issues) {
+			const workflow = workflowSystemSchema.parse(JSON.parse(system.description));
+			current.set(system.id, {
+				updatedAt: system.updated_at,
+				runId: workflow.id,
+				beadIds: [workflow.id, ...workflow.created.map((visit) => visit.bead)],
+			});
+		}
+	}
+	const beads = new Map<string, string>();
+	for (const system of current.values()) {
+		for (const id of system.beadIds) {
+			beads.set(id, system.runId);
+		}
+	}
+	indexes.set(context.colony.id, current);
 	return beads;
 }
 
@@ -489,6 +537,33 @@ async function taskMerges(context: ReadContext): Promise<Map<string, MergeLink[]
 	}
 	for (const links of merges.values()) {
 		links.sort((left, right) => left.id.localeCompare(right.id));
+	}
+	return merges;
+}
+
+/** Classify only selected native relationships; icon bodies and edges remain deferred. */
+async function mergeRelationIds(context: ReadContext, bead: BeadRecord): Promise<Set<string>> {
+	const ids = [
+		...new Set(
+			[...bead.dependencies, ...bead.dependents]
+				.filter((edge) => edge.dependency_type !== "parent-child")
+				.map((edge) => edge.id),
+		),
+	];
+	const merges = new Set<string>();
+	const fields = ["id"] as const;
+	for (let offset = 0; offset < ids.length; offset += METADATA_READ_BATCH) {
+		const batch = ids.slice(offset, offset + METADATA_READ_BATCH);
+		const selection = { ids: batch, labels: ["merge"], all: true, limit: batch.length };
+		// eslint-disable-next-line no-await-in-loop -- Bound classification to selected relationships.
+		const { issues } = await read(
+			context,
+			[...formatBeadsQuery(selection), "--fields", fields.join(",")],
+			() => context.beads.listProjected(readScope(context), selection, fields),
+		);
+		for (const issue of issues) {
+			merges.add(issue.id);
+		}
 	}
 	return merges;
 }
