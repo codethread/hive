@@ -7,13 +7,14 @@
 import { createSpawn, createTask, memoryTracker } from "./tracker.test-support.ts";
 import { expect, test } from "bun:test";
 import { mkdtemp, rm } from "node:fs/promises";
-import { observeExecution, runOwnedExecution } from "./processes.ts";
 import type { LaunchReceipt } from "./launch.ts";
 import { createAdmissionGate } from "./admission.ts";
 import { executionClearance } from "./execution-clearance.ts";
 import { join } from "node:path";
 import { newRequest } from "./request.ts";
+import { observeExecution } from "./processes.ts";
 import { readSpawnRequest } from "@hive/shared";
+import { startOwnedTestExecution } from "./owned-execution.test-support.ts";
 import { tmpdir } from "node:os";
 import { trackerScope } from "./tracker.ts";
 
@@ -48,34 +49,8 @@ test("#test-94 native request closure does not clear a real owned process until 
 	record.context.attempts = 1;
 	record.context.attemptId = receipt.id;
 	record.state = "executing";
-	const entered = Promise.withResolvers<void>();
-	const release = Promise.withResolvers<void>();
-	const spawn = () =>
-		Bun.spawn(
-			[
-				process.execPath,
-				"-e",
-				'process.stdin.resume();process.stdin.on("end",()=>process.exit(0));',
-			],
-			{ stdin: "pipe", stdout: "ignore", stderr: "ignore" },
-		);
-	let child: ReturnType<typeof spawn> | null = null;
-	const closeChild = () => {
-		child?.stdin.end();
-	};
-	const execution = runOwnedExecution(
-		receipt,
-		() => {
-			child = spawn();
-			return child;
-		},
-		async () => {
-			entered.resolve();
-			await release.promise;
-		},
-	);
+	const execution = await startOwnedTestExecution(receipt);
 	try {
-		await Promise.race([entered.promise, execution]);
 		await tracker.beads.close(scope, requestId, { reason: "Stopped by Bee" });
 		const runtime = {
 			...tracker,
@@ -112,9 +87,7 @@ test("#test-94 native request closure does not clear a real owned process until 
 		expect(await executionClearance(selection, runtime)).toMatchObject({
 			result: { kind: "refused", blockers: [{ reason: "live_execution", attemptId: receipt.id }] },
 		});
-		closeChild();
-		release.resolve();
-		await execution;
+		await execution.close();
 		expect(await executionClearance(selection, runtime)).toMatchObject({
 			result: {
 				kind: "clear",
@@ -122,9 +95,7 @@ test("#test-94 native request closure does not clear a real owned process until 
 			},
 		});
 	} finally {
-		closeChild();
-		release.resolve();
-		await execution;
+		await execution.close();
 		await rm(directory, { force: true, recursive: true });
 	}
 });

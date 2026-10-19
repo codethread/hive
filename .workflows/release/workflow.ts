@@ -34,11 +34,9 @@ export function runBrief(input: ReleaseInput): { title: string; description: str
 	return {
 		title: `Release Hive ${input.nextVersion}`,
 		description:
-			`${input.request}\nPublish source tag v${input.nextVersion} and release notes to ` +
-			`${input.releaseRepository}, then land its source-building Formula/hive.rb in the ` +
-			`same repository. Follow docs/releases.md. Retain ${input.canonicalRoot} and ` +
-			`${input.beadsDb}. After done, the authorized caller ` +
-			`closes proven scope tasks and publishes final tracker evidence once.`,
+			`User authorization: ${input.request}\nRetain ${input.canonicalRoot} and BEADS_DB ${input.beadsDb}. ` +
+			"After done, the authorized caller closes proven scope tasks " +
+			"and publishes final tracker evidence once with bun run beads:sync.",
 	};
 }
 
@@ -63,17 +61,10 @@ export const machine = setup({
 				commands: { next: "NEXT" },
 				task: ({ context }: { context: ReleaseContext }) => ({
 					instructions:
-						`Follow the authorization guidance in docs/releases.md#prepare-and-land-the-source ` +
-						`for the actual user request: ${context.request}. ` +
-						`Verify gh authentication, write access and anonymous source access for ` +
-						`${context.releaseRepository}; confirm the canonical checkout remote is this ` +
-						`repository. Fetch tags and inspect existing release/tag/formula effects before ` +
-						`continuing. Version ${context.nextVersion} must exceed the latest stable suite tag. ` +
-						`For new preparation it must also exceed every package; an already-prepared ` +
-						`unpublished matching version may be reused. Verify the maintained Bun, br and bv ` +
-						`Homebrew dependencies. Create a nested Honeycomb release worktree; retain ` +
-						`${context.canonicalRoot} and permanent BEADS_DB ${context.beadsDb}. Missing ` +
-						`authorization or credentials keeps this visit open with its next action.`,
+						`1. Verify public-source authorization, gh access and the destination ${context.releaseRepository} ` +
+						"under docs/releases.md#prepare-and-land-the-source.\n" +
+						`2. Fetch tags and reconcile existing effects for ${context.nextVersion}, ` +
+						"then prepare a clean nested Honeycomb worktree.",
 				}),
 			},
 			on: { NEXT: { actions: "record", target: "prepare" } },
@@ -84,16 +75,11 @@ export const machine = setup({
 				commands: { next: "NEXT" },
 				task: ({ context }: { context: ReleaseContext }) => ({
 					instructions:
-						`Follow docs/releases.md#prepare-and-land-the-source and bun run release --help ` +
-						`to prepare ${context.nextVersion}. If all manifests already equal the unpublished ` +
-						`version, reconcile the existing preparation and refresh notes and changelog drafts without rerunning ` +
-						`the version bump. ` +
-						`Review all package versions and lockfiles. Validate declared changelog blocks under ` +
-						`docs/releases.md#author-tool-changelog-records. Have bookworm complete the guide's review of ` +
-						`generated per-tool changelogs and releases/vVERSION.md before Land; retain its response ` +
-						`and coverage in the evidence. On interruption inspect partial changes ` +
-						`before restoring only owned edits and retrying. Record the worktree and prior tag. ` +
-						`Prior evidence: ${context.evidence}`,
+						`1. Reuse a matching unpublished preparation or prepare ${context.nextVersion} ` +
+						"using bun run release --help.\n" +
+						"2. Complete Bookworm's changelog and release-note review under " +
+						"docs/releases.md#prepare-and-land-the-source before Land.\n\n" +
+						`Previous result: ${context.evidence}`,
 				}),
 			},
 			on: { NEXT: { actions: "record", target: "land" } },
@@ -104,10 +90,11 @@ export const machine = setup({
 				commands: { landed: "LANDED" },
 				task: ({ context }: { context: ReleaseContext }) => ({
 					instructions:
-						`Follow docs/releases.md#prepare-and-land-the-source to start or resume ordinary ` +
-						`Land. Wait for done and record the exact integrated source commit. Complete the guide's ` +
-						`verification of that source and its offline changelog commands before publication. ` +
-						`Canonical ${context.canonicalRoot}; BEADS_DB ${context.beadsDb}. ${context.evidence}`,
+						"1. Complete Land beneath this run with completedTasks: [], " +
+						"retaining the exact integrated source commit.\n" +
+						"2. Verify that source's notes and offline changelog commands under " +
+						"docs/releases.md#prepare-and-land-the-source before publication.\n\n" +
+						`Previous result: ${context.evidence}`,
 				}),
 			},
 			on: { LANDED: { actions: "recordRevision", target: "publish" } },
@@ -118,11 +105,9 @@ export const machine = setup({
 				commands: { next: "NEXT" },
 				task: ({ context }: { context: ReleaseContext }) => ({
 					instructions:
-						`Follow docs/releases.md#publish-the-source-release to publish annotated ` +
-						`v${context.nextVersion} pointing exactly at ${context.revision} in ` +
-						`${context.releaseRepository}, using that source's releases/v${context.nextVersion}.md. ` +
-						`Complete the guide's publication verification and record the release URL, exact ` +
-						`source and source checksum. ${context.evidence}`,
+						`Publish immutable v${context.nextVersion} at ${context.revision} to ${context.releaseRepository} ` +
+						"under docs/releases.md#publish-the-source-release, verifying the release notes and source checksum.\n\n" +
+						`Previous result: ${context.evidence}`,
 				}),
 			},
 			on: { NEXT: { actions: "record", target: "tap" } },
@@ -133,12 +118,10 @@ export const machine = setup({
 				commands: { next: "NEXT" },
 				task: ({ context }: { context: ReleaseContext }) => ({
 					instructions:
-						`Follow docs/releases.md#land-the-homebrew-formula to land Formula/hive.rb for ` +
-						`v${context.nextVersion} in ${context.releaseRepository}, anchored at ` +
-						`${context.canonicalRoot}. Complete the guide's build, installation verification ` +
-						`and Land steps, retaining v${context.nextVersion} on ${context.revision}. Record ` +
-						`the required release, formula, installation and cleanup evidence on this run. ` +
-						`Published evidence: ${context.evidence}`,
+						`Build, install-test and land Formula/hive.rb for v${context.nextVersion} ` +
+						`in ${context.releaseRepository} ` +
+						"under docs/releases.md#land-the-homebrew-formula, keeping the published source tag fixed.\n\n" +
+						`Previous result: ${context.evidence}`,
 				}),
 			},
 			on: { NEXT: { actions: "record", target: "done" } },

@@ -1,9 +1,9 @@
 import { expect, test } from "bun:test";
-import { Command } from "commander";
 import type { HarnessAlertDependencies } from "../../src/harness-alerts.ts";
-import { addAlertHooks } from "../../src/harness-alerts.ts";
 import { fixture } from "../support.ts";
+import { runCli } from "../../src/cli.ts";
 
+const SUCCESS = 0;
 const active = {
 	ok: true,
 	kind: "tracker_alert",
@@ -26,26 +26,21 @@ const receiptPath: HarnessAlertDependencies["receiptPath"] = () => "/user-state/
 // eslint-disable-next-line max-statements -- Exercise both native protocol entry routes without application wrapping.
 test("registration emits native hook JSON and accepts the Pi payload without reading stdin", async () => {
 	const fx = fixture();
-	const output: string[] = [];
-	const deps: HarnessAlertDependencies = {
-		...fx.deps,
-		receiptPath,
-		observe: () => Promise.resolve(active),
-		stdin: () => Promise.resolve(input),
-		stdout: (text) => output.push(text),
-	};
-	const program = new Command();
-	addAlertHooks(program, deps);
-	await program.parseAsync(["harness-alert", "--harness", "codex"], { from: "user" });
+	const { output } = fx;
+	fx.deps.alertReceiptPath = receiptPath;
+	fx.deps.beads.alertStatus = () => Promise.resolve(active);
+	fx.deps.stdin = () => Promise.resolve(input);
+	expect(await runCli(["system", "harness-alert", "--harness", "codex"], fx.deps)).toBe(SUCCESS);
+
 	expect(JSON.parse(output.join(""))).toMatchObject({
 		hookSpecificOutput: { hookEventName: "PostToolUse", additionalContext: expect.any(String) },
 	});
 	output.length = 0;
-	deps.stdin = () => {
+	fx.deps.stdin = () => {
 		throw new Error("Pi must not read stdin");
 	};
-	await program.parseAsync(["harness-alert", "--harness", "pi", "--input", input], {
-		from: "user",
-	});
+	expect(
+		await runCli(["system", "harness-alert", "--harness", "pi", "--input", input], fx.deps),
+	).toBe(SUCCESS);
 	expect(JSON.parse(output.join(""))).toMatchObject({ context: expect.any(String) });
 });

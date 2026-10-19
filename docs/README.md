@@ -2,10 +2,10 @@
 
 ## Tool guides
 
-- [Beeswax](../lib/beeswax/README.md) — repository setup, tracker plumbing and Git hook adapters.
+- [Beeswax](../lib/beeswax/README.md) — repository setup, tracker plumbing and Git/harness integration.
 - [Bee and Colony](../lib/colony/README.md) — agent requests and execution.
 - [Honeycomb](../lib/honeycomb/README.md) — worktree commands and shell integration.
-- [Scent](../lib/scent/README.md) — native Pi identity and Codex hook installation.
+- [Scent](../lib/scent/README.md) — native Pi, Claude Code and Codex identity behavior.
 - [Waggle](../lib/waggle/README.md) — semantic classifiers.
 - [qlock](../lib/qlock/README.md) — ticketed command and merge queues.
 - [Hive UI](../lib/hive-ui/README.md) — read-only work board and [component workshop](../lib/hive-ui/README.md#component-workshop).
@@ -16,8 +16,8 @@
 - [Busy Bee](../lib/busybee/README.md) — run workflows as Beads tasks.
 - [Busy Bee specification](../lib/busybee/SPEC.md) — read before changing workflow projection or completion.
 - [Authoring Busy Bee workflows](./busybee-workflows.md) — read before authoring or refactoring definitions; explicit charts and visualizer visibility.
-- [Independent feature tasks](../lib/busybee/README.md#deliver-independent-feature-tasks) — plan vertical slices and dispatch each through reviewed local feature-base delivery.
-- [Landing agreed work](../lib/busybee/README.md#landing-from-the-current-state) — triage, enforced completion checks, review and integration in the [Land definition](../.workflows/land/workflow.ts).
+- [Independent feature tasks](../lib/busybee/README.md#deliver-independent-feature-tasks) — isolated implementation, independent review and local feature-base delivery.
+- [Landing agreed work](../lib/busybee/README.md#landing-from-the-current-state) — complete and check work, review, integrate, verify and update local tools in the [Land definition](../.workflows/land/workflow.ts).
 
 ## Design and contracts
 

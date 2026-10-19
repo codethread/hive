@@ -16,7 +16,6 @@ import {
 	preferences,
 	snapshot,
 } from "./data.ts";
-import { HierarchyNotice, ResourceNotice, time } from "./ui.tsx";
 import { Link, Outlet, useNavigate, useParams, useSearch } from "@tanstack/react-router";
 import {
 	PAGE_SIZE,
@@ -27,6 +26,7 @@ import {
 	inventoryKey,
 	navigationSchema,
 } from "../contracts.ts";
+import { ResourceNotice, time } from "./ui.tsx";
 import { BeadBoard } from "./bead-board.tsx";
 import { BeadOutline } from "./bead-outline.tsx";
 import { BeeWorkspace } from "./bee-workspace.tsx";
@@ -35,6 +35,8 @@ import { FilterWorkspace } from "./filter-drawer.tsx";
 import { HeaderSearch } from "./board-search.tsx";
 import { Inspector } from "./inspector.tsx";
 import type { Navigation } from "../contracts.ts";
+import { RefreshCw } from "lucide-react";
+import { Toaster } from "./toaster.tsx";
 import { WorkflowDialog } from "./workflow-preview.tsx";
 import { useLiveRefresh } from "./use-live-refresh.ts";
 import { useStore } from "zustand";
@@ -98,9 +100,10 @@ export function Shell() {
 					</fieldset>
 				</div>
 			</header>
-			<ResourceNotice resource={resource} />
+			<ResourceNotice resource={resource} source="colonies" />
 			<Outlet />
 			<WorkflowDialog />
+			<Toaster />
 		</div>
 	);
 }
@@ -121,10 +124,10 @@ export function WorkPage() {
 	const annotationEntries = useStore(annotations.store, (state) => state.entries);
 	const base = snapshot(resource);
 	const board = base && { ...base, cards: annotateCards(base.cards, colonyId, annotationEntries) };
+	const hierarchyResourceKey = hierarchyKey(colonyId, board?.cards.map((card) => card.id) ?? []);
 	const hierarchyResource = useStore(
 		hierarchies.store,
-		(state) =>
-			state.entries[hierarchyKey(colonyId, board?.cards.map((card) => card.id) ?? [])] ?? EMPTY,
+		(state) => state.entries[hierarchyResourceKey] ?? EMPTY,
 	);
 	const outlineResource = useStore(
 		outlines.store,
@@ -135,6 +138,22 @@ export function WorkPage() {
 		(state) => state.entries[inventoryKey(colonyId, search)] ?? EMPTY,
 	);
 	const inventory = search.view === "beads" ? undefined : snapshot(inventoryResource);
+	const annotationResource = annotationStatus(
+		colonyId,
+		[
+			board?.cards.map((card) => card.id) ?? [],
+			snapshot(hierarchyResource)?.nodes.map((node) => node.id) ?? [],
+			snapshot(outlineResource)?.nodes.map((node) => node.id) ?? [],
+		],
+		annotationEntries,
+	);
+	const fetching = [
+		resource,
+		inventoryResource,
+		outlineResource,
+		hierarchyResource,
+		annotationResource,
+	].some((entry) => entry.kind === "loading");
 	const colony = useStore(colonies.store, (state) =>
 		snapshot(state.entries["colonies"] ?? EMPTY)?.colonies.find((entry) => entry.id === colonyId),
 	);
@@ -157,50 +176,63 @@ export function WorkPage() {
 
 	return (
 		<main className="work-page">
-			<FilterWorkspace board={board}>
-				<div
-					className={
-						"flex flex-wrap items-center justify-between gap-2 border-b " +
-						"border-line px-5 py-2 text-xs text-muted"
-					}
-				>
-					<div className="flex flex-wrap items-center gap-3">
-						{search.view !== "beads" && <BeeHistory />}
-						<span>
-							{summary}
-							{inventory?.kind === "loaded" &&
-								` · ${inventory.bees.length} matching ${search.view} requests`}
-						</span>
+			<FilterWorkspace
+				board={board}
+				summary={
+					<div className="board-summary text-xs text-muted">
+						<div className="flex shrink-0 items-center gap-3">
+							{search.view !== "beads" && <BeeHistory />}
+							<span>
+								{summary}
+								{inventory?.kind === "loaded" &&
+									` · ${inventory.bees.length} matching ${search.view} requests`}
+							</span>
+						</div>
+						<div className="flex items-center gap-3">
+							{readAt !== null && <span>Updated {time(readAt)}</span>}
+						</div>
 					</div>
-					<div className="flex items-center gap-3">
-						{readAt !== null && <span>Updated {time(readAt)}</span>}
+				}
+				actions={
+					<>
 						{search.view === "beads" && search.outline === undefined && board && (
 							<ColumnSettings
 								key={colonyId}
 								colony={colonyId}
 								present={board.cards.map((card) => card.status)}
 								selected={search.statuses}
+								className="sidebar-action"
 							/>
 						)}
 						<button
-							className="button"
+							className="sidebar-action refresh-action"
 							type="button"
-							disabled={
-								resource.kind === "loading" ||
-								inventoryResource.kind === "loading" ||
-								outlineResource.kind === "loading" ||
-								hierarchyResource.kind === "loading"
-							}
+							aria-label="Refresh"
+							title="Refresh"
+							aria-busy={fetching}
+							disabled={fetching}
 							onClick={() => {
 								void loadView(colonyId, search, true);
 							}}
 						>
-							Refresh
+							<RefreshCw
+								size={18}
+								aria-hidden="true"
+								className={fetching ? "refresh-rotating" : undefined}
+							/>
 						</button>
-					</div>
-				</div>
-				{search.outline === undefined && <ResourceNotice resource={resource} />}
-				{search.view !== "beads" && <ResourceNotice resource={inventoryResource} />}
+					</>
+				}
+			>
+				{search.outline === undefined && (
+					<ResourceNotice resource={resource} source={`board:${key}`} />
+				)}
+				{search.view !== "beads" && (
+					<ResourceNotice
+						resource={inventoryResource}
+						source={`inventory:${inventoryKey(colonyId, search)}`}
+					/>
+				)}
 				{inventory?.kind === "loaded" && search.view === "completed" && (
 					<RequestPagination hasMore={inventory.hasMore} />
 				)}
@@ -210,16 +242,14 @@ export function WorkPage() {
 							{search.outline === undefined ? (
 								board && (
 									<>
-										<HierarchyNotice resource={hierarchyResource} />
 										<ResourceNotice
-											resource={annotationStatus(
-												colonyId,
-												[
-													board.cards.map((card) => card.id),
-													snapshot(hierarchyResource)?.nodes.map((node) => node.id) ?? [],
-												],
-												annotationEntries,
-											)}
+											resource={hierarchyResource}
+											source={`hierarchy:${hierarchyResourceKey}`}
+											label="Hierarchy"
+										/>
+										<ResourceNotice
+											resource={annotationResource}
+											source={`annotations:board:${key}`}
 											label="Bee assignment and merge details"
 										/>
 										<BeadBoard
@@ -242,6 +272,7 @@ export function WorkPage() {
 							<div className="min-w-0">
 								{search.request !== undefined && board && (
 									<ResourceNotice
+										source={`annotations:board:${key}`}
 										resource={annotationStatus(
 											colonyId,
 											[board.cards.map((card) => card.id)],

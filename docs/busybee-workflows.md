@@ -100,7 +100,7 @@ Without `resumeSchema`, the report explicitly leaves context validation unchecke
 
 The engine performs no writes, acquires no mutation reservation, starts no actors and creates no Bee requests during preflight. Definition imports, schema checks and render callbacks still execute trusted author code. Keep them pure; preflight is not a sandbox and cannot prevent their own I/O. It reports a momentary inspection, not a reservation against concurrent mutations.
 
-Checkpoint storage has a separate engine `formatVersion: 1`; changing workflow SemVer does not change or upgrade that format. Busy Bee validates the small checkpoint header and trusts its own stored body. Missing, old or unknown formats reject with regenerate guidance and have no migration. For incompatible known names, preserve authorization and evidence and start a fresh same-scope run; for a missing name, stop and ask which workflow to use. See [resume and failures](../lib/busybee/README.md#resume-and-failures).
+Checkpoint storage has a separate engine `formatVersion: 1`; changing workflow SemVer does not change or upgrade that format. Busy Bee validates the small checkpoint header and trusts its own stored body. Missing, old or unknown formats reject with regenerate guidance and have no migration. For incompatible known names, coordinate retained compatible catalogue selection or an authorized same-scope replacement through [workflow adoption](../lib/beeswax/README.md#workflow-tool-adoption); for a missing name, stop and ask which workflow to use. See [resume and failures](../lib/busybee/README.md#resume-and-failures).
 
 ## Keep the chart inspectable
 

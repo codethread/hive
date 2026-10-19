@@ -290,7 +290,6 @@ test("real Land root replay carries simulated evidence through authored routing"
 		beadsDb: db,
 		canonicalRoot: repo,
 		completedTasks: [],
-		expectedCommits: [],
 		request: "Land this example",
 		target: { kind: "worktree", branch: "example" },
 	};
@@ -304,7 +303,7 @@ test("real Land root replay carries simulated evidence through authored routing"
 		landInput,
 	);
 	const result = await fixture.simulate([
-		{ node: "land.triage", command: "review", data: { evidence: "SIMULATED review evidence" } },
+		{ node: "land.check", command: "passed", data: { evidence: "SIMULATED review evidence" } },
 	]);
 	expect(result.actor.snapshot.value).toBe("review");
 	expect(result.actor.instructions["land.review"]).toMatchObject({
@@ -316,7 +315,7 @@ test("real Land root replay carries simulated evidence through authored routing"
 		{ command: "changes" },
 	]);
 	const initial = await fixture.simulate([], { kind: "initial", input: landInput });
-	expect(initial.actor.snapshot.value).toBe("triage");
+	expect(initial.actor.snapshot.value).toBe("check");
 });
 
 // eslint-disable-next-line max-statements -- Exercise the complete parallel replay path at the CLI boundary.

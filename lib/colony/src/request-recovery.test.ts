@@ -12,7 +12,7 @@ import type { WorkflowAssignment } from "@hive/shared";
 // eslint-disable-next-line import/no-nodejs-modules -- Use the established disposable private SQLite fixture boundary.
 import { join } from "node:path";
 import { openStore } from "./store.ts";
-import { runOwnedExecution } from "./processes.ts";
+import { startOwnedTestExecution } from "./owned-execution.test-support.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Locate disposable state, never the running Colony's database.
 import { tmpdir } from "node:os";
 import { trackerScope } from "./tracker.ts";
@@ -287,31 +287,8 @@ test.each(
 	async ({ outcome, requestOutcome, path }) => {
 		const fixture = await executionFixture(`${path}-${outcome}`);
 		const { tracker, scope, id, taskId, receipt, record } = fixture;
-		const entered = Promise.withResolvers<void>();
-		const release = Promise.withResolvers<void>();
-		const spawn = () =>
-			Bun.spawn(
-				[
-					process.execPath,
-					"-e",
-					'process.stdin.resume();process.stdin.on("end",()=>process.exit(0));',
-				],
-				{ stdin: "pipe", stdout: "ignore", stderr: "ignore" },
-			);
-		const worker: { child: ReturnType<typeof spawn> | null } = { child: null };
-		const execution = runOwnedExecution(
-			receipt,
-			() => {
-				worker.child = spawn();
-				return worker.child;
-			},
-			async () => {
-				entered.resolve();
-				await release.promise;
-			},
-		);
+		const execution = await startOwnedTestExecution(receipt);
 		try {
-			await Promise.race([entered.promise, execution]);
 			await tracker.beads.close(scope, taskId, {
 				reason: JSON.stringify({
 					kind: "busybee-lifecycle",
@@ -323,9 +300,7 @@ test.each(
 				}),
 			});
 			if (path === "exit") {
-				worker.child!.stdin.end();
-				release.resolve();
-				await execution;
+				await execution.close();
 			}
 			if (path === "finish") {
 				await Bun.write(
@@ -354,7 +329,7 @@ test.each(
 			if (path === "running" && outcome === "succeeded") {
 				expect(saved.state).toBe("executing");
 				expect(native.status).toBe("open");
-				expect(worker.child!.exitCode).toBeNull();
+				expect(execution.supervisor.exitCode).toBeNull();
 			} else {
 				expect(saved).toMatchObject({
 					state: "terminal",
@@ -364,9 +339,7 @@ test.each(
 			}
 			expect(record.context.attempts).toBe(ONCE);
 		} finally {
-			worker.child?.stdin.end();
-			release.resolve();
-			await execution;
+			await execution.close();
 		}
 	},
 );
@@ -416,11 +389,8 @@ test.each(["exit", "self-success", "self-blocked"])(
 	 */
 	async (path) => {
 		const { tracker, scope, id, taskId, receipt } = await executionFixture(path);
-		await runOwnedExecution(
-			receipt,
-			() => Bun.spawn([process.execPath, "-e", ""], { stdout: "ignore", stderr: "ignore" }),
-			async () => {},
-		);
+		const execution = await startOwnedTestExecution(receipt);
+		await execution.close();
 		if (path !== "exit") {
 			let result: { outcome: "success" } | { outcome: "blocked"; reason: string } = {
 				outcome: "success",
@@ -465,11 +435,8 @@ test.each(["exit", "finish"])(
 	 */
 	async (path) => {
 		const { tracker, scope, id, taskId, receipt } = await executionFixture(`legacy-${path}`);
-		await runOwnedExecution(
-			receipt,
-			() => Bun.spawn([process.execPath, "-e", ""], { stdout: "ignore", stderr: "ignore" }),
-			async () => {},
-		);
+		const execution = await startOwnedTestExecution(receipt);
+		await execution.close();
 		await tracker.beads.close(scope, taskId, { reason: "Completed by old engine" });
 		if (path === "finish") {
 			await Bun.write(

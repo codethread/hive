@@ -12,6 +12,7 @@ import { Info, RefreshCw, Workflow, X } from "lucide-react";
 import type { Resource, WorkflowSnapshot } from "./data.ts";
 import { useEffect, useRef } from "react";
 import { Button } from "./primitives.tsx";
+import { ResourceNotice } from "./ui.tsx";
 import { WorkflowDiagram } from "./workflow-diagram.tsx";
 import type { WorkflowInspection } from "../contracts.ts";
 import { WorkflowLifecycleBanner } from "./workflow-lifecycle.tsx";
@@ -156,11 +157,16 @@ function OpenWorkflowDialog({
 								className="size-8"
 								aria-label="Refresh workflow state"
 								title="Refresh workflow state"
+								aria-busy={resource.kind === "loading"}
+								disabled={resource.kind === "loading"}
 								onClick={() => {
 									void loadWorkflow(colonyId, id);
 								}}
 							>
-								<RefreshCw />
+								<RefreshCw
+									aria-hidden="true"
+									className={resource.kind === "loading" ? "refresh-rotating" : undefined}
+								/>
 							</Button>
 							<Close asChild>
 								<Button
@@ -179,6 +185,7 @@ function OpenWorkflowDialog({
 						Saved workflow state and temporary simulation for {id}. Neither changes the actual run.
 					</Description>
 					<WorkflowContent
+						source={`workflow:${colonyId}/${id}`}
 						resource={resource}
 						colony={colonyId}
 						theme={theme === "paper" ? "light" : "dark"}
@@ -191,10 +198,12 @@ function OpenWorkflowDialog({
 
 // --- Keep the last saved diagram mounted throughout refresh and recovery. ---
 function WorkflowContent({
+	source,
 	resource,
 	colony,
 	theme,
 }: {
+	source: string;
 	resource: Resource<WorkflowSnapshot>;
 	colony: string;
 	theme: "light" | "dark";
@@ -203,16 +212,13 @@ function WorkflowContent({
 	const preview = view === null ? null : snapshot(view.diagram);
 	return (
 		<>
-			{view !== null && <WorkflowLifecycleBanner inspection={view.native} colony={colony} />}
-			{resource.kind === "failed" && (
-				<p
-					className="absolute inset-x-3 bottom-3 z-10 rounded border border-line bg-canvas p-3 text-sm text-alert"
-					role="alert"
-				>
-					Lifecycle unavailable. {view !== null && "Showing last-known native facts. "}
-					{resource.message}
-				</p>
+			{view !== null && resource.kind === "failed" && (
+				<output className="block px-3 pt-3 text-sm text-muted">
+					Showing last-known native facts.
+				</output>
 			)}
+			{view !== null && <WorkflowLifecycleBanner inspection={view.native} colony={colony} />}
+			<ResourceNotice resource={resource} source={source} label="Lifecycle" />
 			{view?.diagram.kind === "failed" && (
 				<p role="alert" className="p-3 text-sm text-alert">
 					Diagram unavailable. {preview !== null && "Showing the last saved diagram. "}

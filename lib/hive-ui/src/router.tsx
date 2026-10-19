@@ -53,9 +53,7 @@ export const router = createRouter({
 			{String(error)}
 		</p>
 	),
-	defaultPendingComponent: () => (
-		<output className="p-6 text-muted">Reading selected colony…</output>
-	),
+	defaultPendingComponent: () => null,
 	defaultPreload: false,
 	routeTree: rootRoute.addChildren([indexRoute, boardRoute]),
 });

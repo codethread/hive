@@ -196,7 +196,7 @@ export async function installDefaultWorkflow(options: Options, services: Service
 		name: "do-work",
 		repo,
 		source: resolve(directory, "workflow.ts"),
-		version: "1.0.0",
+		version: (Bun.TOML.parse(defaultManifest) as { version: string }).version,
 	};
 }
 

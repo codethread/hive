@@ -135,7 +135,7 @@ input[type="checkbox"] {
 	.inspector-body {
 		@apply min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 pb-8 break-words sm:px-8;
 	}
-	.markdown-content :where(p, ul, ol, pre, blockquote, table) {
+	.markdown-content :where(p, ul, ol, pre, blockquote, .markdown-table) {
 		@apply my-3;
 	}
 	.markdown-content > :first-child {
@@ -180,11 +180,17 @@ input[type="checkbox"] {
 	.markdown-content blockquote {
 		@apply border-l-2 border-line pl-4 text-muted;
 	}
-	.markdown-content table {
-		@apply block max-w-full overflow-x-auto border-collapse;
+	.markdown-table {
+		@apply max-w-full overflow-x-auto;
+		container-type: inline-size;
+	}
+	.markdown-table table {
+		@apply w-max border-collapse;
 	}
 	.markdown-content :where(th, td) {
-		@apply border border-line px-3 py-2 text-left;
+		@apply min-w-32 border border-line px-3 py-2 text-left align-top;
+		max-width: min(28rem, 100cqi);
+		overflow-wrap: anywhere;
 	}
 	.board-columns {
 		@apply grid auto-cols-[minmax(245px,1fr)] grid-flow-col gap-4 overflow-x-auto px-5 pb-5;
@@ -507,19 +513,38 @@ body:has(.inspector[open], .filter-drawer[open]) {
 	min-height: 0;
 }
 .board-pane {
+	display: flex;
+	flex-direction: column;
 	flex: 1;
 	min-width: 0;
 	min-height: 0;
 	overflow-y: auto;
 	overscroll-behavior: contain;
 }
-.filter-summary {
-	padding: 0 20px;
+.board-header {
+	display: flex;
+	align-items: center;
+	flex: 0 0 48px;
+	min-height: 0;
+	overflow: auto;
 	border-bottom: 1px solid var(--line);
 	background: var(--panel);
 }
-.filter-summary:empty {
-	display: none;
+.board-summary {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	flex: 1 0 auto;
+	padding: 0 20px;
+	white-space: nowrap;
+}
+.filter-summary {
+	flex-shrink: 0;
+	padding-right: 20px;
+}
+.work-layout {
+	flex: 1;
 }
 .view-notice {
 	display: flex;
@@ -630,6 +655,61 @@ body:has(.inspector[open], .filter-drawer[open]) {
 }
 .sidebar-content[hidden] {
 	display: none;
+}
+.sidebar-footer {
+	flex-shrink: 0;
+	margin-top: auto;
+	border-top: 1px solid var(--line);
+	padding: 8px;
+}
+.workspace-actions {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+.sidebar-action {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 8px;
+	min-width: 32px;
+	min-height: 32px;
+	border-radius: 5px;
+	padding: 6px 8px;
+	color: var(--muted);
+	font-size: 12px;
+}
+.sidebar-action:hover:not(:disabled) {
+	background: var(--raised);
+	color: var(--ink);
+}
+.sidebar-action:focus-visible {
+	outline: 2px solid var(--accent);
+	outline-offset: 2px;
+}
+.sidebar-action svg {
+	flex-shrink: 0;
+}
+.refresh-action {
+	margin-left: auto;
+}
+.is-collapsed .sidebar-footer {
+	flex-direction: column;
+	padding: 8px 0;
+}
+.is-collapsed .sidebar-action-label {
+	display: none;
+}
+.is-collapsed .refresh-action {
+	margin-left: 0;
+}
+.refresh-rotating {
+	animation: refresh-rotation 2s linear infinite;
+}
+@keyframes refresh-rotation {
+	to {
+		transform: rotate(360deg);
+	}
 }
 .sidebar-content > * {
 	flex-shrink: 0;
@@ -751,6 +831,9 @@ body:has(.inspector[open], .filter-drawer[open]) {
 	}
 	.mobile-filter-toolbar {
 		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 8px;
 		flex-shrink: 0;
 		padding: 8px 16px;
 		border-bottom: 1px solid var(--line);
@@ -1307,4 +1390,14 @@ body:has(.inspector[open], .filter-drawer[open]) {
 .subcard-toggle:hover {
 	color: var(--ink);
 	background: var(--raised);
+}
+
+.toast-host [data-sonner-toaster][data-sonner-theme] {
+	--normal-bg: var(--panel);
+	--normal-text: var(--ink);
+	--normal-border: var(--line);
+}
+
+.toast-host [data-sonner-toast] [data-description] {
+	color: var(--muted);
 }

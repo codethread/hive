@@ -1,5 +1,6 @@
 import { defaultProjectConfig, writeProjectConfig } from "../../src/config.ts";
 import { expect, test } from "bun:test";
+import { hookSection, previousHookSection } from "../../src/templates.ts";
 import { lockSchema, writeProjectLock } from "../../src/project.ts";
 import { fixture } from "../support.ts";
 import { runCli } from "../../src/cli.ts";
@@ -47,6 +48,29 @@ test("update uses command availability at the project root without persisting ma
 	expect(fx.files.get("/repo/.hive/beeswax/meta/lock.json")).toBe(
 		template.files.get("/repo/.hive/beeswax/meta/lock.json"),
 	);
+});
+
+// eslint-disable-next-line max-statements -- Verify section replacement and recorded intent through one public update.
+test("update replaces the previous owned hook generation and records the new hashes", async () => {
+	const fx = configured();
+	const path = "/repo/.hive/beeswax/meta/lock.json";
+	const lock = lockSchema.parse(JSON.parse(fx.files.get(path) ?? ""));
+	for (const target of Object.keys(lock.hooks)) {
+		lock.hooks[target] = new Bun.CryptoHasher("sha256").update(previousHookSection).digest("hex");
+		fx.files.set(
+			`${root}/${target}`,
+			`# application header\n${previousHookSection}\necho application\n`,
+		);
+	}
+	fx.files.set(path, JSON.stringify(lock));
+	expect(await runCli(["update", "--json"], fx.deps)).toBe(success);
+	for (const target of Object.keys(lock.hooks)) {
+		expect(fx.files.get(`${root}/${target}`)).toBe(
+			`# application header\n${hookSection}\necho application\n`,
+		);
+	}
+	expect(fx.files.get(path)).toBe(template.files.get(path));
+	expect(fx.errors).toEqual([]);
 });
 
 test("sync refuses configuration drift before writes and explicit update accepts supported changes", async () => {

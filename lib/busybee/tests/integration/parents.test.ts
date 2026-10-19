@@ -1,18 +1,12 @@
 import { CommandError, createMemoryBeads } from "@hive/beads";
-import {
-	advance,
-	complete,
-	recordResult,
-	runViewSchema,
-	start,
-	startNamed,
-} from "../../src/runtime.ts";
+import { advance, complete, recordResult, start, startNamed } from "../../src/runtime.ts";
 import { createMachine, setup } from "xstate";
 import { expect, test } from "bun:test";
 import type { CreateBead } from "@hive/beads";
 import type { Services } from "../../src/native.ts";
 import { createServices } from "../../src/native.ts";
 import { invoke } from "./support.ts";
+import { runSummarySchema } from "../../src/cli.ts";
 import { z } from "zod";
 
 const FIRST = 0;
@@ -140,7 +134,7 @@ test.each(commands.flatMap((command) => ordinaryTypes.map((type) => ({ command, 
 		const { beads, parent, services } = await fixture({ type });
 		const result = await invoke(creationArgs(command, parent.id), services);
 		expect(result.code, result.stdout).toBe(FIRST);
-		const run = runViewSchema.parse(result.document);
+		const run = runSummarySchema.parse(result.document);
 		const record = await beads.show(scope, run.id);
 		expect(record.dependencies.filter((edge) => edge.dependency_type === "parent-child")).toEqual([
 			expect.objectContaining({ id: parent.id }),

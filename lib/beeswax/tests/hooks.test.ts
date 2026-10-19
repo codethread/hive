@@ -75,7 +75,7 @@ test("merge driver quotes the installed command and preserves unrelated attribut
 		"config",
 		"--local",
 		"merge.hive-beads.driver",
-		'\'/tools with spaces/beeswax\' git merge "%O" "%A" "%B"',
+		'\'/tools with spaces/beeswax\' system git merge "%O" "%A" "%B"',
 	]);
 	expect(fx.files.get("/repo/.gitattributes")).toBe(
 		"*.png binary\n.beads/issues.jsonl text eol=lf merge=hive-beads\n",

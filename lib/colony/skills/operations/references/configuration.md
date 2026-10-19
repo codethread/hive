@@ -29,7 +29,7 @@ headless = ["--print"]
 argv = ["--model", "{{model}}", "{{#if system_prompt}}--system-prompt{{/if}}", "{{system_prompt}}", "{{prompt}}"]
 ```
 
-Keep reusable role instructions in `system_prompt` and optional execution direction in `prompt`. Task scope, context, deliverables and acceptance belong in workflow input and stage briefs; prompt overrides change execution direction, not the assignment.
+Keep the role's remit, judgement, authority limits and professional result contract in `system_prompt`. Busy Bee workflows own task-specific sequence; the same role can serve different workflows. Put task scope, context, deliverables and acceptance in workflow input and stage briefs, and optional execution direction in `prompt`; prompt overrides do not change the assignment.
 
 To store a kind separately, move its fields into an immediate `.hive/bees/` subdirectory:
 

@@ -1,11 +1,11 @@
 ---
 name: workflow-execution
-description: Run or resume Busy Bee workflows, deliver outcomes and author workflow definitions.
+description: Run or resume Busy Bee workflows and deliver outcomes.
 ---
 
 The application's instructions, domain conventions, verification commands and authorization govern the work; Busy Bee supplies orchestration. Consult `busybee --help`, then focused command help for options. Use `--json` for complete schemas and machine-readable results.
 
-For definition authoring, read [authoring](references/authoring.md) with `busybee skills file workflow-execution references/authoring.md`. The execution path follows below.
+For definition authoring or refactoring, read [workflow-authoring](../workflow-authoring/SKILL.md) with `busybee skills get workflow-authoring`.
 
 ## Select the run
 
@@ -24,7 +24,9 @@ br show RUN --json
 busybee inspect RUN --work --json
 ```
 
-Read each active task with `br show TASK --json` for its full brief, children, assignment and blockers. Require pending native lifecycle and available `work` before continuing. `work.data` contains frozen visits, dispatch requests, legal outcomes and payload schemas; its actor status is separate from native disposition. Read `inspect --help` for expansion availability and trusted-author execution. On retry, resume the supplied run and use `advance` to consume saved closed-stage results before doing more work.
+Read the native run brief once for caller completion instructions. Read `br show TASK --json` once per active visit for its full brief, acceptance, assignment, children, blockers and delivery/closure instructions. Refresh native briefs when relevant scope, state or authority changes, or required context is missing.
+
+Require pending native lifecycle and available `work` before continuing. Use bare `inspect` for lifecycle reads; request `--work` when visits, dispatch requests, legal outcomes or payload schemas are needed. Its frozen briefs and actor status are separate from current native work and disposition. Read `inspect --help` for expansion availability and trusted-author execution. On retry, resume the supplied run and use `advance` to consume saved closed-stage results before doing more work.
 
 For authorized new work, use `busybee list` and `busybee input-schema NAME --json`, then `busybee run NAME --parent WORK_ID --owner HUMAN --input-file INPUT.json --json` with matching input. Retain the run ID. When the checkout needs the bundled `do-work` definition, follow `busybee init --help` before input discovery. Existing definitions must resolve their imports in the execution checkout; `list` reads manifests without importing code.
 
@@ -53,6 +55,6 @@ In Bee execution, follow `bee finish --help` after completing your assigned run 
 
 Inspect confirmed effects and retained IDs after any command failure; a failed response can follow partial publication. For closure refusal or interrupted completion, follow `complete --help` before retrying. If advancement reports missing or invalid saved data, recover the original outcome from evidence before resubmission.
 
-For definition restoration failures, read the compatibility rules in [authoring](references/authoring.md). Retain run/task/evidence references and follow the task's recovery authorization; retrying does not authorize a duplicate run. A missing saved name needs the caller's workflow choice. Checkpoint locks retained after uncertain writes require inspection and explicit recovery; never steal them or force-close unfinished work.
+For definition restoration failures, read [saved-run compatibility](../workflow-authoring/SKILL.md#evolve-existing-runs) with `busybee skills get workflow-authoring`. Retain run/task/evidence references and follow the task's recovery authorization; retrying does not authorize a duplicate run. A missing saved name needs the caller's workflow choice. Checkpoint locks retained after uncertain writes require inspection and explicit recovery; never steal them or force-close unfinished work.
 
 For a tool cutover or an incompatible run requiring retirement/replacement, read `beeswax skills file repository-setup references/workflow-adoption.md`. It covers frozen old briefs, owning-host clearance and coherent service adoption; it grants no new deployment authority.

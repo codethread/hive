@@ -9,6 +9,7 @@
         "@commitlint/config-conventional": "^21.2.3",
         "@earendil-works/pi-coding-agent": "1.2.0",
         "@hive/beeswax": "workspace:*",
+        "@hive/shared": "workspace:*",
         "@stylistic/eslint-plugin": "^5.10.0",
         "@types/bun": "^1.4.2",
         "husky": "^9.1.7",
@@ -23,14 +24,14 @@
     },
     "lib/beads": {
       "name": "@hive/beads",
-      "version": "0.7.0",
+      "version": "0.8.0",
       "dependencies": {
         "zod": "^4.6.5",
       },
     },
     "lib/beeswax": {
       "name": "@hive/beeswax",
-      "version": "0.7.0",
+      "version": "0.8.0",
       "bin": {
         "beeswax": "./bin/beeswax.ts",
       },
@@ -51,7 +52,7 @@
     },
     "lib/busybee": {
       "name": "@hive/busybee",
-      "version": "0.7.0",
+      "version": "0.8.0",
       "bin": {
         "busybee": "./bin/busybee.ts",
       },
@@ -71,13 +72,12 @@
     },
     "lib/colony": {
       "name": "@hive/colony",
-      "version": "0.7.0",
+      "version": "0.8.0",
       "dependencies": {
         "@hive/beads": "workspace:*",
         "@hive/shared": "workspace:*",
         "commander": "^15.0.0",
         "gray-matter": "^4.0.3",
-        "ps-list": "^9.0.0",
         "skills-handler": "^0.1.2",
         "ts-pattern": "^5.9.0",
         "unique-names-generator": "^4.7.1",
@@ -87,7 +87,7 @@
     },
     "lib/hive-ui": {
       "name": "@hive/hive-ui",
-      "version": "0.7.0",
+      "version": "0.8.0",
       "dependencies": {
         "@dagrejs/dagre": "^3.1.1",
         "@hive/beads": "workspace:*",
@@ -110,6 +110,7 @@
         "react-markdown": "^10.1.0",
         "react-resizable-panels": "^4.14.5",
         "remark-gfm": "^4.0.1",
+        "sonner": "^2.0.8",
         "tailwind-merge": "^3.7.0",
         "tailwindcss": "^4.3.3",
         "xstate": "^5.33.2",
@@ -132,7 +133,7 @@
     },
     "lib/honeycomb": {
       "name": "@hive/honeycomb",
-      "version": "0.7.0",
+      "version": "0.8.0",
       "bin": {
         "honeycomb": "./bin/honeycomb.ts",
       },
@@ -147,7 +148,7 @@
     },
     "lib/qlock": {
       "name": "@hive/qlock",
-      "version": "0.7.0",
+      "version": "0.8.0",
       "bin": {
         "qlock": "./bin/qlock.ts",
       },
@@ -161,8 +162,13 @@
     },
     "lib/scent": {
       "name": "@hive/scent",
-      "version": "0.7.0",
+      "version": "0.8.0",
+      "bin": {
+        "scent": "./src/bin/scent.ts",
+      },
       "dependencies": {
+        "@hive/shared": "workspace:*",
+        "commander": "^14.0.3",
         "unique-names-generator": "4.7.1",
         "zod": "^4.6.5",
       },
@@ -172,7 +178,7 @@
     },
     "lib/shared": {
       "name": "@hive/shared",
-      "version": "0.7.0",
+      "version": "0.8.0",
       "dependencies": {
         "@hive/beads": "workspace:*",
         "handlebars": "^4.7.9",
@@ -181,7 +187,7 @@
     },
     "lib/tooling": {
       "name": "@hive/tooling",
-      "version": "0.7.0",
+      "version": "0.8.0",
       "dependencies": {
         "@hive/beads": "workspace:*",
         "@hive/shared": "workspace:*",
@@ -192,7 +198,7 @@
     },
     "lib/waggle": {
       "name": "@hive/waggle",
-      "version": "0.7.0",
+      "version": "0.8.0",
       "bin": {
         "waggle": "./bin/waggle.ts",
       },
@@ -1627,8 +1633,6 @@
 
     "proxy-agent-negotiate": ["proxy-agent-negotiate@1.1.0", "", { "peerDependencies": { "kerberos": "^2.0.0" }, "optionalPeers": ["kerberos"] }, "sha512-N8IBcM3UgCVzz2L2Lqv8DVntDnnC8/hiV4nEDUPkqq72TPUgYWjQc+bdZlBPZK9LzPAvOY//gAt0S0DApoOXWQ=="],
 
-    "ps-list": ["ps-list@9.0.0", "", {}, "sha512-lxMEoIL/BQlk2KunFzxwUPwMvjFH7x7cmvzSLsSHpyMXl9FFfLUlfKrYwFc4wx/ZaIxxuXC4n8rjQ1CX/tkXVQ=="],
-
     "punycode": ["punycode@2.3.1", "", {}, "sha512-vYt7UD1U9Wg6138shLtLOvdAu+8DsC/ilFtEVHcH+wydcSpNE20AfSOduf6MkRFahL5FY7X1oU7nKVZFtfq8Fg=="],
 
     "qified": ["qified@0.10.1", "", { "dependencies": { "hookified": "^2.1.1" } }, "sha512-+Owyggi9IxT1ePKGafcI87ubSmxol6smwJ+RAHDQlx9+9cPwFWDiKFFCPuWhr9ignlGpZ9vDQLw67N4dcTVFEA=="],
@@ -1706,6 +1710,8 @@
     "skills-handler": ["skills-handler@0.1.2", "", { "dependencies": { "chalk": "^5.3.0", "commander": "^11.1.0", "gray-matter": "^4.0.3" }, "peerDependencies": { "next": ">=13.0.0" }, "optionalPeers": ["next"], "bin": { "skills-handler": "dist/cli/cli.js", "create-skills-route": "dist/cli/cli.js" } }, "sha512-hQKQQLAV4JYkRA7s7PV81woqIWtO3Zu1WgGkRapp934Rw6j200jVWh9JmXN05jbgKEABTloT8V2A+2tC8X8lyg=="],
 
     "smol-toml": ["smol-toml@1.9.0", "", {}, "sha512-hpd+HLON7HdZXqYchMM/+LaTTbdK0AU3NngIJ4KVyWbY9bfQqdL9cD+4yf6dUoU2Ap4VsU0JkQi6FxAI1B2mXQ=="],
+
+    "sonner": ["sonner@2.0.8", "", { "peerDependencies": { "@types/react": "^18.0.0 || ^19.0.0", "react": "^18.0.0 || ^19.0.0 || ^19.0.0-rc", "react-dom": "^18.0.0 || ^19.0.0 || ^19.0.0-rc" }, "optionalPeers": ["@types/react"] }, "sha512-UM/ByIoFra8yzV75n1o0Puu0bw5U/9UNnDacrJNspekBewIfsQ3D6ez1nvlWpt7aTsO6rujQtifBpycwIivqlg=="],
 
     "source-map": ["source-map@0.6.1", "", {}, "sha512-UjgapumWlbMhkBgzT7Ykc5YXUT46F0iKu8SGXq0bcwP5dz/h0Plj6enJqjz1Zbq2l5WaqYnrVbwWOWMyF3F47g=="],
 

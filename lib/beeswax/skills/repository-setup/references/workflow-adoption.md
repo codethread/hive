@@ -6,8 +6,8 @@ Use this procedure for an explicitly scoped Busy Bee/Bee/Colony cutover or incom
 Inventory and coordinate owners
   -> clear old execution/writers on owning hosts
   -> install coherent controls and refresh services
-  -> compatible named run? -- yes --> continue saved outcomes
-                           -- no ---> retire supported scope; replace deliberately
+  -> compatible catalogue available? -- yes --> continue saved outcomes
+                                     -- no ---> retire supported scope; replace deliberately
   -> verify evidence and caller tails before reopening admission
 ```
 
@@ -20,6 +20,8 @@ Read each run and its descendants with native `br show`/comments. Inspect reques
 Record actual completed or uncertain effects: commits, integration, cleanup, installs, service changes, saved original outcomes and caller tails. Identify manual/nested work, ct/HITL reservations and other identities separately. Agree the bounded run/request list, treatment of unfinished work, controls to install, service refreshes and resumption owners. Preserve claims unless their owner or the authorized owning tool releases them. Coordinate every writer, including standalone agents and synchronized clones; tracker synchronization and tracker alerts are not deployment locks.
 
 ## Clear execution and writers
+
+If nurse or automatic work-review control retains a batch, coordinate its owner to finish the authorized work and let the matching pre-cutover controller account for saved results before replacing lifecycle controls. Record each run/request/response and whether the controller released its batch. Under the new controls, an old unmarked closed run remains unclassified: request success or saved actor DONE cannot supply native workflow success. If the batch cannot drain or continuation is unsupported, retain its control, evidence and attention with an owning follow-up. Editing control notes, resetting the batch or backfilling success is not an adoption path.
 
 On each owning host, use `colony explain REQUEST --json` with the retained repository, tracker and state/socket selection for all retained attempts and fresh process evidence. `bee status` is tracker-only; a closed request or stop intent does not prove process exit.
 
@@ -35,11 +37,15 @@ Follow `colony daemon restart --help` for the retained state/socket, and verify 
 
 ## Continue or replace
 
-### Compatible named format-1 runs
+### Continue with a compatible catalogue
 
 Keep the existing run. Read `busybee inspect RUN --json` for native disposition and publication fences, then `inspect RUN --work --json` for explicit work availability. A retained active actor in a terminal run is history, not admission. Diagnose unavailable expansions before continuing.
 
 Follow `busybee preflight --help` against the candidate catalogue and selected tracker. Compatible named definitions preserve checkpoint format 1, state/actor routes, context, frozen commands and original `{choice,data}` meaning. Preflight leaves future paths unproved; retain isolated continuation evidence for affected states before deploying a breaking change. Explicit-file runs still enforce their saved entry-file hash.
+
+A workflow version outside the saved caret range intentionally rejects restoration, even when both use checkpoint format 1. For an already-authorized old run, an operator may retain a compatible catalogue and select it explicitly with `busybee --repo /path/to/retained-catalogue ...`. Keep that catalogue and its dependencies available until its consumers finish. This selects workflow source; the matching current executables, canonical Bee configuration/execution directory, tracker and identities remain independently selected. Record the owner and exact catalogue revision; do not silently rebind the run or loosen version checks.
+
+Manual commands and typed calls with an explicit repository endpoint prove only that selection. Captured automatic retry recipes may still select the canonical execution directory. Before resuming them, coordinate the actual recipe's endpoint with its owner and verify the supported path; a successful manual continuation does not establish automatic recovery.
 
 Published briefs remain frozen. Apply this command mapping without rewriting visits or restoring aliases:
 
@@ -58,7 +64,7 @@ Bee automation helpers are `bee system dispatch-stage`, `bee system assess` and 
 
 `complete`/`record-result` keep their original outcome contract. For an already-closed visit, inspect its saved evidence and follow `complete --help`; do not invent missing results or use its save-only primitive on closed work. Advance returns IDs/status; reinspection supplies the next briefs. Diagram/work expansions have their own checkpoint samples. Use the diagram sample for simulation baselines.
 
-Continue with the same canonical root, tracker and authorization. Preserve task cleanup/report/DONE ordering and its separately authorized source closure. For Land crossing local-update, retain original results through publish/report/final advancement and the caller's post-done tail. Preflight success alone proves neither path, and this guide claims no rehearsal has passed.
+Preserve each saved contract's tail. Retained do-feature-task 0.1 runs finish cleanup/report/DONE before separately authorized source closure; retained Land 4.1 runs cross local-update through publish/report/DONE before their caller tail. Current do-feature-task 0.2 goes directly from deliver to DONE, and Land 5 from local-update to DONE. Their run briefs retain caller completion obligations: the authorized caller closes satisfied sources; standalone Land then publishes final tracker evidence, while an enclosing Release owns its final publication. Preflight alone proves none of these paths; retain continuation evidence for the actual catalogue and controls.
 
 ### Incompatible scope
 
@@ -74,6 +80,6 @@ On uncertain publication, retain confirmed effects, checkpoint ownership and set
 
 ## Verify and resume
 
-Read back native lifecycle/resolution, parentage and original outcomes, plus request and process evidence. Keep old and replacement run/request histories distinct. Confirm owners, binaries, catalogue compatibility and services before the coordinated `colony wake`; use normal same-run driver recovery for compatible runs. `bee attach-workflow` is only for a confirmed orphan, and `bee retry` requires an eligible failed request—neither silently repairs a cancelled driver.
+Read back native lifecycle/resolution, parentage and original outcomes, plus request and process evidence. Keep old and replacement run/request histories distinct. Confirm owners, binaries, catalogue compatibility and services before the coordinated `colony wake`; use normal same-run driver recovery for compatible runs. Use `bee attach-workflow --help` for a confirmed orphan and `bee retry --help` for failed-request recovery or explicit cancelled-request resumption. Request replacement preserves the same run or stage; it does not retire workflow scope.
 
 Deliver the exact run/request IDs, effects, remaining work and verification limits. Busy Bee alone closes runs; authorized callers separately satisfy source/parent acceptance and repository publication policy.

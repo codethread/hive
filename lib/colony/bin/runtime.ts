@@ -1,13 +1,18 @@
 #!/usr/bin/env bun
+/* eslint-disable import/max-dependencies -- Compose daemon supervision, workflow and nurse command adapters. */
 import { execute, resolveRepository } from "@hive/shared";
 import { createNativeBeads } from "@hive/beads";
 // eslint-disable-next-line import/no-nodejs-modules -- Bind fresh execution observations to this host.
 import { hostname } from "node:os";
+// eslint-disable-next-line import/no-nodejs-modules -- Workflow inputs are files in private daemon state.
+import { join } from "node:path";
 import { launch } from "../src/launch.ts";
 import { match } from "ts-pattern";
+import { nurseCommands } from "../src/nurse-commands.ts";
 import { observeExecution } from "../src/processes.ts";
 import { serve } from "../src/server.ts";
 import { version } from "../package.json";
+import { workReviewCommands } from "../src/work-review-commands.ts";
 import { workflowCommands } from "../src/workflows.ts";
 import { z } from "zod";
 
@@ -59,6 +64,25 @@ try {
 				observe: observeExecution,
 				host: hostname(),
 				now: () => new Date().toISOString(),
+				nurse: nurseCommands({
+					execute: (argv, cwd) => execute(argv, cwd, process.env),
+					writeInput: async (token, input) => {
+						const path = join(state, "nurse", `${token}.json`);
+						await Bun.write(path, input);
+						return path;
+					},
+				}),
+				workReview: workReviewCommands(
+					{
+						execute: (argv, cwd) => execute(argv, cwd, process.env),
+						writeInput: async (token, input) => {
+							const path = join(state, "work-review", `${token}.json`);
+							await Bun.write(path, input);
+							return path;
+						},
+					},
+					state,
+				),
 			}),
 		)
 		.exhaustive();

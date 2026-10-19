@@ -40,21 +40,20 @@ const LAST_ENTRY = -1;
 const EDGE_TYPES = { routed: VariantRoutedEdge };
 const VARIANT_NODE_TYPES = { step: VariantStepNode };
 const CARD_VARIANTS = [
-	["Default step", "implement"],
+	["Default step", "finish"],
 	["Current step", "check"],
 	["Bee task · available", "review"],
-	["Initial state", initialStep],
-	["Automatic state", "route"],
+	["Integration verification", "verify"],
 	["Final state", "done"],
 ] satisfies [string, StepId][];
 const HOVER_CARD_VARIANTS = [
-	["Default · hovered", "implement"],
+	["Default · hovered", "finish"],
 	["Current · hovered", "check"],
 	["Bee task · hovered", "review"],
 ] satisfies [string, StepId][];
 const VARIANT_CONNECTIONS = [
-	{ source: "triage", target: "implement", sourceSide: "NORTH", targetSide: "SOUTH" },
-	{ source: "implement", target: "check", sourceSide: "EAST", targetSide: "WEST" },
+	{ source: "finish", target: "verify", sourceSide: "NORTH", targetSide: "SOUTH" },
+	{ source: "review", target: "finish", sourceSide: "EAST", targetSide: "WEST" },
 	{ source: "check", target: "review", sourceSide: "EAST", targetSide: "WEST" },
 ] satisfies VariantConnection[];
 const EDGE_VARIANTS = [
@@ -543,8 +542,8 @@ function ContextControls({
 					</label>
 				</div>
 				<p>
-					Apply these example values to restart at Check. Outcomes use this evidence and a fictional
-					review receipt; no review, checks or integration are performed.
+					Apply these example values to restart at Check. Outcomes use this fictional evidence; no
+					review, checks or integration are performed.
 				</p>
 				<button type="submit" className="explorer-apply-context button">
 					Apply &amp; reset

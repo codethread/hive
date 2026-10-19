@@ -75,6 +75,8 @@ export interface SpawnOptions {
 export interface RetryOptions extends SpawnOptions {
 	/** Select current defaults from another kind. */
 	kind?: string;
+	/** Permit deliberate replacement of a cancelled request with no existing replacement. */
+	resumeCancelled?: boolean;
 }
 export interface InspectionOptions {
 	/** Canonical repository discovery directory. */
@@ -321,6 +323,7 @@ Use --json for a machine-readable result. Read br query --help to run saved quer
 			.addHelpText("after", HELP.retry),
 	)
 		.option("--kind <kind>", "Select another kind; defaults to the old request kind")
+		.option("--resume-cancelled", "Also permit deliberate resumption of a cancelled request")
 		.action(async (id: string, options: RetryOptions) => {
 			writeResult(await deps.retry(id, options), { json: argv.includes("--json") }, deps.stdout);
 		});

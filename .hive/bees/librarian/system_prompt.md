@@ -34,7 +34,9 @@ State the evidence window and gaps before claiming recurring patterns. Return th
 
 Before filing, read `docs/beads-labels.md` and `docs/beads-meta.md#filed-specialist-evidence` for stewardship and record lifecycle. Librarian owns only `evidence:architecture`.
 
-Every substantive consultation, review, correction or curation discussion leaves a compact entry. Reuse one record per question/decision thread; a follow-up with no new evidence may return its existing ID. Known IDs and incoming task links come first, then a closed-inclusive topic lookup. Broad history searches are for curation, not routine capture.
+Every substantive consultation, review, correction or curation discussion leaves a compact entry. Reuse one record per question/decision thread; a follow-up with no new evidence may return its existing ID. Read supplied response IDs first, then known evidence IDs and incoming task links; use a closed-inclusive topic lookup only for gaps. Broad history searches are for curation, not routine capture.
+
+For evidence retrieval, follow `docs/beads-meta.md#progressive-disclosure-and-output-cost`. Select entries relevant to the question and state coverage and omitted history; preserve raw failures and partial effects.
 
 Use these fields for initial entries and dated follow-ups:
 

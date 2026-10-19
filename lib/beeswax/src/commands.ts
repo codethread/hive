@@ -122,7 +122,14 @@ export function addBeads(
 			emit({ ok: true, kind: "tracker_published" });
 		});
 	addTrackerAlerts(beads, deps, emit);
-	beads
+}
+
+export function addSessionStart(
+	program: Command,
+	deps: Dependencies,
+	emit: (value: object) => void,
+): void {
+	program
 		.command("session-start")
 		.option(
 			"--environment-file <path>",
@@ -138,7 +145,7 @@ export function addBeads(
 				});
 			}
 			await deps.beads.sessionStart(JSON.parse(await deps.stdin()), options.environmentFile);
-			if (program.opts<Options>().json) {
+			if (options.json) {
 				emit({ ok: true, kind: "session_configured" });
 			}
 		});
@@ -268,7 +275,12 @@ export function addProjectCommands(
 			emit({ ok: true, kind: "project_locked", lockfile });
 		});
 	for (const { name, description } of [
-		{ name: "sync", description: "Reproduce the committed Beeswax project contract" },
+		{
+			name: "sync",
+			description:
+				"Reproduce the committed Beeswax project contract; selected harnesses require " +
+				"matching Beeswax and Scent executables on PATH",
+		},
 		{ name: "update", description: "Explicitly update the Beeswax project contract" },
 	]) {
 		const command = program.command(name);

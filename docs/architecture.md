@@ -13,8 +13,8 @@ Hive's product packages are independently replaceable. They cooperate through co
 | `lib/waggle` | Classifier discovery and execution | Independent `waggle` CLI; it does not decide runtime scheduling or mutate requests |
 | `lib/busybee` | Workflow navigation, task visits, native lifecycle publication/inspection/settlement and per-run checkpoints | XState chooses transitions; native `br` stores work and checkpoints; optional Bee requests delegate execution to Colony |
 | `lib/hive-ui` | Read-only work-board HTTP projections, route-driven browser snapshots and presentation | Imports Beads services and Shared contracts; selects repository/database pairs explicitly or through public Colony status and calls Busy Bee's public inspection and simulation commands |
-| `lib/scent` | Harness identity attribution and context | Resolves native identity or adopts supplied Bee identity; preserves the selected tracker |
-| `lib/beeswax` | Consumer repository setup, Beads environment/publication, tracker alerts and recovery guidance, JSONL merging/validation, Git/harness adapters and executable installation | Installed CLI; imports Shared/Beads contracts and invokes installed Honeycomb |
+| `lib/scent` | Harness identity attribution and context | Installed command protocols and bundled Pi runtime; resolves native identity or adopts supplied Bee identity and preserves the selected tracker |
+| `lib/beeswax` | Consumer repository setup, Beads environment/publication, tracker alerts and recovery guidance, JSONL merging/validation, Git/harness adapters and executable installation | Installed CLI; imports Shared/Beads contracts and invokes installed Honeycomb and Scent |
 | `lib/tooling` | Repository test selection and release maintenance | Development tooling, independent of the Bee execution path |
 | `lib/qlock` | Ticketed local command admission, queue state and foreground child execution | Independent CLI; merge-target queues obtain repository identity through `honeycomb root` |
 
@@ -67,7 +67,7 @@ The Shared [spawn-request model](../lib/shared/src/spawn-request.ts) owns native
 
 Colony owns [configuration discovery and precedence](../lib/colony/src/config.ts); Shared owns shape and effective-configuration validation. Canonical configuration supplies defaults for new recipes and runtime policy.
 
-Bee captures role and execution direction separately. Colony composes the [delivery protocol](../lib/colony/src/response-protocol.ts) and assignment instructions at launch; Shared supplies the producing-task pointer used by Colony and Busy Bee. [Response delivery](./agents/responses.md) owns the distinction between authored answers, progress and machine outcomes. Private drones retain separate protocols.
+Bee captures role and execution direction separately. Colony composes the [delivery protocol](../lib/colony/src/response-protocol.ts) and assignment instructions at launch; Shared supplies the producing-task pointer used by Colony and Busy Bee. [Response delivery](./agents/responses.md) owns the distinction between authored answers, progress and machine outcomes. Private inactivity reviews and post-run assessments retain separate protocols.
 
 Bee inspection and closure use only the selected Beads endpoint. Closure records intent for an awake Colony to reconcile; it does not directly signal a process.
 
@@ -92,7 +92,7 @@ Colony's [client](../lib/colony/src/client.ts) uses the [Shared protocol](../lib
 
 Repository discovery, tracker selection and execution directory are independent. The canonical root identifies repository-wide configuration and registration. The selected absolute Beads path identifies tracker authority. The recipe's optional execution directory controls the harness working directory and capacity bucket. Choosing one never implicitly replaces another.
 
-The supervisor owns only its process tree and local artifacts; it does not reconcile Beads or write the daemon database. Colony reserves an attempt before starting the supervisor and persists the verified supervisor handoff before granting execution permission. Recovery uses the same ownership checks before adoption, cleanup or replacement. Detailed commands, defaults and supported limitations are in the [Bee and Colony guide](../lib/colony/README.md).
+The supervisor owns its process group and local artifacts; it does not reconcile Beads or write the daemon database. The harness inherits that group; processes that detach or create separate groups are outside managed cleanup. Colony reserves an attempt before starting the supervisor and persists the verified supervisor handoff before granting execution permission. Recovery uses the same ownership checks before adoption, cleanup or replacement. Detailed commands, defaults and supported limitations are in the [Bee and Colony guide](../lib/colony/README.md).
 
 ## Workflow settlement and execution clearance
 
@@ -100,15 +100,27 @@ Busy Bee owns [settlement inventory and native publication](../lib/busybee/SPEC.
 
 The selected owning-host daemon joins native request associations with all retained attempts and fresh ownership/exit observations. A per-daemon admission gate serializes that read with final workflow inspection, claim acquisition, attempt reservation and supervisor handoff. Closure of a request is not process-exit proof. Missing history, live or unverified execution, foreign/unbound hosts and marked manual launches refuse clearance. A clear result covers only the sampled repository, tracker, host and supplied inventory; it is neither a durable lease nor a distributed lock across daemons or synchronized trackers.
 
+## Automatic work reviews
+
+Colony's [work-review reconciler](../lib/colony/src/work-review-runtime.ts) owns independent hourly preflight and ordinary Bee submission for the [blocked](../.workflows/blocked-review/workflow.ts) and [in-progress](../.workflows/in-progress-review/workflow.ts) workflows. Those definitions own diagnosis, permitted actions and typed outcomes; Busy Bee retains progression and completion. The generic drone role adds no recovery authority. Completion consumes native workflow disposition through the existing public inspection adapter; structural continuation additionally requires the saved instruction projection.
+
+A dedicated ordinary parent holds native control bound to the repository, tracker, host and Colony state directory. Conditional writes retain each branch's due time, frozen candidates, publication effects and recovery allowances. Native task receipts supply [stable-blocker freshness](beads-labels.md#stable-blocker-reviews). This is coordination within the selected database, not exclusion across independently synchronized trackers. The [operator guide](../lib/colony/README.md#automatic-work-reviews) owns activation, inspection and completion conditions; `colony work-review recover --help` owns admission checks. Public Colony commands validate current evidence before recording a diagnosis or invoking Bee retry.
+
 ## Post-run advice
 
 Post-run assessments reuse detached supervision but have separate report authority and lifecycle. Assessment failure does not alter the target request, claims or retry budget; auxiliary inspections cannot enroll themselves.
 
-The nurse discusses retained assessments with ct using the [welcoming-hive heuristic](agents/welcoming-hive.md). Advice grants no authority to change practices or create work; ct authorizes change tasks. The [operator guide](../lib/colony/README.md#inspect-finished-bees) covers retrieval, and the [stewardship registry](beads-labels.md#specialist-evidence-and-label-stewardship) governs filed evidence.
+Colony's [nurse reconciler](../lib/colony/src/nurse.ts) selects completion-ordered batches and submits ordinary Bee/Busy Bee work. An explicitly configured ongoing health parent in native Beads holds the shared control record; conditional writes reserve one batch for its repository/tracker/host/state binding. This is local database coordination, not exclusion across independently synchronized trackers. The private store retains completion order and a resumable projection of native control and accepted coverage.
+
+The ordinary audit task holds its frozen manifest and typed coverage receipt, separate from workflow outcome notes. Colony advances coverage only after verifying that receipt, the completed workflow, successful current request, exact authored response and delivered investigation tree. Unfinished or failed audits retain their batch. The [operator guide](../lib/colony/README.md#automatic-nurse-audits) owns activation and recovery.
+
+Native [nurse health records](beads-labels.md#nurse-health-records) hold sourced provisional inquiries. A bounded snapshot supplies later drones with advisory evidence; their heuristic, deadline and mutation limits remain unchanged. Requests beneath the retained health parent are excluded from assessments by task lineage, including investigators of other kinds. The nurse uses the [welcoming-hive heuristic](agents/welcoming-hive.md) within its granted curation/investigation scope; fixes and changes to examined work require ct's separate authorization.
 
 ## Beeswax's setup boundary
 
 Beeswax owns reusable setup and tracker publication. Product policy stays with its product: Bee owns its attention-query preset, and Hive's setup recipe composes the two CLIs.
+
+Beeswax owns installation, regeneration and removal of selected harness integrations. Scent remains the replaceable identity runtime behind an installed command boundary; neither product imports the other. Claude Code and Codex callbacks invoke Scent directly. Beeswax's small Pi loader obtains Scent's bundled Node-compatible module through the CLI and runs its factory inside Pi, where it can update environment and register callbacks. Runtime bytes belong to Scent; repository adapters and ownership markers belong to Beeswax.
 
 The committed Beeswax configuration and lock are accepted project intent; machine receipts only record local observations. Application policy stays in application hook files. Beeswax owns its marked validation sections, using the same configured actual hook pair in the application and permanent tracker checkout. Setup preserves the tracker's accepted files and history.
 

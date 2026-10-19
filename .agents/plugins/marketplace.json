@@ -7,12 +7,6 @@
 			"source": { "source": "local", "path": "./plugins/honeycomb" },
 			"policy": { "installation": "AVAILABLE", "authentication": "ON_INSTALL" },
 			"category": "Productivity"
-		},
-		{
-			"name": "scent",
-			"source": { "source": "local", "path": "./plugins/scent" },
-			"policy": { "installation": "AVAILABLE", "authentication": "ON_INSTALL" },
-			"category": "Productivity"
 		}
 	]
 }

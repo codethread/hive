@@ -539,6 +539,7 @@ async function invokeColony(args: string[]) {
 			}
 			return result;
 		},
+		workReview: unexpectedRead,
 		add: unexpectedRead,
 		assessments: unexpectedRead,
 		config: unexpectedRead,

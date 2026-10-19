@@ -72,6 +72,54 @@ test.each([
 	});
 });
 
+test("retry forwards explicit cancellation resumption independently of recipe overrides", async () => {
+	await invoke(
+		["retry", "request-0", "--resume-cancelled", "--model", "current", "--json"],
+		SUCCESS,
+		{
+			retry: (id, options) => {
+				expect(id).toBe("request-0");
+				expect(options).toMatchObject({ resumeCancelled: true, model: "current" });
+				return Promise.resolve({ kind: "spawn_created", request: native });
+			},
+		},
+	);
+});
+
+test.each([
+	{
+		args: ["system", "assess", "--file", "report.json"],
+		response: { ok: true, kind: "assessment_submitted", assessmentId: "assessment-1" },
+	},
+	{
+		args: ["system", "report", "request-1", "active"],
+		response: {
+			ok: true,
+			kind: "drone_verdict_submitted",
+			requestId: "request-1",
+			attemptId: "attempt-1",
+			reviewId: "review-1",
+		},
+	},
+])("$args submits the injected protocol and emits one JSON receipt", async ({ args, response }) => {
+	const result = await invoke([...args, "--json"], SUCCESS, {
+		assess: (file) => {
+			expect(file).toBe("report.json");
+			return Promise.resolve({ kind: "assessment_submitted", assessmentId: "assessment-1" });
+		},
+		report: (id, verdict) => {
+			expect([id, verdict]).toEqual(["request-1", "active"]);
+			return Promise.resolve({
+				kind: "drone_verdict_submitted",
+				requestId: id,
+				attemptId: "attempt-1",
+				reviewId: "review-1",
+			});
+		},
+	});
+	expect(JSON.parse(result.stdout)).toEqual(response);
+});
+
 test.each([
 	{
 		args: ["spawn", "worker", "--parent", "work-1", "--input-file", "work.json"],
@@ -185,14 +233,16 @@ test("setup forwards tracker selection and actor and returns a concise JSON rece
 	const result = await invoke(
 		["setup", "--repo", "/checkout", "--beads-db", repository.beadsDb, "--actor", "test", "--json"],
 		SUCCESS,
-		(options) => {
-			calls.push(options);
-			return Promise.resolve({
-				kind: "bee_setup",
-				repository,
-				preset: "bee-attention",
-				recipes: ["/checkout/.bv/recipes.yaml", "/tracker/.bv/recipes.yaml"],
-			});
+		{
+			setup: (options) => {
+				calls.push(options);
+				return Promise.resolve({
+					kind: "bee_setup",
+					repository,
+					preset: "bee-attention",
+					recipes: ["/checkout/.bv/recipes.yaml", "/tracker/.bv/recipes.yaml"],
+				});
+			},
 		},
 	);
 	expect(calls).toEqual([{ repo: "/checkout", beadsDb: repository.beadsDb, actor: "test" }]);
@@ -206,22 +256,22 @@ test("setup forwards tracker selection and actor and returns a concise JSON rece
 });
 
 test("setup reports saved-query failures as a silent-stderr JSON error", async () => {
-	const result = await invoke(["setup", "--actor", "test", "--json"], FAILURE, () =>
-		Promise.reject(new Error("Query write failed")),
-	);
+	const result = await invoke(["setup", "--actor", "test", "--json"], FAILURE, {
+		setup: () => Promise.reject(new Error("Query write failed")),
+	});
 	expect(JSON.parse(result.stdout)).toMatchObject({ ok: false, message: "Query write failed" });
 });
 
 async function invoke(
 	args: readonly string[],
 	exitCode = SUCCESS,
-	setup: BeeDependencies["setup"] = unexpected,
+	overrides: Partial<BeeDependencies> = {},
 ) {
 	const stdout: string[] = [];
 	const stderr: string[] = [];
 	const submissions: { kind: string; options: WorkflowSpawnOptions }[] = [];
 	const deps: BeeDependencies = {
-		setup,
+		setup: unexpected,
 		responsePublish: unusedResponseCommand,
 		responseGet: unusedResponseCommand,
 		responseSearch: unusedResponseCommand,
@@ -253,6 +303,7 @@ async function invoke(
 		stderr: (text) => stderr.push(text),
 		stdout: (text) => stdout.push(text),
 		stop: () => Promise.resolve({ kind: "request_stopped", repository, request: stopped }),
+		...overrides,
 	};
 	expect(await runBeeCli([...args], deps)).toBe(exitCode);
 	expect(stderr).toEqual([]);

@@ -14,6 +14,18 @@ const calls: { argv: string[]; cwd: string }[] = [];
 const commands = workflowCommands({
 	execute: (argv, cwd) => {
 		calls.push({ argv, cwd });
+		if (argv.includes("--prepare-driver")) {
+			return Promise.resolve(
+				JSON.stringify({
+					ok: true,
+					kind: "workflow_advance",
+					mode: "prepare-driver",
+					runId: run.id,
+					status: run.status,
+					checkpoint: "checkpoint-1",
+				}),
+			);
+		}
 		return Promise.resolve(output);
 	},
 });
@@ -63,6 +75,33 @@ test.each([
 		]);
 	},
 );
+
+test("driver admission selects advance preparation with the selected endpoint", async () => {
+	calls.length = 0;
+	expect(await commands.advance({ runId: run.id, mode: "prepare-driver" }, endpoint)).toEqual({
+		runId: run.id,
+		status: run.status,
+		checkpoint: "checkpoint-1",
+	});
+	expect(calls).toEqual([
+		{
+			argv: [
+				"busybee",
+				"--repo",
+				endpoint.repo,
+				"--db",
+				endpoint.db,
+				"--actor",
+				endpoint.actor,
+				"--json",
+				"advance",
+				run.id,
+				"--prepare-driver",
+			],
+			cwd: endpoint.repo,
+		},
+	]);
+});
 
 const failure = {
 	ok: false,

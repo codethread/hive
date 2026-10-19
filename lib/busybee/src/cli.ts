@@ -4,7 +4,7 @@
 import { BusyBeeError, installDefaultWorkflow } from "./native.ts";
 import { Command, CommanderError } from "commander";
 import type { Options, Services } from "./native.ts";
-import { advance, complete, recordResult, start, startNamed } from "./runtime.ts";
+import { advance, complete, recordResult, runViewSchema, start, startNamed } from "./runtime.ts";
 import {
 	changelogHistorySchema,
 	changelogQuerySchema,
@@ -23,6 +23,7 @@ import {
 	workflowSimulationSchema,
 } from "@hive/shared";
 import type { PreflightReport } from "./preflight.ts";
+import type { RunView } from "./runtime.ts";
 import type { Source } from "./catalogue.ts";
 import changelog from "../changelog.json";
 import { checkpointVersion } from "./preview.ts";
@@ -38,6 +39,9 @@ import { z } from "zod";
 const SUCCESS = 0;
 const FAILURE = 1;
 const INDENT = 2;
+export const runSummarySchema = runViewSchema.extend({
+	active: z.array(runViewSchema.shape.active.element.omit({ context: true, instructions: true })),
+});
 const constraintKeys = new Set([
 	"const",
 	"enum",
@@ -235,13 +239,13 @@ function registerCreation(invocation: Invocation): void {
 		.command("run <name>")
 		.description("Start a named workflow beneath --parent work")
 		.action(async (name: string) => {
-			writeResult(await startNamed(name, options(), services), invocation);
+			writeRunView(await startNamed(name, options(), services), invocation);
 		});
 	cli
 		.command("start <source>")
 		.description("Start an explicit definition beneath --parent work")
 		.action(async (source: string) => {
-			writeResult(await start(source, options(), services), invocation);
+			writeRunView(await start(source, options(), services), invocation);
 		});
 	cli.command("validate <source>").action(async (source: string) => {
 		const result = await validate(resolve(services.cwd, source), options().inputFile, services);
@@ -677,6 +681,23 @@ async function payload(options: CliOptions, services: Services): Promise<unknown
 		return JSON.parse(await services.readText(options.dataFile)) as unknown;
 	}
 	return JSON.parse(options.data ?? "{}") as unknown;
+}
+
+function writeRunView(result: RunView, invocation: Invocation, instructions = false): void {
+	const active = result.active.map((entry) => {
+		const summary = {
+			bead: entry.bead,
+			commands: entry.commands,
+			path: entry.path,
+			request: entry.request,
+			title: entry.title,
+		};
+		if (instructions) {
+			return { ...summary, instructions: entry.instructions };
+		}
+		return summary;
+	});
+	writeResult({ ...result, active }, invocation);
 }
 
 function writeResult(result: object, invocation: Invocation, readable?: string): void {

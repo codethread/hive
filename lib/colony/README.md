@@ -1,6 +1,6 @@
 # Bee and Colony
 
-Bee opens configured roles with `bee run` or submits workflow assignments with `bee spawn`. Colony schedules and supervises their execution. Requests capture a recipe and friendly identity; Busy Bee run/stage beads hold the work. Canonical `.hive/bees.toml` supplies current harness formulas and runtime policy.
+Bee opens configured agent roles with `bee run` or delegates them with `bee spawn`. Busy Bee supplies the task workflow; Colony schedules and supervises execution. Requests capture a recipe and friendly identity; run/stage beads hold the work. Canonical `.hive/bees.toml` supplies current harness formulas and runtime policy.
 
 ## Install and try it
 
@@ -14,6 +14,8 @@ Read `bee --help` for submission and result discovery, then `colony wake --help`
 
 `bee skills --help` and `colony skills --help` discover version-matched instructions and supporting resources offline, without configuration, tracker, daemon or source checkout. Load metadata first and content on demand; the application repository's policy remains authoritative.
 
+Use `bee system --help` for the protocols called by Busy Bee and Colony's auxiliary observers.
+
 ## Discover bee kinds
 
 Use `bee kinds --help` for selection and expanded configuration. Visibility guides discovery, not execution authority. Caller `allow` and `deny` lists are mutually exclusive: `allow` selects exactly its named kinds, including hidden ones; `deny` subtracts from the non-hidden baseline. Empty `allow` selects none; empty `deny` changes nothing. `"#self"` refers to the caller kind. Unknown selectors fail.
@@ -24,7 +26,7 @@ Users open direct conversations with `bee run KIND`; agents delegate through `be
 
 ## Create requests
 
-`bee spawn --help` owns workflow input, execution selection and partial-submission recovery. Submission creates `original work -> workflow run -> stages`; the original parent's claim and completion remain separate. Drivers coordinate runs; dispatched workers execute stages. [Busy Bee](../busybee/README.md#delegate-a-workflow-to-bee) owns progression and group/run closure.
+Use `bee spawn --help` to select a task-appropriate workflow, supply its input and choose execution settings. It also covers partial-submission recovery. Submission creates `original work -> workflow run -> stages`; the original parent's claim and completion remain separate. Drivers coordinate runs; dispatched workers execute stages. [Busy Bee](../busybee/README.md#delegate-a-workflow-to-bee) owns progression and group/run closure.
 
 Colony uses Busy Bee's public `inspect`, `inspect --work` and `advance --prepare-driver` operations for lifecycle, attachment and admission. Emitted driver instructions use `inspect --work`, `complete` and `advance`; admission preparation never consumes results.
 
@@ -36,7 +38,7 @@ Run `colony skills file operations references/configuration.md` for required fie
 
 ## Retry an unsuccessful request
 
-Use `bee retry --help`; replacement retains the workflow assignment. [Workflow recovery](../busybee/README.md#resume-and-failures) covers incompatible or abandoned runs. `bee result --help` explains exact-request answer selection.
+Use `bee retry --help` for failed-request recovery or deliberate cancellation resumption, including eligibility and process verification. Replacement retains the workflow assignment; the [spawn contract](../../docs/agents/spawn-requests.md#transitions-and-resolution) defines retained history and replacement provenance. [Workflow recovery](../busybee/README.md#resume-and-failures) covers incompatible or abandoned runs. `bee result --help` explains exact-request answer selection.
 
 ## Acknowledge a failure
 
@@ -64,7 +66,27 @@ An accepted **active** verdict defers review for 15 minutes from acceptance, ind
 
 Interrupted preparation before execution permission becomes `launch_failed` and is never relaunched. Verified cleanup stops its supervisor; late handoff cannot start the harness. Authorized reviews survive recovery without duplicate launch. Ambiguous ownership remains a visible failure.
 
-Drones have no claims or independent spawn request and consume no task-dispatch capacity. Each target has at most one review; reviews cannot recurse. Target settlement stops pending reviews through ownership checks. Private receipts/logs retain evidence; native observations expose review identity and diagnostics. The [verdict contract](../../docs/agents/spawn-requests.md#report-an-inactivity-verdict) owns submission authority.
+Inactivity reviews have no claims or independent spawn request and consume no task-dispatch capacity. Each target has at most one review; reviews cannot recurse. Target settlement stops pending reviews through ownership checks. Private receipts/logs retain evidence; native observations expose review identity and diagnostics. The [verdict contract](../../docs/agents/spawn-requests.md#report-an-inactivity-verdict) owns submission authority.
+
+## Automatic work reviews
+
+Colony can submit two ordinary drone workflows: [blocked-review](../../.workflows/blocked-review/workflow.ts) classifies native blockers, while [in-progress-review](../../.workflows/in-progress-review/workflow.ts) examines stranded managed work with an unsuccessful request. Their briefs own diagnosis and permitted actions. They use ordinary Bee responses, capacity and supervision; private inactivity reviews remain separate.
+
+Reviews default to disabled when `auto_work_reviews` is omitted. This repository's checked-in [`.hive/bees.toml`](../../.hive/bees.toml) explicitly opts in with the dedicated control parent `hv-bj6zi9`; loading that policy still requires the deliberate reload below.
+
+Prepare both named workflows and their dependencies in the canonical checkout used by Colony. Provision a dedicated ongoing ordinary parent in the selected tracker, separate from the nurse health parent: open, unblocked, unreserved, and unassigned or assigned to `sys-colony`. Leave its notes empty for Colony's control record. Inspect both branches through `colony work-review preflight --help` before enabling current candidates, then configure a matching kind and formula:
+
+```toml
+auto_work_reviews = { kind = "drone", parent = "<ordinary review scope>" }
+```
+
+Reload through `colony wake --help` or `colony config reset --help`, preserving repository, tracker and server selection. Verify the loaded `autoWorkReviews` policy with `colony config show`. Removing the policy and reloading disables new submissions and recovery; retain the parent and its control notes for re-enablement.
+
+Each branch checks hourly and holds at most one outstanding review. Empty candidate sets and [fresh stable blockers](../../docs/beads-labels.md#stable-blocker-reviews) launch no drone. Tooling and unknown diagnoses remain eligible; a bounded batch does not imply every omitted item was reviewed. Wake performs overdue checks without replaying every missed hour. The control record retains clocks, active run/request IDs and consumed recovery allowances across restarts.
+
+A branch clears only after native workflow success, a successful current driver request and a response matching that request and its author. Pending runs remain outstanding; failed, cancelled and unclassified closures retain attention, even when the request succeeded. Saved actor completion and resolved failure do not establish workflow success. For a breaking lifecycle cutover, follow [workflow tool adoption](../beeswax/README.md#workflow-tool-adoption) to account for retained controller results before replacing controls.
+
+Use `colony work-review --help` for preflight, inspection and evidence commands, and `--schema` for their typed payloads. Recovery is limited to one attempt per request lineage through public Bee retry; `colony work-review recover --help` owns native continuation evidence, saved-assignment admission and partial-effect handling. An unsuccessful review or uncertain publication retains its branch for attention. Inspect the retained control and exact request/run before recovery; preserve confirmed effects instead of submitting another workflow. Tracker alerts and read failures stop the affected review work.
 
 ## Inspect finished bees
 
@@ -78,7 +100,25 @@ Codex accounting reads bounded stdout plus the unique native rollout matching th
 
 ### Ask the nurse
 
-Hive's nurse synthesizes retained assessments using [welcoming hive](../../docs/agents/welcoming-hive.md). Submit an explicit report assignment naming the question and period through `bee spawn`; discover the configured role with `bee kinds nurse --verbose`. The nurse creates change tasks only with ct's approval. Filing selected evidence is a separate operation under [specialist stewardship](../../docs/beads-labels.md#specialist-evidence-and-label-stewardship).
+Hive's nurse synthesizes retained assessments using [welcoming hive](../../docs/agents/welcoming-hive.md). Submit an explicit report assignment naming the question and period through `bee spawn`; discover the configured role with `bee kinds nurse --verbose`. Manual advice grants no curation or investigation authority without an explicit scope. The [nurse health-record convention](../../docs/beads-labels.md#nurse-health-records) governs provisional evidence; fixes and change tasks require ct's separate authorization.
+
+### Automatic nurse audits
+
+Automatic audits are off by default. Before enabling them, provision one ordinary, ongoing health parent in the selected tracker, separate from a finite feature or workflow run. Keep it open, unblocked and either unassigned or assigned to `sys-colony`, without `system` or `hitl` labels; leave notes empty for Colony to initialize. Every runtime for this endpoint must use that same parent. Configure a nurse kind and matching formula, then add this top-level canonical policy:
+
+```toml
+auto_nurse = { kind = "nurse", parent = "<ordinary health scope>" }
+```
+
+Reload through `colony wake --help` or `colony config reset --help`, preserving repository, tracker and server selection; inspect `colony config show` for the loaded `autoNurse` policy. Automatic submissions use `gpt-6.1-sol` with high reasoning and consume ordinary dispatch capacity, including while waiting for investigators.
+
+First activation records a baseline before that pass finalizes assessments. Historical finished reports remain readable and excluded from automatic backfill; assessments still in flight count when they finish. Sleep/wake, restart and disable/re-enable preserve the baseline and backlog. Removing the policy stops new batches while an existing batch continues reconciliation. The retained health parent and kind cannot be changed by reconfiguration.
+
+Each batch freezes the oldest 25 unaudited completed reports in completion order. Failed assessments do not count toward 25; bounded gap entries and an omitted count travel with the manifest. Only one batch is active, including its required investigations. Later reports wait. Launch alone advances no coverage: Colony verifies the native audit receipt and successful native workflow disposition before closing the audit and committing its coverage. See [post-run authority](../../docs/architecture.md#post-run-advice) and the generated audit brief for that protocol.
+
+Read the health parent with `br show` to find its retained audit/run/request IDs and any attention detail. Its notes are machine control; audit comments hold resumable progress, and audit notes hold the coverage receipt. Use `bee status` and `bee result` for the exact current request and `busybee inspect` for its run. Retrieve manifest reports through `colony assessments --help`, retaining the selected `--state`, repository and tracker. The health design index supplies later drones with a bounded private `current-topics.json` snapshot under the [topic convention](../../docs/beads-labels.md#nurse-health-records); `source.json` remains the examined execution's evidence.
+
+Failed requests, missing/invalid delivery and uncertain publication leave the same batch outstanding with visible attention while unrelated ordinary dispatch continues. Inspect confirmed IDs and effects before recovery. Use `bee retry --help` for an explicit replacement of the same saved assignment, or `bee attach-workflow --help` only for a confirmed orphan. Retain the manifest and control notes; never clear them to obtain a fresh batch. Authority or persistence failures remain infrastructure errors. Nurse and investigator requests beneath the health parent are excluded from assessment enrollment, regardless of kind.
 
 ## Run a colony
 
@@ -168,7 +208,7 @@ Colony acquires claims immediately before launch using the captured friendly ide
 
 Before replacement or terminal cleanup, Colony proves the old execution stopped. It follows native child links beneath recorded claims and clears unfinished assignments still held by that identity. Closed tasks, human/HITL reservations, blocked states and other identities remain intact, including independent workflow workers. Related work outside that hierarchy is untouched. Revision checks expose concurrent changes; settlement replay can continue partial releases. Exhaustion preserves logs and receipts with its failure reason.
 
-Process fingerprints and observed descendant lineage include separate process groups, but sampled PID/start-time/token checks are not race-free OS handles. Cleanup refuses ambiguous ownership. Immediately detached descendants may escape observation; process titles are diagnostic only. Retained records pin tracker authority, and changed native identity/task links fail visibly.
+Managed execution covers the supervisor's process group. The harness inherits that group; processes that detach or create separate groups are outside managed cleanup. Colony verifies the ownership token and supervisor PID/start time before observation or signalling; sampled checks are not race-free OS handles. Cancellation sends TERM, allows one second for exit, then sends KILL if needed and waits up to five seconds for confirmation. Cleanup refuses ambiguous ownership and fails visibly if the group remains. Child exit publishes ownership state without recurring process-table scans or descendant-history rewrites. Process titles are diagnostic only. Retained records pin tracker authority, and changed native identity/task links fail visibly.
 
 ## Live configuration
 

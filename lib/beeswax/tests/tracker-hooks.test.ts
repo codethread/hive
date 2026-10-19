@@ -1,10 +1,10 @@
 /* eslint-disable require-await -- In-memory IO returns the asynchronous production contract. */
 import { expect, test } from "bun:test";
+import { hookSection, previousHookSection } from "../src/templates.ts";
 import { installTrackerHooks, verifyTrackerInitialization } from "../src/tracker-hooks.ts";
 import { BeeswaxError } from "../src/errors.ts";
 import { defaultProjectConfig } from "../src/config.ts";
 import { fixture } from "./support.ts";
-import { hookSection } from "../src/templates.ts";
 
 const EMPTY = 0;
 const LAST = -1;
@@ -30,7 +30,12 @@ test("a selected database on main cannot receive tracker hook integration", asyn
 	expect(fx.commands).toEqual([]);
 });
 
-test.each([{ body: "" }, { body: "echo application policy\n" }, { body: `${hookSection} edited` }])(
+test.each([
+	{ body: "" },
+	{ body: "echo application policy\n" },
+	{ body: `${hookSection} edited` },
+	{ body: previousHookSection },
+])(
 	"unsupported tracker hook leaves policy and local integration untouched: $body",
 	async ({ body }) => {
 		const fx = fixture();

@@ -1,11 +1,11 @@
 /* eslint-disable no-await-in-loop -- Preflight all configured files before ordered generation effects. */
 import { BeeswaxError, EXIT } from "./errors.ts";
+import { hookSection, previousHookSection } from "./templates.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Resolve declared hook files and Git metadata.
 import { join, resolve } from "node:path";
 import { readMergeReceipt, writeMergeReceipt } from "./receipts.ts";
 import type { ProjectConfig } from "./config.ts";
 import type { WorkspaceIO } from "./services.ts";
-import { hookSection } from "./templates.ts";
 import { projectMigration } from "./project.ts";
 
 export { hookSection } from "./templates.ts";
@@ -31,10 +31,11 @@ export function updateHookSection(contents: string): string {
 	}
 	const start = starts[FIRST]!.index;
 	const finish = ends[FIRST]!.index + ends[FIRST]![FIRST].length;
-	if (finish <= start || contents.slice(start, finish) !== hookSection) {
+	const section = contents.slice(start, finish);
+	if (finish <= start || (section !== hookSection && section !== previousHookSection)) {
 		throw hookMigration("The Beeswax section was edited or has an unsupported generator revision.");
 	}
-	return contents;
+	return `${contents.slice(FIRST, start)}${hookSection}${contents.slice(finish)}`;
 }
 
 /** Generate only declared sections, never a general application-hook dispatcher. */
@@ -82,7 +83,7 @@ export async function installMergeDriver(
 ): Promise<void> {
 	const values = {
 		"merge.hive-beads.name": "Hive Beads JSONL merge driver",
-		"merge.hive-beads.driver": `${shellQuote(executable)} git merge "%O" "%A" "%B"`,
+		"merge.hive-beads.driver": `${shellQuote(executable)} system git merge "%O" "%A" "%B"`,
 		"merge.hive-beads.recursive": "hive-beads",
 	};
 	const common = await io.command(

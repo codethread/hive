@@ -1,4 +1,3 @@
-description = "Triage and check authorized work or a PR, dispatch review to Bee, integrate and refresh local tools; the caller closes proven tasks and publishes after the run is done."
-# Compatible with 4.0 saved runs; new review visits dispatch to Bee.
-version = "4.1.0"
+description = "Finish and check authorized work, review independently, land, verify and update local tools"
+version = "5.0.0"
 run = "./workflow.ts"

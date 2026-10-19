@@ -1,5 +1,62 @@
 [
 	{
+		"version": "0.8.0",
+		"changes": [
+			{
+				"commit": "f3e2bd04b2a58c2d2e24cb8686f85a7e100df2e2",
+				"summary": "reduce repeated metadata reads",
+				"body": "Warm refreshes reuse unchanged workflow identities and fetch only new or changed\ncheckpoint descriptions. A cold index still loads all retained descriptions.\nSelected details classify their own relationships before display; merge icons\nload separately. Overlapping annotation reads share fresh results while retaining\nsource observation times and visible failures.\n\nNo adoption action is required.",
+				"breaking": [],
+				"adoption": []
+			},
+			{
+				"commit": "5810b1b380239ee9e236b465caa79063c6a4e9a6",
+				"summary": "keep refresh feedback from shifting the board",
+				"body": "Loading, refresh and stale hierarchy states stay quiet while the Refresh icon\nrotates gently. Errors appear as dismissible toasts that remain usable with dialogs\nopen. Polling reports an unchanged read failure once until a successful read\nresets it. Previous snapshots remain usable, and the board summary and active\nfilters share a fixed-height row with horizontal overflow.",
+				"breaking": [],
+				"adoption": []
+			},
+			{
+				"commit": "ffeffab0ea84a86f2915ac78ae6d91eb30f8b3ad",
+				"summary": "render readable Markdown bead details",
+				"body": "Bead descriptions, design, notes and comments render as Markdown alongside\nacceptance criteria. Tables scroll horizontally with wrapping columns that fit\nnarrow panels; long links and identifiers stay inside their cells.\n\nRequired: restart the Hive UI server after installing the updated build.",
+				"breaking": [],
+				"adoption": []
+			},
+			{
+				"commit": "5b5db07ad3db16820aa734cc8633e7a3f9e3994e",
+				"summary": "show background refresh through rotating icons",
+				"body": "Keep background refresh from shifting board, bead details and hierarchy layouts.\nMove Refresh and Columns into the sidebar footer, keeping the controls available\nwhen collapsed and on mobile. Refresh icons rotate gently while fetching,\nincluding when the operating system requests reduced motion.\n\nRestart Hive UI and reload the browser to use the updated controls.",
+				"breaking": [],
+				"adoption": []
+			}
+		]
+	},
+	{
+		"version": "0.7.1",
+		"changes": [
+			{
+				"commit": "f03762dcf200b66cc90a980b69fa4d984476e2f9",
+				"summary": "explore workflows with a local canvas and nested navigation",
+				"body": "Render workflow cards, edges and instructions locally with React Flow and ELK.\nShow nested states as scope boxes with collapse, expand and focus controls.\nNavigate retained child workflows from invoking cards and return through shared\nworkflow/scope breadcrumbs; unmatched retained children remain available as\ncontextual links. Blue Current and green Direct target indicators remain\nindependent of orange Bee dispatch and recorded request status.\n\nThe shared preview dialog survives card regrouping, opens within the native\nbead inspector when triggered there, and keeps its instruction divider usable.\nThe Storybook catalogue separates Canvas, Cards, Edges, Simulation, Nested\nactors, Refresh and Inspection, with shell and inspector integration examples.\n\nRequired: upgrade Busy Bee alongside Hive UI so its PATH installation supports\n`system preview`, `system checkpoint` and `system simulate`.\nOptional: run `mise run hive-ui:storybook` to explore the component catalogue.",
+				"breaking": [],
+				"adoption": [
+					{
+						"requirement": "required",
+						"text": "upgrade Busy Bee alongside Hive UI so its PATH installation supports\n`system preview`, `system checkpoint` and `system simulate`."
+					}
+				]
+			},
+			{
+				"commit": "f03762dcf200b66cc90a980b69fa4d984476e2f9",
+				"summary": "simulate outcomes and poll saved checkpoints efficiently",
+				"body": "Use Saved and Simulate modes to inspect published instructions or explore\ntemporary outcomes with editable event data, examples, Back and Reset controls.\nRoot workflows also accept explicit initial input. Simulation pins its starting\ninspection and selected actor while saved updates arrive; returning to Saved\ndiscards the walkthrough and displays the latest inspection.\n\nThe open dialog owns its initial full read and visibility-aware five-second\ncheckpoint polling. Unchanged checkpoints retain the diagram without importing\nthe definition again; changed checkpoints, manual Refresh and failure recovery\nrequest full inspection. Refresh preserves selection, viewport, zoom and panel\nsize. Manual Refresh also detects definition-only changes. Preview and\nsimulation leave the actual run unchanged.",
+				"breaking": [],
+				"adoption": []
+			}
+		]
+	},
+	{
 		"version": "0.7.0",
 		"changes": []
 	},

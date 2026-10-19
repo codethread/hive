@@ -30,7 +30,7 @@ interface SavedViewsState {
 	active: Record<string, string>;
 	/** Browser-persisted presets keyed by configured endpoint identity. */
 	byColony: Record<string, SavedView[]>;
-	/** Storage failures and successful saves are visible beside the controls. */
+	/** Feedback from browser storage reads and mutations. */
 	notice: Notice;
 }
 

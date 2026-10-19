@@ -30,7 +30,16 @@ const beeReviewed = {
 	...reviewed,
 	changes: reviewed.changes.map((change) => ({ ...change, summary: "Bee-specific wording" })),
 };
-const packages = ["beeswax", "honeycomb", "colony", "busybee", "qlock", "hive-ui", "waggle"];
+const packages = [
+	"beeswax",
+	"honeycomb",
+	"colony",
+	"busybee",
+	"qlock",
+	"hive-ui",
+	"waggle",
+	"scent",
+];
 
 const blockMessage = [
 	"feat: integrate tool changes",

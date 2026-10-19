@@ -74,7 +74,7 @@ export const nestedBeesUnsupported = {
 	parameters: { msw: handlers() },
 	play: async () => {
 		await userEvent.click(await screen.findByRole("button", { name: "Simulate" }));
-		await screen.findByRole("alert");
+		await screen.findByText("Simulation unavailable");
 		await expect(screen.getByText(captures.unsupported.message)).toBeVisible();
 	},
 };

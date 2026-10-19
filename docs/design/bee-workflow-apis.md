@@ -24,7 +24,7 @@ The current command composition preserves independently replaceable tools and on
 
 ## Partial effects and continuation
 
-Workflow creation, admission preparation and request publication are separate effects. Submission reports known run/request IDs and whether driver publication was attempted or uncertain. Inspect confirmed effects before retrying. `bee attach-workflow --help` owns confirmed-orphan recovery; `bee retry --help` owns eligible failed-request replacement. Neither authorizes a duplicate run after uncertain publication.
+Workflow creation, admission preparation and request publication are separate effects. Submission reports known run/request IDs and whether driver publication was attempted or uncertain. Inspect confirmed effects before retrying. `bee attach-workflow --help` owns confirmed-orphan recovery; `bee retry --help` owns failed-request replacement and explicit cancelled-request resumption. Neither authorizes a duplicate run after uncertain publication.
 
 Workers preserve original `{choice,data}` through `complete`; drivers use `advance` to consume closed results. `--prepare-driver` selects admission only. Busy Bee alone closes groups and the run. The [work contract](../../lib/busybee/SPEC.md#work-and-progression) owns completion ordering; [response delivery](../agents/responses.md) owns authored answers separately from those outcomes.
 

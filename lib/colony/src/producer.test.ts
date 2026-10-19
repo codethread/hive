@@ -1,10 +1,14 @@
 /* eslint-disable unicorn/no-null -- Settlement intent preserves explicit replacement absence. */
 import {
+	BEE_ACKNOWLEDGMENT_PREFIX,
 	WORKFLOW_SETTLEMENT_PREFIX,
 	beesConfigSchema,
 	nativeWorkflowState,
 	readSpawnRequest,
 	readSpawnRequestSummary,
+	requestDisposition,
+	requestNeedsAttention,
+	requestResolution,
 	workflowResolution,
 } from "@hive/shared";
 import { beforeTrackerWrite, createTask, memoryTracker } from "./tracker.test-support.ts";
@@ -136,6 +140,122 @@ test.each(["driver", "stage"])(
 	},
 );
 
+test.each(["driver", "stage"] as const)(
+	"#test-304 %s cancellation requires opt-in and retains native history on replacement and repetition",
+	// eslint-disable-next-line max-statements -- Measure native history and replacement together.
+	async (kind) => {
+		const tracker = memoryTracker();
+		const runId = await createTask(tracker);
+		let assignment: WorkflowAssignment = { kind: "driver", runId };
+		if (kind === "stage") {
+			assignment = { kind, runId, stageId: await createTask(tracker, { parent: runId }) };
+		}
+		const created = await spawnWorkflowRequest(
+			{ kind: "worker", assignment, options },
+			commands(tracker),
+		);
+		const scope = trackerScope(tracker.repository, "operator");
+		await tracker.beads.close(scope, created.request.id, { reason: "Stopped by Bee" });
+		const original = await tracker.beads.show(scope, created.request.id);
+		const context = commands(tracker);
+		await expect(retryRequest(original.id, options, context)).rejects.toBeInstanceOf(Error);
+		const replacement = await retryRequest(
+			original.id,
+			{ ...options, resumeCancelled: true, model: "current-override" },
+			context,
+		);
+		const request = readSpawnRequest(await tracker.beads.show(scope, replacement.request.id));
+		expect(request).toMatchObject({
+			assignment,
+			host: hostname(),
+			recipe: { model: "current-override" },
+		});
+		expect(request.identity).not.toBe(original.assignee);
+		expect(request.taskIds).toEqual(readSpawnRequest(original).taskIds);
+		const retained = await tracker.beads.show(scope, original.id);
+		expect(retained).toMatchObject({
+			status: "closed",
+			close_reason: original.close_reason,
+			closed_at: original.closed_at,
+			assignee: original.assignee,
+			description: original.description,
+		});
+		expect(requestDisposition(retained)).toEqual({ outcome: "cancelled", resolution: "resolved" });
+		expect(requestNeedsAttention(retained)).toBe(false);
+		expect(requestResolution(retained)).toEqual({
+			kind: "superseded",
+			replacementIds: [request.id],
+		});
+		await expect(
+			retryRequest(original.id, { ...options, resumeCancelled: true }, context),
+		).rejects.toBeInstanceOf(Error);
+		const repeated = await tracker.beads.show(scope, original.id);
+		expect(repeated.dependents).toEqual(retained.dependents);
+	},
+);
+
+test.each([
+	"closed-anchor",
+	"human",
+	"hitl",
+	"open-request",
+	"acknowledged",
+	"ambiguous",
+	"succeeded",
+])(
+	"#test-305 explicit cancellation resumption preserves %s refusal",
+	// eslint-disable-next-line max-statements -- Measure the complete reserved-scope refusal.
+	async (reason) => {
+		const tracker = memoryTracker();
+		const scope = trackerScope(tracker.repository, "operator");
+		const runId = await createTask(tracker);
+		const stageId = await createTask(tracker, { parent: runId });
+		const assignment = { kind: "stage", runId, stageId } as const;
+		const context = commands(tracker);
+		const created = await spawnWorkflowRequest({ kind: "worker", assignment, options }, context);
+		let closeReason = "cancelled";
+		if (reason === "acknowledged") {
+			closeReason = "blocked";
+		} else if (reason === "succeeded") {
+			closeReason = "completed";
+		}
+		await tracker.beads.close(scope, created.request.id, { reason: closeReason });
+		if (reason === "closed-anchor") {
+			await tracker.beads.close(scope, stageId);
+		} else if (reason === "human") {
+			await tracker.beads.update(scope, [stageId], { assignee: "ct" });
+		} else if (reason === "hitl") {
+			await tracker.beads.update(scope, [stageId], { addLabels: ["hitl"] });
+		} else if (reason === "acknowledged") {
+			const old = await tracker.beads.show(scope, created.request.id);
+			await tracker.beads.comments.add(
+				scope,
+				old.id,
+				`${BEE_ACKNOWLEDGMENT_PREFIX} ${JSON.stringify({ closedAt: old.closed_at, reason: "accepted" })}`,
+			);
+		} else if (reason === "open-request") {
+			await spawnWorkflowRequest({ kind: "worker", assignment, options }, context);
+		} else if (reason === "ambiguous") {
+			await Promise.all(
+				["First replacement", "Second replacement"].map((title) =>
+					tracker.beads.create(scope, {
+						title,
+						owner: "ct",
+						deps: [{ id: created.request.id, type: "supersedes" }],
+					}),
+				),
+			);
+		}
+		const { id } = created.request;
+		const before = await tracker.beads.show(scope, id);
+		await expect(
+			retryRequest(id, { ...options, resumeCancelled: true }, commands(tracker)),
+		).rejects.toBeInstanceOf(Error);
+		const after = await tracker.beads.show(scope, id);
+		expect(after.dependents).toEqual(before.dependents);
+	},
+);
+
 test.each(["driver", "stage"])(
 	"%s retry retains its existing anchor with current execution defaults",
 	// Preserve request role and the containing work while recording replacement provenance.
@@ -203,45 +323,63 @@ test.each(["driver", "stage"])(
 
 // Verify the retained replacement and unchanged predecessor after a partial write.
 // eslint-disable-next-line max-statements
-test("retry retains a created replacement when predecessor label publication fails", async () => {
-	const retry = memoryTracker();
-	const unfinished = await createTask(retry);
-	const predecessorRequest = await spawnWorkflowRequest(
-		{ kind: "worker", assignment: { kind: "driver", runId: unfinished }, options },
-		commands(retry),
-	);
-	const predecessor = predecessorRequest.request.id;
-	await retry.beads.close(trackerScope(retry.repository, "worker"), predecessor, {
-		reason: "exhausted",
-	});
+test.each(["exhausted", "Stopped by Bee"])(
+	"retry retains %s replacement when predecessor label publication fails",
+	// eslint-disable-next-line max-statements -- Measure the complete partial-publication and repeat-refusal scenario.
+	async (reason) => {
+		const retry = memoryTracker();
+		const unfinished = await createTask(retry);
+		const predecessorRequest = await spawnWorkflowRequest(
+			{ kind: "worker", assignment: { kind: "driver", runId: unfinished }, options },
+			commands(retry),
+		);
+		const predecessor = predecessorRequest.request.id;
+		await retry.beads.close(trackerScope(retry.repository, "worker"), predecessor, {
+			reason,
+		});
 
-	const beads = beforeTrackerWrite(retry.beads, () => {
-		throw new Error("publication unavailable");
-	});
-	const failure: unknown = await retryRequest(
-		predecessor,
-		options,
-		commands({ ...retry, beads }),
-	).catch((error: unknown) => error);
-	expect(failure).toBeInstanceOf(RequestPublicationError);
-	if (!(failure instanceof RequestPublicationError)) {
-		throw new Error("Expected retained replacement evidence");
-	}
-	const [replacementId] = failure.replacementIds;
-	const replacement = await retry.beads.show(
-		trackerScope(retry.repository, "inspector"),
-		replacementId!,
-	);
-	expect(
-		replacement.dependencies.map(({ id, dependency_type }) => ({ id, dependency_type })),
-	).toEqual([
-		{ id: unfinished, dependency_type: "related" },
-		{ id: predecessor, dependency_type: "supersedes" },
-	]);
-	expect(replacement.status).toBe("open");
-	const original = await retry.beads.show(trackerScope(retry.repository, "inspector"), predecessor);
-	expect(original.close_reason).toBe("exhausted");
-});
+		const beads = beforeTrackerWrite(retry.beads, () => {
+			throw new Error("publication unavailable");
+		});
+		const failure: unknown = await retryRequest(
+			predecessor,
+			{ ...options, resumeCancelled: true },
+			commands({ ...retry, beads }),
+		).catch((error: unknown) => error);
+		expect(failure).toBeInstanceOf(RequestPublicationError);
+		if (!(failure instanceof RequestPublicationError)) {
+			throw new Error("Expected retained replacement evidence");
+		}
+		const [replacementId] = failure.replacementIds;
+		const replacement = await retry.beads.show(
+			trackerScope(retry.repository, "inspector"),
+			replacementId!,
+		);
+		expect(
+			replacement.dependencies.map(({ id, dependency_type }) => ({ id, dependency_type })),
+		).toEqual([
+			{ id: unfinished, dependency_type: "related" },
+			{ id: predecessor, dependency_type: "supersedes" },
+		]);
+		expect(replacement.status).toBe("open");
+		const original = await retry.beads.show(
+			trackerScope(retry.repository, "inspector"),
+			predecessor,
+		);
+		expect(original.close_reason).toBe(reason);
+		await expect(
+			retryRequest(predecessor, { ...options, resumeCancelled: true }, commands(retry)),
+		).rejects.toBeInstanceOf(Error);
+		const repeated = await retry.beads.show(
+			trackerScope(retry.repository, "inspector"),
+			predecessor,
+		);
+		expect(requestResolution(repeated)).toEqual({
+			kind: "superseded",
+			replacementIds: [replacementId!],
+		});
+	},
+);
 
 test.each([
 	{ locked: true, settlement: "none" as const },

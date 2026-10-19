@@ -5,6 +5,7 @@ import {
 	createSpawn,
 	createTask,
 	memoryTracker,
+	unusedWorkReviewCommands,
 } from "./tracker.test-support.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Host authority and disposable directory.
 import { hostname, tmpdir } from "node:os";
@@ -151,6 +152,13 @@ function route(fixture: Fixture): Promise<void> {
 					inspect: () => Promise.reject(new Error("Host routing must precede workflow inspection")),
 				},
 				withAdmission: (operation) => operation(),
+				workReview: unusedWorkReviewCommands(),
+				workReviewClock: { nextDue: 0 },
+				nurse: {
+					start: () => Promise.reject(new Error("Unexpected nurse submission")),
+					attach: () => Promise.reject(new Error("Unexpected nurse attachment")),
+					inspect: () => Promise.reject(new Error("Unexpected nurse read")),
+				},
 			},
 			config,
 			"fixture",
@@ -232,6 +240,13 @@ test("#test-99 clearance waits for an in-flight admission and observes its reser
 			state,
 			workflows,
 			withAdmission,
+			workReview: unusedWorkReviewCommands(),
+			workReviewClock: { nextDue: 0 },
+			nurse: {
+				start: () => Promise.reject(new Error("Unexpected nurse submission")),
+				attach: () => Promise.reject(new Error("Unexpected nurse attachment")),
+				inspect: () => Promise.reject(new Error("Unexpected nurse read")),
+			},
 			store: {
 				...store,
 				history,

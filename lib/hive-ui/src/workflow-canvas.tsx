@@ -325,7 +325,7 @@ export function WorkflowCanvas({
 					{hiddenEdges > 0 && <small>{hiddenEdges} transitions outside this view</small>}
 				</nav>
 			)}
-			<Suspense fallback={<p className="explorer-layout-loading">Arranging workflow…</p>}>
+			<Suspense fallback={null}>
 				<RoutedWorkflowCanvas
 					graph={view}
 					sourceGraph={graph}

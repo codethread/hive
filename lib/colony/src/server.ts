@@ -24,6 +24,8 @@ import type { ActivePolicy } from "./policy.ts";
 import type { BeadsService } from "@hive/beads";
 import type { ColonyActivity } from "./colony.ts";
 import type { ExecutionClearanceRuntime } from "./execution-clearance.ts";
+import type { NurseCommands } from "./nurse.ts";
+import type { WorkReviewCommands } from "./work-review-runtime.ts";
 import { claimServer } from "./server-ownership.ts";
 import { createAdmissionGate } from "./admission.ts";
 import { createColony } from "./colony.ts";
@@ -56,7 +58,10 @@ interface ServerOptions {
 export async function serve(
 	options: ServerOptions,
 	beads: BeadsService,
-	execution: Pick<ExecutionClearanceRuntime, "workflows" | "observe" | "host" | "now">,
+	execution: Pick<ExecutionClearanceRuntime, "workflows" | "observe" | "host" | "now"> & {
+		nurse: NurseCommands;
+		workReview: WorkReviewCommands;
+	},
 ): Promise<void> {
 	if (!isAbsolute(options.socket) || !isAbsolute(options.state)) {
 		throw new Error("Colony requires absolute socket and state paths");
@@ -80,6 +85,9 @@ export async function serve(
 				store,
 				workflows: execution.workflows,
 				withAdmission,
+				nurse: execution.nurse,
+				workReview: execution.workReview,
+				workReviewClock: { nextDue: 0 },
 			},
 			activity,
 		);

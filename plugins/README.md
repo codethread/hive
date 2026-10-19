@@ -1,8 +1,8 @@
 # Hive plugins
 
-Hive's plugins package guidance and identity integrations for Claude Code, Codex and Pi. Adopt Hive behavior per repository; executables may be installed once on `PATH`.
+Hive's plugins package tool guidance for Claude Code, Codex and Pi. Adopt Hive behavior per repository; executables may be installed once on `PATH`.
 
-For agent identity in native Pi or Codex, follow [Scent's repository setup](../lib/scent/README.md). Identity is separate from Beeswax onboarding.
+For native harness identity, select harnesses through [Beeswax onboarding](../lib/beeswax/README.md#load-onboarding-in-your-harness). It installs Scent's repository adapters alongside primer and tracker-alert callbacks.
 
 ## Repository onboarding
 

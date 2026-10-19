@@ -1,7 +1,7 @@
 /* eslint-disable unicorn/no-null -- Saved checkpoints encode absent requests as null. */
 import type { BeadsScope, UpdateBead } from "@hive/beads";
 import { BusyBeeError, createServices, readBead } from "../../src/native.ts";
-import { advance, readWork, runViewSchema } from "../../src/runtime.ts";
+import { advance, readWork } from "../../src/runtime.ts";
 import { captureCli, invoke } from "./support.ts";
 import { expect, test } from "bun:test";
 import type { Services } from "../../src/native.ts";
@@ -9,10 +9,13 @@ import { createMachine } from "xstate";
 import { createMemoryBeads } from "@hive/beads";
 import { fingerprint } from "../../src/catalogue.ts";
 import { readCheckpoint } from "../../src/checkpoint.ts";
+import { runSummarySchema } from "../../src/cli.ts";
 import { z } from "zod";
 
 const FIRST = 0;
 const SUCCESS = 0;
+const LONG_BRIEF_REPETITIONS = 1000;
+const SIZE_REDUCTION_FACTOR = 10;
 
 const NEXT = 1;
 const repo = "/repo";
@@ -46,16 +49,19 @@ test("start publishes an initial worker and one JSON success document through th
 	);
 	const calls: { operation: string; scope: BeadsScope }[] = [];
 	const writes: string[] = [];
+	const frozenInstructions = "Complete work\n".repeat(LONG_BRIEF_REPETITIONS);
+	let instructions = frozenInstructions;
 	const definition = {
 		commandSchemas: { next: z.object({}) },
 		inputSchema: z.object({}),
 		machine: createMachine({
+			context: { request: frozenInstructions, internal: "raw-actor-context" },
 			initial: "work",
 			states: {
 				work: {
 					meta: {
 						title: "Worker",
-						task: () => ({ instructions: "Complete work" }),
+						task: () => ({ instructions }),
 						commands: { next: "NEXT" },
 					},
 					on: { NEXT: "done" },
@@ -124,11 +130,11 @@ test("start publishes an initial worker and one JSON success document through th
 	expect(result.stderr).toBe("");
 	const document: unknown = JSON.parse(result.stdout);
 	expect(document).toMatchObject({ kind: "start", ok: true });
-	const started = runViewSchema.parse(document);
+	const started = runSummarySchema.parse(document);
 	expect(started.status).toBe("active");
-	expect(started.active).toMatchObject([
-		{ commands: ["next"], context: {}, instructions: "Complete work", path: [], title: "Worker" },
-	]);
+	expect(started.active).toMatchObject([{ commands: ["next"], path: [], title: "Worker" }]);
+	expect(result.stdout).not.toContain("Complete work");
+	expect(result.stdout).not.toContain("raw-actor-context");
 	const endpoint = { db: startDb, repo: root };
 	const run = await readBead(endpoint, started.id, startServices);
 	expect(run).toMatchObject({
@@ -172,6 +178,39 @@ test("start publishes an initial worker and one JSON success document through th
 			.filter(({ operation }) => ["create", "dep.add", "update"].includes(operation))
 			.flatMap(({ operation }) => ["beforeWrite", operation]),
 	);
+	instructions = "Changed renderer after publication";
+	const shown = await invoke(["inspect", started.id], startServices);
+	expect(shown.code).toBe(SUCCESS);
+	expect(shown.document).toMatchObject({ kind: "workflow_lifecycle", ok: true, runId: started.id });
+	expect(shown.stdout).not.toContain("Complete work");
+	expect(shown.stdout).not.toContain("raw-actor-context");
+	const expanded = await invoke(["inspect", started.id, "--work"], startServices);
+	expect(expanded.code).toBe(SUCCESS);
+	expect(expanded.document).toMatchObject({
+		kind: "workflow_lifecycle",
+		ok: true,
+		work: {
+			kind: "available",
+			data: { active: [{ ...started.active[FIRST], instructions: frozenInstructions }] },
+		},
+	});
+	expect(expanded.stdout).toContain("raw-actor-context");
+	expect(Buffer.byteLength(shown.stdout)).toBeLessThan(
+		Buffer.byteLength(expanded.stdout) / SIZE_REDUCTION_FACTOR,
+	);
+	const collected = await invoke(
+		["--actor", "starting-agent", "advance", started.id],
+		startServices,
+	);
+	expect(collected.code).toBe(SUCCESS);
+	expect(collected.document).toMatchObject({
+		kind: "workflow_advance",
+		ok: true,
+		runId: started.id,
+		status: started.status,
+	});
+	expect(collected.stdout).not.toContain("Complete work");
+	expect(collected.stdout).not.toContain("raw-actor-context");
 });
 // Inspect the complete recovery diagnostic and preservation proof together.
 // eslint-disable-next-line max-statements

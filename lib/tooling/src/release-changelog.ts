@@ -14,6 +14,7 @@ const TOOL_HISTORIES = [
 	{ tool: "qlock", file: "lib/qlock/changelog.json" },
 	{ tool: "hive-ui", file: "lib/hive-ui/changelog.json" },
 	{ tool: "waggle", file: "lib/waggle/changelog.json" },
+	{ tool: "scent", file: "lib/scent/changelog.json" },
 ];
 const parser = new CommitParser({
 	headerPattern: /^(?<type>\w+)(?:\((?<scope>[^)]+)\))?!?: (?<subject>.+)$/u,

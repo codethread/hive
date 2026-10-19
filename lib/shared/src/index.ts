@@ -8,3 +8,4 @@ export * from "./workflow-preview.ts";
 export * from "./workflow-simulation.ts";
 export * from "./workflow-lifecycle.ts";
 export * from "./workflow-inspect.ts";
+export * from "./work-review.ts";
