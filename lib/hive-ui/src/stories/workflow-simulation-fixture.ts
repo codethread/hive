@@ -85,7 +85,7 @@ function sampleEvent(
 	const [, type] = Object.entries(current.metadata.commands).find(
 		([name]) => name === event.command,
 	)!;
-	const data: unknown = sampleCommand(event.command).parse(event.data);
+	const data = sampleCommand(event.command).parse(event.data);
 	const next = { type, data };
 	if (!snapshot.can(next)) {
 		throw new Error("This outcome is blocked by the guard for this event data.");

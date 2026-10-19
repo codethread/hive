@@ -13,3 +13,6 @@ coverage/
 !/.bv/
 /.bv/*
 !/.bv/recipes.yaml
+# beeswax:begin pi-payload v1
+/.hive/beeswax/generated/pi-beeswax.js
+# beeswax:end pi-payload

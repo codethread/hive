@@ -16,6 +16,8 @@ const base: BeeKind = {
 const config: BeesConfig = {
 	// eslint-disable-next-line unicorn/no-null -- Null is the public policy value that disables new audits.
 	auto_nurse: null,
+	// eslint-disable-next-line unicorn/no-null -- The fixture explicitly disables automatic reviews.
+	auto_work_reviews: null,
 	formulas: {},
 	humans: ["ct"],
 	// eslint-disable-next-line unicorn/no-null -- This fixture disables inactivity review.

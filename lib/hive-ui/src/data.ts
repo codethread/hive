@@ -264,45 +264,133 @@ export async function loadAnnotations(
 	refreshAfter = 0,
 ): Promise<void> {
 	for (const batch of annotationBatches(ids)) {
-		const search = new URLSearchParams({
-			ids: JSON.stringify(batch),
-			refreshAfter: String(refreshAfter),
-		});
 		// eslint-disable-next-line no-await-in-loop -- Bound optional metadata reads independently of primary resources.
-		await annotations.load(
-			annotationKey(colony, batch),
-			`/api/colonies/${colony}/annotations?${search}`,
-			refreshAfter > 0,
-		);
+		await annotations.loadBatch(colony, batch, refreshAfter);
 	}
 }
 
 export function createCardAnnotationsResource(
 	read: (path: string) => Promise<CardAnnotations> = (path) => request(path, cardAnnotationsSchema),
+	now: () => number = Date.now,
 ) {
-	return createResource(cardAnnotationsSchema, read, (entries, key, resource) => {
-		const colony = key.slice(0, key.indexOf("/"));
-		const next = { ...entries };
-		const cards = resource.data.cards.map((card) => {
-			const alias = hierarchyKey(colony, [card.id]);
-			const previous = snapshot(entries[alias] ?? EMPTY);
-			const current = previous?.cards[0];
-			const fetchedAt =
-				previous && previous.fetchedAt > resource.data.fetchedAt
-					? previous.fetchedAt
-					: resource.data.fetchedAt;
-			const value = current ? reconcileAnnotation(current, card) : card;
-			next[alias] = { ...resource, data: { ...resource.data, fetchedAt, cards: [value] } };
-			return value;
+	const resource = createResource(cardAnnotationsSchema, read, publishAnnotations);
+	const pending = new Map<
+		string,
+		{ startedAt: number; work: Promise<Resource<CardAnnotations>> }
+	>();
+	const freshness = new Map<
+		string,
+		{ startedAt: number; receivedAt: number; entry: Resource<CardAnnotations> }
+	>();
+	const demands = new Map<string, object>();
+	// eslint-disable-next-line max-statements -- One demand owns alias reuse, overlapping reads and its batch notice.
+	const loadBatch = async (
+		colony: string,
+		requested: string[],
+		refreshAfter = 0,
+	): Promise<void> => {
+		const ids = [...new Set(requested)].toSorted();
+		if (ids.length === 0) {
+			return;
+		}
+		const aliases = ids.map((id) => hierarchyKey(colony, [id]));
+		const older = aliases.flatMap((alias) => {
+			const active = pending.get(alias);
+			return active && active.startedAt < refreshAfter ? [active.work] : [];
 		});
-		const previous = snapshot(next[key] ?? EMPTY);
-		const fetchedAt =
-			previous && previous.fetchedAt > resource.data.fetchedAt
-				? previous.fetchedAt
-				: resource.data.fetchedAt;
-		next[key] = { ...resource, data: { ...resource.data, fetchedAt, cards } };
-		return next;
-	});
+		if (older.length > 0) {
+			await Promise.all(older);
+			return loadBatch(colony, ids, refreshAfter);
+		}
+		const { entries } = resource.store.getState();
+		const missing = ids.filter((_id, index) => {
+			const alias = aliases[index]!;
+			const entry = entries[alias];
+			const saved = freshness.get(alias);
+			return (
+				!pending.has(alias) &&
+				!(
+					entry?.kind === "ready" &&
+					saved?.entry === entry &&
+					saved.startedAt >= refreshAfter &&
+					now() - saved.receivedAt < CACHE_MS
+				)
+			);
+		});
+		const key = annotationKey(colony, ids);
+		const previous = snapshot(entries[key] ?? EMPTY);
+		const demand = {};
+		demands.set(key, demand);
+		resource.store.setState((state) => ({
+			entries: { ...state.entries, [key]: { kind: "loading", previous } },
+		}));
+		if (missing.length > 0) {
+			const startedAt = now();
+			const readKey = `${annotationKey(colony, missing)}/read`;
+			const search = new URLSearchParams({
+				ids: JSON.stringify(missing),
+				refreshAfter: String(refreshAfter),
+			});
+			// eslint-disable-next-line max-statements -- Keep read results, freshness and failure invalidation together.
+			const fetchBatch = async () => {
+				await resource.load(readKey, `/api/colonies/${colony}/annotations?${search}`, true);
+				const result = resource.store.getState().entries[readKey]!;
+				for (const id of missing) {
+					const alias = hierarchyKey(colony, [id]);
+					pending.delete(alias);
+					if (result.kind === "ready") {
+						if (!result.data.cards.some((card) => card.id === id)) {
+							resource.store.setState((state) => ({
+								entries: {
+									...state.entries,
+									[alias]: { ...result, data: { ...result.data, cards: [] } },
+								},
+							}));
+						}
+						freshness.set(alias, {
+							startedAt,
+							receivedAt: now(),
+							entry: resource.store.getState().entries[alias]!,
+						});
+					} else {
+						freshness.delete(alias);
+					}
+				}
+				return result;
+			};
+			const work = fetchBatch();
+			for (const id of missing) {
+				pending.set(hierarchyKey(colony, [id]), { startedAt, work });
+			}
+		}
+		const work = new Set(aliases.flatMap((alias) => pending.get(alias)?.work ?? []));
+		const results = await Promise.all(work);
+		const failure = results.find((result) => result.kind === "failed");
+		// A cached demand can finish after a newer refresh has published its loading notice.
+		if (demands.get(key) !== demand) {
+			return;
+		}
+		resource.store.setState((state) => ({
+			entries: {
+				...state.entries,
+				[key]: failure
+					? { ...failure, previous }
+					: {
+							kind: "ready",
+							receivedAt: now(),
+							data: {
+								cards: aliases.flatMap(
+									(alias) => snapshot(state.entries[alias] ?? EMPTY)?.cards ?? [],
+								),
+								fetchedAt: aliases
+									.map((alias) => snapshot(state.entries[alias]!)!.fetchedAt)
+									.toSorted((left, right) => Date.parse(left) - Date.parse(right))[0]!,
+							},
+						},
+			},
+		}));
+	};
+	return { ...resource, loadBatch };
 }
 
 export function annotationStatus(
@@ -434,6 +522,34 @@ function annotationBatches(ids: string[]): string[][] {
 		batches.push(ids.slice(offset, offset + ANNOTATION_BATCH));
 	}
 	return batches;
+}
+
+function publishAnnotations(
+	entries: ResourceState<CardAnnotations>["entries"],
+	key: string,
+	resource: Extract<Resource<CardAnnotations>, { kind: "ready" }>,
+): ResourceState<CardAnnotations>["entries"] {
+	const colony = key.slice(0, key.indexOf("/"));
+	const next = { ...entries };
+	const cards = resource.data.cards.map((card) => {
+		const alias = hierarchyKey(colony, [card.id]);
+		const previous = snapshot(entries[alias] ?? EMPTY);
+		const current = previous?.cards[0];
+		const fetchedAt =
+			previous && previous.fetchedAt > resource.data.fetchedAt
+				? previous.fetchedAt
+				: resource.data.fetchedAt;
+		const value = current ? reconcileAnnotation(current, card) : card;
+		next[alias] = { ...resource, data: { ...resource.data, fetchedAt, cards: [value] } };
+		return value;
+	});
+	const previous = snapshot(next[key] ?? EMPTY);
+	const fetchedAt =
+		previous && previous.fetchedAt > resource.data.fetchedAt
+			? previous.fetchedAt
+			: resource.data.fetchedAt;
+	next[key] = { ...resource, data: { ...resource.data, fetchedAt, cards } };
+	return next;
 }
 
 function reconcileAnnotation(

@@ -6,6 +6,7 @@ retry_delay_ms = 250
 inactivity_drone = "drone"
 post_run_drone = "post-run-drone"
 auto_nurse = { kind = "nurse", parent = "hv-abym3l" }
+auto_work_reviews = { kind = "drone", parent = "hv-bj6zi9" }
 
 [limits]
 colony = 15
@@ -39,16 +40,14 @@ Work on the related task beads.
 '''
 
 [kinds.drone]
-description = "mutation-scope: read-only; Inspect an execution for activity when Colony requests an inactivity review."
+description = "mutation-scope: mutating; Perform focused reviews within the supplied workflow or private protocol."
 hidden = true
 harness = "codex"
 model = "gpt-6-luna"
 effort = "low"
 system_prompt = '''
-Inspect the specified bee's logs and process evidence without modifying its work.
-
-- Distinguish useful work or legitimate waiting from inactivity.
-- Then report active or inactive using the supplied Bee command.
+Review the assigned scope using current native records and execution evidence. Keep uncertainty explicit.
+The supplied workflow or private protocol defines permitted actions and delivery.
 '''
 
 # Specialist scope is instruction-enforced; Codex is unsandboxed and Pi permits Bash.

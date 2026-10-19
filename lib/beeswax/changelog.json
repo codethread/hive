@@ -1,5 +1,17 @@
 [
 	{
+		"version": "0.8.0",
+		"changes": [
+			{
+				"commit": "25b7991d854244789e7e6ce036e9cb131f539c2d",
+				"summary": "manage installed identity for selected harnesses",
+				"body": "Setup, sync and update now install, refresh and remove Scent identity alongside the\nprimer and tracker alerts for selected Claude Code, Codex and Pi harnesses. Beeswax owns\nmarked hook entries and a small Pi loader that obtains the bundled runtime from the\ninstalled Scent executable. Generation preserves unrelated settings and source, rejects\nambiguous ownership or execution options, and requires a matching Scent version before\nwriting selected adapters. Deselection needs no Scent runtime. Include/exclude filters\nremain primer guidance selections; Scent's help pointer is optional.\n\nRequired: upgrade the full matching Hive suite, including `scent`. Remove previously\ninstalled source-path identity hooks, explicit Pi Scent extension registrations and the\noptional Codex Scent plugin wherever present to avoid duplicate loading. In each\nadopting checkout, run `beeswax update --yes`, review and commit the generated contract\nand adapters, then restart the harness and review/trust its hooks or extensions.\n`beeswax sync` reproduces the accepted lock rather than adopting a new release.",
+				"breaking": ["manage installed identity for selected harnesses"],
+				"adoption": []
+			}
+		]
+	},
+	{
 		"version": "0.7.1",
 		"changes": [
 			{

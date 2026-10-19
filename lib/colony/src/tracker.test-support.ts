@@ -1,6 +1,7 @@
 /* eslint-disable unicorn/no-null -- Captured recipes explicitly select the canonical cwd with null. */
 import type { BeadsService, CreateBead } from "@hive/beads";
 import type { TrackerCommands, TrackerContext } from "./tracker.ts";
+import type { WorkReviewCommands } from "./work-review-runtime.ts";
 import { createMemoryBeads } from "@hive/beads";
 /* eslint-disable-next-line import/no-nodejs-modules --
  * Fixtures bind requests to the same host as production authority checks.
@@ -8,6 +9,21 @@ import { createMemoryBeads } from "@hive/beads";
 import { hostname } from "node:os";
 import { spawnRequestLabels } from "@hive/shared";
 import { trackerScope } from "./tracker.ts";
+
+export function unusedWorkReviewCommands(): WorkReviewCommands {
+	function unexpected(): never {
+		throw new Error("Automatic work reviews are disabled in this fixture");
+	}
+	return {
+		assertTracker: unexpected,
+		start: unexpected,
+		attach: unexpected,
+		show: unexpected,
+		stopped: unexpected,
+		continuation: unexpected,
+		retry: unexpected,
+	};
+}
 
 /** Pure tracker fixture: its paths identify isolated memory stores, never native files. */
 export function memoryTracker(): TrackerContext & TrackerCommands {

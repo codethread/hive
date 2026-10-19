@@ -17,6 +17,16 @@ const alertHook = {
 		},
 	],
 };
+const identityHook = {
+	hooks: [
+		{
+			type: "command",
+			command: "scent system hook --harness codex",
+			statusMessage: "Beeswax identity v1",
+		},
+	],
+	matcher: "^(startup|resume|clear|compact)$",
+};
 const pi = `${root}/.pi/extensions/beeswax.js`;
 const config: OnboardingConfig = {
 	harnesses: ["claude", "codex", "pi"],
@@ -66,13 +76,60 @@ test("selected repo-local hooks invoke the filtered primer and repeated setup is
 			],
 		},
 		alertHook,
+		identityHook,
 	]);
+	expect(fx.files.get(`${root}/.pi/extensions/scent.js`)).toContain(
+		'pi.exec("scent", ["system", "pi-extension", "--json"])',
+	);
+	expect(fx.files.get(pi)).toContain('"pi-check"');
+	expect(fx.files.get(`${root}/${piPayloadPath}`)).toContain('pi.on("before_agent_start"');
 	const before = new Map(fx.files);
 	expect(
 		await applyOnboarding(root, { ...defaultProjectConfig("none"), onboarding: config }, fx.deps),
 	).toEqual([]);
 	expect(fx.files).toEqual(before);
 });
+
+test.each([
+	{ harness: "claude", path: `${root}/.claude/settings.json` },
+	{ harness: "codex", path: codex },
+])(
+	"$harness identity callbacks are owned, stable and removed with harness deselection",
+	// eslint-disable-next-line max-statements -- Verify one complete owned integration lifecycle.
+	async ({ harness, path }) => {
+		const fx = configured();
+		const settings = JSON.parse(fx.files.get(path) ?? "");
+		const unrelated = { hooks: [{ type: "command", command: "echo user" }] };
+		settings.hooks.SessionStart.unshift(unrelated);
+		fx.files.set(path, JSON.stringify(settings));
+		await applyOnboarding(root, { ...defaultProjectConfig("none"), onboarding: config }, fx.deps);
+		const installed = JSON.parse(fx.files.get(path) ?? "");
+		const identity = {
+			hooks: [
+				{
+					type: "command",
+					command: `scent system hook --harness ${harness}`,
+					statusMessage: "Beeswax identity v1",
+				},
+			],
+		};
+		expect(installed.hooks.SessionStart).toContainEqual({
+			...identity,
+			matcher: "^(startup|resume|clear|compact)$",
+		});
+		expect(installed.hooks.SubagentStart).toContainEqual(identity);
+		expect(installed.hooks.SessionStart[FIRST]).toEqual(unrelated);
+		const before = new Map(fx.files);
+		expect(
+			await applyOnboarding(root, { ...defaultProjectConfig("none"), onboarding: config }, fx.deps),
+		).toEqual([]);
+		expect(fx.files).toEqual(before);
+		await applyOnboarding(root, defaultProjectConfig("none"), fx.deps);
+		const removed = JSON.parse(fx.files.get(path) ?? "");
+		expect(removed.hooks.SessionStart).toEqual([unrelated]);
+		expect(fx.files.get(path)).not.toContain("scent system hook");
+	},
+);
 
 test("recognized older JSON entries update automatically while preserving user settings", async () => {
 	const fx = configured();
@@ -108,9 +165,11 @@ test("recognized older JSON entries update automatically while preserving user s
 					],
 				},
 				alertHook,
+				identityHook,
 			],
 			UserPromptSubmit: [alertHook],
 			PostToolUse: [alertHook],
+			SubagentStart: [{ hooks: identityHook.hooks }],
 		},
 	});
 });
@@ -183,6 +242,18 @@ test.each([
 	},
 	{ path: pi, content: "// beeswax:begin onboarding v1\nincomplete" },
 	{ path: pi, content: "export default function userExtension() {}" },
+	{
+		path: `${root}/.pi/extensions/scent.js`,
+		content: "// beeswax:begin identity v1\nincomplete",
+	},
+	{
+		path: codex,
+		content: JSON.stringify({
+			hooks: {
+				SessionStart: [{ ...identityHook, matcher: "startup" }],
+			},
+		}),
+	},
 ])(
 	"ambiguous $path supplies an agent handoff before any files change",
 	async ({ path, content }) => {
@@ -214,6 +285,33 @@ test("unselected unrelated settings are left alone", async () => {
 	fx.files.set(codex, "unrelated invalid settings");
 	expect(await applyOnboarding(root, defaultProjectConfig("none"), fx.deps)).toEqual([]);
 	expect(fx.files.get(codex)).toBe("unrelated invalid settings");
+});
+
+test("a mismatched installed identity runtime refuses setup before adapter writes", async () => {
+	const fx = configured();
+	const before = new Map(fx.files);
+	fx.deps.command = () => Promise.resolve("0.0.0");
+	const failure: unknown = await applyOnboarding(
+		root,
+		{ ...defaultProjectConfig("none"), onboarding: config },
+		fx.deps,
+	).catch((error: unknown) => error);
+	expect(failure).toBeInstanceOf(BeeswaxError);
+	expect(failure).toMatchObject({ reason: "identity_runtime_mismatch" });
+	expect(fx.files).toEqual(before);
+	await applyOnboarding(root, defaultProjectConfig("none"), fx.deps);
+	expect(fx.files.get(codex)).not.toContain("Beeswax identity");
+});
+
+test("Pi identity loader is owned and preserves surrounding source through refresh and removal", async () => {
+	const fx = configured();
+	const path = `${root}/.pi/extensions/scent.js`;
+	const generated = fx.files.get(path) ?? "";
+	fx.files.set(path, `// before\n${generated}// after\n`);
+	await applyOnboarding(root, { ...defaultProjectConfig("none"), onboarding: config }, fx.deps);
+	expect(fx.files.get(path)).toBe(`// before\n${generated}// after\n`);
+	await applyOnboarding(root, defaultProjectConfig("none"), fx.deps);
+	expect(fx.files.get(path)).toBe("// before\n// after\n");
 });
 
 // eslint-disable-next-line max-statements -- Check preservation and refusal before any writes.

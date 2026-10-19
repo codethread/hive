@@ -1,1 +1,3 @@
+# beeswax:begin merge-attributes v1
 .beads/issues.jsonl text eol=lf merge=hive-beads
+# beeswax:end merge-attributes

@@ -1,7 +1,12 @@
 import { activateNurse, isNurseWork, readNurseTopics, reconcileNurse } from "./nurse.ts";
 import { afterAll, expect, test } from "bun:test";
 import { assessment, nurseFixture, seal, seedReports } from "./nurse.test-support.ts";
-import { beforeTrackerWrite, createSpawn, createTask } from "./tracker.test-support.ts";
+import {
+	beforeTrackerWrite,
+	createSpawn,
+	createTask,
+	unusedWorkReviewCommands,
+} from "./tracker.test-support.ts";
 import { CommandError } from "@hive/beads";
 import type { Store } from "./store.ts";
 import { dispatch } from "./dispatch.ts";
@@ -230,6 +235,8 @@ const noHistory: Store["history"] = {
 await dispatch(
 	{
 		...warm.runtime,
+		workReview: unusedWorkReviewCommands(),
+		workReviewClock: { nextDue: 0 },
 		store: { ...warm.store, history: noHistory, inventory: () => Promise.resolve([]) },
 	},
 	warm.config,
@@ -516,6 +523,8 @@ test("a failed advisory audit leaves the ordinary dispatch pass running", async 
 	await dispatch(
 		{
 			...fixture.runtime,
+			workReview: unusedWorkReviewCommands(),
+			workReviewClock: { nextDue: 0 },
 			store: {
 				...fixture.store,
 				history: noHistory,

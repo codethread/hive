@@ -40,7 +40,7 @@ const MINIMUM_ITEMS = 1;
 export interface Options extends SetupFlags {
 	/** Emit one success or error document and never prompt. */
 	json?: boolean;
-	/** Configured checkout to inherit during worktree preparation. */
+	/** Configured source checkout for tracker adoption or preparation. */
 	source?: string;
 	/** Harness-provided output file for Claude's environment exports. */
 	environmentFile?: string;
@@ -61,7 +61,7 @@ export interface Dependencies extends SetupDependencies {
 	stderr: (text: string) => void;
 	/** Read a native harness hook's JSON payload. */
 	stdin: () => Promise<string>;
-	/** Source checkout for automatic environment adoption. */
+	/** Fallback source checkout for automatic tracker selection. */
 	source: string;
 	/** Claude's environment export destination, if supplied by the harness. */
 	environmentFile: string;
@@ -287,8 +287,15 @@ or search local checkouts.
 		});
 	system
 		.command("prepare")
-		.description("Inherit an existing worktree tracker environment")
-		.option("--source <directory>", "Checkout supplying an existing selection", deps.source)
+		.description("Prepare this checkout's local tracker selection")
+		.option("--source <directory>", "Fallback checkout for an existing selection", deps.source)
+		.addHelpText(
+			"after",
+			"\nSelection: inherited BEADS_DB, then this checkout's Mise environment; --source is consulted\n" +
+				"only when neither selects a tracker. The database must already exist. With Mise available,\n" +
+				"adoption writes local endpoint configuration in the target checkout. No selection leaves it unchanged.\n" +
+				"Then run beeswax sync with the accepted release to materialize this checkout's project contract.\n",
+		)
 		.action(async function prepare(this: Command) {
 			const options = this.optsWithGlobals<Options>();
 			const root = await checkout(options, deps);
@@ -465,12 +472,16 @@ export function onboardingOptions(command: Command): Command {
 		.addHelpText(
 			"after",
 			"\nOnboarding adapters are generated only in this repository. Repeat --harness to select several;\n" +
-				"use --harness none alone to remove recognized adapters. Omitted headless options retain saved choices.\n" +
-				"Includes add to prime's defaults; excludes win. See beeswax prime --help for tool names.\n" +
+				"use --harness none alone to remove recognized adapters without a Scent runtime.\n" +
+				"Omitted headless options retain saved choices. Selected harnesses load the primer,\n" +
+				"tracker alerts and Scent identity. Install matching Beeswax and Scent executables on PATH\n" +
+				"before generating adapters. Include/exclude filters change primer guidance only:\n" +
+				"includes add to prime's defaults; excludes win. See beeswax prime --help for tool names.\n" +
 				"Commit selected native adapters and the generated .gitignore section with the project contract.\n" +
-				"Pi delegates to ignored .hive/beeswax/generated/pi-beeswax.js. Run beeswax sync in each checkout\n" +
-				"with the accepted release before loading Pi, including after branch changes or beeswax lock.\n" +
-				"Missing or stale Pi output fails at load; review edited payloads before regenerating.\n" +
+				"Pi delegates primer/alerts to ignored .hive/beeswax/generated/pi-beeswax.js; its separate Scent\n" +
+				"loader uses the installed identity runtime. Run beeswax sync in each checkout with the accepted\n" +
+				"release before loading Pi, including after branch changes or beeswax lock. Missing or stale\n" +
+				"Pi output fails at load; review edited payloads before regenerating.\n" +
 				"Ambiguous onboarding stops with an agent handoff: beeswax migrate setup.\n" +
 				"Codex requires project trust and /hooks review; Pi requires project trust.\n",
 		);

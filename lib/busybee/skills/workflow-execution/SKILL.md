@@ -1,11 +1,11 @@
 ---
 name: workflow-execution
-description: Run or resume Busy Bee workflows, deliver outcomes and author workflow definitions.
+description: Run or resume Busy Bee workflows and deliver outcomes.
 ---
 
 The application's instructions, domain conventions, verification commands and authorization govern the work; Busy Bee supplies orchestration. Consult `busybee --help`, then focused command help for options. Use `--json` for complete schemas and machine-readable results.
 
-For definition authoring, read [authoring](references/authoring.md) with `busybee skills file workflow-execution references/authoring.md`. The execution path follows below.
+For definition authoring or refactoring, read [workflow-authoring](../workflow-authoring/SKILL.md) with `busybee skills get workflow-authoring`.
 
 ## Select the run
 
@@ -56,4 +56,4 @@ In Bee execution, follow `bee finish --help` after completing your assigned run 
 
 Inspect confirmed effects and retained IDs after any command failure; a failed response can follow partial publication. For closure refusal or interrupted completion, follow `complete --help` before retrying. If collection reports missing or invalid saved data, recover the original outcome from evidence before resubmission.
 
-For definition restoration failures, read the compatibility rules in [authoring](references/authoring.md). Retain run/task/evidence references and follow the task's recovery authorization; retrying does not authorize a duplicate run. A missing saved name needs the caller's workflow choice. Checkpoint locks retained after uncertain writes require inspection and explicit recovery; never steal them or force-close unfinished work.
+For definition restoration failures, read [saved-run compatibility](../workflow-authoring/SKILL.md#evolve-existing-runs) with `busybee skills get workflow-authoring`. Retain run/task/evidence references and follow the task's recovery authorization; retrying does not authorize a duplicate run. A missing saved name needs the caller's workflow choice. Checkpoint locks retained after uncertain writes require inspection and explicit recovery; never steal them or force-close unfinished work.

@@ -9,25 +9,25 @@ import {
 import land from "./workflow-land.json";
 import { z } from "zod";
 
-/** Captured native runs for the workflow preview workshop. */
+/** Workshop examples using historical task metadata and illustrative workflow state. */
 export interface WorkflowSample {
 	/** Native run card; labels, relationships and request enrichment omitted from this preview. */
 	card: Card;
 	/** Short label for the captured run. */
 	label: string;
-	/** Native system record containing this snapshot. */
+	/** Historical system record associated with the task metadata. */
 	checkpoint: string;
 	/** Native checkpoint update timestamp in UTC. */
 	savedAt: string;
 	/** Time the source records were read. */
 	capturedAt: string;
-	/** Named workflow and saved version. */
+	/** Workflow and version displayed by this sample. */
 	definition: string;
 	/** Definition source within the checkout. */
 	source: string;
 	/** Relationship between the diagram source and the historical checkpoint. */
 	definitionNote: string;
-	/** Saved XState value, displayed separately from the task's native status. */
+	/** Example XState value, displayed separately from the task's native status. */
 	state: string;
 	/** XState snapshot status, independent of native Beads status. */
 	snapshotStatus: "active" | "done";
@@ -69,9 +69,11 @@ export const workflowSamples: WorkflowSample[] = [
 		checkpoint: "hv-w4pn0",
 		savedAt: "2026-10-15T06:19:16.611433Z",
 		capturedAt: CAPTURED_AT,
-		definition: "land 3.0.0",
+		definition: "land 5.0.0",
 		source: ".workflows/land/workflow.ts",
-		definitionNote: DEFINITION_NOTE,
+		definitionNote:
+			"Historical task metadata with the current Land chart and fictional state and instructions; " +
+			"no checkpoint replay.",
 		state: "check",
 		snapshotStatus: "active",
 		machine: land,
@@ -118,16 +120,18 @@ export const workflowSamples: WorkflowSample[] = [
 		checkpoint: "hv-g3zno",
 		savedAt: "2026-10-15T04:52:20.698303Z",
 		capturedAt: CAPTURED_AT,
-		definition: "land 3.0.0",
+		definition: "land 5.0.0",
 		source: ".workflows/land/workflow.ts",
-		definitionNote: DEFINITION_NOTE,
+		definitionNote:
+			"Historical task metadata with the current Land chart and fictional state and instructions; " +
+			"no checkpoint replay.",
 		state: "done",
 		snapshotStatus: "done",
 		machine: land,
 	},
 ];
 
-/** Pair frozen saved state with the chart captured for these samples. */
+/** Assemble an illustrative inspection from the sample's chart and state. */
 export function samplePreview(sample: WorkflowSample): WorkflowInspection {
 	return {
 		formatVersion: 1,

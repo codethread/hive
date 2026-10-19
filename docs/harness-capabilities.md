@@ -100,7 +100,8 @@ Bee/Colony now implements captured recipes, named formulas, task claims, bounded
 
 | Profile | Native identity / Scent | Current Colony verification |
 | --- | --- | --- |
-| Claude Code | Planned: `hv-3x8.7.1`, including explicit native-child attribution | Subscription unavailable for this build; current native run unverified. Earlier `L` observations remain historical evidence |
+| Claude Code 2.1.296, macOS arm64 | **O**, 2026-10-19: startup, CLI target resume, native Agent children; native and supplied-Bee TUI clear/compact/target resume with subsequent tool attribution; see [Claude Scent evidence](#claude-scent-evidence) | No complete current Colony lifecycle probe for this version; earlier `L` observations remain historical evidence |
+| Claude Code 2.1.303, macOS arm64 | **O**, 2026-10-19: nested CLI identity and actual Bee launch adoption with Scent active | Dummy Bee workflow completed with verified actor and selected tracker; full `L1`–`L5` conformance remains unverified |
 | Codex CLI 0.160.0 (historical launch profile) | Scent conformance unverified for this version | **O**, 2026-10-04: native probe passed with `gpt-6-astra`, low effort, workspace-write; see current probe evidence below |
 | Codex CLI/app-server 0.162.1, macOS arm64 | **O**, 2026-10-15: Scent passes `I1/I3/I4/I5/B1/T1–T3` on the [exercised entry paths](#codex-scent-evidence) | Supplied launcher-input adoption verified with active hooks; no new complete Colony/native lifecycle probe for this version |
 | Native Pi 1.0.0 (historical launch profile) | Scent conformance unverified for this version | **O**, 2026-10-04: native probe passed with `openai-codex/gpt-6-astra`, low effort; see current probe evidence below |
@@ -109,6 +110,30 @@ Bee/Colony now implements captured recipes, named formulas, task claims, bounded
 | Other GUI or hosted runtimes | Unknown until profiled | Unknown until profiled |
 
 The historical Colony launch probe alone does not establish Scent context continuity, native-child attribution or arbitrary detached-descendant capture. Retain the exact profile, selected model, report and task mutation evidence for each run. A failed or skipped native probe remains explicit; a successful scripted fixture cannot replace it.
+
+### Installed Scent delivery
+
+Beeswax now generates repository adapters for the compiled Scent executable; [onboarding](../lib/beeswax/README.md#load-onboarding-in-your-harness) owns that installation path. The native profile results above predate this delivery change and retain their original version and entry-surface scope.
+
+The 2026-10-19 artifact probe for `hv-3x8.7.8` copied the compiled executables outside the source checkout, with no application dependencies or Bun on `PATH`. Its receipt, `beeswax-scent-installed-probe.json`, records installed Beeswax setup and two unchanged syncs, Claude parent environment append and child context-only output, a Codex callback, and loading the bundled Pi module in a Node host while preserving the selected tracker. That Node host established packaging and module execution; the later native probes below have separate limits. Workflow dependencies were separately installed for the Bee probe.
+
+Native Pi **1.2.0** loaded the generated loader, applied friendly name `coral-tight-jay` and `BR_HARNESS=pi`, observed `anthropic/claude-haiku-5-5`, preserved the selected tracker and placed identity in provider context. A test extension exited before the provider API request: this verifies native loading and context delivery, with no model response or actual Pi `br` mutation claimed.
+
+Claude Code **2.1.303**, resolving `--model haiku` to `claude-haiku-5-5`, ran Bee request `scentprobe-jdn` through the installed adapters, exited 0 and completed workflow `scentprobe-9v7.1` as `done`. Supplied parent `plum-harsh-alligator` created `scentprobe-0co` without `--actor`; native Haiku Agent child `green-subjective-chicken` created `scentprobe-hi9` with its own explicit actor despite inheriting the parent's `BD_ACTOR`. The caller independently reread both closed tasks, immutable `created_by` and owner `ct`; the selected dummy tracker and parent identity were preserved. The receipt's project contains `installed-bee-environment.json`, `installed-child-environment.json` and `installed-bee-proof.json`.
+
+The worker's authored response `scentprobe-yu6` was retrieved with `bee response get`; it is standalone and unavailable through `bee result` for that request. A caller's attempt to associate a response under `codex` was refused with `invalid_response_request` and no confirmed effects. The native request remains pending while the shared Colony is asleep. These receipts verify installed identity delivery, not complete managed delivery, settlement or Colony `L1`–`L5` conformance; earlier profile limits remain in force.
+
+### Claude Scent evidence
+
+The 2026-10-19 probes tracked in `hv-3x8.7.1` used macOS arm64, Bun 1.4.2 and br 0.7.4. Native Claude Code 2.1.296 with `--model haiku` (resolved `claude-haiku-5-5`) retained the same actor across print-mode startup and CLI target resume. Two native Agent children recorded distinct actors from their distinct `agent_id` values despite inheriting the parent environment; parent attribution stayed unchanged before and after their work.
+
+Interactive 2.1.296 `/compact` retained the session and actor; `/clear` created a new session and actor and cleared stale optional model metadata; `/resume` restored the target session and actor. Each passed the next real tool mutation. An environment-only mutation also matched the current `BD_ACTOR`.
+
+Supplied-Bee TUI 2.1.296 probes used the actual `agentEnvironment` recipe inputs. Startup, compact, clear and target resume preserved the supplied name, worker kind and tracker through subsequent tool mutations while binding the current session. Repeated compact/clear/target-resume probes passed with the [Claude adoption rule](./agent-identity-scope.md#current-implementation-and-planned-bindings).
+
+The CLI auto-updater switched to 2.1.303 during probing. Transcript versions confirm that separately launched nested CLIs from native and Bee parents ran on 2.1.303 and resolved distinct native actors. The corrected Bee-inherited path dropped the parent's kind and unknown model/effort. Independent tracker rereads and native created-event audits confirmed actor/harness/model attribution, including absent unknown metadata; all selected tracker endpoints were preserved.
+
+An actual dummy-project Bee launch on 2.1.303 used `haiku`; its real tool mutation preserved the supplied friendly name/actor, Bee provenance, Claude harness, model, worker kind and selected tracker. Its workflow completed `done` and its authored response was retrieved. This verifies launcher/Scent adoption and workflow completion; the foreground execution required a process-group workaround. Full current Colony `L1`–`L5` recovery/reap conformance and broader 2.1.303 lifecycle remain unverified. Wrappers, GUI/desktop/IDE and PowerShell remain unverified; user forks, cache migration and ancestry inference remain outside this slice.
 
 ### Codex Scent evidence
 

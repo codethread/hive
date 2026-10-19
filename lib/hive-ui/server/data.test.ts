@@ -9,9 +9,22 @@ import { createMemoryBeads } from "@hive/beads";
 const scope = { cwd: colony.root, db: colony.beadsDb, actor: "fixture" };
 const filter = boardFilterSchema.parse({ view: "beads", closed: true });
 const COLD_AND_RECOVERY_READS = 2;
+const PROJECTION_FIELDS = 2;
+const LAST_ITEM = -1;
 const seeded = await workflowFixture();
 const workflowCache = await workflowFixture();
+const incremental = await workflowFixture();
+await incremental.context.beads.close(scope, incremental.checkpoint.id);
+const retried = await workflowFixture();
+await retried.context.beads.create(scope, {
+	title: "Second checkpoint",
+	labels: ["system", "busybee-checkpoint"],
+	description: JSON.stringify({ id: "other-run", created: [] }),
+});
 const linked = await mergeFixture();
+const selected = await mergeFixture();
+const evidence = await selected.beads.create(scope, { title: "Related evidence" });
+await selected.beads.dep.add(scope, selected.task.id, evidence.id, "related");
 const emptyRequest = await linked.beads.create(scope, {
 	title: "Request without tasks",
 	labels: ["system", "bee", "agent:worker"],
@@ -117,7 +130,9 @@ test("workflow polling reuses the identity index and immediately refreshes a mis
 		beads: {
 			...workflowCache.context.beads,
 			listProjected: (...args: Parameters<typeof workflowCache.context.beads.listProjected>) => {
-				reads += 1;
+				if (args[PROJECTION_FIELDS].includes("description")) {
+					reads += 1;
+				}
 				return workflowCache.context.beads.listProjected(...args);
 			},
 		},
@@ -132,6 +147,97 @@ test("workflow polling reuses the identity index and immediately refreshes a mis
 	});
 	expect(await data.workflow(context, "new-visit", inspect)).toBe(workflowCache.root.id);
 	expect(reads).toBe(COLD_AND_RECOVERY_READS);
+});
+
+// eslint-disable-next-line max-statements -- Verify revision reuse and closed provenance across refreshes.
+test("fresh boards hydrate only changed workflow identities and retire removed checkpoints", async () => {
+	const descriptions: string[][] = [];
+	const context = {
+		...incremental.context,
+		beads: {
+			...incremental.context.beads,
+			listProjected: (...args: Parameters<typeof incremental.context.beads.listProjected>) => {
+				if (args[PROJECTION_FIELDS].includes("description")) {
+					descriptions.push([...(args[1].ids ?? [])]);
+				}
+				return incremental.context.beads.listProjected(...args);
+			},
+		},
+	};
+	let clock = 1;
+	const data = createBoardData(unrequestedTopology, () => clock);
+	const first = await data.board(context, filter, clock);
+	expect(first.cards.find((card) => card.id === incremental.root.id)?.isWorkflowGenerated).toBe(
+		true,
+	);
+	await data.board(context, filter, ++clock);
+	expect(descriptions).toEqual([[]]);
+	await context.beads.update(scope, [incremental.checkpoint.id], {
+		description: JSON.stringify({
+			id: incremental.root.id,
+			created: [{ bead: incremental.manual.id }],
+		}),
+	});
+	const changed = await data.board(context, filter, ++clock);
+	expect(changed.cards.find((card) => card.id === incremental.manual.id)?.isWorkflowGenerated).toBe(
+		true,
+	);
+	expect(descriptions).toEqual([[], [incremental.checkpoint.id]]);
+	await context.beads.update(scope, [incremental.checkpoint.id], {
+		removeLabels: ["busybee-checkpoint"],
+	});
+	const removed = await data.board(context, filter, ++clock);
+	expect(removed.cards.every((card) => !card.isWorkflowGenerated)).toBe(true);
+	expect(descriptions).toHaveLength(COLD_AND_RECOVERY_READS);
+});
+
+test("a failed workflow identity refresh cannot publish a partially parsed index", async () => {
+	let fail = true;
+	const batches: string[][] = [];
+	const context = {
+		...retried.context,
+		beads: {
+			...retried.context.beads,
+			listProjected: async (...args: Parameters<typeof retried.context.beads.listProjected>) => {
+				const page = await retried.context.beads.listProjected(...args);
+				if (args[PROJECTION_FIELDS].includes("description")) {
+					batches.push([...(args[1].ids ?? [])]);
+					if (fail) {
+						page.issues.at(LAST_ITEM)!.description = "invalid checkpoint JSON";
+					}
+				}
+				return page;
+			},
+		},
+	};
+	const data = createBoardData(unrequestedTopology, () => 1);
+	const inspect = (_endpoint: unknown, id: string) => Promise.resolve(id);
+	const failure = await data
+		.workflow(context, retried.root.id, inspect)
+		.catch((error: unknown) => error);
+	expect(failure).toBeInstanceOf(SyntaxError);
+	fail = false;
+	expect(await data.workflow(context, retried.root.id, inspect)).toBe(retried.root.id);
+	expect(batches).toEqual([[], []]);
+});
+
+test("workflow identity snapshots are isolated by selected endpoint", async () => {
+	const data = createBoardData(unrequestedTopology, () => 1);
+	const inspect = (_endpoint: unknown, id: string) => Promise.resolve(id);
+	await data.workflow(retried.context, retried.root.id, inspect);
+	const context = { ...retried.context, colony: { ...colony, id: "another-endpoint" } };
+	let descriptions = 0;
+	context.beads = {
+		...context.beads,
+		listProjected: (...args: Parameters<typeof retried.context.beads.listProjected>) => {
+			if (args[PROJECTION_FIELDS].includes("description")) {
+				descriptions++;
+			}
+			return retried.context.beads.listProjected(...args);
+		},
+	};
+	await data.workflow(context, retried.root.id, inspect);
+	expect(descriptions).toBe(1);
 });
 
 test("primary cards and families never hydrate tasks or wait for merge and assignment icons", async () => {
@@ -182,6 +288,33 @@ test("merge icons read labelled references in both directions, including closed 
 	]);
 	await data.annotations(context, [linked.task.id], 0);
 	expect(calls.toSorted()).toEqual([linked.merged.id, linked.invalid.id].toSorted());
+});
+
+test("selected detail classifies its merge links without reading global merge metadata", async () => {
+	const beads = {
+		...selected.beads,
+		listProjected: (...args: Parameters<typeof selected.beads.listProjected>) => {
+			if (args[1].labels?.includes("merge") === true && args[1].ids === undefined) {
+				throw new Error("Global merge scan must remain deferred");
+			}
+			return selected.beads.listProjected(...args);
+		},
+		dep: {
+			...selected.beads.dep,
+			list: () => Promise.reject(new Error("Merge icon metadata unavailable")),
+		},
+	};
+	const data = createBoardData(unrequestedTopology);
+	const context = { beads, colony, requestId: "test", log: async () => {} };
+	const detail = await data.detail(context, selected.task.id, {
+		scope: { view: "beads", requestPage: 0 },
+		refreshAfter: 0,
+	});
+	expect(detail.card.id).toBe(selected.task.id);
+	expect(detail.card.merges).toEqual([]);
+	expect(detail.dependencies.items.map((edge) => edge.id)).toEqual([evidence.id]);
+	expect(detail.dependencies.total).toBe(1);
+	expect(detail.dependents.total).toBe(0);
 });
 
 test("a request without tasks never falls back to a repository-wide task or workflow query", async () => {

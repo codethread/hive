@@ -1,6 +1,6 @@
 # Bee and Colony
 
-Bee opens configured roles with `bee run` or submits workflow assignments with `bee spawn`. Colony schedules and supervises their execution. Requests capture a recipe and friendly identity; Busy Bee run/stage beads hold the work. Canonical `.hive/bees.toml` supplies current harness formulas and runtime policy.
+Bee opens configured agent roles with `bee run` or delegates them with `bee spawn`. Busy Bee supplies the task workflow; Colony schedules and supervises execution. Requests capture a recipe and friendly identity; run/stage beads hold the work. Canonical `.hive/bees.toml` supplies current harness formulas and runtime policy.
 
 ## Install and try it
 
@@ -26,7 +26,7 @@ Users open direct conversations with `bee run KIND`; agents delegate through `be
 
 ## Create requests
 
-`bee spawn --help` owns workflow input, execution selection and partial-submission recovery. Submission creates `original work -> workflow run -> stages`; the original parent's claim and completion remain separate. Drivers coordinate runs; dispatched workers execute stages. [Busy Bee](../busybee/README.md#delegate-a-workflow-to-bee) owns progression and group/run closure.
+Use `bee spawn --help` to select a task-appropriate workflow, supply its input and choose execution settings. It also covers partial-submission recovery. Submission creates `original work -> workflow run -> stages`; the original parent's claim and completion remain separate. Drivers coordinate runs; dispatched workers execute stages. [Busy Bee](../busybee/README.md#delegate-a-workflow-to-bee) owns progression and group/run closure.
 
 Bee adds [delivery guidance](../../docs/agents/responses.md#runtime-guidance) at launch. Captured recipes retain the original role; receipts retain the actual invocation. Assessments and inactivity drones use separate protocols. The [spawn contract](../../docs/agents/spawn-requests.md#facts-and-authority) owns host binding and native lifecycle authority.
 
@@ -64,7 +64,25 @@ An accepted **active** verdict defers review for 15 minutes from acceptance, ind
 
 Interrupted preparation before execution permission becomes `launch_failed` and is never relaunched. Verified cleanup stops its supervisor; late handoff cannot start the harness. Authorized reviews survive recovery without duplicate launch. Ambiguous ownership remains a visible failure.
 
-Drones have no claims or independent spawn request and consume no task-dispatch capacity. Each target has at most one review; reviews cannot recurse. Target settlement stops pending reviews through ownership checks. Private receipts/logs retain evidence; native observations expose review identity and diagnostics. The [verdict contract](../../docs/agents/spawn-requests.md#report-an-inactivity-verdict) owns submission authority.
+Inactivity reviews have no claims or independent spawn request and consume no task-dispatch capacity. Each target has at most one review; reviews cannot recurse. Target settlement stops pending reviews through ownership checks. Private receipts/logs retain evidence; native observations expose review identity and diagnostics. The [verdict contract](../../docs/agents/spawn-requests.md#report-an-inactivity-verdict) owns submission authority.
+
+## Automatic work reviews
+
+Colony can submit two ordinary drone workflows: [blocked-review](../../.workflows/blocked-review/workflow.ts) classifies native blockers, while [in-progress-review](../../.workflows/in-progress-review/workflow.ts) examines stranded managed work with an unsuccessful request. Their briefs own diagnosis and permitted actions. They use ordinary Bee responses, capacity and supervision; private inactivity reviews remain separate.
+
+Reviews default to disabled when `auto_work_reviews` is omitted. This repository's checked-in [`.hive/bees.toml`](../../.hive/bees.toml) explicitly opts in with the dedicated control parent `hv-bj6zi9`; loading that policy still requires the deliberate reload below.
+
+Prepare both named workflows and their dependencies in the canonical checkout used by Colony. Provision a dedicated ongoing ordinary parent in the selected tracker, separate from the nurse health parent: open, unblocked, unreserved, and unassigned or assigned to `sys-colony`. Leave its notes empty for Colony's control record. Inspect both branches through `colony work-review preflight --help` before enabling current candidates, then configure a matching kind and formula:
+
+```toml
+auto_work_reviews = { kind = "drone", parent = "<ordinary review scope>" }
+```
+
+Reload through `colony wake --help` or `colony config reset --help`, preserving repository, tracker and server selection. Verify the loaded `autoWorkReviews` policy with `colony config show`. Removing the policy and reloading disables new submissions and recovery; retain the parent and its control notes for re-enablement.
+
+Each branch checks hourly and holds at most one outstanding review. Empty candidate sets and [fresh stable blockers](../../docs/beads-labels.md#stable-blocker-reviews) launch no drone. Tooling and unknown diagnoses remain eligible; a bounded batch does not imply every omitted item was reviewed. Wake performs overdue checks without replaying every missed hour. The control record retains clocks, active run/request IDs and consumed recovery allowances across restarts.
+
+Use `colony work-review --help` for preflight, inspection and evidence commands, and `--schema` for their typed payloads. Recovery is limited to one attempt per request lineage through public Bee retry; `colony work-review recover --help` owns native continuation evidence, saved-assignment admission and partial-effect handling. An unsuccessful review or uncertain publication retains its branch for attention. Inspect the retained control and exact request/run before recovery; preserve confirmed effects instead of submitting another workflow. Tracker alerts and read failures stop the affected review work.
 
 ## Inspect finished bees
 

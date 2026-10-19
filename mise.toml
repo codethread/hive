@@ -1,12 +1,15 @@
 [tasks.default]
-description = "Install dependencies, build and install CLI binaries, and bootstrap the tracker"
+description = "Build and install Hive, configure the tracker and Bee, and prepare this checkout"
 hide = true
 run = '''
-bun install
+# Defer checkout preparation until matching CLIs are built; retain dependency lifecycle scripts.
+HIVE_SKIP_PREPARE=1 bun install
 bun run --filter '*' build
 bun run --filter '*' install:bin
 beeswax beads bootstrap --environment mise
-mise exec -- bee setup --actor "${BD_ACTOR:-sys-beeswax}"
+set -- --actor "${BD_ACTOR:-sys-beeswax}"
+if [ -n "${BEADS_DB:-}" ]; then set -- "$@" --beads-db "$BEADS_DB"; fi
+mise exec -- bee setup "$@"
 beeswax sync
 '''
 

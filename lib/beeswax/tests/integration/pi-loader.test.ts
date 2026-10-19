@@ -5,6 +5,7 @@ import { expect, test } from "bun:test";
 import { mkdtemp, rm } from "node:fs/promises";
 import { applyOnboarding } from "../../src/onboarding.ts";
 import { createLiveDependencies } from "../../src/live.ts";
+import { fixture } from "../support.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Fixture paths.
 import { join } from "node:path";
 // eslint-disable-next-line import/no-nodejs-modules -- Temporary fixture root.
@@ -26,7 +27,7 @@ const {
 // eslint-disable-next-line max-statements -- Verify native imports, reload and callbacks at the vendor boundary.
 test("supported Pi loader delegates callbacks and reloads the accepted payload at the same path", async () => {
 	const root = await mkdtemp(join(tmpdir(), "beeswax pi loader "));
-	const io = createLiveDependencies();
+	const io = { ...createLiveDependencies(), command: fixture().deps.command };
 	const config = {
 		...defaultProjectConfig("none"),
 		onboarding: { harnesses: ["pi" as const], include: [], exclude: [] },

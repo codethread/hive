@@ -20,11 +20,11 @@ type LandEvent = EventFrom<typeof machine>;
 type Command = keyof typeof commandSchemas;
 
 export interface SampleContext {
-	/** Example request rendered by Land's instruction callbacks. */
+	/** Example authorization rendered in Land's run brief. */
 	request: string;
 	/** Worktree branch used when the example target is a worktree. */
 	branch: string;
-	/** Target kind evaluated by Land's isPr guard. */
+	/** Target kind rendered by the Land workflow. */
 	target: "worktree" | "pr";
 	/** Example PR target; never contacted by this story. */
 	prUrl: string;
@@ -46,7 +46,7 @@ export interface SampleTransition {
 }
 
 export interface LandVisit {
-	/** Snapshot with simulated context updates and fictional review receipts. */
+	/** Snapshot with simulated context updates and fictional evidence. */
 	snapshot: LandSnapshot;
 	/** States entered by this outcome, including automatic routing states. */
 	path: StepId[];
@@ -86,8 +86,7 @@ export const stepIds = Object.keys(machine.states) as StepId[];
 export const steps = Object.fromEntries(
 	stepIds.map((id) => {
 		const node = machine.states[id]!;
-		const title =
-			id === "pr" ? "PR" : id.charAt(0).toUpperCase() + id.slice(1).replaceAll("-", " ");
+		const title = id.charAt(0).toUpperCase() + id.slice(1).replaceAll("-", " ");
 		if (node.type === "final") {
 			return [id, { title, kind: "final" }];
 		}
@@ -140,7 +139,6 @@ export function exampleVisit(sample: SampleContext, start: "initial" | "example"
 				: { kind: "worktree", branch: sample.branch },
 		canonicalRoot: "/example/hive",
 		beadsDb: "/example/hive/.worktrees/tracker--state/.beads/beads.db",
-		expectedCommits: [],
 		completedTasks: [],
 	});
 	const [initial] = initialTransition(machine, input);
@@ -190,7 +188,6 @@ export function availableOutcomes(snapshot: LandSnapshot, sample: SampleContext)
 	return Object.entries(metadata.commands).map(([command, type]) => {
 		const data = commandSchemas[command as Command].parse({
 			evidence: sample.evidence,
-			review: { bead: "example-review", base: "example-base", revision: "example-diff" },
 		});
 		const event: LandEvent = { type, data };
 		const enabled = snapshot.can(event);

@@ -9,6 +9,7 @@
         "@commitlint/config-conventional": "^21.2.3",
         "@earendil-works/pi-coding-agent": "1.2.0",
         "@hive/beeswax": "workspace:*",
+        "@hive/shared": "workspace:*",
         "@stylistic/eslint-plugin": "^5.10.0",
         "@types/bun": "^1.4.2",
         "husky": "^9.1.7",
@@ -23,14 +24,14 @@
     },
     "lib/beads": {
       "name": "@hive/beads",
-      "version": "0.7.1",
+      "version": "0.8.0",
       "dependencies": {
         "zod": "^4.6.5",
       },
     },
     "lib/beeswax": {
       "name": "@hive/beeswax",
-      "version": "0.7.1",
+      "version": "0.8.0",
       "bin": {
         "beeswax": "./bin/beeswax.ts",
       },
@@ -52,7 +53,7 @@
     },
     "lib/busybee": {
       "name": "@hive/busybee",
-      "version": "0.7.1",
+      "version": "0.8.0",
       "bin": {
         "busybee": "./bin/busybee.ts",
       },
@@ -72,7 +73,7 @@
     },
     "lib/colony": {
       "name": "@hive/colony",
-      "version": "0.7.1",
+      "version": "0.8.0",
       "dependencies": {
         "@hive/beads": "workspace:*",
         "@hive/shared": "workspace:*",
@@ -87,7 +88,7 @@
     },
     "lib/hive-ui": {
       "name": "@hive/hive-ui",
-      "version": "0.7.1",
+      "version": "0.8.0",
       "dependencies": {
         "@dagrejs/dagre": "^3.1.1",
         "@hive/beads": "workspace:*",
@@ -133,7 +134,7 @@
     },
     "lib/honeycomb": {
       "name": "@hive/honeycomb",
-      "version": "0.7.1",
+      "version": "0.8.0",
       "bin": {
         "honeycomb": "./bin/honeycomb.ts",
       },
@@ -148,7 +149,7 @@
     },
     "lib/qlock": {
       "name": "@hive/qlock",
-      "version": "0.7.1",
+      "version": "0.8.0",
       "bin": {
         "qlock": "./bin/qlock.ts",
       },
@@ -162,8 +163,13 @@
     },
     "lib/scent": {
       "name": "@hive/scent",
-      "version": "0.7.1",
+      "version": "0.8.0",
+      "bin": {
+        "scent": "./src/bin/scent.ts",
+      },
       "dependencies": {
+        "@hive/shared": "workspace:*",
+        "commander": "^14.0.3",
         "unique-names-generator": "4.7.1",
         "zod": "^4.6.5",
       },
@@ -173,7 +179,7 @@
     },
     "lib/shared": {
       "name": "@hive/shared",
-      "version": "0.7.1",
+      "version": "0.8.0",
       "dependencies": {
         "@hive/beads": "workspace:*",
         "handlebars": "^4.7.9",
@@ -182,7 +188,7 @@
     },
     "lib/tooling": {
       "name": "@hive/tooling",
-      "version": "0.7.1",
+      "version": "0.8.0",
       "dependencies": {
         "@hive/beads": "workspace:*",
         "@hive/shared": "workspace:*",
@@ -193,7 +199,7 @@
     },
     "lib/waggle": {
       "name": "@hive/waggle",
-      "version": "0.7.1",
+      "version": "0.8.0",
       "bin": {
         "waggle": "./bin/waggle.ts",
       },

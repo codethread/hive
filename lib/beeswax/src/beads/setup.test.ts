@@ -110,9 +110,12 @@ test("prepare resolves Mise intent without requiring a particular local config f
 	const services: SetupServices = {
 		beadsDb: undefined,
 		commandAvailable: () => true,
-		command: (argv) => {
+		command: (argv, cwd) => {
 			if (argv.includes("--json")) {
-				return Promise.resolve(JSON.stringify({ BEADS_DB: endpoint.db }));
+				if (cwd === "/source") {
+					return Promise.resolve(JSON.stringify({ BEADS_DB: endpoint.db }));
+				}
+				return Promise.resolve("{}");
 			}
 			if (argv.includes("--git-common-dir")) {
 				return Promise.resolve("/repo/.git");
@@ -131,4 +134,38 @@ test("prepare resolves Mise intent without requiring a particular local config f
 	};
 	expect(await setupBeadsAutomatically("/repo/child", "/source", services)).toBe(endpoint.db);
 	expect(writes.get("/repo/child/mise.local.toml")).toContain(endpoint.db);
+});
+
+test("checkout preparation retains its own Mise endpoint before inheriting a source", async () => {
+	const writes = new Map<string, string>();
+	const queries: string[] = [];
+	const services: SetupServices = {
+		beadsDb: undefined,
+		commandAvailable: () => true,
+		command: (argv, cwd) => {
+			if (argv[FIRST] === "mise" && argv[SECOND] === "env") {
+				queries.push(cwd);
+				if (cwd === "/child") {
+					return Promise.resolve(JSON.stringify({ BEADS_DB: endpoint.db }));
+				}
+				return Promise.resolve(JSON.stringify({ BEADS_DB: "/source/.beads/beads.db" }));
+			}
+			if (argv.includes("--git-common-dir")) {
+				return Promise.resolve("/repo/.git");
+			}
+			if (argv.includes("--show-current")) {
+				return Promise.resolve("tracker/state");
+			}
+			return Promise.resolve("");
+		},
+		exists: () => Promise.resolve(true),
+		readConfig: (path) => Promise.resolve(writes.get(path) ?? ""),
+		write: (path, contents) => {
+			writes.set(path, contents);
+			return Promise.resolve();
+		},
+	};
+	expect(await setupBeadsAutomatically("/child", "/source", services)).toBe(endpoint.db);
+	expect(queries).toEqual(["/child"]);
+	expect(writes.get("/child/mise.local.toml")).toContain(endpoint.db);
 });

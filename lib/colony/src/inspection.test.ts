@@ -445,6 +445,7 @@ async function invokeExplanation() {
 	let stdout = "";
 	let stderr = "";
 	const code = await runCli(["explain", target, "--json"], {
+		workReview: unexpectedRead,
 		add: unexpectedRead,
 		assessments: unexpectedRead,
 		config: unexpectedRead,

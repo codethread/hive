@@ -1,9 +1,9 @@
-#:schema lib/honeycomb/honeycomb.local.schema.json
+#:schema ../lib/honeycomb/honeycomb.local.schema.json
 
 worktree_location = "nested"
 
 command = '''
-bun install && beeswax sync && notif worktree wk "$WK_CREATED" ready
+mise run && notif worktree wk "$WK_CREATED" ready
 '''
 
 [add]

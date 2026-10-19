@@ -1,9 +1,11 @@
-import { createWorktree, useOriginFixture } from "./support.ts";
+import { createWorktree, deps, useOriginFixture } from "./support.ts";
 import { expect, test } from "bun:test";
 // oxlint-disable-next-line import/no-nodejs-modules -- Integration fixtures use real filesystem boundaries.
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { runCli, useTmpHome } from "./lifecycle-helpers.ts";
+import type { CommandResult } from "../../src/index.ts";
 import { EXIT_CODES } from "../../src/errors.ts";
+import { dispatch } from "../../src/index.ts";
 // oxlint-disable-next-line import/no-nodejs-modules -- Fixture paths stay within temporary repositories.
 import { join } from "node:path";
 
@@ -21,12 +23,12 @@ test("canonical namespaced config wins from canonical, linked and nested cwd", a
 		`[[project]]\nroot = "${root}"\ncommand = "echo global"`,
 	);
 	await writeFile(join(root, "honeycomb.toml"), "command =");
-	const inherited = await runCli(["config", "explain", "--json"], root);
+	const inherited = await dispatch("config", ["explain", "--cwd", root, "--json"], deps);
 	expect(inherited.exitCode).toBe(EXIT_CODES.SUCCESS);
-	expect(JSON.parse(inherited.stdout)).toMatchObject({
+	expect(JSON.parse(inherited.stdout ?? "{}")).toMatchObject({
 		command: { source: `project:${root}`, value: "echo global" },
 	});
-	expect(JSON.parse(inherited.stdout)).not.toHaveProperty("local_config");
+	expect(JSON.parse(inherited.stdout ?? "{}")).not.toHaveProperty("local_config");
 	const linked = join(tmp.dir, "linked");
 	await createWorktree({ root, path: linked, branch: "feature/config" });
 	await mkdir(join(root, ".hive"));
@@ -36,19 +38,27 @@ test("canonical namespaced config wins from canonical, linked and nested cwd", a
 	await writeFile(join(root, ".hive", "honeycomb.toml"), 'command = "echo canonical"');
 	await writeFile(join(linked, ".hive", "honeycomb.toml"), "command =");
 	await writeFile(join(linked, "honeycomb.toml"), "command =");
-	for (const cwd of [root, join(root, "nested"), linked, join(linked, "nested")]) {
+	for (const cwd of [root, join(root, "nested"), linked]) {
 		// oxlint-disable-next-line eslint/no-await-in-loop -- Exercise each cwd against the same canonical configuration.
-		const result = await runCli(["config", "explain", "--json"], cwd);
-		expect(result.exitCode).toBe(EXIT_CODES.SUCCESS);
-		expect(JSON.parse(result.stdout)).toMatchObject({
-			command: { source: `local:${root}/.hive/honeycomb.toml`, value: "echo canonical" },
-			local_config: {
-				path: `${root}/.hive/honeycomb.toml`,
-				settings: { command: "echo canonical" },
-			},
-		});
+		const result = await dispatch("config", ["explain", "--cwd", cwd, "--json"], deps);
+		assertCanonicalConfig(result, root);
 	}
+	const native = await runCli(["config", "explain", "--json"], join(linked, "nested"));
+	expect(native.stderr).toBe("");
+	assertCanonicalConfig(native, root);
 });
+
+function assertCanonicalConfig(result: CommandResult, root: string) {
+	expect(result.exitCode).toBe(EXIT_CODES.SUCCESS);
+	expect(JSON.parse(result.stdout ?? "{}")).toMatchObject({
+		ok: true,
+		command: { source: `local:${root}/.hive/honeycomb.toml`, value: "echo canonical" },
+		local_config: {
+			path: `${root}/.hive/honeycomb.toml`,
+			settings: { command: "echo canonical" },
+		},
+	});
+}
 
 test("local-only configuration initializes a pool with real Bun bootstrap #test-69", async () => {
 	const { root } = await initRepoWithOrigin(tmp.dir);

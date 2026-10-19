@@ -70,10 +70,12 @@ export const workflowAssignmentSchema = z.discriminatedUnion("kind", [
 		stageId: z.string().trim().min(NONEMPTY),
 	}),
 ]);
-const capturedRequestSchema = recipeSchema.extend({
-	host: z.string().trim().min(NONEMPTY).optional(),
-	assignment: workflowAssignmentSchema,
-});
+const capturedRequestSchema = z.compile(
+	recipeSchema.extend({
+		host: z.string().trim().min(NONEMPTY).optional(),
+		assignment: workflowAssignmentSchema,
+	}),
+);
 const attributionRecipeSchema = recipeSchema
 	.pick({ harness: true, kind: true, model: true })
 	.strip();

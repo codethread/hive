@@ -11,6 +11,7 @@ import { expect, test } from "bun:test";
 import { colony } from "./src/stories/fixtures.ts";
 import { createBoardData } from "./server/data.ts";
 import { createMemoryBeads } from "@hive/beads";
+import { z } from "zod";
 
 const OLD = "2026-10-12T00:00:00Z";
 const NEW = "2026-10-12T00:00:01Z";
@@ -24,8 +25,238 @@ const original: Hierarchy = {
 const moved: Hierarchy = { stale: false, nodes: [right, node("child", ["right"])], fetchedAt: NEW };
 
 const SMALL_FAMILY = 2;
+const CACHE_LIFETIME = 10_000;
 const race = await annotationFixture();
 const assignmentRace = await assignmentFixture();
+
+// eslint-disable-next-line max-statements -- Verify reuse and expiry with one deterministic resource clock.
+test("annotation demand reuses fresh singleton and overlapping aliases", async () => {
+	const reads: string[][] = [];
+	let now = Date.parse(NEW);
+	const resource = createCardAnnotationsResource(
+		(path) => {
+			const ids = requestedIds(path);
+			reads.push(ids);
+			return Promise.resolve(annotationData(ids));
+		},
+		() => now,
+	);
+	await resource.loadBatch("colony", [left.id], now);
+	await resource.loadBatch("colony", [left.id], now);
+	await resource.loadBatch("colony", [left.id, right.id], now);
+	expect(reads).toEqual([[left.id], [right.id]]);
+	expect(
+		annotationStatus("colony", [[left.id, right.id]], resource.store.getState().entries).kind,
+	).toBe("ready");
+	expect(
+		snapshot(resource.store.getState().entries[batchKey([left.id, right.id])]!)?.cards.map(
+			({ id }) => id,
+		),
+	).toEqual([left.id, right.id]);
+	now += CACHE_LIFETIME;
+	await resource.loadBatch("colony", [left.id], 0);
+	expect(reads).toEqual([[left.id], [right.id], [left.id]]);
+});
+
+// eslint-disable-next-line max-statements -- Keep duplicate and overlapping consumers behind the same read gate.
+test("concurrent annotation demand reads only uncovered IDs", async () => {
+	const delayed = Promise.withResolvers<CardAnnotations>();
+	const reads: string[][] = [];
+	const now = Date.parse(NEW);
+	const resource = createCardAnnotationsResource(
+		(path) => {
+			const ids = requestedIds(path);
+			reads.push(ids);
+			if (ids.includes(left.id)) {
+				return delayed.promise;
+			}
+			return Promise.resolve(annotationData(ids));
+		},
+		() => now,
+	);
+	const first = resource.loadBatch("colony", [left.id], now);
+	const duplicate = resource.loadBatch("colony", [left.id], now);
+	const overlap = resource.loadBatch("colony", [left.id, right.id], now);
+	expect(reads).toEqual([[left.id], [right.id]]);
+	expect(
+		annotationStatus("colony", [[left.id, right.id]], resource.store.getState().entries).kind,
+	).toBe("loading");
+	delayed.resolve(annotationData([left.id]));
+	await Promise.all([first, duplicate, overlap]);
+	expect(reads).toEqual([[left.id], [right.id]]);
+	expect(
+		annotationStatus("colony", [[left.id], [left.id, right.id]], resource.store.getState().entries)
+			.kind,
+	).toBe("ready");
+});
+
+// eslint-disable-next-line max-statements -- Coordinate both read generations without timers or global clock changes.
+test("newer annotation cutoffs wait for an older read and coalesce their refresh", async () => {
+	const old = Promise.withResolvers<CardAnnotations>();
+	const fresh = Promise.withResolvers<CardAnnotations>();
+	const entered = Promise.withResolvers<void>();
+	const reads: number[] = [];
+	let now = Date.parse(OLD);
+	const resource = createCardAnnotationsResource(
+		(path) => {
+			reads.push(Number(new URL(path, "http://hive").searchParams.get("refreshAfter")));
+			if (reads.length === 1) {
+				return old.promise;
+			}
+			entered.resolve();
+			return fresh.promise;
+		},
+		() => now,
+	);
+	const initial = resource.loadBatch("colony", [left.id], now);
+	now = Date.parse(NEW);
+	const newer = resource.loadBatch("colony", [left.id], now);
+	const duplicate = resource.loadBatch("colony", [left.id], now);
+	expect(reads).toEqual([Date.parse(OLD)]);
+	old.resolve(annotationData([left.id], OLD));
+	await entered.promise;
+	expect(reads).toEqual([Date.parse(OLD), Date.parse(NEW)]);
+	fresh.resolve(annotationData([left.id]));
+	await Promise.all([initial, newer, duplicate]);
+	expect(reads).toHaveLength(SMALL_FAMILY);
+	expect(snapshot(resource.store.getState().entries[batchKey([left.id])]!)?.fetchedAt).toBe(NEW);
+});
+
+// eslint-disable-next-line max-statements -- Verify retained icons, shared failure and explicit recovery together.
+test("failed overlapping annotation demand retains icons and batch failure until retried", async () => {
+	const failed = Promise.withResolvers<CardAnnotations>();
+	let now = Date.parse(OLD);
+	let fail = false;
+	const resource = createCardAnnotationsResource(
+		(path) => {
+			const ids = requestedIds(path);
+			if (fail) {
+				return failed.promise;
+			}
+			return Promise.resolve(annotationData(ids));
+		},
+		() => now,
+	);
+	await resource.loadBatch("colony", [left.id, right.id], now);
+	now = Date.parse(NEW);
+	fail = true;
+	const refresh = resource.loadBatch("colony", [left.id, right.id], now);
+	const overlap = resource.loadBatch("colony", [left.id], now);
+	expect(
+		annotateCards([left], "colony", resource.store.getState().entries)[0]?.beeAssignments,
+	).toHaveLength(1);
+	failed.reject(new Error("Icons unavailable"));
+	await Promise.all([refresh, overlap]);
+	const { entries } = resource.store.getState();
+	expect(annotationStatus("colony", [[left.id], [left.id, right.id]], entries).kind).toBe("failed");
+	expect(snapshot(entries[batchKey([left.id, right.id])]!)?.cards).toHaveLength(SMALL_FAMILY);
+	expect(annotateCards([left], "colony", entries)[0]?.beeAssignments).toHaveLength(1);
+	fail = false;
+	await resource.loadBatch("colony", [left.id, right.id], now);
+	expect(
+		annotationStatus("colony", [[left.id, right.id]], resource.store.getState().entries).kind,
+	).toBe("ready");
+});
+
+test.each(["cold", "icons", "empty"])(
+	"duplicate failed annotation demand publishes failure after %s state and recovers",
+	// eslint-disable-next-line max-statements -- Verify shared rejection, retained data and retry through one read gate.
+	async (seed) => {
+		const rejected = Promise.withResolvers<CardAnnotations>();
+		let now = Date.parse(OLD);
+		let fail = false;
+		let reads = 0;
+		const resource = createCardAnnotationsResource(
+			() => {
+				reads++;
+				if (fail) {
+					return rejected.promise;
+				}
+				let ids: string[] = [];
+				if (seed !== "empty") {
+					ids = [left.id];
+				}
+				return Promise.resolve(annotationData(ids));
+			},
+			() => now,
+		);
+		if (seed !== "cold") {
+			await resource.loadBatch("colony", [left.id], now);
+		}
+		const before = reads;
+		now = Date.parse(NEW);
+		fail = true;
+		const first = resource.loadBatch("colony", [left.id], now);
+		const duplicate = resource.loadBatch("colony", [left.id], now);
+		rejected.reject(new Error("Shared icons unavailable"));
+		await Promise.all([first, duplicate]);
+		expect(reads).toBe(before + 1);
+		const { entries } = resource.store.getState();
+		expect(annotationStatus("colony", [[left.id]], entries).kind).toBe("failed");
+		const retained = snapshot(entries[batchKey([left.id])]!);
+		if (seed === "cold") {
+			expect(retained).toBeNull();
+		} else {
+			expect(retained?.cards.length).toBe(Number(seed === "icons"));
+		}
+		const failureReads = reads;
+		fail = false;
+		await resource.loadBatch("colony", [left.id], 0);
+		expect(reads).toBe(failureReads + 1);
+		expect(annotationStatus("colony", [[left.id]], resource.store.getState().entries).kind).toBe(
+			"ready",
+		);
+	},
+);
+
+// eslint-disable-next-line max-statements -- A cached completion must not clear a newer refresh notice.
+test("cached annotation demand preserves a newer refresh notice", async () => {
+	const delayed = Promise.withResolvers<CardAnnotations>();
+	let now = Date.parse(OLD);
+	const resource = createCardAnnotationsResource(
+		() => {
+			if (now === Date.parse(OLD)) {
+				return Promise.resolve(annotationData([left.id], OLD));
+			}
+			return delayed.promise;
+		},
+		() => now,
+	);
+	await resource.loadBatch("colony", [left.id], now);
+	const cached = resource.loadBatch("colony", [left.id], now);
+	now = Date.parse(NEW);
+	const fresh = resource.loadBatch("colony", [left.id], now);
+	await cached;
+	expect(annotationStatus("colony", [[left.id]], resource.store.getState().entries).kind).toBe(
+		"loading",
+	);
+	delayed.reject(new Error("Icons unavailable"));
+	await fresh;
+	expect(annotationStatus("colony", [[left.id]], resource.store.getState().entries).kind).toBe(
+		"failed",
+	);
+});
+
+test("annotation demand caches absent IDs without dropping other cards", async () => {
+	const reads: string[][] = [];
+	const now = Date.parse(NEW);
+	const resource = createCardAnnotationsResource(
+		(path) => {
+			const ids = requestedIds(path);
+			reads.push(ids);
+			return Promise.resolve(annotationData(ids.filter((id) => id !== "absent")));
+		},
+		() => now,
+	);
+	await resource.loadBatch("colony", [left.id, "absent"], now);
+	await resource.loadBatch("colony", [left.id, "absent"], now);
+	expect(reads).toEqual([["absent", left.id]]);
+	expect(
+		snapshot(resource.store.getState().entries[batchKey([left.id, "absent"])]!)?.cards.map(
+			({ id }) => id,
+		),
+	).toEqual([left.id]);
+});
 
 test("an older board response cannot republish a family after a newer member refresh", async () => {
 	const old = Promise.withResolvers<Hierarchy>();
@@ -363,6 +594,23 @@ async function assignmentFixture() {
 
 function batchKey(ids: string[]): string {
 	return annotationKey("colony", ids);
+}
+
+function requestedIds(path: string): string[] {
+	return z
+		.array(z.string())
+		.parse(JSON.parse(new URL(path, "http://hive").searchParams.get("ids")!));
+}
+
+function annotationData(ids: string[], fetchedAt = NEW): CardAnnotations {
+	return {
+		cards: ids.map((id) => ({
+			...node(id),
+			beeAssignments: [{ id: "request", kind: "worker", stdout: null }],
+			sources: { merges: 1, assignments: 1 },
+		})),
+		fetchedAt,
+	};
 }
 
 function key(ids: string[]): string {
