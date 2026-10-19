@@ -3,6 +3,7 @@
  * lifecycle.
  */
 import { SPAWN_REQUEST_LABELS, readSpawnRequest, readSpawnRequestHost } from "@hive/shared";
+import type { WorkReviewClock, WorkReviewCommands } from "./work-review-runtime.ts";
 import { activateNurse, reconcileNurse } from "./nurse.ts";
 import { assertRequestAuthority, claimRequest, newRequest, reconcileRequests } from "./request.ts";
 import { compareCandidates, hasCapacity, hasContention } from "./scheduler.ts";
@@ -25,6 +26,7 @@ import { match } from "ts-pattern";
 // eslint-disable-next-line import/max-dependencies -- Dispatch ranks admitted candidates after preparation.
 import { pageRanks } from "./ranking.ts";
 import { reconcileAssessments } from "./postrun.ts";
+import { reconcileWorkReviews } from "./work-review-runtime.ts";
 // eslint-disable-next-line import/max-dependencies -- Dispatch completes the verified execution handoff.
 import { resumeExecution } from "./processes.ts";
 import { trackerScope } from "./tracker.ts";
@@ -38,6 +40,10 @@ export interface DispatchInput extends TrackerContext {
 	store: Store;
 	/** Public nurse-workflow commands used during reconciliation. */
 	nurse: NurseCommands;
+	/** Public ordinary workflow and recovery commands. */
+	workReview: WorkReviewCommands;
+	/** In-memory hourly gate; native control retains the authoritative deadlines. */
+	workReviewClock: WorkReviewClock;
 }
 
 interface Candidate extends Extract<Preparation, { kind: "prepared" }> {
@@ -66,6 +72,7 @@ export async function dispatch(
 			const candidates = await prepareCandidates(input, config, revisionId, evidence);
 			await reconcileAssessments({ ...input, config });
 			await reconcileNurse(nurseRuntime);
+			await reconcileWorkReviews({ ...nurseRuntime, actor: "sys-colony" }, input.workReviewClock);
 			await dispatchPriorityGroups(input, config, candidates, evidence);
 		},
 	);

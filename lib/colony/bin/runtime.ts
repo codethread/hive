@@ -8,6 +8,7 @@ import { match } from "ts-pattern";
 import { nurseCommands } from "../src/nurse-commands.ts";
 import { serve } from "../src/server.ts";
 import { version } from "../package.json";
+import { workReviewCommands } from "../src/work-review-commands.ts";
 import { z } from "zod";
 
 const USER_ARGUMENTS_START = 2;
@@ -52,10 +53,8 @@ try {
 			console.log(JSON.stringify(await launch({ ...endpoint, beads, id, state })));
 		})
 		.with({ kind: "serve" }, ({ socket, state }) =>
-			serve(
-				{ socket, state },
-				beads,
-				nurseCommands({
+			serve({ socket, state }, beads, {
+				nurse: nurseCommands({
 					execute: (argv, cwd) => execute(argv, cwd, process.env),
 					writeInput: async (token, input) => {
 						const path = join(state, "nurse", `${token}.json`);
@@ -63,7 +62,18 @@ try {
 						return path;
 					},
 				}),
-			),
+				workReview: workReviewCommands(
+					{
+						execute: (argv, cwd) => execute(argv, cwd, process.env),
+						writeInput: async (token, input) => {
+							const path = join(state, "work-review", `${token}.json`);
+							await Bun.write(path, input);
+							return path;
+						},
+					},
+					state,
+				),
+			}),
 		)
 		.exhaustive();
 } catch (error) {

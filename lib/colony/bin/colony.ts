@@ -2,8 +2,20 @@
 /* eslint-disable max-dependencies -- CLI composes daemon commands and independent read-only inspection boundaries. */
 import { CommandError, createNativeBeads } from "@hive/beads";
 import type { ConfigOptions, ServerOptions } from "../src/cli.ts";
+import {
+	authorizeWorkReview,
+	readWorkReviewControl,
+	recoverWorkReview,
+} from "../src/work-review-runtime.ts";
 import { colonyEntry, entryCommand } from "../src/executables.ts";
-import { execute, policyChangeSchema, resolveRepository } from "@hive/shared";
+import {
+	execute,
+	policyChangeSchema,
+	resolveRepository,
+	workReviewRecordSchema,
+	workReviewRecoverSchema,
+} from "@hive/shared";
+import { preflightWorkReview, recordWorkReview } from "../src/work-review.ts";
 import {
 	prepareSupervisedServer,
 	readDaemonHandoff,
@@ -18,8 +30,11 @@ import { requestLazyServer, restartServer } from "../src/daemon-lifecycle.ts";
 import type { ConfigCommand } from "@hive/shared";
 import type { ServerTarget } from "../src/client.ts";
 import { explainRequest } from "../src/explain.ts";
+// eslint-disable-next-line import/no-nodejs-modules -- Bind public review commands to this owning host.
+import { hostname } from "node:os";
 import { initRepository } from "../src/producer.ts";
 import { launchedResultSchema } from "../src/output.ts";
+import { loadBeesConfig } from "../src/config.ts";
 import { match } from "ts-pattern";
 import { observeProcess } from "../src/processes.ts";
 import { readAssessments } from "../src/assessments.ts";
@@ -27,6 +42,7 @@ import { readHistory } from "../src/history.ts";
 import { requestServer } from "../src/client.ts";
 import { resolveServerTarget } from "../src/server-target.ts";
 import { runCli } from "../src/cli.ts";
+import { workReviewCommands } from "../src/work-review-commands.ts";
 
 const USER_ARGUMENTS_START = 2;
 const POLL_INTERVAL_MS = 50;
@@ -47,6 +63,44 @@ const lifecycle = {
 	pause: () => Bun.sleep(POLL_INTERVAL_MS),
 };
 process.exitCode = await runCli(Bun.argv.slice(USER_ARGUMENTS_START), {
+	// eslint-disable-next-line max-statements -- Keep this native operation and its evidence in order.
+	workReview: async (options) => {
+		const repository = await resolveRepository(options.repo, options.beadsDb);
+		const { config } = await loadBeesConfig(repository.root);
+		const reviewRuntime = {
+			beads,
+			repository,
+			config,
+			actor: options.actor,
+			host: hostname(),
+			now: Date.now,
+			state: target(options).state,
+			workReview: workReviewCommands(
+				{
+					execute: (argv, cwd) => execute(argv, cwd, process.env),
+					writeInput: () => {
+						throw new Error("This operation does not submit a review workflow");
+					},
+				},
+				target(options).state,
+			),
+		};
+		await reviewRuntime.workReview.assertTracker(repository);
+		if (options.operation === "preflight") {
+			return preflightWorkReview(reviewRuntime, options.branch);
+		}
+		if (options.operation === "inspect") {
+			const { control } = await readWorkReviewControl(reviewRuntime);
+			return { kind: "work_review_inspection", control };
+		}
+		const input: unknown = await Bun.file(options.inputFile).json();
+		if (options.operation === "recover") {
+			return recoverWorkReview(reviewRuntime, workReviewRecoverSchema.parse(input));
+		}
+		const decision = workReviewRecordSchema.parse(input);
+		const candidate = await authorizeWorkReview(reviewRuntime, decision);
+		return recordWorkReview(reviewRuntime, decision, candidate);
+	},
 	add: (options) =>
 		withDaemonLock(target(options), async () =>
 			requestLazyServer(

@@ -40,6 +40,7 @@ export function updatePolicy(config: BeesConfig, change: PolicyChange): BeesConf
 export function policyView({ config, revisionId }: ActivePolicy): PolicyView {
 	return {
 		autoNurse: config.auto_nurse,
+		autoWorkReviews: config.auto_work_reviews,
 		formulas: Object.keys(config.formulas).toSorted(),
 		inactivityDrone: config.inactivity_drone,
 		postRunDrone: config.post_run_drone,

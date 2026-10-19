@@ -63,7 +63,7 @@ The Shared [spawn-request model](../lib/shared/src/spawn-request.ts) owns native
 
 Colony owns [configuration discovery and precedence](../lib/colony/src/config.ts); Shared owns shape and effective-configuration validation. Canonical configuration supplies defaults for new recipes and runtime policy.
 
-Bee captures role and execution direction separately. Colony composes the [delivery protocol](../lib/colony/src/response-protocol.ts) and assignment instructions at launch; Shared supplies the producing-task pointer used by Colony and Busy Bee. [Response delivery](./agents/responses.md) owns the distinction between authored answers, progress and machine outcomes. Private drones retain separate protocols.
+Bee captures role and execution direction separately. Colony composes the [delivery protocol](../lib/colony/src/response-protocol.ts) and assignment instructions at launch; Shared supplies the producing-task pointer used by Colony and Busy Bee. [Response delivery](./agents/responses.md) owns the distinction between authored answers, progress and machine outcomes. Private inactivity reviews and post-run assessments retain separate protocols.
 
 Bee inspection and closure use only the selected Beads endpoint. Closure records intent for an awake Colony to reconcile; it does not directly signal a process.
 
@@ -88,6 +88,12 @@ Colony's [client](../lib/colony/src/client.ts) uses the [Shared protocol](../lib
 Repository discovery, tracker selection and execution directory are independent. The canonical root identifies repository-wide configuration and registration. The selected absolute Beads path identifies tracker authority. The recipe's optional execution directory controls the harness working directory and capacity bucket. Choosing one never implicitly replaces another.
 
 The supervisor owns its process group and local artifacts; it does not reconcile Beads or write the daemon database. The harness inherits that group; processes that detach or create separate groups are outside managed cleanup. Colony reserves an attempt before starting the supervisor and persists the verified supervisor handoff before granting execution permission. Recovery uses the same ownership checks before adoption, cleanup or replacement. Detailed commands, defaults and supported limitations are in the [Bee and Colony guide](../lib/colony/README.md).
+
+## Automatic work reviews
+
+Colony's [work-review reconciler](../lib/colony/src/work-review-runtime.ts) owns independent hourly preflight and ordinary Bee submission for the [blocked](../.workflows/blocked-review/workflow.ts) and [in-progress](../.workflows/in-progress-review/workflow.ts) workflows. Those definitions own diagnosis, permitted actions and typed outcomes; Busy Bee retains progression and completion. The generic drone role adds no recovery authority.
+
+A dedicated ordinary parent holds native control bound to the repository, tracker, host and Colony state directory. Conditional writes retain each branch's due time, frozen candidates, publication effects and recovery allowances. Native task receipts supply [stable-blocker freshness](beads-labels.md#stable-blocker-reviews). This is coordination within the selected database, not exclusion across independently synchronized trackers. The [operator guide](../lib/colony/README.md#automatic-work-reviews) owns activation and inspection; public Colony commands validate current evidence before recording a diagnosis or invoking Bee retry.
 
 ## Post-run advice
 

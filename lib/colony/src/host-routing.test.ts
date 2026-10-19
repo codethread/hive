@@ -1,6 +1,11 @@
 /* eslint-disable import/max-dependencies -- Public routing uses existing dispatch, label and native fixture seams. */
 import { afterAll, expect, test } from "bun:test";
-import { createSpawn, createTask, memoryTracker } from "./tracker.test-support.ts";
+import {
+	createSpawn,
+	createTask,
+	memoryTracker,
+	unusedWorkReviewCommands,
+} from "./tracker.test-support.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Host authority and disposable directory.
 import { hostname, tmpdir } from "node:os";
 // eslint-disable-next-line import/no-nodejs-modules -- Prepare and remove the private store outside behavior timing.
@@ -176,6 +181,8 @@ function route(fixture: Fixture): Promise<void> {
 				...fixture.tracker,
 				state,
 				store: { ...store, history },
+				workReview: unusedWorkReviewCommands(),
+				workReviewClock: { nextDue: 0 },
 				nurse: {
 					start: () => Promise.reject(new Error("Unexpected nurse submission")),
 					attach: () => Promise.reject(new Error("Unexpected nurse attachment")),

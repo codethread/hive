@@ -24,6 +24,7 @@ import type { ActivePolicy } from "./policy.ts";
 import type { BeadsService } from "@hive/beads";
 import type { ColonyActivity } from "./colony.ts";
 import type { NurseCommands } from "./nurse.ts";
+import type { WorkReviewCommands } from "./work-review-runtime.ts";
 import { claimServer } from "./server-ownership.ts";
 import { createColony } from "./colony.ts";
 import { match } from "ts-pattern";
@@ -54,7 +55,7 @@ interface ServerOptions {
 export async function serve(
 	options: ServerOptions,
 	beads: BeadsService,
-	nurse: NurseCommands,
+	{ nurse, workReview }: { nurse: NurseCommands; workReview: WorkReviewCommands },
 ): Promise<void> {
 	if (!isAbsolute(options.socket) || !isAbsolute(options.state)) {
 		throw new Error("Colony requires absolute socket and state paths");
@@ -69,7 +70,18 @@ export async function serve(
 		registration: RunningColony["registration"],
 		activity: ColonyActivity,
 	) => {
-		const actor = createColony({ beads, repository, state: options.state, store, nurse }, activity);
+		const actor = createColony(
+			{
+				beads,
+				repository,
+				state: options.state,
+				store,
+				nurse,
+				workReview,
+				workReviewClock: { nextDue: 0 },
+			},
+			activity,
+		);
 		const policy = match(activity)
 			.with({ state: "awake" }, ({ config, revisionId }) => ({ config, revisionId }))
 			/* eslint-disable-next-line unicorn/no-null --

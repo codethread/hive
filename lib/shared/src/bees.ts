@@ -74,6 +74,12 @@ export const policyChangeSchema = z.discriminatedUnion("kind", [
 	}),
 ]);
 export const beesConfigSchema = z.strictObject({
+	/** Hourly ordinary work reviews; null disables new reviews and recovery. */
+	auto_work_reviews: z
+		.strictObject({ kind: z.string().min(NONEMPTY), parent: z.string().min(NONEMPTY) })
+		.nullable()
+		// eslint-disable-next-line unicorn/no-null -- Null disables automatic work reviews.
+		.default(null),
 	/** Automatic audit kind and ongoing native health parent; null disables new batches. */
 	auto_nurse: z
 		.strictObject({ kind: z.string().min(NONEMPTY), parent: z.string().min(NONEMPTY) })
@@ -117,6 +123,15 @@ export function parseBeesConfig(text: string): BeesConfig {
 /** Validate the complete effective configuration after kind sources have been combined. */
 // eslint-disable-next-line max-statements -- Validate effective kind references and formula syntax together.
 export function validateBeesConfig(config: BeesConfig): void {
+	if (config.auto_work_reviews !== null) {
+		const reviewer = config.kinds[config.auto_work_reviews.kind];
+		if (!reviewer || !config.formulas[reviewer.harness]) {
+			throw new Error("Automatic work reviews require a configured kind and formula");
+		}
+		if (config.auto_nurse?.parent === config.auto_work_reviews.parent) {
+			throw new Error("Automatic work reviews require a dedicated control parent");
+		}
+	}
 	if (config.auto_nurse !== null) {
 		const nurse = config.kinds[config.auto_nurse.kind];
 		if (!nurse || !config.formulas[nurse.harness]) {

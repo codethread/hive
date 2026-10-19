@@ -155,6 +155,7 @@ async function invoke(command: string, args: string[]) {
 		status: unexpected,
 		stop: unexpected,
 		wake: unexpected,
+		workReview: unexpected,
 		stdout: (text: string) => {
 			stdout += text;
 		},
