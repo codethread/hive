@@ -26,6 +26,7 @@ See [repository setup](./lib/beeswax/README.md#configure-a-repository) for detai
 | [Bee and Colony](./lib/colony/README.md) | Submit agent requests through Beads; schedule and supervise their execution |
 | [Honeycomb](./lib/honeycomb/README.md) | Manage Git worktrees and navigate them from the shell |
 | [Beeswax](./lib/beeswax/README.md) | Set up repository integrations and publish tracker changes |
+| [Scent](./lib/scent/README.md) | Supply native harness identity through Beeswax-managed integrations |
 | [Waggle](./lib/waggle/README.md) | Run repository-owned semantic classifiers |
 | [Busy Bee](./lib/busybee/README.md) | Run XState workflows as sequential, nested or concurrent Beads tasks |
 | [qlock](./lib/qlock/README.md) | Serialize commands with ticketed local queues |

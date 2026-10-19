@@ -52,6 +52,12 @@ const hiveTools = [
 		guidance: "View repository work and workflow state in a read-only web board.",
 		instructions: "hive-ui --help",
 	},
+	{
+		name: "scent",
+		everyday: false,
+		guidance: "Supply identity through Beeswax-managed harness integrations.",
+		instructions: "scent --help",
+	},
 ] as const;
 
 const tools = [

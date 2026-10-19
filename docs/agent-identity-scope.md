@@ -68,15 +68,7 @@ Native subagents remain separate from user forks. The Codex 0.160.0 source route
 
 ## Current implementation and planned bindings
 
-Colony owns the CLI and runtime in one package. Bee remains the request interface within that package:
-
-| Location | Current responsibility |
-| --- | --- |
-| `lib/colony` | Bee request interface and Colony commands, daemon hosting independent repository colonies, dispatch, claims, retries, supervision and recovery |
-| `lib/beads` | Consumed native Beads contract and injected native/in-memory adapters |
-| `lib/shared` | Shared recipes, formulas, spawn-request representation and protocol |
-| `lib/honeycomb` | Git worktree manager and canonical-root discovery |
-| `lib/scent` | Reusable identity resolver and explicit-actor prompt, native Pi 1.2.0 extension and Claude Code/Codex session and child command hooks; independent of `.hive/bees.toml` |
+The [architecture](./architecture.md#package-responsibilities-and-seams) owns package responsibilities, including the [Beeswax/Scent installation boundary](./architecture.md#beeswaxs-setup-boundary). Identity behavior remains independent of bee-kind configuration.
 
 The following bindings define the shared identity direction. Pi and primary Claude sessions bind name, actor, current session and best-effort metadata through the environment; Codex and native children use explicit attribution context. Parent attribution remains unimplemented. Current Bee names are minted at submission or supplied by the requester; execution attempts retain that name.
 
@@ -110,4 +102,4 @@ Spawn beads carry the exact labels `system`, `bee` and `agent:<kind>`, a friendl
 - `hv-3x8.14`: stable Pi composition verified with two handlers over three independent runs; final explicit-attribution decision for native Claude/Codex subagents. That probe did not establish end-to-end child tracker attribution.
 - `hv-3x8.1` and `hv-3x8.3`: database discovery and detached-launch findings. Current repository tracker setup is documented in [Beads integration](./beads-integration.md); older spike recommendations are historical evidence, not current configuration instructions.
 
-The [Scent guide](../lib/scent/README.md) covers installation for all three harnesses. The capability contract records [Codex conformance](./harness-capabilities.md#codex-scent-evidence) and the [exercised Claude paths and remaining verification](./harness-capabilities.md#claude-scent-evidence) under `hv-3x8.7.1`. Parent tracking remains outstanding. Colony recovery and process ownership are implemented and tested separately; their limitations are documented in the guide. Expanding scope requires updating this reference and the capability matrix with the reason and evidence; it does not silently turn an unverified path into a supported one.
+The [Beeswax guide](../lib/beeswax/README.md#load-onboarding-in-your-harness) owns installation for all three harnesses; the [Scent guide](../lib/scent/README.md) describes runtime behavior. The capability contract records [Codex conformance](./harness-capabilities.md#codex-scent-evidence), the [exercised Claude paths](./harness-capabilities.md#claude-scent-evidence) and [installed-delivery verification](./harness-capabilities.md#installed-scent-delivery). Parent tracking remains outstanding. Colony recovery and process ownership are implemented and tested separately; their limitations are documented in the guide. Expanding scope requires updating this reference and the capability matrix with the reason and evidence; it does not silently turn an unverified path into a supported one.

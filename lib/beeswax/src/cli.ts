@@ -450,8 +450,11 @@ export function onboardingOptions(command: Command): Command {
 		.addHelpText(
 			"after",
 			"\nOnboarding adapters are generated only in this repository. Repeat --harness to select several;\n" +
-				"use --harness none alone to remove recognized adapters. Omitted headless options retain saved choices.\n" +
-				"Includes add to prime's defaults; excludes win. See beeswax prime --help for tool names.\n" +
+				"use --harness none alone to remove recognized adapters without a Scent runtime.\n" +
+				"Omitted headless options retain saved choices. Selected harnesses load the primer,\n" +
+				"tracker alerts and Scent identity. Install matching Beeswax and Scent executables on PATH\n" +
+				"before generating adapters. Include/exclude filters change primer guidance only:\n" +
+				"includes add to prime's defaults; excludes win. See beeswax prime --help for tool names.\n" +
 				"Ambiguous onboarding stops with an agent handoff: beeswax migrate setup.\n" +
 				"Codex requires project trust and /hooks review; Pi requires project trust.\n",
 		);

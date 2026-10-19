@@ -28,13 +28,14 @@
 				]
 			},
 			{
-				"matcher": "^(startup|resume|clear|compact)$",
 				"hooks": [
 					{
 						"type": "command",
-						"command": "bun \"$CLAUDE_PROJECT_DIR/lib/scent/src/bin/claude.ts\""
+						"command": "scent system hook --harness claude",
+						"statusMessage": "Beeswax identity v1"
 					}
-				]
+				],
+				"matcher": "^(startup|resume|clear|compact)$"
 			}
 		],
 		"UserPromptSubmit": [
@@ -64,7 +65,8 @@
 				"hooks": [
 					{
 						"type": "command",
-						"command": "bun \"$CLAUDE_PROJECT_DIR/lib/scent/src/bin/claude.ts\""
+						"command": "scent system hook --harness claude",
+						"statusMessage": "Beeswax identity v1"
 					}
 				]
 			}

@@ -2,17 +2,19 @@
 	"name": "@hive/scent",
 	"version": "0.7.1",
 	"private": true,
-	"type": "module",
-	"exports": {
-		".": "./src/identity.ts",
-		"./pi": "./src/bin/pi.ts"
+	"bin": {
+		"scent": "./src/bin/scent.ts"
 	},
+	"type": "module",
 	"scripts": {
-		"build:plugin": "bun build ./src/bin/codex.ts --target=bun --minify --outfile=../../plugins/scent/dist/codex.js",
+		"build": "bun build ./src/bin/scent.ts --compile --target=${HIVE_BUILD_TARGET:-bun} --outfile ./dist/scent",
+		"install:bin": "beeswax artifacts install scent",
 		"typecheck": "tsc --noEmit",
 		"test": "bun test ./tests"
 	},
 	"dependencies": {
+		"@hive/shared": "workspace:*",
+		"commander": "^14.0.3",
 		"unique-names-generator": "4.7.1",
 		"zod": "^4.6.5"
 	},

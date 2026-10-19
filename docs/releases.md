@@ -1,6 +1,6 @@
 # Install and release Hive
 
-Hive releases source. Its Homebrew formula builds ten executables on the host with Bun: `beeswax`, `honeycomb`, `bee`, `colony`, `colony-runtime`, `colony-worker`, `colony-watchdog`, `busybee`, `qlock` and `hive-ui`. Waggle remains a development tool and is excluded from installation. Every workspace package, including Waggle, shares the suite version; each installed executable reports it with `--version`.
+Hive releases source. Its Homebrew formula builds the installed executables on the host with Bun; the [post-tag formula stage](#land-the-homebrew-formula) aligns their inventory with the released source. Waggle remains a development tool and is excluded from installation. Every workspace package, including Waggle and Scent, shares the suite version; each installed executable reports it with `--version`.
 
 ## Homebrew installation
 
@@ -16,13 +16,13 @@ Bun is a build-only dependency. Git, Beads (`br`) and Beads Viewer (`bv`) are re
 
 Machine installation is separate from project setup. Each project supplies its Beads database, Bee configuration, workflow catalogue and workflow module dependencies. Busy Bee embeds Bun but loads trusted workflow modules from the selected checkout. Install that checkout's dependencies before running its workflows. Hive's clone setup is in [Contributing](../CONTRIBUTING.md#set-up-a-source-checkout).
 
-After upgrading, verify `beeswax --version` and run `beeswax update --yes` in each adopting project to refresh its saved contract and onboarding. `beeswax sync` reproduces the existing lock; it does not adopt the new version.
+After upgrading the full suite, read the affected tools' changelogs, verify matching `beeswax --version` and `scent --version`, and run `beeswax update --yes` in each adopting project to refresh its saved contract and onboarding. Review and commit the generated changes, then follow [harness loading and trust](../lib/beeswax/README.md#load-onboarding-in-your-harness). `beeswax sync` reproduces the existing lock; it does not adopt the new version.
 
 ## Read tool changelogs
 
-Run `<tool> changelog` for recorded improvements, breaking changes and adoption actions. This works offline without a source checkout, tracker, daemon or project setup. The command is available on Beeswax, Honeycomb, Busy Bee, Bee, Colony, qlock, Hive UI and the development-only Waggle. Bee and Colony have separate histories; Colony's history also covers its companion executables.
+Run `<tool> changelog` for recorded improvements, breaking changes and adoption actions. This works offline without a source checkout, tracker, daemon or project setup. The command is available on Beeswax, Scent, Honeycomb, Busy Bee, Bee, Colony, qlock, Hive UI and the development-only Waggle. Bee and Colony have separate histories; Colony's history also covers its companion executables.
 
-The default selects the latest recorded release at or below the executable's version. Use `<tool> changelog --help` for exclusive `--since` filtering, exact `--release` selection, pagination and JSON output. Recorded coverage begins at 0.6.0 with selected highlights, not an exhaustive backfill.
+The default selects the latest recorded release at or below the executable's version. Use `<tool> changelog --help` for exclusive `--since` filtering, exact `--release` selection, pagination and JSON output. Existing histories begin at 0.6.0 with selected highlights, not an exhaustive backfill; Scent's history starts with its first installed-runtime release.
 
 Beeswax's update receipt includes history commands only for known tool names found on `PATH`, including Waggle when present. It assumes upgraded Hive tools; name lookup does not check their versions or supported subcommands. The previous project version supplies the exclusive `--since` baseline; a same-version update still points to the current history.
 
@@ -30,7 +30,7 @@ Adoption actions are labelled **required** or **optional**. Read them against th
 
 ## Author tool changelog records
 
-Declare each consumer-visible tool change in a top-level `changelog v1` fenced block in the commit body. Each block starts with a full Conventional Commit header scoped to exactly one public tool: `beeswax`, `honeycomb`, `busybee`, `bee`, `colony`, `qlock`, `hive-ui` or `waggle`. Follow the header with a blank line and ordinary Markdown describing the change and any **required** or **optional** adoption actions. Use a `!` header or `BREAKING CHANGE:` footer inside the block for breaking changes. `v1` versions this record format, independently of suite releases and workflow compatibility versions.
+Declare each consumer-visible tool change in a top-level `changelog v1` fenced block in the commit body. Each block starts with a full Conventional Commit header scoped to exactly one public tool: `beeswax`, `scent`, `honeycomb`, `busybee`, `bee`, `colony`, `qlock`, `hive-ui` or `waggle`. Follow the header with a blank line and ordinary Markdown describing the change and any **required** or **optional** adoption actions. Use a `!` header or `BREAKING CHANGE:` footer inside the block for breaking changes. `v1` versions this record format, independently of suite releases and workflow compatibility versions.
 
 Repeat blocks for separate changes or tools, including tools affected only through shared code. Tilde fences allow triple-backtick examples in the body; indented code is also preserved:
 
@@ -102,8 +102,8 @@ Upload no assets. GitHub supplies source downloads for the tag. Read back the re
 
 After the tag exists, create or resume a nested Honeycomb worktree from the same repository's default branch, anchored at `canonicalRoot`. Update `Formula/hive.rb` with the tag's source URL, `https://github.com/codethread/hive/archive/refs/tags/vVERSION.tar.gz`, and the SHA-256 of the downloaded tarball. The formula commit follows the source tag because that checksum depends on the tagged source.
 
-The formula declares `oven-sh/bun/bun` as a build dependency, runs `bun install --frozen-lockfile --ignore-scripts`, then invokes the existing build scripts for Beeswax, Honeycomb, Colony, Busy Bee, qlock and Hive UI. Those six scripts compile the ten executables for the host; the formula installs their outputs together. It does not run repository setup or start services.
+The formula declares `oven-sh/bun/bun` as a build dependency, runs `bun install --frozen-lockfile --ignore-scripts`, then invokes the package build scripts for installed tools, including Scent. Keep build targets, installed outputs and executable-version checks aligned with the released source; Colony produces several executables, while Waggle is development-only. Add newly released executables in this post-tag formula change. The formula installs their outputs together without running repository setup or starting services.
 
-Check Ruby syntax, Homebrew style and audit, then perform an actual installation and `brew test` against the published source URL. Verify all ten executable versions, required dependencies and the absence of tracker or service creation. Record the tested host and dependency versions; use the tools' `--help` for invocation details.
+Check Ruby syntax, Homebrew style and audit, then perform an actual installation and `brew test` against the published source URL. Verify every installed executable's version, required dependencies and the absence of tracker or service creation. Record the tested host and dependency versions; use the tools' `--help` for invocation details.
 
 Land the formula change through ordinary Land beneath the Release run with `completedTasks: []`, retaining the original source tag. Verify the integrated formula commit and the fully qualified install command above. Record the source commit, tag, release URL, source checksum, formula commit, installation/test results and cleanup on the Release run. Once it reports `done`, follow the run brief's caller completion instructions. Leave an unresolved operation open with its blocker and next action.

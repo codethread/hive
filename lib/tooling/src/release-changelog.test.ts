@@ -60,6 +60,13 @@ test("every public tool gets an explicit empty release when the range has no dec
 	        "version": "0.7.0",
 	      },
 	    },
+	    {
+	      "file": "lib/scent/changelog.json",
+	      "release": {
+	        "changes": [],
+	        "version": "0.7.0",
+	      },
+	    },
 	  ]
 	`);
 });

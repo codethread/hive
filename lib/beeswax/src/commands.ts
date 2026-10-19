@@ -275,7 +275,12 @@ export function addProjectCommands(
 			emit({ ok: true, kind: "project_locked", lockfile });
 		});
 	for (const { name, description } of [
-		{ name: "sync", description: "Reproduce the committed Beeswax project contract" },
+		{
+			name: "sync",
+			description:
+				"Reproduce the committed Beeswax project contract; selected harnesses require " +
+				"matching Beeswax and Scent executables on PATH",
+		},
 		{ name: "update", description: "Explicitly update the Beeswax project contract" },
 	]) {
 		const command = program.command(name);

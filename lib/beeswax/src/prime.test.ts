@@ -3,7 +3,16 @@ import { expect, test } from "bun:test";
 import { renderPrime, updateChangelogs } from "./prime.ts";
 import { BeeswaxError } from "./errors.ts";
 
-const homebrewTools = ["honeycomb", "busybee", "bee", "qlock", "colony", "beeswax", "hive-ui"];
+const homebrewTools = [
+	"honeycomb",
+	"busybee",
+	"bee",
+	"qlock",
+	"colony",
+	"beeswax",
+	"hive-ui",
+	"scent",
+];
 const developmentTools = [
 	"honeycomb",
 	"busybee",
@@ -13,6 +22,7 @@ const developmentTools = [
 	"beeswax",
 	"waggle",
 	"hive-ui",
+	"scent",
 ];
 
 test("default onboarding contains only everyday tools", () => {

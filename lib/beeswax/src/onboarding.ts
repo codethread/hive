@@ -3,6 +3,7 @@ import type { WorkspaceIO } from "./services.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Generated adapters stay inside the supplied checkout.
 import { join } from "node:path";
 import { renderPrime } from "./prime.ts";
+import { version } from "../package.json";
 import { z } from "zod";
 
 const marker = "Beeswax onboarding v1";
@@ -14,6 +15,7 @@ const targets = {
 	claude: ".claude/settings.json",
 	codex: ".codex/hooks.json",
 	pi: ".pi/extensions/beeswax.js",
+	identity: ".pi/extensions/scent.js",
 } as const;
 const handlerSchema = z.record(z.string(), z.unknown());
 const groupSchema = z.looseObject({ hooks: z.array(handlerSchema) });
@@ -49,24 +51,30 @@ export async function applyOnboarding(
 	];
 	if (config) {
 		renderPrime(config);
+		await requireIdentityRuntime(root, io);
 	}
 	const planned = await Promise.all(
 		// eslint-disable-next-line max-statements -- Plan each adapter before writing any files.
 		Object.entries(targets).map(async ([harness, target]) => {
 			const path = join(root, target);
 			const current = await io.read(path);
-			const selected = config?.harnesses.some((name) => name === harness) ?? false;
-			if (
-				!selected &&
-				!/Beeswax (?:onboarding|tracker alerts)|beeswax:.*onboarding|beeswax (?:prime|(?:system )?harness-alert)/u.test(
+			let nativeHarness = harness;
+			if (harness === "identity") {
+				nativeHarness = "pi";
+			}
+			const selected = config?.harnesses.some((name) => name === nativeHarness) ?? false;
+			const hasOwned =
+				/Beeswax (?:onboarding|tracker alerts|identity)|beeswax:.*(?:onboarding|identity)/u.test(
 					current,
-				)
-			) {
+				) || /beeswax (?:prime|(?:system )?harness-alert)|scent system hook/u.test(current);
+			if (!selected && !hasOwned) {
 				return;
 			}
 			let replace: typeof replacePi = replaceHook;
 			if (harness === "pi") {
 				replace = replacePi;
+			} else if (harness === "identity") {
+				replace = replacePiIdentity;
 			}
 			const contents = replace({ path, current, selected }, flags);
 			if (contents === current) {
@@ -89,6 +97,21 @@ export async function applyOnboarding(
 }
 
 // --- Private functions ---
+
+async function requireIdentityRuntime(
+	root: string,
+	io: Pick<WorkspaceIO, "command">,
+): Promise<void> {
+	const observed = await io.command(["scent", "--version"], root);
+	const installed = observed.trim();
+	if (installed !== version) {
+		throw new BeeswaxError(
+			"identity_runtime_mismatch",
+			"Install the matching Scent executable before configuring harnesses.",
+			{ context: { expected: version, installed, command: "scent --version" } },
+		);
+	}
+}
 
 // eslint-disable-next-line max-statements -- Keep recognition and the shared-settings edit together.
 function replaceHook({ current, selected, path }: Adapter, flags: string[]): string {
@@ -147,6 +170,7 @@ function replaceHook({ current, selected, path }: Adapter, flags: string[]): str
 		settings.hooks = { ...settings.hooks, SessionStart: remaining };
 	}
 	replaceAlertHooks(settings, { current, selected, path });
+	replaceIdentityHooks(settings, { current, selected, path });
 	if (Bun.deepEquals(settings, JSON.parse(current || "{}"))) {
 		return current;
 	}
@@ -209,6 +233,118 @@ function replaceAlertHooks(settings: Settings, { selected, path }: Adapter): voi
 			};
 		}
 	}
+}
+
+// eslint-disable-next-line max-statements -- Validate and replace owned identity callbacks.
+function replaceIdentityHooks(settings: Settings, { selected, path }: Adapter): void {
+	let harness = "claude";
+	if (path.endsWith(targets.codex)) {
+		harness = "codex";
+	}
+	const command = `scent system hook --harness ${harness}`;
+	const matcher = "^(startup|resume|clear|compact)$";
+	const events = new Set(["SessionStart", "SubagentStart"]);
+	const seen = new Set<string>();
+	for (const [event, groups] of Object.entries(settings.hooks ?? {})) {
+		const emptied = new Set<object>();
+		for (const group of groups) {
+			// eslint-disable-next-line max-statements -- Keep ownership validation beside handler removal.
+			group.hooks = group.hooks.filter((handler) => {
+				const ours =
+					String(handler.statusMessage).startsWith("Beeswax identity") ||
+					/^scent system hook\b/u.test(String(handler.command));
+				if (!ours) {
+					return true;
+				}
+				const allowedKeys = new Set(["hooks"]);
+				if (event === "SessionStart") {
+					allowedKeys.add("matcher");
+				}
+				if (
+					seen.has(event) ||
+					!events.has(event) ||
+					handler.type !== "command" ||
+					!/^Beeswax identity v\d+$/u.test(String(handler.statusMessage)) ||
+					handler.command !== command ||
+					(event === "SessionStart" && group.matcher !== matcher) ||
+					Object.keys(handler).some((key) => !["type", "command", "statusMessage"].includes(key)) ||
+					Object.keys(group).some((key) => !allowedKeys.has(key))
+				) {
+					throw handoff(
+						path,
+						"The identity hook has unfamiliar ownership or execution options.",
+						command,
+					);
+				}
+				seen.add(event);
+				emptied.add(group);
+				return false;
+			});
+		}
+		settings.hooks = {
+			...settings.hooks,
+			[event]: groups.filter((group) => group.hooks.length > EMPTY || !emptied.has(group)),
+		};
+	}
+	if (selected) {
+		const identity = {
+			hooks: [{ type: "command", command, statusMessage: "Beeswax identity v1" }],
+		};
+		settings.hooks = {
+			...settings.hooks,
+			SessionStart: [...(settings.hooks?.SessionStart ?? []), { ...identity, matcher }],
+			SubagentStart: [...(settings.hooks?.SubagentStart ?? []), identity],
+		};
+	}
+}
+
+// eslint-disable-next-line max-statements -- Keep the owned runtime wrapper and source preservation together.
+function replacePiIdentity({ current, selected, path }: Adapter): string | undefined {
+	const section =
+		/^\/\/ beeswax:begin identity v\d+\n[\s\S]*?^\/\/ beeswax:end identity(?:\n|$)/gmu;
+	const matches = [...current.matchAll(section)];
+	const delimiters = current.match(/^\/\/ beeswax:(?:begin|end) identity/gmu) ?? [];
+	if (
+		matches.length > SINGLE ||
+		(current !== "" && (matches.length === EMPTY || delimiters.length !== SINGLE + SINGLE))
+	) {
+		throw handoff(
+			path,
+			"The Pi file has no single complete versioned identity section.",
+			"A repo-local Scent extension",
+		);
+	}
+	let replacement = "";
+	if (selected) {
+		replacement = [
+			"// beeswax:begin identity v1",
+			"export default async function scent(pi) {",
+			"\tconst SUCCESS = 0;",
+			'\tconst result = await pi.exec("scent", ["system", "pi-extension", "--json"]);',
+			"\tif (result.code !== SUCCESS) {",
+			"\t\tthrow new Error(result.stdout || result.stderr);",
+			"\t}",
+			"\tconst output = JSON.parse(result.stdout);",
+			'\tif (output.ok !== true || output.kind !== "pi_extension" || typeof output.source !== "string") {',
+			'\t\tthrow new Error("Invalid Scent Pi extension output");',
+			"\t}",
+			// eslint-disable-next-line no-template-curly-in-string -- Evaluated by Pi's generated extension.
+			'\tconst moduleUrl = `data:text/javascript;base64,${Buffer.from(output.source).toString("base64")}`;',
+			"\tconst runtime = await import(moduleUrl);",
+			"\truntime.default(pi);",
+			"}",
+			"// beeswax:end identity",
+			"",
+		].join("\n");
+	}
+	let contents = current.replace(section, replacement);
+	if (current === "") {
+		contents = replacement;
+	}
+	if (contents === "") {
+		return undefined;
+	}
+	return contents;
 }
 
 // eslint-disable-next-line max-statements -- Keep bracket recognition and replacement together.

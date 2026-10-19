@@ -111,6 +111,18 @@ Bee/Colony now implements captured recipes, named formulas, task claims, bounded
 
 The historical Colony launch probe alone does not establish Scent context continuity, native-child attribution or arbitrary detached-descendant capture. Retain the exact profile, selected model, report and task mutation evidence for each run. A failed or skipped native probe remains explicit; a successful scripted fixture cannot replace it.
 
+### Installed Scent delivery
+
+Beeswax now generates repository adapters for the compiled Scent executable; [onboarding](../lib/beeswax/README.md#load-onboarding-in-your-harness) owns that installation path. The native profile results above predate this delivery change and retain their original version and entry-surface scope.
+
+The 2026-10-19 artifact probe for `hv-3x8.7.8` copied the compiled executables outside the source checkout, with no application dependencies or Bun on `PATH`. Its receipt, `beeswax-scent-installed-probe.json`, records installed Beeswax setup and two unchanged syncs, Claude parent environment append and child context-only output, a Codex callback, and loading the bundled Pi module in a Node host while preserving the selected tracker. That Node host established packaging and module execution; the later native probes below have separate limits. Workflow dependencies were separately installed for the Bee probe.
+
+Native Pi **1.2.0** loaded the generated loader, applied friendly name `coral-tight-jay` and `BR_HARNESS=pi`, observed `anthropic/claude-haiku-5-5`, preserved the selected tracker and placed identity in provider context. A test extension exited before the provider API request: this verifies native loading and context delivery, with no model response or actual Pi `br` mutation claimed.
+
+Claude Code **2.1.303**, resolving `--model haiku` to `claude-haiku-5-5`, ran Bee request `scentprobe-jdn` through the installed adapters, exited 0 and completed workflow `scentprobe-9v7.1` as `done`. Supplied parent `plum-harsh-alligator` created `scentprobe-0co` without `--actor`; native Haiku Agent child `green-subjective-chicken` created `scentprobe-hi9` with its own explicit actor despite inheriting the parent's `BD_ACTOR`. The caller independently reread both closed tasks, immutable `created_by` and owner `ct`; the selected dummy tracker and parent identity were preserved. The receipt's project contains `installed-bee-environment.json`, `installed-child-environment.json` and `installed-bee-proof.json`.
+
+The worker's authored response `scentprobe-yu6` was retrieved with `bee response get`; it is standalone and unavailable through `bee result` for that request. A caller's attempt to associate a response under `codex` was refused with `invalid_response_request` and no confirmed effects. The native request remains pending while the shared Colony is asleep. These receipts verify installed identity delivery, not complete managed delivery, settlement or Colony `L1`–`L5` conformance; earlier profile limits remain in force.
+
 ### Claude Scent evidence
 
 The 2026-10-19 probes tracked in `hv-3x8.7.1` used macOS arm64, Bun 1.4.2 and br 0.7.4. Native Claude Code 2.1.296 with `--model haiku` (resolved `claude-haiku-5-5`) retained the same actor across print-mode startup and CLI target resume. Two native Agent children recorded distinct actors from their distinct `agent_id` values despite inheriting the parent environment; parent attribution stayed unchanged before and after their work.

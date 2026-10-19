@@ -1,8 +1,8 @@
 # Beeswax
 
-Beeswax configures Beads trackers, snapshot publication, JSONL merging, Git hooks, executable installation and repository-local agent onboarding. Hive uses the same CLI as consuming repositories.
+Beeswax configures Beads trackers, snapshot publication, JSONL merging, Git hooks, executable installation and repository-local harness integrations, including Scent identity. Hive uses the same CLI as consuming repositories.
 
-Generated setup scripts, Git hooks and harness callbacks use the adapters listed by `beeswax system --help`.
+Generated setup scripts, Git hooks and tracker-alert callbacks use the adapters listed by `beeswax system --help`. Identity callbacks use the separately installed `scent` runtime.
 
 ## Install
 
@@ -62,7 +62,7 @@ Verify discovery in the actual execution checkout after reviewing project trust 
 
 ## Load onboarding in your harness
 
-Choose Claude Code, Codex, Pi or a combination during setup. For an existing Beeswax project, run `beeswax update` to choose harnesses, or pass explicit selections:
+Choose Claude Code, Codex, Pi or a combination during setup. Each selection enables the primer, tracker alerts and [Scent identity](../scent/README.md). For an existing Beeswax project, run `beeswax update` to choose harnesses, or pass explicit selections:
 
 ```sh
 beeswax update --harness claude --harness codex --harness pi --include colony --yes
@@ -70,15 +70,17 @@ beeswax update --harness claude --harness codex --harness pi --include colony --
 
 Beeswax generates the selected adapters in the consuming repository, preserving unrelated settings:
 
-| Harness | Repository file | Primer delivery | Tracker-alert callbacks |
+| Harness | Repository files | Primer and tracker alerts | Identity |
 | --- | --- | --- | --- |
-| Claude Code | `.claude/settings.json` | `SessionStart` runs `beeswax prime` | `SessionStart`, `UserPromptSubmit`, `PostToolUse` |
-| Codex | `.codex/hooks.json` | `SessionStart` runs `beeswax prime` | `SessionStart`, `UserPromptSubmit`, `PostToolUse` |
-| Pi | `.pi/extensions/beeswax.js` | Runs `beeswax prime` before each agent run and supplies a named system-prompt section | `context` observes alerts before a model request |
+| Claude Code | `.claude/settings.json` | Primer at `SessionStart`; alerts at `SessionStart`, `UserPromptSubmit`, `PostToolUse` | Installed Scent command at `SessionStart` and `SubagentStart` |
+| Codex | `.codex/hooks.json` | Primer at `SessionStart`; alerts at `SessionStart`, `UserPromptSubmit`, `PostToolUse` | Installed Scent command at `SessionStart` and `SubagentStart` |
+| Pi | `.pi/extensions/beeswax.js`, `.pi/extensions/scent.js` | Named primer section before each agent run; `context` observes alerts before a model request | Loader runs Scent's bundled extension inside Pi |
 
-The adapters call the separately installed `beeswax` executable on the harness's `PATH`; onboarding writes no global harness settings. Read `beeswax update --help` for selection and filtering options. Unspecified headless options retain saved choices.
+The adapters require `beeswax` and `scent` on the harness's `PATH`. Setup, sync and update check that `scent --version` matches Beeswax before writing selected harness adapters; a missing or mismatched runtime fails. Deselection needs no Scent executable. Identity delivery needs no Hive checkout, application dependencies or Bun runtime. Onboarding writes only repository-local settings.
 
-These adapters load the primer, not skill bodies. Harness-discovered skill descriptions advertise when to load a skill; bodies and references enter context on demand. The primer's bundled-tool pointers work independently of harness skill discovery.
+Read `beeswax update --help` for selection and filtering options. Unspecified headless options retain saved choices. Include/exclude filters affect primer guidance only, including the optional Scent help pointer; they do not enable or disable identity.
+
+Harness-discovered skill descriptions advertise when to load a skill; bodies and references enter context on demand. The primer's bundled-tool pointers work independently of harness skill discovery.
 
 Alert callbacks read independent state for the selected tracker and deliver hold or clearance guidance. They are advisory: they neither prevent arbitrary native writes nor stop workers, and an idle session receives no immediate push. Existing sessions need the current adapter loaded; verify delivery in each supported harness before relying on it. A missing receipt or failed check cannot clear a hold already observed by a session.
 
@@ -94,9 +96,9 @@ The permanent tracker uses the same configured hook pair. Those files must alrea
 
 `beeswax sync` reproduces the committed contract locally; `beeswax update` advances it after review. Each checkout gets a launcher and observation receipt in Git metadata. The committed contract is authoritative; receipts describe local outputs. Run sync in each checkout and after relocating a clone.
 
-Setup, sync and update replace recognized versioned hook and onboarding sections automatically, preserving surrounding hook content, unrelated JSON settings and code outside Pi's markers. The permanent tracker prerequisites above still apply. `beeswax update --harness none --yes` removes recognized onboarding sections. Unfamiliar commands, execution options or ambiguous markers stop with the affected path, observed state, intended result and migration guidance for an agent to resolve with you.
+Setup, sync and update replace recognized versioned hook and onboarding sections automatically, preserving surrounding hook content, unrelated JSON settings and code outside Pi's markers. Beeswax owns identity command entries marked `Beeswax identity v1` and the versioned identity section in Pi's Scent loader. The permanent tracker prerequisites above still apply. `beeswax update --harness none --yes` removes recognized primer, alert and identity adapters. Unfamiliar commands, execution options or ambiguous markers stop with the affected path, observed state, intended result and guidance for an agent to resolve with you.
 
-Onboarding reaches an agent only when its actual checkout contains the generated files, the harness loads and trusts them, and the matching Beeswax release is on its `PATH`. This also applies to Bee executions; sharing a repository or tracker does not copy adapters between worktrees.
+Integration reaches an agent only when its actual checkout contains the generated files, the harness loads and trusts them, and the matching Beeswax and Scent releases are on its `PATH`. This also applies to Bee executions; sharing a repository or tracker does not copy adapters between worktrees.
 
 Ambiguous hooks or project metadata require interpretation: `beeswax migrate hooks` and `beeswax migrate setup` print agent tasks for resolving the reported conflict with you. These commands make no changes.
 
