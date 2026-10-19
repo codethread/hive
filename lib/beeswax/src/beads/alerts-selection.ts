@@ -31,16 +31,16 @@ export async function selectAlertDatabase(
 	if (supplied !== undefined) {
 		return alertDatabase(supplied);
 	}
-	const conventional = await conventionalDatabase(repo, services);
-	if (conventional !== undefined && (await services.exists(conventional))) {
-		return alertDatabase(conventional);
-	}
 	if (services.commandAvailable("mise", repo)) {
 		const output = await services.command(["mise", "env", "--json"], repo);
 		const selection = selectionSchema.parse(JSON.parse(output));
 		if (selection.BEADS_DB !== undefined) {
 			return alertDatabase(selection.BEADS_DB);
 		}
+	}
+	const conventional = await conventionalDatabase(repo, services);
+	if (conventional !== undefined && (await services.exists(conventional))) {
+		return alertDatabase(conventional);
 	}
 	if (conventional === undefined) {
 		return;

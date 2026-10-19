@@ -17,6 +17,7 @@ import {
 	initializeBeads,
 	localBootstrapServices,
 	preflightInitialization,
+	selectSetupServices,
 } from "./beads/bootstrap.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Default human owner is the local account.
 import { homedir, userInfo } from "node:os";
@@ -63,6 +64,9 @@ export function createLiveDependencies(): Dependencies {
 		command: io.command,
 		exists: io.exists,
 		readConfig: io.read,
+		commandAvailable: (name, cwd) =>
+			Bun.which(name, { PATH: environment.PATH ?? "", cwd }) !== null,
+		beadsDb: environment.BEADS_DB,
 		write: io.write,
 	};
 	const stateHome = alertStateHome(environment.XDG_STATE_HOME, homedir());
@@ -86,13 +90,13 @@ export function createLiveDependencies(): Dependencies {
 		}
 		return { BEADS_DB: selected };
 	};
-	const withActor = (flags: SetupFlags) => ({ ...services, actor: flags.actor ?? context.actor });
+	const selectedServices = (flags: SetupFlags) => selectSetupServices(services, flags);
 	const integrations = (flags: SetupFlags) => ({
 		environment: flags.environment ?? "mise",
-		codex: flags.codex ?? true,
 	});
 	return {
 		...io,
+		selectDatabase: selectedAlertDatabase,
 		alertReceiptPath: (database, session) => alertSessionReceiptPath(stateHome, database, session),
 		commandAvailable: (name, cwd) =>
 			Bun.which(name, { PATH: environment.PATH ?? "", cwd }) !== null,
@@ -115,33 +119,42 @@ export function createLiveDependencies(): Dependencies {
 		environmentFile: environment.CLAUDE_ENV_FILE ?? "",
 		operations: {
 			preflight: async (options) => {
-				await preflightInitialization(options.repo, withActor(options), integrations(options));
+				await preflightInitialization(
+					options.repo,
+					selectedServices(options),
+					integrations(options),
+				);
 			},
 			tracker: async (options: SetupOptions) => {
 				if (options.tracker === "init") {
 					const initialized = await initializeBeads(
 						options.repo,
 						options,
-						withActor(options),
+						selectedServices(options),
 						integrations(options),
 					);
 					return initialized.database;
 				}
 				if (options.tracker === "bootstrap") {
-					return await bootstrapBeads(options.repo, withActor(options), integrations(options));
+					return await bootstrapBeads(
+						options.repo,
+						selectedServices(options),
+						integrations(options),
+					);
 				}
 				return await setupBeads(
 					options.repo,
 					{ kind: "database", database: options.beadsDb },
-					withActor(options),
+					selectedServices(options),
 					integrations(options),
 				);
 			},
 		},
 		beads: {
 			setup: (repo, selection, flags) =>
-				setupBeads(repo, selection, withActor(flags), integrations(flags)),
-			bootstrap: (repo, flags) => bootstrapBeads(repo, withActor(flags), integrations(flags)),
+				setupBeads(repo, selection, selectedServices(flags), integrations(flags)),
+			bootstrap: (repo, flags) =>
+				bootstrapBeads(repo, selectedServices(flags), integrations(flags)),
 			initialize: (repo, flags) =>
 				initializeBeads(
 					repo,
@@ -149,7 +162,7 @@ export function createLiveDependencies(): Dependencies {
 						prefix: flags.prefix ?? "",
 						owner: flags.owner ?? context.owner,
 					},
-					withActor(flags),
+					selectedServices(flags),
 					integrations(flags),
 				),
 			environment: selectedEnvironment,

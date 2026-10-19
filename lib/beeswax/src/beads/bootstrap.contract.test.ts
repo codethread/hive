@@ -133,7 +133,6 @@ test(
 			expect(imported.title).toBe("Shared history");
 			expect(await Bun.file(join(root, ".beads", "beads.db")).exists()).toBe(false);
 			expect(await Bun.file(join(root, "mise.local.toml")).text()).toContain(database);
-			expect(await Bun.file(join(tracker, ".codex", "config.toml")).text()).toContain(database);
 			const local = await services.beads.create(scope, {
 				title: "Unpublished local work",
 				owner: "ct",
@@ -227,6 +226,7 @@ test(
 function nativeServices(command: Command) {
 	return {
 		...localBootstrapServices,
+		beadsDb: undefined,
 		actor: "pi",
 		beads: createNativeBeads({ execute: (argv, cwd) => command(argv, cwd) }),
 		command,

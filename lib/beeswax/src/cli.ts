@@ -252,10 +252,10 @@ or search local checkouts.
 				"Adopt uses the selected database; bootstrap imports accepted origin/tracker/state history only\n" +
 				"when its database is absent. Init creates the first tracker; none skips tracker changes.\n" +
 				"\nFirst tracker with versioned hooks (run in the canonical checkout):\n" +
-				"  beeswax setup --tracker none --hooks husky --environment none --no-codex --yes --json\n" +
+				"  beeswax setup --tracker none --hooks husky --environment none --yes --json\n" +
 				"  # Review and commit the generated project contract and hook sections before init.\n" +
 				"  beeswax setup --tracker init --prefix app --owner operator --hooks husky " +
-				"--environment none --no-codex --yes --json\n" +
+				"--environment none --yes --json\n" +
 				"Init checks configured versioned hooks, existing stores and inherited exports before setup writes.\n" +
 				"Paths under .git/ use shared Git metadata and need no commit.\n" +
 				"First snapshot and upstream: beeswax skills file repository-setup references/publication.md\n" +
@@ -425,7 +425,7 @@ export function setupOptions(command: Command): Command {
 		)
 		.option(
 			"--beads-db <path>",
-			"Selected existing tracker database; defaults to BEADS_DB/canonical tracker",
+			"Selected tracker database; default inherited BEADS_DB, Mise, then canonical tracker",
 		)
 		.option("--prefix <prefix>", "Issue prefix for init; defaults to repository directory name")
 		.option("--owner <human>", "Accountable owner for init; defaults to current OS account")
@@ -436,19 +436,21 @@ export function setupOptions(command: Command): Command {
 			).choices(hookAdapterSchema.options),
 		)
 		.addOption(
-			new Option("--environment <provider>", "Shell integration; default none").choices(
+			new Option("--environment <provider>", "Local endpoint configuration; default none").choices(
 				integrationSchema.options,
 			),
 		)
-		.option("--codex", "Write Codex's local tracker environment (default)")
-		.option("--no-codex", "Skip Codex environment configuration")
 		.option(
 			"--executable <path>",
 			"Absolute installed CLI; default running binary or ~/.local/bin/beeswax",
 		)
 		.option("--pre-commit <path>", "POSIX-shell commit hook; saved in project configuration")
 		.option("--pre-merge-commit <path>", "POSIX-shell merge hook; saved in project configuration")
-		.option("-y, --yes", "Accept inferred defaults; never prompt");
+		.option("-y, --yes", "Accept inferred defaults; never prompt")
+		.addHelpText(
+			"after",
+			"\nTracker environment: see beeswax beads setup --help for local configuration and preservation rules.\n",
+		);
 }
 
 export function onboardingOptions(command: Command): Command {

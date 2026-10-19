@@ -25,7 +25,6 @@ test("headless setup uses explicit flags, shared defaults and one silent JSON re
 			"none",
 			"--environment",
 			"none",
-			"--no-codex",
 			"--json",
 		],
 		fx.deps,
@@ -53,7 +52,6 @@ test("headless setup uses explicit flags, shared defaults and one silent JSON re
 		tracker: "init",
 		prefix: "app",
 		owner: "operator",
-		codex: false,
 		environment: "none",
 	});
 });

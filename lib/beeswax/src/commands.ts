@@ -30,6 +30,15 @@ export function addBeads(
 		.command("env")
 		.option("--beads-db <path>", "Override BEADS_DB")
 		.description("Report the selected tracker environment")
+		.addHelpText(
+			"after",
+			"\nSelection: --beads-db, inherited BEADS_DB, project Mise, then the conventional tracker.\n" +
+				"Explicit selections survive checkout changes. Mise is queried only when available and no\n" +
+				"endpoint was supplied. Conventional discovery uses an existing store or independent alert receipt.\n" +
+				"This command reports Beeswax's selection; it does not export environment variables.\n" +
+				"When using mise exec, pass an assigned endpoint with the command's database flag. Native br\n" +
+				"selects --db before BD_DB, BD_DATABASE and BEADS_DB; use br --db to retain assignment authority.\n",
+		)
 		.action(async function environment(this: Command) {
 			const options = this.optsWithGlobals<Options>();
 			emit({
@@ -45,11 +54,22 @@ export function addBeads(
 		.option("--beads-db <path>", "Existing database")
 		.option("--source <directory>", "Configured source checkout")
 		.addOption(
-			new Option("--environment <provider>", "Shell integration")
+			new Option("--environment <provider>", "Local endpoint configuration")
 				.choices(integrationSchema.options)
 				.default("mise"),
 		)
-		.option("--no-codex", "Skip Codex environment configuration")
+		.addHelpText(
+			"after",
+			"\nChoose exactly one of --beads-db or --source. Source selection retains inherited BEADS_DB;\n" +
+				"otherwise Mise resolves it in the source checkout, without requiring a particular config filename.\n" +
+				"The database must exist in a tracker/state checkout; adoption does not migrate data.\n" +
+				"With --environment mise, write and trust mise.local.toml in the destination checkout.\n" +
+				"It must be untracked; Beeswax adds a local Git exclude and preserves unrelated TOML and comments.\n" +
+				"With --environment none, leave environment configuration unchanged. Endpoint paths stay local,\n" +
+				"outside the accepted project contract. Users manage shell startup; Mise owns expansion.\n" +
+				"Beeswax preserves .codex/config.toml and existing ignore entries. Select native Codex onboarding\n" +
+				"through setup/update --harness codex; see beeswax setup --help.\n",
+		)
 		.action(async function adopt(this: Command) {
 			const options = this.optsWithGlobals<Options>();
 			if (Boolean(options.beadsDb) === Boolean(options.source)) {

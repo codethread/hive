@@ -18,8 +18,6 @@ import { applyOnboarding } from "./onboarding.ts";
 import { bindCheckout } from "./binding.ts";
 import { bootstrapHooks } from "./husky.ts";
 import { installTrackerHooks } from "./tracker-hooks.ts";
-// eslint-disable-next-line import/no-nodejs-modules -- Resolve this clone's conventional tracker.
-import { resolve } from "node:path";
 import { updateChangelogs } from "./prime.ts";
 import { version } from "../package.json";
 
@@ -29,7 +27,8 @@ const NONEMPTY = 1;
 // eslint-disable-next-line max-statements -- Keep preflight, materialization and its partial-effect receipt together.
 export async function synchronizeProject(
 	options: { root: string; executable: string; update: boolean } & OnboardingFlags,
-	io: WorkspaceIO & Pick<Dependencies, "commandAvailable"> & { context: { beadsDb: string } },
+	io: WorkspaceIO &
+		Pick<Dependencies, "commandAvailable" | "selectDatabase"> & { context: { beadsDb: string } },
 ) {
 	const { root, executable, update } = options;
 	const completed: string[] = [];
@@ -61,13 +60,8 @@ export async function synchronizeProject(
 		completed.push("local_binding");
 		await installMergeDriver(root, executable, io);
 		completed.push("merge_driver");
-		const common = await io.command(
-			["git", "rev-parse", "--path-format=absolute", "--git-common-dir"],
-			root,
-		);
-		const database =
-			io.context.beadsDb || resolve(common, "../.worktrees/tracker--state/.beads/beads.db");
-		if (await io.exists(database)) {
+		const database = io.context.beadsDb || (await io.selectDatabase(root));
+		if (database !== undefined && (await io.exists(database))) {
 			await installTrackerHooks({ repository: root, database, executable, config }, io);
 			completed.push("tracker_hooks");
 		}

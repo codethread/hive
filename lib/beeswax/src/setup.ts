@@ -59,8 +59,6 @@ export interface SetupFlags extends OnboardingFlags {
 	hooks?: HookAdapter;
 	/** Optional environment integration, independent of application dependencies. */
 	environment?: "mise" | "none";
-	/** Generate Codex's local tracker environment configuration. */
-	codex?: boolean;
 	/** Accept defaults without opening the wizard. */
 	yes?: boolean;
 	/** Installed executable used by generated Git adapters. */
@@ -90,8 +88,6 @@ export interface SetupOptions {
 	executable: string;
 	/** Environment provider to configure. */
 	environment: "mise" | "none";
-	/** Whether Codex's local tracker environment is generated. */
-	codex: boolean;
 	/** Hook adapter for Beeswax requirements; application hook bodies stay application-owned. */
 	hooks: HookAdapter;
 	/** Shared Git hook files, bootstrap preset and optional harness onboarding. */
@@ -108,6 +104,8 @@ export interface SetupOperations {
 }
 
 export interface SetupDependencies extends WorkspaceIO {
+	/** Select the same explicit or configured endpoint used by observation and publication. */
+	selectDatabase: (repo: string) => Promise<string | undefined>;
 	/** Native context read once by the application entry point. */
 	context: {
 		cwd: string;
@@ -145,7 +143,9 @@ export async function resolveSetup(
 	const canonical = resolve(common, "..");
 	const database =
 		flags.beadsDb ??
-		(deps.context.beadsDb || join(canonical, ".worktrees/tracker--state/.beads/beads.db"));
+		(deps.context.beadsDb ||
+			(await deps.selectDatabase(root)) ||
+			join(canonical, ".worktrees/tracker--state/.beads/beads.db"));
 	const known = await deps.exists(database);
 	let tracker: TrackerMode = "init";
 	if (known) {
@@ -163,7 +163,6 @@ export async function resolveSetup(
 			.replace(/^[^a-z]/u, "app-$&"),
 		executable: deps.context.executable,
 		environment: "none",
-		codex: true,
 		hooks: existing?.bootstrap.hooks ?? "husky",
 		config: existing ?? defaultProjectConfig("husky"),
 		workflowSkill: undefined,
@@ -317,7 +316,6 @@ function applyFlags(defaults: SetupOptions, flags: SetupFlags): SetupOptions {
 			.min(NONEMPTY)
 			.parse(flags.executable ?? defaults.executable),
 		environment: flags.environment ?? defaults.environment,
-		codex: flags.codex ?? defaults.codex,
 		hooks: flags.hooks ?? defaults.hooks,
 		config,
 		workflowSkill: planWorkflowSkill(flags.installWorkflowSkill ?? false, config.onboarding),

@@ -21,6 +21,7 @@ export function fixture() {
 		throw new Error("Unexpected test operation");
 	};
 	const deps: Dependencies = {
+		selectDatabase: async () => {},
 		alertReceiptPath: (database, session) => `/state/${database}/${session.harness}-${session.id}`,
 		commandAvailable: () => false,
 		context: {

@@ -41,6 +41,8 @@ For Hive-owned CLI improvements, breaking changes and adoption actions, follow p
 
 Run `beeswax setup` in the consuming repository. The interactive wizard handles tracker selection, permanent tracker prerequisites, Git integration and harness onboarding. Read `beeswax setup --help` for headless options and first-initialization prerequisites. Setup stays local; `beeswax beads sync` receives and publishes tracker changes.
 
+Tracker environment configuration is separate from harness onboarding. Use `beeswax beads setup --help` for local Mise configuration and `beeswax beads env --help` for endpoint selection precedence.
+
 Setup's readiness receipt separates configured artifacts from pending execution checks and reports effective [Honeycomb configuration](../honeycomb/README.md#config) for review. Preserve valid existing policy. For managed workers, continue with [Bee and Colony setup](../colony/README.md#install-and-try-it); repository plumbing alone does not establish runtime readiness.
 
 ## Install a customizable workflow

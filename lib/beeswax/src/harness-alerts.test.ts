@@ -210,3 +210,70 @@ test("unselected endpoints and sessions that never saw the incident receive no c
 		}),
 	).toEqual({});
 });
+
+test.each(["", "/explicit/.beads/beads.db"])(
+	"Codex SessionStart guidance follows original inherited selection: %s",
+	// eslint-disable-next-line max-statements -- Compare the two inherited-selection branches through native output.
+	async (inherited) => {
+		const fx = fixture();
+		fx.deps.context.beadsDb = inherited;
+		const deps = {
+			...fx.deps,
+			receiptPath,
+			observe: () => Promise.resolve({ ...active, alert: null }),
+		};
+		const payload = JSON.stringify({
+			session_id: "session",
+			cwd: "/elsewhere",
+			hook_event_name: "SessionStart",
+		});
+		const output = JSON.stringify(await runHarnessAlert("codex", payload, deps));
+		if (inherited === "") {
+			expect(output).toContain("mise exec --");
+			expect(output).toContain("does not change the command-tool environment");
+			expect(output).toContain(active.database);
+		} else {
+			expect(output).toBe("{}");
+		}
+		expect(fx.files.size).toBe(FIRST_CHARACTER);
+	},
+);
+
+test("missing tracker selection still delivers actionable Codex environment guidance", async () => {
+	const fx = fixture();
+	const payload = JSON.stringify({
+		session_id: "session",
+		cwd: "/project",
+		hook_event_name: "SessionStart",
+	});
+	const output = JSON.stringify(
+		await runHarnessAlert("codex", payload, {
+			...fx.deps,
+			receiptPath,
+			// eslint-disable-next-line unicorn/no-useless-undefined -- Keep a typed absent observation, not Promise<void>.
+			observe: () => Promise.resolve<undefined>(undefined),
+		}),
+	);
+	expect(output).toContain("mise exec --");
+	expect(output).toContain("No tracker selection was resolved");
+	expect(fx.files.size).toBe(FIRST_CHARACTER);
+});
+
+test("missing-environment guidance survives a failed alert check", async () => {
+	const fx = fixture();
+	const payload = JSON.stringify({
+		session_id: "session",
+		cwd: "/project",
+		hook_event_name: "SessionStart",
+	});
+	const output = JSON.stringify(
+		await runHarnessAlert("codex", payload, {
+			...fx.deps,
+			receiptPath,
+			observe: () => Promise.reject(new Error("Mise failed")),
+		}),
+	);
+	expect(output).toContain("mise exec --");
+	expect(output).toContain("do not merge");
+	expect(output).not.toContain("verified cleared");
+});

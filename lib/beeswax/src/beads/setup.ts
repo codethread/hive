@@ -1,17 +1,23 @@
 import type { Command, TrackerEnvironment } from "./environment.ts";
 import {
 	parseDatabase,
-	renderCodexConfig,
 	renderMiseConfig,
 	resolveEnvironment,
 	runCommand,
 	trackerRoot,
 } from "./environment.ts";
+import { BeeswaxError } from "../errors.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Repository CLI filesystem paths.
 import { join } from "node:path";
 
+const EMPTY = 0;
+const SINGLE = 1;
+const DELIMITERS = 2;
+
 export const localSetupServices: SetupServices = {
 	command: runCommand,
+	beadsDb: process.env.BEADS_DB,
+	commandAvailable: (name, cwd) => Bun.which(name, { cwd }) !== null,
 	exists: (path) => Bun.file(path).exists(),
 	readConfig: async (path) => {
 		const file = Bun.file(path);
@@ -40,6 +46,10 @@ export type Selection =
 	  };
 
 export interface SetupServices {
+	/** Inherited assignment retained before invoking Mise in a different checkout. */
+	beadsDb: string | undefined;
+	/** Optional Mise availability for standalone checkout preparation. */
+	commandAvailable: (name: string, cwd: string) => boolean;
 	/** Read existing local configuration, or an empty document when absent. */
 	readConfig: (path: string) => Promise<string>;
 	/** Check that adoption targets an existing runtime store. */
@@ -53,11 +63,9 @@ export interface SetupServices {
 export interface SetupIntegrations {
 	/** Write and trust mise environment configuration when selected. */
 	environment: "mise" | "none";
-	/** Write the Codex shell environment override when selected. */
-	codex: boolean;
 }
 
-export const defaultSetupIntegrations: SetupIntegrations = { environment: "mise", codex: true };
+export const defaultSetupIntegrations: SetupIntegrations = { environment: "mise" };
 
 // eslint-disable-next-line max-statements, max-params -- Keep selected endpoint, services and integrations explicit.
 export async function setupBeads(
@@ -66,18 +74,14 @@ export async function setupBeads(
 	services: SetupServices,
 	integrations: SetupIntegrations = defaultSetupIntegrations,
 ): Promise<string> {
-	const environment = await selectEnvironment(selection, services.command);
+	const environment = await selectEnvironment(selection, services);
 	await verifyDatabase(environment.BEADS_DB, services);
 	if (integrations.environment === "mise") {
+		await ensureLocalEnvironment(cwd, services);
 		const path = join(cwd, "mise.local.toml");
 		const contents = await services.readConfig(path);
 		await services.write(path, renderMiseConfig(contents, environment));
 		await services.command(["mise", "trust", path], cwd);
-	}
-	if (integrations.codex) {
-		const path = join(cwd, ".codex/config.toml");
-		const contents = await services.readConfig(path);
-		await services.write(path, renderCodexConfig(contents, environment));
 	}
 	return environment.BEADS_DB;
 }
@@ -86,10 +90,17 @@ export async function setupBeads(
 
 async function selectEnvironment(
 	selection: Selection,
-	command: Command,
+	services: SetupServices,
 ): Promise<TrackerEnvironment> {
 	if (selection.kind === "source") {
-		return await resolveEnvironment(selection.root, command);
+		const selected = await resolveEnvironment(selection.root, services.command, services.beadsDb);
+		if (selected === undefined) {
+			throw new BeeswaxError(
+				"tracker_unselected",
+				"No tracker selection was resolved. Configure BEADS_DB in Mise or supply --beads-db.",
+			);
+		}
+		return selected;
 	}
 	return { BEADS_DB: parseDatabase(selection.database) };
 }
@@ -104,5 +115,47 @@ async function verifyDatabase(database: string, services: SetupServices): Promis
 	const branch = await services.command(["git", "branch", "--show-current"], tracker);
 	if (branch !== "tracker/state") {
 		throw new Error(`Expected tracker/state at ${tracker}; found ${branch}.`);
+	}
+}
+
+// eslint-disable-next-line max-statements -- Validate local ownership before writing the endpoint.
+async function ensureLocalEnvironment(cwd: string, services: SetupServices): Promise<void> {
+	const tracked = await services.command(["git", "ls-files", "--", "mise.local.toml"], cwd);
+	if (tracked !== "") {
+		throw new BeeswaxError(
+			"environment_tracked",
+			`${cwd}/mise.local.toml is tracked; local database endpoints require an untracked file.`,
+		);
+	}
+	const common = await services.command(
+		["git", "rev-parse", "--path-format=absolute", "--git-common-dir"],
+		cwd,
+	);
+	const path = join(common, "info/exclude");
+	const current = await services.readConfig(path);
+	const section =
+		"# beeswax:begin mise-environment v1\n/mise.local.toml\n# beeswax:end mise-environment\n";
+	const matches = [
+		...current.matchAll(
+			/^# beeswax:begin mise-environment[^\n]*\n[\s\S]*?^# beeswax:end mise-environment(?:\n|$)/gmu,
+		),
+	];
+	const delimiters = current.match(/^# beeswax:(?:begin|end) mise-environment/gmu) ?? [];
+	if (
+		matches.length > SINGLE ||
+		delimiters.length !== matches.length * DELIMITERS ||
+		(matches.length === SINGLE && matches[EMPTY]![EMPTY] !== section)
+	) {
+		throw new BeeswaxError(
+			"environment_ambiguous",
+			`${path}: edited or ambiguous Mise environment ignore section.`,
+		);
+	}
+	if (matches.length === EMPTY) {
+		let separator = "";
+		if (current !== "" && !current.endsWith("\n")) {
+			separator = "\n";
+		}
+		await services.write(path, `${current}${separator}${section}`);
 	}
 }

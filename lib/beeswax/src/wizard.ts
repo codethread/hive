@@ -94,20 +94,12 @@ export async function setupWizard(flags: SetupFlags, defaults: SetupOptions): Pr
 			flags.environment ??
 			take(
 				await select<"mise" | "none">({
-					message: "Shell environment integration",
+					message: "Local tracker environment configuration",
 					initialValue: defaults.environment,
 					options: [
-						{ value: "none", label: "Use Beeswax environment output" },
-						{ value: "mise", label: "Mise" },
+						{ value: "none", label: "Leave environment configuration unchanged" },
+						{ value: "mise", label: "Write local Mise configuration" },
 					],
-				}),
-			);
-		selected.codex =
-			flags.codex ??
-			take(
-				await confirm({
-					message: "Configure Codex's local tracker environment?",
-					initialValue: defaults.codex,
 				}),
 			);
 	}

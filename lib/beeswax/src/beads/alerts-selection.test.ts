@@ -32,10 +32,7 @@ test("configured endpoint selection is shared by observation and publication", a
 	const fx = selectionFixture();
 	fx.services.commandAvailable = () => true;
 	expect(await selectAlertDatabase("/repo", undefined, fx.services)).toBe(database);
-	expect(fx.calls).toEqual([
-		"git rev-parse --path-format=absolute --git-common-dir",
-		"mise env --json",
-	]);
+	expect(fx.calls).toEqual(["mise env --json"]);
 });
 
 test(
@@ -107,9 +104,14 @@ test.each(["active", "cleared"])(
 			await fx.store.clear(canonical, active.alert!.id, "previous endpoint recovered");
 		}
 		expect(await selectAlertDatabase("/repo", undefined, fx.services)).toBe(database);
-		expect(fx.calls).toEqual([
-			"git rev-parse --path-format=absolute --git-common-dir",
-			"mise env --json",
-		]);
+		expect(fx.calls).toEqual(["mise env --json"]);
 	},
 );
+
+test("configured custom endpoint wins even when a conventional database exists", async () => {
+	const fx = selectionFixture();
+	fx.services.commandAvailable = () => true;
+	fx.services.exists = () => Promise.resolve(true);
+	expect(await selectAlertDatabase("/repo/nested", undefined, fx.services)).toBe(database);
+	expect(fx.calls).toEqual(["mise env --json"]);
+});

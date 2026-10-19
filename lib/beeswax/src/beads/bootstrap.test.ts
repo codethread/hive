@@ -1,13 +1,16 @@
+import { bootstrapBeads, initializeBeads, selectSetupServices } from "./bootstrap.ts";
 import { expect, test } from "bun:test";
 import type { BootstrapServices } from "./bootstrap.ts";
+import type { SetupFlags } from "../setup.ts";
 import { createMemoryBeads } from "@hive/beads";
-import { initializeBeads } from "./bootstrap.ts";
+import { fixture } from "../../tests/support.ts";
+import { resolveSetup } from "../setup.ts";
 
 const first = 0;
 const root = "/repo";
 const tracker = "/repo/.worktrees/tracker--state";
 const database = `${tracker}/.beads/beads.db`;
-const integrations = { environment: "none", codex: false } as const;
+const integrations = { environment: "none" } as const;
 const options = { prefix: "fresh", owner: "project-owner" };
 
 test("initialization retains attribution and configures only the dedicated tracker", async () => {
@@ -85,6 +88,8 @@ function initializationFixture(acceptedHistory: boolean) {
 	let initialized = false;
 	const beads = createMemoryBeads();
 	const services: BootstrapServices = {
+		beadsDb: undefined,
+		commandAvailable: () => true,
 		actor: "fixture-actor",
 		beads: { ...beads, sync: { ...beads.sync, flush: () => Promise.resolve() } },
 		// eslint-disable-next-line max-statements -- One deterministic command fixture models initialization observations.
@@ -134,3 +139,68 @@ function initializationFixture(acceptedHistory: boolean) {
 	};
 	return { services, calls, checkouts };
 }
+
+test("initialization cannot replace a foreign explicit assignment even without Mise integration", async () => {
+	const fx = initializationFixture(false);
+	fx.services.beadsDb = "/assigned/.beads/beads.db";
+	await expect(initializeBeads(root, options, fx.services, integrations)).rejects.toBeInstanceOf(
+		Error,
+	);
+	expect(fx.checkouts).toEqual([]);
+	expect(fx.calls.some(({ argv }) => argv[first] === "br")).toBe(false);
+});
+
+test.each([
+	{
+		name: "explicit custom",
+		inherited: undefined,
+		explicit: "/custom/.beads/beads.db",
+		configured: undefined,
+		refuses: true,
+	},
+	{
+		name: "Mise custom",
+		inherited: undefined,
+		explicit: undefined,
+		configured: "/custom/.beads/beads.db",
+		refuses: true,
+	},
+	{
+		name: "explicit over inherited",
+		inherited: "/foreign/.beads/beads.db",
+		explicit: database,
+		configured: undefined,
+		refuses: false,
+	},
+])(
+	"resolved $name authority reaches tracker preflight without Mise writes",
+	// eslint-disable-next-line max-statements -- Verify the endpoint handoff and effects in one existing fixture.
+	async ({ inherited, explicit, configured, refuses }) => {
+		const fx = initializationFixture(false);
+		const workspace = fixture();
+		workspace.deps.context.beadsDb = inherited ?? "";
+		workspace.deps.selectDatabase = () => Promise.resolve(configured);
+		fx.services.beadsDb = inherited;
+		const flags: SetupFlags = { tracker: "init", environment: "none", yes: true };
+		if (explicit !== undefined) {
+			flags.beadsDb = explicit;
+		}
+		const selected = await resolveSetup(flags, true, workspace.deps);
+		const services = selectSetupServices(fx.services, selected);
+		const initialize = initializeBeads(root, options, services, {
+			environment: selected.environment,
+		});
+		if (refuses) {
+			await expect(initialize).rejects.toBeInstanceOf(Error);
+			await expect(
+				bootstrapBeads(root, services, { environment: selected.environment }),
+			).rejects.toBeInstanceOf(Error);
+			expect(fx.checkouts).toEqual([]);
+			expect(fx.calls.some(({ argv }) => argv[first] === "br")).toBe(false);
+			return;
+		}
+		const initialized = await initialize;
+		expect(initialized.database).toBe(database);
+		expect(fx.checkouts).toEqual([{ root, base: "HEAD" }]);
+	},
+);

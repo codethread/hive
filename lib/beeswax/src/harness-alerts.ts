@@ -27,6 +27,8 @@ type Harness = z.infer<typeof harnessSchema>;
 type HookInput = z.infer<typeof inputSchema>;
 
 export interface HarnessAlertDependencies extends Pick<WorkspaceIO, "read" | "write"> {
+	/** Captured before project resolution; presence suppresses guidance without proving command-tool state. */
+	context: { beadsDb: string };
 	/** Observe the explicitly selected/configured endpoint without invoking native Beads. */
 	observe: (cwd: string) => Promise<TrackerAlertObservation | undefined>;
 	/** Durable user-state path keyed by selected endpoint and native session, outside tracker files. */
@@ -53,26 +55,62 @@ export function addAlertHooks(program: Command, deps: HarnessAlertDependencies):
 }
 
 /** Observe once per callback and retain only the session's latest incident observation. */
+// eslint-disable-next-line max-statements -- Compose session guidance without discarding incident context.
 export async function runHarnessAlert(
 	harness: Harness,
 	input: string,
-	deps: Pick<HarnessAlertDependencies, "observe" | "read" | "write" | "receiptPath">,
+	deps: Pick<HarnessAlertDependencies, "observe" | "read" | "write" | "receiptPath" | "context">,
 ): Promise<object> {
 	let event: HookInput = { session_id: "", cwd: "", hook_event_name: "SessionStart" };
+	let guidance = "";
 	try {
 		event = inputSchema.parse(JSON.parse(input));
-		const observed = await deps.observe(event.cwd);
-		if (observed === undefined) {
-			return hookOutput(harness, event.hook_event_name, "");
+		const needsGuidance =
+			harness === "codex" &&
+			event.hook_event_name === "SessionStart" &&
+			deps.context.beadsDb === "";
+		if (needsGuidance) {
+			guidance = environmentGuidance();
 		}
-		const context = await sessionContext({ harness, id: event.session_id }, observed, deps);
-		return hookOutput(harness, event.hook_event_name, context);
+		const observed = await deps.observe(event.cwd);
+		if (needsGuidance) {
+			guidance = environmentGuidance(observed?.database);
+		}
+		let context = "";
+		if (observed !== undefined) {
+			context = await sessionContext({ harness, id: event.session_id }, observed, deps);
+		}
+		return hookOutput(
+			harness,
+			event.hook_event_name,
+			[guidance, context].filter(Boolean).join("\n\n"),
+		);
 	} catch (error) {
-		return hookOutput(harness, event.hook_event_name, unavailable(error));
+		return hookOutput(
+			harness,
+			event.hook_event_name,
+			[guidance, unavailable(error)].filter(Boolean).join("\n\n"),
+		);
 	}
 }
 
 // --- Private functions ---
+
+function environmentGuidance(database?: string): string {
+	const guidance =
+		"This hook inherited no BEADS_DB. " +
+		"Use mise exec -- <command> in the project checkout for project and Beads commands. " +
+		"Preserve an explicit invocation or assignment with the tool's database flag after mise exec " +
+		"(br: --db; Beeswax: --beads-db). " +
+		"This is agent context; it does not change the command-tool environment.";
+	if (database === undefined) {
+		return `${guidance} No tracker selection was resolved; configure the project's local Mise environment first.`;
+	}
+	return (
+		`${guidance} Hook-observed tracker: ${database}. ` +
+		"For selection checks, see beeswax beads env --help."
+	);
+}
 
 // eslint-disable-next-line max-statements -- Keep the receipt and observation transition together.
 async function sessionContext(

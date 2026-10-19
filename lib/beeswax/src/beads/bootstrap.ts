@@ -7,6 +7,7 @@ import { dirname, join } from "node:path";
 import { mkdtemp, rm } from "node:fs/promises";
 import type { BeadsService } from "@hive/beads";
 import type { Command } from "./environment.ts";
+import type { SetupFlags } from "../setup.ts";
 import { createNativeBeads } from "@hive/beads";
 import { runCommand } from "./environment.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- System temporary directory.
@@ -38,6 +39,18 @@ export const localBootstrapServices: BootstrapServices = {
 	createTracker: createTrackerCheckout,
 };
 
+/** Carry resolved invocation authority into every tracker preflight and operation. */
+export function selectSetupServices(
+	services: BootstrapServices,
+	flags: Pick<SetupFlags, "actor" | "beadsDb">,
+): BootstrapServices {
+	return {
+		...services,
+		actor: flags.actor ?? services.actor,
+		beadsDb: flags.beadsDb ?? services.beadsDb,
+	};
+}
+
 /** Materialize this clone's accepted tracker without publishing or replacing existing state. */
 // eslint-disable-next-line max-statements -- One ordered bootstrap boundary keeps initialization and adoption together.
 export async function bootstrapBeads(
@@ -50,9 +63,9 @@ export async function bootstrapBeads(
 	const tracker = join(root, ".worktrees", "tracker--state");
 	const database = join(tracker, ".beads", "beads.db");
 	const checkouts = [...new Set([root, tracker, cwd])];
-	await verifySelection(root, database, services.command, integrations);
+	await verifySelection(root, database, services, integrations);
 	if (cwd !== root) {
-		await verifySelection(cwd, database, services.command, integrations);
+		await verifySelection(cwd, database, services, integrations);
 	}
 	const completed: string[] = [];
 	try {
@@ -153,9 +166,9 @@ export async function preflightInitialization(
 	const root = dirname(common);
 	const tracker = join(root, ".worktrees", "tracker--state");
 	const database = join(tracker, ".beads", "beads.db");
-	await verifySelection(root, database, services.command, integrations);
+	await verifySelection(root, database, services, integrations);
 	if (cwd !== root) {
-		await verifySelection(cwd, database, services.command, integrations);
+		await verifySelection(cwd, database, services, integrations);
 	}
 	const paths = [...new Set([root, cwd])].flatMap((checkout) =>
 		["beads.db", "issues.jsonl"].map((name) => join(checkout, ".beads", name)),
@@ -239,19 +252,19 @@ async function trackerFailure(
 async function verifySelection(
 	root: string,
 	database: string,
-	command: Command,
+	services: SetupServices,
 	integrations: SetupIntegrations,
 ): Promise<void> {
-	if (integrations.environment === "none") {
-		return;
+	let selected = services.beadsDb;
+	if (selected === undefined && integrations.environment === "mise") {
+		selected = z
+			.object({ BEADS_DB: z.string().optional() })
+			.parse(JSON.parse(await services.command(["mise", "env", "--json"], root))).BEADS_DB;
 	}
-	const selected = z
-		.object({ BEADS_DB: z.string().optional() })
-		.parse(JSON.parse(await command(["mise", "env", "--json"], root)));
-	if (selected.BEADS_DB !== undefined && selected.BEADS_DB !== database) {
+	if (selected !== undefined && selected !== database) {
 		throw new Error(
 			`Selected BEADS_DB at ${root} is ` +
-				`${selected.BEADS_DB}, not ` +
+				`${selected}, not ` +
 				`${database}. Use beeswax beads setup to adopt an existing endpoint; bootstrap will not ` +
 				"replace it.",
 		);

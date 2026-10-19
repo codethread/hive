@@ -17,7 +17,7 @@ The [setup recipe](../mise.toml) installs the tools and bootstraps accepted `ori
 
 ## Selecting storage
 
-Use the selected `BEADS_DB`; do not initialize a private tracker in a feature worktree. [Environment setup](./integrations.md#development-toolchain) covers Hive's default, local overrides and generated Codex configuration.
+Use the selected `BEADS_DB`; do not initialize a private tracker in a feature worktree. [Environment setup](./integrations.md#development-toolchain) points to endpoint selection and local Mise configuration.
 
 For an existing custom endpoint or inheritance from a configured checkout, use `beeswax beads setup --help`. For canonical bootstrap options, use `beeswax beads bootstrap --help`. Selecting an endpoint does not migrate older databases; retain them until their unpublished state is reconciled.
 
