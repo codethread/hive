@@ -1,6 +1,6 @@
 # Agent identity: MVP scope
 
-This preserves the native identity scope agreed on 2026-10-03 for `hv-3x8`, while distinguishing the implemented Bee/Colony system from the remaining Scent work. Scent implements a native Pi 1.2.0 extension and Codex session/child command hooks; Claude remains planned. Bee and Colony are implemented under `hv-e8i`; their current commands, scheduling and recovery behavior are documented in the [guide](../lib/colony/README.md) and [architecture](./architecture.md).
+This preserves the native identity scope agreed on 2026-10-03 for `hv-3x8`, while distinguishing implemented behavior from remaining verification. Scent implements a native Pi 1.2.0 extension and Claude Code/Codex session and child command hooks. Bee and Colony are implemented under `hv-e8i`; their current commands, scheduling and recovery behavior are documented in the [guide](../lib/colony/README.md) and [architecture](./architecture.md).
 
 The [harness capability contract](./harness-capabilities.md) keeps dated upstream observations separate from current Hive verification. Terms follow the [glossary](../GLOSSARY.md). Repository contributors continue to follow the root `AGENTS.md` actor rules; Colony workers receive their captured friendly identity through the launcher.
 
@@ -76,17 +76,23 @@ Colony owns the CLI and runtime in one package. Bee remains the request interfac
 | `lib/beads` | Consumed native Beads contract and injected native/in-memory adapters |
 | `lib/shared` | Shared recipes, formulas, spawn-request representation and protocol |
 | `lib/honeycomb` | Git worktree manager and canonical-root discovery |
-| `lib/scent` | Reusable identity resolver and explicit-actor prompt, native Pi 1.2.0 extension and Codex session/child command hooks; independent of `.hive/bees.toml` |
+| `lib/scent` | Reusable identity resolver and explicit-actor prompt, native Pi 1.2.0 extension and Claude Code/Codex session and child command hooks; independent of `.hive/bees.toml` |
 
-The following bindings define the shared identity direction; Pi implements name, actor, current session and best-effort metadata. Parent attribution remains outside the Pi slice. Current Bee names are minted at submission or supplied by the requester; execution attempts retain that name.
+The following bindings define the shared identity direction. Pi and primary Claude sessions bind name, actor, current session and best-effort metadata through the environment; Codex and native children use explicit attribution context. Parent attribution remains unimplemented. Current Bee names are minted at submission or supplied by the requester; execution attempts retain that name.
 
-Friendly names are recorded as actors. Native sessions use their harness session ID as the mint seed; native subagents use a distinct child key; bees receive a name minted at spawn. A separately launched nested CLI, such as `pi --print` run by Claude, gets its own friendly name and records its parent. Claude Code and Codex native children expose a distinct agent ID while retaining the parent/root session ID, so their attribution uses explicit actor guidance.
+Friendly names are recorded as actors. Native sessions use their harness session ID as the mint seed; native subagents use a distinct child key; bees receive a name minted at spawn. A separately launched nested CLI resolves its own session identity; the planned parent binding below remains separate. Claude Code and Codex native children expose a distinct agent ID while retaining the parent/root session ID, so their attribution uses explicit actor guidance.
+
+Bee clears `HIVE_AGENT_SESSION` before launch. Pi and Codex adopt `HIVE_AGENT_NAME` when `HIVE_AGENT_SOURCE=bee` or the inherited session binding is absent/empty. Pi retains Bee provenance across conversation changes; Codex applies this selection to hook context without environment writes.
+
+Claude adopts `HIVE_AGENT_NAME` only when the inherited `HIVE_AGENT_SESSION` is absent/empty. Its SessionStart hooks retain the original launcher environment: exports written to `CLAUDE_ENV_FILE` affect later tool shells. Same-process lifecycle hooks therefore retain the supplied Bee name. A separately launched CLI inherits the populated binding, resolves its actual session and clears inherited kind, model and effort, even with `HIVE_AGENT_SOURCE=bee`; the event can supply the current model. This is an adapter-local lifecycle mechanism, without ancestry inference or changes to the shared resolver or launcher provenance.
+
+Native child hooks always resolve `agent_id` independently of the supplied parent name.
 
 | Variable | Set by | Carries |
 | --- | --- | --- |
 | `HIVE_AGENT_NAME` | colony, scent | Friendly name |
 | `HIVE_AGENT_SESSION` | scent, where environment binding is supported | Session the name is bound to; lifecycle context distinguishes a new conversation from a nested child. A mismatch alone does not establish parentage |
-| `HIVE_AGENT_PARENT` | scent | Parent's friendly name in a nested child |
+| `HIVE_AGENT_PARENT` | scent, planned | Parent's friendly name in a nested child; no current ancestry inference |
 | `BD_ACTOR` | colony, scent | Friendly name, used by `br` as the actor; `--actor` explicitly selects attribution |
 | `BR_HARNESS`, `BR_MODEL`, `BR_AGENT_NAME` | colony, scent | Harness, model and bee kind recorded on `br` mutations |
 
@@ -104,8 +110,4 @@ Spawn beads carry the exact labels `system`, `bee` and `agent:<kind>`, a friendl
 - `hv-3x8.14`: stable Pi composition verified with two handlers over three independent runs; final explicit-attribution decision for native Claude/Codex subagents. That probe did not establish end-to-end child tracker attribution.
 - `hv-3x8.1` and `hv-3x8.3`: database discovery and detached-launch findings. Current repository tracker setup is documented in [Beads integration](./beads-integration.md); older spike recommendations are historical evidence, not current configuration instructions.
 
-The [Scent guide](../lib/scent/README.md) covers Pi extension and Codex command-hook installation. Codex CLI/app-server 0.162.1 now passes the [exercised native identity, lifecycle and child-attribution cases](./harness-capabilities.md#codex-scent-evidence); the Claude adapter and parent tracking remain outstanding. Colony recovery and observed-descendant ownership are implemented and tested separately; their limitations are documented in the guide. Expanding scope requires updating this reference and the capability matrix with the reason and evidence; it does not silently turn an unverified path into a supported one.
-
-Native Pi adopts a supplied `HIVE_AGENT_NAME` when there is no inherited Scent session binding. Bee clears `HIVE_AGENT_SESSION` while supplying its own name, for both interactive and managed launch paths. Scent records `HIVE_AGENT_SOURCE=bee` and rebinds that supplied identity on conversation changes, including when Pi recreates extensions. Native resolution records `HIVE_AGENT_SOURCE=native`. A populated inherited binding without Bee provenance is native Scent state and is replaced from the actual target session key. `HIVE_AGENT_SOURCE=bee` takes precedence over that binding and preserves the supplied name and kind when extensions are recreated. Native Pi adds no parent or ancestry inference.
-
-Codex SessionStart uses the same supplied-name rule: adopt `HIVE_AGENT_NAME` when `HIVE_AGENT_SOURCE=bee` or no `HIVE_AGENT_SESSION` is inherited. SubagentStart always derives the child's name from its distinct `agent_id`. Both return the shared explicit-actor prompt as hook context, without environment writes or persistent state.
+The [Scent guide](../lib/scent/README.md) covers installation for all three harnesses. The capability contract records [Codex conformance](./harness-capabilities.md#codex-scent-evidence) and the [exercised Claude paths and remaining verification](./harness-capabilities.md#claude-scent-evidence) under `hv-3x8.7.1`. Parent tracking remains outstanding. Colony recovery and process ownership are implemented and tested separately; their limitations are documented in the guide. Expanding scope requires updating this reference and the capability matrix with the reason and evidence; it does not silently turn an unverified path into a supported one.

@@ -100,7 +100,8 @@ Bee/Colony now implements captured recipes, named formulas, task claims, bounded
 
 | Profile | Native identity / Scent | Current Colony verification |
 | --- | --- | --- |
-| Claude Code | Planned: `hv-3x8.7.1`, including explicit native-child attribution | Subscription unavailable for this build; current native run unverified. Earlier `L` observations remain historical evidence |
+| Claude Code 2.1.296, macOS arm64 | **O**, 2026-10-19: startup, CLI target resume, native Agent children; native and supplied-Bee TUI clear/compact/target resume with subsequent tool attribution; see [Claude Scent evidence](#claude-scent-evidence) | No complete current Colony lifecycle probe for this version; earlier `L` observations remain historical evidence |
+| Claude Code 2.1.303, macOS arm64 | **O**, 2026-10-19: nested CLI identity and actual Bee launch adoption with Scent active | Dummy Bee workflow completed with verified actor and selected tracker; full `L1`–`L5` conformance remains unverified |
 | Codex CLI 0.160.0 (historical launch profile) | Scent conformance unverified for this version | **O**, 2026-10-04: native probe passed with `gpt-6-astra`, low effort, workspace-write; see current probe evidence below |
 | Codex CLI/app-server 0.162.1, macOS arm64 | **O**, 2026-10-15: Scent passes `I1/I3/I4/I5/B1/T1–T3` on the [exercised entry paths](#codex-scent-evidence) | Supplied launcher-input adoption verified with active hooks; no new complete Colony/native lifecycle probe for this version |
 | Native Pi 1.0.0 (historical launch profile) | Scent conformance unverified for this version | **O**, 2026-10-04: native probe passed with `openai-codex/gpt-6-astra`, low effort; see current probe evidence below |
@@ -109,6 +110,18 @@ Bee/Colony now implements captured recipes, named formulas, task claims, bounded
 | Other GUI or hosted runtimes | Unknown until profiled | Unknown until profiled |
 
 The historical Colony launch probe alone does not establish Scent context continuity, native-child attribution or arbitrary detached-descendant capture. Retain the exact profile, selected model, report and task mutation evidence for each run. A failed or skipped native probe remains explicit; a successful scripted fixture cannot replace it.
+
+### Claude Scent evidence
+
+The 2026-10-19 probes tracked in `hv-3x8.7.1` used macOS arm64, Bun 1.4.2 and br 0.7.4. Native Claude Code 2.1.296 with `--model haiku` (resolved `claude-haiku-5-5`) retained the same actor across print-mode startup and CLI target resume. Two native Agent children recorded distinct actors from their distinct `agent_id` values despite inheriting the parent environment; parent attribution stayed unchanged before and after their work.
+
+Interactive 2.1.296 `/compact` retained the session and actor; `/clear` created a new session and actor and cleared stale optional model metadata; `/resume` restored the target session and actor. Each passed the next real tool mutation. An environment-only mutation also matched the current `BD_ACTOR`.
+
+Supplied-Bee TUI 2.1.296 probes used the actual `agentEnvironment` recipe inputs. Startup, compact, clear and target resume preserved the supplied name, worker kind and tracker through subsequent tool mutations while binding the current session. Repeated compact/clear/target-resume probes passed with the [Claude adoption rule](./agent-identity-scope.md#current-implementation-and-planned-bindings).
+
+The CLI auto-updater switched to 2.1.303 during probing. Transcript versions confirm that separately launched nested CLIs from native and Bee parents ran on 2.1.303 and resolved distinct native actors. The corrected Bee-inherited path dropped the parent's kind and unknown model/effort. Independent tracker rereads and native created-event audits confirmed actor/harness/model attribution, including absent unknown metadata; all selected tracker endpoints were preserved.
+
+An actual dummy-project Bee launch on 2.1.303 used `haiku`; its real tool mutation preserved the supplied friendly name/actor, Bee provenance, Claude harness, model, worker kind and selected tracker. Its workflow completed `done` and its authored response was retrieved. This verifies launcher/Scent adoption and workflow completion; the foreground execution required a process-group workaround. Full current Colony `L1`–`L5` recovery/reap conformance and broader 2.1.303 lifecycle remain unverified. Wrappers, GUI/desktop/IDE and PowerShell remain unverified; user forks, cache migration and ancestry inference remain outside this slice.
 
 ### Codex Scent evidence
 
