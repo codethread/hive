@@ -49,3 +49,24 @@ export const SlowRefresh: Story = {
 		],
 	},
 };
+
+export const StaleHierarchy: Story = {
+	parameters: {
+		msw: [
+			http.get("/api/colonies/:colony/hierarchy", () =>
+				HttpResponse.json({ ...hierarchy, stale: true }),
+			),
+		],
+	},
+};
+
+export const HierarchyFailure: Story = {
+	parameters: {
+		msw: [
+			http.get("/api/colonies/:colony/hierarchy", async () => {
+				await delay(FETCH_DELAY_MS);
+				return HttpResponse.json({ message: "Hierarchy read failed." }, { status: 503 });
+			}),
+		],
+	},
+};

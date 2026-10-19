@@ -289,6 +289,18 @@ test.each([
 	},
 );
 
+test("annotation status distinguishes recovered batches from unread or absent batches", () => {
+	const ready = {
+		kind: "ready" as const,
+		data: { cards: [], fetchedAt: OLD },
+		receivedAt: 0,
+	};
+	const entries = { [batchKey(["left"])]: ready };
+	expect(annotationStatus("colony", [["left"]], entries).kind).toBe("ready");
+	expect(annotationStatus("colony", [["left"], ["right"]], entries).kind).toBe("empty");
+	expect(annotationStatus("colony", [], entries).kind).toBe("empty");
+});
+
 // eslint-disable-next-line max-statements -- Keep the in-memory sources and inventory gate together.
 async function annotationFixture() {
 	const beads = createMemoryBeads();

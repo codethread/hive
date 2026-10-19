@@ -317,6 +317,8 @@ export function annotationStatus(
 		resources.find((resource) => resource.kind === "failed") ??
 		resources.find((resource) => resource.kind === "loading") ??
 		resources.find((resource) => resource.kind === "stale") ??
+		resources.find((resource) => resource.kind === "empty") ??
+		resources[0] ??
 		EMPTY
 	);
 }

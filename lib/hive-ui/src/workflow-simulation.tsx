@@ -7,7 +7,9 @@ import type {
 import { useEffect, useState } from "react";
 import { Button } from "./primitives.tsx";
 import type { Resource } from "./data.ts";
+import { ResourceNotice } from "./ui.tsx";
 import { sample } from "openapi-sampler";
+import { toast } from "sonner";
 import { workflowSimulationRequestSchema } from "../contracts.ts";
 
 const LAST = -1;
@@ -150,7 +152,11 @@ export function SimulationControls({ simulation }: { simulation: Simulation }) {
 					snapshot. Choose Saved to view the latest saved state.
 				</output>
 			)}
-			{resource.kind === "failed" && <p role="alert">{resource.message}</p>}
+			<ResourceNotice
+				resource={resource}
+				source={`simulation:${simulation.inspection.runId}`}
+				label="Simulation"
+			/>
 			<div className="workflow-simulation-actions">
 				<span className="workflow-simulation-label">Simulation</span>
 				<Button
@@ -172,9 +178,7 @@ export function SimulationControls({ simulation }: { simulation: Simulation }) {
 				)}
 				<span className="text-muted">Temporary walkthrough</span>
 			</div>
-			{session === null ? (
-				<output>{busy ? "Preparing simulation…" : "Simulation did not start."}</output>
-			) : (
+			{session !== null && (
 				<>
 					{session.response.choices.length === 0 ? (
 						<p className="text-muted">No outcomes at this state.</p>
@@ -303,7 +307,9 @@ function JsonForm({
 					setFailure(null);
 					onSubmit(data);
 				} catch (error) {
-					setFailure(error instanceof Error ? error.message : String(error));
+					const message = error instanceof Error ? error.message : String(error);
+					setFailure(message);
+					toast.error(`Invalid ${label.toLowerCase()}`, { description: message });
 				}
 			}}
 		>
@@ -315,6 +321,7 @@ function JsonForm({
 						value={draft}
 						disabled={busy}
 						spellCheck={false}
+						aria-invalid={failure !== null}
 						onChange={(event) => {
 							setDraft(event.target.value);
 						}}
@@ -350,7 +357,6 @@ function JsonForm({
 			<Button type="submit" disabled={busy}>
 				{action}
 			</Button>
-			{failure !== null && <p role="alert">{failure}</p>}
 		</form>
 	);
 }

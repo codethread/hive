@@ -69,7 +69,7 @@ export const Simulation: Story = {
 		await screen.findByRole("combobox", { name: "Outcome" });
 		await context.step("Reject incomplete event data", async () => {
 			await userEvent.click(screen.getByRole("button", { name: "Apply event" }));
-			await screen.findByRole("alert");
+			await screen.findByText("Simulation could not update");
 			await expect(screen.getByRole("combobox", { name: "Inspect step" })).toHaveValue(
 				"land.check",
 			);
@@ -126,11 +126,12 @@ export const InitialOrigin: Story = {
 	play: async (context) => {
 		await openPreview(context);
 		await userEvent.click(screen.getByRole("button", { name: "Simulate" }));
-		await screen.findByRole("alert");
+		await screen.findByText("Simulation unavailable");
+		await userEvent.click(screen.getByRole("button", { name: "Close toast" }));
 		await context.step("Reject empty initial input, then start from explicit JSON", async () => {
 			await userEvent.click(screen.getByText("From beginning", { exact: true }));
 			await userEvent.click(screen.getByRole("button", { name: "Start from beginning" }));
-			await screen.findByRole("alert");
+			await screen.findByText("Simulation unavailable");
 			await expect(
 				screen.queryByRole("button", { name: "Use example initial input" }),
 			).not.toBeInTheDocument();
@@ -164,7 +165,7 @@ export const Unavailable: Story = {
 		await userEvent.click(
 			await canvas.findByRole("button", { name: `View workflow for ${args.id}` }),
 		);
-		await screen.findByRole("alert");
+		await screen.findByText("Workflow unavailable");
 	},
 	parameters: {
 		msw: [
@@ -246,13 +247,13 @@ export const RefreshRecovery: Story = {
 			// eslint-disable-next-line max-statements -- Verify presentation through one failure and recovery cycle.
 			async () => {
 				await userEvent.click(screen.getByRole("button", { name: "Refresh workflow state" }));
-				await screen.findByRole("alert");
+				await screen.findByText("Workflow could not update");
 				await delay(VIEWPORT_SETTLE_MS);
 				await expect(viewport.getAttribute("style")).toBe(transform);
 				await expect(diagram.querySelector(".react-flow__viewport")).toBe(viewport);
 				await userEvent.click(screen.getByRole("button", { name: "Refresh workflow state" }));
 				await waitFor(async () => {
-					await expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+					await expect(screen.queryByText("Workflow could not update")).not.toBeInTheDocument();
 				});
 				await delay(VIEWPORT_SETTLE_MS);
 				await expect(screen.getByTitle("Current saved state")).toHaveTextContent("review");

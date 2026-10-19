@@ -30,11 +30,13 @@ import { ActivityClock } from "../activity-clock.tsx";
 import type { Navigation } from "../../contracts.ts";
 import type { ReactNode } from "react";
 import { Shell } from "../work-page.tsx";
+import { Toaster } from "../toaster.tsx";
 import { WorkflowDialog } from "../workflow-preview.tsx";
 import { columnOrders } from "../column-settings.tsx";
 import { loadGraph } from "../graph-loader.ts";
 import { navigationSchema } from "../../contracts.ts";
 import { savedViews } from "../saved-views.ts";
+import { toast } from "sonner";
 
 export const storyNavigationSchema = navigationSchema.extend({
 	view: navigationSchema.shape.view.default("beads"),
@@ -73,6 +75,7 @@ export function StoryEnvironment({
 
 // eslint-disable-next-line max-statements -- Reset each independent production store before a story starts.
 export function resetStoryState(): void {
+	toast.dismiss();
 	boards.store.setState({ entries: {} });
 	annotations.store.setState({ entries: {} });
 	colonies.store.setState({ entries: {} });
@@ -100,6 +103,7 @@ function StoryShell() {
 		<>
 			<Outlet />
 			<WorkflowDialog />
+			<Toaster />
 		</>
 	);
 }
@@ -148,7 +152,7 @@ function storyRouter(navigation: Partial<Navigation> | undefined, shell: boolean
 		history: createMemoryHistory({
 			initialEntries: [`/colonies/${COLONY_ID}${defaultStringifySearch(initial)}`],
 		}),
-		defaultPendingComponent: () => <output className="block p-6">Loading story fixtures…</output>,
+		defaultPendingComponent: () => null,
 		defaultErrorComponent: ({ error }) => <p role="alert">{String(error)}</p>,
 	});
 }

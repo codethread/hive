@@ -513,19 +513,38 @@ body:has(.inspector[open], .filter-drawer[open]) {
 	min-height: 0;
 }
 .board-pane {
+	display: flex;
+	flex-direction: column;
 	flex: 1;
 	min-width: 0;
 	min-height: 0;
 	overflow-y: auto;
 	overscroll-behavior: contain;
 }
-.filter-summary {
-	padding: 0 20px;
+.board-header {
+	display: flex;
+	align-items: center;
+	flex: 0 0 48px;
+	min-height: 0;
+	overflow: auto;
 	border-bottom: 1px solid var(--line);
 	background: var(--panel);
 }
-.filter-summary:empty {
-	display: none;
+.board-summary {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	flex: 1 0 auto;
+	padding: 0 20px;
+	white-space: nowrap;
+}
+.filter-summary {
+	flex-shrink: 0;
+	padding-right: 20px;
+}
+.work-layout {
+	flex: 1;
 }
 .view-notice {
 	display: flex;
@@ -1371,4 +1390,14 @@ body:has(.inspector[open], .filter-drawer[open]) {
 .subcard-toggle:hover {
 	color: var(--ink);
 	background: var(--raised);
+}
+
+.toast-host [data-sonner-toaster][data-sonner-theme] {
+	--normal-bg: var(--panel);
+	--normal-text: var(--ink);
+	--normal-border: var(--line);
+}
+
+.toast-host [data-sonner-toast] [data-description] {
+	color: var(--muted);
 }

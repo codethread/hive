@@ -72,7 +72,7 @@ Presentation vocabulary nested under the [shared Hive glossary](../../GLOSSARY.m
 
 **Markdown content**: The rendered native Markdown in bead detail text.
 
-**Resource notice**: Feedback for initial loading, stale data or a failed read.
+**Resource notice**: A toast reporting a failed data read without occupying layout space.
 
 **Bead metadata**: The compact labels and recorded Bee assignment accompanying a task bead.
 

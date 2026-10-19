@@ -15,10 +15,11 @@ import {
 	savedViews,
 	selectSavedView,
 } from "./saved-views.ts";
-import { useId, useRef } from "react";
+import { useEffect, useId, useRef } from "react";
 import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
 import type { SavedView } from "./saved-views.ts";
 import { preferences } from "./data.ts";
+import { toast } from "sonner";
 import { useStore } from "zustand";
 import { z } from "zod";
 
@@ -26,14 +27,24 @@ export function FilterWorkspace({
 	board,
 	actions,
 	children,
+	summary,
 }: {
 	board: Board | null;
 	actions?: ReactNode;
+	summary?: ReactNode;
 	children: ReactNode;
 }) {
 	const search = useSearch({ from: "/colonies/$colonyId" });
 	const navigate = useNavigate({ from: "/colonies/$colonyId" });
 	const { colonyId, saved, views, selected, modified } = useViewPresets(search);
+	useEffect(() => {
+		if (saved.notice.kind === "error") {
+			toast.error("Saved view unavailable", {
+				id: `saved-view:${colonyId}`,
+				description: saved.notice.message,
+			});
+		}
+	}, [colonyId, saved.notice]);
 	const collapsed = useStore(preferences, (state) => state.sidebarCollapsed);
 	const dialog = useRef<HTMLDialogElement>(null);
 	const id = useId();
@@ -110,21 +121,19 @@ export function FilterWorkspace({
 					<div className="sidebar-footer workspace-actions">{actions}</div>
 				</aside>
 				<div className="board-pane">
-					<section aria-label="Board filters" className="filter-summary">
-						{(modified || saved.notice.kind === "error") && (
-							<div className="view-notice">
-								{modified && (
-									<span className="text-xs text-alert">{selected!.name} · modified</span>
-								)}
-								{saved.notice.kind === "error" && (
-									<p role="alert" className="text-xs text-alert">
-										{saved.notice.message}
-									</p>
-								)}
-							</div>
-						)}
-						<ActiveFilters />
-					</section>
+					<header aria-label="Board summary and filters" className="board-header">
+						{summary}
+						<div className="filter-summary">
+							{modified && (
+								<div className="view-notice">
+									{modified && (
+										<span className="text-xs text-alert">{selected!.name} · modified</span>
+									)}
+								</div>
+							)}
+							<ActiveFilters />
+						</div>
+					</header>
 					{children}
 				</div>
 			</div>
@@ -263,13 +272,8 @@ function SavedViewForm({
 					)}
 				</div>
 			</form>
-			{notice.kind !== "none" && (
-				<p
-					role={notice.kind === "error" ? "alert" : "status"}
-					className="break-words text-xs leading-relaxed text-muted"
-				>
-					{notice.message}
-				</p>
+			{notice.kind !== "none" && notice.kind !== "error" && (
+				<output className="break-words text-xs leading-relaxed text-muted">{notice.message}</output>
 			)}
 		</section>
 	);

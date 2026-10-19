@@ -37,8 +37,9 @@ export function BeadOutline({ colonyId, id }: { colonyId: string; id: string }) 
 			>
 				← Back to board
 			</Link>
-			<HierarchyNotice resource={resource} />
+			<HierarchyNotice resource={resource} source={`outline:${colonyId}/${id}`} />
 			<ResourceNotice
+				source={`annotations:outline:${colonyId}/${id}`}
 				resource={annotationStatus(
 					colonyId,
 					[hierarchy?.nodes.map((node) => node.id) ?? []],

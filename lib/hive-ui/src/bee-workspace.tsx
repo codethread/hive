@@ -1,14 +1,16 @@
+/* eslint-disable import/max-dependencies -- The workspace composes evidence, graph loading and failure toasts. */
 import type { Bee, Board, Provenance, RequestInventory } from "../contracts.ts";
 import { BeeActivity, Label, ResourceNotice, outcomeName, time } from "./ui.tsx";
 import { EMPTY, loadProvenance, preferences, provenance, snapshot } from "./data.ts";
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { ancestryEnding, beeScene } from "./bee-scene.ts";
 import { graphRuntime, loadGraph } from "./graph-loader.ts";
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import type { BeeScene } from "./bee-scene.ts";
 import { BeeSearch } from "./board-search.tsx";
 import type { GraphProps } from "./graph-loader.ts";
 import { RefreshCw } from "lucide-react";
+import { toast } from "sonner";
 import { useStore } from "zustand";
 
 const MAX_VISIBLE_DEPTH = 4;
@@ -104,7 +106,10 @@ export function BeeWorkspace({
 					/>
 					{search.ancestry !== undefined && (
 						<div className="border-t border-line p-5 text-xs text-muted">
-							<ResourceNotice resource={ancestryResource} />
+							<ResourceNotice
+								resource={ancestryResource}
+								source={`provenance:${colonyId}/${search.ancestry}`}
+							/>
 							{ancestry && (
 								<>
 									<p>{ancestryEnding(ancestry.end)}</p>
@@ -158,7 +163,7 @@ export function BeeWorkspace({
 
 // --- Request outline and selected work ---
 
-// Keep mutually exclusive empty, outline and graph loading outcomes explicit.
+// Keep the outline visible until the graph is ready.
 // eslint-disable-next-line max-statements
 function BeeRenderer({
 	scene,
@@ -167,6 +172,20 @@ function BeeRenderer({
 	presentation,
 }: Omit<GraphProps, "theme"> & { presentation: "outline" | "graph" }) {
 	const runtime = useStore(graphRuntime);
+	useEffect(() => {
+		if (runtime.kind === "failed" && presentation === "graph") {
+			toast.error("Graph unavailable", {
+				id: "bee-graph",
+				description: runtime.message,
+				action: {
+					label: "Retry graph",
+					onClick: () => {
+						void loadGraph();
+					},
+				},
+			});
+		}
+	}, [runtime, presentation]);
 	const theme = useStore(preferences, (state) => state.theme);
 	if (scene.requests.length === 0) {
 		return <p className="p-8 text-sm text-muted">No matching bee requests in this page.</p>;
@@ -179,24 +198,7 @@ function BeeRenderer({
 			<runtime.Component scene={scene} selected={selected} onSelect={onSelect} theme={theme} />
 		);
 	}
-	if (runtime.kind === "failed") {
-		return (
-			<div role="alert" className="space-y-3 p-6 text-sm">
-				<p>Graph could not load: {runtime.message}</p>
-				<p>Outline remains available.</p>
-				<button
-					className="button"
-					type="button"
-					onClick={() => {
-						void loadGraph();
-					}}
-				>
-					Retry graph
-				</button>
-			</div>
-		);
-	}
-	return <output className="block p-6 text-sm text-muted">Loading graph…</output>;
+	return <BeeOutline scene={scene} selected={selected} onSelect={onSelect} />;
 }
 
 // A bounded walk keeps cyclic components visible once, alongside rooted branches.

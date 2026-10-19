@@ -10,25 +10,23 @@ import {
 	UserRound,
 } from "lucide-react";
 import { beeActivity, outputAge } from "./activity.ts";
+import { useEffect, useRef } from "react";
 import { Badge } from "./primitives.tsx";
 import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import type { Resource } from "./data.ts";
-import { snapshot } from "./data.ts";
 import { statusName } from "./filter-controls.tsx";
+import { toast } from "sonner";
 import { useActivityClock } from "./activity-clock.tsx";
 
-export function HierarchyNotice({ resource }: { resource: Resource<Hierarchy> }) {
-	return (
-		<>
-			<ResourceNotice resource={resource} label="Hierarchy" />
-			{snapshot(resource)?.stale === true && (
-				<output className="block px-5 py-2 text-xs text-muted">
-					Showing the last exported hierarchy. Waiting for the latest data…
-				</output>
-			)}
-		</>
-	);
+export function HierarchyNotice({
+	resource,
+	source,
+}: {
+	resource: Resource<Hierarchy>;
+	source: string;
+}) {
+	return <ResourceNotice resource={resource} source={source} label="Hierarchy" />;
 }
 
 export function BeeActivity({ bee }: { bee: Pick<Bee, "outcome" | "stdout"> }) {
@@ -116,26 +114,29 @@ export function OutlineLink({ id }: { id: string }) {
 export function ResourceNotice<Value>({
 	resource,
 	label = "Data",
+	source,
 }: {
 	resource: Resource<Value>;
 	label?: string;
+	source: string;
 }) {
-	if (resource.kind === "stale") {
-		return <output className="px-5 py-2 text-xs text-muted">{label} out of date</output>;
-	}
-	if (resource.kind === "failed") {
-		return (
-			<p role="alert" className="border-b border-alert/30 bg-alert/10 px-5 py-3 text-sm text-alert">
-				{label}: {resource.previous === null ? "unavailable. " : "showing previous data. "}
-				{resource.message}
-			</p>
-		);
-	}
-	if (resource.kind === "loading" && resource.previous === null) {
-		return (
-			<output className="px-5 py-2 text-xs text-muted">{`Loading ${label.toLowerCase()}…`}</output>
-		);
-	}
+	const notified = useRef(new Map<string, string>());
+	const message = resource.kind === "failed" ? resource.message : null;
+	const unavailable = resource.kind === "failed" && resource.previous === null;
+	useEffect(() => {
+		const id = `${source}:${label}:${message}`;
+		const previous = notified.current.get(source);
+		if (message !== null && previous !== id) {
+			notified.current.set(source, id);
+			toast.error(`${label} ${unavailable ? "unavailable" : "could not update"}`, {
+				id,
+				description: `${unavailable ? "" : "Showing previous data. "}${message}`,
+			});
+		} else if (resource.kind === "ready" && previous !== undefined) {
+			toast.dismiss(previous);
+			notified.current.delete(source);
+		}
+	}, [label, message, unavailable, resource.kind, source]);
 	return null;
 }
 

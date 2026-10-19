@@ -175,8 +175,9 @@ export function Inspector({ colonyId, id }: { colonyId: string; id: string }) {
 						role={showOutline ? "tabpanel" : "region"}
 						aria-label="Bead"
 					>
-						<ResourceNotice resource={resource} />
+						<ResourceNotice resource={resource} source={`detail:${key}`} />
 						<ResourceNotice
+							source={`annotations:detail:${key}`}
 							resource={annotationStatus(colonyId, [[id]], annotationEntries)}
 							label="Bee assignment and merge details"
 						/>
@@ -264,8 +265,12 @@ export function Inspector({ colonyId, id }: { colonyId: string; id: string }) {
 					</TabsContent>
 					{showOutline && (
 						<TabsContent value="outline" forceMount className="inspector-hierarchy">
-							<HierarchyNotice resource={hierarchyResource} />
+							<HierarchyNotice
+								resource={hierarchyResource}
+								source={`hierarchy:${hierarchyKey(colonyId, [id])}`}
+							/>
 							<ResourceNotice
+								source={`annotations:hierarchy:${colonyId}/${id}`}
 								resource={annotationStatus(
 									colonyId,
 									[hierarchy?.nodes.map((node) => node.id) ?? []],
@@ -296,7 +301,7 @@ export function Inspector({ colonyId, id }: { colonyId: string; id: string }) {
 // --- Selected-bead relationships and request context ---
 function MarkdownText({ children, className }: { children: string; className?: string }) {
 	return (
-		<Suspense fallback={<p className="text-sm text-muted">Loading…</p>}>
+		<Suspense fallback={null}>
 			<div className={className}>
 				<MarkdownContent>{children}</MarkdownContent>
 			</div>
@@ -401,7 +406,7 @@ function ProvenanceChain({ colonyId, id }: { colonyId: string; id: string }) {
 	const value = snapshot(resource);
 	return (
 		<div className="mt-4">
-			<ResourceNotice resource={resource} />
+			<ResourceNotice resource={resource} source={`provenance:${colonyId}/${id}`} />
 			{value && (
 				<>
 					<ol className="space-y-3">

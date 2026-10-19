@@ -12,6 +12,7 @@ import { Info, RefreshCw, Workflow, X } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { Button } from "./primitives.tsx";
 import type { Resource } from "./data.ts";
+import { ResourceNotice } from "./ui.tsx";
 import { WorkflowDiagram } from "./workflow-diagram.tsx";
 import type { WorkflowInspection } from "../contracts.ts";
 import { pollVisibleWorkflow } from "./workflow-polling.ts";
@@ -182,6 +183,7 @@ function OpenWorkflowDialog({
 						Saved workflow state and temporary simulation for {id}. Neither changes the actual run.
 					</Description>
 					<WorkflowContent
+						source={`workflow:${colonyId}/${id}`}
 						resource={resource}
 						colony={colonyId}
 						theme={theme === "paper" ? "light" : "dark"}
@@ -194,10 +196,12 @@ function OpenWorkflowDialog({
 
 // --- Keep the last saved diagram mounted throughout refresh and recovery. ---
 function WorkflowContent({
+	source,
 	resource,
 	colony,
 	theme,
 }: {
+	source: string;
 	resource: Resource<WorkflowInspection>;
 	colony: string;
 	theme: "light" | "dark";
@@ -205,22 +209,8 @@ function WorkflowContent({
 	const preview = snapshot(resource);
 	return (
 		<>
-			{resource.kind === "failed" && (
-				<p
-					className="absolute inset-x-3 bottom-3 z-10 rounded border border-line bg-canvas p-3 text-sm text-alert"
-					role="alert"
-				>
-					Workflow refresh failed. {preview !== null && "Showing the last saved state. "}
-					{resource.message}
-				</p>
-			)}
-			{preview === null ? (
-				resource.kind !== "failed" && (
-					<output className="p-6 text-sm text-muted">Reading saved workflow state…</output>
-				)
-			) : (
-				<WorkflowDiagram inspection={preview} colony={colony} theme={theme} />
-			)}
+			<ResourceNotice resource={resource} source={source} label="Workflow" />
+			{preview !== null && <WorkflowDiagram inspection={preview} colony={colony} theme={theme} />}
 		</>
 	);
 }

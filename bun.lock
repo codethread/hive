@@ -109,6 +109,7 @@
         "react-markdown": "^10.1.0",
         "react-resizable-panels": "^4.14.5",
         "remark-gfm": "^4.0.1",
+        "sonner": "^2.0.8",
         "tailwind-merge": "^3.7.0",
         "tailwindcss": "^4.3.3",
         "xstate": "^5.33.2",
@@ -1703,6 +1704,8 @@
     "skills-handler": ["skills-handler@0.1.2", "", { "dependencies": { "chalk": "^5.3.0", "commander": "^11.1.0", "gray-matter": "^4.0.3" }, "peerDependencies": { "next": ">=13.0.0" }, "optionalPeers": ["next"], "bin": { "skills-handler": "dist/cli/cli.js", "create-skills-route": "dist/cli/cli.js" } }, "sha512-hQKQQLAV4JYkRA7s7PV81woqIWtO3Zu1WgGkRapp934Rw6j200jVWh9JmXN05jbgKEABTloT8V2A+2tC8X8lyg=="],
 
     "smol-toml": ["smol-toml@1.9.0", "", {}, "sha512-hpd+HLON7HdZXqYchMM/+LaTTbdK0AU3NngIJ4KVyWbY9bfQqdL9cD+4yf6dUoU2Ap4VsU0JkQi6FxAI1B2mXQ=="],
+
+    "sonner": ["sonner@2.0.8", "", { "peerDependencies": { "@types/react": "^18.0.0 || ^19.0.0", "react": "^18.0.0 || ^19.0.0 || ^19.0.0-rc", "react-dom": "^18.0.0 || ^19.0.0 || ^19.0.0-rc" }, "optionalPeers": ["@types/react"] }, "sha512-UM/ByIoFra8yzV75n1o0Puu0bw5U/9UNnDacrJNspekBewIfsQ3D6ez1nvlWpt7aTsO6rujQtifBpycwIivqlg=="],
 
     "source-map": ["source-map@0.6.1", "", {}, "sha512-UjgapumWlbMhkBgzT7Ykc5YXUT46F0iKu8SGXq0bcwP5dz/h0Plj6enJqjz1Zbq2l5WaqYnrVbwWOWMyF3F47g=="],
 

@@ -482,10 +482,7 @@
 	color: var(--muted);
 	font-size: var(--text-xs);
 }
-.explorer-layout-loading {
-	padding: 80px var(--explorer-panel-padding);
-	color: var(--muted);
-}
+
 .explorer-instruction-panel {
 	display: flex;
 	flex-direction: column;
