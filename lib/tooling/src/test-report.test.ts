@@ -146,7 +146,8 @@ test("full-suite feedback retains every timing before actionable DANGER guidance
 		"a.test.ts:1 SLOW 2.000ms slow",
 	]);
 	expect(feedback.guidance).toContain("Refactor meaningful tests");
-	expect(feedback.guidance).toContain("explicit user sign-off before editing");
+	expect(feedback.guidance).toContain("delete those tests");
+	expect(feedback.guidance).toContain("SLOW and XSLOW are advisory warnings");
 });
 
 test.each([

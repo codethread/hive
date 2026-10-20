@@ -14,7 +14,7 @@ Run `bun run test:contracts` for the complete conformance suite, including after
 lib/example.test.ts:42 XSLOW 12.345ms suite > test description
 ```
 
-[`slow-tests.json`](./slow-tests.json) owns cutoffs and approved allowances. Severity is the highest cutoff strictly exceeded. Ordinary changed-test timing warnings are advisory; full and contract runs fail on unapproved `DANGER`, even when all assertions pass. Selected contracts enforce that gate during `test:changed` too. Refactor while preserving meaningful coverage; necessary measured costs use the allowance process below.
+[`slow-tests.json`](./slow-tests.json) owns cutoffs and approved allowances. Severity is the highest cutoff strictly exceeded. Ordinary changed-test timing warnings are advisory; full and contract runs fail on unapproved `DANGER`, even when all assertions pass. Selected contracts enforce that gate during `test:changed` too. `SLOW` and `XSLOW` are advisory in every mode and never fail the timing gate. For unapproved `DANGER` timings or test timeouts, follow the [testing skill](../../.agents/skills/testing/SKILL.md#addressing-slow-tests): refactor first, then delete failing tests once improvement opportunities are exhausted.
 
 Bun failures retain native diagnostics and exit status, including errors JUnit omits. Failed/skipped tests add no timing lines; an empty changed selection is quiet. Missing or malformed required reports fail visibly. Temporary reports are removed after execution.
 

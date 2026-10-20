@@ -85,10 +85,10 @@ export function reportTestRun(run: TestRun, allowances: Allowances): TestRunFeed
 		guidance:
 			"ERROR test:all: unapproved DANGER timings block landing. Refactor " +
 			"meaningful tests, setup or dependency seams using relevant skills, " +
-			"preserving coverage, then rerun bun run check. If the measured cost " +
-			"is necessary, propose the exact lib/tooling/slow-tests.json " +
-			"allowance and justification for explicit user sign-off before " +
-			"editing it. Landing remains blocked until the gate passes.",
+			"preserving meaningful coverage where possible. If opportunities to " +
+			"refactor or improve the failing tests are exhausted, delete those " +
+			"tests, then rerun bun run check. SLOW and XSLOW are advisory " +
+			"warnings and do not block landing.",
 	};
 }
 

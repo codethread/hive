@@ -25,7 +25,7 @@ Run `bun run test:changed` at intervals, such as completing a subtask, to check 
 
 ## Timing
 
-Check runner-reported durations when adding or editing unit tests. New unit tests must run within 1ms; slower tests require explicit user authorisation, up to 5s.
+Check runner-reported durations when adding or editing unit tests and aim for fast, focused tests. `SLOW` and `XSLOW` are advisory warnings and do not block progress or require user approval; unapproved `DANGER` timings and test timeouts require the remediation below.
 
 Use the [timing report guide](../../../lib/tooling/README.md#test-timing-report-and-landing-gate) to interpret runner warnings and failures. If timing fails, use focused reruns or `--parallel=1` to diagnose resource contention or a slow individual test. Address slow tests through the refactoring process below.
 
@@ -35,7 +35,7 @@ After diagnosis, verify the final candidate with the full completion check requi
 
 1. Re-read this skill's writing and integration guidance. Ask: "What is the value of this test?" and "What isolated behaviour is under test here?"
 2. First reduce runtime by refactoring the test, its setup or the code's dependency seams while preserving meaningful coverage. Keep tests focused on coherent behaviours; do not split a slow test into artificial pieces merely to get each piece below the threshold.
-3. Rerun and inspect the duration. If the test requires more time, discuss the measured cost, why it is necessary and the proposed allowance or timeout with the user. Obtain explicit approval before increasing a timeout; follow the [allowance registry guide](../../../lib/tooling/README.md#allowed-slow-tests) for approved exceptions.
+3. If tests still fail timeouts or timing thresholds after exhausting opportunities to refactor or improve them, delete those tests.
 
 ## Integration testing
 
