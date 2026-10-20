@@ -74,7 +74,7 @@ test.each([
 
 test("retry forwards explicit cancellation resumption independently of recipe overrides", async () => {
 	await invoke(
-		["retry", "request-0", "--resume-cancelled", "--model", "current", "--json"],
+		["retry", "request-0", "--resume-cancelled", "--model", "current", "--actor", "test", "--json"],
 		SUCCESS,
 		{
 			retry: (id, options) => {
