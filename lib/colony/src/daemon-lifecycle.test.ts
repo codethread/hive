@@ -393,3 +393,13 @@ test("replacement identity remains bound while recovery is still pending", async
 		expect.objectContaining({ state: "failed", confirmedEffects: retained().confirmedEffects }),
 	);
 });
+
+test("native preflight failure leaves the working daemon and its service untouched", async () => {
+	const { deps, effects } = fixture();
+	deps.prepare = () => Promise.reject(new Error("GUI domain unavailable"));
+	deps.request = mock(deps.request);
+	await expect(restartServer(target, deps)).rejects.toBeInstanceOf(DaemonLifecycleError);
+	expect(deps.request).not.toHaveBeenCalled();
+	expect(deps.record).not.toHaveBeenCalled();
+	expect(effects).toEqual([]);
+});

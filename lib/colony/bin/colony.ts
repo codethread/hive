@@ -29,11 +29,13 @@ import {
 } from "../src/daemon-supervisor.ts";
 import { requestLazyServer, restartServer } from "../src/daemon-lifecycle.ts";
 import type { ConfigCommand } from "@hive/shared";
+import type { DaemonLifecycle } from "../src/daemon-lifecycle.ts";
 import type { ServerTarget } from "../src/client.ts";
 import { explainRequest } from "../src/explain.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Bind public review commands to this owning host.
 import { hostname } from "node:os";
 import { initRepository } from "../src/producer.ts";
+import { launchctlResult } from "../src/daemon-launchd.ts";
 import { launchedResultSchema } from "../src/output.ts";
 import { loadBeesConfig } from "../src/config.ts";
 import { match } from "ts-pattern";
@@ -50,17 +52,18 @@ const POLL_INTERVAL_MS = 50;
 const beads = createNativeBeads();
 const SUCCESS = 0;
 const runtime = colonyEntry("runtime");
-const lifecycle = {
-	prepare: prepareSupervisedServer,
+const lifecycle: DaemonLifecycle = {
+	prepare: (selected) => prepareSupervisedServer(selected, launchctlResult),
 	handoff: readDaemonHandoff,
 	pending: readPendingRestart,
 	record: recordRestart,
 	request: requestServer,
 	owner: readDaemonOwner,
 	observe: observeProcess,
-	start: startSupervisedServer,
+	start: (selected, effect) => startSupervisedServer(selected, effect, launchctlResult),
 	supervisor: selectedSupervisor,
-	verify: verifySupervisedServer,
+	verify: (selected, status, supervisor) =>
+		verifySupervisedServer(selected, status, supervisor, launchctlResult),
 	now: () => performance.now(),
 	pause: () => Bun.sleep(POLL_INTERVAL_MS),
 };

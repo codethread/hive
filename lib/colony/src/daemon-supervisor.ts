@@ -8,9 +8,11 @@ import type {
 // eslint-disable-next-line import/no-nodejs-modules -- Native service files and ownership receipts.
 import { access, mkdir, readFile, rename } from "node:fs/promises";
 import { daemonStatusResponseSchema, daemonStopResponseSchema } from "@hive/shared";
+import { launchdServiceStatus, prepareLaunchdServer } from "./daemon-launchd.ts";
 import { observeProcess, processFingerprintSchema } from "./processes.ts";
 import { prepareSystemdServer, startSystemdServer, systemdMainPid } from "./daemon-systemd.ts";
 import { Database } from "bun:sqlite";
+import type { Launchctl } from "./daemon-launchd.ts";
 import type { ServerTarget } from "./client.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Runtime preflight verifies executable and source access.
 import { constants } from "node:fs";
@@ -25,7 +27,6 @@ import { z } from "zod";
 const SUCCESS = 0;
 const FIRST = 0;
 const ONE = 1;
-const NO_PID = "-";
 const HASH_LENGTH = 20;
 const LAUNCHD_PID = 1;
 const outgoingSchema = z.object({
@@ -159,18 +160,14 @@ export async function readPendingRestart(target: ServerTarget) {
 }
 
 /** Reject unavailable native ownership before asking a working daemon to stop. */
-// eslint-disable-next-line max-statements -- Preflight platform ownership and executable requirements before stop.
-export async function prepareSupervisedServer(target: ServerTarget): Promise<void> {
+// eslint-disable-next-line max-statements, unicorn/prefer-ternary -- Preflight platform and runtime before stop.
+export async function prepareSupervisedServer(target: ServerTarget, run: Launchctl): Promise<void> {
 	const supervisor = selectedSupervisor(target);
+	// eslint-disable-next-line unicorn/prefer-ternary -- Select distinct native manager operations.
 	if (supervisor.kind === "systemd") {
 		await prepareSystemdServer();
 	} else {
-		const manager = await launchctlResult(["managername"]);
-		if (manager.code !== SUCCESS || manager.stdout.trim() !== "Aqua") {
-			throw new Error(
-				"Independent Colony startup requires the macOS GUI launchd domain; headless startup is not configured",
-			);
-		}
+		await prepareLaunchdServer(supervisor.service, run);
 	}
 	const [executable, ...prefix] = entryCommand(target.runtimeEntry);
 	await access(executable, constants.X_OK);
@@ -214,19 +211,20 @@ export async function recordRestart(
 export async function startSupervisedServer(
 	target: ServerTarget,
 	effect: (value: string) => Promise<void>,
+	run: Launchctl,
 ): Promise<DaemonSupervisor> {
 	const supervisor = selectedSupervisor(target);
 	if (supervisor.kind === "systemd") {
 		return startSystemdServer(target, supervisor, effect);
 	}
-	const loaded = await serviceStatus(supervisor);
+	const loaded = await launchdServiceStatus(supervisor.service, run);
 	if (loaded.kind === "loaded") {
 		if (loaded.pid !== undefined) {
 			throw new Error(
 				`Native service still has PID ${loaded.pid}; refusing live bootout: ${supervisor.service}`,
 			);
 		}
-		await launchctl(["bootout", supervisor.service]);
+		await launchctl(["bootout", supervisor.service], run);
 		await effect("idle_service_removed");
 	}
 	await mkdir(target.state, { mode: 0o700, recursive: true });
@@ -256,20 +254,21 @@ export async function startSupervisedServer(
 <key>StandardErrorPath</key><string>${xml(log)}</string>
 </dict></plist>`;
 	await Bun.write(path, contents, { mode: 0o600 });
-	await launchctl([
-		"bootstrap",
-		supervisor.service.slice(FIRST, supervisor.service.lastIndexOf("/")),
-		path,
-	]);
+	await launchctl(
+		["bootstrap", supervisor.service.slice(FIRST, supervisor.service.lastIndexOf("/")), path],
+		run,
+	);
 	await effect("native_service_submitted");
 	return supervisor;
 }
 
 /** Verify that the selected native supervisor owns this exact ready daemon. */
+// eslint-disable-next-line max-params -- The native command adapter is injected beside ownership evidence.
 export async function verifySupervisedServer(
 	target: ServerTarget,
 	status: DaemonStatus,
 	supervisor: DaemonSupervisor,
+	run: Launchctl,
 ): Promise<void> {
 	const owner = await readDaemonOwner(target, status);
 	if (supervisor.kind === "systemd") {
@@ -277,7 +276,7 @@ export async function verifySupervisedServer(
 			throw new Error(`Daemon is not owned by ${supervisor.service}`);
 		}
 	} else {
-		const loaded = await serviceStatus(supervisor);
+		const loaded = await launchdServiceStatus(supervisor.service, run);
 		if (owner.ppid !== LAUNCHD_PID || loaded.kind !== "loaded" || loaded.pid !== owner.pid) {
 			throw new Error(`Daemon is not independently owned by ${supervisor.service}`);
 		}
@@ -302,42 +301,11 @@ export function selectedSupervisor(target: ServerTarget): DaemonSupervisor {
 }
 
 // --- Private functions ---
-// eslint-disable-next-line max-statements -- Parse the documented legacy list columns for the selected service only.
-async function serviceStatus(
-	supervisor: DaemonSupervisor,
-): Promise<{ kind: "absent" } | { kind: "loaded"; pid: number | undefined }> {
-	const result = await launchctlResult(["list"]);
-	if (result.code !== SUCCESS) {
-		throw new Error(`Cannot list native services: ${result.stderr}`);
-	}
-	const label = supervisor.service.slice(supervisor.service.lastIndexOf("/") + ONE);
-	const row = result.stdout
-		.split("\n")
-		.map((line) => line.trim().split(/\s+/u))
-		.find((fields) => fields.at(-ONE) === label);
-	if (row === undefined) {
-		return { kind: "absent" };
-	}
-	const pid = row[FIRST];
-	if (pid === NO_PID) {
-		return { kind: "loaded", pid: undefined };
-	}
-	return { kind: "loaded", pid: z.coerce.number().int().positive().parse(pid) };
-}
-async function launchctl(args: string[]): Promise<void> {
-	const result = await launchctlResult(args);
+async function launchctl(args: string[], run: Launchctl): Promise<void> {
+	const result = await run(args);
 	if (result.code !== SUCCESS) {
 		throw new Error(`launchctl ${args[FIRST]} failed (${result.code}): ${result.stderr}`);
 	}
-}
-async function launchctlResult(args: string[]) {
-	const child = Bun.spawn(["/bin/launchctl", ...args], { stdout: "pipe", stderr: "pipe" });
-	const [code, stdout, stderr] = await Promise.all([
-		child.exited,
-		new Response(child.stdout).text(),
-		new Response(child.stderr).text(),
-	]);
-	return { code, stdout, stderr };
 }
 function xml(value: string): string {
 	return value
