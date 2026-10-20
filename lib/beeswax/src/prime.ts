@@ -135,7 +135,11 @@ export function renderPrime(options: PrimeOptions): string {
 		"Exclude automation-owned system beads from ordinary queries: " +
 			"br search/list/ready use --exclude-label system; BV uses bv --recipe work --robot-triage.",
 		"Inspect, claim available work, perform it, verify acceptance and close with evidence. " +
-			"Preserve other assignees and human/HITL reservations.",
+			"Preserve other assignees and HITL reservations.",
+		"Assign work to a human only when that human explicitly instructs it. " +
+			"For handoffs or reservations without that instruction, record the needed human action or decision instead. " +
+			"Preserve existing human assignments unless that human requests clearing them. " +
+			"Human ownership records accountability, separately from assignment.",
 		"At pickup, read ancestor descriptions through the top-level task: " +
 			"follow br dep list TASK --type parent-child --json, repeating with depends_on_id until empty; " +
 			"then fetch known ancestors with br list --all --deferred --exclude-label system --id PARENT --id ANCESTOR " +
