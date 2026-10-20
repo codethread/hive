@@ -154,6 +154,7 @@ function node(
 		parentIds: parent === null ? [] : [parent],
 		priority: 2,
 		assignee: status === "in_progress" ? "amber-quiet-otter" : null,
+		owner: "ct",
 		beeAssignments: [],
 		merges: [],
 		labels: ["ui"],

@@ -26,13 +26,15 @@ test.each(["list", "search"] as const)(
 					"--offset",
 					"2",
 					"--fields",
-					"id,description,notes",
+					"id,description,notes,owner",
 					"--json",
 				]);
 				return Promise.resolve(
 					JSON.stringify({
-						// eslint-disable-next-line unicorn/no-null -- Native absent selected text is null.
-						issues: [{ id: "filed", description: null, notes: null, title: "unrequested" }],
+						issues: [
+							// eslint-disable-next-line unicorn/no-null -- Native absent selected text is null.
+							{ id: "filed", description: null, notes: null, owner: "ct", title: "unrequested" },
+						],
 						total: 4,
 						hidden_closed_count: 3,
 						limit: 1,
@@ -43,7 +45,7 @@ test.each(["list", "search"] as const)(
 			},
 		});
 		const selection = { all: true, labels: ["response"], limit: 1, offset: 2 };
-		const fields = ["id", "description", "notes"] as const;
+		const fields = ["id", "description", "notes", "owner"] as const;
 		const read = () => {
 			if (mode === "search") {
 				return service.searchProjected({ cwd: "/fixture" }, "needle", selection, fields);
@@ -52,12 +54,12 @@ test.each(["list", "search"] as const)(
 		};
 		const page = await read();
 		expect(page).toMatchObject({
-			issues: [{ id: "filed", description: "", notes: "" }],
+			issues: [{ id: "filed", description: "", notes: "", owner: "ct" }],
 			limit: 1,
 			offset: 2,
 			has_more: true,
 		});
-		expect(Object.keys(page.issues[ZERO]!)).toEqual(["id", "description", "notes"]);
+		expect(Object.keys(page.issues[ZERO]!)).toEqual(["id", "description", "notes", "owner"]);
 		if (mode === "search") {
 			expect(page).toHaveProperty("hidden_closed_count", HIDDEN_CLOSED);
 		} else {

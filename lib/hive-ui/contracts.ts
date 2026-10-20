@@ -170,6 +170,8 @@ export const mergeLinkSchema = z.discriminatedUnion("kind", [
 export const cardSchema = z.object({
 	/** Native task assignee, or null when unassigned. */
 	assignee: z.string().nullable(),
+	/** Native accountable human, or null when no owner is recorded. */
+	owner: z.string().nullable(),
 	/** Open linked requests whose identity matches this in-progress task's native assignee. */
 	beeAssignments: z.array(beeSchema.pick({ id: true, kind: true, stdout: true })),
 	/** Native task bead ID used for selection and detail reads. */

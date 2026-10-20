@@ -7,6 +7,7 @@ export const SUMMARY_FIELDS = [
 	"status",
 	"priority",
 	"assignee",
+	"owner",
 	"updated_at",
 	"labels",
 	"dependency_count",

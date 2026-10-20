@@ -6,6 +6,7 @@ import {
 	hasHierarchy,
 	outlineHierarchy,
 	railRows,
+	separateHumanWork,
 } from "./hierarchy.ts";
 import { expect, test } from "bun:test";
 
@@ -22,6 +23,7 @@ function makeNode(id: string, status = "open", parentIds: string[] = []): Hierar
 		parentIds,
 		priority: 2,
 		assignee: null,
+		owner: "ct",
 		beeAssignments: [],
 		merges: [],
 		isWorkflowGenerated: false,
@@ -297,4 +299,22 @@ test("filtered inline ancestors do not hide matches or absorb a different branch
 			({ node, descendantCount }) => [node.id, descendantCount],
 		),
 	).toEqual([["root", 1]]);
+});
+
+test("human assignment requires matching populated owner and assignee", () => {
+	const nodes = [
+		{ ...makeNode("human"), owner: "ct", assignee: "ct" },
+		{ ...makeNode("agent"), owner: "ct", assignee: "worker" },
+		{ ...makeNode("unassigned"), owner: "ct", assignee: null },
+		{ ...makeNode("no-owner"), owner: null, assignee: "ct" },
+		{ ...makeNode("empty"), owner: "", assignee: "" },
+	];
+	const result = separateHumanWork(board(nodes), null, null);
+	expect(result.human.map(({ card }) => card.id)).toEqual(["human"]);
+	expect(result.board.cards.map((card) => card.id)).toEqual([
+		"agent",
+		"unassigned",
+		"no-owner",
+		"empty",
+	]);
 });

@@ -2,12 +2,13 @@ import type { Board, Hierarchy } from "../contracts.ts";
 // Board composition combines column preferences, visibility and native family layout.
 /* eslint-disable import/max-dependencies */
 import { DEFAULT_COLUMN_ORDER, columnOrders } from "./column-settings.tsx";
-import { boardFamilies, railRows } from "../hierarchy.ts";
+import { boardFamilies, railRows, separateHumanWork, withoutHierarchyNodes } from "../hierarchy.ts";
 import { useId, useState } from "react";
 import { useParams, useSearch } from "@tanstack/react-router";
 import { BeadCard } from "./bead-card.tsx";
 import type { BoardFamily } from "../hierarchy.ts";
 import { OutlineLink } from "./ui.tsx";
+import { UserRound } from "lucide-react";
 import { WorkflowIndicator } from "./workflow-preview.tsx";
 import { boardStatuses } from "./column-order.ts";
 import { preferences } from "./data.ts";
@@ -19,10 +20,19 @@ const RAIL_INSET = 10;
 
 // eslint-disable-next-line max-statements -- Visibility and status columns share the same presented board snapshot.
 export function BeadBoard({ board, hierarchy }: { board: Board; hierarchy: Hierarchy | null }) {
+	const nativeHierarchy = hierarchy;
 	const showWorkflowBeads = useStore(preferences, (state) => state.showWorkflowBeads);
 	if (!showWorkflowBeads) {
 		board = { ...board, cards: board.cards.filter((card) => !card.isWorkflowGenerated) };
-		hierarchy = hierarchy === null ? null : withoutWorkflowBeads(hierarchy);
+		hierarchy =
+			hierarchy === null
+				? null
+				: withoutHierarchyNodes(
+						hierarchy,
+						new Set(
+							hierarchy.nodes.filter((node) => node.isWorkflowGenerated).map((node) => node.id),
+						),
+					);
 	}
 	const search = useSearch({ from: "/colonies/$colonyId" });
 	const { colonyId } = useParams({ from: "/colonies/$colonyId" });
@@ -35,7 +45,8 @@ export function BeadBoard({ board, hierarchy }: { board: Board; hierarchy: Hiera
 		search.statuses,
 		preferred,
 	);
-	const families = boardFamilies(board, hierarchy);
+	const separated = separateHumanWork(board, hierarchy, nativeHierarchy);
+	const families = boardFamilies(separated.board, separated.hierarchy);
 	const columns = families.filter((family) => family.layout !== "swimlane");
 	const lanes = families.filter((family) => family.layout === "swimlane");
 	if (board.cards.length === 0) {
@@ -57,6 +68,32 @@ export function BeadBoard({ board, hierarchy }: { board: Board; hierarchy: Hiera
 						<span>{board.cards.filter((card) => card.status === status).length}</span>
 					</header>
 				))}
+				{separated.human.length > 0 && (
+					<section className="adaptive-family human-family" aria-label="Human-assigned work">
+						<header className="adaptive-family-heading">
+							<h3 className="human-family-label">
+								<UserRound size={14} aria-hidden="true" />
+								Human assigned <span className="family-hidden-count">{separated.human.length}</span>
+							</h3>
+							<span className="text-xs text-muted">Assignee matches owner</span>
+						</header>
+						{statuses.map((status) => (
+							<div key={status} className="adaptive-cell" aria-label={statusName(status)}>
+								{separated.human
+									.filter(({ card }) => card.status === status)
+									.map(({ card, outlineId }) => (
+										<div key={card.id}>
+											<BeadCard card={card} showStatus={false} outlineId={outlineId} />
+											<p className="human-card-context">
+												Owner · {card.owner}
+												{outlineId !== undefined && ` · From ${outlineId}`}
+											</p>
+										</div>
+									))}
+							</div>
+						))}
+					</section>
+				)}
 				{columns.length > 0 && (
 					<section className="adaptive-columns" aria-label="Native status columns">
 						{statuses.map((status) => (
@@ -204,33 +241,4 @@ function FamilyLane({ family, statuses }: { family: BoardFamily; statuses: strin
 			))}
 		</section>
 	);
-}
-
-/** Promote visible tasks past hidden workflow ancestors for board presentation only. */
-function withoutWorkflowBeads(hierarchy: Hierarchy): Hierarchy {
-	const byId = new Map(hierarchy.nodes.map((node) => [node.id, node]));
-	return {
-		...hierarchy,
-		nodes: hierarchy.nodes
-			.filter((node) => !node.isWorkflowGenerated)
-			// eslint-disable-next-line max-statements, oxc/no-map-spread -- Preserve cached native data.
-			.map((node) => {
-				const pending = [...node.parentIds];
-				const seen = new Set<string>();
-				const parentIds: string[] = [];
-				while (pending.length > 0) {
-					const id = pending.pop()!;
-					if (!seen.has(id)) {
-						seen.add(id);
-						const parent = byId.get(id);
-						if (parent?.isWorkflowGenerated === true) {
-							pending.push(...parent.parentIds);
-						} else {
-							parentIds.push(id);
-						}
-					}
-				}
-				return { ...node, parentIds };
-			}),
-	};
 }

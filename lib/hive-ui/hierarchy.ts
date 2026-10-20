@@ -1,4 +1,4 @@
-import type { Board, Hierarchy, HierarchyNode } from "./contracts.ts";
+import type { Board, Card, Hierarchy, HierarchyNode } from "./contracts.ts";
 
 export interface BranchRow {
 	/** Original native bead summary. */
@@ -93,7 +93,11 @@ export function boardFamilies(board: Board, hierarchy: Hierarchy | null): BoardF
 		nodes: [
 			// Combine independently cached snapshots without mutating either source.
 			// eslint-disable-next-line oxc/no-map-spread
-			...hierarchy.nodes.map((node) => ({ ...node, ...cards.get(node.id) })),
+			...hierarchy.nodes.map((node) => ({
+				...node,
+				...cards.get(node.id),
+				parentIds: node.parentIds,
+			})),
 			...board.cards
 				.filter((card) => !loadedIds.has(card.id))
 				// eslint-disable-next-line oxc/no-map-spread -- Add temporary presentation data without mutating board cards.
@@ -105,7 +109,10 @@ export function boardFamilies(board: Board, hierarchy: Hierarchy | null): BoardF
 			const active = family.rows.filter(({ node }) => unclosed(node));
 			const visible = family.rows
 				.filter(({ node }) => visibleIds.has(node.id))
-				.map(({ node, depth }) => ({ node: { ...node, ...cards.get(node.id)! }, depth }));
+				.map(({ node, depth }) => ({
+					node: { ...node, ...cards.get(node.id)!, parentIds: node.parentIds },
+					depth,
+				}));
 			const activeDescendants = active.filter(({ node }) => node.id !== family.root.id);
 			let layout: BoardFamily["layout"] = "ordinary";
 			if (active.length > 1) {
@@ -153,7 +160,88 @@ export function railRows(
 	});
 }
 
+/** Extract human assignments without changing the hierarchy used by outline reads. */
+export function separateHumanWork(
+	board: Board,
+	hierarchy: Hierarchy | null,
+	nativeHierarchy: Hierarchy | null,
+) {
+	const cards = new Map(board.cards.map((card) => [card.id, card]));
+	let current = hierarchy;
+	if (current !== null) {
+		current = {
+			...current,
+			// eslint-disable-next-line oxc/no-map-spread -- Preserve independent cached snapshots.
+			nodes: current.nodes.map((node) => ({
+				...node,
+				...cards.get(node.id),
+				parentIds: node.parentIds,
+			})),
+		};
+	}
+	const outlineIds = nativeOutlineRoots(nativeHierarchy);
+	const human = board.cards
+		.filter((card) => humanAssigned(card))
+		.map((card) => ({ card, outlineId: outlineIds.get(card.id) }));
+	let remaining = current;
+	if (current !== null) {
+		remaining = withoutHierarchyNodes(
+			current,
+			new Set(current.nodes.filter((node) => humanAssigned(node)).map((node) => node.id)),
+		);
+	}
+	return {
+		human,
+		board: { ...board, cards: board.cards.filter((card) => !humanAssigned(card)) },
+		hierarchy: remaining,
+	};
+}
+
+/** Promote visible tasks past hidden ancestors for board presentation only. */
+export function withoutHierarchyNodes(hierarchy: Hierarchy, hidden: Set<string>): Hierarchy {
+	const byId = new Map(hierarchy.nodes.map((node) => [node.id, node]));
+	return {
+		...hierarchy,
+		nodes: hierarchy.nodes
+			.filter((node) => !hidden.has(node.id))
+			// eslint-disable-next-line max-statements, oxc/no-map-spread -- Preserve cached native data.
+			.map((node) => {
+				const pending = [...node.parentIds];
+				const seen = new Set<string>();
+				const parentIds: string[] = [];
+				while (pending.length > 0) {
+					const id = pending.pop()!;
+					if (!seen.has(id)) {
+						seen.add(id);
+						const parent = byId.get(id);
+						if (parent !== undefined && hidden.has(parent.id)) {
+							pending.push(...parent.parentIds);
+						} else {
+							parentIds.push(id);
+						}
+					}
+				}
+				return { ...node, parentIds };
+			}),
+	};
+}
+
 // --- Board-only ancestry and shared graph traversal ---
+function nativeOutlineRoots(hierarchy: Hierarchy | null): Map<string, string> {
+	const roots = new Map<string, string>();
+	if (hierarchy === null) {
+		return roots;
+	}
+	for (const family of beadFamilies(hierarchy)) {
+		if (family.rows.length > 1) {
+			for (const { node } of family.rows) {
+				roots.set(node.id, family.root.id);
+			}
+		}
+	}
+	return roots;
+}
+
 function nativeParents(hierarchy: Hierarchy): Map<string, string[]> {
 	return new Map(hierarchy.nodes.map((node) => [node.id, node.parentIds]));
 }
@@ -265,4 +353,15 @@ function connectedFamily(
 		}
 	}
 	return family;
+}
+
+/** Both fields must be populated; absent assignment never identifies human work. */
+function humanAssigned(card: Card): boolean {
+	return (
+		card.owner !== null &&
+		card.owner.trim() !== "" &&
+		card.assignee !== null &&
+		card.assignee.trim() !== "" &&
+		card.owner === card.assignee
+	);
 }

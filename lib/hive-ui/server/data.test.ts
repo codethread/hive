@@ -80,6 +80,7 @@ test("board and inventory project cross-host attribution without requiring execu
 		title: "Work",
 		status: "in_progress",
 		assignee: "friendly-bee",
+		owner: "ct",
 	});
 	const request = await beads.create(scope, {
 		title: "Request",
@@ -98,6 +99,7 @@ test("board and inventory project cross-host attribution without requiring execu
 	const data = createBoardData(unrequestedTopology);
 	const board = await data.board(context, filter, 0);
 	expect(board.cards.find((card) => card.id === task.id)?.beeAssignments).toEqual([]);
+	expect(board.cards.find((card) => card.id === task.id)?.owner).toBe("ct");
 	const annotations = await data.annotations(context, [task.id], 0);
 	expect(
 		annotations.cards.find((card) => card.id === task.id)?.beeAssignments.map((bee) => bee.id),

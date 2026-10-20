@@ -60,6 +60,10 @@ const pageSchema = z.object({
 });
 const searchSchema = pageSchema.omit({ total: true }).extend({ hidden_closed_count: z.number() });
 const projectionColumns = {
+	owner: z
+		.string()
+		.nullable()
+		.transform((value) => value ?? undefined),
 	priority: z.number().int(),
 	assignee: z
 		.string()

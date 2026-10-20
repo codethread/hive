@@ -271,6 +271,7 @@ function card(id: string, title: string, status: string, patch: Partial<Card> = 
 		title,
 		status,
 		assignee: null,
+		owner: "ct",
 		beeAssignments: [],
 		merges: [],
 		isWorkflowGenerated: false,

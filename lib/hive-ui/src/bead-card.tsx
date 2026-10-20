@@ -1,4 +1,4 @@
-import { BeeActivity, BeeAssignment, Label, WorkStatus, time } from "./ui.tsx";
+import { BeeActivity, BeeAssignment, Label, OutlineLink, WorkStatus, time } from "./ui.tsx";
 import { Link, useSearch } from "@tanstack/react-router";
 import type { Card } from "../contracts.ts";
 import { FilterableLabel } from "./filter-controls.tsx";
@@ -10,11 +10,13 @@ export function BeadCard({
 	card,
 	compact = false,
 	showStatus = true,
+	outlineId,
 	subcards,
 }: {
 	card: Card;
 	compact?: boolean;
 	showStatus?: boolean;
+	outlineId?: string | undefined;
 	subcards?: { count: number; expanded: boolean; handleToggle: () => void } | undefined;
 }) {
 	const search = useSearch({ from: "/colonies/$colonyId" });
@@ -48,6 +50,7 @@ export function BeadCard({
 						)}
 						<WorkflowIndicator id={card.id} isWorkflowGenerated={card.isWorkflowGenerated} />
 						<MergeLinks merges={card.merges} />
+						{outlineId !== undefined && <OutlineLink id={outlineId} />}
 						{!compact && <Label>P{card.priority}</Label>}
 					</div>
 				</div>

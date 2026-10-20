@@ -1,5 +1,6 @@
+import { HumanAssignedPreview, humanPreviewHierarchy } from "./human-assigned-preview.tsx";
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { board, hierarchy } from "./fixtures.ts";
+import { board, fixtureDetail, hierarchy } from "./fixtures.ts";
 import {
 	multipleWorkflows,
 	nestedWorkflows,
@@ -7,6 +8,7 @@ import {
 	workflowHierarchy,
 } from "./workflow-fixtures.ts";
 import { BeadBoard } from "../bead-board.tsx";
+import { beadHandlers } from "./handlers.ts";
 import { preferences } from "../data.ts";
 
 const meta = {
@@ -42,3 +44,12 @@ export const WorkflowFamilies: Story = {
 export const WithoutHierarchy: Story = { args: { hierarchy: null } };
 export const Empty: Story = { args: { board: { ...board, cards: [] } } };
 export const Paper: Story = { globals: { theme: "paper" } };
+
+export const HumanAssignedSwimlane: Story = {
+	parameters: { shell: true, msw: beadHandlers(humanPreviewHierarchy, fixtureDetail) },
+	render: () => <HumanAssignedPreview />,
+};
+export const HumanAssignedSwimlanePaper: Story = {
+	...HumanAssignedSwimlane,
+	globals: { theme: "paper" },
+};

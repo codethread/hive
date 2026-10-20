@@ -811,6 +811,7 @@ function card(
 ): Card {
 	return {
 		assignee: bead.assignee ?? null,
+		owner: bead.owner ?? null,
 		beeAssignments: requests
 			.filter(
 				(request) =>

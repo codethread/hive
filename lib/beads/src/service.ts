@@ -223,6 +223,7 @@ export type BeadProjectionField =
 	| "status"
 	| "priority"
 	| "assignee"
+	| "owner"
 	| "labels"
 	| "dependency_count"
 	| "dependent_count"

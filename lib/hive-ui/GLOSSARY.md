@@ -22,6 +22,8 @@ Presentation vocabulary nested under the [shared Hive glossary](../../GLOSSARY.m
 
 **Bead board**: The native-status Kanban presentation of matching ordinary task beads and their families.
 
+**Human-assigned work**: Visible board cards whose owner and assignee are both populated and exactly equal.
+
 **Bead outline**: A dedicated view of one bead and its native descendants, independent of board filters.
 
 **Branch explorer**: The foldable native family tree beside a selected bead. _Avoid_: Bead outline when referring to the inspector tree.
