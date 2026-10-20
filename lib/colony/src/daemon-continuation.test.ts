@@ -296,7 +296,7 @@ const admissionCases: { failure: string; continuation: RestartContinuation | und
 	{ failure: "fingerprint", continuation: leg("prepared") },
 ];
 test.each(admissionCases)(
-	"explicit admission refuses $failure without changing evidence",
+	"explicit admission refuses $failure without changing evidence #test-595",
 	async ({ failure, continuation }) => {
 		const { deps, calls, saved } = fixture(continuation);
 		const initial = structuredClone(saved.checkpoint);

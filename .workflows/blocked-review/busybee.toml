@@ -1,3 +1,0 @@
-description = "Classify native blockers and recover proven tooling failures"
-version = "0.1.0"
-run = "./workflow.ts"

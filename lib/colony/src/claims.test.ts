@@ -151,7 +151,7 @@ function operationEvidence(): OperationEvidence & { failures: unknown[]; effects
 /* eslint-disable-next-line max-statements --
  * One release verifies owned, foreign and closed claims against the same request.
  */
-test("claims preserve human ownership and release only unfinished tasks still owned by this bee", async () => {
+test("claims retain human owners and release only unfinished tasks still owned by this bee #test-558", async () => {
 	const { tracker, id, foreign, closed, request } = releaseFixture;
 	const evidence = operationEvidence();
 	expect(await acquireClaim(tracker, "worker", id, evidence)).toBe("claimed");
@@ -187,7 +187,7 @@ test("claims preserve human ownership and release only unfinished tasks still ow
 	expect(evidence.effects).toEqual([`tracker.claimed:${id}`, `tracker.released:${id}`]);
 });
 
-test("stopped root releases owned descendants while preserving protected and related work", async () => {
+test("stopped root releases owned descendants while preserving protected and related work #test-559", async () => {
 	const { tracker, root, descendant, untouched, before, scope, request } = hierarchyFixture;
 	const evidence = operationEvidence();
 	await releaseClaims(
@@ -208,7 +208,7 @@ test("stopped root releases owned descendants while preserving protected and rel
 });
 
 test.each(parentedFixtures)(
-	"$role cleanup stays beneath its captured claim in a parented workflow",
+	"$role cleanup stays beneath its captured claim in a parented workflow #test-563",
 	// Verify release, preserved records and the next identity's role-scoped reacquisition.
 	// eslint-disable-next-line max-statements
 	async ({ tracker, root, child, visit, role, scope, untouched, before, request }) => {
@@ -251,7 +251,7 @@ test.each([
 	{ input: { labels: ["hitl"] }, outcome: "conflict" },
 	{ input: { status: "closed" }, outcome: "closed" },
 ])(
-	"claim leaves reserved or closed tasks unchanged: $outcome $input",
+	"claim leaves reserved or closed tasks unchanged: $outcome $input #test-566",
 	async ({ input, outcome }) => {
 		const tracker = memoryTracker();
 		const reserved = await createTask(tracker, input);
@@ -266,7 +266,7 @@ test.each([
 	},
 );
 
-test("a reservation changed after inspection produces a claim conflict with retained evidence", async () => {
+test("a reservation changed after inspection produces a claim conflict with retained evidence #test-560", async () => {
 	const tracker = memoryTracker();
 	const id = await createTask(tracker);
 	const beads = beforeTrackerWrite(tracker.beads, async (scope) => {

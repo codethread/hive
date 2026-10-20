@@ -23,7 +23,6 @@ import { loadPolicy, policySnapshot, policyView, updatePolicy } from "./policy.t
 import type { ActivePolicy } from "./policy.ts";
 import type { BeadsService } from "@hive/beads";
 import type { ColonyActivity } from "./colony.ts";
-import type { WorkReviewCommands } from "./work-review-runtime.ts";
 import { claimServer } from "./server-ownership.ts";
 import { createColony } from "./colony.ts";
 import { match } from "ts-pattern";
@@ -56,11 +55,8 @@ export async function serve(
 	options: ServerOptions,
 	beads: BeadsService,
 	{
-		workReview,
 		loadActivity,
 	}: {
-		/** Commands used by automatic work-review reconciliation. */
-		workReview: WorkReviewCommands;
 		/** Load canonical policy for activation and restoration. */
 		loadActivity: typeof loadColonyActivity;
 	},
@@ -78,17 +74,7 @@ export async function serve(
 		registration: RunningColony["registration"],
 		activity: ColonyActivity,
 	) => {
-		const actor = createColony(
-			{
-				beads,
-				repository,
-				state: options.state,
-				store,
-				workReview,
-				workReviewClock: { nextDue: 0 },
-			},
-			activity,
-		);
+		const actor = createColony({ beads, repository, state: options.state, store }, activity);
 		const policy = match(activity)
 			.with({ state: "awake" }, ({ config, revisionId }) => ({ config, revisionId }))
 			/* eslint-disable-next-line unicorn/no-null --

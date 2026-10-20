@@ -48,7 +48,7 @@ Read back the effective kind with `bee kinds reviewer --as reviewer --verbose --
 
 ## Deliver instructions through formulas
 
-Each formula requires `executable` and `argv`; `headless` is optional. `argv` applies to every invocation. `headless` tokens prepend only for managed executions, inactivity reviews and post-run inspectors. Interactive runs require a TTY.
+Each formula requires `executable` and `argv`; `headless` is optional. `argv` applies to every invocation. `headless` tokens prepend only for managed executions. Interactive runs require a TTY.
 
 Executable and argument tokens use strict Handlebars with the recipe fields `kind`, `harness`, `model`, `effort`, `cwd`, `system_prompt` and `prompt`, without HTML escaping. Unknown fields fail. Each token becomes one argument; empty rendered arguments are omitted. Condition both an optional flag and its value so neither survives alone. For a JSON-valued harness setting, use the `json` helper, for example:
 

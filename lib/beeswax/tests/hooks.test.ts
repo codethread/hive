@@ -52,7 +52,7 @@ test("configured Git hook targets resolve through common metadata in a linked ch
 	expect(fx.files.get("/repo/.git/hooks/pre-commit")).toBe(updateHookSection(""));
 });
 
-test("local launcher updates only its verified generation and ignores application PATH shadowing", async () => {
+test("local launcher updates only verified generations and ignores application PATH shadowing #test-574", async () => {
 	const fx = fixture();
 	await bindCheckout(root, "/tools with spaces/beeswax", fx.deps);
 	expect(fx.files.get("/repo/.git/beeswax/cli")).toContain(

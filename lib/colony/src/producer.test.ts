@@ -99,7 +99,7 @@ const cases: { assignment: WorkflowAssignment; anchor: string }[] = [
 ];
 
 test.each(cases)(
-	"$assignment.kind submission captures its scope and enforces duplicate admission",
+	"$assignment.kind submission captures its scope and enforces duplicate admission #test-556",
 	async ({ assignment, anchor }) => {
 		const context = commands(workflowTracker);
 		const created = await spawnWorkflowRequest({ kind: "worker", assignment, options }, context);

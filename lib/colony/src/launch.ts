@@ -26,7 +26,7 @@ import { match } from "ts-pattern";
 import { renderBeeSystemPrompt } from "./response-protocol.ts";
 import { runOwnedExecution } from "./processes.ts";
 /* eslint-disable-next-line import/no-nodejs-modules --
- * Launch the existing detached supervisor for ordinary attempts and drones.
+ * Launch the existing detached supervisor for ordinary attempts.
  */
 import { spawn as spawnSupervisor } from "node:child_process";
 import { trackerScope } from "./tracker.ts";
@@ -285,11 +285,7 @@ export async function writeReceipt(receipt: LaunchReceipt): Promise<void> {
 
 /** The supervisor touches only its own artifacts and never reconciles Beads. */
 // eslint-disable-next-line max-statements -- Acquisition and finally-based cleanup stay beside the owned subprocess.
-export async function executeWorker(
-	receipt: LaunchReceipt,
-	state: string,
-	options: { deadline?: number; environment?: Record<string, string> } = {},
-): Promise<Outcome> {
+export async function executeWorker(receipt: LaunchReceipt, state: string): Promise<Outcome> {
 	const { directory, invocation, cwd, identity, recipe, spawnId, beadsDb, token } = receipt;
 	const stdout = await open(join(directory, "stdout.log"), "w");
 	const stderr = await open(join(directory, "stderr.log"), "w");
@@ -309,13 +305,11 @@ export async function executeWorker(
 						HIVE_ATTEMPT_TOKEN: token,
 						HIVE_COLONY_STATE: resolvePath(state),
 						HIVE_SPAWN_ID: spawnId,
-						...options.environment,
 					},
 					stderr: stderr.fd,
 					stdout: stdout.fd,
 				}),
 			(harnessPid) => writeWorkerReceipt(directory, { ...ownership, harnessPid, kind: "running" }),
-			options.deadline,
 		);
 		const { code } = result;
 		await writeWorkerReceipt(directory, {
@@ -387,7 +381,7 @@ export async function readFinishReport(receipt: LaunchReceipt) {
 	return report.result;
 }
 
-/** One detached supervisor handoff serves both task execution and one-shot drone reviews. */
+/** Start the detached supervisor for a reserved attempt. */
 export async function startSupervisor(
 	receipt: LaunchReceipt,
 	state: string,

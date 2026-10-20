@@ -28,8 +28,6 @@ Automatic retries preserve the request and identity. Explicit `bee retry` create
 
 A replaced cancellation retains its native close reason, closure time, identity and `cancelled`/`resolved` disposition. Its resolution provenance becomes `superseded` with the actual replacement IDs; `needsAttention` remains false. A failed replacement needs its own follow-up while the predecessor remains resolved. Busy Bee follows this provenance for the same dispatched stage, preserving the saved run and visits.
 
-[Automatic work reviews](../../lib/colony/README.md#automatic-work-reviews) use this same public retry path. Read `colony work-review recover --help` for their narrower evidence, saved-assignment and one-attempt limits, including incident-linked native continuation authority for a cancelled predecessor.
-
 `bee ack` resolves attention without changing failure outcome, task state or execution history. `bee stop` on an already-closed request preserves its outcome and resolution. It does not acknowledge failure.
 
 `bee status` exposes native disposition, resolution provenance, `needsAttention` and whether label publication is current. Exact old-ID inspection retains that request's history. Use `bee result --help` for authored answers and replacement selection.
@@ -55,12 +53,6 @@ After resolving the blocker, the caller uses `bee retry`. Blocked tasks must fir
 Colony injects request/attempt identity, token and private state location. Preserve that context; it is local execution authority, not a security boundary against the same OS user. [`launch.ts`](../../lib/colony/src/launch.ts) validates it against the immutable receipt and atomically writes `finish.json`. Identical repeats succeed; conflicting reports fail.
 
 `finish_submitted` acknowledges durable submission. Colony accepts only its recorded current attempt; stale reports cannot affect a replacement. Cancellation takes precedence. A sleeping daemon consumes the report after wake, and checkpointed settlement survives interruption.
-
-## Report an inactivity verdict
-
-Only a Colony-launched inactivity drone uses `bee system report`; read its help. Injected review/target context and the recorded executing attempt authorize one immutable `verdict.json`. Every duplicate is rejected, including an identical repeat. Stale, mismatched, replaced, settling or late reports are rejected; malformed/invalid artifacts remain evidence without affecting the target.
-
-The inactivity drone reports active/inactive only. Colony owns task claims, process cleanup and retry decisions. The [runtime guide](../../lib/colony/README.md#review-quiet-bees-with-a-drone) owns trigger, deadline and missing-verdict policy; [`drone.ts`](../../lib/colony/src/drone.ts) owns report validation.
 
 ## Find requests with native Beads
 

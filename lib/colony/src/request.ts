@@ -1,16 +1,13 @@
 /* eslint-disable import/max-dependencies --
- * Compose existing runtime boundaries with the independent advisory assessment
- * lifecycle.
+ * Request reconciliation composes claims, execution and operation evidence.
  */
 /* eslint-disable unicorn/no-null --
  * Durable JSON checkpoints explicitly preserve absent attempt, claim, deadline and
  * outcome fields.
  */
-import type { AttemptInventory, Store } from "./store.ts";
 import type { BeesConfig, RepositoryEndpoint, SpawnRequest } from "@hive/shared";
 import { acquireClaim, releaseClaims } from "./claims.ts";
 import { assign, createActor, setup } from "xstate";
-import { cancelDroneReview, reviewInactivity } from "./drone.ts";
 import { observeExecution, resumeExecution, stopExecution } from "./processes.ts";
 import { publishObservation, publishStdoutActivity } from "./observations.ts";
 import {
@@ -21,19 +18,15 @@ import {
 } from "@hive/shared";
 import type { Bead } from "@hive/beads";
 import type { OperationEvidence } from "./history.ts";
+import type { Store } from "./store.ts";
 import type { TrackerContext } from "./tracker.ts";
 /* eslint-disable-next-line import/no-nodejs-modules --
  * Durable checkpoints retain authority only on their requesting host.
  */
 import { hostname } from "node:os";
-import { prepareAssessment } from "./postrun.ts";
 import { publishRequestLabels } from "./requests.ts";
 import { readFinishReport } from "./launch.ts";
 import { trackerScope } from "./tracker.ts";
-/* eslint-disable-next-line import/max-dependencies --
- * Request reconciliation composes claims, execution, drone review and operation
- * evidence.
- */
 import { z } from "zod";
 
 const ZERO = 0;
@@ -65,8 +58,6 @@ interface RequestRuntime extends TrackerContext {
 	store: Store;
 	/** Current canonical retry policy. */
 	config: BeesConfig;
-	/** Inactivity review clock; production uses the current wall clock. */
-	now?: () => number;
 }
 export type RequestRecord = z.infer<typeof requestRecordSchema>;
 type RequestContext = z.infer<typeof contextSchema>;
@@ -424,14 +415,14 @@ async function reconcileRequest(
 					type: "SETTLE",
 				});
 			} else if (attempt.state === "running") {
-				evidence.step("drone.review", attempt.id);
-				record = await reviewRunningAttempt(runtime, record, attempt);
 				evidence.step("stdout.publish", record.id);
 				await publishStdoutActivity(runtime, attempt.receipt);
-				if (record.state === "executing") {
-					evidence.step("observation.publish", record.id);
-					await publishRunningObservation(runtime, record, attempt);
-				}
+				evidence.step("observation.publish", record.id);
+				await publishObservation(
+					runtime,
+					record.id,
+					`running: attempt ${attempt.receipt.attemptNumber}`,
+				);
 			}
 		} else {
 			evidence.step("tracker.show-related", record.id);
@@ -452,8 +443,6 @@ async function reconcileRequest(
 	if (record.state === "settling") {
 		if (record.context.attemptId !== null) {
 			const attempt = inventory.find(({ id }) => id === record.context.attemptId)!;
-			evidence.step("drone.cancel", attempt.id);
-			await cancelDroneReview(runtime, attempt.id);
 			evidence.reference(attempt.receipt.directory);
 			evidence.step("execution.stop", attempt.id);
 			await stopExecution(attempt.receipt);
@@ -466,45 +455,6 @@ async function reconcileRequest(
 	} else if (record.state === "retrying") {
 		store.advanceRequest(repository.root, record, { now: Date.now(), type: "TICK" });
 	}
-}
-async function reviewRunningAttempt(
-	runtime: RequestRuntime,
-	record: RequestRecord,
-	attempt: AttemptInventory,
-): Promise<RequestRecord> {
-	const { beads, repository, store } = runtime;
-	const tasks = await Promise.all(
-		record.context.taskIds.map((id) =>
-			beads.show(trackerScope(repository, record.context.identity), id),
-		),
-	);
-	if (tasks.every(({ status }) => status === "closed")) {
-		await cancelDroneReview(runtime, attempt.id);
-		return record;
-	}
-	const message = await reviewInactivity(runtime, record, attempt.receipt);
-	if (message === undefined) {
-		return record;
-	}
-	return store.advanceRequest(repository.root, record, { message, outcome: null, type: "SETTLE" });
-}
-async function publishRunningObservation(
-	runtime: RequestRuntime,
-	record: RequestRecord,
-	attempt: AttemptInventory,
-): Promise<void> {
-	const { repository, store } = runtime;
-	const review = store.latestDroneReview(repository.root, attempt.id);
-	let fact = `running: attempt ${attempt.receipt.attemptNumber}`;
-	if (review !== undefined) {
-		fact +=
-			`; inactivity drone ${review.phase}; review ${review.id}; deadline ` +
-			`${new Date(review.deadline).toISOString()}`;
-		if (review.decision !== null) {
-			fact += `; ${review.decision.kind}; ${review.decision.detail}`;
-		}
-	}
-	await publishObservation(runtime, record.id, fact);
 }
 // eslint-disable-next-line max-statements -- Release claims and publish the settled fact before the final checkpoint.
 async function finishSettlement(
@@ -542,5 +492,5 @@ async function finishSettlement(
 		await publishRequestLabels(runtime, "sys-colony", record.id, hostname());
 		evidence.completed("labels.published", record.id);
 	}
-	store.settleRequest(repository.root, next, await prepareAssessment(runtime, next));
+	store.saveRequest(repository.root, next);
 }

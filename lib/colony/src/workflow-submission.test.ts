@@ -203,7 +203,7 @@ const dispatchedRun = await createTask(dispatched.tracker, { parent: dispatched.
 const group = await createTask(dispatched.tracker, { parent: dispatchedRun });
 const stage = await createTask(dispatched.tracker, { parent: group });
 
-test("stage dispatch uses native ancestry during initial frontier publication", async () => {
+test("stage dispatch uses native ancestry during initial frontier publication #test-562", async () => {
 	const beads = {
 		...dispatched.commands.beads,
 		show: (scope: BeadsScope, id: string) => {

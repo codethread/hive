@@ -1,13 +1,10 @@
 #!/usr/bin/env bun
-import { execute, resolveRepository } from "@hive/shared";
 import { loadColonyActivity, serve } from "../src/server.ts";
 import { createNativeBeads } from "@hive/beads";
-// eslint-disable-next-line import/no-nodejs-modules -- Workflow inputs are files in private daemon state.
-import { join } from "node:path";
 import { launch } from "../src/launch.ts";
 import { match } from "ts-pattern";
+import { resolveRepository } from "@hive/shared";
 import { version } from "../package.json";
-import { workReviewCommands } from "../src/work-review-commands.ts";
 import { z } from "zod";
 
 const USER_ARGUMENTS_START = 2;
@@ -54,17 +51,6 @@ try {
 		.with({ kind: "serve" }, ({ socket, state }) =>
 			serve({ socket, state }, beads, {
 				loadActivity: loadColonyActivity,
-				workReview: workReviewCommands(
-					{
-						execute: (argv, cwd) => execute(argv, cwd, process.env),
-						writeInput: async (token, input) => {
-							const path = join(state, "work-review", `${token}.json`);
-							await Bun.write(path, input);
-							return path;
-						},
-					},
-					state,
-				),
 			}),
 		)
 		.exhaustive();

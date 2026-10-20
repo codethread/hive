@@ -1,5 +1,5 @@
 /* eslint-disable import/max-dependencies --
- * CLI composes request, workflow submission, advisory and inspection result contracts.
+ * CLI composes request, workflow submission, response and inspection contracts.
  */
 import type { AcknowledgmentResult, RequestResult, RequestView } from "./requests.ts";
 import type { BeeSetupOptions, BeeSetupResult } from "./setup.ts";
@@ -23,10 +23,8 @@ import {
 	renderChangelog,
 } from "@hive/shared/changelog";
 import { formatResponseResult, responseJsonSchema } from "./responses.ts";
-import type { AssessmentSubmission } from "./postrun.ts";
 import { BeeSetupError } from "./setup.ts";
 import { Command } from "commander";
-import type { DroneReportResult } from "./drone.ts";
 import type { FinishResult } from "./launch.ts";
 import { HELP } from "./bee-help.ts";
 import type { RunOptions } from "./run.ts";
@@ -43,12 +41,10 @@ const JSON_INDENT = 2;
 type BeeResult =
 	| BeeSetupResult
 	| AcknowledgmentResult
-	| AssessmentSubmission
 	| RequestResult
 	| SpawnResult
 	| WorkflowSubmissionResult
 	| FinishResult
-	| DroneReportResult
 	| KindsResult
 	| ResponseCommandResult;
 
@@ -112,14 +108,10 @@ export interface BeeDependencies {
 	result: (id: string, options: InspectionOptions) => Promise<ResponseCommandResult>;
 	/** Hand the current terminal to a user-invoked interactive harness. */
 	run: (kind: string, options: RunOptions) => Promise<void>;
-	/** Submit one advisory assessment using injected execution authority. */
-	assess: (file: string) => Promise<AssessmentSubmission>;
 	/** Accept a failed request without changing its outcome or linked tasks. */
 	ack: (id: string, options: AckOptions) => Promise<AcknowledgmentResult>;
 	/** Discover configured kinds independently of the tracker and daemon. */
 	kinds: (name: string | undefined, options: KindOptions) => Promise<KindsResult>;
-	/** Submit one verdict for the injected drone review and exact inspected attempt. */
-	report: (id: string, verdict: string) => Promise<DroneReportResult>;
 	/** Submit an attempt-scoped self-report using injected provenance. */
 	finish: (outcome: string, options: { reason?: string }) => Promise<FinishResult>;
 	/** Read native request, task and last observation facts. */
@@ -156,7 +148,7 @@ export async function runBeeCli(argv: string[], deps: BeeDependencies): Promise<
 	responseCommands(program, argv, deps);
 	const system = program
 		.command("system")
-		.description("Automation protocols for Busy Bee and Colony")
+		.description("Workflow dispatch protocol for Busy Bee")
 		.addHelpText("after", HELP.system);
 
 	program
@@ -338,20 +330,6 @@ Use --json for a machine-readable result. Read br query --help to run saved quer
 				{ json: argv.includes("--json") },
 				deps.stdout,
 			);
-		});
-	system
-		.command("assess")
-		.description("Submit a post-run advisory report under injected assessment authority")
-		.requiredOption("--file <path>", "JSON report; contract: colony assessments --schema")
-		.action(async (options: { file: string }) => {
-			writeResult(await deps.assess(options.file), { json: argv.includes("--json") }, deps.stdout);
-		});
-	system
-		.command("report <spawn-id> <verdict>")
-		.description("Report active or inactive from this Colony inactivity drone")
-		.addHelpText("after", HELP.report)
-		.action(async (id: string, verdict: string) => {
-			writeResult(await deps.report(id, verdict), { json: argv.includes("--json") }, deps.stdout);
 		});
 	inspectionOptions(
 		program
@@ -580,18 +558,6 @@ function writeResult(
 		} else {
 			stdout(`${lines.join("\n")}\n`);
 		}
-		return;
-	}
-	if (result.kind === "assessment_submitted") {
-		stdout(`Submitted assessment ${result.assessmentId}; Colony validates when awake.\n`);
-		return;
-	}
-	if (result.kind === "drone_verdict_submitted") {
-		stdout(
-			`Submitted verdict for ${result.requestId}, attempt ` +
-				`${result.attemptId}, review ${result.reviewId}; Colony validates when ` +
-				`awake.\n`,
-		);
 		return;
 	}
 	if (result.kind === "finish_submitted") {

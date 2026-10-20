@@ -112,7 +112,7 @@ test(
 	},
 );
 
-test("publication rebases a revision conflict while retaining unrelated labels", async () => {
+test("publication rebases a revision conflict while retaining unrelated labels #test-564", async () => {
 	const { tracker, id } = conflict;
 	await tracker.beads.close(trackerScope(tracker.repository, "worker"), id, {
 		reason: "completed",

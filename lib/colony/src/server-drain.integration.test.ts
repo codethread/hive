@@ -8,11 +8,11 @@ import type {
 import { DaemonUnavailableError, requestServer } from "./client.ts";
 import { afterAll, expect, test } from "bun:test";
 import { beesConfigSchema, daemonStopResponseSchema } from "@hive/shared";
-import { memoryTracker, unusedWorkReviewCommands } from "./tracker.test-support.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Isolated daemon artifacts.
 import { mkdtemp, rm } from "node:fs/promises";
 // eslint-disable-next-line import/no-nodejs-modules -- Fixture endpoint paths.
 import { join } from "node:path";
+import { memoryTracker } from "./tracker.test-support.ts";
 import { openStore } from "./store.ts";
 import { restartServer } from "./daemon-lifecycle.ts";
 import { serve } from "./server.ts";
@@ -57,7 +57,6 @@ await serve(target, beads, {
 			state: "awake",
 			config: beesConfigSchema.parse({ owner: "ct", humans: ["ct"], formulas: {} }),
 		}),
-	workReview: unusedWorkReviewCommands(),
 });
 await entered.promise;
 const before = await requestServer(target, { kind: "status" });

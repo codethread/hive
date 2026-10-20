@@ -106,7 +106,7 @@ test.each([
 	},
 );
 
-test("interactive choices and explicit options reach the same deterministic setup", async () => {
+test("interactive choices and explicit options reach the same deterministic setup #test-583", async () => {
 	const fx = fixture();
 	fx.deps.context.tty = true;
 	fx.deps.wizard = async () => ({
@@ -263,7 +263,7 @@ test("setup failure retains confirmed phases and never claims completion #test-4
 	expect(fx.files.get("/repo/.husky/pre-commit")).toBe("custom hook\n");
 });
 
-test("setup preserves nested tracker effects in its public failure receipt", async () => {
+test("setup preserves nested tracker effects in its public failure receipt #test-580", async () => {
 	const fx = preparedHead();
 	const database = "/repo/.worktrees/tracker--state/.beads/beads.db";
 	fx.deps.operations.tracker = async () => {
@@ -426,7 +426,7 @@ test("initialization refuses an unprepared canonical HEAD before any setup effec
 	expect(fx.files.size).toBe(EMPTY);
 });
 
-test("git packing selects --repo without tracker selection and emits one focused JSON receipt", async () => {
+test("git packing selects --repo without tracker selection and emits one focused JSON receipt #test-589", async () => {
 	const fx = fixture();
 	const selected: string[] = [];
 	fx.deps.command = async (_argv, cwd) => cwd;

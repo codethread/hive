@@ -133,7 +133,7 @@ test("ordinary children cannot open an ancestor workflow", async () => {
 });
 
 // eslint-disable-next-line max-statements -- Verify native index reuse and fresh generated-visit discovery together.
-test("workflow polling reuses the identity index and immediately refreshes a missing visit", async () => {
+test("workflow polling reuses the identity index and immediately refreshes a missing visit #test-577", async () => {
 	let reads = 0;
 	const context = {
 		...workflowCache.context,
@@ -160,7 +160,7 @@ test("workflow polling reuses the identity index and immediately refreshes a mis
 });
 
 // eslint-disable-next-line max-statements -- Verify revision reuse and closed provenance across refreshes.
-test("fresh boards hydrate only changed workflow identities and retire removed checkpoints", async () => {
+test("fresh boards hydrate only changed workflow identities and retire removed checkpoints #test-569", async () => {
 	const descriptions: string[][] = [];
 	const context = {
 		...incremental.context,
@@ -201,7 +201,7 @@ test("fresh boards hydrate only changed workflow identities and retire removed c
 	expect(descriptions).toHaveLength(COLD_AND_RECOVERY_READS);
 });
 
-test("a failed workflow identity refresh cannot publish a partially parsed index", async () => {
+test("a failed workflow identity refresh cannot publish a partially parsed index #test-592", async () => {
 	let fail = true;
 	const batches: string[][] = [];
 	const context = {
@@ -276,7 +276,7 @@ test("primary cards and families never hydrate tasks or wait for merge and assig
 	expect(family.fetchedAt).toBe("2026-10-15T00:00:00Z");
 });
 
-test("merge icons read labelled references in both directions, including closed and malformed records", async () => {
+test("merge icons read both directions of labelled, closed and malformed references #test-567", async () => {
 	const calls: string[] = [];
 	const beads = {
 		...linked.beads,
@@ -300,7 +300,7 @@ test("merge icons read labelled references in both directions, including closed 
 	expect(calls.toSorted()).toEqual([linked.merged.id, linked.invalid.id].toSorted());
 });
 
-test("selected detail classifies its merge links without reading global merge metadata", async () => {
+test("selected detail classifies its merge links without reading global merge metadata #test-584", async () => {
 	const beads = {
 		...selected.beads,
 		listProjected: (...args: Parameters<typeof selected.beads.listProjected>) => {
@@ -327,7 +327,7 @@ test("selected detail classifies its merge links without reading global merge me
 	expect(detail.dependents.total).toBe(0);
 });
 
-test("a request without tasks never falls back to a repository-wide task or workflow query", async () => {
+test("a request without tasks skips repository-wide task and workflow queries #test-568", async () => {
 	const context = {
 		beads: {
 			...linked.beads,

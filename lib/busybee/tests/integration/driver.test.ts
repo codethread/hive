@@ -397,7 +397,7 @@ describe("driver coordination", () => {
 		},
 	);
 
-	test("handoff preserves an existing agent driver claim", async () => {
+	test("handoff preserves an existing agent driver claim #test-581", async () => {
 		const { beads, io, run } = assignedRun;
 		await beads.update(scope, [run.id], { assignee: "existing-driver" });
 		const result = await invoke(["system", "prepare-driver", run.id], io);
@@ -721,7 +721,7 @@ async function replacementFixture(reason = "blocked") {
 }
 
 describe("default catalogue installation", () => {
-	test("init installs at the catalogue root from a nested directory without tracker discovery", async () => {
+	test("init installs at the catalogue root from a nested directory without tracker discovery #test-596", async () => {
 		const requests: Parameters<Services["installWorkflow"]>[typeof FIRST][] = [];
 		const roots: { argv: string[]; cwd: string }[] = [];
 		const io = {
@@ -772,7 +772,7 @@ describe("default catalogue installation", () => {
 			},
 		]);
 	});
-	test("init reports native exclusive-installation failure without hiding it", async () => {
+	test("init reports native exclusive-installation failure without hiding it #test-586", async () => {
 		const io = {
 			...createServices(),
 			cwd: repo,

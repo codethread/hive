@@ -14,7 +14,7 @@ Read `bee --help` for submission and result discovery, then `colony wake --help`
 
 `bee skills --help` and `colony skills --help` discover version-matched instructions and supporting resources offline, without configuration, tracker, daemon or source checkout. Load metadata first and content on demand; the application repository's policy remains authoritative.
 
-Use `bee system --help` for the protocols called by Busy Bee and Colony's auxiliary observers.
+Use `bee system --help` for Busy Bee's dispatch protocol.
 
 ## Discover bee kinds
 
@@ -28,7 +28,7 @@ Users open direct conversations with `bee run KIND`; agents delegate through `be
 
 Use `bee spawn --help` to select a task-appropriate workflow, supply its input and choose execution settings. It also covers partial-submission recovery. Submission creates `original work -> workflow run -> stages`; the original parent's claim and completion remain separate. Drivers coordinate runs; dispatched workers execute stages. [Busy Bee](../busybee/README.md#delegate-a-workflow-to-bee) owns progression and group/run closure.
 
-Bee adds [delivery guidance](../../docs/agents/responses.md#runtime-guidance) at launch. Captured recipes retain the original role; receipts retain the actual invocation. Assessments and inactivity drones use separate protocols. The [spawn contract](../../docs/agents/spawn-requests.md#facts-and-authority) owns host binding and native lifecycle authority.
+Bee adds [delivery guidance](../../docs/agents/responses.md#runtime-guidance) at launch. Captured recipes retain the original role; receipts retain the actual invocation. The [spawn contract](../../docs/agents/spawn-requests.md#facts-and-authority) owns host binding and native lifecycle authority.
 
 ## Kind files
 
@@ -53,50 +53,6 @@ Discover requests through [native Beads queries](../../docs/agents/spawn-request
 Stdout activity is historical evidence, not a liveness verdict. `lastOutputAt` records the last modification of a nonempty attempt stdout log; `recordedAt` records publication. Empty log creation, stderr and polling do not count. A new attempt starts with unknown activity. Leave active logs unmodified.
 
 Awake reconciliation publishes first output, then changed activity at most once per 30 seconds; settlement flushes the final observation. Sleep/outage delays publication while detached workers keep writing. Source write time survives that delay; silence alone does not prove inactivity.
-
-## Review quiet bees with a drone
-
-Set canonical `inactivity_drone` to a configured kind with a matching formula; omission disables reviews. Fresh wake/reset loads policy changes. `colony config show` exposes the active selection.
-
-After 15 minutes without stdout, an awake Colony launches one drone for an unreconciled running attempt with unfinished work. A never-written log uses attempt creation time. Actual log activity drives the trigger. The drone receives the exact target attempt, evidence directory and deadline and runs in the target's execution directory. Silence or PID existence alone establishes neither progress nor inactivity.
-
-An accepted **active** verdict defers review for 15 minutes from acceptance, independently of stdout time. **Inactive** enters ordinary verified cleanup and bounded retry/exhaustion. Each review has one launch and a five-minute deadline, with no drone retry. Launch failure, exit without a valid verdict and timeout apply inactive consequences with distinct diagnostics. A detached supervisor enforces the deadline during sleep/outage; settlement waits for awake reconciliation. A timely durable verdict can be consumed after wake.
-
-Interrupted preparation before execution permission becomes `launch_failed` and is never relaunched. Verified cleanup stops its supervisor; late handoff cannot start the harness. Authorized reviews survive recovery without duplicate launch. Ambiguous ownership remains a visible failure.
-
-Inactivity reviews have no claims or independent spawn request and consume no task-dispatch capacity. Each target has at most one review; reviews cannot recurse. Target settlement stops pending reviews through ownership checks. Private receipts/logs retain evidence; native observations expose review identity and diagnostics. The [verdict contract](../../docs/agents/spawn-requests.md#report-an-inactivity-verdict) owns submission authority.
-
-## Automatic work reviews
-
-Colony can submit two ordinary drone workflows: [blocked-review](../../.workflows/blocked-review/workflow.ts) classifies native blockers, while [in-progress-review](../../.workflows/in-progress-review/workflow.ts) examines stranded managed work with an unsuccessful request. Their briefs own diagnosis and permitted actions. They use ordinary Bee responses, capacity and supervision; private inactivity reviews remain separate.
-
-Reviews default to disabled when `auto_work_reviews` is omitted. This repository's checked-in [`.hive/bees.toml`](../../.hive/bees.toml) explicitly opts in with the dedicated control parent `hv-bj6zi9`; loading that policy still requires the deliberate reload below.
-
-Prepare both named workflows and their dependencies in the canonical checkout used by Colony. Provision a dedicated ongoing ordinary parent in the selected tracker: open, unblocked, unreserved, and unassigned or assigned to `sys-colony`. Leave its notes empty for Colony's control record. Inspect both branches through `colony work-review preflight --help` before enabling current candidates, then configure a matching kind and formula:
-
-```toml
-auto_work_reviews = { kind = "drone", parent = "<ordinary review scope>" }
-```
-
-Reload through `colony wake --help` or `colony config reset --help`, preserving repository, tracker and server selection. Verify the loaded `autoWorkReviews` policy with `colony config show`. Removing the policy and reloading disables new submissions and recovery; retain the parent and its control notes for re-enablement.
-
-Each branch checks hourly and holds at most one outstanding review. Empty candidate sets and [fresh stable blockers](../../docs/beads-labels.md#stable-blocker-reviews) launch no drone. Tooling and unknown diagnoses remain eligible; a bounded batch does not imply every omitted item was reviewed. Wake performs overdue checks without replaying every missed hour. The control record retains clocks, active run/request IDs and consumed recovery allowances across restarts.
-
-Use `colony work-review --help` for preflight, inspection and evidence commands, and `--schema` for their typed payloads. Recovery is limited to one attempt per request lineage through public Bee retry; `colony work-review recover --help` owns native continuation evidence, saved-assignment admission and partial-effect handling. An unsuccessful review or uncertain publication retains its branch for attention. Inspect the retained control and exact request/run before recovery; preserve confirmed effects instead of submitting another workflow. Tracker alerts and read failures stop the affected review work.
-
-## Inspect finished bees
-
-Set canonical `post_run_drone` to a configured kind; omission disables new assessments. On settlement, a launched request queues one advisory assessment across its attempts, including failure/cancellation. Old terminal requests and zero-launch closures are not backfilled. Per repository, one inspector runs at a time with one launch and a five-minute deadline, outside task capacity. Assessments have no claims or spawn bead and cannot recurse or retry automatically.
-
-The evidence bundle separates captured role, optional execution direction and task snapshots read at settlement. Those snapshots are not launch-time copies. Execution evidence and private source pointers accompany the report contract. Inspectors submit through `bee system assess --help` using injected authority. Missing/failed/late reports remain coverage gaps and cannot fail or retry the examined work. Recovery resumes recorded inspections; disabling new ones leaves running inspections intact.
-
-Use `colony assessments --help` for summaries, full reports and source bundles. Reads work offline without creating state. Task-read failures remain explicit unavailable coverage; persistence and process-ownership failures remain infrastructure errors. Raw transcripts stay private.
-
-Codex accounting reads bounded stdout plus the unique native rollout matching the recorded thread ID. Missing, ambiguous, unsupported or oversized evidence remains a coverage limit. First-call input includes all initial context; it is not an onboarding-only measurement. [`postrun-evidence.ts`](src/postrun-evidence.ts) owns extraction limits and native-field handling.
-
-### Ask the nurse
-
-Hive's nurse synthesizes retained assessments using [welcoming hive](../../docs/agents/welcoming-hive.md). Submit an explicit report assignment naming the question and period through `bee spawn`; discover the configured role with `bee kinds nurse --verbose`. The nurse creates change tasks only with ct's approval. Filing selected evidence is a separate operation under [specialist stewardship](../../docs/beads-labels.md#specialist-evidence-and-label-stewardship).
 
 ## Run a colony
 

@@ -20,7 +20,6 @@ Timestamped `Colony observation:` comments record minimal last-observed facts; l
 | `hitl` | Marker | Human in the loop: the bead must be worked in tandem with the user, such as design work that needs their decisions. Bee refuses these tasks for autonomous execution; an agent works them only in a session with the user, confirming decisions as it goes. This is not a handoff: assigning `ct` hands work to the user, while `hitl` keeps an agent working with them. |
 | `response` | Filed response records only | Marks [filed responses](./agents/responses.md). Any authorized producer may publish its own; this grants no `evidence:*` stewardship. |
 | `merge` | Merge beads only | Identifies a provider-neutral merge-request reference for task lookup and linked UI presentation. Ordinary agents authorized to create or maintain the merge bead may apply this label; it is not specialist-owned or automation-reserved. Follow the [merge bead contract](./beads-meta.md#merge-beads). |
-| `blocker:stable` | Native `blocked` tasks only | Projects an evidenced product or human blocker for automatic review filtering. Colony's work-review recorder stewards it; [freshness and authority](#stable-blocker-reviews) govern its use. |
 | `area:shared`, `area:colony`, `area:honeycomb`, `area:tooling` | Zero or more | Classify affected Hive packages for filtering; these labels do not select a runner, block work, or enforce policy. Use multiple only for genuinely cross-package work; omit for repository-wide work without a package scope. |
 | `evidence:architecture` | Evidence records only | Index structured architectural history for librarian retrieval and review. Only the registered specialist below may add or remove it; it is not a runner, approval, or work-status label. |
 
@@ -43,12 +42,6 @@ Register each exact value and its **label steward** here. Stewardship is authori
 Only the registered specialist may add or remove its evidence label within its authorized scope. The librarian's role grants standing scope for routine architectural evidence capture during consult, review and discussion; other evidence permissions come from the registered specialist contract or an explicit assignment. Task ownership or reading a specialist's instructions does not transfer stewardship. Coordinators pass questions, corrections and outcomes to the steward, which handles filing as part of its response. Other agents may retrieve records and propose corrections; they preserve labels they do not steward. Ordinary label permissions above remain unchanged. These are agent-workflow rules, not CLI-enforced access control.
 
 Classify by subject, not by the contributing agent. One record may serve multiple specialties, with each steward applying only its own registered label; reuse that record instead of duplicating histories. `evidence:testing` and `evidence:performance` are possible future values, not currently authorized labels. Register a value, steward and evidence contract before using it; topical relevance alone does not authorize inventing labels.
-
-## Stable blocker reviews
-
-The `blocked-review` workflow supplies the diagnosis; Colony's work-review recorder owns the `blocker:stable` projection. Its consumer is Colony's blocked-work preflight. The marker alone never suppresses review: the task must still be native `blocked` with a stable receipt matching current task, ancestor, prerequisite and request-lineage evidence.
-
-The [native fingerprint](../lib/colony/src/work-review.ts) excludes the marker, validated review/recovery annotations and revision timestamps so the review's own writes do not invalidate it. Other native changes invalidate the receipt; elapsed time alone does not. Recording a tooling or unknown diagnosis removes the marker. Preserve this stewarded label during unrelated updates. It supplies no claim, retry, unblock or completion authority.
 
 ## Change labels without losing context
 

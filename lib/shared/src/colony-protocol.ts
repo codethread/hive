@@ -70,13 +70,7 @@ export const configCommandSchema = z.discriminatedUnion("operation", [
 
 /** Generic inspection names active formulas without exposing their argument values. */
 export const policyViewSchema = z.strictObject({
-	/** Loaded review kind and dedicated control parent; null disables automatic work reviews. */
-	autoWorkReviews: z.strictObject({ kind: z.string(), parent: z.string() }).nullable(),
 	formulas: z.array(z.string()),
-	/** Selected inactivity reviewer kind, or null when reviews are disabled. */
-	inactivityDrone: z.string().nullable(),
-	/** Selected post-run advisor kind, or null when new enrollment is disabled. */
-	postRunDrone: z.string().nullable(),
 	limits: limitsSchema,
 	maxRetries: z.number().int().nonnegative(),
 	ranking: z.enum(["bv-pagerank", "fifo"]),

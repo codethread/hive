@@ -1,12 +1,12 @@
 /* eslint-disable unicorn/no-null -- The restart checkpoint explicitly records an unobserved prior daemon. */
 import type { DaemonLifecycle, RestartCheckpoint } from "./daemon-lifecycle.ts";
 import { afterAll, expect, test } from "bun:test";
-import { memoryTracker, unusedWorkReviewCommands } from "./tracker.test-support.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Create and remove isolated state for the socket fixture.
 import { mkdtemp, rm } from "node:fs/promises";
 import { beesConfigSchema } from "@hive/shared";
 // eslint-disable-next-line import/no-nodejs-modules -- Resolve fixture repository, tracker and socket paths.
 import { join } from "node:path";
+import { memoryTracker } from "./tracker.test-support.ts";
 import { openStore } from "./store.ts";
 import { requestServer } from "./client.ts";
 import { restartServer } from "./daemon-lifecycle.ts";
@@ -50,7 +50,6 @@ await serve(target, beads, {
 			state: "awake",
 			config: beesConfigSchema.parse({ owner: "ct", humans: ["ct"], formulas: {} }),
 		}),
-	workReview: unusedWorkReviewCommands(),
 });
 await Promise.all(entered.map(({ promise }) => promise));
 const before = await requestServer(target, { kind: "status" });

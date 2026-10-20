@@ -99,7 +99,7 @@ test.each([
 	},
 );
 
-test("headless templates are validated before a formula is installed", () => {
+test("headless templates are validated before a formula is installed #test-599", () => {
 	expect(() => validateFormula({ ...formula, headless: ["{{missing}}"] })).toThrow(Error);
 });
 

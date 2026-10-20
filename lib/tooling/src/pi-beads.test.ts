@@ -45,9 +45,12 @@ test.each([
 		isError: false,
 		output: '[{"id":"hv-9d9","status":"open"}]',
 	},
-])("ignores unrelated or unsuccessful results: %#", ({ command, output: result, isError }) => {
-	expect(claimedBead(claimResult(command, result, isError))).toBeUndefined();
-});
+])(
+	"ignores unrelated or unsuccessful results: %# #test-594",
+	({ command, output: result, isError }) => {
+		expect(claimedBead(claimResult(command, result, isError))).toBeUndefined();
+	},
+);
 
 test("recognizes nested bash claims and selects the last claimed bead", () => {
 	const event = claimResult(

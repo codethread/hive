@@ -1198,8 +1198,8 @@
 			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 11.329ms (lib/busybee/tests/integration/simulation-examples.test.ts)."
 		},
 		"#test-302": {
-			"threshold": "SLOW",
-			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 7.347ms (lib/busybee/tests/integration/simulation-examples.test.ts)."
+			"threshold": "XSLOW",
+			"justification": "Approved by ct on 2026-10-20 in hv-lconmm.1 for retained pre-policy coverage. lib/busybee/tests/integration/simulation-examples.test.ts: change-review simulation rejects spawning or virtual-visit validation without changing saved state; the initial and saved cases measured 59.740ms and 51.009ms in the full check."
 		},
 		"#test-303": {
 			"threshold": "XSLOW",
@@ -1290,8 +1290,8 @@
 			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 10.821ms (lib/colony/src/responses.integration.test.ts)."
 		},
 		"#test-325": {
-			"threshold": "SLOW",
-			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 5.198ms (lib/colony/src/responses.integration.test.ts)."
+			"threshold": "XSLOW",
+			"justification": "Approved by ct on 2026-10-20 in hv-lconmm.1 for retained pre-policy coverage. lib/colony/src/responses.integration.test.ts: schema discovery without a tracker and JSON argument errors measured 10.600ms in the strict changed run, exceeding the prior 5.198ms baseline."
 		},
 		"#test-326": {
 			"threshold": "SLOW",
@@ -1306,8 +1306,8 @@
 			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 12.271ms (lib/colony/src/responses.integration.test.ts)."
 		},
 		"#test-329": {
-			"threshold": "SLOW",
-			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.044ms (lib/colony/src/responses.integration.test.ts)."
+			"threshold": "XSLOW",
+			"justification": "Approved by ct on 2026-10-20 in hv-lconmm.1 for retained pre-policy coverage. lib/colony/src/responses.integration.test.ts: result retrieval preserves exact driver/stage identity after supersession without task hydration or readiness queries; it measured 13.384ms in the strict changed run."
 		},
 		"#test-330": {
 			"threshold": "XSLOW",
@@ -1329,10 +1329,6 @@
 			"threshold": "SLOW",
 			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 9.666ms (lib/colony/src/workflows.test.ts)."
 		},
-		"#test-335": {
-			"threshold": "XSLOW",
-			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 19.113ms (lib/colony/src/postrun-evidence.smoke.test.ts)."
-		},
 		"#test-336": {
 			"threshold": "SLOW",
 			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 6.332ms (lib/beeswax/src/beads/bootstrap.test.ts)."
@@ -1342,8 +1338,8 @@
 			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 5.665ms (lib/beeswax/tests/integration/onboarding-lifecycle.test.ts)."
 		},
 		"#test-338": {
-			"threshold": "SLOW",
-			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 6.452ms (lib/waggle/tests/integration/cli.test.ts)."
+			"threshold": "XSLOW",
+			"justification": "Approved by ct on 2026-10-20 in hv-lconmm.1 for retained pre-policy coverage. lib/waggle/tests/integration/cli.test.ts: CLI help succeeds without loading a catalogue measured 13.758ms in the full diagnostic run."
 		},
 		"#test-339": {
 			"threshold": "SLOW",
@@ -1372,14 +1368,6 @@
 		"#test-345": {
 			"threshold": "SLOW",
 			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 4.259ms (lib/colony/src/explain.test.ts)."
-		},
-		"#test-346": {
-			"threshold": "SLOW",
-			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 4.113ms (lib/colony/src/work-review-recovery.test.ts)."
-		},
-		"#test-347": {
-			"threshold": "SLOW",
-			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 3.274ms (lib/colony/src/work-review-recovery.test.ts)."
 		},
 		"#test-348": {
 			"threshold": "SLOW",
@@ -1437,10 +1425,6 @@
 			"threshold": "XSLOW",
 			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 16.188ms (lib/colony/src/host-routing.test.ts)."
 		},
-		"#test-362": {
-			"threshold": "SLOW",
-			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.764ms (lib/colony/src/work-review-runtime.test.ts)."
-		},
 		"#test-363": {
 			"threshold": "SLOW",
 			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.543ms (lib/honeycomb/tests/unit/config-policy.test.ts)."
@@ -1480,10 +1464,6 @@
 		"#test-372": {
 			"threshold": "SLOW",
 			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 1.991ms (lib/colony/src/daemon-continuation.test.ts)."
-		},
-		"#test-373": {
-			"threshold": "SLOW",
-			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 6.275ms (lib/colony/src/work-review.test.ts)."
 		},
 		"#test-374": {
 			"threshold": "SLOW",
@@ -1565,10 +1545,6 @@
 			"threshold": "SLOW",
 			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 1.514ms (lib/busybee/tests/integration/land.test.ts)."
 		},
-		"#test-394": {
-			"threshold": "SLOW",
-			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 3.547ms (lib/colony/src/work-review-runtime.test.ts)."
-		},
 		"#test-395": {
 			"threshold": "SLOW",
 			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.156ms (lib/shared/src/bees.test.ts)."
@@ -1621,10 +1597,6 @@
 			"threshold": "SLOW",
 			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 3.820ms (lib/qlock/tests/cli.test.ts)."
 		},
-		"#test-408": {
-			"threshold": "SLOW",
-			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.566ms (lib/busybee/tests/integration/work-review.test.ts)."
-		},
 		"#test-409": {
 			"threshold": "SLOW",
 			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.448ms (lib/beads/src/memory.test.ts)."
@@ -1673,10 +1645,6 @@
 			"threshold": "SLOW",
 			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 1.555ms (lib/beeswax/src/beads/alerts-publication.test.ts)."
 		},
-		"#test-421": {
-			"threshold": "SLOW",
-			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 1.515ms (lib/colony/src/work-review-recovery.test.ts)."
-		},
 		"#test-422": {
 			"threshold": "SLOW",
 			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 6.428ms (lib/busybee/tests/integration/inspection.test.ts)."
@@ -1698,8 +1666,8 @@
 			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 1.810ms (lib/colony/src/responses.integration.test.ts)."
 		},
 		"#test-427": {
-			"threshold": "SLOW",
-			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.209ms (lib/colony/src/responses.integration.test.ts)."
+			"threshold": "XSLOW",
+			"justification": "Approved by ct on 2026-10-20 in hv-lconmm.1 for retained pre-policy coverage. lib/colony/src/responses.integration.test.ts: standalone response publication opts out of managed context and preserves human reservations; it measured 11.374ms in the strict changed run."
 		},
 		"#test-428": {
 			"threshold": "SLOW",
@@ -1725,10 +1693,6 @@
 			"threshold": "SLOW",
 			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 4.802ms (lib/busybee/tests/integration/completion.test.ts)."
 		},
-		"#test-434": {
-			"threshold": "SLOW",
-			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 6.836ms (lib/colony/src/work-review-commands.test.ts)."
-		},
 		"#test-435": {
 			"threshold": "SLOW",
 			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 3.561ms (lib/scent/tests/cli.test.ts)."
@@ -1753,17 +1717,9 @@
 			"threshold": "SLOW",
 			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 4.542ms (lib/beeswax/src/onboarding.test.ts)."
 		},
-		"#test-441": {
-			"threshold": "SLOW",
-			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 3.241ms (lib/colony/src/work-review-recovery.test.ts)."
-		},
-		"#test-442": {
-			"threshold": "SLOW",
-			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.743ms (lib/colony/src/work-review-recovery.test.ts)."
-		},
 		"#test-443": {
-			"threshold": "SLOW",
-			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.551ms (lib/busybee/tests/integration/nested-bees.test.ts)."
+			"threshold": "XSLOW",
+			"justification": "Approved by ct on 2026-10-20 in hv-lconmm.1 for retained pre-policy coverage. lib/busybee/tests/integration/nested-bees.test.ts: comparing saved Storybook captures with the authored runtime and public inspection path measured 21.178ms in the full diagnostic run."
 		},
 		"#test-444": {
 			"threshold": "SLOW",
@@ -1777,10 +1733,6 @@
 			"threshold": "SLOW",
 			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 3.205ms (lib/hive-ui/data.test.ts)."
 		},
-		"#test-447": {
-			"threshold": "SLOW",
-			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.929ms (lib/busybee/tests/integration/work-review.test.ts)."
-		},
 		"#test-448": {
 			"threshold": "SLOW",
 			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.135ms (lib/beeswax/src/onboarding.test.ts)."
@@ -1792,10 +1744,6 @@
 		"#test-450": {
 			"threshold": "SLOW",
 			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.678ms (lib/busybee/tests/integration/completion.test.ts)."
-		},
-		"#test-451": {
-			"threshold": "SLOW",
-			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.235ms (lib/colony/src/work-review-recovery.test.ts)."
 		},
 		"#test-452": {
 			"threshold": "SLOW",
@@ -1845,17 +1793,9 @@
 			"threshold": "SLOW",
 			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.036ms (lib/busybee/tests/integration/failure.test.ts)."
 		},
-		"#test-464": {
-			"threshold": "SLOW",
-			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 1.525ms (lib/colony/src/work-review-recovery.test.ts)."
-		},
 		"#test-465": {
 			"threshold": "SLOW",
 			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 3.327ms (lib/beeswax/src/harness-alerts.test.ts)."
-		},
-		"#test-466": {
-			"threshold": "SLOW",
-			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.620ms (lib/colony/src/work-review-commands.test.ts)."
 		},
 		"#test-467": {
 			"threshold": "SLOW",
@@ -1933,10 +1873,6 @@
 			"threshold": "SLOW",
 			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 1.905ms (lib/tooling/src/release-changelog.test.ts)."
 		},
-		"#test-486": {
-			"threshold": "SLOW",
-			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 4.471ms (lib/colony/src/work-review.test.ts)."
-		},
 		"#test-487": {
 			"threshold": "SLOW",
 			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.906ms (lib/beeswax/tests/integration/cli.test.ts)."
@@ -1972,10 +1908,6 @@
 		"#test-495": {
 			"threshold": "SLOW",
 			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.624ms (lib/beeswax/src/beads/publish.test.ts)."
-		},
-		"#test-496": {
-			"threshold": "SLOW",
-			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 1.877ms (lib/colony/src/work-review-commands.test.ts)."
 		},
 		"#test-497": {
 			"threshold": "SLOW",
@@ -2081,10 +2013,6 @@
 			"threshold": "SLOW",
 			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 1.888ms (lib/hive-ui/data.test.ts)."
 		},
-		"#test-523": {
-			"threshold": "SLOW",
-			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 1.585ms (lib/colony/src/work-review-recovery.test.ts)."
-		},
 		"#test-524": {
 			"threshold": "SLOW",
 			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 3.415ms (lib/scent/tests/cli.test.ts)."
@@ -2096,10 +2024,6 @@
 		"#test-526": {
 			"threshold": "SLOW",
 			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 3.614ms (lib/busybee/tests/integration/completion.test.ts)."
-		},
-		"#test-527": {
-			"threshold": "SLOW",
-			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 1.825ms (lib/colony/src/work-review-commands.test.ts)."
 		},
 		"#test-528": {
 			"threshold": "SLOW",
@@ -2124,14 +2048,6 @@
 		"#test-533": {
 			"threshold": "SLOW",
 			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.873ms (lib/qlock/tests/cli.test.ts)."
-		},
-		"#test-534": {
-			"threshold": "SLOW",
-			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 1.614ms (lib/colony/src/work-review-runtime.test.ts)."
-		},
-		"#test-535": {
-			"threshold": "SLOW",
-			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 1.542ms (lib/colony/src/work-review-recovery.test.ts)."
 		},
 		"#test-536": {
 			"threshold": "SLOW",
@@ -2200,6 +2116,194 @@
 		"#test-552": {
 			"threshold": "SLOW",
 			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 3.787ms (lib/hive-ui/colony-discovery.test.ts)."
+		},
+		"#test-553": {
+			"threshold": "XSLOW",
+			"justification": "Approved by ct on 2026-10-20 in hv-lconmm.1 for retained pre-policy coverage. lib/colony/src/processes.integration.test.ts: real detached child launch, ownership artifacts and exit publication measured 58.346ms in the strict changed run."
+		},
+		"#test-554": {
+			"threshold": "XSLOW",
+			"justification": "Approved by ct on 2026-10-20 in hv-lconmm.1 for retained pre-policy coverage. lib/colony/src/processes.integration.test.ts: stopping the real owned process group and observing supervisor exit measured 91.221ms in the strict changed run."
+		},
+		"#test-555": {
+			"threshold": "SLOW",
+			"justification": "Approved by ct on 2026-10-20 in hv-lconmm.1 for retained pre-policy coverage. lib/colony/src/bee-cli.integration.test.ts: CLI forwarding of cancellation resumption independently of recipe overrides measured 3.865ms in the strict changed run."
+		},
+		"#test-556": {
+			"threshold": "SLOW",
+			"justification": "Approved by ct on 2026-10-20 in hv-lconmm.1 for retained pre-policy coverage. lib/colony/src/producer.test.ts: driver/stage submission scope and duplicate admission use in-memory Beads; the driver case measured 3.753ms in the strict changed run."
+		},
+		"#test-557": {
+			"threshold": "SLOW",
+			"justification": "Approved by ct on 2026-10-20 in hv-lconmm.1 for retained pre-policy coverage. lib/colony/src/processes.test.ts: parsing process lifetime and group fields with renamed argv measured 3.661ms in the strict changed run."
+		},
+		"#test-558": {
+			"threshold": "SLOW",
+			"justification": "Approved by ct on 2026-10-20 in hv-lconmm.1 for retained pre-policy coverage. lib/colony/src/claims.test.ts: claim/release coverage preserves the human owner, foreign claims and closed tasks; it measured 2.198ms in the strict changed run."
+		},
+		"#test-559": {
+			"threshold": "SLOW",
+			"justification": "Approved by ct on 2026-10-20 in hv-lconmm.1 for retained pre-policy coverage. lib/colony/src/claims.test.ts: releasing owned descendants while preserving protected and related work measured 2.986ms in the strict changed run."
+		},
+		"#test-560": {
+			"threshold": "SLOW",
+			"justification": "Approved by ct on 2026-10-20 in hv-lconmm.1 for retained pre-policy coverage. lib/colony/src/claims.test.ts: retaining conflict evidence when a reservation changes after inspection measured 1.559ms in the strict changed run."
+		},
+		"#test-561": {
+			"threshold": "SLOW",
+			"justification": "Approved by ct on 2026-10-20 in hv-lconmm.1 for retained pre-policy coverage. lib/colony/src/bee-cli.integration.test.ts: status output omits captured prompts while retaining request decisions; it measured 1.542ms in the strict changed run."
+		},
+		"#test-562": {
+			"threshold": "SLOW",
+			"justification": "Approved by ct on 2026-10-20 in hv-lconmm.1 for retained pre-policy coverage. lib/colony/src/workflow-submission.test.ts: stage dispatch using native ancestry during initial frontier publication measured 2.590ms in the strict changed run."
+		},
+		"#test-563": {
+			"threshold": "SLOW",
+			"justification": "Approved by ct on 2026-10-20 in hv-lconmm.1 for retained pre-policy coverage. lib/colony/src/claims.test.ts: cleanup stays beneath the driver's or stage worker's captured claim; the stage case measured 4.159ms in the strict changed run."
+		},
+		"#test-564": {
+			"threshold": "SLOW",
+			"justification": "Approved by ct on 2026-10-20 in hv-lconmm.1 for retained pre-policy coverage. lib/colony/src/requests.test.ts: publication rebasing after a revision conflict preserves unrelated labels; it measured 1.671ms in the strict changed run."
+		},
+		"#test-565": {
+			"threshold": "SLOW",
+			"justification": "Approved by ct on 2026-10-20 in hv-lconmm.1 for retained pre-policy coverage. lib/colony/src/run.test.ts: an unconfigured interactive kind or harness fails before launch; the missing-kind case measured 1.743ms in the strict changed run."
+		},
+		"#test-566": {
+			"threshold": "SLOW",
+			"justification": "Approved by ct on 2026-10-20 in hv-lconmm.1 for retained pre-policy coverage. lib/colony/src/claims.test.ts: claiming preserves reserved or closed tasks; the human-assigned case measured 5.126ms in the strict changed run."
+		},
+		"#test-567": {
+			"threshold": "XSLOW",
+			"justification": "Approved by ct on 2026-10-20 in hv-lconmm.1 for retained pre-policy coverage. lib/hive-ui/server/data.test.ts: merge icons read labelled references in both directions, including closed and malformed records measured 10.967ms in the full diagnostic run."
+		},
+		"#test-568": {
+			"threshold": "SLOW",
+			"justification": "Approved by ct on 2026-10-20 in hv-lconmm.1 for retained pre-policy coverage. lib/hive-ui/server/data.test.ts: a request without tasks avoids repository-wide task and workflow queries measured 4.753ms in the full diagnostic run."
+		},
+		"#test-569": {
+			"threshold": "SLOW",
+			"justification": "Approved by ct on 2026-10-20 in hv-lconmm.1 for retained pre-policy coverage. lib/hive-ui/server/data.test.ts: board refreshes hydrate only changed workflow identities and retire removed checkpoints measured 3.629ms in the full diagnostic run."
+		},
+		"#test-570": {
+			"threshold": "SLOW",
+			"justification": "Approved by ct on 2026-10-20 in hv-lconmm.1 for retained pre-policy coverage. lib/hive-ui/workflow-graph.test.ts: completion stays local to the full workflow scope; the review/review case measured 3.321ms in the full diagnostic run."
+		},
+		"#test-571": {
+			"threshold": "SLOW",
+			"justification": "Approved by ct on 2026-10-20 in hv-lconmm.1 for retained pre-policy coverage. lib/beeswax/src/harness-alerts.test.ts: successive harness callbacks deliver a hold and exact incident clearance; the claude case measured 2.864ms in the full diagnostic run."
+		},
+		"#test-572": {
+			"threshold": "XSLOW",
+			"justification": "Approved by ct on 2026-10-20 in hv-lconmm.1 for retained pre-policy coverage. lib/honeycomb/tests/unit/config.test.ts: worktree location resolution follows configuration precedence; the global default case measured 18.840ms in the strict changed run."
+		},
+		"#test-573": {
+			"threshold": "SLOW",
+			"justification": "Approved by ct on 2026-10-20 in hv-lconmm.1 for retained pre-policy coverage. lib/hive-ui/workflow-graph.test.ts: saved graph inspection retains automatic, repeated and targetless transitions without evaluating guards measured 2.146ms in the full diagnostic run."
+		},
+		"#test-574": {
+			"threshold": "SLOW",
+			"justification": "Approved by ct on 2026-10-20 in hv-lconmm.1 for retained pre-policy coverage. lib/beeswax/tests/hooks.test.ts: local launcher updates only its verified generation and ignores application PATH shadowing measured 2.000ms in the full diagnostic run."
+		},
+		"#test-575": {
+			"threshold": "SLOW",
+			"justification": "Approved by ct on 2026-10-20 in hv-lconmm.1 for retained pre-policy coverage. lib/honeycomb/tests/unit/config.test.ts: configuration parsing resolves pooled and non-pooled projects; the mixed-project case measured 3.166ms in the strict changed run."
+		},
+		"#test-576": {
+			"threshold": "SLOW",
+			"justification": "Approved by ct on 2026-10-20 in hv-lconmm.1 for retained pre-policy coverage. lib/honeycomb/tests/unit/config.test.ts: invalid worktree locations are rejected; the matching-rule case measured 2.307ms in the strict changed run."
+		},
+		"#test-577": {
+			"threshold": "SLOW",
+			"justification": "Approved by ct on 2026-10-20 in hv-lconmm.1 for retained pre-policy coverage. lib/hive-ui/server/data.test.ts: workflow polling reuses the identity index and immediately refreshes a missing visit measured 1.599ms in the strict changed run."
+		},
+		"#test-578": {
+			"threshold": "SLOW",
+			"justification": "Approved by ct on 2026-10-20 in hv-lconmm.1 for retained pre-policy coverage. lib/busybee/tests/integration/completion.test.ts: a human-reserved stage remains open without saved results measured 7.420ms in the full check."
+		},
+		"#test-579": {
+			"threshold": "SLOW",
+			"justification": "Approved by ct on 2026-10-20 in hv-lconmm.1 for retained pre-policy coverage. lib/beads/src/native.test.ts: native projected queries preserve selected columns and pagination facts; the list case measured 2.531ms in the full check."
+		},
+		"#test-580": {
+			"threshold": "SLOW",
+			"justification": "Approved by ct on 2026-10-20 in hv-lconmm.1 for retained pre-policy coverage. lib/beeswax/tests/integration/cli.test.ts: setup preserves nested tracker effects in its public failure receipt measured 2.075ms in the full check."
+		},
+		"#test-581": {
+			"threshold": "SLOW",
+			"justification": "Approved by ct on 2026-10-20 in hv-lconmm.1 for retained pre-policy coverage. lib/busybee/tests/integration/driver.test.ts: handoff preserves an existing agent driver claim measured 1.903ms in the full check."
+		},
+		"#test-582": {
+			"threshold": "SLOW",
+			"justification": "Approved by ct on 2026-10-20 in hv-lconmm.1 for retained pre-policy coverage. lib/busybee/tests/integration/failure.test.ts: initial visit publication failure retains parent, run and checkpoint identities measured 1.884ms in the full check."
+		},
+		"#test-583": {
+			"threshold": "SLOW",
+			"justification": "Approved by ct on 2026-10-20 in hv-lconmm.1 for retained pre-policy coverage. lib/beeswax/tests/integration/cli.test.ts: interactive choices reach the deterministic setup path used by explicit options measured 5.127ms in the strict changed run."
+		},
+		"#test-584": {
+			"threshold": "SLOW",
+			"justification": "Approved by ct on 2026-10-20 in hv-lconmm.1 for retained pre-policy coverage. lib/hive-ui/server/data.test.ts: selected task detail classifies merge links without reading global merge metadata measured 2.464ms in the strict changed run."
+		},
+		"#test-585": {
+			"threshold": "SLOW",
+			"justification": "Approved by ct on 2026-10-20 in hv-lconmm.1 for retained pre-policy coverage. lib/honeycomb/tests/unit/config.test.ts: invalid TOML shape is reported as a usage error with its field; a copy-field case measured 1.547ms in the strict changed run."
+		},
+		"#test-586": {
+			"threshold": "XSLOW",
+			"justification": "Approved by ct on 2026-10-20 in hv-lconmm.1 for retained pre-policy coverage. lib/busybee/tests/integration/driver.test.ts: init reports a native exclusive-installation failure measured 12.220ms in the strict changed run."
+		},
+		"#test-587": {
+			"threshold": "SLOW",
+			"justification": "Approved by ct on 2026-10-20 in hv-lconmm.1 for retained pre-policy coverage. lib/beads/src/native.test.ts: native discovery preserves unspecified environment and parses its typed location measured 1.803ms in the strict changed run."
+		},
+		"#test-588": {
+			"threshold": "SLOW",
+			"justification": "Approved by ct on 2026-10-20 in hv-lconmm.1 for retained pre-policy coverage. lib/hive-ui/workflow-graph.test.ts: child workflow links use invocation IDs and exact parent actor paths measured 2.622ms in the strict changed run."
+		},
+		"#test-589": {
+			"threshold": "SLOW",
+			"justification": "Approved by ct on 2026-10-20 in hv-lconmm.1 for retained pre-policy coverage. lib/beeswax/tests/integration/cli.test.ts: Git packing selects --repo independently of tracker selection and emits one JSON receipt measured 2.415ms in the strict changed run."
+		},
+		"#test-590": {
+			"threshold": "SLOW",
+			"justification": "Approved by ct on 2026-10-20 in hv-lconmm.1 for retained pre-policy coverage. lib/colony/src/skills.smoke.test.ts: invalid skill requests produce one JSON error; bee file delegation missing.md measured 1.886ms in the strict changed run."
+		},
+		"#test-591": {
+			"threshold": "SLOW",
+			"justification": "Approved by ct on 2026-10-20 in hv-lconmm.1 for retained pre-policy coverage. lib/colony/src/observations.test.ts: injected observations deduplicate unchanged facts and retain their native attribution measured 1.710ms in the strict changed run."
+		},
+		"#test-592": {
+			"threshold": "SLOW",
+			"justification": "Approved by ct on 2026-10-20 in hv-lconmm.1 for retained pre-policy coverage. lib/hive-ui/server/data.test.ts: a failed workflow identity refresh does not publish a partially parsed index measured 5.962ms in the full check."
+		},
+		"#test-593": {
+			"threshold": "SLOW",
+			"justification": "Approved by ct on 2026-10-20 in hv-lconmm.1 for retained pre-policy coverage. lib/scent/tests/claude.test.ts: harness transitions replace stale native state and preserve the selected tracker; the startup case measured 1.969ms in the full check."
+		},
+		"#test-594": {
+			"threshold": "SLOW",
+			"justification": "Approved by ct on 2026-10-20 in hv-lconmm.1 for retained pre-policy coverage. lib/tooling/src/pi-beads.test.ts: claim detection ignores unrelated or unsuccessful tool results; table row 7 measured 3.430ms in the full check."
+		},
+		"#test-595": {
+			"threshold": "SLOW",
+			"justification": "Approved by ct on 2026-10-20 in hv-lconmm.1 for retained pre-policy coverage. lib/colony/src/daemon-continuation.test.ts: explicit daemon restart admission preserves evidence on refusal; the unavailable case measured 2.661ms in the full check."
+		},
+		"#test-596": {
+			"threshold": "SLOW",
+			"justification": "Approved by ct on 2026-10-20 in hv-lconmm.1 for retained pre-policy coverage. lib/busybee/tests/integration/driver.test.ts: init resolves a nested directory to the catalogue root without tracker discovery measured 2.764ms in the full check."
+		},
+		"#test-597": {
+			"threshold": "SLOW",
+			"justification": "Approved by ct on 2026-10-20 in hv-lconmm.1 for retained pre-policy coverage. lib/hive-ui/story-fixtures.test.ts: outline fixtures contain only the selected task and descendants; the hv-ui case measured 2.425ms in the full check."
+		},
+		"#test-598": {
+			"threshold": "SLOW",
+			"justification": "Approved by ct on 2026-10-20 in hv-lconmm.1 for retained pre-policy coverage. lib/honeycomb/tests/unit/config.test.ts: copy configuration parsing resolves entries and copy-mode defaults; the string-entry case measured 2.756ms in the strict changed run."
+		},
+		"#test-599": {
+			"threshold": "SLOW",
+			"justification": "Approved by ct on 2026-10-20 in hv-lconmm.1 for retained pre-policy coverage. lib/shared/src/bees.test.ts: headless templates are validated before formula installation; the missing-value case measured 2.126ms in the strict changed run."
 		}
 	}
 }

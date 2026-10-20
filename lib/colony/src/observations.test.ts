@@ -48,7 +48,7 @@ test("new attempts replace old activity with unknown and first actual output pub
 	expect(stdoutActivityDue(fresh, { ...fresh, lastOutputAt: previous.lastOutputAt })).toBe(true);
 });
 
-test("injected observations deduplicate unchanged facts and retain their native attribution", async () => {
+test("injected observations deduplicate unchanged facts and retain their native attribution #test-591", async () => {
 	const tracker = observationTracker;
 	const id = observationId;
 	await publishObservation(tracker, id, "waiting: dependency");

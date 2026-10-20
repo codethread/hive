@@ -175,7 +175,7 @@ test.each(
 	},
 );
 
-test("initial visit publication failure retains parent, run and checkpoint identities", async () => {
+test("initial visit publication failure retains parent, run and checkpoint identities #test-582", async () => {
 	const { beads, parent, services } = await initializationFixture();
 	const result = await invoke(["start", source, "--owner", "test-human", "--parent", parent.id], {
 		...services,

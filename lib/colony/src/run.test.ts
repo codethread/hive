@@ -127,7 +127,7 @@ test("missing terminal fails before configuration discovery or launch #test-398"
 test.each([
 	{ kind: "missing", options: {} },
 	{ kind: "librarian", options: { harness: "missing" } },
-])("unconfigured interactive selection fails: %j", async ({ kind, options }) => {
+])("unconfigured interactive selection fails: %j #test-565", async ({ kind, options }) => {
 	const { runtime, launches } = fixture();
 	await expect(runKind(kind, options, runtime)).rejects.toBeInstanceOf(Error);
 	expect(launches).toEqual([]);

@@ -1,14 +1,14 @@
 # Parked Colony test cases
 
-These are removed executable checks, rewritten as restoration scenarios. Remaining tests may cover parts of the same behavior. The record accounts for **44 original cases**: 43 in 23 removed smoke files and one removed history case. Thirty exceeded 1000ms in the baseline; the other 14 were removed with their files. The 23 files used explicit 10–180 second timeouts, which are not approval for replacement tests.
+These record removed executable checks as historical restoration scenarios. Confirm current supported behavior before restoring a case; remaining tests may already cover it. Original file timeouts are not approval for replacement tests.
 
 Historical delivery wording below describes those removed checks, not today's response routing. The current [response protocol](../agents/responses.md) separates authored responses from comments and execution reports. Executable response coverage lives in [response-store.test.ts](../../lib/colony/src/response-store.test.ts), [responses.integration.test.ts](../../lib/colony/src/responses.integration.test.ts), [bee-cli.integration.test.ts](../../lib/colony/src/bee-cli.integration.test.ts) and [launch.test.ts](../../lib/colony/src/launch.test.ts).
 
-There are **95 scenarios and 13 scenario outlines (46 example rows)** below. Splitting an overloaded original case does not increase the original-case count. Each section maps its scenarios to the original test titles; table-driven source titles retain their placeholders and expanded case counts. Variants inside a single original test remain part of that one case.
+Each section maps its scenarios to the original test titles; table-driven source titles retain their placeholders and expanded case counts. Variants inside a single original test remain part of that one case.
 
 All restoration pointers refer to Git revision `61e736f8e1f4bfad9b7338e140d33938d0426f71`, under `lib/colony/src/`. Restore files with `git show REV:PATH`. Reconciliation sources are removal ledger `hv-luv2v` comment 4466 and Colony scout `hv-hu8eo.1` comment 4404; follow-up work is `hv-luv2v`.
 
-Fixtures used disposable repositories, real Beads databases, private state and OS processes. Workers and inspectors were generated scripts, not model-provider sessions. Ranking invoked real BV; publication races used forwarding br wrappers. The PID-lifetime case fabricated historical fingerprints rather than forcing OS PID reuse. Watchdog delivery used a fixture socket server and fake notifier. The retained `lib/colony/scripts/native-smoke.ts` is a separate opt-in authenticated harness check; the other history smoke case also remains executable.
+Fixtures used disposable repositories, real Beads databases, private state and OS processes. Workers were generated scripts, not model-provider sessions. Ranking invoked real BV; publication races used forwarding br wrappers. The PID-lifetime case fabricated historical fingerprints rather than forcing OS PID reuse. Watchdog delivery used a fixture socket server and fake notifier. The retained `lib/colony/scripts/native-smoke.ts` is a separate opt-in authenticated harness check; the other history smoke case also remains executable.
 
 ## Offline submission
 
@@ -694,7 +694,7 @@ Restoration mapping (original title lines):
 Scenario: Show and attribute runtime policy updates
   Given canonical fifo policy with zero capacity and one scripted formula
   When configuration is shown and a formula is updated with an explicit actor
-  Then active output exposes the formula name, limits and absent inactivity and post-run inspectors
+  Then active output exposes the formula name and limits
   And history records the explicit formula actor
   When limits are updated without an explicit actor
   Then history records the environment actor
@@ -772,6 +772,8 @@ Scenario: Reconcile removed work only after re-registration and wake
 
 ## Process ownership
 
+The separate-group cleanup cases below describe the historical implementation. Current [managed cleanup](../../lib/colony/README.md#completion-and-retries) covers the supervisor's process group.
+
 Restoration mapping (original title lines):
 
 | Source under `lib/colony/src/` | Original cases | Original title |
@@ -782,7 +784,6 @@ Restoration mapping (original title lines):
 | `processes.smoke.test.ts:159` | 1 | owned harness title changes preserve cleanup and reject a changed start time |
 | `processes.smoke.test.ts:213` | 1 | cleanup retains a new owned lifetime while unrelated reused PIDs survive |
 | `processes.smoke.test.ts:276` | 3 | supervisor handoff %s preserves launch permission and stopped evidence |
-| `processes.smoke.test.ts:328` | 1 | supervisor deadline stops only verified owned execution without Colony polling |
 
 ```gherkin
 Scenario: Stop separate-group descendants without touching a sentinel
@@ -828,12 +829,6 @@ Scenario Outline: Honor supervisor launch permission
     | authorized | the callback identifies the supervisor PID and the harness launches before stop |
     | cancelled  | stop prevents launch and later resume never authorizes it                       |
     | dead       | a killed supervisor is stopped and later resume never authorizes launch         |
-
-Scenario: Enforce an execution deadline without Colony polling
-  Given a supervised owned harness and an unrelated sentinel
-  When the supervisor deadline expires
-  Then execution reads stopped and ownership records an exited phase without error
-  And the sentinel survives
 ```
 
 ## Stdout observations
@@ -942,163 +937,6 @@ Scenario: Exhaust success reports that leave work unfinished
   Then the second attempt remains current and alive
   When it also reports success without completing the task
   Then the request exhausts after two attempts, needs attention and leaves the task open
-```
-
-## Inactivity inspection
-
-Restoration mapping (original title lines):
-
-| Source under `lib/colony/src/` | Original cases | Original title |
-| --- | --: | --- |
-| `drone.smoke.test.ts:39` | 1 | one-shot inactivity reviews preserve stdout and enforce verdict, retry and recovery policy |
-
-Restoration detail: the inactivity review also checks the exact recipe keys: `cwd`, `effort`, `harness`, `kind`, `model`, `prompt`, `system_prompt` (no `host`).
-
-```gherkin
-Scenario: Launch one auxiliary inactivity review
-  Given an inactive first attempt and a configured inspector
-  When reconciliation repeats
-  Then one review captures the configured model, role and runtime deadline
-  And its brief identifies the target directory and legitimate long-running waits
-  And it has no task links, creates no extra request or ordinary inventory attempt and leaves the target claim intact
-
-Scenario: Accept one authorized active verdict durably
-  Given an inactivity review with exact attempt authority
-  When a verdict uses the wrong token or request ID
-  Then it is refused
-  When the current review reports active and the store reopens
-  Then the target stays live, the inspector stops and an active observation is recorded
-  And stdout remains empty, repeated reconciliation retains that review and duplicate verdicts are refused
-
-Scenario: Retry inactive work after the review interval
-  Given an active review's independent review-delay checkpoint expires
-  When a new review reports inactive
-  Then the old review cannot report and the new review has no policy revision ID
-  And the target stops, its claim releases and the request becomes retrying
-  When the second attempt starts
-  Then stale review reports are refused and the replacement remains live
-
-Scenario: Preserve an inspector's exit diagnosis after a late wake
-  Given an inspector exits without a verdict and a malformed verdict artifact is present
-  When reconciliation occurs at its deadline with no retries allowed
-  Then the review records exited_without_verdict and the request closes exhausted
-
-Scenario: Stop a timed-out review and target
-  Given a hanging inspector with a forged verdict from an older review
-  When its deadline is reached
-  Then the decision is timeout and both inspector and target stop
-  And late reports are refused and another reconciliation creates no new review
-
-Scenario: Record an inspector launch failure once
-  Given the inspector executable is missing and no retries are allowed
-  When reconciliation observes the failed launch
-  Then the review records launch_failed without another review
-  And the request has failed/unresolved labels and a launch_failed observation
-  And its task claim is released
-
-Scenario: Preserve live-worker completion ownership during a review
-  Given a live target and a pending inactivity review
-  When the target's task is closed
-  Then only the inspector stops, its review is cancelled and further verdicts are refused
-  When the live worker reports success
-  Then the target stops
-
-Scenario Outline: Recover interrupted preparation without launch permission
-  Given a reserved review interrupted at <phase> with no retries allowed
-  When reconciliation runs twice
-  Then that review finishes launch_failed once, the target stops and no permission is granted
-  And an existing waiting supervisor is stopped
-  Examples:
-    | phase                             |
-    | reservation without a receipt     |
-    | receipt prepared                  |
-    | supervisor waiting for permission |
-```
-
-## Post-run assessments
-
-Restoration mapping (original title lines):
-
-| Source under `lib/colony/src/` | Original cases | Original title |
-| --- | --: | --- |
-| `postrun.smoke.test.ts:62` | 1 | post-run queue is durable, non-recursive, bounded and independent of request outcomes |
-
-```gherkin
-Scenario: Enroll only settled launched work
-  Given a request that retries once before completing
-  When its first attempt ends
-  Then no assessment is queued yet
-  When it settles
-  Then one queued assessment includes both attempts and the task title, acceptance and delivery notes
-  And the execution brief and worker role remain separate
-  When its tracker cannot supply a task snapshot
-  Then queued coverage records the missing task ID and ISSUE_NOT_FOUND reason
-  And that unavailable coverage survives atomic settlement, reconciliation and store reopen
-
-Scenario Outline: Preserve nonlocal assessment queues
-  Given queued and reserved assessments for requests bound to <host>
-  When dispatch runs
-  Then all those assessments are unchanged and no receipt files are created for them
-  Examples:
-    | host         |
-    | another host |
-    | no host      |
-
-Scenario: Run one inspector in FIFO order without recursive requests
-  Given a completed source whose execution directory was removed and another settled request
-  When the first assessment launches
-  Then the inspector runs from the repository with its assessment ID as spawn authority and the configured assessment role
-  And the source still has only its two ordinary attempts and one request
-  And the later assessment stays queued while the first runs
-
-Scenario: Preserve a timely authorized report through restart and policy disable
-  Given a reviewing assessment
-  When report submission uses the wrong token
-  Then it is refused
-  When the authorized inspector submits a report and repeats it
-  Then the first submission succeeds and the duplicate is refused
-  When the store reopens after the deadline with assessment policy disabled
-  Then the timely report finishes completed while the next assessment stays queued
-  And the source request remains closed as completed
-
-Scenario: Inspect bounded assessment summaries and source coverage
-  Given a completed assessment and a later queued assessment
-  When the list is limited to one
-  Then only the newer queued summary is returned
-  When the completed request is selected
-  Then its report is included and optional source contains both attempts, null measured usage and unavailable-task coverage
-  And general summaries retain ID, phase, queued time, request, report summary and omitted-task count without full source
-  When the source artifact is removed
-  Then exact inspection retains the report and source path with null source
-  And another tracker sees no assessments, absent private state fails without creating a database and schema output identifies assessment_schema
-
-Scenario: Time out an inspector without changing source cancellation
-  Given a queued cancellation assessment later begins reviewing
-  When its deadline is reached
-  Then the assessment and its listing report timeout and the inspector stops
-  And the source remains cancelled
-
-Scenario: Avoid assessment backfill
-  Given one launched request settles with assessments disabled and another completes without launching
-  When assessment policy is enabled and dispatch runs
-  Then neither gains an assessment
-
-Scenario: Keep inspector failures separate from request outcomes
-  Given a cancelled request with a missing inspector executable
-  When the failed launch is reconciled
-  Then its assessment records launch_failed and the source remains cancelled
-  Given an exhausted source whose inspector exits without reporting
-  When reconciliation runs
-  Then its assessment records missing_report and the source remains exhausted
-  Given another inspector writes malformed report JSON
-  When reconciliation runs
-  Then its assessment records invalid_report
-
-Scenario: Recover an interrupted assessment reservation once
-  Given an assessment has a reserved receipt but was not launched
-  When reconciliation repeats
-  Then it finishes launch_failed under the same assessment ID
-  And attempting duplicate settlement with a newly prepared assessment fails
 ```
 
 ## Watchdog notifications

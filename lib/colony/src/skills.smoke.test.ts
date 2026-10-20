@@ -99,7 +99,7 @@ test.each(
 		{ command, args: ["unknown"] },
 	]),
 )(
-	"$command rejects invalid skill requests with one JSON error: $args",
+	"$command rejects invalid skill requests with one JSON error: $args #test-590",
 	async ({ command, args }) => {
 		const result = await invoke(command, ["skills", ...args, "--json"]);
 		expect(result).toMatchObject({ code: USAGE_ERROR, stderr: "" });
@@ -125,8 +125,6 @@ async function invoke(command: string, args: string[]) {
 	const deps = {
 		ack: unexpected,
 		add: unexpected,
-		assess: unexpected,
-		assessments: unexpected,
 		attachWorkflow: unexpected,
 		config: unexpected,
 		dispatchStage: unexpected,
@@ -139,7 +137,6 @@ async function invoke(command: string, args: string[]) {
 		launch: unexpected,
 		list: unexpected,
 		remove: unexpected,
-		report: unexpected,
 		responseGet: unexpected,
 		responseHistory: unexpected,
 		responsePublish: unexpected,
@@ -155,7 +152,6 @@ async function invoke(command: string, args: string[]) {
 		status: unexpected,
 		stop: unexpected,
 		wake: unexpected,
-		workReview: unexpected,
 		stdout: (text: string) => {
 			stdout += text;
 		},

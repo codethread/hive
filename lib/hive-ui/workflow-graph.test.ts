@@ -86,7 +86,7 @@ test("parallel branches retain full state identities, active leaves and each tra
 	);
 });
 
-test("saved graph inspection keeps automatic, repeated and targetless transitions without evaluating guards", () => {
+test("saved graphs retain automatic, repeated and targetless transitions without running guards #test-573", () => {
 	const { graph, current } = workflowActorGraph(reviewActor);
 
 	expect(current).toEqual(["reviewer.review"]);
@@ -125,7 +125,7 @@ test.each([
 	{ left: "done", right: "review", branch: "Scope done", root: "Left / Done · Right / Review" },
 	{ left: "done", right: "done", branch: "Scope done", root: "Scope done" },
 ])(
-	"completion is local to the full scope for $left and $right",
+	"completion is local to the full scope for $left and $right #test-570",
 	({ left, right, branch, root }) => {
 		const { graph, current } = workflowActorGraph({
 			...parallelActor,
@@ -182,7 +182,7 @@ test("custom IDs, eventless parallel roots and history retain structural scope s
 	expect(workflowScopeSummary(completed.graph, "flow", completed.current)).toBe("Scope done");
 });
 
-test("child workflow links use invocation IDs and exact parent actor paths", () => {
+test("child workflow links use invocation IDs and exact parent actor paths #test-588", () => {
 	const parent = savedActor({
 		id: "parent",
 		path: [],

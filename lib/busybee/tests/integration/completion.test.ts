@@ -317,7 +317,7 @@ test("matching open original payload accepts object key reordering without rewri
 	});
 });
 
-test("human reserved stage remains open without saved results", async () => {
+test("human reserved stage remains open without saved results #test-578", async () => {
 	const { beads, io, request } = reserved;
 	await beads.update(scope, [request.bead], { labels: ["hitl"] });
 	const result = await invoke(

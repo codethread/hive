@@ -39,7 +39,7 @@ const input = JSON.stringify({
 });
 
 test.each(["claude", "codex", "pi"] as const)(
-	"%s delivers the hold and exact incident clearance on successive callbacks",
+	"%s delivers the hold and exact incident clearance on successive callbacks #test-571",
 	// eslint-disable-next-line max-statements -- Verify one continuous active-to-clear callback sequence.
 	// eslint-disable-next-line max-statements -- Verify one continuous active-to-clear callback sequence per vendor.
 	async (harness) => {

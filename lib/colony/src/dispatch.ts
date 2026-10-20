@@ -1,9 +1,7 @@
 /* eslint-disable import/max-dependencies --
- * Compose existing runtime boundaries with the independent advisory assessment
- * lifecycle.
+ * Dispatch composes scheduling, claims and supervision boundaries.
  */
 import { SPAWN_REQUEST_LABELS, readSpawnRequest, readSpawnRequestHost } from "@hive/shared";
-import type { WorkReviewClock, WorkReviewCommands } from "./work-review-runtime.ts";
 import { assertRequestAuthority, claimRequest, newRequest, reconcileRequests } from "./request.ts";
 import { compareCandidates, hasCapacity, hasContention } from "./scheduler.ts";
 import { prepareLaunch, startSupervisor, writeReceipt } from "./launch.ts";
@@ -21,11 +19,7 @@ import { hostname } from "node:os";
 // eslint-disable-next-line import/no-nodejs-modules -- Reference the existing daemon log in operation history.
 import { join } from "node:path";
 import { match } from "ts-pattern";
-// eslint-disable-next-line import/max-dependencies -- Dispatch ranks admitted candidates after preparation.
 import { pageRanks } from "./ranking.ts";
-import { reconcileAssessments } from "./postrun.ts";
-import { reconcileWorkReviews } from "./work-review-runtime.ts";
-// eslint-disable-next-line import/max-dependencies -- Dispatch completes the verified execution handoff.
 import { resumeExecution } from "./processes.ts";
 import { trackerScope } from "./tracker.ts";
 
@@ -36,10 +30,6 @@ export interface DispatchInput extends TrackerContext {
 	state: string;
 	/** Concrete durable reservation owner. */
 	store: Store;
-	/** Public ordinary workflow and recovery commands. */
-	workReview: WorkReviewCommands;
-	/** In-memory hourly gate; native control retains the authoritative deadlines. */
-	workReviewClock: WorkReviewClock;
 }
 
 interface Candidate extends Extract<Preparation, { kind: "prepared" }> {
@@ -64,11 +54,6 @@ export async function dispatch(
 			evidence.reference(join(input.state, "daemon.log"));
 			evidence.step("dispatch.prepare", input.repository.root);
 			const candidates = await prepareCandidates(input, config, revisionId, evidence);
-			await reconcileAssessments({ ...input, config });
-			await reconcileWorkReviews(
-				{ ...input, config, host: hostname(), now: Date.now, actor: "sys-colony" },
-				input.workReviewClock,
-			);
 			await dispatchPriorityGroups(input, config, candidates, evidence);
 		},
 	);

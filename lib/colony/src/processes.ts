@@ -11,6 +11,12 @@ const TERM_GRACE = 1000;
 const SUCCESS = 0;
 const ABSENT = 1;
 const PROBE = 0;
+const executionControl: ExecutionControl = {
+	supervisor: executionSupervisor,
+	verify: verifyGroup,
+	signal: signalGroup,
+	wait: awaitGroupExit,
+};
 export const processFingerprintSchema = z.strictObject({
 	cmd: z.string(),
 	pid: z.number().int().positive(),
@@ -46,6 +52,16 @@ export interface ExecutionRef {
 	/** Unpredictable token joining launch and ownership records. */
 	token: string;
 }
+export interface ExecutionControl {
+	/** Read the supervisor authorized by this execution's artifacts. */
+	supervisor: (ref: ExecutionRef) => Promise<ProcessFingerprint>;
+	/** Verify the recorded lifetime and process group before signalling. */
+	verify: (supervisor: ProcessFingerprint) => Promise<void>;
+	/** Signal one owned group, returning false when it has already exited. */
+	signal: (pid: number, signal: NodeJS.Signals) => boolean;
+	/** Wait up to timeout milliseconds; return true when the owned group has exited. */
+	wait: (pid: number, timeout: number) => Promise<boolean>;
+}
 
 /** Fingerprint only the calling process. */
 export async function currentProcessFingerprint(): Promise<ProcessFingerprint> {
@@ -66,10 +82,7 @@ export async function observeProcess(recorded: ProcessFingerprint): Promise<"liv
 }
 
 /** Publish the supervisor identity before waiting for the daemon's durable launch permission. */
-export async function awaitExecutionPermission(
-	ref: ExecutionRef,
-	deadline?: number,
-): Promise<void> {
+export async function awaitExecutionPermission(ref: ExecutionRef): Promise<void> {
 	const supervisor = { process: await currentProcessFingerprint(), token: ref.token };
 	await verifyGroup(supervisor.process);
 	const temporary = join(ref.directory, "supervisor.json.tmp");
@@ -79,9 +92,6 @@ export async function awaitExecutionPermission(
 	 * A detached supervisor waits without launching until its recorded owner authorizes it.
 	 */
 	while (!(await Bun.file(join(ref.directory, "permission.json")).exists())) {
-		if (deadline !== undefined && Date.now() >= deadline) {
-			throw new Error("Execution permission deadline reached");
-		}
 		await Bun.sleep(INTERVAL);
 	}
 	/* eslint-enable no-await-in-loop */
@@ -123,32 +133,34 @@ export async function observeExecution(
 	return { kind: "stopped" };
 }
 
-/** Stop the verified group with TERM, a bounded grace period, then KILL. */
-export async function stopExecution(ref: ExecutionRef): Promise<void> {
-	const supervisor = await executionSupervisor(ref);
-	await verifyGroup(supervisor);
-	if (!signalGroup(supervisor.pid, "SIGTERM")) {
+/** Stop the verified group with TERM; escalate to KILL if the bounded grace period expires. */
+export async function stopExecution(
+	ref: ExecutionRef,
+	control: ExecutionControl = executionControl,
+): Promise<void> {
+	const supervisor = await control.supervisor(ref);
+	await control.verify(supervisor);
+	if (!control.signal(supervisor.pid, "SIGTERM")) {
 		return;
 	}
-	if (await awaitGroupExit(supervisor.pid, TERM_GRACE)) {
+	if (await control.wait(supervisor.pid, TERM_GRACE)) {
 		return;
 	}
-	await verifyGroup(supervisor);
-	signalGroup(supervisor.pid, "SIGKILL");
-	if (!(await awaitGroupExit(supervisor.pid, STOP_TIMEOUT))) {
+	await control.verify(supervisor);
+	control.signal(supervisor.pid, "SIGKILL");
+	if (!(await control.wait(supervisor.pid, STOP_TIMEOUT))) {
 		throw new Error(`Owned execution ${ref.directory} did not stop before its deadline`);
 	}
 }
 
 /** The managed child handle publishes launch and exit once, without periodic snapshots. */
-/* eslint-disable-next-line max-statements, max-params --
- * Keep child launch, receipt publication and the optional deadline at the execution boundary.
+/* eslint-disable-next-line max-statements --
+ * Keep child launch and receipt publication at the execution boundary.
  */
 export async function runOwnedExecution(
 	ref: ExecutionRef,
 	start: () => Subprocess,
 	onStarted: (pid: number) => Promise<void>,
-	deadline?: number,
 ): Promise<{ pid: number; code: number }> {
 	const supervisor = await currentProcessFingerprint();
 	await verifyGroup(supervisor);
@@ -163,37 +175,16 @@ export async function runOwnedExecution(
 	};
 	await writeOwnership(ref, owned);
 	const deferTermination = () => {
-		// Stay alive to enforce KILL when the supervisor deadline sends group TERM.
+		// Keep the supervisor alive until owned child exit has been recorded.
 	};
 	process.on("SIGTERM", deferTermination);
-	let timer: ReturnType<typeof setTimeout> | undefined = undefined;
 	try {
-		if (deadline !== undefined && Date.now() >= deadline) {
-			throw new Error("Execution deadline reached before launch");
-		}
 		const child = start();
 		owned.harnessPid = child.pid;
 		owned.phase = "running";
 		await writeOwnership(ref, owned);
 		await onStarted(child.pid);
-		let completion = child.exited;
-		if (deadline !== undefined) {
-			/* eslint-disable-next-line promise/avoid-new -- Race an explicit deadline against native exit. */
-			const timeout = new Promise<never>((_resolve, reject) => {
-				timer = setTimeout(
-					() => {
-						/* eslint-disable promise/prefer-await-to-then -- Timer forwards cleanup failures. */
-						stopExecution(ref)
-							.then(() => reject(new Error("Execution deadline reached")))
-							.catch(reject);
-						/* eslint-enable promise/prefer-await-to-then */
-					},
-					Math.max(SUCCESS, deadline - Date.now()),
-				);
-			});
-			completion = Promise.race([completion, timeout]);
-		}
-		const code = await completion;
+		const code = await child.exited;
 		owned.phase = "exited";
 		await writeOwnership(ref, owned);
 		return { code, pid: child.pid };
@@ -208,7 +199,6 @@ export async function runOwnedExecution(
 		await writeOwnership(ref, owned);
 		throw error;
 	} finally {
-		clearTimeout(timer);
 		process.off("SIGTERM", deferTermination);
 	}
 }

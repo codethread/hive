@@ -1,6 +1,5 @@
 /* eslint-disable import/max-dependencies --
- * Compose existing runtime boundaries with the independent advisory assessment
- * lifecycle.
+ * Compose daemon control, request inspection and configuration boundaries.
  */
 import { Command, CommanderError } from "commander";
 import { DaemonRequestError, DaemonUnavailableError } from "./client.ts";
@@ -12,7 +11,6 @@ import {
 	queryChangelog,
 	renderChangelog,
 } from "@hive/shared/changelog";
-import type { AssessmentsResult } from "./assessments.ts";
 import { CommandError } from "@hive/beads";
 import { DaemonLifecycleError } from "./daemon-lifecycle.ts";
 import type { DaemonResponse } from "./client.ts";
@@ -24,22 +22,15 @@ import type { LaunchedResult } from "./output.ts";
 import { RequestPublicationError } from "./requests.ts";
 import { ResponseError } from "./response-store.ts";
 import type { RestartedDaemon } from "./daemon-lifecycle.ts";
-import { WorkReviewError } from "./work-review.ts";
-import { WorkReviewHealthError } from "./work-review-health.ts";
-import type { WorkReviewOptions } from "./work-review-cli.ts";
 import { WorkflowCommandError } from "./workflows.ts";
 import { WorkflowSubmissionError } from "./workflow-submission.ts";
-import { assessmentLimitSchema } from "./assessments.ts";
-import { assessmentReportSchema } from "./postrun.ts";
 import changelog from "../changelog.json";
 import { initOptionsSchema } from "./initial-config.ts";
 import { registerSkills } from "./skills.ts";
-import { registerWorkReviewCommands } from "./work-review-cli.ts";
 import { version } from "../package.json";
 import { writeColonyResult } from "./output.ts";
 import { z } from "zod";
 
-const NONEMPTY = 1;
 const SUCCESS = 0;
 const FAILURE = 1;
 const USAGE_ERROR = 2;
@@ -85,12 +76,6 @@ export type ConfigOptions = RepositoryOptions &
 		| { operation: "update"; actor: string; file: string }
 	);
 export interface ColonyDependencies {
-	/** Public native work-review operations. */
-	workReview: (options: WorkReviewOptions) => Promise<unknown>;
-	/** Read bounded private assessments without contacting the daemon. */
-	assessments: (
-		options: RepositoryOptions & { request?: string; source: boolean; limit: number },
-	) => Promise<AssessmentsResult>;
 	/** Explain one request using read-only tracker and runtime evidence. */
 	explain: (id: string, options: RepositoryOptions) => Promise<Explanation>;
 	/** Read bounded operation evidence without contacting the daemon or tracker. */
@@ -173,48 +158,6 @@ export async function runCli(argv: string[], deps: ColonyDependencies): Promise<
 			deps.stdout(output);
 		});
 	registerSkills(program, "colony", deps.stdout);
-	registerWorkReviewCommands(program, deps);
-	program
-		.command("assessments")
-		.description(
-			"Read private post-run summaries offline; --request adds the report, --source adds context",
-		)
-		.option("--repo <directory>", "Repository discovery directory", ".")
-		.option("--beads-db <path>", "Selected Beads database", process.env["BEADS_DB"])
-		.option("--state <directory>", "Daemon state directory")
-		.option("--request <spawn-id>", "Read this request’s full report")
-		.option("--source", "Include supporting source context and path (requires --request)", false)
-		.option("--limit <count>", "Recent assessments (1–100)", "20")
-		.option("--schema", "Print report JSON schema without reading state", false)
-		.action(
-			async (
-				options: RepositoryOptions & {
-					request?: string;
-					source: boolean;
-					limit: string;
-					schema: boolean;
-				},
-			) => {
-				if (options.schema) {
-					const schema = z.toJSONSchema(assessmentReportSchema);
-					deps.stdout(`${JSON.stringify({ kind: "assessment_schema", ok: true, schema })}\n`);
-					return;
-				}
-				if (options.source && !options.request) {
-					program.error("--source requires --request", { code: "commander.missingArgument" });
-				}
-				const beadsDb = z.string().min(NONEMPTY).parse(options.beadsDb);
-				writeColonyResult(
-					await deps.assessments({
-						...options,
-						beadsDb,
-						limit: assessmentLimitSchema.parse(options.limit),
-					}),
-					argv.includes("--json"),
-					deps.stdout,
-				);
-			},
-		);
 	program
 		.command("events")
 		.description("Read retained operation evidence without waking or reconciling")
@@ -518,19 +461,6 @@ export function reportFailure(
 		({ message } = error);
 	}
 	const failure: CliFailure = { message, reason: failureReason(error) };
-	if (error instanceof WorkReviewError) {
-		failure.reason = error.reason;
-	}
-	if (error instanceof WorkReviewHealthError) {
-		Object.assign(failure, {
-			requestId: error.requestId,
-			taskId: error.taskId,
-			reopenedIds: error.reopenedIds,
-			replacementIds: error.replacementIds,
-			phase: error.phase,
-			nextAction: error.nextAction,
-		});
-	}
 	if (error instanceof DaemonLifecycleError) {
 		Object.assign(failure, {
 			reason: error.reason,

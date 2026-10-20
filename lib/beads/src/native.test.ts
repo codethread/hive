@@ -7,7 +7,7 @@ const HIDDEN_CLOSED = 3;
 const TOTAL_MATCHES = 4;
 
 test.each(["list", "search"] as const)(
-	"native projected %s preserves columns and page facts",
+	"native projected %s preserves columns and page facts #test-579",
 	async (mode) => {
 		const service = createNativeBeads({
 			execute: (argv) => {
@@ -125,7 +125,7 @@ test("query diagnostics retain literal label groups, zero limits and hyphen-lead
 	]);
 });
 
-test("native discovery preserves unspecified environment and parses its typed location", async () => {
+test("native discovery preserves unspecified environment and parses its typed location #test-587", async () => {
 	const service = createNativeBeads({
 		env: { BEADS_DB: "/selected/beads.db", BD_ACTOR: "reader" },
 		execute: (argv, cwd, env) => {

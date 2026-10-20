@@ -1,5 +1,4 @@
 import type { ColonyStatus, PolicyRevision, PolicyView } from "@hive/shared";
-import type { AssessmentsResult } from "./assessments.ts";
 import type { DaemonResponse } from "./client.ts";
 import type { Explanation } from "./explain.ts";
 import type { HistoryResult } from "./history.ts";
@@ -27,7 +26,6 @@ interface DaemonCompletedResult {
 	exitCode: typeof SUCCESS;
 }
 type Result =
-	| AssessmentsResult
 	| Explanation
 	| HistoryResult
 	| DaemonResponse
@@ -102,7 +100,6 @@ function formatResult(result: Result): string {
 			].join("\n"),
 		)
 		.with({ kind: "explanation" }, formatExplanation)
-		.with({ kind: "assessments" }, formatAssessments)
 		.with({ kind: "events" }, formatHistory)
 		.with({ kind: "inspection" }, formatInspection)
 		.with(
@@ -131,19 +128,12 @@ function formatPolicy(policy: PolicyView | null): string {
 	if (policy === null) {
 		return "Active policy: none";
 	}
-	let workReviews = "disabled";
-	if (policy.autoWorkReviews !== null) {
-		workReviews = `${policy.autoWorkReviews.kind}; parent ${policy.autoWorkReviews.parent}`;
-	}
 	return [
 		`Active policy revision: ${policy.revisionId}`,
 		`Formulas: ${policy.formulas.join(", ")}`,
 		`Ranking: ${policy.ranking}`,
 		formatLimits(policy.limits),
 		`Retries: ${policy.maxRetries}; delay ${policy.retryDelayMs}ms`,
-		`Inactivity drone: ${policy.inactivityDrone ?? "disabled"}`,
-		`Post-run drone: ${policy.postRunDrone ?? "disabled"}`,
-		`Automatic work reviews: ${workReviews}`,
 	].join("\n");
 }
 function formatLimits(limits: PolicyView["limits"]): string {
@@ -239,21 +229,4 @@ function formatHistory(result: HistoryResult): string {
 			...event.evidence.map((path) => `Evidence: ${path}`),
 		]),
 	].join("\n");
-}
-
-function formatAssessments({ assessments }: AssessmentsResult): string {
-	return (
-		assessments
-			.map((item) => {
-				const lines = [
-					`${item.requestId} ${item.id}: ${item.summary}`,
-					`Source: ${item.sourcePath ?? "queued"}`,
-				];
-				if (item.result) {
-					lines.push(JSON.stringify(item.result));
-				}
-				return lines.join("\n");
-			})
-			.join("\n") || "No matching assessments."
-	);
 }

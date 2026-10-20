@@ -24,13 +24,13 @@ test.each([
 	{ expected: "sibling", name: "global default", root: "/elsewhere", toml: locationConfig },
 	{ expected: "nested", name: "matching rule", root: "/tmp/other", toml: locationConfig },
 	{ expected: "sibling", name: "project override", root: "/tmp/repo", toml: locationConfig },
-])("resolves worktree location from $name", ({ toml, root, expected }) => {
+])("resolves worktree location from $name #test-572", ({ toml, root, expected }) => {
 	expect(explainPolicy(parseConfig(toml), root).worktreeLocation).toBe(expected);
 });
 test.each([
 	'worktree_location = "elsewhere"',
 	'[[rule]]\nroot_glob = "/tmp/**"\nworktree_location = "elsewhere"',
-])("rejects invalid worktree location: %s", (toml) => {
+])("rejects invalid worktree location: %s #test-576", (toml) => {
 	expect(() => parseConfig(toml)).toThrow("worktree_location");
 });
 
@@ -94,7 +94,7 @@ test.each<{ name: string; toml: string; expected: ProjectConfig[] }>([
 			'command = "echo two"\n' +
 			"pool_size = 2",
 	},
-])("parses $name", ({ toml, expected }) => {
+])("parses $name #test-575", ({ toml, expected }) => {
 	expect(parseConfig(toml).projects).toEqual(expected);
 });
 
@@ -137,7 +137,7 @@ test.each([
 		mode: "copy",
 		name: "normalized destinations",
 	},
-])("parses copy configuration: $name", ({ extra, mode, expected }) => {
+])("parses copy configuration: $name #test-598", ({ extra, mode, expected }) => {
 	const [project] = parseConfig(
 		`[[project]]\nroot = "/repo"\ncommand = "setup"\n${extra}`,
 	).projects;
@@ -230,7 +230,7 @@ test.each([
 		toml: '[[project]]\nroot = "/repo"\ncopy = [{ from = "a", to = "b", modes = "copy" }]',
 	},
 	{ field: "copy", toml: '[[project]]\nroot = "/repo"\ncopy = ["a/../../outside"]' },
-])("reports invalid TOML shape at $field as a usage error", ({ toml, field }) => {
+])("reports invalid TOML shape at $field as a usage error #test-585", ({ toml, field }) => {
 	expect(() => parseConfig(toml)).toThrow(
 		expect.objectContaining({
 			exitCode: EXIT_CODES.USAGE,

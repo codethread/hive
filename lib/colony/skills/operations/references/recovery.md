@@ -17,5 +17,3 @@ After a tracker or runtime failure, retain the error, request/attempt IDs and co
 Automatic attempts keep the same request and friendly identity within policy's finite retry budget. For explicit replacement after resolving the cause, follow `bee retry --help`. Closed task results, other identities and human reservations survive cleanup.
 
 For execution completion and blockers, follow `bee finish --help`. Colony validates reports when awake; sleeping defers settlement. Verify native task acceptance separately from process exit.
-
-Read `colony assessments --help` for advisory reports on finished executions; these grant no authority to change application work.

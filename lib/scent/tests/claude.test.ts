@@ -17,30 +17,33 @@ test.each([
 	["clear", "session-b"],
 	["resume", "session-a"],
 	["compact", "session-a"],
-])("%s replaces stale native state and preserves the selected tracker", async (source, session) => {
-	const env = Object.freeze({
-		CLAUDE_ENV_FILE: "/session/env",
-		HIVE_AGENT_NAME: "old-native",
-		HIVE_AGENT_SESSION: "old-session",
-		HIVE_AGENT_SOURCE: "native",
-		BR_MODEL: "old-model",
-		BR_AGENT_NAME: "old-kind",
-		BR_EFFORT: "old-effort",
-		BEADS_DB: "/selected/tracker.db",
-	});
-	const host = fixture(env);
-	const output = await host.run({ ...sessionStart, source, session_id: session });
-	const { name } = resolveIdentity(session);
-	expect(output.hookSpecificOutput.additionalContext).toContain(`--actor ${name}`);
-	expect(host.writes).toEqual([
-		[
-			"/session/env",
-			`export BD_ACTOR='${name}'\nexport HIVE_AGENT_NAME='${name}'\n` +
-				`export HIVE_AGENT_SESSION='${session}'\nexport HIVE_AGENT_SOURCE='native'\n` +
-				"export BR_HARNESS='claude'\nunset BR_MODEL\nunset BR_AGENT_NAME\nunset BR_EFFORT\n",
-		],
-	]);
-});
+])(
+	"%s replaces stale native state and preserves the selected tracker #test-593",
+	async (source, session) => {
+		const env = Object.freeze({
+			CLAUDE_ENV_FILE: "/session/env",
+			HIVE_AGENT_NAME: "old-native",
+			HIVE_AGENT_SESSION: "old-session",
+			HIVE_AGENT_SOURCE: "native",
+			BR_MODEL: "old-model",
+			BR_AGENT_NAME: "old-kind",
+			BR_EFFORT: "old-effort",
+			BEADS_DB: "/selected/tracker.db",
+		});
+		const host = fixture(env);
+		const output = await host.run({ ...sessionStart, source, session_id: session });
+		const { name } = resolveIdentity(session);
+		expect(output.hookSpecificOutput.additionalContext).toContain(`--actor ${name}`);
+		expect(host.writes).toEqual([
+			[
+				"/session/env",
+				`export BD_ACTOR='${name}'\nexport HIVE_AGENT_NAME='${name}'\n` +
+					`export HIVE_AGENT_SESSION='${session}'\nexport HIVE_AGENT_SOURCE='native'\n` +
+					"export BR_HARNESS='claude'\nunset BR_MODEL\nunset BR_AGENT_NAME\nunset BR_EFFORT\n",
+			],
+		]);
+	},
+);
 
 test.each([
 	{ HIVE_AGENT_NAME: "interactive-bee", HIVE_AGENT_SESSION: "" },

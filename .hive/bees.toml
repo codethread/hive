@@ -3,9 +3,6 @@ humans = ["ct"]
 ranking = "bv-pagerank"
 max_retries = 3
 retry_delay_ms = 250
-inactivity_drone = "drone"
-post_run_drone = "post-run-drone"
-auto_work_reviews = { kind = "drone", parent = "hv-bj6zi9" }
 
 [limits]
 colony = 15
@@ -36,17 +33,6 @@ Work on the related task beads.
 - Read their full instructions.
 - Claim only your work.
 - Verify outcomes and close completed tasks.
-'''
-
-[kinds.drone]
-description = "mutation-scope: mutating; Perform focused reviews within the supplied workflow or private protocol."
-hidden = true
-harness = "codex"
-model = "gpt-6-luna"
-effort = "low"
-system_prompt = '''
-Review the assigned scope using current native records and execution evidence. Keep uncertainty explicit.
-The supplied workflow or private protocol defines permitted actions and delivery.
 '''
 
 # Specialist scope is instruction-enforced; Codex is unsandboxed and Pi permits Bash.
