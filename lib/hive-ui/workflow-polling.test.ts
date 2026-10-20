@@ -48,7 +48,7 @@ test("opening in a hidden document waits for visibility before the initial read"
 	stop();
 });
 
-test("unchanged checkpoints retain the exact displayed resource and skip full inspection", async () => {
+test("unchanged checkpoints retain the exact displayed resource and skip full inspection #test-607", async () => {
 	let inspections = 0;
 	const resource = createWorkflowResource({
 		inspect: () => {
@@ -91,7 +91,7 @@ test("changed polling and manual requests coalesce without clearing the displaye
 	expect(snapshot(resource.store.getState().entries["selected/run"]!)?.savedAt).toBe("newer");
 });
 
-test("manual refresh promotes an overlapping unchanged probe to full inspection", async () => {
+test("manual refresh promotes an overlapping unchanged probe to full inspection #test-631", async () => {
 	const checkpoint = Promise.withResolvers<WorkflowInspection>();
 	let inspections = 0;
 	const resource = createWorkflowResource({

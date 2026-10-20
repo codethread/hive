@@ -39,7 +39,7 @@ test("a committed contract reproduces intent without any local receipt", () => {
 	]);
 });
 
-test("the known previous skill catalogue can advance to the recovery catalogue", async () => {
+test("the known previous skill catalogue can advance to the recovery catalogue #test-632", async () => {
 	const fx = fixture();
 	const fresh = await prepareContract();
 	for (const [path, contents] of fresh.files) {
@@ -62,7 +62,7 @@ test("configuration drift and release drift fail before implicit upgrades", () =
 	);
 });
 
-test("repeated lock generation preserves the formatting of an unchanged contract", async () => {
+test("repeated lock generation preserves the formatting of an unchanged contract #test-608", async () => {
 	const fx = fixture();
 	for (const [path, contents] of files) {
 		fx.files.set(path, contents);
@@ -76,7 +76,7 @@ test("repeated lock generation preserves the formatting of an unchanged contract
 	expect(fx.files.get(path)).toBe(formatted);
 });
 
-test("unrecognized project metadata asks an agent to establish the migration path", async () => {
+test("unrecognized project metadata asks an agent to establish the migration path #test-616", async () => {
 	const fx = fixture();
 	fx.files.set("/repo/.hive/beeswax/meta/lock.json", '{"format":99}');
 	const failure = await readProjectLock(root, fx.deps).catch((error: unknown) => error);

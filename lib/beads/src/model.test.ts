@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { CommandError } from "./model.ts";
 
-test("native stdout diagnostic survives stderr warnings without logging unrelated context", () => {
+test("native stdout diagnostic survives stderr warnings without logging unrelated context #test-601", () => {
 	const stdout = JSON.stringify({
 		error: {
 			code: "UPDATE_PRECONDITION_FAILED",
@@ -21,7 +21,7 @@ test("native stdout diagnostic survives stderr warnings without logging unrelate
 	expect(error.nativeError?.code).toBe("UPDATE_PRECONDITION_FAILED");
 });
 
-test("native claim validation retains its machine-readable field", () => {
+test("native claim validation retains its machine-readable field #test-617", () => {
 	const error = new CommandError("br update", {
 		code: 4,
 		stderr: "",

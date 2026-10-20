@@ -118,7 +118,7 @@ test.each([
 	},
 );
 
-test("recognized older JSON entries update automatically while preserving user settings", async () => {
+test("recognized older JSON entries update automatically while preserving user settings #test-640", async () => {
 	const fx = configured();
 	fx.files.set(
 		codex,
@@ -161,7 +161,7 @@ test("recognized older JSON entries update automatically while preserving user s
 	});
 });
 
-test("owned alert callbacks adopt the system command while preserving user hooks", async () => {
+test("owned alert callbacks adopt the system command while preserving user hooks #test-611", async () => {
 	const fx = configured();
 	const current = fx.files.get(codex)!;
 	fx.files.set(codex, current.replaceAll("beeswax system harness-alert", "beeswax harness-alert"));
@@ -256,7 +256,7 @@ test("unselected unrelated settings are left alone", async () => {
 	expect(fx.files.get(codex)).toBe("unrelated invalid settings");
 });
 
-test("a mismatched installed identity runtime refuses setup before adapter writes", async () => {
+test("a mismatched installed identity runtime refuses setup before adapter writes #test-630", async () => {
 	const fx = configured();
 	const before = new Map(fx.files);
 	fx.deps.command = () => Promise.resolve("0.0.0");
@@ -301,7 +301,7 @@ test("alert callback ownership preserves user groups and rejects edited executio
 	expect(fx.files).toEqual(before);
 });
 
-test("deselection removes alert callbacks even when the startup primer was already removed", async () => {
+test("deselection removes alert callbacks even when the startup primer was already removed #test-604", async () => {
 	const fx = configured();
 	const settings = JSON.parse(fx.files.get(codex) ?? "");
 	settings.hooks.SessionStart.shift();
@@ -310,7 +310,7 @@ test("deselection removes alert callbacks even when the startup primer was alrea
 	expect(fx.files.get(codex)).not.toContain("harness-alert");
 });
 
-test("generated Pi context callbacks replace their own message and preserve other extensions", async () => {
+test("generated Pi context callbacks replace their own message and preserve other extensions #test-602", async () => {
 	const fx = piFixture();
 	const before = { messages: [{ content: "other extension", customType: "other" }] };
 	const first = await fx.context(before);

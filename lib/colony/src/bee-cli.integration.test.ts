@@ -188,7 +188,7 @@ test.each([
 	{ args: ["status", request.id], expand: false },
 	{ args: ["status", request.id, "--include-prompt"], expand: true },
 ])(
-	"human status includes captured prompts only when requested: $expand",
+	"human status includes captured prompts only when requested: $expand #test-600",
 	async ({ args, expand }) => {
 		const result = await invoke(args);
 		expect(result.stdout.includes(PROMPT)).toBe(expand);
@@ -224,7 +224,7 @@ test("setup forwards tracker selection and actor and returns a concise JSON rece
 	});
 });
 
-test("setup reports saved-query failures as a silent-stderr JSON error", async () => {
+test("setup reports saved-query failures as a silent-stderr JSON error #test-625", async () => {
 	const result = await invoke(["setup", "--actor", "test", "--json"], FAILURE, {
 		setup: () => Promise.reject(new Error("Query write failed")),
 	});

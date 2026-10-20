@@ -40,7 +40,7 @@ test.each([
 	{ seconds: "2", name: "#test-3 at the start", shown: false },
 	{ seconds: "0.002", name: "unknown #test-4", shown: true },
 	{ seconds: "0.002", name: "distinct #test-10", shown: true },
-])("applies description ID allowances at $seconds", ({ seconds, name, shown }) => {
+])("applies description ID allowances at $seconds #test-603", ({ seconds, name, shown }) => {
 	expect(reportSlowTests(report(seconds, name), allowances).some(Boolean)).toBe(shown);
 });
 

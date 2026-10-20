@@ -65,7 +65,7 @@ test("central definitions replace whole duplicate kinds and report every shadowe
 	]);
 });
 
-test("duplicate folder names for a kind fail without a central winner", async () => {
+test("duplicate folder names for a kind fail without a central winner #test-615", async () => {
 	await expect(
 		loadBeesConfig(
 			"/repo",
@@ -95,7 +95,7 @@ test.each([
 	await expect(loadBeesConfig("/repo", fixture(contents))).rejects.toBeInstanceOf(Error);
 });
 
-test("root bees.toml is not a fallback", async () => {
+test("root bees.toml is not a fallback #test-618", async () => {
 	await expect(
 		loadBeesConfig("/repo", fixture({ "/repo/bees.toml": POLICY })),
 	).rejects.toBeInstanceOf(Error);

@@ -11,7 +11,7 @@ import { runRequest } from "../src/run.ts";
 await runCli(["status", "--json", "--lock", "/lock"], fixture().deps);
 await runCli(["--help"], fixture().deps);
 
-test("status emits one JSON envelope without allocating a ticket", async () => {
+test("status emits one JSON envelope without allocating a ticket #test-634", async () => {
 	const harness = fixture(occupiedQueue());
 	expect(await runCli(["status", "--json", "--lock", "/lock"], harness.deps)).toBe(0);
 	expect(JSON.parse(harness.out.join(""))).toMatchObject({
@@ -28,7 +28,7 @@ test("status emits one JSON envelope without allocating a ticket", async () => {
 	expect(harness.commands).toEqual([]);
 });
 
-test("status of a free queue never joins it", async () => {
+test("status of a free queue never joins it #test-639", async () => {
 	const harness = fixture();
 	expect(await runCli(["status", "--lock", "/lock"], harness.deps)).toBe(0);
 	expect(harness.out).toEqual(["free\n"]);
@@ -304,14 +304,17 @@ test.each([
 		argv: ["exec", "-w0", "--merge-target", "refs/heads/main"],
 		target: { kind: "merge", ref: "refs/heads/main" },
 	},
-])("exec forwards the complete child invocation after -- for $argv", async ({ argv, target }) => {
-	const harness = fixture();
-	const child = ["child", "--help", "--json", "--", "-w", "99", "space value", ""];
-	expect(await runCli([...argv, "--", ...child], harness.deps)).toBe(23);
-	expect(harness.targets).toEqual([target]);
-	expect(harness.commands).toEqual([child]);
-	expect(harness.out).toEqual([]);
-});
+])(
+	"exec forwards the complete child invocation after -- for $argv #test-635",
+	async ({ argv, target }) => {
+		const harness = fixture();
+		const child = ["child", "--help", "--json", "--", "-w", "99", "space value", ""];
+		expect(await runCli([...argv, "--", ...child], harness.deps)).toBe(23);
+		expect(harness.targets).toEqual([target]);
+		expect(harness.commands).toEqual([child]);
+		expect(harness.out).toEqual([]);
+	},
+);
 
 function execRequest(ticket: TicketRequest): Request {
 	return {

@@ -140,7 +140,7 @@ test.each(cases.filter(({ origin }) => origin === "local"))(
 	},
 );
 
-test("automatic replacement publication leaves an unsupported foreign predecessor unchanged", async () => {
+test("automatic replacement publication leaves an unsupported foreign predecessor unchanged #test-636", async () => {
 	await publishRequestLabels(predecessor.tracker, "colony", replacement, hostname());
 	const after = await predecessor.tracker.beads.show(
 		trackerScope(predecessor.tracker.repository, "fixture"),
@@ -150,7 +150,7 @@ test("automatic replacement publication leaves an unsupported foreign predecesso
 });
 
 test.each(predecessorCases)(
-	"local predecessor with current labels $current is validated before publication",
+	"local predecessor with current labels $current is validated before publication #test-637",
 	async ({ current }) => {
 		const selected = localPredecessors.find((fixture) => fixture.current === current)!;
 		await expect(

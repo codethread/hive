@@ -15,7 +15,7 @@ const scope = { actor: endpoint.actor, cwd: endpoint.repo, db: endpoint.db };
 const VALIDATION = 4;
 const CONFLICT = 6;
 
-test("missing mutation actor fails before endpoint discovery or publication", async () => {
+test("missing mutation actor fails before endpoint discovery or publication #test-612", async () => {
 	const calls: string[] = [];
 	const services: Services = {
 		...createServices(),

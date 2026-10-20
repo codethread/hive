@@ -258,7 +258,7 @@ test("annotation demand caches absent IDs without dropping other cards #test-488
 	).toEqual([left.id]);
 });
 
-test("an older board response cannot republish a family after a newer member refresh", async () => {
+test("an older board response cannot republish a family after a newer member refresh #test-623", async () => {
 	const old = Promise.withResolvers<Hierarchy>();
 	const resource = createHierarchyResource((path) => {
 		if (path === "old") {
@@ -367,7 +367,7 @@ test("a delayed mixed batch preserves refreshed icons with equal completion time
 });
 
 // eslint-disable-next-line max-statements -- Keep delayed delivery and request closure in one scenario.
-test("a delayed cached batch preserves refreshed assignments at the same task revision", async () => {
+test("a delayed cached batch preserves refreshed assignments at the same task revision #test-644", async () => {
 	const { beads, scope, request, task, context, data, now } = assignmentRace;
 	const old = await data.annotations(context, [task.id], 0);
 	const delivery = Promise.withResolvers<CardAnnotations>();

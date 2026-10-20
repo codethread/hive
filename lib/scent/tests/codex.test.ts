@@ -54,7 +54,7 @@ test.each([
 	}
 });
 
-test("native children override inherited actor and history without changing parent or siblings", () => {
+test("native children override inherited actor and history without changing parent or siblings #test-645", () => {
 	const env = Object.freeze({
 		HIVE_AGENT_NAME: "parent-bee",
 		BD_ACTOR: "parent-bee",

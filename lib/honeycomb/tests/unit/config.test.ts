@@ -206,7 +206,7 @@ test.each([
 	{ config: 'defaults = "bad"', message: "defaults" },
 	{ config: '[defaults.add]\npolciy = "fresh_canonical"', message: "Unrecognized key" },
 	{ config: "[defaults.finish]\nremoveWorktree = true", message: "Unrecognized key" },
-])("invalid policy config fails loudly: $config", ({ config, message }) => {
+])("invalid policy config fails loudly: $config #test-646", ({ config, message }) => {
 	expect(() => parseConfig(config)).toThrow(
 		expect.objectContaining({
 			message: expect.stringContaining(message),

@@ -41,17 +41,20 @@ test.each([
 	{ statuses: ["open", "open", "open", "open"], expected: "swimlane" },
 	{ statuses: ["open", "in_review"], expected: "swimlane" },
 	{ statuses: ["open", "closed", "tombstone", "open"], expected: "rails" },
-])("adaptive family uses complete unclosed membership: $statuses", ({ statuses, expected }) => {
-	const root = makeNode("root", "closed");
-	const nodes = [
-		root,
-		...statuses.map((status, index) => makeNode(`child-${index}`, status, [root.id])),
-	];
-	const hierarchy = { nodes, stale: false, fetchedAt: root.updatedAt };
-	const [family] = boardFamilies(board([nodes[1]!]), hierarchy);
-	expect(family!.layout).toBe(expected);
-	expect(family!.visible.map(({ node }) => node.id)).toEqual(["child-0"]);
-});
+])(
+	"adaptive family uses complete unclosed membership: $statuses #test-629",
+	({ statuses, expected }) => {
+		const root = makeNode("root", "closed");
+		const nodes = [
+			root,
+			...statuses.map((status, index) => makeNode(`child-${index}`, status, [root.id])),
+		];
+		const hierarchy = { nodes, stale: false, fetchedAt: root.updatedAt };
+		const [family] = boardFamilies(board([nodes[1]!]), hierarchy);
+		expect(family!.layout).toBe(expected);
+		expect(family!.visible.map(({ node }) => node.id)).toEqual(["child-0"]);
+	},
+);
 
 test("current card status controls both family layout and native lane placement", () => {
 	const root = makeNode("root");

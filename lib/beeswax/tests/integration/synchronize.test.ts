@@ -55,7 +55,7 @@ test("update uses command availability at the project root without persisting ma
 });
 
 // eslint-disable-next-line max-statements -- Verify section replacement and recorded intent through one public update.
-test("update replaces the previous owned hook generation and records the new hashes", async () => {
+test("update replaces the previous owned hook generation and records the new hashes #test-613", async () => {
 	const fx = configured();
 	const path = "/repo/.hive/beeswax/meta/lock.json";
 	const lock = lockSchema.parse(JSON.parse(fx.files.get(path) ?? ""));
@@ -98,7 +98,7 @@ test(
 	},
 );
 
-test("moving configured hook files requires an agent to account for the old sections", async () => {
+test("moving configured hook files requires an agent to account for the old sections #test-619", async () => {
 	const fx = configured();
 	await writeProjectConfig(root, defaultProjectConfig("git"), fx.deps);
 	const before = new Map(fx.files);

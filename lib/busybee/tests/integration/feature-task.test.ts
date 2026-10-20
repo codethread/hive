@@ -25,7 +25,7 @@ const reviewing = advance(working, "next");
 const delivering = advance(reviewing, "approved");
 
 // The chart is the public process: review is a separate native visit, not prose inside implementation.
-test("feature tasks isolate, check, independently review and deliver", () => {
+test("feature tasks isolate, check, independently review and deliver #test-605", () => {
 	const done = advance(delivering, "next");
 	expect([initial, working, reviewing, delivering, done].map((snapshot) => snapshot.value)).toEqual(
 		["prepare", "work", "review", "deliver", "done"],
@@ -38,7 +38,7 @@ test("feature tasks isolate, check, independently review and deliver", () => {
 test.each([
 	{ name: "review findings", snapshot: reviewing, choice: "changes" as const },
 	{ name: "changed delivery candidate", snapshot: delivering, choice: "changes" as const },
-])("$name returns through checked work and a fresh review", ({ snapshot, choice }) => {
+])("$name returns through checked work and a fresh review #test-620", ({ snapshot, choice }) => {
 	const repair = advance(snapshot, choice);
 	expect(repair.value).toBe("work");
 	expect(repair.context.evidence).toBe(evidence);

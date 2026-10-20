@@ -55,7 +55,7 @@ test.each([
 	},
 );
 
-test("native string arguments retain role and direction verbatim", () => {
+test("native string arguments retain role and direction verbatim #test-622", () => {
 	expect(
 		renderFormula(
 			formulaSchema.parse({

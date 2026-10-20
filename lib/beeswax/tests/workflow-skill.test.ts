@@ -36,7 +36,7 @@ test("workflow skill installation is explicit and requires harness targets", () 
 	expect(plan.agents.map((agent) => agent.name)).toEqual(["claude-code", "codex", "pi"]);
 });
 
-test("destination preflight detects directory and symlink entries without treating them as files", async () => {
+test("destination preflight detects directories and symlinks without treating them as files #test-626", async () => {
 	const fx = fixture();
 	fx.deps.list = async () => ["hive"];
 	const failure = await preflightWorkflowSkill(root, plan, fx.deps).catch(
@@ -50,7 +50,7 @@ test("destination preflight detects directory and symlink entries without treati
 	expect(fx.files.size).toBe(EMPTY);
 });
 
-test("installer curates one project skill with explicit agents and captures child streams", async () => {
+test("installer curates one project skill with explicit agents and captures child streams #test-609", async () => {
 	const fx = fixture();
 	const calls: { argv: readonly string[]; cwd: string }[] = [];
 	fx.deps.list = async () => ["hive"];

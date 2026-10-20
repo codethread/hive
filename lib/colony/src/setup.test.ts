@@ -52,7 +52,7 @@ test(
 );
 
 // eslint-disable-next-line max-statements -- Verify preservation and repeatability across both checkout files.
-test("Bee setup fills missing viewer recipes in both checkouts and preserves unrelated recipes", async () => {
+test("Bee setup fills missing viewer recipes in both checkouts and preserves unrelated recipes #test-643", async () => {
 	const { files, setupFiles } = viewerFixture();
 	const personal = { filters: { status: ["in_progress"] } };
 	files.set(

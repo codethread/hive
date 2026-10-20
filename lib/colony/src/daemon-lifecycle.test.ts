@@ -83,7 +83,7 @@ function fixture() {
 	return { deps, effects };
 }
 
-test("an acknowledged stop with a live daemon never removes its service", async () => {
+test("an acknowledged stop with a live daemon never removes its service #test-641", async () => {
 	const { deps, effects } = fixture();
 	deps.observe = () => Promise.resolve("live");
 	await expect(restartServer(target, deps)).rejects.toBeInstanceOf(DaemonLifecycleError);
@@ -125,7 +125,7 @@ test.each(recoveryCases)("restart rejects $name after readiness", async ({ colon
 	await expect(restartServer(target, deps)).rejects.toBeInstanceOf(DaemonLifecycleError);
 });
 
-test("failed native startup reports confirmed effects without a fallback launch", async () => {
+test("failed native startup reports confirmed effects without a fallback launch #test-642", async () => {
 	const { deps } = fixture();
 	const cause = Object.assign(new Error("Missing socket"), { code: "ENOENT" });
 	deps.request = () => Promise.reject(new DaemonUnavailableError("status", "transport", cause));
@@ -245,7 +245,7 @@ test.each(["running", "failed"] as const)(
 );
 
 // eslint-disable-next-line max-statements -- Keep interruption, retry and lifecycle effect counts in one scenario.
-test("interruption after replacement observation retains the receipt and retries without stopping again", async () => {
+test("interruption after replacement observation preserves receipt; retry avoids another stop #test-638", async () => {
 	const { deps, effects } = fixture();
 	const { request } = deps;
 	const saved: { checkpoint?: RestartCheckpoint } = {};

@@ -129,7 +129,7 @@ const defaultRun = await fixture(
 	doWorkInput,
 );
 
-test("default author distinguishes the run while preserving the actual stage assignment", async () => {
+test("default author distinguishes the run while preserving the actual stage assignment #test-624", async () => {
 	const root = await defaultRun.beads.show(scope, defaultRun.run.id);
 	expect(root).toMatchObject({
 		title: "Do work: Implement assigned scope",
@@ -294,7 +294,7 @@ describe("driver coordination", () => {
 		expect(before.status).toBe("closed");
 	});
 
-	test("handoff refuses a natively closed active run", async () => {
+	test("handoff refuses a natively closed active run #test-610", async () => {
 		const { beads, checkpoint, io, run } = closedRun;
 		await beads.close(scope, run.id, { force: true });
 		expect(await prepareDriver(run.id, {}, io).catch((error: unknown) => error)).toMatchObject({
@@ -329,7 +329,7 @@ describe("driver coordination", () => {
 		});
 	});
 
-	test("uncertain handoff write retains ownership and reports partial effects", async () => {
+	test("uncertain handoff write retains ownership and reports partial effects #test-621", async () => {
 		const { beads, checkpoint, io, run } = failedWrite;
 		const failure: unknown = await prepareDriver(
 			run.id,
@@ -596,7 +596,7 @@ describe("Bee-dispatched stage coordination", () => {
 		},
 	);
 
-	test("closed stage result is collected with its response independently of a blocked request", async () => {
+	test("closed stage result is collected with its response independently of a blocked request #test-628", async () => {
 		const { beads, io, run } = closedStage;
 		expect(await navigate({ id: run.id, operation: "collect" }, {}, io)).toMatchObject({
 			status: "done",

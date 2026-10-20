@@ -175,7 +175,7 @@ test.each(invalidRequests)(
 	},
 );
 
-test("simulation HTTP route reports workflow adapter failures as unavailable", async () => {
+test("simulation HTTP route reports workflow adapter failures as unavailable #test-627", async () => {
 	const { dependencies, samples } = fixture();
 	dependencies.workflow = createWorkflowTools(() =>
 		Promise.reject(new Error("Workflow unavailable")),

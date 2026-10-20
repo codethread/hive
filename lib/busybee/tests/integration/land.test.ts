@@ -169,7 +169,7 @@ test.each(reviewCases)(
 	},
 );
 
-test("Land dispatches a fresh reviewer visit after driver repair and checks", async () => {
+test("Land dispatches a fresh reviewer visit after driver repair and checks #test-633", async () => {
 	const { beads, calls, io, run, scope } = repairRun;
 	const next = await navigate({ id: run.id, operation: "collect" }, {}, io);
 	const stage = next.active[FIRST]!;
@@ -250,7 +250,7 @@ test("Land retains caller authorization and task references in its run brief", (
 	}
 });
 
-test("Land verifies integration before updating local tools and completing", () => {
+test("Land verifies integration before updating local tools and completing #test-606", () => {
 	const [check] = initialTransition(
 		machine,
 		landingInput("/selected/beads.db", "/surviving", worktreeTarget),
