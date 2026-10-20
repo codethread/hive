@@ -59,7 +59,7 @@ test("inherited native binding is replaced and unknown attributes remove stale m
 	});
 });
 
-test("runtime model and thinking metadata refresh and become absent when unknown", () => {
+test("runtime model and thinking metadata refresh and become absent when unknown #test-548", () => {
 	const env: NodeJS.ProcessEnv = {};
 	const host = fixture(env);
 	host.ctx.model = { provider: "provider", id: "model" } as NonNullable<ExtensionContext["model"]>;

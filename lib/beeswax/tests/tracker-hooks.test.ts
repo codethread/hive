@@ -16,7 +16,7 @@ const options = {
 	config: defaultProjectConfig("husky"),
 };
 
-test("a selected database on main cannot receive tracker hook integration", async () => {
+test("a selected database on main cannot receive tracker hook integration #test-542", async () => {
 	const fx = fixture();
 	const { command } = fx.deps;
 	fx.deps.command = async (argv, cwd) => {

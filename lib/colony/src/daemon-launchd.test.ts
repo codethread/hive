@@ -43,7 +43,7 @@ test.each([
 		result: { ...success, stdout: `${service} = {\n\toriginator = {\n\t\tpid = 99\n\t}\n}\n` },
 		status: { kind: "loaded", pid: undefined },
 	},
-])("reads $name service from the explicit GUI domain", async ({ result, status }) => {
+])("reads $name service from the explicit GUI domain #test-551", async ({ result, status }) => {
 	const run = mock<Launchctl>(() => Promise.resolve(result));
 	expect(await launchdServiceStatus(service, run)).toEqual(status);
 	expect(run.mock.calls).toEqual([[["print", service]]]);

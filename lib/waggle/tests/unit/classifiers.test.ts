@@ -56,7 +56,7 @@ test.each([
 	["unknown input", '{"evidence":"x","extra":"y"}'],
 	["wrong input type", '{"evidence":42}'],
 	["blank evidence", '{"evidence":"  "}'],
-])("rejects %s instead of fabricating context", (_name, input) => {
+])("rejects %s instead of fabricating context #test-549", (_name, input) => {
 	expect(() => prepareRequest(classifier, input)).toThrow(Error);
 });
 

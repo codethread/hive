@@ -236,27 +236,31 @@ test("failed and unavailable runtime reads preserve native evidence without fall
 	);
 });
 
-// eslint-disable-next-line max-statements -- Compare all host membership variants against one capacity projection.
-test("capacity preserves duplicate local reservations and excludes foreign, unbound and orphan requests", () => {
-	const { store, database } = fixtures[EMPTY]!;
-	const root = "/host-capacity";
-	store.saveRequest(root, request("local"));
-	store.saveRequest(root, { ...request("foreign"), host: "another-host" });
-	store.saveRequest(root, { ...request("unbound"), host: null });
-	for (const id of ["local-first", "local-second", "foreign", "unbound", "orphan"]) {
-		let spawnId = id;
-		if (id.startsWith("local-")) {
-			spawnId = "local";
+test(
+	"capacity preserves duplicate local reservations and excludes foreign, unbound " +
+		"and orphan requests #test-538",
+	// eslint-disable-next-line max-statements -- Compare all host membership variants against one capacity projection.
+	() => {
+		const { store, database } = fixtures[EMPTY]!;
+		const root = "/host-capacity";
+		store.saveRequest(root, request("local"));
+		store.saveRequest(root, { ...request("foreign"), host: "another-host" });
+		store.saveRequest(root, { ...request("unbound"), host: null });
+		for (const id of ["local-first", "local-second", "foreign", "unbound", "orphan"]) {
+			let spawnId = id;
+			if (id.startsWith("local-")) {
+				spawnId = "local";
+			}
+			insertAttempt(database, root, receipt(id, spawnId), "running");
 		}
-		insertAttempt(database, root, receipt(id, spawnId), "running");
-	}
-	expect(store.retainedOccupants(root)).toEqual([
-		{ bucket: repository.root, kind: "worker" },
-		{ bucket: repository.root, kind: "worker" },
-	]);
-});
+		expect(store.retainedOccupants(root)).toEqual([
+			{ bucket: repository.root, kind: "worker" },
+			{ bucket: repository.root, kind: "worker" },
+		]);
+	},
+);
 
-test("checkpoint point reads return fresh writes and do not hydrate unrelated records", () => {
+test("checkpoint point reads return fresh writes and do not hydrate unrelated records #test-539", () => {
 	const fixture = fixtures[EMPTY]!;
 	const record = fixture.store.request(repository.root, target)!;
 	const message = "Fresh reconciliation";
@@ -275,7 +279,7 @@ test.each([
 	{ source: "attempt", tracker: "/a.db" },
 	{ source: "attempt", tracker: "/z.db" },
 ])(
-	"$source authority rejects retained tracker $tracker",
+	"$source authority rejects retained tracker $tracker #test-540",
 	/* eslint-disable-next-line max-statements --
 	 * Establish independent retained authority and check rejection after membership removal.
 	 */

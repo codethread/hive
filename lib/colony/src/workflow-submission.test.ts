@@ -120,7 +120,7 @@ test.each([
 	},
 );
 
-test("same-run attachment rejects duplicate drivers before mutating the handoff", async () => {
+test("same-run attachment rejects duplicate drivers before mutating the handoff #test-546", async () => {
 	const { commands, handoffs, tracker, selected, submission } = await fixture();
 	const result = await submitWorkflow("worker", submission, commands);
 	await expect(

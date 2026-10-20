@@ -154,23 +154,26 @@ test("simulation HTTP route parses replay and selects the endpoint and owning ru
 	expect(response.headers.get("x-request-id")).toBeString();
 });
 
-test.each(invalidRequests)("simulation HTTP route rejects $name before dispatch", async (entry) => {
-	const { calls, samples, dependencies } = fixture();
-	const response = await api(httpRequest(entry), dependencies);
-	expect(response.status).toBe(entry.status);
-	expect(response.headers.get("cache-control")).toBe("no-store");
-	expect(response.headers.get("content-type")).toBe("application/json");
-	const body: unknown = await response.json();
-	expect(body).toEqual({ message: expect.any(String) as unknown });
-	expect(calls).toEqual([]);
-	expect(samples.pop()).toMatchObject({
-		status: entry.status,
-		failure: expect.any(String) as unknown,
-		operation: entry.path,
-		requestId: response.headers.get("x-request-id"),
-		scope: "server",
-	});
-});
+test.each(invalidRequests)(
+	"simulation HTTP route rejects $name before dispatch #test-543",
+	async (entry) => {
+		const { calls, samples, dependencies } = fixture();
+		const response = await api(httpRequest(entry), dependencies);
+		expect(response.status).toBe(entry.status);
+		expect(response.headers.get("cache-control")).toBe("no-store");
+		expect(response.headers.get("content-type")).toBe("application/json");
+		const body: unknown = await response.json();
+		expect(body).toEqual({ message: expect.any(String) as unknown });
+		expect(calls).toEqual([]);
+		expect(samples.pop()).toMatchObject({
+			status: entry.status,
+			failure: expect.any(String) as unknown,
+			operation: entry.path,
+			requestId: response.headers.get("x-request-id"),
+			scope: "server",
+		});
+	},
+);
 
 test("simulation HTTP route reports workflow adapter failures as unavailable", async () => {
 	const { dependencies, samples } = fixture();
@@ -190,7 +193,7 @@ test("simulation HTTP route reports workflow adapter failures as unavailable", a
 });
 
 test.each(["checkpoint", "preview"] as const)(
-	"workflow GET %s uses the production adapter with the selected owning run",
+	"workflow GET %s uses the production adapter with the selected owning run #test-544",
 	async (operation) => {
 		const { calls, dependencies } = fixture();
 		const checkpoint = { runId: run.id, checkpoint: "checkpoint", savedAt: "saved" };

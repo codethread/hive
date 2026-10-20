@@ -19,7 +19,7 @@ const status = JSON.stringify({
 	})),
 });
 
-test("startup discovery preserves both registered trackers and explicit server selection", async () => {
+test("startup discovery preserves both registered trackers and explicit server selection #test-552", async () => {
 	const calls: string[][] = [];
 	const actual = await discoverColonies({ state: "/state", socket: "/socket" }, (argv) => {
 		calls.push(argv);

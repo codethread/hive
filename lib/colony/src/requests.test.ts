@@ -65,7 +65,7 @@ test("offline inspection derives dependency readiness from the injected tracker 
 	expect(ready.request.disposition).toEqual({ outcome: "pending", resolution: "unresolved" });
 });
 
-test("stop publishes cancellation with current request labels", async () => {
+test("stop publishes cancellation with current request labels #test-547", async () => {
 	const { tracker, task, id } = cancellation;
 	const result = await stopRequest(id, options, tracker);
 	expect(result.request.disposition).toEqual({ outcome: "cancelled", resolution: "resolved" });

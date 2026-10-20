@@ -38,7 +38,7 @@ test("folder names do not name kinds, and sibling prompts are captured verbatim 
 	expect(warnings).toEqual([]);
 });
 
-test("central definitions replace whole duplicate kinds and report every shadowed file", async () => {
+test("central definitions replace whole duplicate kinds and report every shadowed file #test-541", async () => {
 	const { config, warnings } = await loadBeesConfig(
 		"/repo",
 		fixture({

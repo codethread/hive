@@ -278,7 +278,7 @@ const refusals = await Promise.all(
 );
 
 test.each(refusals)(
-	"explicit cancellation resumption preserves $reason refusal",
+	"explicit cancellation resumption preserves $reason refusal #test-545",
 	async ({ tracker, scope, id }) => {
 		const before = await tracker.beads.show(scope, id);
 		await expect(
@@ -345,7 +345,7 @@ test.each(retryCases)(
 );
 
 test.each(partialRetries)(
-	"retry retains $reason replacement when predecessor label publication fails",
+	"retry retains $reason replacement when predecessor label publication fails #test-550",
 	// Verify the retained replacement and unchanged predecessor after a partial write.
 	// eslint-disable-next-line max-statements
 	async ({ retry, predecessor, unfinished, reason }) => {

@@ -2140,6 +2140,66 @@
 		"#test-537": {
 			"threshold": "SLOW",
 			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 6.866ms (lib/busybee/tests/unit/compatibility.test.ts)."
+		},
+		"#test-538": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 5.854ms (lib/colony/src/inspection.test.ts)."
+		},
+		"#test-539": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.774ms (lib/colony/src/inspection.test.ts)."
+		},
+		"#test-540": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.110ms (lib/colony/src/inspection.test.ts)."
+		},
+		"#test-541": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 3.731ms (lib/colony/src/config.test.ts)."
+		},
+		"#test-542": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.519ms (lib/beeswax/tests/tracker-hooks.test.ts)."
+		},
+		"#test-543": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 3.636ms (lib/hive-ui/server/api.test.ts)."
+		},
+		"#test-544": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.284ms (lib/hive-ui/server/api.test.ts)."
+		},
+		"#test-545": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 1.888ms (lib/colony/src/producer.test.ts)."
+		},
+		"#test-546": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 3.811ms (lib/colony/src/workflow-submission.test.ts)."
+		},
+		"#test-547": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.926ms (lib/colony/src/requests.test.ts)."
+		},
+		"#test-548": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.317ms (lib/scent/tests/pi.test.ts)."
+		},
+		"#test-549": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 3.490ms (lib/waggle/tests/unit/classifiers.test.ts)."
+		},
+		"#test-550": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 4.418ms (lib/colony/src/producer.test.ts)."
+		},
+		"#test-551": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.006ms (lib/colony/src/daemon-launchd.test.ts)."
+		},
+		"#test-552": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 3.787ms (lib/hive-ui/colony-discovery.test.ts)."
 		}
 	}
 }
