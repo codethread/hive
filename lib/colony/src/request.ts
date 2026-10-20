@@ -239,10 +239,20 @@ export function assertRequestAuthority(
 
 /** Awake passes resume durable checkpoints before considering replacement launches. */
 export async function reconcileRequests(runtime: RequestRuntime): Promise<void> {
-	const { repository, store } = runtime;
-	for (const saved of store
+	const { beads, repository, store } = runtime;
+	const records = store
 		.requests(repository.root)
-		.filter(({ state, host }) => state !== "terminal" && host === hostname())) {
+		.filter(({ state, host }) => state !== "terminal" && host === hostname());
+	const details = await beads.showMany(
+		trackerScope(repository, "sys-colony"),
+		records.map(({ id }) => id),
+	);
+	const spawns = new Map(details.map((spawn) => [spawn.id, spawn]));
+	for (const saved of records) {
+		const spawn = spawns.get(saved.id);
+		if (!spawn) {
+			throw new Error(`Missing retained request ${saved.id} in native detail batch`);
+		}
 		/* eslint-disable-next-line no-await-in-loop --
 		 * Finish each request's external effects before advancing another durable checkpoint.
 		 */
@@ -253,7 +263,7 @@ export async function reconcileRequests(runtime: RequestRuntime): Promise<void> 
 				repository,
 				requestId: saved.id,
 			},
-			(evidence) => reconcileRequest(runtime, saved, evidence),
+			(evidence) => reconcileRequest(runtime, saved, spawn, evidence),
 		);
 	}
 }
@@ -287,12 +297,14 @@ async function acquireRequest(
 	evidence: OperationEvidence,
 ): Promise<RequestRecord | null> {
 	const { beads, repository, store } = runtime;
-	const request = readSpawnRequest(
-		await beads.show(trackerScope(repository, saved.context.identity), saved.id),
-	);
+	const spawn = await beads.show(trackerScope(repository, saved.context.identity), saved.id);
+	const request = readSpawnRequest(spawn);
 	assertRequestAuthority(saved, request);
 	if (request.host !== hostname()) {
 		throw new Error(`Request ${saved.id} is not bound to this host`);
+	}
+	if (spawn.status !== "open") {
+		return null;
 	}
 	let record = store.advanceRequest(repository.root, saved, { type: "READY" });
 	for (const id of record.context.taskIds) {
@@ -339,12 +351,11 @@ async function acquireRequest(
 async function reconcileRequest(
 	runtime: RequestRuntime,
 	saved: RequestRecord,
+	spawn: Bead,
 	evidence: OperationEvidence,
 ): Promise<void> {
 	const { beads, repository, store } = runtime;
 	let record = saved;
-	evidence.step("tracker.show", record.id);
-	const spawn = await beads.show(trackerScope(repository, record.context.identity), record.id);
 	const request = readSpawnRequest(spawn);
 	assertRequestAuthority(record, request);
 	for (const { receipt } of store
@@ -416,12 +427,21 @@ async function reconcileRequest(
 				});
 			} else if (attempt.state === "running") {
 				evidence.step("stdout.publish", record.id);
-				await publishStdoutActivity(runtime, attempt.receipt);
+				const stdoutPublished = await publishStdoutActivity(runtime, attempt.receipt, false, spawn);
+				let observationSnapshot = spawn;
+				if (stdoutPublished) {
+					observationSnapshot = await beads.show(
+						trackerScope(repository, record.context.identity),
+						record.id,
+					);
+					assertRequestAuthority(record, readSpawnRequest(observationSnapshot));
+				}
 				evidence.step("observation.publish", record.id);
 				await publishObservation(
 					runtime,
 					record.id,
 					`running: attempt ${attempt.receipt.attemptNumber}`,
+					observationSnapshot,
 				);
 			}
 		} else {

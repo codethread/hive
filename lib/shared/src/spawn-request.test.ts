@@ -151,21 +151,27 @@ test.each([
 	},
 );
 
-test.each([
-	{ reason: "exhausted", outcome: "failed" },
-	{ reason: "Stopped by Bee", outcome: "cancelled" },
-])(
+const replacementCases = (
+	[
+		{ reason: "exhausted", outcome: "failed" },
+		{ reason: "Stopped by Bee", outcome: "cancelled" },
+	] as const
+).map(({ reason, outcome }) => ({
+	outcome,
+	bead: beadSchema.parse({
+		close_reason: reason,
+		created_at: "fixture",
+		dependents: [{ dependency_type: "supersedes", id: "test-new", status: "closed" }],
+		id: "test-old",
+		priority: 2,
+		status: "closed",
+		updated_at: "fixture",
+	}),
+}));
+
+test.each(replacementCases)(
 	"a replacement exposes provenance while preserving $outcome disposition",
-	({ reason, outcome }) => {
-		const bead = beadSchema.parse({
-			close_reason: reason,
-			created_at: "fixture",
-			dependents: [{ dependency_type: "supersedes", id: "test-new", status: "closed" }],
-			id: "test-old",
-			priority: 2,
-			status: "closed",
-			updated_at: "fixture",
-		});
+	({ bead, outcome }) => {
 		expect(requestResolution(bead)).toEqual({ kind: "superseded", replacementIds: ["test-new"] });
 		expect(requestNeedsAttention(bead)).toBe(false);
 		expect(requestDisposition(bead)).toEqual({ outcome, resolution: "resolved" });

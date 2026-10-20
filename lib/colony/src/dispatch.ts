@@ -106,9 +106,9 @@ async function prepareCandidates(
 					store.saveRequest(repository.root, record);
 					records.set(request.id, record);
 				}
-				const current = await beads.show(trackerScope(repository, "sys-colony"), request.id);
-				assertRequestAuthority(record, readSpawnRequest(current));
 				if (record.state === "waiting") {
+					const current = await beads.show(trackerScope(repository, "sys-colony"), request.id);
+					assertRequestAuthority(record, readSpawnRequest(current));
 					const id = crypto.randomUUID();
 					preparation.step("launch.prepare", request.id);
 					const prepared = await prepareLaunch(

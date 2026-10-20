@@ -1,14 +1,18 @@
 /* eslint-disable unicorn/no-null -- Request receipts preserve absent policy revisions explicitly. */
+/* eslint-disable import/max-dependencies --
+ * Exercise dispatch, acquisition and reconciliation at the existing memory/store seams.
+ */
 import { afterAll, expect, mock, test } from "bun:test";
 import { beesConfigSchema, readSpawnRequest } from "@hive/shared";
+import { claimRequest, newRequest, reconcileRequests, transitionRequest } from "./request.ts";
 import { createSpawn, createTask, memoryTracker } from "./tracker.test-support.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Prepare and clean state directories outside behavior timing.
 import { mkdtemp, rm } from "node:fs/promises";
-import { newRequest, reconcileRequests, transitionRequest } from "./request.ts";
 import type { LaunchReceipt } from "./launch.ts";
 import type { Store } from "./store.ts";
 import type { WorkflowAssignment } from "@hive/shared";
-// eslint-disable-next-line import/no-nodejs-modules -- Use the established disposable private SQLite fixture boundary.
+import { dispatch } from "./dispatch.ts";
+// eslint-disable-next-line import/no-nodejs-modules -- Locate the isolated request fixture artifacts.
 import { join } from "node:path";
 import { openStore } from "./store.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Locate disposable state, never the running Colony's database.
@@ -17,6 +21,7 @@ import { trackerScope } from "./tracker.ts";
 
 const FIRST = 0;
 const ONCE = 1;
+const LISTS_PER_PASS = 2;
 const state = await mkdtemp(join(tmpdir(), "colony-request-authority-"));
 const store = openStore(state);
 const config = beesConfigSchema.parse({ formulas: {}, humans: ["ct"], owner: "ct" });
@@ -56,6 +61,22 @@ for (const fixture of Object.values(continuation)) {
 	});
 	fixture.saved = store.advanceRequest(root, fixture.saved, { type: "TICK", now: 2 });
 }
+const pollingTracker = memoryTracker();
+pollingTracker.repository = { ...pollingTracker.repository, root: "/fixture/batched-poll" };
+const pollingRecords = await Promise.all(
+	["first", "second"].map(() => pollingFixture(pollingTracker)),
+);
+await dispatch({ ...pollingTracker, state, store: { ...store, history } }, config, "fixture");
+const cancelled = await cancellationFixture();
+const missingTracker = memoryTracker();
+missingTracker.repository = { ...missingTracker.repository, root: "/fixture/missing-batch" };
+await pollingFixture(missingTracker);
+const nativeDriftFields = ["host", "identity", "assignment", "tasks"];
+const nativeDrift = new Map(
+	await Promise.all(
+		nativeDriftFields.map(async (field) => [field, await nativeDriftFixture(field)] as const),
+	),
+);
 afterAll(async () => {
 	store.close();
 	await rm(state, { force: true, recursive: true });
@@ -96,7 +117,153 @@ test.each(["driver", "stage"] as const)(
 	},
 );
 
+/* eslint-disable-next-line max-statements --
+ * Compare complete pass reads and preserved checkpoints at the service boundary.
+ */
+test("retained nonwaiting requests share one native detail batch per pass", async () => {
+	const tracker = pollingTracker;
+	const records = pollingRecords;
+	const show = mock(tracker.beads.show);
+	const showMany = mock(async (...args: Parameters<typeof tracker.beads.showMany>) => {
+		const details = await tracker.beads.showMany(...args);
+		return details.toReversed();
+	});
+	const list = mock(tracker.beads.list);
+	const input = {
+		...tracker,
+		beads: { ...tracker.beads, show, showMany, list },
+		state,
+		store: {
+			...store,
+			history,
+			inventory: () => Promise.resolve([]),
+			retainedInventory: () => [],
+		},
+	};
+	await dispatch(input, config, "fixture");
+	expect(showMany.mock.calls.map(([, ids]) => ids)).toEqual([records.map(({ id }) => id)]);
+	expect(show.mock.calls.map(([, id]) => id)).toEqual(
+		records.flatMap(({ context }) => context.taskIds),
+	);
+	expect(list).toHaveBeenCalledTimes(LISTS_PER_PASS);
+	expect(store.requests(tracker.repository.root)).toEqual(records);
+});
+
+test("an incomplete native retained-request batch fails before inventory", async () => {
+	const tracker = missingTracker;
+	const inventory = mock(() => Promise.resolve([]));
+	await expect(
+		reconcileRequests({
+			...tracker,
+			beads: { ...tracker.beads, showMany: () => Promise.resolve([]) },
+			config,
+			store: { ...store, history, inventory },
+		}),
+	).rejects.toBeInstanceOf(Error);
+	expect(inventory).not.toHaveBeenCalled();
+});
+
+/* eslint-disable-next-line max-statements --
+ * Check that cancellation leaves task claims and the pending checkpoint untouched.
+ */
+test("native cancellation blocks acquisition before any claim", async () => {
+	const { tracker, taskId, id, scope, record } = cancelled;
+	const update = mock(tracker.beads.update);
+	const show = mock(tracker.beads.show);
+	const runtime = {
+		...tracker,
+		beads: { ...tracker.beads, update, show },
+		config,
+		store: { ...store, history },
+	};
+	expect(await claimRequest(runtime, record)).toBeNull();
+	expect(update).not.toHaveBeenCalled();
+	expect(show.mock.calls.map(([, target]) => target)).toEqual([id]);
+	expect(store.requests(tracker.repository.root)).toEqual([record]);
+
+	expect(await tracker.beads.show(scope, id)).toMatchObject({
+		status: "closed",
+		close_reason: "Stopped by Bee",
+	});
+	expect(await tracker.beads.show(scope, taskId)).toMatchObject({ status: "open" });
+});
+
+test.each(nativeDriftFields)(
+	"batched reconciliation rejects native %s drift before inventory or mutations",
+	async (field) => {
+		const { tracker, record } = nativeDrift.get(field)!;
+		const inventory = mock(() => Promise.resolve([]));
+		const update = mock(tracker.beads.update);
+		await expect(
+			reconcileRequests({
+				...tracker,
+				beads: { ...tracker.beads, update },
+				config,
+				store: { ...store, history, inventory },
+			}),
+		).rejects.toBeInstanceOf(Error);
+		expect(inventory).not.toHaveBeenCalled();
+		expect(update).not.toHaveBeenCalled();
+		expect(store.requests(tracker.repository.root)).toEqual([record]);
+	},
+);
+
 // --- Fixtures ---
+async function cancellationFixture() {
+	const tracker = memoryTracker();
+	tracker.repository = { ...tracker.repository, root: "/fixture/cancelled-acquisition" };
+	const taskId = await createTask(tracker);
+	const id = await createSpawn(tracker, taskId);
+	const scope = trackerScope(tracker.repository, "worker");
+	const record = newRequest(await tracker.beads.show(scope, id), tracker.repository);
+	store.saveRequest(tracker.repository.root, record);
+	await tracker.beads.close(scope, id, { reason: "Stopped by Bee" });
+	return { tracker, taskId, id, scope, record };
+}
+
+// eslint-disable-next-line max-statements -- Seed the edited native request before measuring reconciliation.
+async function nativeDriftFixture(field: string) {
+	const tracker = memoryTracker();
+	tracker.repository = { ...tracker.repository, root: `/fixture/native-${field}` };
+	const record = await pollingFixture(tracker);
+	const scope = trackerScope(tracker.repository, "editor");
+	const spawn = await tracker.beads.show(scope, record.id);
+	const captured = readSpawnRequest(spawn);
+	if (field === "identity") {
+		await tracker.beads.update(scope, [record.id], { assignee: "another-bee" });
+	} else if (field === "tasks") {
+		const another = await createTask(tracker);
+		await tracker.beads.dep.add(scope, record.id, another, "related");
+	} else {
+		const payload = { ...captured.recipe, host: captured.host, assignment: captured.assignment };
+		if (field === "host") {
+			payload.host = "another-host";
+		} else {
+			payload.assignment = { kind: "driver", runId: "another-run" };
+		}
+		await tracker.beads.update(scope, [record.id], { description: JSON.stringify(payload) });
+	}
+	return { tracker, record };
+}
+
+async function pollingFixture(tracker: ReturnType<typeof memoryTracker>) {
+	const task = await createTask(tracker, { status: "in_progress", assignee: "worker" });
+	const id = await createSpawn(tracker, task);
+	const scope = trackerScope(tracker.repository, "worker");
+	let record = newRequest(await tracker.beads.show(scope, id), tracker.repository);
+	for (const event of [
+		{ type: "READY" },
+		{ type: "START", id: "previous-attempt" },
+		{ type: "SETTLE", outcome: null, message: "Unfinished" },
+		{ type: "RELEASED" },
+		{ type: "SETTLED", now: 0, maxRetries: 2, delay: Number.MAX_SAFE_INTEGER },
+	] as const) {
+		record = transitionRequest(record, event);
+	}
+	store.saveRequest(tracker.repository.root, record);
+	return record;
+}
+
 async function assertSettlementAttribution(fixture: typeof continuation.driver): Promise<void> {
 	const { tracker, saved, scope, taskId } = fixture;
 	await tracker.beads.close(scope, taskId, { reason: "Completed" });
