@@ -1,6 +1,6 @@
 {
 	"name": "@hive/waggle",
-	"version": "0.8.0",
+	"version": "0.8.1",
 	"private": true,
 	"bin": {
 		"waggle": "./bin/waggle.ts"

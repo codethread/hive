@@ -1,5 +1,24 @@
 [
 	{
+		"version": "0.8.1",
+		"changes": [
+			{
+				"commit": "f85278216e22c6aec7938db04fe4cb2334a9f798",
+				"summary": "add focused blocked and in-progress review workflows",
+				"body": "Hive's workflow catalogue now includes `blocked-review` and `in-progress-review`.\nEach accounts for every frozen candidate before an optional bounded recovery\nstage. Typed outcomes preserve candidate fingerprints, review tokens and exact\npredecessor request IDs. Cancelled recovery targets carry native continuation\nreferences for the workflow to assess. Recovery results distinguish submitted\nreplacements from deferred cases and retain replacement and reopened task IDs.\n\nOptional: adopt these workflows for Colony's automatic work reviews.\n\nRequired when enabling: provide both definitions, their shared workflow helper\nand dependencies in the execution checkout. These definitions use ordinary Busy Bee\nprogression, response delivery and saved-run completion; `busybee init` does not\ninstall them.",
+				"breaking": [],
+				"adoption": []
+			},
+			{
+				"commit": "5b682b7bd633bd98800056825650c3ae9b5769ce",
+				"summary": "simplify repository workflows and separate authoring guidance",
+				"body": "Hive's `do-feature-task` 0.2.0 uses prepare, work, independent review and local\ndelivery. Its input contains `canonicalRoot`, `base` and `isolation`; the source\ntask retains the assignment and authorization. Land 5.0.0 uses check,\nreview, finish, verify and local-update, removes `expectedCommits` and receipt\npayloads, and accepts evidence-bearing outcomes. Both preserve distinct\nreview visits and return findings or changed content through checks and\nrenewed review. These versions break compatibility with their prior saved\nstates, context and outcome contracts.\n\nDo Work 1.0.1 and Release 3.0.0 shorten instructions without changing their\ninput or outcome contracts. Release retains source landing before tagging,\nchecksum verification before formula landing, and its final tracker\npublication checkpoint. `busybee init` now reports the version from its\nbundled manifest instead of a fixed value.\n\n`workflow-authoring` is now an independently discoverable bundled skill.\nThe `workflow-execution/references/authoring.md` resource is removed.\n\nRequired: before adopting the changed repository definitions, inspect\nunfinished runs with `busybee preflight` and follow the documented\nsame-scope recovery procedure for incompatible runs, retaining prior work\nand evidence. Read `busybee input-schema` for new input and `busybee discover` for\nactive outcomes; update callers using removed fields or choices.\n\nRequired: replace calls to\n`busybee skills file workflow-execution references/authoring.md` with\n`busybee skills get workflow-authoring`.\nDefinitions remain checkout-owned; upgrading the executable does not\nreplace an existing repository catalogue.",
+				"breaking": ["simplify repository workflows and separate authoring guidance"],
+				"adoption": []
+			}
+		]
+	},
+	{
 		"version": "0.8.0",
 		"changes": [
 			{

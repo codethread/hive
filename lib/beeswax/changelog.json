@@ -1,5 +1,17 @@
 [
 	{
+		"version": "0.8.1",
+		"changes": [
+			{
+				"commit": "5b682b7bd633bd98800056825650c3ae9b5769ce",
+				"summary": "centralize ancestor-scope guidance in Prime",
+				"body": "Prime now owns the shared policy for reading ancestor descriptions and\nwriting narrower child scope, with native parent-edge and field-selected\ndescription queries. Workflow authoring points to Prime instead of copying\nthat policy.\n\nOptional: after upgrading, run `beeswax update --yes` in adopting projects\nand review the generated onboarding changes under the project's setup and\ntrust policy.",
+				"breaking": [],
+				"adoption": []
+			}
+		]
+	},
+	{
 		"version": "0.8.0",
 		"changes": [
 			{

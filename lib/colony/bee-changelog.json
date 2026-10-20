@@ -1,5 +1,31 @@
 [
 	{
+		"version": "0.8.1",
+		"changes": [
+			{
+				"commit": "7b2e02735a460c2382c15ffa41cd4dcc0ed07c60",
+				"summary": "restore explicit read-only nurse advice",
+				"body": "Hive's nurse again answers explicitly assigned colony-health questions without\nautomatic batch, topic-curation or investigation authority. Its configured\ngpt-6.1-sol model and high reasoning effort remain unchanged. Changes, retries\nand evidence curation require ct's authorization.\n\nRequired: remove `auto_nurse` from canonical `.hive/bees.toml` before running\nthe new Bee binary; shared configuration validation rejects that removed key.\nDeploy the restored nurse role with the matching runtime. New requests capture\nthe updated role; existing captured recipes remain unchanged. Discover the\nrole with `bee kinds nurse --verbose` and submit explicit assignments through\n`bee spawn --help`.",
+				"breaking": ["restore explicit read-only nurse advice"],
+				"adoption": []
+			},
+			{
+				"commit": "f85278216e22c6aec7938db04fe4cb2334a9f798",
+				"summary": "generalize Hive's drone role for focused workflow assignments",
+				"body": "Hive's configured drone kind takes permitted actions and delivery from its\nassigned workflow or private protocol. Ordinary workflow runs use Bee responses\nand completion reporting; private inactivity reviews retain their active/inactive\nverdict protocol. Existing captured recipes retain their original role.\n\nOptional: adopting repositories can use a similarly generic role when assigning\ntheir drone kind to ordinary review workflows. The role itself grants no recovery\nauthority; keep the action scope in each supplied workflow or private protocol.",
+				"breaking": [],
+				"adoption": []
+			},
+			{
+				"commit": "5b682b7bd633bd98800056825650c3ae9b5769ce",
+				"summary": "distinguish role selection from workflow sequence",
+				"body": "Delegation guidance selects a role by its remit and a workflow by the\ntask, routing submission options to bee spawn --help. Hive's Architect,\nBookworm and Reviewer prompts retain their professional judgement and\nauthority while removing repeated workflow and delivery procedure.\nArchitect advice remains available for focused integration or unblock\nquestions; Hive's simplified feature workflow no longer requires a second\nArchitect gate or receipt ledger for every delivery.\n\nOptional: review custom role prompts for duplicated task sequence or\ndelivery instructions. Existing kind defaults, overrides and permissions\nare unchanged.",
+				"breaking": [],
+				"adoption": []
+			}
+		]
+	},
+	{
 		"version": "0.8.0",
 		"changes": [
 			{

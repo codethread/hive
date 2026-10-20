@@ -1,5 +1,63 @@
 [
 	{
+		"version": "0.8.1",
+		"changes": [
+			{
+				"commit": "58960302866bf7b413adb18050b47f0d8682fbc7",
+				"summary": "allow native daemon startup from tmux on macOS",
+				"body": "Colony can start and verify its daemon from tmux when the current user's\nmacOS GUI launchd domain is available. This fixes wake, add and daemon\nrestart failing because the caller reports a Background bootstrap manager\nor cannot see the service in its implicit launchd list.\n\nOptional: after upgrading, retry `colony wake` from tmux with the same\nrepository, tracker and server selection. Native macOS startup still\nrequires the user's GUI launchd domain.",
+				"breaking": [],
+				"adoption": []
+			},
+			{
+				"commit": "7b2e02735a460c2382c15ffa41cd4dcc0ed07c60",
+				"summary": "remove automatic nurse audits and control",
+				"body": "Colony no longer schedules or reconciles nurse audit batches, advances their\ncoverage, or supplies current-topic snapshots to post-run drones. The\n`auto_nurse` configuration key and `autoNurse` policy output are removed.\nPost-run assessments and explicit nurse advice remain available. Retained\nassessment reports and native audit, response and topic records remain readable;\nthe removed automation no longer writes health-control or topic records.\n\nRequired: remove top-level `auto_nurse` from canonical `.hive/bees.toml` before\nrunning the new binaries or resetting policy. Install the matching Bee/Colony\nexecutables together, then follow `colony daemon restart --help` and\n`colony config reset --help` for the selected server and repository. Preserve\nthe tracker and retained state. Consumers of policy JSON must stop expecting\n`autoNurse`.",
+				"breaking": ["remove automatic nurse audits and control"],
+				"adoption": []
+			},
+			{
+				"commit": "9f18d01a1ac412a08f60d8c848e8e10d34813bcf",
+				"summary": "explicitly replace a retained daemon during unfinished restart",
+				"body": "`colony daemon restart --replace-retained` selects one additional replacement\nwithin an unfinished restart. Admission verifies the recorded daemon's endpoint,\nlifetime, live process fingerprint and independent native ownership. The original\nreceipt evidence stays intact; `continuation` records the new leg and its effects.\nA lost stop response can complete through a matched handoff and verified exit.\nFinal recovery protects original and intervening attempts without duplicate live\nexecutions.\n\nRetries resume saved phases. Uncertain stop/start calls are observed without\nresubmission, so an interruption between saving intent and making its call can\nremain incomplete and require diagnosis. Once the new daemon is observed,\nretries finish its recovery in place. Failure JSON identifies request phases and\nthe retained continuation phase when available.\n\nOptional: after updating the Colony executables together, read\n`colony daemon restart --help` before selecting `--replace-retained` for an\nunfinished restart. Keep the original state/socket and retained receipts.\nOrdinary retries retain their existing in-place finalization behavior.",
+				"breaking": [],
+				"adoption": []
+			},
+			{
+				"commit": "6bde485e34999da1686476280b8f498facc168c2",
+				"summary": "resume interrupted restarts through delayed repository recovery",
+				"body": "`colony daemon restart` now polls repository recovery with a 10-minute deadline.\nRecovery probes return promptly so other daemon commands can proceed while\nscheduling passes finish. Connection and verification failures still fail the\noperation and retain confirmed effects.\n\nRetrying an unfinished restart with a recorded replacement resumes verification\nof that matching, independently owned daemon against the original registration\nand attempt manifest, without stopping or starting it again. An unavailable,\nmismatched or unowned replacement is refused before its receipt changes.\n\nRequired: build and install the Colony CLI and its companion executables from\nthe same revision. To finish an interrupted restart, rerun\n`colony daemon restart --json` with the original state/socket selection and\nretain the restart and handoff receipts until verification succeeds.",
+				"breaking": [
+					"the daemon's `recover` request can now return `kind: recovering`\ninstead of waiting for `kind: status`. Protocol callers must poll until status,\ncheck the daemon identity and selected endpoint on every response, then verify\nrecovery. A pending response does not establish successful recovery."
+				],
+				"adoption": []
+			},
+			{
+				"commit": "f85278216e22c6aec7938db04fe4cb2334a9f798",
+				"summary": "add opt-in hourly reviews of blocked and stranded work",
+				"body": "The optional `auto_work_reviews` policy submits separate ordinary workflows for\nnative blocked tasks and stranded managed in-progress work. Fresh stable-blocker\nreceipts and empty candidate sets avoid drone launches. Native control retains\nindependent clocks, outstanding submissions and one recovery allowance per\nrequest lineage across restarts.\n\nUse `colony work-review --help` for preflight, retained control, diagnosis records\nand bounded recovery, and `colony work-review --schema` for typed payloads. Recovery uses public Bee\nretry with the original run/stage and execution directory; a submitted replacement\nis not completed work.\n\nCancelled requests remain diagnosable without continuation authority. Recovering\na cancelled request requires incident-linked native human direction, preserving the actual recorder\nand exact evidence references. The workflow assesses that direction; code checks\nreferences and freshness without inferring permission from prose. Public Busy Bee\ninspection validates the saved assignment in its original checkout before recovery\neffects, with checkpoint and definition stamps rechecked. Missing or unsupported\nsaved state remains deferred. Colony also matches native and captured request\nidentity/task links alongside fresh stopped-process proof. These inspections do\nnot prove every future workflow path.\n\nUncertain effects remain visible and prevent blind resubmission. Hive's checked-in\npolicy opts this repository in with a dedicated control parent; live activation\nstill requires the deliberate policy reload.\n\nRequired after upgrading: refresh the Colony companion executables together and\nfollow `colony daemon restart --help` for the selected state/socket before querying\nan active daemon's policy with the upgraded CLI.\n\nOptional: enable reviews for a selected repository.\n\nRequired when enabling: prepare both workflow definitions and their dependencies\nin the canonical checkout, and provision a dedicated ongoing\ncontrol parent that is an ordinary work bead. Inspect both preflight branches before adding\n`auto_work_reviews = { kind = \"drone\", parent = \"<review scope>\" }`. Follow\n`colony wake --help` or `colony config reset --help` for policy reload. Preserve the selected tracker,\nstate and existing control notes. Omission leaves automatic reviews disabled.",
+				"breaking": [
+					"Active-policy JSON now requires autoWorkReviews. Old daemon\npolicy responses omit this field and fail the upgraded client's strict schema;\nupdate the CLI and daemon together, preserving the selected state and socket."
+				],
+				"adoption": []
+			},
+			{
+				"commit": "5b682b7bd633bd98800056825650c3ae9b5769ce",
+				"summary": "clarify role and task instruction placement",
+				"body": "The bundled configuration guide assigns remit, judgement, authority limits\nand professional result requirements to `system_prompt`; workflows own task\nsequence, and input and stage briefs carry scope and acceptance. The same\nrole can serve different workflows. Optional prompt direction does not\nchange the assignment.\n\nOptional: apply this distinction when authoring custom kinds and prompts;\nno configuration schema or runtime policy change is required.",
+				"breaking": [],
+				"adoption": []
+			},
+			{
+				"commit": "8148ef2aeeb424a59c0f8e037664a92c6669bfbe",
+				"summary": "wait five seconds between reconciliation passes",
+				"body": "Awake colonies now wait five seconds, rather than one, after each reconciliation\npass to reduce background polling overhead. Initial reconciliation still starts\nimmediately and passes remain serial.\n\nRequired: restart the Colony daemon after installing the updated executables to\napply the new delay to an already-running daemon.",
+				"breaking": [],
+				"adoption": []
+			}
+		]
+	},
+	{
 		"version": "0.8.0",
 		"changes": [
 			{

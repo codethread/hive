@@ -1,5 +1,24 @@
 [
 	{
+		"version": "0.8.1",
+		"changes": [
+			{
+				"commit": "92bb2a84080ca6889401fc438eb7d20ea4c9e53f",
+				"summary": "show human-assigned work in a separate top lane",
+				"body": "Tasks whose owner and assignee are both populated and exactly equal now\nappear above ordinary cards and task families, in their native-status\ncolumns. Each human-assigned card appears once on the board. Family cards\nkeep the outline icon for opening their parent and sibling context.\n\nRequired: restart the Hive UI server after upgrading and reload the browser to\nload the updated ownership projection and board.",
+				"breaking": [],
+				"adoption": []
+			},
+			{
+				"commit": "5b682b7bd633bd98800056825650c3ae9b5769ce",
+				"summary": "align workflow workshop examples with simplified Land",
+				"body": "The component workshop's Land diagram, examples and simulated outcomes\nfollow the five-stage Land 5.0.0 chart and evidence payloads. Labels\ndistinguish historical task metadata from illustrative state and fictional\ninstructions; the samples do not replay or change native runs.\n\nNo adoption action is required.",
+				"breaking": [],
+				"adoption": []
+			}
+		]
+	},
+	{
 		"version": "0.8.0",
 		"changes": [
 			{
