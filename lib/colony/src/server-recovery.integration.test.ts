@@ -50,7 +50,6 @@ await serve(target, beads, {
 			state: "awake",
 			config: beesConfigSchema.parse({ owner: "ct", humans: ["ct"], formulas: {} }),
 		}),
-	nurse: { start: unexpected, attach: unexpected, show: unexpected },
 	workReview: unusedWorkReviewCommands(),
 });
 await Promise.all(entered.map(({ promise }) => promise));

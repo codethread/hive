@@ -101,8 +101,6 @@ The specialist contract defines relationships and discovery. Verify the saved co
 
 Cite response IDs instead of copying report bodies. Response publication grants no evidence-label stewardship.
 
-Authorized [nurse health records](./beads-labels.md#nurse-health-records) use this filed lifecycle with existing area labels and concise current descriptions; they do not require an `evidence:*` label. Their health control and audit coverage notes are machine records, so keep narrative progress in comments and follow the supplied audit protocol.
-
 ### Inherited agent context
 
 Set `--agent-context` on `create` or `update` with inline JSON such as `'{"constraints":["Keep this feature CLI-only"]}'`, or `@path/to/context.json` / `@path/to/context.yaml` (YAML is normalized to JSON). These are instructions for the consuming agent, not executable policy or a replacement for repository/user instructions.

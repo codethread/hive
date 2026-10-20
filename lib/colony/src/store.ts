@@ -10,7 +10,6 @@ import type { Assessment } from "./postrun.ts";
 import { Database } from "bun:sqlite";
 import type { DroneReview } from "./drone.ts";
 import type { LaunchReceipt } from "./launch.ts";
-import type { NurseCheckpoint } from "./nurse.ts";
 import type { PolicySnapshot } from "./policy.ts";
 import { assessmentSchema } from "./postrun.ts";
 import { droneReviewSchema } from "./drone.ts";
@@ -20,7 +19,6 @@ import { droneReviewSchema } from "./drone.ts";
 import { hostname } from "node:os";
 // eslint-disable-next-line import/no-nodejs-modules -- SQLite and receipt paths belong to daemon state.
 import { join } from "node:path";
-import { nurseCheckpointSchema } from "./nurse.ts";
 import { openHistory } from "./history.ts";
 import { policyRevisionSchema } from "@hive/shared";
 /* eslint-disable-next-line import/no-nodejs-modules --
@@ -29,18 +27,6 @@ import { policyRevisionSchema } from "@hive/shared";
 import { readFile } from "node:fs/promises";
 import { z } from "zod";
 
-const snapshotRowSchema = z.object({ snapshot: z.string() });
-const completionRowsSchema = z.array(
-	z.object({
-		ordinal: z.number(),
-		id: z.string(),
-		requestId: z.string(),
-		reason: z.string(),
-		detail: z.string(),
-	}),
-);
-const ordinalRowSchema = z.object({ ordinal: z.number() });
-const countRowSchema = z.object({ count: z.number() });
 const PROBE_SIGNAL = 0;
 const attemptRowSchema = z.strictObject({
 	directory: z.string(),
@@ -71,10 +57,8 @@ export interface Registration {
 export type Store = ReturnType<typeof openStore>;
 
 /** Concrete registry and immutable launch reservations; only the socket owner writes here. */
-export function openStore(
-	state: string,
-	database = new Database(join(state, "colony.sqlite"), { create: true }),
-) {
+export function openStore(state: string) {
+	const database = new Database(join(state, "colony.sqlite"), { create: true });
 	database.exec(
 		`PRAGMA journal_mode = WAL;
  CREATE TABLE IF NOT EXISTS repositories (
@@ -96,14 +80,7 @@ export function openStore(
 			`TEXT NOT NULL, beads_db TEXT NOT NULL, request_id TEXT NOT NULL, ` +
 			`snapshot TEXT NOT NULL, UNIQUE(root, request_id));
  CREATE TABLE IF NOT EXISTS active_policies (root TEXT PRIMARY KEY, ` +
-			`revision_id TEXT NOT NULL REFERENCES policy_revisions(id));
- CREATE TABLE IF NOT EXISTS assessment_completions (
- ordinal INTEGER PRIMARY KEY AUTOINCREMENT, id TEXT NOT NULL UNIQUE,
- root TEXT NOT NULL, beads_db TEXT NOT NULL, successful INTEGER NOT NULL);
- CREATE INDEX IF NOT EXISTS assessment_completions_endpoint
- ON assessment_completions(root, beads_db, successful, ordinal);
- CREATE TABLE IF NOT EXISTS nurse_checkpoints (
- root TEXT PRIMARY KEY, snapshot TEXT NOT NULL);`,
+			`revision_id TEXT NOT NULL REFERENCES policy_revisions(id));`,
 	);
 	database.exec(`CREATE INDEX IF NOT EXISTS attempts_by_request ON attempts(root, spawn_id);
  CREATE INDEX IF NOT EXISTS live_attempts_by_root ON attempts(root) WHERE state IN ('starting', 'running');
@@ -186,33 +163,18 @@ export function openStore(
 			.run(root, record.id, JSON.stringify(record));
 	};
 	const saveAssessment = (root: string, assessment: Assessment): void => {
-		database.transaction(() => {
-			database
-				.query(
-					"INSERT INTO assessments (id, root, beads_db, request_id, snapshot) " +
-						"VALUES (?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET snapshot = excluded.snapshot",
-				)
-				.run(
-					assessment.id,
-					root,
-					assessment.beadsDb,
-					assessment.requestId,
-					JSON.stringify(assessment),
-				);
-			// First finalization fixes completion order; replay preserves the existing ordinal.
-			if (assessment.phase === "finished") {
-				database
-					.query(
-						"INSERT OR IGNORE INTO assessment_completions (id, root, beads_db, successful) VALUES (?, ?, ?, ?)",
-					)
-					.run(
-						assessment.id,
-						root,
-						assessment.beadsDb,
-						Number(assessment.result.kind === "completed"),
-					);
-			}
-		})();
+		database
+			.query(
+				"INSERT INTO assessments (id, root, beads_db, request_id, snapshot) " +
+					"VALUES (?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET snapshot = excluded.snapshot",
+			)
+			.run(
+				assessment.id,
+				root,
+				assessment.beadsDb,
+				assessment.requestId,
+				JSON.stringify(assessment),
+			);
 	};
 	const advanceRequest = (
 		root: string,
@@ -224,69 +186,6 @@ export function openStore(
 		return next;
 	};
 	return {
-		nurseCheckpoint: (root: string): NurseCheckpoint | undefined => {
-			const row = database.query("SELECT snapshot FROM nurse_checkpoints WHERE root = ?").get(root);
-			if (row === null) {
-				return;
-			}
-			const { snapshot } = snapshotRowSchema.parse(row);
-			return nurseCheckpointSchema.parse(JSON.parse(snapshot));
-		},
-		saveNurseCheckpoint: (root: string, checkpoint: NurseCheckpoint): void => {
-			database
-				.query(
-					"INSERT INTO nurse_checkpoints (root, snapshot) VALUES (?, ?) " +
-						"ON CONFLICT(root) DO UPDATE SET snapshot = excluded.snapshot",
-				)
-				.run(root, JSON.stringify(checkpoint));
-		},
-		assessmentCompletionHead: (repository: RepositoryEndpoint): number =>
-			ordinalRowSchema.parse(
-				database
-					.query(
-						"SELECT COALESCE(MAX(ordinal), 0) AS ordinal FROM assessment_completions " +
-							"WHERE root = ? AND beads_db = ?",
-					)
-					.get(repository.root, repository.beadsDb),
-			).ordinal,
-		assessmentCompletions: (
-			repository: RepositoryEndpoint,
-			selection: {
-				after: number;
-				successful: boolean;
-				through: number;
-				limit: number;
-			},
-		) =>
-			completionRowsSchema.parse(
-				database
-					.query(
-						"SELECT ordinal, id, request_id AS requestId, " +
-							"COALESCE(json_extract(snapshot, '$.result.reason'), '') AS reason, " +
-							"COALESCE(json_extract(snapshot, '$.result.detail'), '') AS detail " +
-							"FROM assessment_completions JOIN assessments USING(id) " +
-							"WHERE assessment_completions.root = ? AND assessment_completions.beads_db = ? " +
-							"AND ordinal > ? AND ordinal <= ? AND successful = ? ORDER BY ordinal LIMIT ?",
-					)
-					.all(
-						repository.root,
-						repository.beadsDb,
-						selection.after,
-						selection.through,
-						Number(selection.successful),
-						selection.limit,
-					),
-			),
-		assessmentGapCount: (repository: RepositoryEndpoint, after: number, through: number): number =>
-			countRowSchema.parse(
-				database
-					.query(
-						"SELECT COUNT(*) AS count FROM assessment_completions WHERE root = ? AND beads_db = ? " +
-							"AND ordinal > ? AND ordinal <= ? AND successful = 0",
-					)
-					.get(repository.root, repository.beadsDb, after, through),
-			).count,
-
 		activatePolicy: (root: string, revision: PolicyRevision, snapshot: PolicySnapshot): void =>
 			database.transaction(() => {
 				database

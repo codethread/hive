@@ -1,7 +1,6 @@
 import type { WorkReviewCommands, WorkReviewContinuation } from "./work-review-runtime.ts";
 import { colonyEntry, entryCommand } from "./executables.ts";
 import { CommandError } from "@hive/beads";
-import type { NurseProcess } from "./nurse-commands.ts";
 import type { RepositoryEndpoint } from "@hive/shared";
 import { WorkReviewError } from "./work-review.ts";
 import { WorkReviewPublicationError } from "./work-review-runtime.ts";
@@ -79,7 +78,14 @@ const processSchema = z.compile(
 /* eslint-enable unicorn/max-nested-calls */
 
 /** Translate the existing public commands at one injected process boundary. */
-export function workReviewCommands(process: NurseProcess, state: string): WorkReviewCommands {
+export interface WorkReviewProcess {
+	/** Invoke public commands in the selected repository. */
+	execute: (argv: string[], cwd: string) => Promise<string>;
+	/** Save workflow input in private state. */
+	writeInput: (token: string, input: string) => Promise<string>;
+}
+
+export function workReviewCommands(process: WorkReviewProcess, state: string): WorkReviewCommands {
 	const execute = async (argv: string[], repository: RepositoryEndpoint) =>
 		JSON.parse(await process.execute(argv, repository.root)) as unknown;
 	const endpoint = (repository: RepositoryEndpoint) => [

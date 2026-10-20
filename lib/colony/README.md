@@ -72,7 +72,7 @@ Colony can submit two ordinary drone workflows: [blocked-review](../../.workflow
 
 Reviews default to disabled when `auto_work_reviews` is omitted. This repository's checked-in [`.hive/bees.toml`](../../.hive/bees.toml) explicitly opts in with the dedicated control parent `hv-bj6zi9`; loading that policy still requires the deliberate reload below.
 
-Prepare both named workflows and their dependencies in the canonical checkout used by Colony. Provision a dedicated ongoing ordinary parent in the selected tracker, separate from the nurse health parent: open, unblocked, unreserved, and unassigned or assigned to `sys-colony`. Leave its notes empty for Colony's control record. Inspect both branches through `colony work-review preflight --help` before enabling current candidates, then configure a matching kind and formula:
+Prepare both named workflows and their dependencies in the canonical checkout used by Colony. Provision a dedicated ongoing ordinary parent in the selected tracker: open, unblocked, unreserved, and unassigned or assigned to `sys-colony`. Leave its notes empty for Colony's control record. Inspect both branches through `colony work-review preflight --help` before enabling current candidates, then configure a matching kind and formula:
 
 ```toml
 auto_work_reviews = { kind = "drone", parent = "<ordinary review scope>" }
@@ -96,25 +96,7 @@ Codex accounting reads bounded stdout plus the unique native rollout matching th
 
 ### Ask the nurse
 
-Hive's nurse synthesizes retained assessments using [welcoming hive](../../docs/agents/welcoming-hive.md). Submit an explicit report assignment naming the question and period through `bee spawn`; discover the configured role with `bee kinds nurse --verbose`. Manual advice grants no curation or investigation authority without an explicit scope. The [nurse health-record convention](../../docs/beads-labels.md#nurse-health-records) governs provisional evidence; fixes and change tasks require ct's separate authorization.
-
-### Automatic nurse audits
-
-Automatic audits are off by default. Before enabling them, provision one ordinary, ongoing health parent in the selected tracker, separate from a finite feature or workflow run. Keep it open, unblocked and either unassigned or assigned to `sys-colony`, without `system` or `hitl` labels; leave notes empty for Colony to initialize. Every runtime for this endpoint must use that same parent. Configure a nurse kind and matching formula, then add this top-level canonical policy:
-
-```toml
-auto_nurse = { kind = "nurse", parent = "<ordinary health scope>" }
-```
-
-Reload through `colony wake --help` or `colony config reset --help`, preserving repository, tracker and server selection; inspect `colony config show` for the loaded `autoNurse` policy. Automatic submissions use `gpt-6.1-sol` with high reasoning and consume ordinary dispatch capacity, including while waiting for investigators.
-
-First activation records a baseline before that pass finalizes assessments. Historical finished reports remain readable and excluded from automatic backfill; assessments still in flight count when they finish. Sleep/wake, restart and disable/re-enable preserve the baseline and backlog. Removing the policy stops new batches while an existing batch continues reconciliation. The retained health parent and kind cannot be changed by reconfiguration.
-
-Each batch freezes the oldest 25 unaudited completed reports in completion order. Failed assessments do not count toward 25; bounded gap entries and an omitted count travel with the manifest. Only one batch is active, including its required investigations. Later reports wait. Launch alone advances no coverage: Colony verifies the native audit receipt and delivered workflow before closing the audit and committing its coverage. See [post-run authority](../../docs/architecture.md#post-run-advice) and the generated audit brief for that protocol.
-
-Read the health parent with `br show` to find its retained audit/run/request IDs and any attention detail. Its notes are machine control; audit comments hold resumable progress, and audit notes hold the coverage receipt. Use `bee status` and `bee result` for the exact current request and `busybee show` for its run. Retrieve manifest reports through `colony assessments --help`, retaining the selected `--state`, repository and tracker. The health design index supplies later drones with a bounded private `current-topics.json` snapshot under the [topic convention](../../docs/beads-labels.md#nurse-health-records); `source.json` remains the examined execution's evidence.
-
-Failed requests, missing/invalid delivery and uncertain publication leave the same batch outstanding with visible attention while unrelated ordinary dispatch continues. Inspect confirmed IDs and effects before recovery. Use `bee retry --help` for an explicit replacement of the same saved assignment, or `bee attach-workflow --help` only for a confirmed orphan. Retain the manifest and control notes; never clear them to obtain a fresh batch. Authority or persistence failures remain infrastructure errors. Nurse and investigator requests beneath the health parent are excluded from assessment enrollment, regardless of kind.
+Hive's nurse synthesizes retained assessments using [welcoming hive](../../docs/agents/welcoming-hive.md). Submit an explicit report assignment naming the question and period through `bee spawn`; discover the configured role with `bee kinds nurse --verbose`. The nurse creates change tasks only with ct's approval. Filing selected evidence is a separate operation under [specialist stewardship](../../docs/beads-labels.md#specialist-evidence-and-label-stewardship).
 
 ## Run a colony
 

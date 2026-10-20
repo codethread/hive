@@ -99,11 +99,7 @@ A dedicated ordinary parent holds native control bound to the repository, tracke
 
 Post-run assessments reuse detached supervision but have separate report authority and lifecycle. Assessment failure does not alter the target request, claims or retry budget; auxiliary inspections cannot enroll themselves.
 
-Colony's [nurse reconciler](../lib/colony/src/nurse.ts) selects completion-ordered batches and submits ordinary Bee/Busy Bee work. An explicitly configured ongoing health parent in native Beads holds the shared control record; conditional writes reserve one batch for its repository/tracker/host/state binding. This is local database coordination, not exclusion across independently synchronized trackers. The private store retains completion order and a resumable projection of native control and accepted coverage.
-
-The ordinary audit task holds its frozen manifest and typed coverage receipt, separate from workflow outcome notes. Colony advances coverage only after verifying that receipt, the completed workflow, successful current request, exact authored response and delivered investigation tree. Unfinished or failed audits retain their batch. The [operator guide](../lib/colony/README.md#automatic-nurse-audits) owns activation and recovery.
-
-Native [nurse health records](beads-labels.md#nurse-health-records) hold sourced provisional inquiries. A bounded snapshot supplies later drones with advisory evidence; their heuristic, deadline and mutation limits remain unchanged. Requests beneath the retained health parent are excluded from assessments by task lineage, including investigators of other kinds. The nurse uses the [welcoming-hive heuristic](agents/welcoming-hive.md) within its granted curation/investigation scope; fixes and changes to examined work require ct's separate authorization.
+The nurse discusses retained assessments with ct using the [welcoming-hive heuristic](agents/welcoming-hive.md). Advice grants no authority to change practices or create work; ct authorizes change tasks. The [operator guide](../lib/colony/README.md#inspect-finished-bees) covers retrieval, and the [stewardship registry](beads-labels.md#specialist-evidence-and-label-stewardship) governs filed evidence.
 
 ## Beeswax's setup boundary
 

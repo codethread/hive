@@ -51,16 +51,12 @@ beads.list = async (scope, selection) => {
 	}
 	return list(scope, selection);
 };
-function unexpected(): never {
-	throw new Error("Disabled fixture operation");
-}
 await serve(target, beads, {
 	loadActivity: () =>
 		Promise.resolve({
 			state: "awake",
 			config: beesConfigSchema.parse({ owner: "ct", humans: ["ct"], formulas: {} }),
 		}),
-	nurse: { start: unexpected, attach: unexpected, show: unexpected },
 	workReview: unusedWorkReviewCommands(),
 });
 await entered.promise;

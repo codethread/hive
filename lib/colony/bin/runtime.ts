@@ -6,7 +6,6 @@ import { createNativeBeads } from "@hive/beads";
 import { join } from "node:path";
 import { launch } from "../src/launch.ts";
 import { match } from "ts-pattern";
-import { nurseCommands } from "../src/nurse-commands.ts";
 import { version } from "../package.json";
 import { workReviewCommands } from "../src/work-review-commands.ts";
 import { z } from "zod";
@@ -55,14 +54,6 @@ try {
 		.with({ kind: "serve" }, ({ socket, state }) =>
 			serve({ socket, state }, beads, {
 				loadActivity: loadColonyActivity,
-				nurse: nurseCommands({
-					execute: (argv, cwd) => execute(argv, cwd, process.env),
-					writeInput: async (token, input) => {
-						const path = join(state, "nurse", `${token}.json`);
-						await Bun.write(path, input);
-						return path;
-					},
-				}),
 				workReview: workReviewCommands(
 					{
 						execute: (argv, cwd) => execute(argv, cwd, process.env),

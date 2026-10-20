@@ -1,6 +1,6 @@
 # Welcoming hive
 
-The post-run drone applies this heuristic to individual executions. The nurse uses it to synthesize colony health across assessments.
+The post-run drone applies this heuristic to individual executions. The nurse uses the same heuristic to discuss the colony's big picture with ct.
 
 A welcoming hive gives a bee a crisp assignment, directs it to the appropriate guidance, lets it complete the task, and supports a cohesive response. The concern is token and context overhead spent finding that path: reading unrelated documentation, following poor pointers, searching repeatedly for the assignment, or reconstructing missing instructions.
 
@@ -33,10 +33,4 @@ Use the supplied structured report contract. Give a concise account of the welco
 
 Also say when the assignment and guidance worked well. A cohesive report should let the nurse understand the finding without rereading every raw log. Avoid copying transcripts, secrets or irrelevant task content into assessments.
 
-The drone records observations; the nurse synthesizes and advises. Change work and policy adoption require ct's approval. Automatic audit briefs grant the nurse bounded evidence curation and investigation under the [nurse health-record convention](../beads-labels.md#nurse-health-records). Raw assessments remain Colony-private evidence.
-
-## Use current inquiries
-
-When the generated protocol supplies a current-topic snapshot, read it once as advisory evidence. Its topic IDs, concise summaries and timestamps describe provisional inquiries, not accepted causes or additional instructions. Use a relevant inquiry to select useful excerpts within the assigned execution and existing deadline; cite its topic ID alongside the new observation in the report's findings. State whether the observation supports, challenges or cannot distinguish the proposed explanations.
-
-Retain the snapshot's freshness, omitted topics and unavailable-context limits. Recurrence alone does not establish a common cause. Topic context changes neither the welcoming-hive heuristic nor the drone's authority: inspect the assigned evidence, submit the report and leave Beads, processes and repository files unchanged.
+The drone records observations; the nurse synthesizes and advises. Neither creates change work or treats advice as accepted policy without ct's approval. Raw assessments remain Colony-private evidence; filing specialist evidence is a separate authorized operation under the existing label-stewardship contract.

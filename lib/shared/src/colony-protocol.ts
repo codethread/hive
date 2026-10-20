@@ -70,8 +70,6 @@ export const configCommandSchema = z.discriminatedUnion("operation", [
 
 /** Generic inspection names active formulas without exposing their argument values. */
 export const policyViewSchema = z.strictObject({
-	/** Loaded audit kind and ongoing health parent; null disables new batches. */
-	autoNurse: z.strictObject({ kind: z.string(), parent: z.string() }).nullable(),
 	/** Loaded review kind and dedicated control parent; null disables automatic work reviews. */
 	autoWorkReviews: z.strictObject({ kind: z.string(), parent: z.string() }).nullable(),
 	formulas: z.array(z.string()),

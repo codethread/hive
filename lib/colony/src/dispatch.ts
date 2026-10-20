@@ -4,14 +4,12 @@
  */
 import { SPAWN_REQUEST_LABELS, readSpawnRequest, readSpawnRequestHost } from "@hive/shared";
 import type { WorkReviewClock, WorkReviewCommands } from "./work-review-runtime.ts";
-import { activateNurse, reconcileNurse } from "./nurse.ts";
 import { assertRequestAuthority, claimRequest, newRequest, reconcileRequests } from "./request.ts";
 import { compareCandidates, hasCapacity, hasContention } from "./scheduler.ts";
 import { prepareLaunch, startSupervisor, writeReceipt } from "./launch.ts";
 import { publishObservation, publishStdoutActivity } from "./observations.ts";
 import { publishRequestLabels, reconcileClosedRequestLabels } from "./requests.ts";
 import type { BeesConfig } from "@hive/shared";
-import type { NurseCommands } from "./nurse.ts";
 import type { Occupant } from "./scheduler.ts";
 import type { OperationEvidence } from "./history.ts";
 import type { Preparation } from "./launch.ts";
@@ -38,8 +36,6 @@ export interface DispatchInput extends TrackerContext {
 	state: string;
 	/** Concrete durable reservation owner. */
 	store: Store;
-	/** Public nurse-workflow commands used during reconciliation. */
-	nurse: NurseCommands;
 	/** Public ordinary workflow and recovery commands. */
 	workReview: WorkReviewCommands;
 	/** In-memory hourly gate; native control retains the authoritative deadlines. */
@@ -65,14 +61,14 @@ export async function dispatch(
 			requestId: null,
 		},
 		async (evidence) => {
-			const nurseRuntime = { ...input, config, host: hostname(), now: Date.now };
-			await activateNurse(nurseRuntime);
 			evidence.reference(join(input.state, "daemon.log"));
 			evidence.step("dispatch.prepare", input.repository.root);
 			const candidates = await prepareCandidates(input, config, revisionId, evidence);
 			await reconcileAssessments({ ...input, config });
-			await reconcileNurse(nurseRuntime);
-			await reconcileWorkReviews({ ...nurseRuntime, actor: "sys-colony" }, input.workReviewClock);
+			await reconcileWorkReviews(
+				{ ...input, config, host: hostname(), now: Date.now, actor: "sys-colony" },
+				input.workReviewClock,
+			);
 			await dispatchPriorityGroups(input, config, candidates, evidence);
 		},
 	);

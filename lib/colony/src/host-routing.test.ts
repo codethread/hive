@@ -183,11 +183,6 @@ function route(fixture: Fixture): Promise<void> {
 				store: { ...store, history },
 				workReview: unusedWorkReviewCommands(),
 				workReviewClock: { nextDue: 0 },
-				nurse: {
-					start: () => Promise.reject(new Error("Unexpected nurse submission")),
-					attach: () => Promise.reject(new Error("Unexpected nurse attachment")),
-					show: () => Promise.reject(new Error("Unexpected nurse read")),
-				},
 			},
 			config,
 			"fixture",

@@ -23,7 +23,6 @@ import { loadPolicy, policySnapshot, policyView, updatePolicy } from "./policy.t
 import type { ActivePolicy } from "./policy.ts";
 import type { BeadsService } from "@hive/beads";
 import type { ColonyActivity } from "./colony.ts";
-import type { NurseCommands } from "./nurse.ts";
 import type { WorkReviewCommands } from "./work-review-runtime.ts";
 import { claimServer } from "./server-ownership.ts";
 import { createColony } from "./colony.ts";
@@ -57,12 +56,9 @@ export async function serve(
 	options: ServerOptions,
 	beads: BeadsService,
 	{
-		nurse,
 		workReview,
 		loadActivity,
 	}: {
-		/** Commands used by automatic nurse reconciliation. */
-		nurse: NurseCommands;
 		/** Commands used by automatic work-review reconciliation. */
 		workReview: WorkReviewCommands;
 		/** Load canonical policy for activation and restoration. */
@@ -88,7 +84,6 @@ export async function serve(
 				repository,
 				state: options.state,
 				store,
-				nurse,
 				workReview,
 				workReviewClock: { nextDue: 0 },
 			},
