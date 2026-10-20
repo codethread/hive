@@ -9,7 +9,7 @@ import { tmpdir } from "node:os";
 
 const SUCCESS = 0;
 
-test("daemon ownership recovers its disconnected socket after a device change", async () => {
+test("daemon ownership recovers its disconnected socket after a device change #test-308", async () => {
 	const location = await fixture(true);
 	try {
 		const owner = JSON.parse(await readFile(join(location.state, "daemon.json"), "utf8"));
@@ -31,7 +31,7 @@ test.each([
 	{ refusal: "changed creation time", field: "birthtimeMs" },
 	{ refusal: "live recorded process", field: "process" },
 	// eslint-disable-next-line max-statements -- Verify one refusal preserves the exact native socket.
-])("recovery preserves a socket with $refusal", async ({ field }) => {
+])("recovery preserves a socket with $refusal #test-309", async ({ field }) => {
 	const location = await fixture(field !== "process");
 	try {
 		const path = join(location.state, "daemon.json");
@@ -50,7 +50,7 @@ test.each([
 });
 
 // eslint-disable-next-line max-statements -- One native listener refusal and its cleanup.
-test("recovery preserves a foreign active listener", async () => {
+test("recovery preserves a foreign active listener #test-310", async () => {
 	const location = await fixture(true);
 	await rm(location.socket);
 	const server = Bun.serve({ unix: location.socket, fetch: () => new Response("listener") });
@@ -70,7 +70,7 @@ test("recovery preserves a foreign active listener", async () => {
 	}
 });
 
-test("a second daemon cannot claim the same state directory", async () => {
+test("a second daemon cannot claim the same state directory #test-311", async () => {
 	const state = await mkdtemp(join(tmpdir(), "hive-owner-"));
 	const location = { state, socket: join(state, "s") };
 	const ownership = await claimServer(location);

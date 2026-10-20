@@ -148,7 +148,7 @@ async function expectRolledBackSlot(root: string, exists: boolean) {
 	expect(await pathExists(`${root}__feat2`)).toBe(false);
 }
 
-test("prefers an initialized free slot without preparing unrelated cold, dirty or broken slots", async () => {
+test("prefers an initialized free slot without preparing unrelated cold, dirty or broken slots #test-112", async () => {
 	const { root } = await initRepoWithOrigin(tmp.dir);
 	writeConfig({ command: SETUP_BRANCH, poolSize: 5, root, tmp: tmp.dir });
 	await fixtureSlots(root, [
@@ -178,7 +178,7 @@ test("prefers an initialized free slot without preparing unrelated cold, dirty o
 });
 
 test.each([{ exists: false }, { exists: true }])(
-	"prepares only one available cold slot (exists=$exists) and bootstraps once on the target branch",
+	"prepares only one available cold slot (exists=$exists) and bootstraps once on the target branch #test-113",
 	async ({ exists }) => {
 		const root = await coldPool(exists);
 		const result = await dispatch(
@@ -205,7 +205,7 @@ test.each([{ exists: false }, { exists: true }])(
 );
 
 test.each([{ location: "sibling" }, { location: "nested" }] as const)(
-	"explicit --slot creates only the selected missing configured $location slot",
+	"explicit --slot creates only the selected missing configured $location slot #test-116",
 	async ({ location }) => {
 		const { root } = await initRepoWithOrigin(tmp.dir);
 		writeConfig({
@@ -247,7 +247,7 @@ test.each([
 	{ state: "dirty", branch: "wk-pool/feat1", initialized: false },
 	{ state: "dirty", branch: "wk-pool/feat1", initialized: true },
 ] as const)(
-	"explicit $branch remains protected (state=$state, initialized=$initialized)",
+	"explicit $branch remains protected (state=$state, initialized=$initialized) #test-118",
 	async ({ state, branch, initialized }) => {
 		const { root } = await initRepoWithOrigin(tmp.dir);
 		writeConfig({ command: "touch should-not-run", poolSize: 2, root, tmp: tmp.dir });
@@ -266,7 +266,7 @@ test.each([
 );
 
 test.each([{ state: "dirty" }, { state: "unreadable" }] as const)(
-	"automatic allocation skips unsafe initialized placeholders and preserves their work (state=$state)",
+	"automatic allocation skips unsafe initialized placeholders and preserves their work (state=$state) #test-117",
 	async ({ state }) => {
 		const { root } = await initRepoWithOrigin(tmp.dir);
 		writeConfig({ command: "exit 7", poolSize: 2, root, tmp: tmp.dir });
@@ -298,7 +298,7 @@ test.each([
 	{ exists: true, existingBranch: false, failure: "copy" },
 	{ exists: true, existingBranch: true, failure: "hook" },
 ] as const)(
-	"$failure failure rolls back only the selected cold slot (exists=$exists, existingBranch=$existingBranch)",
+	"$failure failure rolls back only the selected cold slot (exists=$exists, existingBranch=$existingBranch) #test-114",
 	async (options) => {
 		const { originalHead, root } = await rollbackPool(options);
 		const result = await dispatch(
@@ -319,7 +319,7 @@ test.each([
 	},
 );
 
-test("a fully occupied uninitialized pool reports pool_full without running setup", async () => {
+test("a fully occupied uninitialized pool reports pool_full without running setup #test-119", async () => {
 	const { root } = await initRepoWithOrigin(tmp.dir);
 	writeConfig({ command: "exit 7", poolSize: 1, root, tmp: tmp.dir });
 	await fixtureSlot(root, {
@@ -339,7 +339,7 @@ test("a fully occupied uninitialized pool reports pool_full without running setu
 	expect(await poolSlots(root)).toMatchObject([{ branch: "feature/occupied", initialized: false }]);
 });
 
-test("explicit force recycles only the selected cold occupied slot before target-branch setup", async () => {
+test("explicit force recycles only the selected cold occupied slot before target-branch setup #test-115", async () => {
 	const { root } = await initRepoWithOrigin(tmp.dir);
 	writeConfig({
 		command: `test "$(git branch --show-current)" = feature/forced; ${SETUP_BRANCH}`,

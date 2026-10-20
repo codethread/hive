@@ -23,7 +23,7 @@ async function occupySlot() {
 	return root;
 }
 
-test("machine json pool_full bypasses picker and leaves the occupied slot untouched", async () => {
+test("machine json pool_full bypasses picker and leaves the occupied slot untouched #test-201", async () => {
 	const root = await occupySlot();
 	await run([
 		"git",

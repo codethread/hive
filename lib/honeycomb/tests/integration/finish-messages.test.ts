@@ -54,7 +54,7 @@ async function assertSquashCommit(options: {
 	expect(await readFile(join(root, "two.txt"), "utf8")).toBe("two\n");
 }
 
-test("squash composes the caller message with branch provenance and source history", async () => {
+test("squash composes the caller message with branch provenance and source history #test-202", async () => {
 	const { root, worktreePath } = await prepareFinish(
 		"feature/squash-finish",
 		'[project.finish]\nstrategy = "squash"\n',
@@ -91,7 +91,7 @@ test("squash composes the caller message with branch provenance and source histo
 		title: "feat(squash): fold source history",
 	});
 });
-test("squash finish requires --title before touching the target", async () => {
+test("squash finish requires --title before touching the target #test-204", async () => {
 	const { root, worktreePath } = await prepareFinish(
 		"feature/squash-no-title",
 		'[project.finish]\nstrategy = "squash"\n',
@@ -112,7 +112,7 @@ test("squash finish requires --title before touching the target", async () => {
 	expect(await gitOut(root, "rev-parse", "HEAD")).toBe(targetHead);
 	expect(await gitOut(worktreePath, "rev-parse", "HEAD")).toBe(sourceHead);
 });
-test("rejects --title and --body outside the squash strategy", async () => {
+test("rejects --title and --body outside the squash strategy #test-203", async () => {
 	const { root, worktreePath } = await prepareFinish("feature/message-misuse");
 	await commitFile({
 		content: "misuse\n",

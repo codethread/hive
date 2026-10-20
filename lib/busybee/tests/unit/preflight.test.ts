@@ -49,7 +49,7 @@ test.each([
 		status: "unchecked",
 		retained: { nested: { revision: "abc" } },
 	},
-] as const)("resume context $name is $status", ({ kind, status, retained }) => {
+] as const)("resume context $name is $status #test-460", ({ kind, status, retained }) => {
 	const before = structuredClone(retained);
 	expect(assessResumeContext(retained, schemas[kind]).status).toBe(status);
 	expect(retained).toEqual(before);

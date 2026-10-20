@@ -2,6 +2,8 @@ import { expect, test } from "bun:test";
 import { parseSlowTestAllowances, reportSlowTests, reportTestRun } from "./test-report.ts";
 
 const thresholdMs = { SLOW: "1", XSLOW: "5", DANGER: "1000" };
+const successExitCode = 0;
+const failureExitCode = 1;
 const allowances = parseSlowTestAllowances({
 	thresholdMs,
 	tests: {
@@ -104,7 +106,7 @@ test.each([
 
 test.each([
 	{ mode: "all", seconds: "2", name: "unapproved", nativeExit: 0, exitCode: 1, blocked: true },
-	{ mode: "changed", seconds: "2", name: "unapproved", nativeExit: 0, exitCode: 0, blocked: false },
+	{ mode: "changed", seconds: "2", name: "unapproved", nativeExit: 0, exitCode: 1, blocked: true },
 	{
 		mode: "all",
 		seconds: "2",
@@ -116,7 +118,7 @@ test.each([
 	{ mode: "all", seconds: "2", name: "exceeds #test-2", nativeExit: 0, exitCode: 1, blocked: true },
 	{
 		mode: "all",
-		seconds: "1",
+		seconds: "0.001",
 		name: "DANGER in title",
 		nativeExit: 0,
 		exitCode: 0,
@@ -133,7 +135,35 @@ test.each([
 	expect(Boolean(feedback.guidance)).toBe(row.blocked);
 });
 
-test("full-suite feedback retains every timing before actionable DANGER guidance", () => {
+test.each([
+	{ mode: "changed", seconds: "0.001", name: "unapproved", severity: "" },
+	{ mode: "changed", seconds: "0.001001", name: "unapproved", severity: "SLOW" },
+	{ mode: "all", seconds: "0.00125", name: "unapproved", severity: "" },
+	{ mode: "all", seconds: "0.001251", name: "unapproved", severity: "SLOW" },
+	{ mode: "changed", seconds: "0.005", name: "allowed #test-1", severity: "" },
+	{ mode: "changed", seconds: "0.005001", name: "allowed #test-1", severity: "XSLOW" },
+	{ mode: "all", seconds: "0.00625", name: "allowed #test-1", severity: "" },
+	{ mode: "all", seconds: "0.006251", name: "allowed #test-1", severity: "XSLOW" },
+	{ mode: "changed", seconds: "1", name: "allowed #test-2", severity: "" },
+	{ mode: "changed", seconds: "1.000001", name: "allowed #test-2", severity: "DANGER" },
+	{ mode: "all", seconds: "1.25", name: "allowed #test-2", severity: "" },
+	{ mode: "all", seconds: "1.250001", name: "allowed #test-2", severity: "DANGER" },
+] as const)("$mode timing boundary $seconds for $name", ({ mode, seconds, name, severity }) => {
+	const feedback = reportTestRun(
+		{ mode, xml: report(seconds, name), exitCode: 0, output: "" },
+		allowances,
+	);
+	if (severity) {
+		expect(feedback.exitCode).toBe(failureExitCode);
+		expect(feedback.lines).toEqual([expect.stringContaining(` ${severity} `)]);
+	} else {
+		expect(feedback.exitCode).toBe(successExitCode);
+		expect(feedback.lines).toEqual([]);
+	}
+	expect(Boolean(feedback.guidance)).toBe(Boolean(severity));
+});
+
+test("full-suite feedback retains every timing before actionable remediation guidance", () => {
 	const xml = `<testsuites><testsuite>
 		<testcase name="slow" classname="" file="a.test.ts" line="1" time="0.002" />
 		<testcase name="danger" classname="" file="b.test.ts" line="2" time="2" />
@@ -147,7 +177,6 @@ test("full-suite feedback retains every timing before actionable DANGER guidance
 	]);
 	expect(feedback.guidance).toContain("Refactor meaningful tests");
 	expect(feedback.guidance).toContain("delete those tests");
-	expect(feedback.guidance).toContain("SLOW and XSLOW are advisory warnings");
 });
 
 test.each([

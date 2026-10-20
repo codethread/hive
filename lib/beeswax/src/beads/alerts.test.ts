@@ -10,22 +10,26 @@ const SECOND_GENERATION = 2;
 const TICK_MS = 250;
 const TIMEOUT_SECONDS = 1;
 
-test("absence remains unverified; selected endpoint identity normalizes without native DB access", async () => {
-	const fx = alertFixture();
-	expect(await fx.store.observe(database)).toEqual({
-		ok: true,
-		kind: "tracker_alert",
-		database,
-		alert: null,
-	});
-	await fx.store.activate("/missing/other/../tracker/.beads/beads.db", "publication failed");
-	const active = await fx.store.observe(database);
-	expect(active.alert?.state).toBe("active");
-	const different = await fx.store.observe("/different/tracker/.beads/beads.db");
-	expect(different.alert).toBeNull();
-});
+test(
+	"absence remains unverified; selected endpoint identity normalizes without native " +
+		"DB access #test-410",
+	async () => {
+		const fx = alertFixture();
+		expect(await fx.store.observe(database)).toEqual({
+			ok: true,
+			kind: "tracker_alert",
+			database,
+			alert: null,
+		});
+		await fx.store.activate("/missing/other/../tracker/.beads/beads.db", "publication failed");
+		const active = await fx.store.observe(database);
+		expect(active.alert?.state).toBe("active");
+		const different = await fx.store.observe("/different/tracker/.beads/beads.db");
+		expect(different.alert).toBeNull();
+	},
+);
 
-test("new failures retain newer incidents; old recovery cannot clear them", async () => {
+test("new failures retain newer incidents; old recovery cannot clear them #test-475", async () => {
 	const fx = alertFixture();
 	const first = await fx.store.activate(database, "first conflict");
 	const second = await fx.store.activate(database, "second conflict");
@@ -51,7 +55,7 @@ test("new failures retain newer incidents; old recovery cannot clear them", asyn
 });
 
 test.each(["not-json", "{}", JSON.stringify({ version: 1, database: "/wrong", alert: null })])(
-	"corrupt alert state is an error rather than clearance: %s",
+	"corrupt alert state is an error rather than clearance: %s #test-432",
 	async (contents) => {
 		const fx = alertFixture();
 		fx.files.set(database, contents);

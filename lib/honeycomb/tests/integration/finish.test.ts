@@ -23,7 +23,7 @@ async function prepareFinish(branch: string, policy = "") {
 	return { remote, root, worktreePath: `${root}__${branch.replaceAll("/", "--")}` };
 }
 
-test("finish disabled blocks before integration with JSON payload", async () => {
+test("finish disabled blocks before integration with JSON payload #test-193", async () => {
 	const { root, worktreePath } = await prepareFinish(
 		"feature/disabled-finish",
 		"[project.finish]\nenabled = false\n",
@@ -46,7 +46,7 @@ test("finish disabled blocks before integration with JSON payload", async () => 
 	});
 	expect(await gitOut(root, "rev-parse", "HEAD")).toBe(originalHead);
 });
-test("refuses finish from canonical root", async () => {
+test("refuses finish from canonical root #test-198", async () => {
 	const { root } = await initRepoWithOrigin(tmp.dir);
 	writeConfig({ command: "echo ready", root, tmp: tmp.dir });
 
@@ -58,7 +58,7 @@ test("refuses finish from canonical root", async () => {
 		reason: "canonical_root",
 	});
 });
-test("refuses dirty source worktree", async () => {
+test("refuses dirty source worktree #test-197", async () => {
 	const { worktreePath } = await prepareFinish("feature/dirty-finish");
 	await writeFile(join(worktreePath, "dirty.txt"), "dirty\n");
 
@@ -70,7 +70,7 @@ test("refuses dirty source worktree", async () => {
 		reason: "dirty_worktree",
 	});
 });
-test("enforces target freshness before integration", async () => {
+test("enforces target freshness before integration #test-195", async () => {
 	const { remote, root, worktreePath } = await prepareFinish("feature/stale-target");
 	await commitFile({
 		content: "source\n",
@@ -95,7 +95,7 @@ test("enforces target freshness before integration", async () => {
 	});
 	expect(await gitOut(root, "rev-parse", "HEAD")).toBe(originalHead);
 });
-test("ff_only moves the canonical default branch to the source branch", async () => {
+test("ff_only moves the canonical default branch to the source branch #test-194", async () => {
 	const { root, worktreePath } = await prepareFinish("feature/finish");
 	await commitFile({
 		content: "finished\n",
@@ -119,7 +119,7 @@ test("ff_only moves the canonical default branch to the source branch", async ()
 	expect(await gitOut(root, "rev-parse", "HEAD")).toBe(sourceHead);
 	expect(await readFile(join(root, "finished.txt"), "utf8")).toBe("finished\n");
 });
-test("non-json finish prints a one-line summary to stderr", async () => {
+test("non-json finish prints a one-line summary to stderr #test-196", async () => {
 	const { worktreePath } = await prepareFinish("feature/human-finish");
 	await commitFile({
 		content: "human\n",

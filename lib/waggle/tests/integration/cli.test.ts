@@ -57,7 +57,7 @@ function harness(input = '{"evidence":"private source"}') {
 }
 
 test.each([{ args: ["list"] }, { args: ["describe", "example"] }])(
-	"discovery command $args never contacts JEV",
+	"discovery command $args never contacts JEV #test-390",
 	async ({ args }) => {
 		const capture = harness();
 		expect(await runCli([...args], capture.deps)).toBe(EXIT.success);
@@ -81,7 +81,7 @@ test("describe exposes the full evidence and question contract", async () => {
 });
 
 test.each(["context.json", "-"])(
-	"run reads %s once and treats a concern as successful execution",
+	"run reads %s once and treats a concern as successful execution #test-339",
 	async (path) => {
 		const capture = harness();
 		expect(await runCli(["run", "example", "--input", path, "--json"], capture.deps)).toBe(
@@ -151,7 +151,7 @@ test("argument errors preserve the single-document machine contract", async () =
 	expect(JSON.parse(capture.stdout.join(""))).toMatchObject({ ok: false, reason: "usage" });
 });
 
-test("help succeeds without loading a catalogue", async () => {
+test("help succeeds without loading a catalogue #test-338", async () => {
 	const capture = harness();
 	expect(await runCli(["--help"], capture.deps)).toBe(EXIT.success);
 	expect(capture.directories).toEqual([]);

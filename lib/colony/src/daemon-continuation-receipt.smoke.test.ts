@@ -106,7 +106,7 @@ const liveRefusal = await readDaemonHandoff(target, {
 afterAll(() => rm(state, { force: true, recursive: true }));
 
 test.each(roundtrips)(
-	"$phase receipt roundtrips all original evidence and continuation facts",
+	"$phase receipt roundtrips all original evidence and continuation facts #test-444",
 	({ restored, checkpoint }) => {
 		expect(restored).toEqual(checkpoint);
 	},

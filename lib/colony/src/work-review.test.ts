@@ -49,7 +49,7 @@ await stable.beads.comments.add(
 );
 await stable.beads.update(stable.scope, [blocked], { addLabels: ["blocker:stable"] });
 
-test("own annotations stay fresh; prerequisite edits make blocked work due", async () => {
+test("own annotations stay fresh; prerequisite edits make blocked work due #test-373", async () => {
 	const fresh = await preflightWorkReview(stable.runtime, "blocked");
 	expect(fresh.candidates).toEqual([]);
 	await stable.beads.update(stable.scope, [prerequisite], { description: "Requirement changed" });
@@ -153,7 +153,7 @@ test("blocked diagnosis annotates agent-assigned work without changing source cl
 
 const cancelled = await workReviewFixture();
 const paused = await failedWork(cancelled, { openAnchor: true, cancelled: true });
-test("cancelled driver remains diagnosable without granting recovery permission", async () => {
+test("cancelled driver remains diagnosable without granting recovery permission #test-486", async () => {
 	const held = await preflightWorkReview(cancelled.runtime, "in_progress");
 	expect(held.candidates).toMatchObject([{ taskId: paused.source, requestId: paused.requestId }]);
 	expect(cancelled.effects.retries).toBe(NONE);

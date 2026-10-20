@@ -44,7 +44,7 @@ for (const event of events) {
 }
 
 test.each([DRIVER, STAGE])(
-	"captured $kind authority survives retries and JSON restoration",
+	"captured $kind authority survives retries and JSON restoration #test-476",
 	(assignment) => {
 		const fixture = fixtures[assignment.kind];
 		let record = restore(fixture.record);

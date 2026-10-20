@@ -33,7 +33,7 @@ test("filtered moves preserve absent columns and new statuses append in default 
 	]);
 });
 
-test("column preferences survive reload, remain per colony and reset to default", () => {
+test("column preferences survive reload, remain per colony and reset to default #test-513", () => {
 	const storage = memoryStorage();
 	const first = createColumnOrders(storage);
 	first.save("alpha", ["open", "blocked", "in_progress"]);

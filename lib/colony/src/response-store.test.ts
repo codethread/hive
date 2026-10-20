@@ -200,7 +200,7 @@ test.each([
 	{ assignee: "worker", labels: ["hitl"], reason: "response_reserved" },
 	{ assignee: "worker", labels: ["system"], reason: "invalid_response_target" },
 ] as const)(
-	"publication preserves $assignee/$labels reservation",
+	"publication preserves $assignee/$labels reservation #test-503",
 	async ({ assignee, labels, reason }) => {
 		await context.beads.update(scope, [context.taskId], { assignee, labels });
 		await failure(publishResponse(context, { taskId: context.taskId, body: "Report" }), reason);
@@ -267,41 +267,48 @@ test("new retry requests have distinct lineages and cannot supersede historical 
 	});
 });
 
-test("search returns bounded filed summaries with independent continuation and no body hydration", async () => {
-	const first = await publishResponse(context, { taskId: context.taskId, body: "needle original" });
-	await publishResponse(context, {
-		taskId: context.taskId,
-		body: "needle correction",
-		supersedes: [first.responseId],
-	});
-	await context.beads.create(scope, {
-		title: "needle system",
-		status: "closed",
-		labels: [RESPONSE_LABEL, "system"],
-	});
-	const beads = {
-		...context.beads,
-		show: () => Promise.reject(new Error("No hydration")),
-		dep: { ...context.beads.dep, list: () => Promise.reject(new Error("No detail reads")) },
-	};
-	const page = await searchResponses(
-		{ ...context, beads },
-		{ query: "needle", limit: ONE, offset: ZERO },
-	);
-	expect(page.items).toHaveLength(ONE);
-	expect(Object.keys(page.items[ZERO]!).toSorted()).toEqual([
-		"createdAt",
-		"responseId",
-		"source",
-		"title",
-	]);
-	expect(page.hasMore).toBe(true);
-	expect(page.nextOffset).toBe(ONE);
-	const end = await searchResponses(context, { query: "needle", limit: ONE, offset: TWO });
-	expect(end.items).toEqual([]);
-	expect(end.hasMore).toBe(false);
-	expect(end.nextOffset).toBeNull();
-});
+test(
+	"search returns bounded filed summaries with independent continuation and no body " +
+		"hydration #test-518",
+	async () => {
+		const first = await publishResponse(context, {
+			taskId: context.taskId,
+			body: "needle original",
+		});
+		await publishResponse(context, {
+			taskId: context.taskId,
+			body: "needle correction",
+			supersedes: [first.responseId],
+		});
+		await context.beads.create(scope, {
+			title: "needle system",
+			status: "closed",
+			labels: [RESPONSE_LABEL, "system"],
+		});
+		const beads = {
+			...context.beads,
+			show: () => Promise.reject(new Error("No hydration")),
+			dep: { ...context.beads.dep, list: () => Promise.reject(new Error("No detail reads")) },
+		};
+		const page = await searchResponses(
+			{ ...context, beads },
+			{ query: "needle", limit: ONE, offset: ZERO },
+		);
+		expect(page.items).toHaveLength(ONE);
+		expect(Object.keys(page.items[ZERO]!).toSorted()).toEqual([
+			"createdAt",
+			"responseId",
+			"source",
+			"title",
+		]);
+		expect(page.hasMore).toBe(true);
+		expect(page.nextOffset).toBe(ONE);
+		const end = await searchResponses(context, { query: "needle", limit: ONE, offset: TWO });
+		expect(end.items).toEqual([]);
+		expect(end.hasMore).toBe(false);
+		expect(end.nextOffset).toBeNull();
+	},
+);
 
 // --- Private functions ---
 async function fixture(): Promise<ResponseContext & { taskId: string }> {

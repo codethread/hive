@@ -30,7 +30,7 @@ const payload = z.object({ amount: z.number().positive() });
 const step = { node: "flow.work", command: "advance", data: { amount: INCREMENT } };
 
 // eslint-disable-next-line max-statements -- One public replay contract proves context, rollback and no publication.
-test("simulation replays guards and assigns with rendered instructions and no saved changes", async () => {
+test("simulation replays guards and assigns with rendered instructions and no saved changes #test-315", async () => {
 	const fixture = await simulationFixture();
 	const before = await fixture.records();
 	const initial = await fixture.simulate([]);
@@ -68,7 +68,7 @@ test("simulation replays guards and assigns with rendered instructions and no sa
 });
 
 // eslint-disable-next-line max-statements -- Verify supported routing and rejected effects together.
-test("simulation supports internal raises and rejects effects only when entered", async () => {
+test("simulation supports internal raises and rejects effects only when entered #test-321", async () => {
 	const definition = exampleDefinition();
 	definition.commandSchemas = { advance: z.object({}), fail: z.object({}) };
 	definition.machine = createMachine({
@@ -97,7 +97,7 @@ test("simulation supports internal raises and rejects effects only when entered"
 });
 
 test.each(["settled parent", "transient renderer"])(
-	"simulation renders new visits at the settled frontier (%s)",
+	"simulation renders new visits at the settled frontier (%s) #test-319",
 	// eslint-disable-next-line max-statements -- Verify settled briefs and native immutability through one replay.
 	async (kind) => {
 		const definition = exampleDefinition();
@@ -139,55 +139,61 @@ test.each(["settled parent", "transient renderer"])(
 	},
 );
 
-test("simulation preserves an untouched published parallel visit across transient exit and re-entry", async () => {
-	const definition = exampleDefinition();
-	definition.commandSchemas = { advance: z.object({}), finish: z.object({}) };
-	definition.machine = createMachine({
-		id: "flow",
-		initial: "work",
-		context: input,
-		states: {
-			work: {
-				type: "parallel",
-				states: {
-					left: {
-						initial: "work",
-						states: { work: { meta: taskMeta({ advance: "NEXT" }), on: { NEXT: "#flow.route" } } },
+test(
+	"simulation preserves an untouched published parallel visit across transient exit " +
+		"and re-entry #test-323",
+	async () => {
+		const definition = exampleDefinition();
+		definition.commandSchemas = { advance: z.object({}), finish: z.object({}) };
+		definition.machine = createMachine({
+			id: "flow",
+			initial: "work",
+			context: input,
+			states: {
+				work: {
+					type: "parallel",
+					states: {
+						left: {
+							initial: "work",
+							states: {
+								work: { meta: taskMeta({ advance: "NEXT" }), on: { NEXT: "#flow.route" } },
+							},
+						},
+						right: { initial: "work", states: { work: { meta: taskMeta({ finish: "RIGHT" }) } } },
 					},
-					right: { initial: "work", states: { work: { meta: taskMeta({ finish: "RIGHT" }) } } },
 				},
+				route: { always: { target: "work", actions: assign({ count: RESULT_COUNT }) } },
 			},
-			route: { always: { target: "work", actions: assign({ count: RESULT_COUNT }) } },
-		},
-	});
-	const fixture = await simulationFixture(definition, input, {
-		published: {
-			node: "flow.work.right.work",
-			commands: { finish: "RIGHT" },
-		},
-	});
-	const before = await fixture.records();
-	const result = await fixture.simulate([
-		{ node: "flow.work.left.work", command: "advance", data: {} },
-	]);
-	expect(result.actor.instructions["flow.work.right.work"]).toMatchObject({
-		kind: "frozen",
-		bead: fixture.visit,
-		instructions: "Frozen published instructions",
-	});
-	expect(result.actor.instructions["flow.work.left.work"]).toMatchObject({
-		kind: "rendered",
-		instructions: `Count ${String(RESULT_COUNT)}`,
-	});
-	expect(result.choices).toMatchObject([
-		{ node: "flow.work.right.work", command: "finish" },
-		{ node: "flow.work.left.work", command: "advance" },
-	]);
-	expect(await fixture.records()).toEqual(before);
-});
+		});
+		const fixture = await simulationFixture(definition, input, {
+			published: {
+				node: "flow.work.right.work",
+				commands: { finish: "RIGHT" },
+			},
+		});
+		const before = await fixture.records();
+		const result = await fixture.simulate([
+			{ node: "flow.work.left.work", command: "advance", data: {} },
+		]);
+		expect(result.actor.instructions["flow.work.right.work"]).toMatchObject({
+			kind: "frozen",
+			bead: fixture.visit,
+			instructions: "Frozen published instructions",
+		});
+		expect(result.actor.instructions["flow.work.left.work"]).toMatchObject({
+			kind: "rendered",
+			instructions: `Count ${String(RESULT_COUNT)}`,
+		});
+		expect(result.choices).toMatchObject([
+			{ node: "flow.work.right.work", command: "finish" },
+			{ node: "flow.work.left.work", command: "advance" },
+		]);
+		expect(await fixture.records()).toEqual(before);
+	},
+);
 
 // eslint-disable-next-line max-statements -- Compare independent saved and initial origins without publication.
-test("an unsupported saved origin can still replay a supported explicit initial prefix", async () => {
+test("an unsupported saved origin can still replay a supported explicit initial prefix #test-381", async () => {
 	const definition = exampleDefinition();
 	definition.commandSchemas = { advance: z.object({}) };
 	definition.machine = createMachine({
@@ -218,7 +224,7 @@ test.each([
 	{ events: [{ ...step, data: { amount: 1 } }], reason: "simulation_event_blocked" },
 	{ events: [{ ...step, node: "flow.review" }], reason: "simulation_command_unavailable" },
 ])(
-	"simulation rejects $reason with step identity and no native effects",
+	"simulation rejects $reason with step identity and no native effects #test-382",
 	async ({ events, reason }) => {
 		const fixture = await simulationFixture();
 		const before = await fixture.records();
@@ -236,7 +242,7 @@ test.each([
 );
 
 test.each(["checkpoint", "savedAt", "definitionHash"] as const)(
-	"simulation rejects stale %s",
+	"simulation rejects stale %s #test-401",
 	async (field) => {
 		const fixture = await simulationFixture();
 		const result = await fixture.raw({ ...fixture.request, [field]: "stale" });
@@ -247,7 +253,7 @@ test.each(["checkpoint", "savedAt", "definitionHash"] as const)(
 	},
 );
 
-test("simulation enforces explicit JSON fields and input schema at the public CLI boundary", async () => {
+test("simulation enforces explicit JSON fields and input schema at the public CLI boundary #test-316", async () => {
 	const fixture = await simulationFixture();
 	for (const request of [
 		{ ...fixture.request, start: { kind: "initial" } },
@@ -268,7 +274,7 @@ test("simulation enforces explicit JSON fields and input schema at the public CL
 	});
 });
 
-test("simulation uses real entry validation once and rejects new virtual visit validation", async () => {
+test("simulation uses real entry validation once and rejects new virtual visit validation #test-317", async () => {
 	const calls: string[] = [];
 	const definition = exampleDefinition();
 	definition.validateCommand = (entry) => {
@@ -285,7 +291,7 @@ test("simulation uses real entry validation once and rejects new virtual visit v
 	expect(calls).toEqual([fixture.visit, fixture.visit]);
 });
 
-test("real Land root replay carries simulated evidence through authored routing", async () => {
+test("real Land root replay carries simulated evidence through authored routing #test-318", async () => {
 	const landInput = {
 		beadsDb: db,
 		canonicalRoot: repo,
@@ -319,7 +325,7 @@ test("real Land root replay carries simulated evidence through authored routing"
 });
 
 // eslint-disable-next-line max-statements -- Exercise the complete parallel replay path at the CLI boundary.
-test("parallel commands with the same name remain identified by their state node", async () => {
+test("parallel commands with the same name remain identified by their state node #test-320", async () => {
 	const definition = exampleDefinition();
 	definition.commandSchemas = { next: z.object({}) };
 	definition.machine = createMachine({
@@ -365,7 +371,7 @@ test("parallel commands with the same name remain identified by their state node
 	expect(done.actor.snapshot.status).toBe("done");
 });
 
-test("saved history resolves retained node references and stopped status stays stopped", async () => {
+test("saved history resolves retained node references and stopped status stays stopped #test-411", async () => {
 	const definition = exampleDefinition();
 	definition.commandSchemas = { next: z.object({}) };
 	definition.machine = createMachine({
@@ -406,7 +412,7 @@ test("saved history resolves retained node references and stopped status stays s
 });
 
 // eslint-disable-next-line max-statements -- Verify child context isolation and completion in one endpoint fixture.
-test("retained child replay uses its own context and never sends completion to its parent", async () => {
+test("retained child replay uses its own context and never sends completion to its parent #test-314", async () => {
 	const definition = exampleDefinition();
 	definition.commandSchemas = { next: z.object({}) };
 	const child = createMachine({
@@ -454,7 +460,7 @@ test("retained child replay uses its own context and never sends completion to i
 });
 
 test.each(["custom", "nested timer", "invocation", "assign spawn"])(
-	"simulation rejects %s without executing effects",
+	"simulation rejects %s without executing effects #test-322",
 	async (kind) => {
 		let effects = FIRST;
 		const effect = () => {

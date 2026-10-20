@@ -21,20 +21,24 @@ function configured() {
 	return fx;
 }
 
-test("sync materializes committed intent without publishing tracker state or rewriting the lock", async () => {
-	const fx = configured();
-	const lock = fx.files.get("/repo/.hive/beeswax/meta/lock.json");
-	expect(await runCli(["sync", "--json"], fx.deps)).toBe(success);
-	expect(JSON.parse(fx.output.join(""))).toMatchObject({
-		ok: true,
-		kind: "project_synchronized",
-		projectLockUpdated: false,
-	});
-	expect(fx.files.get("/repo/.hive/beeswax/meta/lock.json")).toBe(lock);
-	expect(fx.errors).toEqual([]);
-});
+test(
+	"sync materializes committed intent without publishing tracker state or rewriting " +
+		"the lock #test-365",
+	async () => {
+		const fx = configured();
+		const lock = fx.files.get("/repo/.hive/beeswax/meta/lock.json");
+		expect(await runCli(["sync", "--json"], fx.deps)).toBe(success);
+		expect(JSON.parse(fx.output.join(""))).toMatchObject({
+			ok: true,
+			kind: "project_synchronized",
+			projectLockUpdated: false,
+		});
+		expect(fx.files.get("/repo/.hive/beeswax/meta/lock.json")).toBe(lock);
+		expect(fx.errors).toEqual([]);
+	},
+);
 
-test("update uses command availability at the project root without persisting machine state", async () => {
+test("update uses command availability at the project root without persisting machine state #test-389", async () => {
 	const fx = configured();
 	fx.deps.commandAvailable = (name, cwd) => name === "beeswax" && cwd === root;
 	expect(await runCli(["update", "--json"], fx.deps)).toBe(success);
@@ -73,22 +77,26 @@ test("update replaces the previous owned hook generation and records the new has
 	expect(fx.errors).toEqual([]);
 });
 
-test("sync refuses configuration drift before writes and explicit update accepts supported changes", async () => {
-	const fx = configured();
-	const config = { ...defaultProjectConfig("husky"), bootstrap: { hooks: "none" as const } };
-	await writeProjectConfig(root, config, fx.deps);
-	const before = new Map(fx.files);
-	expect(await runCli(["sync", "--json"], fx.deps)).toBe(failure);
-	expect(JSON.parse(fx.output.join(""))).toMatchObject({
-		reason: "configuration_changed",
-		nextCommand: "beeswax update",
-		completed: [],
-	});
-	expect(fx.files).toEqual(before);
-	fx.output.length = success;
-	expect(await runCli(["update", "--json"], fx.deps)).toBe(success);
-	expect(JSON.parse(fx.output.join(""))).toMatchObject({ ok: true, projectLockUpdated: true });
-});
+test(
+	"sync refuses configuration drift before writes and explicit update accepts " +
+		"supported changes #test-388",
+	async () => {
+		const fx = configured();
+		const config = { ...defaultProjectConfig("husky"), bootstrap: { hooks: "none" as const } };
+		await writeProjectConfig(root, config, fx.deps);
+		const before = new Map(fx.files);
+		expect(await runCli(["sync", "--json"], fx.deps)).toBe(failure);
+		expect(JSON.parse(fx.output.join(""))).toMatchObject({
+			reason: "configuration_changed",
+			nextCommand: "beeswax update",
+			completed: [],
+		});
+		expect(fx.files).toEqual(before);
+		fx.output.length = success;
+		expect(await runCli(["update", "--json"], fx.deps)).toBe(success);
+		expect(JSON.parse(fx.output.join(""))).toMatchObject({ ok: true, projectLockUpdated: true });
+	},
+);
 
 test("moving configured hook files requires an agent to account for the old sections", async () => {
 	const fx = configured();
@@ -104,7 +112,7 @@ test("moving configured hook files requires an agent to account for the old sect
 	expect(fx.files).toEqual(before);
 });
 
-test("partial synchronization identifies completed effects when the local launcher was edited", async () => {
+test("partial synchronization identifies completed effects when the local launcher was edited #test-505", async () => {
 	const fx = configured();
 	fx.files.set("/repo/.git/beeswax/cli", "echo custom\n");
 	expect(await runCli(["sync", "--json"], fx.deps)).toBe(failure);
@@ -117,7 +125,7 @@ test("partial synchronization identifies completed effects when the local launch
 	expect(fx.errors).toEqual([]);
 });
 
-test("release pin refresh changes portable metadata without installing machine integration", async () => {
+test("release pin refresh changes portable metadata without installing machine integration #test-504", async () => {
 	const fx = configured();
 	const path = "/repo/.hive/beeswax/meta/lock.json";
 	const lock = lockSchema.parse(JSON.parse(fx.files.get(path) ?? ""));
@@ -135,7 +143,7 @@ test.each([
 	{ command: "lock", identity: "skills" },
 	{ command: "lock", identity: "hooks" },
 ])(
-	"$command refuses an unknown $identity identity before writes",
+	"$command refuses an unknown $identity identity before writes #test-457",
 	async ({ command, identity }) => {
 		const fx = withUnknownIdentity(identity);
 		const before = new Map(fx.files);

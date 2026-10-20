@@ -9,7 +9,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 
 // eslint-disable-next-line max-statements -- Verify Husky bootstrap bytes once against the real package.
-test("Beeswax accepts the standard Husky bootstrap and preserves application hooks", async () => {
+test("Beeswax accepts the standard Husky bootstrap and preserves application hooks #test-296", async () => {
 	const root = await mkdtemp(join(tmpdir(), "beeswax husky "));
 	const io = createLiveDependencies();
 	try {

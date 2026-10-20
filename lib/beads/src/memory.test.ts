@@ -32,7 +32,7 @@ test.each([
 	expect(created.created_by).toBe(expected);
 });
 
-test("filesystem synchronization rejects visibly and missing records retain native diagnostics", async () => {
+test("filesystem synchronization rejects visibly and missing records retain native diagnostics #test-409", async () => {
 	const memory = createMemoryBeads();
 	await expect(memory.sync.flush(scope)).rejects.toBeInstanceOf(Error);
 	await expect(memory.sync.import(scope)).rejects.toBeInstanceOf(Error);

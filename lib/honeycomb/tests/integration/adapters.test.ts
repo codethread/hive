@@ -43,7 +43,7 @@ describe("LiveHookRunner", () => {
 		await rm(tmp, { force: true, recursive: true });
 	});
 
-	test("streams output while the hook waits for a response", async () => {
+	test("streams output while the hook waits for a response #test-305", async () => {
 		const { fifo, script } = await createHandshake(tmp);
 		// The synchronous streaming callback must answer the waiting FIFO immediately.
 		// oxlint-disable-next-line node/no-sync
@@ -68,7 +68,7 @@ describe("LiveHookRunner", () => {
 		}
 	});
 
-	test("throws HookError with exit code and slot path on failure", async () => {
+	test("throws HookError with exit code and slot path on failure #test-306", async () => {
 		const script = join(tmp, "hook.sh");
 		await writeFile(script, "echo bad >&2\nexit 7\n");
 		await chmod(script, EXECUTABLE_MODE);
@@ -86,14 +86,14 @@ describe("LiveHookRunner", () => {
 });
 
 describe("createLiveGitRunner", () => {
-	test("runs git --version", async () => {
+	test("runs git --version #test-307", async () => {
 		const git = createLiveGitRunner();
 		const result = await git.run(["--version"]);
 		expect(result.exitCode).toBe(EXIT_CODES.SUCCESS);
 		expect(result.stdout).toContain("git version");
 	});
 
-	test("runs git even when the process cwd was removed", async () => {
+	test("runs git even when the process cwd was removed #test-304", async () => {
 		const directory = await mkdtemp(join(tmpdir(), "honeycomb-git-cwd-test-"));
 		const executor = new URL("../../src/git/executor.ts", import.meta.url).href;
 		try {
@@ -131,7 +131,7 @@ describe("createLiveGitRunner", () => {
 });
 
 describe("LiveCommandRunner", () => {
-	test("runs a command from a neutral cwd when the process cwd was removed", async () => {
+	test("runs a command from a neutral cwd when the process cwd was removed #test-303", async () => {
 		const directory = await mkdtemp(join(tmpdir(), "honeycomb-multiplexer-cwd-test-"));
 		const runner = new URL("../../src/integrations/tmux.ts", import.meta.url).href;
 		try {

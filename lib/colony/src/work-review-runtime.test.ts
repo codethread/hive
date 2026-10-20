@@ -17,19 +17,23 @@ const HOUR = 3_600_000;
 
 const empty = await workReviewFixture();
 const emptyClock = { nextDue: NONE };
-test("empty hourly preflight launches no drone and subsequent serial passes perform no native scan", async () => {
-	await reconcileWorkReviews(empty.runtime, emptyClock);
-	const { scans } = empty.effects;
-	empty.time.now += ONE;
-	await reconcileWorkReviews(empty.runtime, emptyClock);
-	expect(empty.effects.scans).toBe(scans);
-	expect(empty.submissions).toEqual([]);
-});
+test(
+	"empty hourly preflight launches no drone and subsequent serial passes perform no " +
+		"native scan #test-394",
+	async () => {
+		await reconcileWorkReviews(empty.runtime, emptyClock);
+		const { scans } = empty.effects;
+		empty.time.now += ONE;
+		await reconcileWorkReviews(empty.runtime, emptyClock);
+		expect(empty.effects.scans).toBe(scans);
+		expect(empty.submissions).toEqual([]);
+	},
+);
 
 const branches = await workReviewFixture();
 await createTask(branches, { status: "blocked" });
 await failedWork(branches, { openAnchor: true });
-test("both branches have independent ordinary submissions and next-hour native deadlines", async () => {
+test("both branches have independent ordinary submissions and next-hour native deadlines #test-362", async () => {
 	await reconcileWorkReviews(branches.runtime, { nextDue: NONE });
 	const { control } = await branches.control();
 	expect(branches.submissions.map(({ input }) => input.branch)).toEqual(["blocked", "in_progress"]);
@@ -118,7 +122,7 @@ overlapping.runtime.beads = {
 		return originalShow(scope, id);
 	},
 };
-test("overlapping scopes preserve the closest source and reuse discovery reads", async () => {
+test("overlapping scopes preserve the closest source and reuse discovery reads #test-534", async () => {
 	const result = await preflightWorkReview(overlapping.runtime, "in_progress");
 	expect(result.candidates.map(({ taskId }) => taskId).toSorted()).toEqual(
 		[firstSource.source, secondSource.source].toSorted(),

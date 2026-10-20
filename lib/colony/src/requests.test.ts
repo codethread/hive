@@ -52,7 +52,7 @@ async function requestFixture() {
 	return { tracker, dependency, task, id };
 }
 
-test("offline inspection derives dependency readiness from the injected tracker", async () => {
+test("offline inspection derives dependency readiness from the injected tracker #test-415", async () => {
 	const { tracker, dependency, task, id } = inspection;
 	expect(waiting.request.tasks).toEqual([
 		{ assignee: null, id: task, readiness: "blocked", status: "open" },
@@ -78,35 +78,39 @@ test("stop publishes cancellation with current request labels", async () => {
 	});
 });
 
-/* eslint-disable-next-line max-statements --
- * Partial publication, repair and idempotence form one offline acknowledgment contract.
- */
-test("acknowledgment survives failed label publication and repeats repair without another comment", async () => {
-	const { tracker, id } = acknowledgment;
-	const beads = beforeTrackerWrite(tracker.beads, () => {
-		throw new CommandError("br update", { code: 1, stderr: "fixture write failure", stdout: "" });
-	});
-	await expect(
-		acknowledgeRequest(id, { ...options, reason: acceptance.reason }, { ...tracker, beads }),
-	).rejects.toBeInstanceOf(RequestPublicationError);
-	const retained = await tracker.beads.show(trackerScope(tracker.repository, "inspector"), id);
-	expect(retained.comments).toHaveLength(ONE);
-	expect(retained.comments[FIRST]?.author).toBe("operator");
-	const result = await acknowledgeRequest(
-		id,
-		{ ...options, actor: "later-operator", reason: "Later reason" },
-		tracker,
-	);
-	expect(result.request.acknowledgment).toMatchObject({
-		actor: "operator",
-		reason: "Accepted separately",
-	});
-	expect(result.request.disposition).toEqual({ outcome: "failed", resolution: "resolved" });
-	expect(result.request.labelPublication).toBe("current");
-	const repaired = await tracker.beads.show(trackerScope(tracker.repository, "inspector"), id);
-	expect(repaired.comments).toHaveLength(ONE);
-	expect(repaired.close_reason).toBe("blocked");
-});
+test(
+	"acknowledgment survives failed label publication and repeats repair without " +
+		"another comment #test-482",
+	/* eslint-disable-next-line max-statements --
+	 * Partial publication, repair and idempotence form one offline acknowledgment contract.
+	 */
+	async () => {
+		const { tracker, id } = acknowledgment;
+		const beads = beforeTrackerWrite(tracker.beads, () => {
+			throw new CommandError("br update", { code: 1, stderr: "fixture write failure", stdout: "" });
+		});
+		await expect(
+			acknowledgeRequest(id, { ...options, reason: acceptance.reason }, { ...tracker, beads }),
+		).rejects.toBeInstanceOf(RequestPublicationError);
+		const retained = await tracker.beads.show(trackerScope(tracker.repository, "inspector"), id);
+		expect(retained.comments).toHaveLength(ONE);
+		expect(retained.comments[FIRST]?.author).toBe("operator");
+		const result = await acknowledgeRequest(
+			id,
+			{ ...options, actor: "later-operator", reason: "Later reason" },
+			tracker,
+		);
+		expect(result.request.acknowledgment).toMatchObject({
+			actor: "operator",
+			reason: "Accepted separately",
+		});
+		expect(result.request.disposition).toEqual({ outcome: "failed", resolution: "resolved" });
+		expect(result.request.labelPublication).toBe("current");
+		const repaired = await tracker.beads.show(trackerScope(tracker.repository, "inspector"), id);
+		expect(repaired.comments).toHaveLength(ONE);
+		expect(repaired.close_reason).toBe("blocked");
+	},
+);
 
 test("publication rebases a revision conflict while retaining unrelated labels", async () => {
 	const { tracker, id } = conflict;

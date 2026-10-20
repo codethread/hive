@@ -12,7 +12,7 @@ const sessionContext = {
 };
 const sessionStart = { ...sessionContext, hook_event_name: "SessionStart", source: "startup" };
 
-test("startup, repeated start, clear, target resume and compact resolve the current session", () => {
+test("startup, repeated start, clear, target resume and compact resolve the current session #test-481", () => {
 	const env = Object.freeze({
 		HIVE_AGENT_NAME: "old-native",
 		HIVE_AGENT_SESSION: "old-session",

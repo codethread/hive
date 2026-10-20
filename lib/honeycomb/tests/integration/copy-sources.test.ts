@@ -45,7 +45,7 @@ afterEach(async () => {
 	await rm(tmp, { force: true, recursive: true });
 });
 
-test("symlink source files fail as config errors in copy mode", async () => {
+test("symlink source files fail as config errors in copy mode #test-189", async () => {
 	const { root } = await initRepoWithOrigin(tmp);
 	await writeFile(join(root, ".env.real"), "real\n");
 	await symlink(".env.real", join(root, ".env.link"));
@@ -77,7 +77,7 @@ async function initSymlinkSource() {
 	return { externalTarget, root, worktreePath };
 }
 
-test("symlink mode creates destination symlinks to resolved source targets", async () => {
+test("symlink mode creates destination symlinks to resolved source targets #test-190", async () => {
 	const { externalTarget, worktreePath } = await initSymlinkSource();
 
 	const result = await dispatch("copy", ["--cwd", worktreePath, "--json"], deps);
@@ -93,7 +93,7 @@ test("symlink mode creates destination symlinks to resolved source targets", asy
 	]);
 });
 
-test("copy preflights all entries before replacing destinations", async () => {
+test("copy preflights all entries before replacing destinations #test-192", async () => {
 	const { root } = await initRepoWithOrigin(tmp);
 	await writeFile(join(root, ".env"), "source\n");
 	writeConfig({ command: "echo ready", root, tmp });
@@ -144,7 +144,7 @@ function assertObjectPayload(
 	]);
 }
 
-test("copies object file sources from root-relative, absolute, and home paths", async () => {
+test("copies object file sources from root-relative, absolute, and home paths #test-188", async () => {
 	const { root, absoluteSource, homeRelative, homeSource } = await initObjectSources();
 
 	try {
@@ -188,7 +188,7 @@ async function initDirectorySource() {
 	return { root, worktreePath };
 }
 
-test("copies directories to exact final destinations and removes stale files on rerun", async () => {
+test("copies directories to exact final destinations and removes stale files on rerun #test-187", async () => {
 	const { root, worktreePath } = await initDirectorySource();
 
 	await dispatch("copy", ["--cwd", worktreePath], deps);
@@ -211,7 +211,7 @@ test("copies directories to exact final destinations and removes stale files on 
 	]);
 });
 
-test("env-var and glob-looking object sources are treated literally", async () => {
+test("env-var and glob-looking object sources are treated literally #test-191", async () => {
 	const { root } = await initRepoWithOrigin(tmp);
 	await writeFile(join(root, "$SECRET*.env"), "literal\n");
 	writeConfig({

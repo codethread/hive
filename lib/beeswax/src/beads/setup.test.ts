@@ -5,7 +5,7 @@ import { setupBeads } from "./setup.ts";
 const FIRST = 0;
 const endpoint = { actor: "setup-test", cwd: "/repo", db: "/repo/tracker/.beads/beads.db" };
 
-test("setup configures the adopted endpoint in the selected environment integrations", async () => {
+test("setup configures the adopted endpoint in the selected environment integrations #test-437", async () => {
 	const writes = new Map<string, string>();
 	const services: SetupServices = {
 		command: (args) => {

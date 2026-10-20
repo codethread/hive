@@ -1,7 +1,7 @@
 {
 	"thresholdMs": {
-		"SLOW": "1",
-		"XSLOW": "5",
+		"SLOW": "1.5",
+		"XSLOW": "10",
 		"DANGER": "1000"
 	},
 	"tests": {
@@ -280,6 +280,1866 @@
 		"#test-72": {
 			"threshold": "DANGER",
 			"justification": "ct explicitly approved allowing this existing timing-only blocker through during merges on 2026-10-15: qlock timeout retains a new ticket and resumed exec preserves FIFO without allocation. Preserve real integration behavior, assertions, test timeouts and global timing cutoffs."
+		},
+		"#test-73": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 988.599ms (lib/beeswax/tests/integration/alerts-publication.test.ts)."
+		},
+		"#test-74": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 860.776ms (lib/qlock/tests/integration/qlock.test.ts)."
+		},
+		"#test-75": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 220.996ms (lib/qlock/tests/integration/qlock.test.ts)."
+		},
+		"#test-76": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 193.349ms (lib/qlock/tests/integration/qlock.test.ts)."
+		},
+		"#test-77": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 185.754ms (lib/qlock/tests/integration/qlock.test.ts)."
+		},
+		"#test-78": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 169.164ms (lib/qlock/tests/integration/qlock.test.ts)."
+		},
+		"#test-79": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 119.924ms (lib/qlock/tests/integration/qlock.test.ts)."
+		},
+		"#test-80": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 73.000ms (lib/qlock/tests/integration/qlock.test.ts)."
+		},
+		"#test-81": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 51.697ms (lib/qlock/tests/integration/qlock.test.ts)."
+		},
+		"#test-82": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 43.905ms (lib/qlock/tests/integration/qlock.test.ts)."
+		},
+		"#test-83": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 41.903ms (lib/qlock/tests/integration/qlock.test.ts)."
+		},
+		"#test-84": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 745.631ms (lib/honeycomb/tests/integration/finish-strategies.test.ts)."
+		},
+		"#test-85": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 599.332ms (lib/honeycomb/tests/integration/finish-strategies.test.ts)."
+		},
+		"#test-86": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 565.973ms (lib/honeycomb/tests/integration/finish-strategies.test.ts)."
+		},
+		"#test-87": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 449.796ms (lib/honeycomb/tests/integration/finish-strategies.test.ts)."
+		},
+		"#test-88": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 355.682ms (lib/honeycomb/tests/integration/finish-strategies.test.ts)."
+		},
+		"#test-89": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 330.825ms (lib/honeycomb/tests/integration/finish-strategies.test.ts)."
+		},
+		"#test-90": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 744.543ms (lib/qlock/tests/integration/skills.test.ts)."
+		},
+		"#test-91": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 114.690ms (lib/qlock/tests/integration/skills.test.ts)."
+		},
+		"#test-92": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 85.902ms (lib/qlock/tests/integration/skills.test.ts)."
+		},
+		"#test-93": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 44.039ms (lib/qlock/tests/integration/skills.test.ts)."
+		},
+		"#test-94": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 35.887ms (lib/qlock/tests/integration/skills.test.ts)."
+		},
+		"#test-95": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 658.958ms (lib/honeycomb/tests/integration/finish-preview.test.ts)."
+		},
+		"#test-96": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 554.505ms (lib/honeycomb/tests/integration/finish-preview.test.ts)."
+		},
+		"#test-97": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 477.147ms (lib/honeycomb/tests/integration/finish-preview.test.ts)."
+		},
+		"#test-98": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 397.157ms (lib/honeycomb/tests/integration/finish-preview.test.ts)."
+		},
+		"#test-99": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 651.084ms (lib/honeycomb/tests/integration/finish-hooks.test.ts)."
+		},
+		"#test-100": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 645.407ms (lib/honeycomb/tests/integration/pool-add-offline.test.ts)."
+		},
+		"#test-101": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 553.696ms (lib/honeycomb/tests/integration/pool-add-offline.test.ts)."
+		},
+		"#test-102": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 492.901ms (lib/honeycomb/tests/integration/pool-add-offline.test.ts)."
+		},
+		"#test-103": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 387.089ms (lib/honeycomb/tests/integration/pool-add-offline.test.ts)."
+		},
+		"#test-104": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 342.404ms (lib/honeycomb/tests/integration/pool-add-offline.test.ts)."
+		},
+		"#test-105": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 299.011ms (lib/honeycomb/tests/integration/pool-add-offline.test.ts)."
+		},
+		"#test-106": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 624.959ms (lib/honeycomb/tests/integration/pool-add.test.ts)."
+		},
+		"#test-107": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 464.425ms (lib/honeycomb/tests/integration/pool-add.test.ts)."
+		},
+		"#test-108": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 442.625ms (lib/honeycomb/tests/integration/pool-add.test.ts)."
+		},
+		"#test-109": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 433.873ms (lib/honeycomb/tests/integration/pool-add.test.ts)."
+		},
+		"#test-110": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 406.973ms (lib/honeycomb/tests/integration/pool-add.test.ts)."
+		},
+		"#test-111": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 41.350ms (lib/honeycomb/tests/integration/pool-add.test.ts)."
+		},
+		"#test-112": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 622.555ms (lib/honeycomb/tests/integration/pool-add-selected.test.ts)."
+		},
+		"#test-113": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 353.797ms (lib/honeycomb/tests/integration/pool-add-selected.test.ts)."
+		},
+		"#test-114": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 327.694ms (lib/honeycomb/tests/integration/pool-add-selected.test.ts)."
+		},
+		"#test-115": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 265.428ms (lib/honeycomb/tests/integration/pool-add-selected.test.ts)."
+		},
+		"#test-116": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 240.502ms (lib/honeycomb/tests/integration/pool-add-selected.test.ts)."
+		},
+		"#test-117": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 182.823ms (lib/honeycomb/tests/integration/pool-add-selected.test.ts)."
+		},
+		"#test-118": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 352.150ms (lib/honeycomb/tests/integration/pool-add-selected.test.ts)."
+		},
+		"#test-119": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 146.599ms (lib/honeycomb/tests/integration/pool-add-selected.test.ts)."
+		},
+		"#test-120": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 616.694ms (lib/tooling/tests/integration/release-native.test.ts)."
+		},
+		"#test-121": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 604.220ms (lib/honeycomb/tests/integration/add-base.test.ts)."
+		},
+		"#test-122": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 227.583ms (lib/honeycomb/tests/integration/add-base.test.ts)."
+		},
+		"#test-123": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 339.430ms (lib/honeycomb/tests/integration/add-base.test.ts)."
+		},
+		"#test-124": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 39.441ms (lib/honeycomb/tests/integration/add-base.test.ts)."
+		},
+		"#test-125": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 582.338ms (lib/honeycomb/tests/integration/pool-add-policy.test.ts)."
+		},
+		"#test-126": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 487.015ms (lib/honeycomb/tests/integration/pool-add-policy.test.ts)."
+		},
+		"#test-127": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 331.078ms (lib/honeycomb/tests/integration/pool-add-policy.test.ts)."
+		},
+		"#test-128": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 290.558ms (lib/honeycomb/tests/integration/pool-add-policy.test.ts)."
+		},
+		"#test-129": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 236.166ms (lib/honeycomb/tests/integration/pool-add-policy.test.ts)."
+		},
+		"#test-130": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 186.398ms (lib/honeycomb/tests/integration/pool-add-policy.test.ts)."
+		},
+		"#test-131": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 186.052ms (lib/honeycomb/tests/integration/pool-add-policy.test.ts)."
+		},
+		"#test-132": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 551.013ms (lib/honeycomb/tests/integration/local-delivery.test.ts)."
+		},
+		"#test-133": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 378.842ms (lib/honeycomb/tests/integration/local-delivery.test.ts)."
+		},
+		"#test-134": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 364.897ms (lib/honeycomb/tests/integration/local-delivery.test.ts)."
+		},
+		"#test-135": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 316.397ms (lib/honeycomb/tests/integration/local-delivery.test.ts)."
+		},
+		"#test-136": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 220.645ms (lib/honeycomb/tests/integration/local-delivery.test.ts)."
+		},
+		"#test-137": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 214.022ms (lib/honeycomb/tests/integration/local-delivery.test.ts)."
+		},
+		"#test-138": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 203.606ms (lib/honeycomb/tests/integration/local-delivery.test.ts)."
+		},
+		"#test-139": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 152.500ms (lib/honeycomb/tests/integration/local-delivery.test.ts)."
+		},
+		"#test-140": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 133.127ms (lib/honeycomb/tests/integration/local-delivery.test.ts)."
+		},
+		"#test-141": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 118.718ms (lib/honeycomb/tests/integration/local-delivery.test.ts)."
+		},
+		"#test-142": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 530.935ms (lib/honeycomb/tests/integration/tree.test.ts)."
+		},
+		"#test-143": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 241.375ms (lib/honeycomb/tests/integration/tree.test.ts)."
+		},
+		"#test-144": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 191.389ms (lib/honeycomb/tests/integration/tree.test.ts)."
+		},
+		"#test-145": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 168.074ms (lib/honeycomb/tests/integration/tree.test.ts)."
+		},
+		"#test-146": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 150.105ms (lib/honeycomb/tests/integration/tree.test.ts)."
+		},
+		"#test-147": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 32.018ms (lib/honeycomb/tests/integration/tree.test.ts)."
+		},
+		"#test-148": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 506.698ms (lib/honeycomb/tests/integration/add-policy.test.ts)."
+		},
+		"#test-149": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 433.678ms (lib/honeycomb/tests/integration/add-policy.test.ts)."
+		},
+		"#test-150": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 397.676ms (lib/honeycomb/tests/integration/add-policy.test.ts)."
+		},
+		"#test-151": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 363.383ms (lib/honeycomb/tests/integration/add-policy.test.ts)."
+		},
+		"#test-152": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 363.016ms (lib/honeycomb/tests/integration/add-policy.test.ts)."
+		},
+		"#test-153": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 297.551ms (lib/honeycomb/tests/integration/add-policy.test.ts)."
+		},
+		"#test-154": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 328.341ms (lib/honeycomb/tests/integration/add-policy.test.ts)."
+		},
+		"#test-155": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 294.336ms (lib/honeycomb/tests/integration/add-policy.test.ts)."
+		},
+		"#test-156": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 258.046ms (lib/honeycomb/tests/integration/add-policy.test.ts)."
+		},
+		"#test-157": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 501.877ms (lib/honeycomb/tests/integration/ensure.test.ts)."
+		},
+		"#test-158": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 348.212ms (lib/honeycomb/tests/integration/ensure.test.ts)."
+		},
+		"#test-159": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 341.752ms (lib/honeycomb/tests/integration/ensure.test.ts)."
+		},
+		"#test-160": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 319.122ms (lib/honeycomb/tests/integration/ensure.test.ts)."
+		},
+		"#test-161": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 314.032ms (lib/honeycomb/tests/integration/ensure.test.ts)."
+		},
+		"#test-162": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 284.789ms (lib/honeycomb/tests/integration/ensure.test.ts)."
+		},
+		"#test-163": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 208.250ms (lib/honeycomb/tests/integration/ensure.test.ts)."
+		},
+		"#test-164": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 477.575ms (lib/honeycomb/tests/integration/remove-squash.test.ts)."
+		},
+		"#test-165": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 319.436ms (lib/honeycomb/tests/integration/remove-squash.test.ts)."
+		},
+		"#test-166": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 285.991ms (lib/honeycomb/tests/integration/remove-squash.test.ts)."
+		},
+		"#test-167": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 184.739ms (lib/honeycomb/tests/integration/remove-squash.test.ts)."
+		},
+		"#test-168": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 466.598ms (lib/honeycomb/tests/integration/copy-exclude.test.ts)."
+		},
+		"#test-169": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 318.135ms (lib/honeycomb/tests/integration/copy-exclude.test.ts)."
+		},
+		"#test-170": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 272.137ms (lib/honeycomb/tests/integration/copy-exclude.test.ts)."
+		},
+		"#test-171": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 237.259ms (lib/honeycomb/tests/integration/copy-exclude.test.ts)."
+		},
+		"#test-172": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 286.270ms (lib/honeycomb/tests/integration/copy-exclude.test.ts)."
+		},
+		"#test-173": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 264.336ms (lib/honeycomb/tests/integration/copy-exclude.test.ts)."
+		},
+		"#test-174": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 180.913ms (lib/honeycomb/tests/integration/copy-exclude.test.ts)."
+		},
+		"#test-175": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 455.444ms (lib/honeycomb/tests/integration/add-offline.test.ts)."
+		},
+		"#test-176": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 452.338ms (lib/honeycomb/tests/integration/add-offline.test.ts)."
+		},
+		"#test-177": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 420.741ms (lib/honeycomb/tests/integration/add-offline.test.ts)."
+		},
+		"#test-178": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 417.061ms (lib/honeycomb/tests/integration/add-offline.test.ts)."
+		},
+		"#test-179": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 481.275ms (lib/honeycomb/tests/integration/add-offline.test.ts)."
+		},
+		"#test-180": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 398.244ms (lib/honeycomb/tests/integration/add-offline.test.ts)."
+		},
+		"#test-181": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 387.753ms (lib/honeycomb/tests/integration/add-offline.test.ts)."
+		},
+		"#test-182": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 287.760ms (lib/honeycomb/tests/integration/add-offline.test.ts)."
+		},
+		"#test-183": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 268.302ms (lib/honeycomb/tests/integration/add-offline.test.ts)."
+		},
+		"#test-184": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 203.631ms (lib/honeycomb/tests/integration/add-offline.test.ts)."
+		},
+		"#test-185": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 179.473ms (lib/honeycomb/tests/integration/add-offline.test.ts)."
+		},
+		"#test-186": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 92.275ms (lib/honeycomb/tests/integration/add-offline.test.ts)."
+		},
+		"#test-187": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 453.668ms (lib/honeycomb/tests/integration/copy-sources.test.ts)."
+		},
+		"#test-188": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 355.893ms (lib/honeycomb/tests/integration/copy-sources.test.ts)."
+		},
+		"#test-189": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 219.799ms (lib/honeycomb/tests/integration/copy-sources.test.ts)."
+		},
+		"#test-190": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 201.437ms (lib/honeycomb/tests/integration/copy-sources.test.ts)."
+		},
+		"#test-191": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 189.815ms (lib/honeycomb/tests/integration/copy-sources.test.ts)."
+		},
+		"#test-192": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 162.333ms (lib/honeycomb/tests/integration/copy-sources.test.ts)."
+		},
+		"#test-193": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 442.028ms (lib/honeycomb/tests/integration/finish.test.ts)."
+		},
+		"#test-194": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 312.131ms (lib/honeycomb/tests/integration/finish.test.ts)."
+		},
+		"#test-195": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 283.088ms (lib/honeycomb/tests/integration/finish.test.ts)."
+		},
+		"#test-196": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 206.505ms (lib/honeycomb/tests/integration/finish.test.ts)."
+		},
+		"#test-197": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 166.572ms (lib/honeycomb/tests/integration/finish.test.ts)."
+		},
+		"#test-198": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 25.501ms (lib/honeycomb/tests/integration/finish.test.ts)."
+		},
+		"#test-199": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 432.707ms (lib/honeycomb/tests/integration/add-layout.test.ts)."
+		},
+		"#test-200": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 370.011ms (lib/honeycomb/tests/integration/add-layout.test.ts)."
+		},
+		"#test-201": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 414.220ms (lib/honeycomb/tests/integration/pool-add-full.test.ts)."
+		},
+		"#test-202": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 389.341ms (lib/honeycomb/tests/integration/finish-messages.test.ts)."
+		},
+		"#test-203": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 144.561ms (lib/honeycomb/tests/integration/finish-messages.test.ts)."
+		},
+		"#test-204": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 112.541ms (lib/honeycomb/tests/integration/finish-messages.test.ts)."
+		},
+		"#test-205": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 397.727ms (lib/beeswax/src/beads/publish.smoke.test.ts)."
+		},
+		"#test-206": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 372.533ms (lib/honeycomb/tests/integration/pool-remove.test.ts)."
+		},
+		"#test-207": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 331.229ms (lib/honeycomb/tests/integration/pool-remove.test.ts)."
+		},
+		"#test-208": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 268.658ms (lib/honeycomb/tests/integration/pool-remove.test.ts)."
+		},
+		"#test-209": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 255.202ms (lib/honeycomb/tests/integration/pool-remove.test.ts)."
+		},
+		"#test-210": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 255.098ms (lib/honeycomb/tests/integration/pool-remove.test.ts)."
+		},
+		"#test-211": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 208.763ms (lib/honeycomb/tests/integration/pool-remove.test.ts)."
+		},
+		"#test-212": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 170.320ms (lib/honeycomb/tests/integration/pool-remove.test.ts)."
+		},
+		"#test-213": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 108.889ms (lib/honeycomb/tests/integration/pool-remove.test.ts)."
+		},
+		"#test-214": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 372.170ms (lib/beeswax/src/artifact-native.smoke.test.ts)."
+		},
+		"#test-215": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 371.142ms (lib/honeycomb/tests/integration/interactive.test.ts)."
+		},
+		"#test-216": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 335.729ms (lib/honeycomb/tests/integration/interactive.test.ts)."
+		},
+		"#test-217": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 306.504ms (lib/honeycomb/tests/integration/interactive.test.ts)."
+		},
+		"#test-218": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 246.852ms (lib/honeycomb/tests/integration/interactive.test.ts)."
+		},
+		"#test-219": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 244.533ms (lib/honeycomb/tests/integration/interactive.test.ts)."
+		},
+		"#test-220": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 236.829ms (lib/honeycomb/tests/integration/interactive.test.ts)."
+		},
+		"#test-221": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 227.668ms (lib/honeycomb/tests/integration/interactive.test.ts)."
+		},
+		"#test-222": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 202.013ms (lib/honeycomb/tests/integration/interactive.test.ts)."
+		},
+		"#test-223": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 175.225ms (lib/honeycomb/tests/integration/interactive.test.ts)."
+		},
+		"#test-224": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 363.652ms (lib/honeycomb/tests/integration/finish-cleanup.test.ts)."
+		},
+		"#test-225": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 333.268ms (lib/honeycomb/tests/integration/finish-cleanup.test.ts)."
+		},
+		"#test-226": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 316.842ms (lib/honeycomb/tests/integration/finish-cleanup.test.ts)."
+		},
+		"#test-227": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 123.798ms (lib/honeycomb/tests/integration/finish-cleanup.test.ts)."
+		},
+		"#test-228": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 362.646ms (lib/honeycomb/tests/integration/remove.test.ts)."
+		},
+		"#test-229": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 261.462ms (lib/honeycomb/tests/integration/remove.test.ts)."
+		},
+		"#test-230": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 251.079ms (lib/honeycomb/tests/integration/remove.test.ts)."
+		},
+		"#test-231": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 215.962ms (lib/honeycomb/tests/integration/remove.test.ts)."
+		},
+		"#test-232": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 419.929ms (lib/honeycomb/tests/integration/remove.test.ts)."
+		},
+		"#test-233": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 193.004ms (lib/honeycomb/tests/integration/remove.test.ts)."
+		},
+		"#test-234": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 49.283ms (lib/honeycomb/tests/integration/remove.test.ts)."
+		},
+		"#test-235": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 362.425ms (lib/beeswax/tests/integration/pack.test.ts)."
+		},
+		"#test-236": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 233.346ms (lib/beeswax/tests/integration/pack.test.ts)."
+		},
+		"#test-237": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 315.823ms (lib/honeycomb/tests/integration/add-rollback.test.ts)."
+		},
+		"#test-238": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 275.584ms (lib/honeycomb/tests/integration/add-rollback.test.ts)."
+		},
+		"#test-239": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 183.967ms (lib/honeycomb/tests/integration/add-rollback.test.ts)."
+		},
+		"#test-240": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 147.191ms (lib/honeycomb/tests/integration/add-rollback.test.ts)."
+		},
+		"#test-241": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 123.090ms (lib/honeycomb/tests/integration/add-rollback.test.ts)."
+		},
+		"#test-242": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 310.920ms (lib/beeswax/tests/integration/hooks.test.ts)."
+		},
+		"#test-243": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 256.975ms (lib/beeswax/tests/integration/hooks.test.ts)."
+		},
+		"#test-244": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 305.506ms (lib/honeycomb/tests/integration/add.test.ts)."
+		},
+		"#test-245": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 275.407ms (lib/honeycomb/tests/integration/add.test.ts)."
+		},
+		"#test-246": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 234.795ms (lib/honeycomb/tests/integration/add.test.ts)."
+		},
+		"#test-247": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 234.585ms (lib/honeycomb/tests/integration/add.test.ts)."
+		},
+		"#test-248": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 185.574ms (lib/honeycomb/tests/integration/add.test.ts)."
+		},
+		"#test-249": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 185.169ms (lib/honeycomb/tests/integration/add.test.ts)."
+		},
+		"#test-250": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 145.436ms (lib/honeycomb/tests/integration/add.test.ts)."
+		},
+		"#test-251": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 144.464ms (lib/honeycomb/tests/integration/add.test.ts)."
+		},
+		"#test-252": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 21.136ms (lib/honeycomb/tests/integration/add.test.ts)."
+		},
+		"#test-253": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 282.506ms (lib/busybee/tests/integration/skills.test.ts)."
+		},
+		"#test-254": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 17.389ms (lib/busybee/tests/integration/skills.test.ts)."
+		},
+		"#test-255": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 12.697ms (lib/busybee/tests/integration/skills.test.ts)."
+		},
+		"#test-256": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 20.207ms (lib/busybee/tests/integration/skills.test.ts)."
+		},
+		"#test-257": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 278.439ms (lib/honeycomb/tests/integration/copy.test.ts)."
+		},
+		"#test-258": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 259.652ms (lib/honeycomb/tests/integration/copy.test.ts)."
+		},
+		"#test-259": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 222.894ms (lib/honeycomb/tests/integration/copy.test.ts)."
+		},
+		"#test-260": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 194.485ms (lib/honeycomb/tests/integration/copy.test.ts)."
+		},
+		"#test-261": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 181.751ms (lib/honeycomb/tests/integration/copy.test.ts)."
+		},
+		"#test-262": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 179.380ms (lib/honeycomb/tests/integration/copy.test.ts)."
+		},
+		"#test-263": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 76.591ms (lib/honeycomb/tests/integration/copy.test.ts)."
+		},
+		"#test-264": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 21.747ms (lib/honeycomb/tests/integration/copy.test.ts)."
+		},
+		"#test-265": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 254.047ms (lib/tooling/tests/integration/test-selection.test.ts)."
+		},
+		"#test-266": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 283.263ms (lib/honeycomb/tests/integration/fzf.test.ts)."
+		},
+		"#test-267": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 249.936ms (lib/honeycomb/tests/integration/fzf.test.ts)."
+		},
+		"#test-268": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 285.310ms (lib/honeycomb/tests/integration/fzf.test.ts)."
+		},
+		"#test-269": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 231.205ms (lib/honeycomb/tests/integration/fzf.test.ts)."
+		},
+		"#test-270": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 225.586ms (lib/colony/src/skills.smoke.test.ts)."
+		},
+		"#test-271": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 123.133ms (lib/colony/src/skills.smoke.test.ts)."
+		},
+		"#test-272": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 108.888ms (lib/colony/src/skills.smoke.test.ts)."
+		},
+		"#test-273": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 107.330ms (lib/colony/src/skills.smoke.test.ts)."
+		},
+		"#test-274": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 223.637ms (lib/honeycomb/tests/integration/status.test.ts)."
+		},
+		"#test-275": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 126.049ms (lib/honeycomb/tests/integration/status.test.ts)."
+		},
+		"#test-276": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 117.821ms (lib/honeycomb/tests/integration/status.test.ts)."
+		},
+		"#test-277": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 101.876ms (lib/honeycomb/tests/integration/status.test.ts)."
+		},
+		"#test-278": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 210.195ms (lib/tooling/tests/integration/lint-staged.test.ts)."
+		},
+		"#test-279": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 209.877ms (lib/honeycomb/tests/integration/skills.test.ts)."
+		},
+		"#test-280": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 140.718ms (lib/honeycomb/tests/integration/skills.test.ts)."
+		},
+		"#test-281": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 77.037ms (lib/honeycomb/tests/integration/skills.test.ts)."
+		},
+		"#test-282": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 199.121ms (lib/beeswax/tests/integration/alerts.test.ts)."
+		},
+		"#test-283": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 190.338ms (lib/honeycomb/tests/integration/local-config.test.ts)."
+		},
+		"#test-284": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 184.219ms (lib/honeycomb/tests/integration/pick.test.ts)."
+		},
+		"#test-285": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 97.297ms (lib/honeycomb/tests/integration/pick.test.ts)."
+		},
+		"#test-286": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 97.034ms (lib/honeycomb/tests/integration/pick.test.ts)."
+		},
+		"#test-287": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 95.899ms (lib/honeycomb/tests/integration/pick.test.ts)."
+		},
+		"#test-288": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 143.148ms (lib/honeycomb/tests/integration/pick.test.ts)."
+		},
+		"#test-289": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 83.390ms (lib/honeycomb/tests/integration/pick.test.ts)."
+		},
+		"#test-290": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 178.298ms (lib/honeycomb/tests/integration/query.test.ts)."
+		},
+		"#test-291": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 162.759ms (lib/honeycomb/tests/integration/query.test.ts)."
+		},
+		"#test-292": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 101.033ms (lib/honeycomb/tests/integration/query.test.ts)."
+		},
+		"#test-293": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 69.204ms (lib/honeycomb/tests/integration/query.test.ts)."
+		},
+		"#test-294": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 69.931ms (lib/honeycomb/tests/integration/query.test.ts)."
+		},
+		"#test-295": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 129.009ms (lib/colony/src/run.smoke.test.ts)."
+		},
+		"#test-296": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 86.289ms (lib/beeswax/tests/integration/husky.test.ts)."
+		},
+		"#test-297": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 45.304ms (lib/busybee/tests/integration/simulation-examples.test.ts)."
+		},
+		"#test-298": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 24.265ms (lib/busybee/tests/integration/simulation-examples.test.ts)."
+		},
+		"#test-299": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 11.972ms (lib/busybee/tests/integration/simulation-examples.test.ts)."
+		},
+		"#test-300": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 9.567ms (lib/busybee/tests/integration/simulation-examples.test.ts)."
+		},
+		"#test-301": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 11.329ms (lib/busybee/tests/integration/simulation-examples.test.ts)."
+		},
+		"#test-302": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 7.347ms (lib/busybee/tests/integration/simulation-examples.test.ts)."
+		},
+		"#test-303": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 29.812ms (lib/honeycomb/tests/integration/adapters.test.ts)."
+		},
+		"#test-304": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 51.691ms (lib/honeycomb/tests/integration/adapters.test.ts)."
+		},
+		"#test-305": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 13.744ms (lib/honeycomb/tests/integration/adapters.test.ts)."
+		},
+		"#test-306": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 12.199ms (lib/honeycomb/tests/integration/adapters.test.ts)."
+		},
+		"#test-307": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 13.667ms (lib/honeycomb/tests/integration/adapters.test.ts)."
+		},
+		"#test-308": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 41.660ms (lib/colony/src/server-ownership.smoke.test.ts)."
+		},
+		"#test-309": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 29.476ms (lib/colony/src/server-ownership.smoke.test.ts)."
+		},
+		"#test-310": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 22.359ms (lib/colony/src/server-ownership.smoke.test.ts)."
+		},
+		"#test-311": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 10.915ms (lib/colony/src/server-ownership.smoke.test.ts)."
+		},
+		"#test-312": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 17.688ms (lib/colony/src/config-discovery.smoke.test.ts)."
+		},
+		"#test-313": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 37.312ms (lib/colony/src/history.smoke.test.ts)."
+		},
+		"#test-314": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 11.887ms (lib/busybee/tests/integration/simulation.test.ts)."
+		},
+		"#test-315": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 19.181ms (lib/busybee/tests/integration/simulation.test.ts)."
+		},
+		"#test-316": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 11.878ms (lib/busybee/tests/integration/simulation.test.ts)."
+		},
+		"#test-317": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 4.246ms (lib/busybee/tests/integration/simulation.test.ts)."
+		},
+		"#test-318": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 3.811ms (lib/busybee/tests/integration/simulation.test.ts)."
+		},
+		"#test-319": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 34.993ms (lib/busybee/tests/integration/simulation.test.ts)."
+		},
+		"#test-320": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 10.225ms (lib/busybee/tests/integration/simulation.test.ts)."
+		},
+		"#test-321": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 34.088ms (lib/busybee/tests/integration/simulation.test.ts)."
+		},
+		"#test-322": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 14.127ms (lib/busybee/tests/integration/simulation.test.ts)."
+		},
+		"#test-323": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 8.878ms (lib/busybee/tests/integration/simulation.test.ts)."
+		},
+		"#test-324": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 10.821ms (lib/colony/src/responses.integration.test.ts)."
+		},
+		"#test-325": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 5.198ms (lib/colony/src/responses.integration.test.ts)."
+		},
+		"#test-326": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 3.289ms (lib/colony/src/responses.integration.test.ts)."
+		},
+		"#test-327": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.277ms (lib/colony/src/responses.integration.test.ts)."
+		},
+		"#test-328": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 12.271ms (lib/colony/src/responses.integration.test.ts)."
+		},
+		"#test-329": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.044ms (lib/colony/src/responses.integration.test.ts)."
+		},
+		"#test-330": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 16.021ms (lib/busybee/tests/integration/inspection.test.ts)."
+		},
+		"#test-331": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 3.078ms (lib/busybee/tests/integration/inspection.test.ts)."
+		},
+		"#test-332": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.513ms (lib/busybee/tests/integration/inspection.test.ts)."
+		},
+		"#test-333": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 10.020ms (lib/busybee/tests/integration/feature-task-catalogue.test.ts)."
+		},
+		"#test-334": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 9.666ms (lib/colony/src/workflows.test.ts)."
+		},
+		"#test-335": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 19.113ms (lib/colony/src/postrun-evidence.smoke.test.ts)."
+		},
+		"#test-336": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 6.332ms (lib/beeswax/src/beads/bootstrap.test.ts)."
+		},
+		"#test-337": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 5.665ms (lib/beeswax/tests/integration/onboarding-lifecycle.test.ts)."
+		},
+		"#test-338": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 6.452ms (lib/waggle/tests/integration/cli.test.ts)."
+		},
+		"#test-339": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.708ms (lib/waggle/tests/integration/cli.test.ts)."
+		},
+		"#test-340": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 11.037ms (lib/hive-ui/tests/integration/cli.test.ts)."
+		},
+		"#test-341": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 4.969ms (lib/qlock/tests/cli.test.ts)."
+		},
+		"#test-342": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 4.676ms (lib/qlock/tests/cli.test.ts)."
+		},
+		"#test-343": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 4.503ms (lib/busybee/tests/integration/parents.test.ts)."
+		},
+		"#test-344": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 12.968ms (lib/colony/src/request-recovery.test.ts)."
+		},
+		"#test-345": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 4.259ms (lib/colony/src/explain.test.ts)."
+		},
+		"#test-346": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 4.113ms (lib/colony/src/work-review-recovery.test.ts)."
+		},
+		"#test-347": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 3.274ms (lib/colony/src/work-review-recovery.test.ts)."
+		},
+		"#test-348": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 5.074ms (lib/hive-ui/workflow-explorer.test.ts)."
+		},
+		"#test-349": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 4.343ms (lib/beeswax/tests/integration/cli.test.ts)."
+		},
+		"#test-350": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 1.979ms (lib/beeswax/tests/integration/cli.test.ts)."
+		},
+		"#test-351": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 1.894ms (lib/beeswax/tests/integration/cli.test.ts)."
+		},
+		"#test-352": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 3.780ms (lib/colony/src/bee-cli.integration.test.ts)."
+		},
+		"#test-353": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 3.561ms (lib/shared/src/spawn-request.test.ts)."
+		},
+		"#test-354": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 3.272ms (lib/beeswax/tests/integration/alert-cli.test.ts)."
+		},
+		"#test-355": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 11.486ms (lib/colony/src/setup.test.ts)."
+		},
+		"#test-356": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 3.004ms (lib/busybee/tests/integration/driver.test.ts)."
+		},
+		"#test-357": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.394ms (lib/busybee/tests/integration/driver.test.ts)."
+		},
+		"#test-358": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 5.677ms (lib/busybee/tests/integration/driver.test.ts)."
+		},
+		"#test-359": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 1.998ms (lib/busybee/tests/integration/driver.test.ts)."
+		},
+		"#test-360": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.969ms (lib/busybee/tests/unit/render-task.test.ts)."
+		},
+		"#test-361": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 16.188ms (lib/colony/src/host-routing.test.ts)."
+		},
+		"#test-362": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.764ms (lib/colony/src/work-review-runtime.test.ts)."
+		},
+		"#test-363": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.543ms (lib/honeycomb/tests/unit/config-policy.test.ts)."
+		},
+		"#test-364": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.383ms (lib/colony/src/workflow-submission.test.ts)."
+		},
+		"#test-365": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 4.968ms (lib/beeswax/tests/integration/synchronize.test.ts)."
+		},
+		"#test-366": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.203ms (lib/waggle/tests/integration/live-deps.test.ts)."
+		},
+		"#test-367": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.156ms (lib/beeswax/src/onboarding.test.ts)."
+		},
+		"#test-368": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.007ms (lib/busybee/tests/integration/land.test.ts)."
+		},
+		"#test-369": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 3.370ms (lib/hive-ui/data.test.ts)."
+		},
+		"#test-370": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.568ms (lib/busybee/tests/integration/completion.test.ts)."
+		},
+		"#test-371": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.475ms (lib/hive-ui/server/data.test.ts)."
+		},
+		"#test-372": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 1.991ms (lib/colony/src/daemon-continuation.test.ts)."
+		},
+		"#test-373": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 6.275ms (lib/colony/src/work-review.test.ts)."
+		},
+		"#test-374": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 4.799ms (lib/busybee/tests/integration/validation.test.ts)."
+		},
+		"#test-375": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 3.458ms (lib/hive-ui/tests/integration/cli.test.ts)."
+		},
+		"#test-376": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.705ms (lib/beeswax/tests/integration/cli.test.ts)."
+		},
+		"#test-377": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 10.059ms (lib/beeswax/tests/integration/cli.test.ts)."
+		},
+		"#test-378": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.624ms (lib/beeswax/tests/integration/harness-alerts.test.ts)."
+		},
+		"#test-379": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.561ms (lib/waggle/tests/integration/live-deps.test.ts)."
+		},
+		"#test-380": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.105ms (lib/colony/src/explain.test.ts)."
+		},
+		"#test-381": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 3.686ms (lib/busybee/tests/integration/simulation.test.ts)."
+		},
+		"#test-382": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 1.882ms (lib/busybee/tests/integration/simulation.test.ts)."
+		},
+		"#test-383": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 8.908ms (lib/colony/src/workflow-submission.test.ts)."
+		},
+		"#test-384": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 6.564ms (lib/colony/src/bee-cli.integration.test.ts)."
+		},
+		"#test-385": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 4.156ms (lib/beeswax/tests/integration/alert-cli.test.ts)."
+		},
+		"#test-386": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.745ms (lib/hive-ui/tests/integration/cli.test.ts)."
+		},
+		"#test-387": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.649ms (lib/beeswax/tests/integration/cli.test.ts)."
+		},
+		"#test-388": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.251ms (lib/beeswax/tests/integration/synchronize.test.ts)."
+		},
+		"#test-389": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 1.648ms (lib/beeswax/tests/integration/synchronize.test.ts)."
+		},
+		"#test-390": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.150ms (lib/waggle/tests/integration/cli.test.ts)."
+		},
+		"#test-391": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 1.544ms (lib/busybee/tests/integration/driver.test.ts)."
+		},
+		"#test-392": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 4.927ms (lib/busybee/tests/integration/driver.test.ts)."
+		},
+		"#test-393": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 1.514ms (lib/busybee/tests/integration/land.test.ts)."
+		},
+		"#test-394": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 3.547ms (lib/colony/src/work-review-runtime.test.ts)."
+		},
+		"#test-395": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.156ms (lib/shared/src/bees.test.ts)."
+		},
+		"#test-396": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 10.862ms (lib/busybee/tests/integration/completion.test.ts)."
+		},
+		"#test-397": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 1.997ms (lib/busybee/tests/integration/completion.test.ts)."
+		},
+		"#test-398": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 1.900ms (lib/colony/src/run.test.ts)."
+		},
+		"#test-399": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 3.012ms (lib/beeswax/tests/integration/cli.test.ts)."
+		},
+		"#test-400": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.196ms (lib/colony/src/host-routing.test.ts)."
+		},
+		"#test-401": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 13.774ms (lib/busybee/tests/integration/simulation.test.ts)."
+		},
+		"#test-402": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 1.757ms (lib/hive-ui/workflow-explorer.test.ts)."
+		},
+		"#test-403": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 1.659ms (lib/hive-ui/data.test.ts)."
+		},
+		"#test-404": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 1.619ms (lib/busybee/tests/integration/completion.test.ts)."
+		},
+		"#test-405": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 1.551ms (lib/busybee/tests/integration/land.test.ts)."
+		},
+		"#test-406": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 3.913ms (lib/beeswax/src/onboarding.test.ts)."
+		},
+		"#test-407": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 3.820ms (lib/qlock/tests/cli.test.ts)."
+		},
+		"#test-408": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.566ms (lib/busybee/tests/integration/work-review.test.ts)."
+		},
+		"#test-409": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.448ms (lib/beads/src/memory.test.ts)."
+		},
+		"#test-410": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.416ms (lib/beeswax/src/beads/alerts.test.ts)."
+		},
+		"#test-411": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 12.183ms (lib/busybee/tests/integration/simulation.test.ts)."
+		},
+		"#test-412": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 7.160ms (lib/colony/src/producer.test.ts)."
+		},
+		"#test-413": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 3.872ms (lib/colony/src/config.test.ts)."
+		},
+		"#test-414": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 3.038ms (lib/colony/src/explain.test.ts)."
+		},
+		"#test-415": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.964ms (lib/colony/src/requests.test.ts)."
+		},
+		"#test-416": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.508ms (lib/shared/src/changelog.test.ts)."
+		},
+		"#test-417": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 1.737ms (lib/qlock/tests/cli.test.ts)."
+		},
+		"#test-418": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 1.606ms (lib/honeycomb/tests/unit/config-policy.test.ts)."
+		},
+		"#test-419": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 1.599ms (lib/busybee/tests/integration/parents.test.ts)."
+		},
+		"#test-420": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 1.555ms (lib/beeswax/src/beads/alerts-publication.test.ts)."
+		},
+		"#test-421": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 1.515ms (lib/colony/src/work-review-recovery.test.ts)."
+		},
+		"#test-422": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 6.428ms (lib/busybee/tests/integration/inspection.test.ts)."
+		},
+		"#test-423": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.984ms (lib/busybee/tests/integration/inspection.test.ts)."
+		},
+		"#test-424": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 3.478ms (lib/colony/src/workflow-submission.test.ts)."
+		},
+		"#test-425": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 1.831ms (lib/waggle/tests/integration/live-deps.test.ts)."
+		},
+		"#test-426": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 1.810ms (lib/colony/src/responses.integration.test.ts)."
+		},
+		"#test-427": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.209ms (lib/colony/src/responses.integration.test.ts)."
+		},
+		"#test-428": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 1.604ms (lib/busybee/tests/integration/driver.test.ts)."
+		},
+		"#test-429": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 4.674ms (lib/colony/src/producer.test.ts)."
+		},
+		"#test-430": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 3.733ms (lib/hive-ui/server/api.test.ts)."
+		},
+		"#test-431": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 3.427ms (lib/busybee/tests/integration/failure.test.ts)."
+		},
+		"#test-432": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.466ms (lib/beeswax/src/beads/alerts.test.ts)."
+		},
+		"#test-433": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 4.802ms (lib/busybee/tests/integration/completion.test.ts)."
+		},
+		"#test-434": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 6.836ms (lib/colony/src/work-review-commands.test.ts)."
+		},
+		"#test-435": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 3.561ms (lib/scent/tests/cli.test.ts)."
+		},
+		"#test-436": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 1.987ms (lib/scent/tests/cli.test.ts)."
+		},
+		"#test-437": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.754ms (lib/beeswax/src/beads/setup.test.ts)."
+		},
+		"#test-438": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.219ms (lib/busybee/tests/integration/driver.test.ts)."
+		},
+		"#test-439": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 1.817ms (lib/beeswax/src/onboarding.test.ts)."
+		},
+		"#test-440": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 4.542ms (lib/beeswax/src/onboarding.test.ts)."
+		},
+		"#test-441": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 3.241ms (lib/colony/src/work-review-recovery.test.ts)."
+		},
+		"#test-442": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.743ms (lib/colony/src/work-review-recovery.test.ts)."
+		},
+		"#test-443": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.551ms (lib/busybee/tests/integration/nested-bees.test.ts)."
+		},
+		"#test-444": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.187ms (lib/colony/src/daemon-continuation-receipt.smoke.test.ts)."
+		},
+		"#test-445": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 1.948ms (lib/hive-ui/data.test.ts)."
+		},
+		"#test-446": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 3.205ms (lib/hive-ui/data.test.ts)."
+		},
+		"#test-447": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.929ms (lib/busybee/tests/integration/work-review.test.ts)."
+		},
+		"#test-448": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.135ms (lib/beeswax/src/onboarding.test.ts)."
+		},
+		"#test-449": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.872ms (lib/busybee/src/native.test.ts)."
+		},
+		"#test-450": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.678ms (lib/busybee/tests/integration/completion.test.ts)."
+		},
+		"#test-451": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.235ms (lib/colony/src/work-review-recovery.test.ts)."
+		},
+		"#test-452": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.232ms (lib/beeswax/src/beads/environment.test.ts)."
+		},
+		"#test-453": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 8.994ms (lib/colony/src/bee-cli.integration.test.ts)."
+		},
+		"#test-454": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 1.624ms (lib/colony/src/bee-cli.integration.test.ts)."
+		},
+		"#test-455": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 5.093ms (lib/busybee/tests/integration/driver.test.ts)."
+		},
+		"#test-456": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 5.830ms (lib/busybee/tests/integration/driver.test.ts)."
+		},
+		"#test-457": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 3.793ms (lib/beeswax/tests/integration/synchronize.test.ts)."
+		},
+		"#test-458": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 3.380ms (lib/beeswax/src/onboarding.test.ts)."
+		},
+		"#test-459": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 3.499ms (lib/waggle/tests/unit/classifiers.test.ts)."
+		},
+		"#test-460": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 1.897ms (lib/busybee/tests/unit/preflight.test.ts)."
+		},
+		"#test-461": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 4.376ms (lib/colony/src/responses.integration.test.ts)."
+		},
+		"#test-462": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.813ms (lib/beeswax/src/beads/environment.test.ts)."
+		},
+		"#test-463": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.036ms (lib/busybee/tests/integration/failure.test.ts)."
+		},
+		"#test-464": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 1.525ms (lib/colony/src/work-review-recovery.test.ts)."
+		},
+		"#test-465": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 3.327ms (lib/beeswax/src/harness-alerts.test.ts)."
+		},
+		"#test-466": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.620ms (lib/colony/src/work-review-commands.test.ts)."
+		},
+		"#test-467": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 3.187ms (lib/busybee/tests/integration/driver.test.ts)."
+		},
+		"#test-468": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.804ms (lib/beeswax/tests/integration/cli.test.ts)."
+		},
+		"#test-469": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 1.577ms (lib/colony/src/run.test.ts)."
+		},
+		"#test-470": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 4.388ms (lib/colony/src/bee-cli.integration.test.ts)."
+		},
+		"#test-471": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 3.902ms (lib/colony/src/watchdog.test.ts)."
+		},
+		"#test-472": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 3.834ms (lib/busybee/tests/unit/events.test.ts)."
+		},
+		"#test-473": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 3.563ms (lib/beeswax/src/info.test.ts)."
+		},
+		"#test-474": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.733ms (lib/colony/src/workflow-submission.test.ts)."
+		},
+		"#test-475": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.328ms (lib/beeswax/src/beads/alerts.test.ts)."
+		},
+		"#test-476": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.091ms (lib/colony/src/request.test.ts)."
+		},
+		"#test-477": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 6.624ms (lib/colony/src/run.test.ts)."
+		},
+		"#test-478": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 1.523ms (lib/qlock/tests/cli.test.ts)."
+		},
+		"#test-479": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.987ms (lib/colony/src/config.test.ts)."
+		},
+		"#test-480": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.338ms (lib/colony/src/config.test.ts)."
+		},
+		"#test-481": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.684ms (lib/scent/tests/codex.test.ts)."
+		},
+		"#test-482": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.310ms (lib/colony/src/requests.test.ts)."
+		},
+		"#test-483": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.018ms (lib/honeycomb/tests/unit/config-policy.test.ts)."
+		},
+		"#test-484": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 1.944ms (lib/hive-ui/server/data.test.ts)."
+		},
+		"#test-485": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 1.905ms (lib/tooling/src/release-changelog.test.ts)."
+		},
+		"#test-486": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 4.471ms (lib/colony/src/work-review.test.ts)."
+		},
+		"#test-487": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.906ms (lib/beeswax/tests/integration/cli.test.ts)."
+		},
+		"#test-488": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.186ms (lib/hive-ui/data.test.ts)."
+		},
+		"#test-489": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.878ms (lib/shared/src/bees.test.ts)."
+		},
+		"#test-490": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 4.181ms (lib/beeswax/tests/integration/cli.test.ts)."
+		},
+		"#test-491": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 5.924ms (lib/beeswax/tests/integration/alert-cli.test.ts)."
+		},
+		"#test-492": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 4.504ms (lib/colony/src/workflows.test.ts)."
+		},
+		"#test-493": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 3.190ms (lib/colony/src/explain.test.ts)."
+		},
+		"#test-494": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.651ms (lib/beeswax/src/beads/publish.test.ts)."
+		},
+		"#test-495": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.624ms (lib/beeswax/src/beads/publish.test.ts)."
+		},
+		"#test-496": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 1.877ms (lib/colony/src/work-review-commands.test.ts)."
+		},
+		"#test-497": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.538ms (lib/waggle/tests/integration/live-deps.test.ts)."
+		},
+		"#test-498": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 3.154ms (lib/beeswax/src/onboarding.test.ts)."
+		},
+		"#test-499": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.775ms (lib/beeswax/tests/integration/cli.test.ts)."
+		},
+		"#test-500": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 1.840ms (lib/beeswax/tests/integration/cli.test.ts)."
+		},
+		"#test-501": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 5.859ms (lib/busybee/tests/integration/driver.test.ts)."
+		},
+		"#test-502": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 5.025ms (lib/colony/src/producer.test.ts)."
+		},
+		"#test-503": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.986ms (lib/colony/src/response-store.test.ts)."
+		},
+		"#test-504": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 8.538ms (lib/beeswax/tests/integration/synchronize.test.ts)."
+		},
+		"#test-505": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 1.801ms (lib/beeswax/tests/integration/synchronize.test.ts)."
+		},
+		"#test-506": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.076ms (lib/hive-ui/server/data.test.ts)."
+		},
+		"#test-507": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 3.049ms (lib/beeswax/src/git/merge.test.ts)."
+		},
+		"#test-508": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 3.680ms (lib/beeswax/src/beads/environment.test.ts)."
+		},
+		"#test-509": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 3.488ms (lib/hive-ui/data.test.ts)."
+		},
+		"#test-510": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 5.556ms (lib/hive-ui/workflow-graph.test.ts)."
+		},
+		"#test-511": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 3.935ms (lib/beeswax/tests/hooks.test.ts)."
+		},
+		"#test-512": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.573ms (lib/beeswax/src/git/merge.test.ts)."
+		},
+		"#test-513": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.336ms (lib/hive-ui/column-order.test.ts)."
+		},
+		"#test-514": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 4.951ms (lib/colony/src/bee-cli.integration.test.ts)."
+		},
+		"#test-515": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 3.631ms (lib/beeswax/tests/integration/cli.test.ts)."
+		},
+		"#test-516": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.041ms (lib/busybee/tests/integration/driver.test.ts)."
+		},
+		"#test-517": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 4.837ms (lib/busybee/tests/integration/driver.test.ts)."
+		},
+		"#test-518": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 1.948ms (lib/colony/src/response-store.test.ts)."
+		},
+		"#test-519": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 1.649ms (lib/colony/src/request-recovery.test.ts)."
+		},
+		"#test-520": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 4.309ms (lib/busybee/tests/unit/render-task.test.ts)."
+		},
+		"#test-521": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 4.145ms (lib/busybee/tests/integration/land.test.ts)."
+		},
+		"#test-522": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 1.888ms (lib/hive-ui/data.test.ts)."
+		},
+		"#test-523": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 1.585ms (lib/colony/src/work-review-recovery.test.ts)."
+		},
+		"#test-524": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 3.415ms (lib/scent/tests/cli.test.ts)."
+		},
+		"#test-525": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 5.028ms (lib/beeswax/tests/integration/cli.test.ts)."
+		},
+		"#test-526": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 3.614ms (lib/busybee/tests/integration/completion.test.ts)."
+		},
+		"#test-527": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 1.825ms (lib/colony/src/work-review-commands.test.ts)."
+		},
+		"#test-528": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 1.652ms (lib/qlock/tests/cli.test.ts)."
+		},
+		"#test-529": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 1.648ms (lib/beeswax/src/info.test.ts)."
+		},
+		"#test-530": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.808ms (lib/shared/src/bees.test.ts)."
+		},
+		"#test-531": {
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 11.530ms (lib/colony/src/bee-cli.integration.test.ts)."
+		},
+		"#test-532": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 4.600ms (lib/hive-ui/workflow-graph.test.ts)."
+		},
+		"#test-533": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.873ms (lib/qlock/tests/cli.test.ts)."
+		},
+		"#test-534": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 1.614ms (lib/colony/src/work-review-runtime.test.ts)."
+		},
+		"#test-535": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 1.542ms (lib/colony/src/work-review-recovery.test.ts)."
+		},
+		"#test-536": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 7.356ms (lib/busybee/tests/integration/parents.test.ts)."
+		},
+		"#test-537": {
+			"threshold": "SLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 6.866ms (lib/busybee/tests/unit/compatibility.test.ts)."
 		}
 	}
 }

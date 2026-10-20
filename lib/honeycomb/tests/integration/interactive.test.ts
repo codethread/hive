@@ -65,7 +65,7 @@ afterEach(async () => {
 });
 
 describe("honeycomb --interactive add", () => {
-	test("add opens the new worktree's session after output", async () => {
+	test("add opens the new worktree's session after output #test-218", async () => {
 		const { deps, log, multiplexer } = interactiveDeps();
 
 		const result = await dispatch(
@@ -86,7 +86,7 @@ describe("honeycomb --interactive add", () => {
 		expect(log).toEqual([`open ${root}__feature--open`]);
 	});
 
-	test("add outside a multiplexer writes the worktree path to the cd directive", async () => {
+	test("add outside a multiplexer writes the worktree path to the cd directive #test-223", async () => {
 		const { deps, log } = interactiveDeps(false);
 
 		await run("add", ["--cwd", root, "--branch", "feature/cd", "--interactive"], deps);
@@ -94,7 +94,7 @@ describe("honeycomb --interactive add", () => {
 		expect(log).toEqual([`cd ${root}__feature--cd`]);
 	});
 
-	test("without --interactive, add and remove make no session calls or cd directive", async () => {
+	test("without --interactive, add and remove make no session calls or cd directive #test-221", async () => {
 		const { deps, log } = interactiveDeps();
 
 		await run("add", ["--cwd", root, "--branch", "feature/quiet", "--json"], deps);
@@ -112,7 +112,7 @@ describe("honeycomb --interactive add", () => {
 });
 
 describe("honeycomb --interactive remove", () => {
-	test("remove from inside the worktree writes the canonical root, then closes sessions last", async () => {
+	test("remove from inside the worktree writes the canonical root, then closes sessions last #test-222", async () => {
 		const { deps, log } = interactiveDeps();
 		await dispatch("add", ["--cwd", root, "--branch", "feature/leave", "--json"], deps);
 		const worktreePath = `${root}__feature--leave`;
@@ -131,7 +131,7 @@ describe("honeycomb --interactive remove", () => {
 		expect(log).toEqual([`cd ${root}`, `close ${worktreePath}`]);
 	});
 
-	test("remove from outside the worktree closes sessions without a cd directive", async () => {
+	test("remove from outside the worktree closes sessions without a cd directive #test-220", async () => {
 		const { deps, log } = interactiveDeps();
 		await dispatch("add", ["--cwd", root, "--branch", "feature/other", "--json"], deps);
 
@@ -146,7 +146,7 @@ describe("honeycomb --interactive remove", () => {
 });
 
 describe("honeycomb --interactive sessions", () => {
-	test("pooled add opens the slot and pooled remove leaves and closes it", async () => {
+	test("pooled add opens the slot and pooled remove leaves and closes it #test-217", async () => {
 		writeConfig({ command: "echo ready", poolSize: POOL_SIZE, root, tmp });
 		const { deps, log } = interactiveDeps();
 		const slotPath = `${root}__feat1`;
@@ -166,7 +166,7 @@ describe("honeycomb --interactive sessions", () => {
 		expect(log).toEqual([`open ${slotPath}`, `cd ${root}`, `close ${slotPath}`]);
 	});
 
-	test("session failures warn without undoing the removal", async () => {
+	test("session failures warn without undoing the removal #test-219", async () => {
 		const { deps, warnings } = interactiveDeps();
 		await dispatch("add", ["--cwd", root, "--branch", "feature/warn", "--json"], deps);
 		warnings.length = 0;
@@ -185,7 +185,7 @@ describe("honeycomb --interactive sessions", () => {
 });
 
 describe("honeycomb --interactive finish", () => {
-	test("finish cleanup leaves the removed worktree and closes its sessions", async () => {
+	test("finish cleanup leaves the removed worktree and closes its sessions #test-215", async () => {
 		writeConfig({
 			command: "echo ready",
 			copyToml: "[project.finish]\nremove_worktree = true\n",
@@ -209,7 +209,7 @@ describe("honeycomb --interactive finish", () => {
 		expect(log).toEqual([`cd ${root}`, `close ${worktreePath}`]);
 	});
 
-	test("finish without cleanup leaves sessions alone", async () => {
+	test("finish without cleanup leaves sessions alone #test-216", async () => {
 		const { deps, log } = interactiveDeps();
 		await dispatch("add", ["--cwd", root, "--branch", "feature/keep", "--json"], deps);
 		const worktreePath = `${root}__feature--keep`;

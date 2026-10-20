@@ -121,7 +121,7 @@ await saveReviewOutcome(repairRun, "passed");
 
 // The authored workflow drives dispatch; only the process and tracker adapters are replaced.
 // eslint-disable-next-line max-statements
-test("Land dispatches its existing review visit after the driver's passing checks", async () => {
+test("Land dispatches its existing review visit after the driver's passing checks #test-393", async () => {
 	const { beads, calls, io, run, scope } = dispatchRun;
 	expect(calls).toEqual([]);
 	const reviewing = await navigate({ id: run.id, operation: "collect" }, {}, io);
@@ -153,7 +153,7 @@ test("Land dispatches its existing review visit after the driver's passing check
 });
 
 test.each(reviewCases)(
-	"Land collects reviewer $choice into driver-owned $target",
+	"Land collects reviewer $choice into driver-owned $target #test-521",
 	async ({ choice, target }) => {
 		const { beads, calls, io, run, scope } = reviewRuns.get(choice)!;
 		const next = await navigate({ id: run.id, operation: "collect" }, {}, io);
@@ -192,7 +192,7 @@ test("Land dispatches a fresh reviewer visit after driver repair and checks", as
 });
 
 test.each(paths)(
-	"the actual land chart navigates $name without executing landing effects",
+	"the actual land chart navigates $name without executing landing effects #test-405",
 	({ target, steps }) => {
 		const input = landingInput("/selected/beads.db", "/surviving", target);
 		let snapshot = assertPureTransition(initialTransition(machine, input));
@@ -210,7 +210,7 @@ test.each(paths)(
 );
 
 test.each(closureCases)(
-	"$caller closes proven tasks after the Land run (completeParent: $completeParent)",
+	"$caller closes proven tasks after the Land run (completeParent: $completeParent) #test-368",
 	// Verify durable evidence and caller ordering as one lifecycle.
 	// eslint-disable-next-line max-statements
 	async (entry) => {

@@ -38,10 +38,10 @@ const input = JSON.stringify({
 	hook_event_name: "PostToolUse",
 });
 
-// eslint-disable-next-line max-statements -- Verify one continuous active-to-clear callback sequence per vendor.
 test.each(["claude", "codex", "pi"] as const)(
 	"%s delivers the hold and exact incident clearance on successive callbacks",
 	// eslint-disable-next-line max-statements -- Verify one continuous active-to-clear callback sequence.
+	// eslint-disable-next-line max-statements -- Verify one continuous active-to-clear callback sequence per vendor.
 	async (harness) => {
 		const fx = fixture();
 		let current = active;
@@ -64,7 +64,7 @@ test.each(["claude", "codex", "pi"] as const)(
 );
 
 test.each([null, { ...cleared.alert!, id: "another-incident" }])(
-	"missing or unrelated clearance does not release a previously observed hold: %j",
+	"missing or unrelated clearance does not release a previously observed hold: %j #test-465",
 	async (alert) => {
 		const fx = fixture();
 		let current = active;

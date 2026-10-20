@@ -42,31 +42,40 @@ const inherited = {
 // Warm schemas and rendering outside the unit-test timing window.
 await runKind("librarian", {}, fixture().runtime);
 
-test("interactive run inherits the directory and shell with fresh attribution, without request authority", async () => {
-	const { runtime, launches } = fixture();
-	await runKind("librarian", {}, runtime);
-	expect(launches).toHaveLength(ONE_LAUNCH);
-	const launch = launches.at(FIRST)!;
-	expect(launch.invocation).toEqual({
-		executable: "interactive",
-		argv: ["default-model", "low", `Role instructions\n\n${RESPONSE_PROTOCOL}`, CURRENT_DIRECTORY],
-	});
-	expect(launch.env).toMatchObject({
-		BEADS_DB: inherited.BEADS_DB,
-		BR_AGENT_NAME: "librarian",
-		BR_HARNESS: "native",
-		BR_MODEL: "default-model",
-		HIVE_AGENT_SESSION: "",
-		HIVE_AGENT_SOURCE: "bee",
-		SHELL_VALUE: "inherited",
-		HIVE_ATTEMPT_ID: undefined,
-		HIVE_ATTEMPT_TOKEN: undefined,
-		HIVE_SPAWN_ID: undefined,
-	});
-	expect(launch.env["HIVE_AGENT_NAME"]).toMatch(/^[a-z]+-[a-z]+-[a-z]+$/u);
-	expect(launch.env["BD_ACTOR"]).toBe(launch.env["HIVE_AGENT_NAME"]);
-	expect(inherited.HIVE_AGENT_NAME).toBe("old-identity");
-});
+test(
+	"interactive run inherits the directory and shell with fresh attribution, without " +
+		"request authority #test-477",
+	async () => {
+		const { runtime, launches } = fixture();
+		await runKind("librarian", {}, runtime);
+		expect(launches).toHaveLength(ONE_LAUNCH);
+		const launch = launches.at(FIRST)!;
+		expect(launch.invocation).toEqual({
+			executable: "interactive",
+			argv: [
+				"default-model",
+				"low",
+				`Role instructions\n\n${RESPONSE_PROTOCOL}`,
+				CURRENT_DIRECTORY,
+			],
+		});
+		expect(launch.env).toMatchObject({
+			BEADS_DB: inherited.BEADS_DB,
+			BR_AGENT_NAME: "librarian",
+			BR_HARNESS: "native",
+			BR_MODEL: "default-model",
+			HIVE_AGENT_SESSION: "",
+			HIVE_AGENT_SOURCE: "bee",
+			SHELL_VALUE: "inherited",
+			HIVE_ATTEMPT_ID: undefined,
+			HIVE_ATTEMPT_TOKEN: undefined,
+			HIVE_SPAWN_ID: undefined,
+		});
+		expect(launch.env["HIVE_AGENT_NAME"]).toMatch(/^[a-z]+-[a-z]+-[a-z]+$/u);
+		expect(launch.env["BD_ACTOR"]).toBe(launch.env["HIVE_AGENT_NAME"]);
+		expect(inherited.HIVE_AGENT_NAME).toBe("old-identity");
+	},
+);
 
 test.each([
 	{
@@ -75,7 +84,7 @@ test.each([
 	},
 	{ systemPrompt: "", expectedSystemPrompt: RESPONSE_PROTOCOL },
 ])(
-	"interactive overrides retain response guidance with role '$systemPrompt' and need no tracker",
+	"interactive overrides retain response guidance with role '$systemPrompt' and need no tracker #test-469",
 	async ({ systemPrompt, expectedSystemPrompt }) => {
 		const { runtime, launches } = fixture();
 		runtime.env = {};
@@ -102,7 +111,7 @@ test.each([
 	},
 );
 
-test("missing terminal fails before configuration discovery or launch", async () => {
+test("missing terminal fails before configuration discovery or launch #test-398", async () => {
 	const { runtime, launches } = fixture();
 	runtime.terminal = false;
 	let discovered = false;

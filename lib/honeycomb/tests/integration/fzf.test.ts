@@ -54,12 +54,12 @@ describe("fzf", () => {
 		await rm(bin, { force: true, recursive: true });
 	});
 
-	test("returns the selected line and passes options as flags", async () => {
+	test("returns the selected line and passes options as flags #test-267", async () => {
 		expect(await runWithStub(bin, FZF_SUCCESS)).toBe("/a\tfirst");
 		expect(await Bun.file(join(bin, "args")).text()).toBe("--delimiter\n\t\n--with-nth\n2..\n");
 	});
 
-	test("live picker requests a responsive preview layout", async () => {
+	test("live picker requests a responsive preview layout #test-268", async () => {
 		const livePickerModule = join(import.meta.dir, "../../src/live-picker.ts");
 		const script = `
 			const { pick } = await import(${JSON.stringify(livePickerModule)});
@@ -77,11 +77,11 @@ describe("fzf", () => {
 		expect(args).toContain("--tmux\ncenter,80%,70%\n");
 	});
 
-	test.each([FZF_NO_MATCH, FZF_INTERRUPTED])("exit %d cancels", async (exitCode) => {
+	test.each([FZF_NO_MATCH, FZF_INTERRUPTED])("exit %d cancels #test-266", async (exitCode) => {
 		expect(await runWithStub(bin, exitCode)).toBe("PickerCancelled: cancelled");
 	});
 
-	test("other exit statuses fail", async () => {
+	test("other exit statuses fail #test-269", async () => {
 		expect(await runWithStub(bin, FZF_FAILURE)).toBe("HoneycombError: fzf failed (exit 2)");
 	});
 });

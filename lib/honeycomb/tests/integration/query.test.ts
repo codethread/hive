@@ -75,7 +75,7 @@ async function assertCanonicalList(root: string) {
 	expect(canonical.branchRef).toBeUndefined();
 }
 
-test("root, list, json list, and non-pool path against a real repo", async () => {
+test("root, list, json list, and non-pool path against a real repo #test-292", async () => {
 	const root = await initQueryRepo();
 	writeConfig({ command: "echo ready", root, tmp });
 
@@ -88,7 +88,7 @@ test("root, list, json list, and non-pool path against a real repo", async () =>
 	expect(pathResult.stdout).toBe(`${root}__feature--cool\n`);
 });
 
-test("config explain reports effective policy JSON", async () => {
+test("config explain reports effective policy JSON #test-293", async () => {
 	const root = await initQueryRepo();
 	const configHome = join(tmp, "config-explain");
 	await writeRawConfig(
@@ -145,7 +145,7 @@ test("config explain reports effective policy JSON", async () => {
 	});
 });
 
-test("list remains available with malformed config", async () => {
+test("list remains available with malformed config #test-294", async () => {
 	const root = await initQueryRepo();
 	await writeRawConfig(join(tmp, "config"), "[[project]]\nroot = ");
 
@@ -191,7 +191,7 @@ test.each([
 	{ args: [], format: "text" },
 	{ args: ["--json"], format: "json" },
 ])(
-	"$format list reads one inventory without preparing or scanning pool slots",
+	"$format list reads one inventory without preparing or scanning pool slots #test-291",
 	async ({ args, format }) => {
 		const root = await initIncompletePool();
 		const liveDeps = testDeps();
@@ -226,7 +226,7 @@ async function initLockedPool() {
 	return root;
 }
 
-test("list annotates locked pool slots and path refuses an unallocated branch", async () => {
+test("list annotates locked pool slots and path refuses an unallocated branch #test-290", async () => {
 	const root = await initLockedPool();
 
 	const listResult = await dispatch("list", ["--cwd", root], deps);

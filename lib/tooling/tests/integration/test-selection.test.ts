@@ -18,7 +18,7 @@ const expectedInputs = [committed, staged, unstaged, untracked].toSorted();
 
 test(
 	"Git discovery selects committed, staged, unstaged and untracked " +
-		"inputs with alternate changed references",
+		"inputs with alternate changed references #test-265",
 	async () => {
 		const root = await mkdtemp(join(tmpdir(), "hive test selection "));
 		try {

@@ -42,7 +42,7 @@ test.each([
 			logFile: "ui.jsonl",
 		},
 	},
-])("$name invokes the server action", async ({ argv, expected }) => {
+])("$name invokes the server action #test-375", async ({ argv, expected }) => {
 	const { program, starts, output } = harness();
 	await program.parseAsync(argv, { from: "user" });
 	expect(starts).toHaveLength(1);
@@ -60,7 +60,7 @@ test("awaits and propagates asynchronous server startup failure", async () => {
 	expect(result).toBeInstanceOf(TypeError);
 });
 
-test.each(["--help", "--version"])("%s exits without server startup", async (flag) => {
+test.each(["--help", "--version"])("%s exits without server startup #test-340", async (flag) => {
 	const { program, starts, output } = harness();
 	const result = await program
 		.parseAsync([flag], { from: "user" })
@@ -71,7 +71,7 @@ test.each(["--help", "--version"])("%s exits without server startup", async (fla
 	expect(output.join("")).not.toBe("");
 });
 
-test("changelog reads embedded history without starting the server", async () => {
+test("changelog reads embedded history without starting the server #test-386", async () => {
 	const { program, starts, output } = harness();
 	await program.parseAsync(["changelog", "--json"], { from: "user" });
 	expect(starts).toEqual([]);

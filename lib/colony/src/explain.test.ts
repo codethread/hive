@@ -12,7 +12,7 @@ test.each([
 	{ expected: "colony_asleep", state: "asleep" },
 	{ expected: "colony_failed", state: "failed" },
 	{ expected: "runnable", state: "awake" },
-] as const)("explains $state without inventing a merged state", ({ state, expected }) => {
+] as const)("explains $state without inventing a merged state #test-493", ({ state, expected }) => {
 	const result = evidence();
 	if (result.runtime.result.kind !== "available") {
 		throw new Error("Expected runtime fixture");
@@ -32,7 +32,7 @@ test.each([
 	).toBe(true);
 });
 
-test("claims and native dependency readiness stay distinct from available capacity", () => {
+test("claims and native dependency readiness stay distinct from available capacity #test-380", () => {
 	const result = evidence();
 	if (result.tracker.result.kind !== "available") {
 		throw new Error("Expected tracker fixture");
@@ -61,7 +61,7 @@ test("claims and native dependency readiness stay distinct from available capaci
 	expect(diagnostics.some(({ code }) => code === "runnable")).toBe(false);
 });
 
-test("capacity and retry checkpoints state conditions rather than launch promises", () => {
+test("capacity and retry checkpoints state conditions rather than launch promises #test-414", () => {
 	const result = evidence();
 	if (result.capacity.result.kind !== "available" || result.runtime.result.kind !== "available") {
 		throw new Error("Expected fixture");
@@ -88,7 +88,7 @@ test.each([
 	{ expected: "running_observed", observed: "live", recorded: "failed" },
 	{ expected: "stopped_observed", observed: "stopped", recorded: "running" },
 ] as const)(
-	"reports fresh $observed against stale $recorded without repairing evidence",
+	"reports fresh $observed against stale $recorded without repairing evidence #test-345",
 	/* eslint-disable-next-line max-statements --
 	 * Compare immutable evidence with both contradictory diagnostic conclusions.
 	 */

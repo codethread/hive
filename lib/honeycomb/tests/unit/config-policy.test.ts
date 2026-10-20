@@ -14,7 +14,7 @@ function parseConfig(toml: string) {
 	});
 }
 
-test("resolves built-in policy defaults", () => {
+test("resolves built-in policy defaults #test-363", () => {
 	const policy = explainPolicy(parseConfig(""), "/tmp/repo");
 	expect(policy.addPolicy).toBe("origin_default");
 	expect(policy.finishPolicy).toEqual({
@@ -26,7 +26,7 @@ test("resolves built-in policy defaults", () => {
 	});
 });
 
-test("matching rules apply in file order with later fields winning", () => {
+test("matching rules apply in file order with later fields winning #test-418", () => {
 	const config = parseConfig(`
 [[rule]]
 root_glob = "/tmp/**"
@@ -58,7 +58,7 @@ remove_worktree = true
 	});
 });
 
-test("exact project command overrides inherited rule command", () => {
+test("exact project command overrides inherited rule command #test-483", () => {
 	const config = parseConfig(`
 [[rule]]
 root_glob = "/tmp/**"

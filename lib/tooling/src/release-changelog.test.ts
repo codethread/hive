@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { generateChangelogs } from "./release-changelog.ts";
 
-test("every public tool gets an explicit empty release when the range has no declarations", () => {
+test("every public tool gets an explicit empty release when the range has no declarations #test-485", () => {
 	expect(generateChangelogs("0.7.0", [])).toMatchInlineSnapshot(`
 	  [
 	    {

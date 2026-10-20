@@ -60,7 +60,7 @@ async function prepareMixedPool() {
 	return { legacySlot: `${root}__feat1`, nestedSlot, root };
 }
 
-test("keeps legacy pool slots and creates only missing slots in the preferred location", async () => {
+test("keeps legacy pool slots and creates only missing slots in the preferred location #test-107", async () => {
 	const { root, legacySlot, nestedSlot } = await prepareMixedPool();
 	const status = await dispatch("status", ["--cwd", root], testDeps());
 
@@ -87,7 +87,7 @@ test("keeps legacy pool slots and creates only missing slots in the preferred lo
 	});
 	expect(await gitOut(legacySlot, "branch", "--show-current")).toBe("wk-pool/feat1");
 });
-test("copies into allocated slot after checkout and before setup", async () => {
+test("copies into allocated slot after checkout and before setup #test-108", async () => {
 	const { root } = await initRepoWithOrigin(tmp.dir);
 	await writeFile(join(root, ".env"), "pooled\n");
 	writeConfig({
@@ -115,7 +115,7 @@ test("copies into allocated slot after checkout and before setup", async () => {
 	);
 	expect(await readFile(resolve(`${root}__feat1`, allocatedReadPath), "utf8")).toBe("pooled\n");
 });
-test("setup failure during allocation restores an existing branch tip", async () => {
+test("setup failure during allocation restores an existing branch tip #test-110", async () => {
 	const { root } = await initRepoWithOrigin(tmp.dir);
 	await run(["git", "-C", root, "branch", "feature/pool-setup-restore"]);
 	const originalHead = await gitOut(root, "rev-parse", "refs/heads/feature/pool-setup-restore");
@@ -134,7 +134,7 @@ test("setup failure during allocation restores an existing branch tip", async ()
 		originalHead,
 	);
 });
-test("copy setup failure during allocation restores the slot placeholder", async () => {
+test("copy setup failure during allocation restores the slot placeholder #test-109", async () => {
 	const { root } = await initRepoWithOrigin(tmp.dir);
 	writeConfig({ command: "echo ready", poolSize: SINGLE_SLOT, root, tmp: tmp.dir });
 	await dispatch("ensure", ["--cwd", root], testDeps());
@@ -161,7 +161,7 @@ test("copy setup failure during allocation restores the slot placeholder", async
 test.each([
 	{ branch: "feature/remote-pool", name: "existing remote-only", source: "remote" },
 	{ branch: "feature/local-pool", name: "existing local", source: "local" },
-])("allocates $name branch", async ({ branch, source }) => {
+])("allocates $name branch #test-106", async ({ branch, source }) => {
 	const { root, remote } = await initRepoWithOrigin(tmp.dir);
 	if (source === "remote") {
 		await createRemoteBranch(remote, branch);
@@ -175,7 +175,7 @@ test.each([
 
 	expect(await gitOut(`${root}__feat1`, "branch", "--show-current")).toBe(branch);
 });
-test("rejects duplicate canonical branch and reserved branch before allocation", async () => {
+test("rejects duplicate canonical branch and reserved branch before allocation #test-111", async () => {
 	const { root } = await initRepoWithOrigin(tmp.dir);
 	writeConfig({ command: "echo ready", poolSize: SINGLE_SLOT, root, tmp: tmp.dir });
 

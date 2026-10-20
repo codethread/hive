@@ -30,7 +30,7 @@ const race = await annotationFixture();
 const assignmentRace = await assignmentFixture();
 
 // eslint-disable-next-line max-statements -- Verify reuse and expiry with one deterministic resource clock.
-test("annotation demand reuses fresh singleton and overlapping aliases", async () => {
+test("annotation demand reuses fresh singleton and overlapping aliases #test-403", async () => {
 	const reads: string[][] = [];
 	let now = Date.parse(NEW);
 	const resource = createCardAnnotationsResource(
@@ -123,7 +123,7 @@ test("newer annotation cutoffs wait for an older read and coalesce their refresh
 });
 
 // eslint-disable-next-line max-statements -- Verify retained icons, shared failure and explicit recovery together.
-test("failed overlapping annotation demand retains icons and batch failure until retried", async () => {
+test("failed overlapping annotation demand retains icons and batch failure until retried #test-446", async () => {
 	const failed = Promise.withResolvers<CardAnnotations>();
 	let now = Date.parse(OLD);
 	let fail = false;
@@ -159,7 +159,7 @@ test("failed overlapping annotation demand retains icons and batch failure until
 });
 
 test.each(["cold", "icons", "empty"])(
-	"duplicate failed annotation demand publishes failure after %s state and recovers",
+	"duplicate failed annotation demand publishes failure after %s state and recovers #test-522",
 	// eslint-disable-next-line max-statements -- Verify shared rejection, retained data and retry through one read gate.
 	async (seed) => {
 		const rejected = Promise.withResolvers<CardAnnotations>();
@@ -210,7 +210,7 @@ test.each(["cold", "icons", "empty"])(
 );
 
 // eslint-disable-next-line max-statements -- A cached completion must not clear a newer refresh notice.
-test("cached annotation demand preserves a newer refresh notice", async () => {
+test("cached annotation demand preserves a newer refresh notice #test-369", async () => {
 	const delayed = Promise.withResolvers<CardAnnotations>();
 	let now = Date.parse(OLD);
 	const resource = createCardAnnotationsResource(
@@ -237,7 +237,7 @@ test("cached annotation demand preserves a newer refresh notice", async () => {
 	);
 });
 
-test("annotation demand caches absent IDs without dropping other cards", async () => {
+test("annotation demand caches absent IDs without dropping other cards #test-488", async () => {
 	const reads: string[][] = [];
 	const now = Date.parse(NEW);
 	const resource = createCardAnnotationsResource(
@@ -343,7 +343,7 @@ test("late icon metadata cannot replace a newer annotation or decorate a changed
 });
 
 // eslint-disable-next-line max-statements -- Keep the gated server/browser regression in one scenario.
-test("a delayed mixed batch preserves refreshed icons with equal completion times", async () => {
+test("a delayed mixed batch preserves refreshed icons with equal completion times #test-445", async () => {
 	const { beads, scope, merge, task, assigned, context, data, now, warm, entered, release } = race;
 	const resource = createCardAnnotationsResource((path) => {
 		if (path === "old") {
@@ -461,7 +461,7 @@ test.each([
 	{ size: ANNOTATION_BATCH + SMALL_FAMILY, refresh: false },
 	{ size: ANNOTATION_BATCH + SMALL_FAMILY, refresh: true },
 ])(
-	"annotation state stays visible for family %j",
+	"annotation state stays visible for family %j #test-509",
 	// eslint-disable-next-line max-statements -- Verify a failed family batch and retained icons together.
 	async ({ size, refresh }) => {
 		const nodes = Array.from({ length: size }, (_value, index) => node(String(index)));

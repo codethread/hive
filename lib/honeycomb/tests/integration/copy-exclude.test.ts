@@ -59,7 +59,7 @@ async function initTrackedDescendant() {
 	return { worktreePath };
 }
 
-test("tracked descendants under directory destinations block with unsafe JSON", async () => {
+test("tracked descendants under directory destinations block with unsafe JSON #test-170", async () => {
 	const { worktreePath } = await initTrackedDescendant();
 
 	const result = await dispatch("copy", ["--cwd", worktreePath, "--json"], deps);
@@ -87,7 +87,7 @@ async function initTrackedAncestor() {
 	return { root };
 }
 
-test("tracked destination ancestors block with unsafe JSON", async () => {
+test("tracked destination ancestors block with unsafe JSON #test-169", async () => {
 	const { root } = await initTrackedAncestor();
 
 	const result = await dispatch(
@@ -128,7 +128,7 @@ async function initTrackedDirectory() {
 	return { root, worktreePath };
 }
 
-test("untracked file inside tracked directory destination is allowed", async () => {
+test("untracked file inside tracked directory destination is allowed #test-168", async () => {
 	const { root, worktreePath } = await initTrackedDirectory();
 
 	const result = await dispatch("copy", ["--cwd", worktreePath, "--json"], deps);
@@ -146,7 +146,7 @@ test("untracked file inside tracked directory destination is allowed", async () 
 	});
 });
 
-test("deduplicates exclude paths across entries and multi-target destinations", async () => {
+test("deduplicates exclude paths across entries and multi-target destinations #test-172", async () => {
 	const { root } = await initRepoWithOrigin(tmp);
 	await writeFile(join(root, ".env"), "one\n");
 	writeConfig({
@@ -173,7 +173,7 @@ test.each([
 	{ config: 'copy = [{ from = ".env", to = "~/.env" }]', name: "home to" },
 	{ config: 'copy = [{ from = ".env", to = "~secret" }]', name: "leading home to" },
 	{ config: 'copy = [{ from = ".env", to = "../.env" }]', name: "escaping to" },
-])("invalid object config $name fails as config error", async ({ config }) => {
+])("invalid object config $name fails as config error #test-173", async ({ config }) => {
 	const { root } = await initRepoWithOrigin(tmp);
 	writeConfig({ command: "echo ready", root, tmp });
 	await dispatch("add", ["--cwd", root, "--branch", "feature/invalid-object", "--json"], deps);
@@ -205,7 +205,7 @@ async function initSymlinkedExclude() {
 	return { excludePath, realExclude, root };
 }
 
-test("follows symlinked shared exclude path", async () => {
+test("follows symlinked shared exclude path #test-174", async () => {
 	const { root, realExclude, excludePath } = await initSymlinkedExclude();
 
 	await dispatch("copy", ["--cwd", `${root}__feature--symlink-exclude`], deps);
@@ -228,7 +228,7 @@ async function initExcludeFence() {
 
 test(
 	"exclude fence is idempotent, preserves unrelated lines, removes when copy is removed, and ignores " +
-		"copied files",
+		"copied files #test-171",
 	async () => {
 		const { root, excludePath, worktreePath } = await initExcludeFence();
 

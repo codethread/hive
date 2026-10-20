@@ -13,7 +13,7 @@ From the worktree root, run focused files while iterating, for example `bun test
 
 When the affected scope is a package, select its test script with Bun workspace filtering, for example `bun run --filter @hive/shared test`. Packages without a test script use focused files. Keep slow test selection scoped to the affected package.
 
-Run `bun run test:changed` at intervals, such as completing a subtask, to check affected tests and inspect timing warnings.
+Run `bun run test:changed` at intervals, such as completing a subtask, to check affected tests and enforce strict timing cutoffs.
 
 ## Writing tests
 
@@ -25,17 +25,16 @@ Run `bun run test:changed` at intervals, such as completing a subtask, to check 
 
 ## Timing
 
-Check runner-reported durations when adding or editing unit tests and aim for fast, focused tests. `SLOW` and `XSLOW` are advisory warnings and do not block progress or require user approval; unapproved `DANGER` timings and test timeouts require the remediation below.
+Check runner-reported durations when adding or editing unit tests and aim for fast, focused tests. All unapproved timing severities and test timeouts require the remediation below.
 
-Use the [timing report guide](../../../lib/tooling/README.md#test-timing-report-and-landing-gate) to interpret runner warnings and failures. If timing fails, use focused reruns or `--parallel=1` to diagnose resource contention or a slow individual test. Address slow tests through the refactoring process below.
-
-After diagnosis, verify the final candidate with the full completion check required by the [validation policy](../../../AGENTS.md#validation) at normal default parallelism.
+Use the [timing report guide](../../../lib/tooling/README.md#test-timing-report-and-landing-gate) for cutoff, full/contract buffer and allowance rules. If timing fails, use focused reruns or `--parallel=1` to diagnose resource contention or a slow individual test.
 
 ### Addressing slow tests
 
 1. Re-read this skill's writing and integration guidance. Ask: "What is the value of this test?" and "What isolated behaviour is under test here?"
 2. First reduce runtime by refactoring the test, its setup or the code's dependency seams while preserving meaningful coverage. Keep tests focused on coherent behaviours; do not split a slow test into artificial pieces merely to get each piece below the threshold.
 3. If tests still fail timeouts or timing thresholds after exhausting opportunities to refactor or improve them, delete those tests.
+4. Rerun `bun run test:changed` with strict cutoffs, then the full completion check required by the [validation policy](../../../AGENTS.md#validation), both at normal default parallelism.
 
 ## Integration testing
 

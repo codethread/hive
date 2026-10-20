@@ -19,7 +19,7 @@ import { writeFile } from "node:fs/promises";
 const tmp = useTmpHome("honeycomb-add-policy-test-");
 const { initRepoWithOrigin } = useOriginFixture();
 
-test("fresh_canonical preserves existing branch add behavior after policy fetch", async () => {
+test("fresh_canonical preserves existing branch add behavior after policy fetch #test-153", async () => {
 	const { root } = await initRepoWithOrigin(tmp.dir);
 	await run(["git", "-C", root, "branch", "feature/existing-fresh"]);
 	writeConfig({
@@ -43,7 +43,7 @@ test("fresh_canonical preserves existing branch add behavior after policy fetch"
 		worktree_path: `${root}__feature--existing-fresh`,
 	});
 });
-test("warns but succeeds when local branch has diverged from remote", async () => {
+test("warns but succeeds when local branch has diverged from remote #test-149", async () => {
 	const { root, remote } = await initRepoWithOrigin(tmp.dir);
 	await createRemoteBranch(remote, "feature/diverged");
 	await run(["git", "-C", root, "fetch", "origin"]);
@@ -65,7 +65,7 @@ test("warns but succeeds when local branch has diverged from remote", async () =
 	  ]
 	`);
 });
-test("defaults new branches to origin default branch instead of current HEAD", async () => {
+test("defaults new branches to origin default branch instead of current HEAD #test-155", async () => {
 	const { root } = await initRepoWithOrigin(tmp.dir);
 	writeConfig({ command: "echo ready", root, tmp: tmp.dir });
 	await run(["git", "-C", root, "checkout", "-b", "local/current"]);
@@ -84,25 +84,29 @@ test("defaults new branches to origin default branch instead of current HEAD", a
 	).exited;
 	expect(missing).not.toBe(EXIT_CODES.SUCCESS);
 });
-test("origin_default creates new branches from fetched origin default without mutating canonical root", async () => {
-	const { root, remote } = await initRepoWithOrigin(tmp.dir);
-	writeConfig({ command: "echo ready", root, tmp: tmp.dir });
-	await commitOnRemoteDefault({
-		content: "remote default\n",
-		message: "remote default update",
-		path: "remote-only.txt",
-		remote,
-	});
-	const originalHead = await gitOut(root, "rev-parse", "HEAD");
+test(
+	"origin_default creates new branches from fetched origin default without mutating " +
+		"canonical root #test-152",
+	async () => {
+		const { root, remote } = await initRepoWithOrigin(tmp.dir);
+		writeConfig({ command: "echo ready", root, tmp: tmp.dir });
+		await commitOnRemoteDefault({
+			content: "remote default\n",
+			message: "remote default update",
+			path: "remote-only.txt",
+			remote,
+		});
+		const originalHead = await gitOut(root, "rev-parse", "HEAD");
 
-	await dispatch("add", ["--cwd", root, "--branch", "feature/origin-default", "--json"], deps);
+		await dispatch("add", ["--cwd", root, "--branch", "feature/origin-default", "--json"], deps);
 
-	expect(await gitOut(root, "rev-parse", "HEAD")).toBe(originalHead);
-	expect(await gitText(`${root}__feature--origin-default`, "show", "HEAD:remote-only.txt")).toBe(
-		"remote default\n",
-	);
-});
-test("fresh_canonical fast-forwards clean canonical default before creating a branch", async () => {
+		expect(await gitOut(root, "rev-parse", "HEAD")).toBe(originalHead);
+		expect(await gitText(`${root}__feature--origin-default`, "show", "HEAD:remote-only.txt")).toBe(
+			"remote default\n",
+		);
+	},
+);
+test("fresh_canonical fast-forwards clean canonical default before creating a branch #test-150", async () => {
 	const { root, remote } = await initRepoWithOrigin(tmp.dir);
 	writeConfig({
 		command: "echo ready",
@@ -122,7 +126,7 @@ test("fresh_canonical fast-forwards clean canonical default before creating a br
 	expect(await gitText(root, "show", "HEAD:fresh.txt")).toBe("fresh\n");
 	expect(await gitText(`${root}__feature--fresh`, "show", "HEAD:fresh.txt")).toBe("fresh\n");
 });
-test("fresh_canonical blocks dirty canonical root with JSON reason", async () => {
+test("fresh_canonical blocks dirty canonical root with JSON reason #test-156", async () => {
 	const { root, remote } = await initRepoWithOrigin(tmp.dir);
 	writeConfig({
 		command: "echo ready",
@@ -151,7 +155,7 @@ test("fresh_canonical blocks dirty canonical root with JSON reason", async () =>
 	});
 	expect(await pathExists(`${root}__feature--dirty-block`)).toBe(false);
 });
-test("fresh_canonical blocks wrong canonical branch with JSON reason", async () => {
+test("fresh_canonical blocks wrong canonical branch with JSON reason #test-154", async () => {
 	const { root, remote } = await initRepoWithOrigin(tmp.dir);
 	writeConfig({
 		command: "echo ready",
@@ -180,7 +184,7 @@ test("fresh_canonical blocks wrong canonical branch with JSON reason", async () 
 	});
 	expect(await pathExists(`${root}__feature--wrong-branch`)).toBe(false);
 });
-test("fresh_canonical blocks non-fast-forward canonical update with JSON reason", async () => {
+test("fresh_canonical blocks non-fast-forward canonical update with JSON reason #test-151", async () => {
 	const { root, remote } = await initRepoWithOrigin(tmp.dir);
 	writeConfig({
 		command: "echo ready",
@@ -214,7 +218,7 @@ test("fresh_canonical blocks non-fast-forward canonical update with JSON reason"
 	});
 	expect(await pathExists(`${root}__feature--non-ff`)).toBe(false);
 });
-test("fresh_canonical explicit base bypasses canonical update requirement", async () => {
+test("fresh_canonical explicit base bypasses canonical update requirement #test-148", async () => {
 	const { root, remote } = await initRepoWithOrigin(tmp.dir);
 	await createRemoteBranch(remote, "base/stacked");
 	writeConfig({

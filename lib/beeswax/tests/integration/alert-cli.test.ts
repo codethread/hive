@@ -13,19 +13,22 @@ test.each([
 	{ command: ["alert", "status"] },
 	{ command: ["alert", "wait", "--timeout", "0"] },
 	{ command: ["recover"] },
-])("alert command %j returns one document without Git checkout discovery", async ({ command }) => {
-	const fx = fixture();
-	const alerts = alertFixture();
-	fx.deps.beads.alertStatus = async () => alerts.store.observe(database);
-	fx.deps.beads.alertWait = async () => alerts.store.observe(database);
-	expect(await runCli(["beads", ...command, "--beads-db", database, "--json"], fx.deps)).toBe(
-		SUCCESS,
-	);
-	expect(fx.commands).toEqual([]);
-	expect(fx.errors).toEqual([]);
-	expect(fx.output).toHaveLength(ONE);
-	expect(JSON.parse(fx.output.join(""))).toMatchObject({ ok: true, database, alert: null });
-});
+])(
+	"alert command %j returns one document without Git checkout discovery #test-354",
+	async ({ command }) => {
+		const fx = fixture();
+		const alerts = alertFixture();
+		fx.deps.beads.alertStatus = async () => alerts.store.observe(database);
+		fx.deps.beads.alertWait = async () => alerts.store.observe(database);
+		expect(await runCli(["beads", ...command, "--beads-db", database, "--json"], fx.deps)).toBe(
+			SUCCESS,
+		);
+		expect(fx.commands).toEqual([]);
+		expect(fx.errors).toEqual([]);
+		expect(fx.output).toHaveLength(ONE);
+		expect(JSON.parse(fx.output.join(""))).toMatchObject({ ok: true, database, alert: null });
+	},
+);
 
 test("unselected status reports selection absence rather than clearance", async () => {
 	const fx = fixture();
@@ -40,15 +43,18 @@ test.each([
 	{ flags: ["--recover", "incident"] },
 	{ flags: ["--writers-paused"] },
 	{ flags: ["--recover", "incident", "--writers-paused", "--evidence", "  "] },
-])("incomplete recovery confirmation is rejected before publication: %j", async ({ flags }) => {
-	const fx = fixture();
-	expect(await runCli(["beads", "sync", ...flags, "--json"], fx.deps)).not.toBe(SUCCESS);
-	expect(fx.commands).toEqual([]);
-	expect(fx.errors).toEqual([]);
-	expect(fx.output).toHaveLength(ONE);
-});
+])(
+	"incomplete recovery confirmation is rejected before publication: %j #test-385",
+	async ({ flags }) => {
+		const fx = fixture();
+		expect(await runCli(["beads", "sync", ...flags, "--json"], fx.deps)).not.toBe(SUCCESS);
+		expect(fx.commands).toEqual([]);
+		expect(fx.errors).toEqual([]);
+		expect(fx.output).toHaveLength(ONE);
+	},
+);
 
-test("explicit recovery reaches the publication seam with identity and evidence", async () => {
+test("explicit recovery reaches the publication seam with identity and evidence #test-491", async () => {
 	const fx = fixture();
 	const captured: unknown[] = [];
 	fx.deps.beads.sync = async (_repo, selected, options) => {

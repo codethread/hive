@@ -21,7 +21,7 @@ afterAll(async () => {
 	await rm(directory, { force: true, recursive: true });
 });
 
-test("live catalogue reads only direct TOML files and sorts IDs", async () => {
+test("live catalogue reads only direct TOML files and sorts IDs #test-366", async () => {
 	const deps = createLiveDependencies();
 	const classifiers = await deps.list(directory);
 	expect(classifiers.map(({ id }) => id)).toEqual(["alpha", "zebra"]);
@@ -30,7 +30,7 @@ test("live catalogue reads only direct TOML files and sorts IDs", async () => {
 	await expect(deps.load(directory, "missing")).rejects.toBeInstanceOf(Error);
 });
 
-test("shipped classifiers expose their own evidence and answer contracts", async () => {
+test("shipped classifiers expose their own evidence and answer contracts #test-425", async () => {
 	const catalogue = await createLiveDependencies().list(
 		resolve(import.meta.dir, "../../../..", "classifiers"),
 	);
@@ -69,7 +69,7 @@ test("missing credentials fail before an SDK request", async () => {
 	).rejects.toBeInstanceOf(Error);
 });
 
-test("SDK adapter sends state and questions once and preserves provider metadata", async () => {
+test("SDK adapter sends state and questions once and preserves provider metadata #test-379", async () => {
 	const calls: unknown[] = [];
 	const expected = {
 		answers: {},
@@ -97,7 +97,7 @@ test("SDK adapter sends state and questions once and preserves provider metadata
 });
 
 test.each([{ status: 401 }, { status: 429 }, { status: 500 }])(
-	"HTTP $status fails without retrying",
+	"HTTP $status fails without retrying #test-497",
 	async ({ status }) => {
 		const calls: string[] = [];
 		const result = classifyWithJev(request, "test-key", (url) => {

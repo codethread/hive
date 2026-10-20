@@ -26,7 +26,7 @@ test.each([
 	{ kind: "other", nativeCode: "IO_ERROR", alerts: 0, gitConflict: false },
 	{ kind: "merge error", nativeCode: "IO_ERROR", alerts: 0, gitConflict: false },
 ] as const)(
-	"publication stops and alerts only a verified conflict: $kind",
+	"publication stops and alerts only a verified conflict: $kind #test-494",
 	// Verify notification policy and tracker attribution across each typed sync failure.
 	// eslint-disable-next-line max-statements
 	async (fixture) => {
@@ -53,7 +53,7 @@ test.each([
 	},
 );
 
-test("failed notification does not mask publication failure", async () => {
+test("failed notification does not mask publication failure #test-495", async () => {
 	const { services, original } = publicationFixture({
 		kind: "native",
 		nativeCode: "SYNC_CONFLICT",

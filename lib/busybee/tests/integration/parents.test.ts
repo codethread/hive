@@ -139,7 +139,7 @@ const replacementDone = await navigate(
 );
 
 test.each(commands.flatMap((command) => ordinaryTypes.map((type) => ({ command, type }))))(
-	"$command creates exactly one native edge to ordinary $type work without claiming it",
+	"$command creates exactly one native edge to ordinary $type work without claiming it #test-343",
 	async ({ command, type }) => {
 		const { beads, parent, services } = await fixture({ type });
 		const result = await invoke(creationArgs(command, parent.id), services);
@@ -165,7 +165,7 @@ test.each(
 		})),
 	),
 )(
-	"$command rejects a $name parent before publishing any workflow effects",
+	"$command rejects a $name parent before publishing any workflow effects #test-536",
 	// eslint-disable-next-line max-statements -- Verify the rejection and unchanged tracker together.
 	async ({ command, name, reason, supplied, status, labels }) => {
 		const { beads, parent, services } = await fixture({ status, labels });
@@ -191,40 +191,45 @@ test.each(
 );
 
 // Inspect the complete native hierarchy and finish the nested actor through public navigation.
-// eslint-disable-next-line max-statements
-test("nested actors keep visits below the run, a related checkpoint and an unclosed ordinary parent", async () => {
-	const { beads, parent, services } = nested;
-	const io = { ...services, importModule: () => Promise.resolve(nestedDefinition) };
-	const root = await beads.show(scope, nestedRun.id);
-	const group = nestedRun.active.find((entry) => entry.title === "Group")!;
-	const worker = nestedRun.active.find((entry) => entry.title === "Work")!;
-	expect(worker.path).toEqual(["child"]);
-	const groupRecord = await beads.show(scope, group.bead);
-	expect(groupRecord.dependencies).toEqual([
-		expect.objectContaining({ id: nestedRun.id, dependency_type: "parent-child" }),
-	]);
-	const workerRecord = await beads.show(scope, worker.bead);
-	expect(workerRecord.dependencies).toEqual([
-		expect.objectContaining({ id: group.bead, dependency_type: "parent-child" }),
-	]);
-	const checkpoint = root.dependencies.find((edge) => edge.dependency_type === "related")!;
-	const checkpointRecord = await beads.show(scope, checkpoint.id);
-	expect(checkpointRecord.dependencies).toEqual([]);
-	const records = await beads.list(scope, { all: true, limit: FIRST });
-	expect(records.issues.map(({ id }) => id).toSorted()).toEqual(
-		[parent.id, nestedRun.id, checkpoint.id, group.bead, worker.bead].toSorted(),
-	);
-	await beads.close(scope, worker.bead);
-	const done = await navigate(
-		{ id: nestedRun.id, operation: "submit", bead: worker.bead, choice: "next", data: {} },
-		{},
-		io,
-	);
-	expect(done.status).toBe("done");
-	expect(await beads.show(scope, nestedRun.id)).toMatchObject({ status: "closed" });
-	expect(await beads.show(scope, group.bead)).toMatchObject({ status: "closed" });
-	expect(await beads.show(scope, parent.id)).toMatchObject(parent);
-});
+
+test(
+	"nested actors keep visits below the run, a related checkpoint and an unclosed " +
+		"ordinary parent #test-419",
+	// eslint-disable-next-line max-statements
+	async () => {
+		const { beads, parent, services } = nested;
+		const io = { ...services, importModule: () => Promise.resolve(nestedDefinition) };
+		const root = await beads.show(scope, nestedRun.id);
+		const group = nestedRun.active.find((entry) => entry.title === "Group")!;
+		const worker = nestedRun.active.find((entry) => entry.title === "Work")!;
+		expect(worker.path).toEqual(["child"]);
+		const groupRecord = await beads.show(scope, group.bead);
+		expect(groupRecord.dependencies).toEqual([
+			expect.objectContaining({ id: nestedRun.id, dependency_type: "parent-child" }),
+		]);
+		const workerRecord = await beads.show(scope, worker.bead);
+		expect(workerRecord.dependencies).toEqual([
+			expect.objectContaining({ id: group.bead, dependency_type: "parent-child" }),
+		]);
+		const checkpoint = root.dependencies.find((edge) => edge.dependency_type === "related")!;
+		const checkpointRecord = await beads.show(scope, checkpoint.id);
+		expect(checkpointRecord.dependencies).toEqual([]);
+		const records = await beads.list(scope, { all: true, limit: FIRST });
+		expect(records.issues.map(({ id }) => id).toSorted()).toEqual(
+			[parent.id, nestedRun.id, checkpoint.id, group.bead, worker.bead].toSorted(),
+		);
+		await beads.close(scope, worker.bead);
+		const done = await navigate(
+			{ id: nestedRun.id, operation: "submit", bead: worker.bead, choice: "next", data: {} },
+			{},
+			io,
+		);
+		expect(done.status).toBe("done");
+		expect(await beads.show(scope, nestedRun.id)).toMatchObject({ status: "closed" });
+		expect(await beads.show(scope, group.bead)).toMatchObject({ status: "closed" });
+		expect(await beads.show(scope, parent.id)).toMatchObject(parent);
+	},
+);
 
 test("completed incompatible replacement preserves the old sibling and cannot complete their parent", async () => {
 	const { beads, parent } = retainedSibling;

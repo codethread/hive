@@ -85,6 +85,6 @@ test.each([
 		"out-of-range confidence",
 		{ ...result, answers: { review: { ...result.answers.review, confidence: 2 } } },
 	],
-])("rejects provider result with %s", (_name, value) => {
+])("rejects provider result with %s #test-459", (_name, value) => {
 	expect(() => parseClassification(request, value)).toThrow(Error);
 });

@@ -52,7 +52,7 @@ const reviewActor = savedActor({
 	snapshot: { value: "review", status: "active" },
 });
 
-test("root instructions remain selectable without root transitions", () => {
+test("root instructions remain selectable without root transitions #test-510", () => {
 	const { graph, current } = workflowActorGraph({
 		...reviewActor,
 		instructions: {
@@ -137,7 +137,7 @@ test.each([
 	},
 );
 
-test("custom IDs, eventless parallel roots and history retain structural scope semantics", () => {
+test("custom IDs, eventless parallel roots and history retain structural scope semantics #test-532", () => {
 	const actor = savedActor({
 		id: "root",
 		path: [],

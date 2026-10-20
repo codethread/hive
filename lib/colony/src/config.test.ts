@@ -14,7 +14,7 @@ const INLINE =
 // Warm the schema at fixture setup, outside unit-test timing.
 await loadBeesConfig("/repo", fixture({ [CENTRAL]: POLICY }));
 
-test("folder names do not name kinds, and sibling prompts are captured verbatim", async () => {
+test("folder names do not name kinds, and sibling prompts are captured verbatim #test-413", async () => {
 	const { config, warnings } = await loadBeesConfig(
 		"/repo",
 		fixture({
@@ -86,7 +86,7 @@ test.each([
 	`${DEFINITION}prompt_file="other.md"`,
 	`${DEFINITION}unknown=true`,
 	"not valid TOML",
-])("invalid folder input fails even when centrally shadowed: %j", async (definition) => {
+])("invalid folder input fails even when centrally shadowed: %j #test-479", async (definition) => {
 	const contents: Record<string, string> = {
 		[CENTRAL]: POLICY + INLINE,
 		"/repo/.hive/bees/review/bee.toml": definition,
@@ -107,23 +107,26 @@ test.each([
 	{ prompt: "Run direction\n", system_prompt: undefined },
 	{ prompt: undefined, system_prompt: "Role protocol\n" },
 	{ prompt: "Run direction\n", system_prompt: "Role protocol\n" },
-])("kind prompt files are independently optional: %j", async ({ prompt, system_prompt }) => {
-	const contents: Record<string, string> = {
-		[CENTRAL]: POLICY,
-		"/repo/.hive/bees/review/bee.toml": DEFINITION,
-	};
-	if (prompt !== undefined) {
-		contents["/repo/.hive/bees/review/prompt.md"] = prompt;
-	}
-	if (system_prompt !== undefined) {
-		contents["/repo/.hive/bees/review/system_prompt.md"] = system_prompt;
-	}
-	const { config } = await loadBeesConfig("/repo", fixture(contents));
-	expect(config.kinds["reviewer"]).toMatchObject({
-		prompt: prompt ?? "",
-		system_prompt: system_prompt ?? "",
-	});
-});
+])(
+	"kind prompt files are independently optional: %j #test-480",
+	async ({ prompt, system_prompt }) => {
+		const contents: Record<string, string> = {
+			[CENTRAL]: POLICY,
+			"/repo/.hive/bees/review/bee.toml": DEFINITION,
+		};
+		if (prompt !== undefined) {
+			contents["/repo/.hive/bees/review/prompt.md"] = prompt;
+		}
+		if (system_prompt !== undefined) {
+			contents["/repo/.hive/bees/review/system_prompt.md"] = system_prompt;
+		}
+		const { config } = await loadBeesConfig("/repo", fixture(contents));
+		expect(config.kinds["reviewer"]).toMatchObject({
+			prompt: prompt ?? "",
+			system_prompt: system_prompt ?? "",
+		});
+	},
+);
 
 // --- Private functions ---
 function fixture(contents: Record<string, string>): ConfigFiles {

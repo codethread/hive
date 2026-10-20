@@ -21,7 +21,7 @@ async function prepareFinish(branch: string, policy = "") {
 	return { remote, root, worktreePath };
 }
 
-test("removes a non-pooled source worktree after finish when cleanup is enabled", async () => {
+test("removes a non-pooled source worktree after finish when cleanup is enabled #test-225", async () => {
 	const { root, worktreePath } = await prepareFinish(
 		"feature/remove-after-finish",
 		"[project.finish]\nremove_worktree = true\n",
@@ -45,7 +45,7 @@ test("removes a non-pooled source worktree after finish when cleanup is enabled"
 	).toBe(true);
 });
 
-test("deletes source branch after squash finish when configured", async () => {
+test("deletes source branch after squash finish when configured #test-226", async () => {
 	const { root, worktreePath } = await prepareFinish(
 		"feature/delete-after-squash",
 		'[project.finish]\nstrategy = "squash"\nremove_worktree = true\ndelete_branch = true\n',
@@ -71,7 +71,7 @@ test("deletes source branch after squash finish when configured", async () => {
 		await gitSucceeds(root, "show-ref", "--verify", "refs/heads/feature/delete-after-squash"),
 	).toBe(false);
 });
-test("configured finish cleanup enables push, removal, and branch deletion", async () => {
+test("configured finish cleanup enables push, removal, and branch deletion #test-224", async () => {
 	const { remote, root, worktreePath } = await prepareFinish(
 		"feature/policy-cleanup",
 		"[project.finish]\npush = true\nremove_worktree = true\ndelete_branch = true\n",
@@ -95,7 +95,7 @@ test("configured finish cleanup enables push, removal, and branch deletion", asy
 		false,
 	);
 });
-test("cleanup refusal returns structured payload without integration or force deletion", async () => {
+test("cleanup refusal returns structured payload without integration or force deletion #test-227", async () => {
 	const { root, worktreePath } = await prepareFinish(
 		"feature/delete-without-remove",
 		"[project.finish]\ndelete_branch = true\n",

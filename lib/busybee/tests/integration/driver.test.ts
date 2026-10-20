@@ -231,7 +231,7 @@ const doneRun = await fixture({
 describe("driver coordination", () => {
 	// Verify the whole handoff through its public CLI envelope and native reservations.
 	// eslint-disable-next-line max-statements
-	test("driver handoff opens only the run and preserves driver-handled stage reservation", async () => {
+	test("driver handoff opens only the run and preserves driver-handled stage reservation #test-392", async () => {
 		const { beads, checkpoint, io, run } = handoff;
 		await beads.update(scope, [run.active[FIRST]!.bead], { assignee: "caller" });
 		const result = await prepareDriver(run.id, {}, io);
@@ -253,7 +253,7 @@ describe("driver coordination", () => {
 	});
 
 	test.each(reservationCases)(
-		"handoff rejects human reservation on $target ($assignee, $labels)",
+		"handoff rejects human reservation on $target ($assignee, $labels) #test-358",
 		// Compare the reserved native root before and after the rejected handoff.
 		// eslint-disable-next-line max-statements
 		async ({ target, assignee, owner, labels }) => {
@@ -279,7 +279,7 @@ describe("driver coordination", () => {
 		},
 	);
 
-	test("initially completed run stays closed and requires no driver", async () => {
+	test("initially completed run stays closed and requires no driver #test-456", async () => {
 		const { beads, checkpoint, io, run } = doneRun;
 		const before = await beads.show(scope, run.id);
 		const result = await invoke(["system", "prepare-driver", run.id], io);
@@ -304,7 +304,7 @@ describe("driver coordination", () => {
 		expect(await beads.show(scope, checkpoint)).toMatchObject({ notes: "" });
 	});
 
-	test("handoff does not steal a retained checkpoint lock", async () => {
+	test("handoff does not steal a retained checkpoint lock #test-438", async () => {
 		const { beads, checkpoint, io, run } = lockedRun;
 		const notes = JSON.stringify({ owner: "other-operation", pid: 22 });
 		await beads.update(scope, [checkpoint], { notes });
@@ -356,7 +356,7 @@ describe("driver coordination", () => {
 		expect(notes).not.toBe("");
 	});
 
-	test("replacement driver collects a closed visit once alongside its independent run response", async () => {
+	test("replacement driver collects a closed visit once alongside its independent run response #test-391", async () => {
 		const { beads, checkpoint, io, run } = resumed;
 		await beads.update(scope, [run.active[FIRST]!.bead], {
 			notes: JSON.stringify({ choice: "selected", data: payload }),
@@ -383,7 +383,7 @@ describe("driver coordination", () => {
 	});
 
 	test.each(invalidNotes)(
-		"closed driver-handled result fails visibly with stage identity: %s",
+		"closed driver-handled result fails visibly with stage identity: %s #test-501",
 		async (notes) => {
 			const { beads, checkpoint, io, run } = invalidRuns.get(notes)!;
 			const { bead } = run.active[FIRST]!;
@@ -414,7 +414,7 @@ describe("driver coordination", () => {
 
 	// Verify raw persisted input and transformed continuation across native closure.
 	// eslint-disable-next-line max-statements
-	test("record-result saves original input before closure and consumes transforms once", async () => {
+	test("record-result saves original input before closure and consumes transforms once #test-357", async () => {
 		const { beads, checkpoint, io, run } = transformed;
 		const { bead } = run.active[FIRST]!;
 		const data = { choice: "payload-specific-choice", value: "13" };
@@ -439,7 +439,7 @@ describe("driver coordination", () => {
 		expect(next.active[FIRST]!.context["saved"]).toEqual({ choice: data.choice, value: 13 });
 	});
 
-	test("record-result preserves conflicting results and rejects writes after closure", async () => {
+	test("record-result preserves conflicting results and rejects writes after closure #test-428", async () => {
 		const { beads, io, run } = conflicting;
 		const { bead } = run.active[FIRST]!;
 		const request = { id: run.id, bead, choice: "selected", data: payload };
@@ -457,7 +457,7 @@ describe("driver coordination", () => {
 			reason: "task_closed",
 		});
 	});
-	test("record-result rejects invalid input before task closure or progression", async () => {
+	test("record-result rejects invalid input before task closure or progression #test-517", async () => {
 		const { beads, checkpoint, io, run } = invalidInput;
 		const { bead } = run.active[FIRST]!;
 		const result = await invoke(
@@ -469,7 +469,7 @@ describe("driver coordination", () => {
 		expect(readCheckpoint(await beads.show(scope, checkpoint)).history).toEqual([]);
 	});
 
-	test("record-result supports an array payload through driver collection", async () => {
+	test("record-result supports an array payload through driver collection #test-467", async () => {
 		const { beads, io, run } = arrayRun;
 		const { bead } = run.active[FIRST]!;
 		const data = ["standalone", "array"];
@@ -545,40 +545,44 @@ const retryWarmup = await replacementFixture();
 await navigate({ id: retryWarmup.run.id, operation: "collect" }, {}, retryWarmup.io);
 
 describe("Bee-dispatched stage coordination", () => {
-	test("Bee dispatch uses the stage seam and response target with the existing run and endpoint", async () => {
-		const { calls, run, stage } = dispatch;
-		expect(calls[FIRST]!.slice(FIRST, DISPATCH_PREFIX)).toEqual([
-			"bee",
-			"system",
-			"dispatch-stage",
-			"worker",
-			stage.bead,
-			"--run",
-			run.id,
-		]);
-		expect(calls[FIRST]).toEqual(
-			expect.arrayContaining([
-				"--repo",
-				repo,
-				"--beads-db",
-				db,
-				"--actor",
-				"caller",
-				"--cwd",
-				"--prompt",
-				"--json",
-			]),
-		);
-		const prompt = calls[FIRST]![calls[FIRST]!.indexOf("--prompt") + ONE]!;
-		expect(prompt).toContain(renderResponseInstructions({ taskId: stage.bead }));
-		expect(prompt).not.toContain(renderResponseInstructions({ taskId: run.id }));
-		const task = await dispatch.beads.show(scope, stage.bead);
-		expect(task.description).toContain(renderResponseInstructions({ taskId: "TASK_ID" }));
-		expect(task.description).not.toContain(renderResponseInstructions({ taskId: run.id }));
-	});
+	test(
+		"Bee dispatch uses the stage seam and response target with the existing run and " +
+			"endpoint #test-516",
+		async () => {
+			const { calls, run, stage } = dispatch;
+			expect(calls[FIRST]!.slice(FIRST, DISPATCH_PREFIX)).toEqual([
+				"bee",
+				"system",
+				"dispatch-stage",
+				"worker",
+				stage.bead,
+				"--run",
+				run.id,
+			]);
+			expect(calls[FIRST]).toEqual(
+				expect.arrayContaining([
+					"--repo",
+					repo,
+					"--beads-db",
+					db,
+					"--actor",
+					"caller",
+					"--cwd",
+					"--prompt",
+					"--json",
+				]),
+			);
+			const prompt = calls[FIRST]![calls[FIRST]!.indexOf("--prompt") + ONE]!;
+			expect(prompt).toContain(renderResponseInstructions({ taskId: stage.bead }));
+			expect(prompt).not.toContain(renderResponseInstructions({ taskId: run.id }));
+			const task = await dispatch.beads.show(scope, stage.bead);
+			expect(task.description).toContain(renderResponseInstructions({ taskId: "TASK_ID" }));
+			expect(task.description).not.toContain(renderResponseInstructions({ taskId: run.id }));
+		},
+	);
 
 	test.each(["blocked", "cancelled"])(
-		"Bee dispatch request ending %s without a closed stage fails visibly",
+		"Bee dispatch request ending %s without a closed stage fails visibly #test-455",
 		async (reason) => {
 			const { beads, io, run, stage } = ended.get(reason)!;
 			await beads.close(scope, stage.request!, { reason });
@@ -609,7 +613,7 @@ describe("Bee-dispatched stage coordination", () => {
 		});
 	});
 
-	test("collection follows a pending replacement and reports its terminal failure", async () => {
+	test("collection follows a pending replacement and reports its terminal failure #test-359", async () => {
 		const { beads, io, run, replacement } = replacementStage;
 		expect(await navigate({ id: run.id, operation: "collect" }, {}, io)).toEqual(run);
 		await beads.close(scope, replacement, { reason: "exhausted" });
@@ -621,40 +625,45 @@ describe("Bee-dispatched stage coordination", () => {
 	});
 
 	// Retain one complete cancellation-to-result contract through the runtime boundary.
-	// eslint-disable-next-line max-statements
-	test("cancelled stage replacement completes and collects its saved result on the original run", async () => {
-		const { beads, io, run, stage, replacement } = cancelledStage;
-		const original = await beads.show(scope, stage.request!);
-		expect(await navigate({ id: run.id, operation: "collect" }, {}, io)).toEqual(run);
-		const worker = await beads.show(scope, replacement);
-		await beads.update(scope, [stage.bead], { assignee: worker.assignee });
-		await filedResponse(cancelledStage, stage.bead, replacement);
-		await complete(
-			{ id: run.id, bead: stage.bead, choice: "selected", data: payload },
-			{ actor: worker.assignee! },
-			io,
-		);
-		await beads.close(scope, replacement, { reason: "completed" });
-		expect(await navigate({ id: run.id, operation: "collect" }, {}, io)).toMatchObject({
-			status: "done",
-			active: [],
-		});
-		const {
-			dependencies: _dependencies,
-			dependents: _dependents,
-			...retained
-		} = await beads.show(scope, stage.request!);
-		const {
-			dependencies: _originalDependencies,
-			dependents: _originalDependents,
-			...before
-		} = original;
-		expect(retained).toEqual(before);
-		expect(await beads.show(scope, stage.bead)).toMatchObject({
-			notes: JSON.stringify({ choice: "selected", data: payload }),
-			status: "closed",
-		});
-	});
+
+	test(
+		"cancelled stage replacement completes and collects its saved result on the " +
+			"original run #test-356",
+		// eslint-disable-next-line max-statements
+		async () => {
+			const { beads, io, run, stage, replacement } = cancelledStage;
+			const original = await beads.show(scope, stage.request!);
+			expect(await navigate({ id: run.id, operation: "collect" }, {}, io)).toEqual(run);
+			const worker = await beads.show(scope, replacement);
+			await beads.update(scope, [stage.bead], { assignee: worker.assignee });
+			await filedResponse(cancelledStage, stage.bead, replacement);
+			await complete(
+				{ id: run.id, bead: stage.bead, choice: "selected", data: payload },
+				{ actor: worker.assignee! },
+				io,
+			);
+			await beads.close(scope, replacement, { reason: "completed" });
+			expect(await navigate({ id: run.id, operation: "collect" }, {}, io)).toMatchObject({
+				status: "done",
+				active: [],
+			});
+			const {
+				dependencies: _dependencies,
+				dependents: _dependents,
+				...retained
+			} = await beads.show(scope, stage.request!);
+			const {
+				dependencies: _originalDependencies,
+				dependents: _originalDependents,
+				...before
+			} = original;
+			expect(retained).toEqual(before);
+			expect(await beads.show(scope, stage.bead)).toMatchObject({
+				notes: JSON.stringify({ choice: "selected", data: payload }),
+				status: "closed",
+			});
+		},
+	);
 });
 
 /** Generic filed artifact fixture; Busy Bee consumes machine outcomes, not response storage. */

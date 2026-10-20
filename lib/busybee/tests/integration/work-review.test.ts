@@ -39,22 +39,25 @@ const definitions = [
 ];
 const evidence = "SIMULATED chart proof; no examined task mutation or real retry.";
 
-test.each(definitions)("$branch reviews a stale candidate without entering recovery", (entry) => {
-	const machine: AnyStateMachine = entry.machine;
-	const input = entry.inputSchema.parse(reviewInput(entry.branch));
-	const [initial] = initialTransition(machine, input);
-	const data = entry.commandSchemas.reviewed.parse({
-		evidence,
-		decisions: [{ kind: "stale", taskId: "task", fingerprint: "frozen", evidence: [evidence] }],
-	});
-	entry.validateCommand({ context: initial.context }, "reviewed", data);
-	const [completed, effects] = transition(machine, initial, { type: "REVIEWED", data });
-	expect(completed.status).toBe("done");
-	expect(effects).toEqual([]);
-});
+test.each(definitions)(
+	"$branch reviews a stale candidate without entering recovery #test-408",
+	(entry) => {
+		const machine: AnyStateMachine = entry.machine;
+		const input = entry.inputSchema.parse(reviewInput(entry.branch));
+		const [initial] = initialTransition(machine, input);
+		const data = entry.commandSchemas.reviewed.parse({
+			evidence,
+			decisions: [{ kind: "stale", taskId: "task", fingerprint: "frozen", evidence: [evidence] }],
+		});
+		entry.validateCommand({ context: initial.context }, "reviewed", data);
+		const [completed, effects] = transition(machine, initial, { type: "REVIEWED", data });
+		expect(completed.status).toBe("done");
+		expect(effects).toEqual([]);
+	},
+);
 
 test.each(definitions)(
-	"$branch preserves exact recovery targets through its ordinary chart",
+	"$branch preserves exact recovery targets through its ordinary chart #test-447",
 	(entry) => {
 		const machine: AnyStateMachine = entry.machine;
 		const [initial] = initialTransition(

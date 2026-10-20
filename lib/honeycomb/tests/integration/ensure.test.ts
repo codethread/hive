@@ -63,7 +63,7 @@ function assertHookOrder(events: string[]) {
 	);
 }
 
-test("materialises slots sequentially and streams hook output", async () => {
+test("materialises slots sequentially and streams hook output #test-159", async () => {
 	const { root } = await initRepoWithOrigin(tmp);
 	writeConfig({ command: "echo hook-$WK_CREATED; touch sentinel", poolSize: TWO_SLOTS, root, tmp });
 	const events: string[] = [];
@@ -86,7 +86,7 @@ test("materialises slots sequentially and streams hook output", async () => {
 	expect(await pathExists(join(`${root}__feat2`, "sentinel"))).toBe(true);
 });
 
-test("copies files before pooled ensure hooks run", async () => {
+test("copies files before pooled ensure hooks run #test-161", async () => {
 	const { root } = await initRepoWithOrigin(tmp);
 	await writeFile(join(root, ".env"), "ensure-copy\n");
 	writeConfig({
@@ -105,7 +105,7 @@ test("copies files before pooled ensure hooks run", async () => {
 	expect(status.stdout).toBe("");
 });
 
-test("hook failure rolls back only in-flight slot and rerun recovers", async () => {
+test("hook failure rolls back only in-flight slot and rerun recovers #test-157", async () => {
 	const { root } = await initRepoWithOrigin(tmp);
 	writeConfig({
 		command:
@@ -133,7 +133,7 @@ async function initHalfSlot() {
 	return root;
 }
 
-test("half-init reruns hook and preserves existing slot on failure", async () => {
+test("half-init reruns hook and preserves existing slot on failure #test-158", async () => {
 	const root = await initHalfSlot();
 
 	await dispatch("ensure", ["--cwd", root], testDeps());
@@ -148,7 +148,7 @@ test("half-init reruns hook and preserves existing slot on failure", async () =>
 	expect(await pathExists(`${root}__feat2`)).toBe(true);
 });
 
-test("copy failure rolls back newly-created pooled slots", async () => {
+test("copy failure rolls back newly-created pooled slots #test-162", async () => {
 	const { root } = await initRepoWithOrigin(tmp);
 	writeConfig({
 		command: "touch should-not-run",
@@ -164,7 +164,7 @@ test("copy failure rolls back newly-created pooled slots", async () => {
 	expect(await pathExists(`${root}__feat1`)).toBe(false);
 });
 
-test("copy failure preserves existing half-initialized pooled slots", async () => {
+test("copy failure preserves existing half-initialized pooled slots #test-160", async () => {
 	const { root } = await initRepoWithOrigin(tmp);
 	writeConfig({
 		command: "touch should-not-run",
@@ -184,7 +184,7 @@ test("copy failure preserves existing half-initialized pooled slots", async () =
 	expect(await pathExists(await poolMarker(`${root}__feat2`))).toBe(false);
 });
 
-test("add initializes an absent pool and captures setup output in JSON", async () => {
+test("add initializes an absent pool and captures setup output in JSON #test-163", async () => {
 	const { root } = await initRepoWithOrigin(tmp);
 	writeConfig({ command: "echo setup-output", poolSize: SINGLE_SLOT, root, tmp });
 

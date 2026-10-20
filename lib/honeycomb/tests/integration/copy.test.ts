@@ -36,7 +36,7 @@ afterEach(async () => {
 	await rm(tmp, { force: true, recursive: true });
 });
 
-test("reports ready JSON for a non-canonical worktree with no copy config", async () => {
+test("reports ready JSON for a non-canonical worktree with no copy config #test-258", async () => {
 	const { root } = await initRepoWithOrigin(tmp);
 	writeConfig({ command: "echo ready", root, tmp });
 	await dispatch("add", ["--cwd", root, "--branch", "feature/copy", "--json"], deps);
@@ -60,7 +60,7 @@ test("reports ready JSON for a non-canonical worktree with no copy config", asyn
 	});
 });
 
-test("non-json copy prints a one-line summary to stderr", async () => {
+test("non-json copy prints a one-line summary to stderr #test-262", async () => {
 	const { root } = await initRepoWithOrigin(tmp);
 	writeConfig({ command: "echo ready", root, tmp });
 	await dispatch("add", ["--cwd", root, "--branch", "feature/human-copy", "--json"], deps);
@@ -73,7 +73,7 @@ test("non-json copy prints a one-line summary to stderr", async () => {
 	expect(result.stderr).toBe(`honeycomb: copied 0 items into ${worktreePath}\n`);
 });
 
-test("local-only copy skips failing pre_remote_check", async () => {
+test("local-only copy skips failing pre_remote_check #test-263", async () => {
 	const { root } = await initRepoWithOrigin(tmp);
 	await writeFile(join(root, ".env"), "SECRET=copy\n");
 	writeConfig({
@@ -92,7 +92,7 @@ test("local-only copy skips failing pre_remote_check", async () => {
 	expect(await readFile(join(worktreePath, ".env"), "utf8")).toBe("SECRET=copy\n");
 });
 
-test("refuses canonical root with JSON blocked payload", async () => {
+test("refuses canonical root with JSON blocked payload #test-264", async () => {
 	const { root } = await initRepoWithOrigin(tmp);
 	writeConfig({ command: "echo ready", root, tmp });
 
@@ -105,7 +105,7 @@ test("refuses canonical root with JSON blocked payload", async () => {
 	});
 });
 
-test("copies a root-relative file and reports copied JSON", async () => {
+test("copies a root-relative file and reports copied JSON #test-260", async () => {
 	const { root } = await initRepoWithOrigin(tmp);
 	await writeFile(join(root, ".env"), "SECRET=one\n");
 	writeConfig({ command: "echo ready", copyToml: 'copy = [".env"]\n', root, tmp });
@@ -128,7 +128,7 @@ test("copies a root-relative file and reports copied JSON", async () => {
 	});
 });
 
-test("rerunning copy replaces an untracked destination with current source", async () => {
+test("rerunning copy replaces an untracked destination with current source #test-259", async () => {
 	const { root } = await initRepoWithOrigin(tmp);
 	await writeFile(join(root, ".env"), "first\n");
 	writeConfig({ command: "echo ready", copyToml: 'copy = [".env"]\n', root, tmp });
@@ -160,7 +160,7 @@ async function initTrackedDestination() {
 	return { worktreePath };
 }
 
-test("tracked destination blocks with unsafe JSON and leaves file intact", async () => {
+test("tracked destination blocks with unsafe JSON and leaves file intact #test-257", async () => {
 	const { worktreePath } = await initTrackedDestination();
 
 	const result = await dispatch("copy", ["--cwd", worktreePath, "--json"], deps);
@@ -171,7 +171,7 @@ test("tracked destination blocks with unsafe JSON and leaves file intact", async
 });
 
 test.each(["", "/tmp/abs", "~/secret", "../escape"])(
-	"invalid copy string %p fails as a config error",
+	"invalid copy string %p fails as a config error #test-261",
 	async (path) => {
 		const { root } = await initRepoWithOrigin(tmp);
 		writeConfig({ command: "echo ready", root, tmp });

@@ -13,7 +13,7 @@ const live = new URL("../../src/live.ts", import.meta.url).pathname;
 const native = new URL("../../src/beads/alerts-native.ts", import.meta.url).pathname;
 
 test(
-	"durable receipts and CLI observations do not require native database, Git or br",
+	"durable receipts and CLI observations do not require native database, Git or br #test-282",
 	// eslint-disable-next-line max-statements -- One disposable store checks serialization and native CLI observation.
 	async () => {
 		const root = await mkdtemp(join(tmpdir(), "beeswax-alert-"));

@@ -61,7 +61,7 @@ const stage = await publishResponse(context, {
 await lineage.tracker.beads.close(context.scope, lineage.requestId, { reason: "blocked" });
 await lineage.tracker.beads.dep.add(context.scope, stageId, lineage.requestId, "supersedes");
 
-test("managed publication preserves the complete body and returns only its confirmed identity", async () => {
+test("managed publication preserves the complete body and returns only its confirmed identity #test-324", async () => {
 	const result = await delivery.invoke([
 		"response",
 		"publish",
@@ -105,54 +105,58 @@ test("managed publication preserves the complete body and returns only its confi
 	expect(human.stderr).toBe("");
 });
 
-test("result keeps exact driver/stage identity after supersession without task hydration or readiness", async () => {
-	const beads: BeadsService = {
-		...lineage.tracker.beads,
-		show: unused,
-		showMany: unused,
-		ready: unused,
-		comments: { ...lineage.tracker.beads.comments, list: unused },
-	};
-	const original = await lineage.invoke(["result", lineage.requestId, "--json"], beads);
-	expect(original.code).toBe(ZERO);
-	expect(JSON.parse(original.stdout)).toMatchObject({
-		request: {
-			id: lineage.requestId,
-			taskId: lineage.taskId,
-			role: "driver",
-			outcome: "failed",
-			closeReason: "blocked",
-		},
-		response: { id: old.responseId, body: "Old driver result" },
-	});
-	const worker = await lineage.invoke(["result", stageId, "--json"], beads);
-	expect(JSON.parse(worker.stdout)).toMatchObject({
-		request: { id: stageId, role: "stage", outcome: "pending" },
-		response: { id: stage.responseId, body: "Stage result" },
-	});
-	expect(worker.stdout).not.toContain(BODY);
-	expect(worker.stdout).not.toContain("recipe");
-	expect(worker.stdout).not.toContain("comments");
-	const ambiguous = await lineage.invoke(["response", "get", "--task", lineage.taskId, "--json"]);
-	expect(ambiguous.code).toBe(ONE);
-	expect(JSON.parse(ambiguous.stdout)).toMatchObject({
-		ok: false,
-		reason: "response_ambiguous",
-		responseIds: [old.responseId, stage.responseId].toSorted(),
-	});
-	const selected = await lineage.invoke([
-		"response",
-		"get",
-		"--task",
-		lineage.taskId,
-		"--request",
-		stageId,
-		"--json",
-	]);
-	expect(JSON.parse(selected.stdout).response.id).toBe(stage.responseId);
-});
+test(
+	"result keeps exact driver/stage identity after supersession without task " +
+		"hydration or readiness #test-329",
+	async () => {
+		const beads: BeadsService = {
+			...lineage.tracker.beads,
+			show: unused,
+			showMany: unused,
+			ready: unused,
+			comments: { ...lineage.tracker.beads.comments, list: unused },
+		};
+		const original = await lineage.invoke(["result", lineage.requestId, "--json"], beads);
+		expect(original.code).toBe(ZERO);
+		expect(JSON.parse(original.stdout)).toMatchObject({
+			request: {
+				id: lineage.requestId,
+				taskId: lineage.taskId,
+				role: "driver",
+				outcome: "failed",
+				closeReason: "blocked",
+			},
+			response: { id: old.responseId, body: "Old driver result" },
+		});
+		const worker = await lineage.invoke(["result", stageId, "--json"], beads);
+		expect(JSON.parse(worker.stdout)).toMatchObject({
+			request: { id: stageId, role: "stage", outcome: "pending" },
+			response: { id: stage.responseId, body: "Stage result" },
+		});
+		expect(worker.stdout).not.toContain(BODY);
+		expect(worker.stdout).not.toContain("recipe");
+		expect(worker.stdout).not.toContain("comments");
+		const ambiguous = await lineage.invoke(["response", "get", "--task", lineage.taskId, "--json"]);
+		expect(ambiguous.code).toBe(ONE);
+		expect(JSON.parse(ambiguous.stdout)).toMatchObject({
+			ok: false,
+			reason: "response_ambiguous",
+			responseIds: [old.responseId, stage.responseId].toSorted(),
+		});
+		const selected = await lineage.invoke([
+			"response",
+			"get",
+			"--task",
+			lineage.taskId,
+			"--request",
+			stageId,
+			"--json",
+		]);
+		expect(JSON.parse(selected.stdout).response.id).toBe(stage.responseId);
+	},
+);
 
-test("missing response fails in JSON and human modes without interpreting legacy notes", async () => {
+test("missing response fails in JSON and human modes without interpreting legacy notes #test-327", async () => {
 	await missing.tracker.beads.update(
 		trackerScope(missing.tracker.repository, "worker"),
 		[missing.taskId],
@@ -176,28 +180,31 @@ test("missing response fails in JSON and human modes without interpreting legacy
 test.each([
 	{ args: ["--standalone", "--request", "request"] },
 	{ args: ["--request", "foreign-request"] },
-])("publication rejects incompatible request context $args without mutation", async ({ args }) => {
-	const result = await missing.invoke([
-		"response",
-		"publish",
-		missing.taskId,
-		"--body-file",
-		"answer.md",
-		"--actor",
-		"worker",
-		...args,
-		"--json",
-	]);
-	expect(result.code).toBe(ONE);
-	expect(JSON.parse(result.stdout).ok).toBe(false);
-	const records = await missing.tracker.beads.list(
-		trackerScope(missing.tracker.repository, "worker"),
-		{ all: true, labels: ["response"] },
-	);
-	expect(records.issues).toEqual([]);
-});
+])(
+	"publication rejects incompatible request context $args without mutation #test-461",
+	async ({ args }) => {
+		const result = await missing.invoke([
+			"response",
+			"publish",
+			missing.taskId,
+			"--body-file",
+			"answer.md",
+			"--actor",
+			"worker",
+			...args,
+			"--json",
+		]);
+		expect(result.code).toBe(ONE);
+		expect(JSON.parse(result.stdout).ok).toBe(false);
+		const records = await missing.tracker.beads.list(
+			trackerScope(missing.tracker.repository, "worker"),
+			{ all: true, labels: ["response"] },
+		);
+		expect(records.issues).toEqual([]);
+	},
+);
 
-test("standalone publication opts out of managed context and preserves human reservations", async () => {
+test("standalone publication opts out of managed context and preserves human reservations #test-427", async () => {
 	const reserved = await createTask(missing.tracker, { assignee: "ct" });
 	const result = await missing.invoke([
 		"response",
@@ -238,7 +245,7 @@ test("standalone publication opts out of managed context and preserves human res
 });
 
 test.each([{ mode: "json" }, { mode: "human" }])(
-	"uncertain publication in $mode exposes the committed artifact and retry recovers its identity",
+	"uncertain publication in $mode exposes the committed artifact and retry recovers its identity #test-426",
 	async ({ mode }) => {
 		let producer = interrupted;
 		if (mode === "human") {
@@ -287,7 +294,7 @@ test.each([{ mode: "json" }, { mode: "human" }])(
 	},
 );
 
-test("source-specific discovery remains bounded and history preserves original provenance", async () => {
+test("source-specific discovery remains bounded and history preserves original provenance #test-326", async () => {
 	const scope = trackerScope(history.tracker.repository, "author-one");
 	await history.tracker.beads.comments.add(scope, history.taskId, "needle original commentary");
 	await history.tracker.beads.comments.add(scope, history.taskId, "needle original commentary");
@@ -391,7 +398,7 @@ test("source-specific discovery remains bounded and history preserves original p
 	expect(JSON.parse(invalid.stdout)).toMatchObject({ ok: false, reason: "invalid_response_input" });
 });
 
-test("filed search excludes bodies while exact corrections and status preserve identity", async () => {
+test("filed search excludes bodies while exact corrections and status preserve identity #test-328", async () => {
 	const producer = await createTask(history.tracker);
 	const scope = trackerScope(history.tracker.repository, "worker");
 	const first = await publishResponse(
@@ -433,23 +440,30 @@ test("filed search excludes bodies while exact corrections and status preserve i
 	expect(status.stdout).not.toContain("Old driver result");
 });
 
-test("schema discovery requires no tracker and public argument errors use one silent-stderr document", async () => {
-	const schema = await missing.invoke(["response", "--schema"], {
-		...missing.tracker.beads,
-		list: unused,
-	});
-	expect(schema.code).toBe(ZERO);
-	expect(JSON.parse(schema.stdout)).toMatchObject({
-		ok: true,
-		kind: "response_schema",
-		schema: { anyOf: expect.any(Array) },
-	});
-	const invalid = await missing.invoke(["response", "get", "record", "--task", "task", "--json"]);
-	expect(JSON.parse(invalid.stdout)).toMatchObject({ ok: false, reason: "invalid_response_input" });
-	const missingOption = await missing.invoke(["response", "publish", missing.taskId, "--json"]);
-	expect(missingOption.code).toBe(TWO);
-	expect(missingOption.stderr).toBe("");
-});
+test(
+	"schema discovery requires no tracker and public argument errors use one " +
+		"silent-stderr document #test-325",
+	async () => {
+		const schema = await missing.invoke(["response", "--schema"], {
+			...missing.tracker.beads,
+			list: unused,
+		});
+		expect(schema.code).toBe(ZERO);
+		expect(JSON.parse(schema.stdout)).toMatchObject({
+			ok: true,
+			kind: "response_schema",
+			schema: { anyOf: expect.any(Array) },
+		});
+		const invalid = await missing.invoke(["response", "get", "record", "--task", "task", "--json"]);
+		expect(JSON.parse(invalid.stdout)).toMatchObject({
+			ok: false,
+			reason: "invalid_response_input",
+		});
+		const missingOption = await missing.invoke(["response", "publish", missing.taskId, "--json"]);
+		expect(missingOption.code).toBe(TWO);
+		expect(missingOption.stderr).toBe("");
+	},
+);
 
 // --- Private functions ---
 async function fixture() {

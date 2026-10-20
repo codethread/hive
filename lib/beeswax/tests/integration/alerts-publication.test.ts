@@ -11,7 +11,7 @@ const live = new URL("../../src/live.ts", import.meta.url).pathname;
 const native = new URL("../../src/beads/alerts-native.ts", import.meta.url).pathname;
 
 test(
-	"live recovery clears only after native and Git publication",
+	"live recovery clears only after native and Git publication #test-73",
 	// eslint-disable-next-line max-statements -- One disposable endpoint covers publication and recovery.
 	async () => {
 		const root = await mkdtemp(join(tmpdir(), "beeswax-recover-"));

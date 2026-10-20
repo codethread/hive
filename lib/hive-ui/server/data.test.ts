@@ -73,43 +73,51 @@ async function mergeFixture() {
 	return { beads, task, merged, invalid };
 }
 
-// eslint-disable-next-line max-statements -- One request fixture verifies both public projections.
-test("board and inventory project cross-host attribution without requiring execution assignment", async () => {
-	const beads = createMemoryBeads();
-	const task = await beads.create(scope, {
-		title: "Work",
-		status: "in_progress",
-		assignee: "friendly-bee",
-		owner: "ct",
-	});
-	const request = await beads.create(scope, {
-		title: "Request",
-		status: "open",
-		assignee: "friendly-bee",
-		labels: ["system", "bee", "agent:worker"],
-		description: JSON.stringify({
-			harness: "codex",
-			kind: "worker",
-			model: "gpt-6-astra",
-			host: "another-host",
-		}),
-	});
-	await beads.dep.add(scope, request.id, task.id, "related");
-	const context = { beads, colony, requestId: "test", log: async () => {} };
-	const data = createBoardData(unrequestedTopology);
-	const board = await data.board(context, filter, 0);
-	expect(board.cards.find((card) => card.id === task.id)?.beeAssignments).toEqual([]);
-	expect(board.cards.find((card) => card.id === task.id)?.owner).toBe("ct");
-	const annotations = await data.annotations(context, [task.id], 0);
-	expect(
-		annotations.cards.find((card) => card.id === task.id)?.beeAssignments.map((bee) => bee.id),
-	).toEqual([request.id]);
-	const inventory = await data.inventory(context, inventoryFilterSchema.parse({ view: "open" }), 0);
-	expect(inventory.kind).toBe("loaded");
-	if (inventory.kind === "loaded") {
-		expect(inventory.bees.map((bee) => bee.id)).toEqual([request.id]);
-	}
-});
+test(
+	"board and inventory project cross-host attribution without requiring execution " +
+		"assignment #test-371",
+	// eslint-disable-next-line max-statements -- One request fixture verifies both public projections.
+	async () => {
+		const beads = createMemoryBeads();
+		const task = await beads.create(scope, {
+			title: "Work",
+			status: "in_progress",
+			assignee: "friendly-bee",
+			owner: "ct",
+		});
+		const request = await beads.create(scope, {
+			title: "Request",
+			status: "open",
+			assignee: "friendly-bee",
+			labels: ["system", "bee", "agent:worker"],
+			description: JSON.stringify({
+				harness: "codex",
+				kind: "worker",
+				model: "gpt-6-astra",
+				host: "another-host",
+			}),
+		});
+		await beads.dep.add(scope, request.id, task.id, "related");
+		const context = { beads, colony, requestId: "test", log: async () => {} };
+		const data = createBoardData(unrequestedTopology);
+		const board = await data.board(context, filter, 0);
+		expect(board.cards.find((card) => card.id === task.id)?.beeAssignments).toEqual([]);
+		expect(board.cards.find((card) => card.id === task.id)?.owner).toBe("ct");
+		const annotations = await data.annotations(context, [task.id], 0);
+		expect(
+			annotations.cards.find((card) => card.id === task.id)?.beeAssignments.map((bee) => bee.id),
+		).toEqual([request.id]);
+		const inventory = await data.inventory(
+			context,
+			inventoryFilterSchema.parse({ view: "open" }),
+			0,
+		);
+		expect(inventory.kind).toBe("loaded");
+		if (inventory.kind === "loaded") {
+			expect(inventory.bees.map((bee) => bee.id)).toEqual([request.id]);
+		}
+	},
+);
 
 test("ordinary children cannot open an ancestor workflow", async () => {
 	let calls = 0;
@@ -242,7 +250,7 @@ test("workflow identity snapshots are isolated by selected endpoint", async () =
 	expect(descriptions).toBe(1);
 });
 
-test("primary cards and families never hydrate tasks or wait for merge and assignment icons", async () => {
+test("primary cards and families never hydrate tasks or wait for merge and assignment icons #test-484", async () => {
 	const data = createBoardData(async (_colony, consume) => ({
 		stale: false,
 		value: await consume({
@@ -343,7 +351,7 @@ function unrequestedTopology(): Promise<never> {
 }
 
 // eslint-disable-next-line max-statements -- Check a failed observation, recovery and subsequent cache hit together.
-test("failed graph validation never seeds the complete-family cache", async () => {
+test("failed graph validation never seeds the complete-family cache #test-506", async () => {
 	let fail = true;
 	let reads = 0;
 	const fetchedAt = "2026-10-15T00:00:00Z";

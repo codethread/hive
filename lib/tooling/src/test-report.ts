@@ -6,6 +6,10 @@ const durationPrecision = 3;
 const minimumTextLength = 1;
 const successExitCode = 0;
 const failureExitCode = 1;
+const fullSuiteTimingMultiplier = 1.25;
+const exactTimingMultiplier = 1;
+const timingMultipliers = { all: fullSuiteTimingMultiplier, changed: exactTimingMultiplier };
+const emptyTimingReportLength = 0;
 const nonemptyText = z.string().trim().min(minimumTextLength);
 const milliseconds = z
 	.union([z.number(), nonemptyText])
@@ -35,7 +39,7 @@ const testAttributes = z.object({
 type Allowances = z.infer<typeof allowanceSchema>;
 
 interface TestRun {
-	/** Full-suite runs enforce the DANGER gate; changed tests report timings for iteration. */
+	/** Changed runs use exact cutoffs; full/contract runs apply a 25% buffer to every cutoff. */
 	mode: "all" | "changed";
 	/** Native Bun exit status, retained when tests fail. */
 	exitCode: number;
@@ -48,9 +52,9 @@ interface TestRun {
 interface TestRunFeedback {
 	/** Complete unsuppressed timing report, slowest first. */
 	lines: string[];
-	/** Native failure status or the full-suite timing gate status. */
+	/** Native failure status or failure for any unapproved timing severity. */
 	exitCode: number;
-	/** Remediation printed after every timing line. */
+	/** Remediation printed after the complete timing report. */
 	guidance: string | undefined;
 }
 
@@ -60,7 +64,7 @@ export function parseSlowTestAllowances(value: unknown): Allowances {
 
 /** Report passing tests above their allowed severity; failures stay in Bun's diagnostics. */
 export function reportSlowTests(xml: string, allowances: Allowances): string[] {
-	return collectSlowTests(xml, allowances).map(({ line }) => line);
+	return collectSlowTests(xml, allowances, exactTimingMultiplier).map(({ line }) => line);
 }
 
 export function reportTestRun(run: TestRun, allowances: Allowances): TestRunFeedback {
@@ -73,28 +77,27 @@ export function reportTestRun(run: TestRun, allowances: Allowances): TestRunFeed
 		}
 		return { lines: [], exitCode: run.exitCode, guidance: undefined };
 	}
-	const timings = collectSlowTests(run.xml, allowances);
-	const blocked = run.mode === "all" && timings.some(({ severity }) => severity === "DANGER");
+	const timings = collectSlowTests(run.xml, allowances, timingMultipliers[run.mode]);
 	const lines = timings.map(({ line }) => line);
-	if (!blocked) {
+	if (lines.length === emptyTimingReportLength) {
 		return { lines, exitCode: run.exitCode, guidance: undefined };
 	}
 	return {
 		lines,
 		exitCode: run.exitCode || failureExitCode,
 		guidance:
-			"ERROR test:all: unapproved DANGER timings block landing. Refactor " +
-			"meaningful tests, setup or dependency seams using relevant skills, " +
-			"preserving meaningful coverage where possible. If opportunities to " +
+			"ERROR test timing: unapproved SLOW, XSLOW or DANGER timings fail this run. Refactor " +
+			"meaningful tests, setup or dependency seams, " +
+			"preserving meaningful coverage. If opportunities to " +
 			"refactor or improve the failing tests are exhausted, delete those " +
-			"tests, then rerun bun run check. SLOW and XSLOW are advisory " +
-			"warnings and do not block landing.",
+			"tests. Rerun bun run test:changed with strict cutoffs, then bun run check, " +
+			"both at normal default parallelism.",
 	};
 }
 
 // --- Private functions ---
 
-function collectSlowTests(xml: string, allowances: Allowances) {
+function collectSlowTests(xml: string, allowances: Allowances, multiplier: number) {
 	const root = Bun.XML.parse(xml, { compact: false });
 	if (root.name !== "testsuites") {
 		throw new Error("Expected Bun JUnit testsuites report");
@@ -108,7 +111,9 @@ function collectSlowTests(xml: string, allowances: Allowances) {
 		.toSorted((left, right) => right.time - left.time)
 		.flatMap((testCase) => {
 			const durationMs = testCase.time * millisecondsPerSecond;
-			const severity = severities.findLast((level) => durationMs > allowances.thresholdMs[level]);
+			const severity = severities.findLast(
+				(level) => durationMs > allowances.thresholdMs[level] * multiplier,
+			);
 			if (!severity) {
 				return [];
 			}

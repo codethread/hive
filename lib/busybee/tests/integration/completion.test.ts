@@ -90,48 +90,52 @@ await invoke(
 await navigate({ id: warmup.run.id, operation: "collect" }, {}, warmup.io);
 
 // Promise barriers cover every awaited publication boundary without clock races.
-// eslint-disable-next-line max-statements
-test.each(barriers)("complete cannot close while %s persistence is pending", async (point) => {
-	const { beads, checkpoint, io, request } = pending.get(point)!;
-	const reached = Promise.withResolvers<void>();
-	const release = Promise.withResolvers<void>();
-	let closes = FIRST;
-	const completing = complete(
-		request,
-		{},
-		{
-			...io,
-			beads: {
-				...beads,
-				update: async (selected, ids, input) => {
-					const selectedPoint = writePoint(ids, input, request.bead);
-					if (point === selectedPoint) {
-						reached.resolve();
-						await release.promise;
-					}
-					return beads.update(selected, ids, input);
-				},
-				close: async (selected, id, input) => {
-					closes += ONE;
-					expect(await beads.show(scope, checkpoint)).toMatchObject({ notes: "" });
-					return beads.close(selected, id, input);
+
+test.each(barriers)(
+	"complete cannot close while %s persistence is pending #test-450",
+	// eslint-disable-next-line max-statements
+	async (point) => {
+		const { beads, checkpoint, io, request } = pending.get(point)!;
+		const reached = Promise.withResolvers<void>();
+		const release = Promise.withResolvers<void>();
+		let closes = FIRST;
+		const completing = complete(
+			request,
+			{},
+			{
+				...io,
+				beads: {
+					...beads,
+					update: async (selected, ids, input) => {
+						const selectedPoint = writePoint(ids, input, request.bead);
+						if (point === selectedPoint) {
+							reached.resolve();
+							await release.promise;
+						}
+						return beads.update(selected, ids, input);
+					},
+					close: async (selected, id, input) => {
+						closes += ONE;
+						expect(await beads.show(scope, checkpoint)).toMatchObject({ notes: "" });
+						return beads.close(selected, id, input);
+					},
 				},
 			},
-		},
-	);
-	await reached.promise;
-	expect(closes).toBe(FIRST);
-	expect(await beads.show(scope, request.bead)).toMatchObject({ status: "in_progress" });
-	release.resolve();
-	await completing;
-	expect(closes).toBe(ONE);
-	expect(await beads.show(scope, request.bead)).toMatchObject({
-		status: "closed",
-		notes: JSON.stringify({ choice: "next", data }),
-	});
-});
+		);
+		await reached.promise;
+		expect(closes).toBe(FIRST);
+		expect(await beads.show(scope, request.bead)).toMatchObject({ status: "in_progress" });
+		release.resolve();
+		await completing;
+		expect(closes).toBe(ONE);
+		expect(await beads.show(scope, request.bead)).toMatchObject({
+			status: "closed",
+			notes: JSON.stringify({ choice: "next", data }),
+		});
+	},
+);
 
-test.each(barriers)("failed %s publication never attempts closure", async (point) => {
+test.each(barriers)("failed %s publication never attempts closure #test-526", async (point) => {
 	const { beads, checkpoint, io, request } = failed.get(point)!;
 	let closes = FIRST;
 	const result = await complete(
@@ -163,7 +167,7 @@ test.each(barriers)("failed %s publication never attempts closure", async (point
 
 // Native child gates remain the close adapter's responsibility after successful saving.
 // eslint-disable-next-line max-statements
-test("native closure refusal preserves exact result and releases checkpoint for retry", async () => {
+test("native closure refusal preserves exact result and releases checkpoint for retry #test-396", async () => {
 	const { beads, checkpoint, io, request } = refusal;
 	const child = await beads.create(scope, {
 		title: "Remaining child",
@@ -201,7 +205,7 @@ test("native closure refusal preserves exact result and releases checkpoint for 
 
 // A lost native close receipt is reconciled from saved original input and native closure.
 // eslint-disable-next-line max-statements
-test("identical retry after lost receipt and collection never recloses or rewrites the stage", async () => {
+test("identical retry after lost receipt and collection never recloses or rewrites the stage #test-370", async () => {
 	const { beads, checkpoint, io, request, run } = lostReceipt;
 	let closes = FIRST;
 	const lost: Services = {
@@ -241,7 +245,7 @@ test("identical retry after lost receipt and collection never recloses or rewrit
 	expect(await navigate({ id: run.id, operation: "collect" }, {}, io)).toEqual(next);
 });
 
-test("complete validates payload before saving or closing", async () => {
+test("complete validates payload before saving or closing #test-404", async () => {
 	const { beads, checkpoint, io, request } = invalid;
 	const result = await invoke(
 		["complete", request.id, request.bead, "next", "--data", '{"value":13}'],
@@ -270,7 +274,7 @@ test.each(invalidEvidence)(
 );
 
 test.each(invalidClosed)(
-	"closed active visit validates matching saved $reason evidence",
+	"closed active visit validates matching saved $reason evidence #test-433",
 	async ({ choice, payload, reason }) => {
 		const { beads, io, request } = invalidClosedRuns.get(reason)!;
 		await beads.update(scope, [request.bead], { notes: JSON.stringify({ choice, data: payload }) });
@@ -285,7 +289,7 @@ test.each(invalidClosed)(
 	},
 );
 
-test("matching open original payload accepts object key reordering without rewriting", async () => {
+test("matching open original payload accepts object key reordering without rewriting #test-397", async () => {
 	const { beads, io, request } = reordered;
 	await recordResult(request, {}, io);
 	const saved = await beads.show(scope, request.bead);

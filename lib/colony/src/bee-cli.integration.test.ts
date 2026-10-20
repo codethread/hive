@@ -63,14 +63,17 @@ const summary = { ...request, recipe: metadata };
 test.each([
 	{ args: ["system", "dispatch-stage", "worker", "task-1", "--run", "run-1"] },
 	{ args: ["retry", "request-0"] },
-])("$args returns the next-command identifiers without native metadata", async ({ args }) => {
-	const result = await invoke([...args, "--actor", "test", "--json"]);
-	expect(JSON.parse(result.stdout)).toEqual({
-		kind: "spawn_created",
-		ok: true,
-		request: { assignee: "worker", id: "request-1" },
-	});
-});
+])(
+	"$args returns the next-command identifiers without native metadata #test-352",
+	async ({ args }) => {
+		const result = await invoke([...args, "--actor", "test", "--json"]);
+		expect(JSON.parse(result.stdout)).toEqual({
+			kind: "spawn_created",
+			ok: true,
+			request: { assignee: "worker", id: "request-1" },
+		});
+	},
+);
 
 test("retry forwards explicit cancellation resumption independently of recipe overrides", async () => {
 	await invoke(
@@ -126,7 +129,7 @@ test.each([
 		creation: { parentId: "work-1" },
 	},
 	{ args: ["attach-workflow", "worker", "run-1"], creation: {} },
-])("$args returns the workflow and driver identities", async ({ args, creation }) => {
+])("$args returns the workflow and driver identities #test-470", async ({ args, creation }) => {
 	const result = await invoke([...args, "--actor", "test", "--json"]);
 	expect(JSON.parse(result.stdout)).toEqual({
 		kind: "workflow_spawn_created",
@@ -141,7 +144,7 @@ test.each([
 	{ selector: ["--workflow", "land"] },
 	{ selector: ["--source", "custom/workflow.ts"] },
 ])(
-	"spawn forwards required parent independently of workflow selector $selector",
+	"spawn forwards required parent independently of workflow selector $selector #test-514",
 	async ({ selector }) => {
 		const result = await invoke([
 			"spawn",
@@ -161,7 +164,7 @@ test.each([
 	},
 );
 
-test("spawn without a parent reports the required flag before submission", async () => {
+test("spawn without a parent reports the required flag before submission #test-384", async () => {
 	const result = await invoke(
 		["spawn", "worker", "--input-file", "work.json", "--actor", "test", "--json"],
 		USAGE_ERROR,
@@ -174,7 +177,7 @@ test("spawn without a parent reports the required flag before submission", async
 	expect(result.submissions).toEqual([]);
 });
 
-test("stop preserves closure and resolution facts without reporting process completion", async () => {
+test("stop preserves closure and resolution facts without reporting process completion #test-531", async () => {
 	const result = await invoke(["stop", request.id, "--actor", "test", "--json"]);
 	expect(JSON.parse(result.stdout)).toEqual({
 		kind: "request_stopped",
@@ -204,7 +207,7 @@ test("status omits captured prompts while preserving request decisions", async (
 	expect(request.recipe).toMatchObject({ prompt: PROMPT, system_prompt: ROLE });
 });
 
-test("explicit JSON status returns both full captured prompt fields", async () => {
+test("explicit JSON status returns both full captured prompt fields #test-454", async () => {
 	const result = await invoke(["status", request.id, "--include-prompt", "--json"]);
 	expect(JSON.parse(result.stdout)).toEqual({
 		kind: "request_status",
@@ -228,7 +231,7 @@ test.each([
 	},
 );
 
-test("setup forwards tracker selection and actor and returns a concise JSON receipt", async () => {
+test("setup forwards tracker selection and actor and returns a concise JSON receipt #test-453", async () => {
 	const calls: unknown[] = [];
 	const result = await invoke(
 		["setup", "--repo", "/checkout", "--beads-db", repository.beadsDb, "--actor", "test", "--json"],

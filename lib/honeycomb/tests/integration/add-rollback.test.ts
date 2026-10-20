@@ -27,7 +27,7 @@ function assertBlockedPrecheck(result: Awaited<ReturnType<typeof dispatch>>) {
 	});
 }
 
-test("setup failure rolls back the new worktree and branch", async () => {
+test("setup failure rolls back the new worktree and branch #test-238", async () => {
 	const { root } = await initRepoWithOrigin(tmp.dir);
 	writeConfig({ command: "echo failing >&2\nexit 7", root, tmp: tmp.dir });
 
@@ -52,7 +52,7 @@ test("setup failure rolls back the new worktree and branch", async () => {
 		false,
 	);
 });
-test("setup failure restores an existing branch tip", async () => {
+test("setup failure restores an existing branch tip #test-240", async () => {
 	const { root } = await initRepoWithOrigin(tmp.dir);
 	await run(["git", "-C", root, "branch", "feature/setup-restore"]);
 	const originalHead = await gitOut(root, "rev-parse", "refs/heads/feature/setup-restore");
@@ -68,7 +68,7 @@ test("setup failure restores an existing branch tip", async () => {
 	expect(await pathExists(`${root}__feature--setup-restore`)).toBe(false);
 	expect(await gitOut(root, "rev-parse", "refs/heads/feature/setup-restore")).toBe(originalHead);
 });
-test("copy setup failure during add rolls back the new worktree and branch", async () => {
+test("copy setup failure during add rolls back the new worktree and branch #test-239", async () => {
 	const { root } = await initRepoWithOrigin(tmp.dir);
 	writeConfig({
 		command: "echo should-not-run",
@@ -89,7 +89,7 @@ test("copy setup failure during add rolls back the new worktree and branch", asy
 		false,
 	);
 });
-test("copy setup failure during add restores an existing branch tip", async () => {
+test("copy setup failure during add restores an existing branch tip #test-237", async () => {
 	const { root, remote } = await initRepoWithOrigin(tmp.dir);
 	await createRemoteBranch(remote, "feature/restore-tip");
 	await run(["git", "-C", root, "fetch", "origin"]);
@@ -112,7 +112,7 @@ test("copy setup failure during add restores an existing branch tip", async () =
 	expect(await pathExists(`${root}__feature--restore-tip`)).toBe(false);
 	expect(await gitOut(root, "rev-parse", "refs/heads/feature/restore-tip")).toBe(originalHead);
 });
-test("pre_remote_check blocks add before fetch and reports its stderr", async () => {
+test("pre_remote_check blocks add before fetch and reports its stderr #test-241", async () => {
 	const { root, remote } = await initRepoWithOrigin(tmp.dir);
 	await commitOnRemoteDefault({
 		content: "remote\n",

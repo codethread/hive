@@ -18,7 +18,7 @@ import { writeFile } from "node:fs/promises";
 const tmp = useTmpHome("honeycomb-remove-squash-test-");
 const { initRepoWithOrigin } = useOriginFixture();
 
-test("removes a clean squash-integrated branch after fetching its claimed target", async () => {
+test("removes a clean squash-integrated branch after fetching its claimed target #test-164", async () => {
 	const { remote, root } = await initRepoWithOrigin(tmp.dir);
 	writeConfig({ command: "echo ready", root, tmp: tmp.dir });
 	await createWorktree({ branch: "feature/squash", path: `${root}__feature--squash`, root });
@@ -52,7 +52,7 @@ test("removes a clean squash-integrated branch after fetching its claimed target
 	expect(await gitSucceeds(root, "show-ref", "--verify", "refs/heads/feature/squash")).toBe(false);
 });
 
-test("refuses squash-aware removal when the target lacks source content", async () => {
+test("refuses squash-aware removal when the target lacks source content #test-166", async () => {
 	const { root } = await initRepoWithOrigin(tmp.dir);
 	writeConfig({ command: "echo ready", root, tmp: tmp.dir });
 	await createWorktree({
@@ -91,7 +91,7 @@ test("refuses squash-aware removal when the target lacks source content", async 
 	expect(await pathExists(`${root}__feature--not-integrated`)).toBe(true);
 });
 
-test("refuses squash-aware removal of a dirty worktree", async () => {
+test("refuses squash-aware removal of a dirty worktree #test-165", async () => {
 	const { remote, root } = await initRepoWithOrigin(tmp.dir);
 	writeConfig({ command: "echo ready", root, tmp: tmp.dir });
 	await createWorktree({
@@ -136,7 +136,7 @@ test("refuses squash-aware removal of a dirty worktree", async () => {
 	expect(await pathExists(join(`${root}__feature--dirty-squash`, "uncommitted.txt"))).toBe(true);
 });
 
-test("keep-branch removes a clean unmerged worktree and preserves its branch", async () => {
+test("keep-branch removes a clean unmerged worktree and preserves its branch #test-167", async () => {
 	const { root } = await initRepoWithOrigin(tmp.dir);
 	writeConfig({ command: "echo ready", root, tmp: tmp.dir });
 	await createWorktree({

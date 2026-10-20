@@ -59,7 +59,7 @@ interface PiContext {
 }
 type ContextHandler = (event: ContextInput, ctx: PiContext) => Promise<ContextInput>;
 
-test("selected repo-local hooks invoke the filtered primer and repeated setup is unchanged", async () => {
+test("selected repo-local hooks invoke the filtered primer and repeated setup is unchanged #test-367", async () => {
 	const fx = configured();
 	expect(JSON.parse(fx.files.get(codex) ?? "").hooks.SessionStart).toEqual([
 		{
@@ -83,7 +83,7 @@ test.each([
 	{ harness: "claude", path: `${root}/.claude/settings.json` },
 	{ harness: "codex", path: codex },
 ])(
-	"$harness identity callbacks are owned, stable and removed with harness deselection",
+	"$harness identity callbacks are owned, stable and removed with harness deselection #test-440",
 	// eslint-disable-next-line max-statements -- Verify one complete owned integration lifecycle.
 	async ({ harness, path }) => {
 		const fx = configured();
@@ -169,7 +169,7 @@ test("owned alert callbacks adopt the system command while preserving user hooks
 	expect(fx.files.get(codex)).toBe(current);
 });
 
-test("Pi section updates and removal preserve source outside the owned brackets", async () => {
+test("Pi section updates and removal preserve source outside the owned brackets #test-406", async () => {
 	const fx = configured();
 	const generated = fx.files.get(pi) ?? "";
 	fx.files.set(pi, `// before\n${generated.replace("onboarding v2", "onboarding v0")}// after\n`);
@@ -180,7 +180,7 @@ test("Pi section updates and removal preserve source outside the owned brackets"
 	expect(fx.files.get(codex)).not.toContain("Beeswax onboarding");
 });
 
-test("deselection removes an otherwise empty generated Pi file", async () => {
+test("deselection removes an otherwise empty generated Pi file #test-498", async () => {
 	const fx = configured();
 	await applyOnboarding(root, undefined, fx.deps);
 	expect(fx.files.has(pi)).toBe(false);
@@ -226,7 +226,7 @@ test.each([
 		}),
 	},
 ])(
-	"ambiguous $path supplies an agent handoff before any files change",
+	"ambiguous $path supplies an agent handoff before any files change #test-448",
 	async ({ path, content }) => {
 		const fx = configured();
 		fx.files.set(path, content);
@@ -270,7 +270,7 @@ test("a mismatched installed identity runtime refuses setup before adapter write
 	expect(fx.files.get(codex)).not.toContain("Beeswax identity");
 });
 
-test("Pi identity loader is owned and preserves surrounding source through refresh and removal", async () => {
+test("Pi identity loader is owned and preserves surrounding source through refresh and removal #test-458", async () => {
 	const fx = configured();
 	const path = `${root}/.pi/extensions/scent.js`;
 	const generated = fx.files.get(path) ?? "";
@@ -282,7 +282,7 @@ test("Pi identity loader is owned and preserves surrounding source through refre
 });
 
 // eslint-disable-next-line max-statements -- Check preservation and refusal before any writes.
-test("alert callback ownership preserves user groups and rejects edited execution options", async () => {
+test("alert callback ownership preserves user groups and rejects edited execution options #test-439", async () => {
 	const fx = configured();
 	const settings = JSON.parse(fx.files.get(codex) ?? "");
 	const unrelated = { matcher: "Bash", hooks: [{ type: "command", command: "echo user" }] };

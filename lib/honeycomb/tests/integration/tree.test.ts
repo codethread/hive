@@ -60,7 +60,7 @@ async function initOlderAndUnrelatedTree() {
 	return { mainHead, oldHead, root };
 }
 
-test("contained worktrees stay beneath the local default; unrelated history stays separate", async () => {
+test("contained worktrees stay beneath the local default; unrelated history stays separate #test-142", async () => {
 	const { mainHead, oldHead, root } = await initOlderAndUnrelatedTree();
 	const payload = await treeJson(root);
 	expect(payload.nodes).toContainEqual(
@@ -86,7 +86,7 @@ test("contained worktrees stay beneath the local default; unrelated history stay
 test.each([
 	{ args: ["init", "--bare"], kind: "bare" },
 	{ args: ["init", "-b", "main"], kind: "unborn" },
-])("$kind repositories have no comparable HEAD", async ({ args }) => {
+])("$kind repositories have no comparable HEAD #test-147", async ({ args }) => {
 	const root = join(home.dir, "empty");
 	await gitOut(home.dir, ...args, root);
 	const payload = await treeJson(root);
@@ -97,7 +97,7 @@ test.each([
 	expect(text.stdout).toContain("[? no HEAD]");
 });
 
-test("detached worktrees are labelled by path and group with matching branch HEADs", async () => {
+test("detached worktrees are labelled by path and group with matching branch HEADs #test-144", async () => {
 	const root = await initTreeRepo();
 	const detached = join(home.dir, "detached");
 	await gitOut(root, "worktree", "add", "--detach", detached, "HEAD");
@@ -111,7 +111,7 @@ test("detached worktrees are labelled by path and group with matching branch HEA
 });
 
 test.each(["symbolic-ref", "rev-parse", "rev-list", "merge-base"])(
-	"%s errors fail as git_failed instead of appearing as uncertain parents",
+	"%s errors fail as git_failed instead of appearing as uncertain parents #test-145",
 	async (operation) => {
 		const root = await initTreeRepo();
 		const branch = await addBranch(root, "branch", "main");
@@ -161,7 +161,7 @@ async function initDefaultAwayFromCanonical(removeLocal: boolean) {
 test.each([
 	{ removeLocal: false, ref: "refs/heads/release/trunk" },
 	{ removeLocal: true, ref: "refs/remotes/origin/release/trunk" },
-])("discovers $ref independently of canonical HEAD", async ({ removeLocal, ref }) => {
+])("discovers $ref independently of canonical HEAD #test-143", async ({ removeLocal, ref }) => {
 	const { root, baseline } = await initDefaultAwayFromCanonical(removeLocal);
 	const result = await treeJson(root);
 	expect(result.default_branch).toEqual({
@@ -187,7 +187,7 @@ test.each([
 		args: ["symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/missing"],
 	},
 ])(
-	"missing default $missing fails instead of guessing main or canonical HEAD",
+	"missing default $missing fails instead of guessing main or canonical HEAD #test-146",
 	async ({ args }) => {
 		const root = await initTreeRepo();
 		await gitOut(root, ...args);

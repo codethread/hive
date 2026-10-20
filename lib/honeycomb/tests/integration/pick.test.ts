@@ -55,7 +55,7 @@ afterEach(async () => {
 });
 
 describe("honeycomb pick", () => {
-	test("select writes the chosen path to the cd directive and prints it", async () => {
+	test("select writes the chosen path to the cd directive and prints it #test-286", async () => {
 		const { deps, picker, multiplexer, cdDirective } = pickDeps(featurePath);
 
 		const result = await dispatch("pick", ["--cwd", join(root, "."), "--interactive"], deps);
@@ -70,7 +70,7 @@ describe("honeycomb pick", () => {
 		]);
 	});
 
-	test("interactive without a multiplexer still previews history and hands back the path", async () => {
+	test("interactive without a multiplexer still previews history and hands back the path #test-287", async () => {
 		const { deps, picker, multiplexer, cdDirective } = pickDeps(featurePath, false);
 
 		const result = await dispatch("pick", ["--cwd", root, "--interactive"], deps);
@@ -85,7 +85,7 @@ describe("honeycomb pick", () => {
 		]);
 	});
 
-	test("without --interactive, select only prints the path and never touches the multiplexer", async () => {
+	test("without --interactive, select only prints the path and never touches the multiplexer #test-285", async () => {
 		const { deps, picker, multiplexer, cdDirective } = pickDeps(featurePath);
 
 		const result = await dispatch("pick", ["--cwd", root], deps);
@@ -102,7 +102,7 @@ describe("honeycomb pick", () => {
 });
 
 describe("honeycomb pick --open", () => {
-	test("--open opens the selection's session without a cd directive", async () => {
+	test("--open opens the selection's session without a cd directive #test-289", async () => {
 		const { deps, multiplexer, cdDirective } = pickDeps(featurePath);
 
 		const result = await dispatch("pick", ["--cwd", root, "--open", "--interactive"], deps);
@@ -118,7 +118,7 @@ describe("honeycomb pick --open", () => {
 		["interactive open", ["--open", "--interactive"], EXIT_CODES.SUCCESS],
 		["interactive cd", ["--interactive"], EXIT_CODES.SUCCESS],
 		["noninteractive", [], EXIT_CODES.CANCELLED],
-	])("cancel %s exits quietly without switching", async (_case, flags, exitCode) => {
+	])("cancel %s exits quietly without switching #test-288", async (_case, flags, exitCode) => {
 		// oxlint-disable-next-line unicorn/no-null -- TestPicker models cancellation as an explicit null choice
 		const { deps, multiplexer, cdDirective } = pickDeps(null);
 
@@ -132,7 +132,7 @@ describe("honeycomb pick --open", () => {
 	test.each([
 		["without --interactive", ["--open"], true],
 		["outside a multiplexer", ["--open", "--interactive"], false],
-	])("--open %s is a usage error before picking", async (_case, flags, attached) => {
+	])("--open %s is a usage error before picking #test-284", async (_case, flags, attached) => {
 		const { deps, picker } = pickDeps(featurePath, attached);
 
 		const { failure } = await dispatch("pick", ["--cwd", root, ...flags], deps);

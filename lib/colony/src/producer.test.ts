@@ -55,7 +55,7 @@ const partialRetries = await Promise.all(
 	}),
 );
 
-test("submission rejects human reservations and admits one open request per task", async () => {
+test("submission rejects human reservations and admits one open request per task #test-412", async () => {
 	const context = commands(admission);
 	await expect(
 		spawnWorkflowRequest(
@@ -186,7 +186,7 @@ const cancelled = await Promise.all(
 );
 
 test.each(cancelled)(
-	"$kind cancellation requires opt-in and retains native history on replacement and repetition",
+	"$kind cancellation requires opt-in and retains native history on replacement and repetition #test-429",
 	// Verify the public replacement and retained native facts as one recovery boundary.
 	// eslint-disable-next-line max-statements
 	async ({ assignment, tracker, scope, original }) => {
@@ -290,7 +290,7 @@ test.each(refusals)(
 );
 
 test.each(retryCases)(
-	"$assignment.kind retry retains its existing anchor with current execution defaults",
+	"$assignment.kind retry retains its existing anchor with current execution defaults #test-502",
 	// Preserve request role and the containing work while recording replacement provenance.
 	// eslint-disable-next-line max-statements
 	async ({ assignment, anchor, predecessor: oldId }) => {

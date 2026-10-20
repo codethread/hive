@@ -45,7 +45,7 @@ describe.each(["source", "standalone"])("%s bundled skills", (mode) => {
 		return capture([binary, "skills", ...args]);
 	};
 
-	test("discovery defaults to metadata only outside a repository", async () => {
+	test("discovery defaults to metadata only outside a repository #test-90", async () => {
 		const listed = await run(["list", "--json"]);
 		expect(listed).toMatchObject({ code: EXIT.success, stderr: "" });
 		if (mode === "source") {
@@ -68,7 +68,7 @@ describe.each(["source", "standalone"])("%s bundled skills", (mode) => {
 		});
 	});
 
-	test("instructions omit frontmatter in text and JSON", async () => {
+	test("instructions omit frontmatter in text and JSON #test-91", async () => {
 		const body = await run(["get", name]);
 		expect(body).toMatchObject({ code: EXIT.success, stderr: "" });
 		expect(body.stdout).not.toStartWith("---");
@@ -85,7 +85,7 @@ describe.each(["source", "standalone"])("%s bundled skills", (mode) => {
 		expect(await run(["file", name, "SKILL.md"])).toEqual(body);
 	});
 
-	test("supporting resources load independently as text and JSON", async () => {
+	test("supporting resources load independently as text and JSON #test-92", async () => {
 		const resource = await run(["file", name, reference, "--json"]);
 		expect(resource).toMatchObject({ code: EXIT.success, stderr: "" });
 		expect(JSON.parse(resource.stdout)).toEqual({
@@ -112,7 +112,7 @@ describe.each(["source", "standalone"])("%s bundled skills", (mode) => {
 		{ args: ["unknown", "--json"] },
 		{ args: ["--json", "get", "missing"] },
 		{ args: ["get", "--json", "--bad", name] },
-	])("invalid request emits one JSON error: $args", async ({ args }) => {
+	])("invalid request emits one JSON error: $args #test-93", async ({ args }) => {
 		const result = await run(args);
 		expect(result).toMatchObject({ code: EXIT.usage, stderr: "" });
 		expect(JSON.parse(result.stdout)).toMatchObject({
@@ -123,7 +123,7 @@ describe.each(["source", "standalone"])("%s bundled skills", (mode) => {
 		});
 	});
 
-	test("text failures use stderr", async () => {
+	test("text failures use stderr #test-94", async () => {
 		const result = await run(["get", "missing"]);
 		expect(result).toMatchObject({ code: EXIT.usage, stdout: "" });
 		expect(result.stderr).toContain("qlock:");

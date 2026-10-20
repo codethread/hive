@@ -84,7 +84,7 @@ test.each(
 		{ ...entry, afterWrite: true },
 	]),
 )(
-	"initialization reports confirmed identities when $operation fails (after write: $afterWrite)",
+	"initialization reports confirmed identities when $operation fails (after write: $afterWrite) #test-463",
 	// eslint-disable-next-line max-statements -- Verify the public failure envelope and retained native effects together.
 	async ({ operation, creates, links, confirmed, records, afterWrite }) => {
 		const { beads, parent, services } = await initializationFixture();
@@ -202,7 +202,7 @@ test("initial visit publication failure retains parent, run and checkpoint ident
 	expect(checkpoint.notes).not.toBe("");
 });
 
-test("start rejects invalid input without attempting native writes", async () => {
+test("start rejects invalid input without attempting native writes #test-431", async () => {
 	const { beads, parent, services } = await initializationFixture();
 	const result = await invoke(["start", source, "--owner", "test-human", "--parent", "mem-1"], {
 		...services,

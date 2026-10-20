@@ -297,7 +297,7 @@ const cancelledRefusals = new Map(
 	),
 );
 test.each([...refusedContinuations])(
-	"cancelled %s authority is report-only with no recovery effects",
+	"cancelled %s authority is report-only with no recovery effects #test-347",
 	async (continuation) => {
 		const { fixture, effects } = cancelledRefusals.get(continuation)!;
 		await expect(recoverWorkReview(fixture.runtime, fixture.input)).rejects.toBeInstanceOf(
@@ -357,7 +357,7 @@ stage.runtime.workReview.continuation = (input) => {
 	stageInspections.push(input.request.assignment);
 	return Promise.resolve({ checkpoint: "checkpoint", savedAt: "saved", currentHash: "definition" });
 };
-test("supported stage recovery preserves the original run and stage through publication", async () => {
+test("supported stage recovery preserves the original run and stage through publication #test-346", async () => {
 	const result = await recoverWorkReview(stage.runtime, stage.input);
 	const replacement = await stage.beads.show(stage.scope, result.replacementIds[NONE]!);
 	const assignment = { kind: "stage", runId: stage.target.source, stageId: stage.target.anchor };
@@ -369,7 +369,7 @@ test("supported stage recovery preserves the original run and stage through publ
 	).toBe(true);
 });
 test.each([...unsupportedCases])(
-	"%s refuses before allowance, reopening or retry",
+	"%s refuses before allowance, reopening or retry #test-451",
 	async (reason) => {
 		const { fixture, effects } = unsupported.get(reason)!;
 		await expect(recoverWorkReview(fixture.runtime, fixture.input)).rejects.toBeInstanceOf(
@@ -394,7 +394,7 @@ test("a changed source claim invalidates the recommendation before retry", async
 	expect(reserved.effects.retries).toBe(NONE);
 });
 
-test("a stranded agent-assigned source stays diagnosable but its existing claim prevents retry", async () => {
+test("a stranded agent-assigned source stays diagnosable but its existing claim prevents retry #test-442", async () => {
 	await expect(
 		recoverWorkReview(assignedSource.runtime, assignedSource.input),
 	).rejects.toBeInstanceOf(WorkReviewError);
@@ -406,7 +406,7 @@ test("a stranded agent-assigned source stays diagnosable but its existing claim 
 	expect(assignedSource.effects.retries).toBe(NONE);
 });
 
-test("missing current stopped-process proof consumes no automatic allowance", async () => {
+test("missing current stopped-process proof consumes no automatic allowance #test-441", async () => {
 	await expect(recoverWorkReview(stopped.runtime, stopped.input)).rejects.toBeInstanceOf(
 		WorkReviewError,
 	);
@@ -415,12 +415,12 @@ test("missing current stopped-process proof consumes no automatic allowance", as
 	expect(stopped.effects.retries).toBe(NONE);
 });
 
-test("a competing native reservation prevents any retry effect", async () => {
+test("a competing native reservation prevents any retry effect #test-523", async () => {
 	await expect(recoverWorkReview(raced.runtime, raced.input)).rejects.toBeInstanceOf(Error);
 	expect(raced.effects.retries).toBe(NONE);
 });
 
-test("tooling recovery conditionally reopens its anchor and retains the same saved assignment", async () => {
+test("tooling recovery conditionally reopens its anchor and retains the same saved assignment #test-535", async () => {
 	const result = await recoverWorkReview(blocked.runtime, blocked.input);
 	expect(result.state).toBe("submitted");
 	expect(result.reopenedIds).toEqual([blocked.target.anchor]);
@@ -450,7 +450,7 @@ test("partial retry publication retains its replacement without duplication", as
 	expect(partial.effects.retries).toBe(ONE);
 });
 
-test("an interrupted unblock remains visible after restart with a concrete caller continuation", async () => {
+test("an interrupted unblock remains visible after restart with a concrete caller continuation #test-464", async () => {
 	await recoverWorkReview(consumed.runtime, consumed.input);
 	consumed.time.now += HOUR;
 	const { control } = await consumed.control();
@@ -468,7 +468,7 @@ test("a failed successor cannot replenish its native lineage allowance", async (
 	expect(budget.effects.retries).toBe(NONE);
 });
 
-test("a completed prerequisite's retired assignee does not reserve current continuation", async () => {
+test("a completed prerequisite's retired assignee does not reserve current continuation #test-421", async () => {
 	const result = await recoverWorkReview(completedDependency.runtime, completedDependency.input);
 	expect(result.state).toBe("submitted");
 	const prerequisite = await completedDependency.beads.show(

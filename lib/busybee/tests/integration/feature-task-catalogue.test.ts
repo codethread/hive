@@ -26,7 +26,7 @@ const manifest = 'description="Feature delivery"\nversion="0.2.0"\nrun="./workfl
 // Mirror the injected authoring/catalogue harness in compatibility.test.ts.
 // The rendered-brief test separately checks the definition selects this caller checkout.
 test.each(["prepare", "deliver"] as const)(
-	"canonical catalogue resumes %s after the feature definition breaks and the task checkout disappears",
+	"canonical catalogue resumes %s after the feature definition breaks and the task checkout disappears #test-333",
 	// eslint-disable-next-line max-statements -- Keep one named-run recovery and native closure boundary together.
 	async (position) => {
 		const beads = createMemoryBeads({ db });

@@ -73,7 +73,7 @@ done
 	await Bun.write(join(root, trackerFile), '{"generation":2}\n');
 }
 
-test("staged tracker JSONL preserves the index and newer working content", async () => {
+test("staged tracker JSONL preserves the index and newer working content #test-278", async () => {
 	const root = await mkdtemp(join(tmpdir(), "hive lint staged "));
 	const env = environment(root);
 	try {

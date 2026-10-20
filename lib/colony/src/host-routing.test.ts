@@ -114,7 +114,7 @@ const localPredecessors = await Promise.all(
 );
 
 test.each(cases.filter(({ origin }) => origin !== "local"))(
-	"automatic $status routing excludes $origin before decoding workflow assignment",
+	"automatic $status routing excludes $origin before decoding workflow assignment #test-361",
 	async ({ status, origin }) => {
 		const fixture = fixtures.get(`${status}:${origin}`)!;
 		await route(fixture);
@@ -133,7 +133,7 @@ test.each(cases.filter(({ origin }) => origin !== "local"))(
 );
 
 test.each(cases.filter(({ origin }) => origin === "local"))(
-	"automatic $status routing rejects a local request missing workflow assignment",
+	"automatic $status routing rejects a local request missing workflow assignment #test-400",
 	async ({ status, origin }) => {
 		const fixture = fixtures.get(`${status}:${origin}`)!;
 		await expect(route(fixture)).rejects.toBeInstanceOf(ZodError);

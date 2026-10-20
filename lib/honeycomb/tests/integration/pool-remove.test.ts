@@ -76,7 +76,7 @@ async function setupRemotePooledRoot(home: string, branch: string) {
 	return { root };
 }
 
-test("remove refuses an absent pool slot without creating it", async () => {
+test("remove refuses an absent pool slot without creating it #test-210", async () => {
 	const { root } = await initRepoWithOrigin(tmp.dir);
 	writeConfig({ command: "exit 9", poolSize: SINGLE_SLOT, root, tmp: tmp.dir });
 
@@ -108,34 +108,37 @@ async function setupIncompletePool(initialized: boolean) {
 test.each([
 	{ initialized: true, state: "initialized" },
 	{ initialized: false, state: "half-initialized" },
-])("remove recycles the $state target without initializing the pool", async ({ initialized }) => {
-	const root = await setupIncompletePool(initialized);
+])(
+	"remove recycles the $state target without initializing the pool #test-206",
+	async ({ initialized }) => {
+		const root = await setupIncompletePool(initialized);
 
-	const result = await dispatch(
-		"remove",
-		["--cwd", `${root}__feat1`, "--self", "--keep-branch", "--json"],
-		testDeps(),
-	);
+		const result = await dispatch(
+			"remove",
+			["--cwd", `${root}__feat1`, "--self", "--keep-branch", "--json"],
+			testDeps(),
+		);
 
-	expect(result.exitCode).toBe(EXIT_CODES.SUCCESS);
-	expect(JSON.parse(result.stdout ?? "{}")).toMatchObject({
-		diagnostics: [],
-		kind: "ready",
-		removed: false,
-		setup_output: [],
-	});
-	expect(await gitOut(`${root}__feat1`, "branch", "--show-current")).toBe("wk-pool/feat1");
-	expect(await gitOut(`${root}__feat2`, "branch", "--show-current")).toBe("feature/untouched");
-	expect(await pathExists(`${root}__feat3`)).toBe(false);
-	const status = await dispatch("status", ["--cwd", root], testDeps());
-	expect(JSON.parse(status.stdout ?? "{}").slots).toMatchObject([
-		{ exists: true, initialized },
-		{ exists: true, initialized: false },
-		{ exists: false, initialized: false },
-	]);
-});
+		expect(result.exitCode).toBe(EXIT_CODES.SUCCESS);
+		expect(JSON.parse(result.stdout ?? "{}")).toMatchObject({
+			diagnostics: [],
+			kind: "ready",
+			removed: false,
+			setup_output: [],
+		});
+		expect(await gitOut(`${root}__feat1`, "branch", "--show-current")).toBe("wk-pool/feat1");
+		expect(await gitOut(`${root}__feat2`, "branch", "--show-current")).toBe("feature/untouched");
+		expect(await pathExists(`${root}__feat3`)).toBe(false);
+		const status = await dispatch("status", ["--cwd", root], testDeps());
+		expect(JSON.parse(status.stdout ?? "{}").slots).toMatchObject([
+			{ exists: true, initialized },
+			{ exists: true, initialized: false },
+			{ exists: false, initialized: false },
+		]);
+	},
+);
 
-test("safe pooled remove resets slot to placeholder with removed false", async () => {
+test("safe pooled remove resets slot to placeholder with removed false #test-208", async () => {
 	const { root } = await setupRemotePooledRoot(tmp.dir, "feature/safe");
 	await run([
 		"git",
@@ -164,7 +167,7 @@ test("safe pooled remove resets slot to placeholder with removed false", async (
 	});
 });
 
-test("recycles a clean squash-integrated slot and deletes its branch", async () => {
+test("recycles a clean squash-integrated slot and deletes its branch #test-207", async () => {
 	const { remote, root } = await initRepoWithOrigin(tmp.dir);
 	writeConfig({ command: "echo ready", poolSize: SINGLE_SLOT, root, tmp: tmp.dir });
 	await createPoolSlot({ branch: "feature/squash", index: SINGLE_SLOT, initialized: true, root });
@@ -192,7 +195,7 @@ test("recycles a clean squash-integrated slot and deletes its branch", async () 
 	expect(await gitSucceeds(root, "show-ref", "--verify", "refs/heads/feature/squash")).toBe(false);
 });
 
-test("keep-branch recycles a clean unmerged slot and preserves its branch", async () => {
+test("keep-branch recycles a clean unmerged slot and preserves its branch #test-212", async () => {
 	const { root } = await initRepoWithOrigin(tmp.dir);
 	writeConfig({ command: "echo ready", poolSize: SINGLE_SLOT, root, tmp: tmp.dir });
 	await createPoolSlot({
@@ -221,7 +224,7 @@ test("keep-branch recycles a clean unmerged slot and preserves its branch", asyn
 	);
 });
 
-test("safe preflight blocks dirty slots and leaves branch untouched", async () => {
+test("safe preflight blocks dirty slots and leaves branch untouched #test-213", async () => {
 	const { root } = await setupPooledRoot(tmp.dir, "feature/dirty");
 	await writeFile(join(`${root}__feat1`, "dirty.txt"), "dirty\n");
 
@@ -236,22 +239,26 @@ test("safe preflight blocks dirty slots and leaves branch untouched", async () =
 	expect(await pathExists(join(`${root}__feat1`, "dirty.txt"))).toBe(true);
 });
 
-test("forced pooled remove discards tracked and untracked dirt but preserves gitignored node_modules", async () => {
-	const { root } = await setupIgnoredPooledRoot(tmp.dir, "feature/force-recycle");
-	await dirtyPooledSlot(`${root}__feat1`);
+test(
+	"forced pooled remove discards tracked and untracked dirt but preserves " +
+		"gitignored node_modules #test-211",
+	async () => {
+		const { root } = await setupIgnoredPooledRoot(tmp.dir, "feature/force-recycle");
+		await dirtyPooledSlot(`${root}__feat1`);
 
-	await dispatch("remove", ["--cwd", `${root}__feat1`, "--self", "--force"], testDeps());
+		await dispatch("remove", ["--cwd", `${root}__feat1`, "--self", "--force"], testDeps());
 
-	expect(await gitOut(`${root}__feat1`, "branch", "--show-current")).toBe("wk-pool/feat1");
-	expect(await pathExists(join(`${root}__feat1`, "tracked.txt"))).toBe(false);
-	expect(await pathExists(join(`${root}__feat1`, "untracked.txt"))).toBe(false);
-	expect(await pathExists(join(`${root}__feat1`, "node_modules", "keep.txt"))).toBe(true);
-	expect(await gitSucceeds(root, "show-ref", "--verify", "refs/heads/feature/force-recycle")).toBe(
-		false,
-	);
-});
+		expect(await gitOut(`${root}__feat1`, "branch", "--show-current")).toBe("wk-pool/feat1");
+		expect(await pathExists(join(`${root}__feat1`, "tracked.txt"))).toBe(false);
+		expect(await pathExists(join(`${root}__feat1`, "untracked.txt"))).toBe(false);
+		expect(await pathExists(join(`${root}__feat1`, "node_modules", "keep.txt"))).toBe(true);
+		expect(
+			await gitSucceeds(root, "show-ref", "--verify", "refs/heads/feature/force-recycle"),
+		).toBe(false);
+	},
+);
 
-test("missing or unmerged upstream blocks safe pooled remove", async () => {
+test("missing or unmerged upstream blocks safe pooled remove #test-209", async () => {
 	const { root } = await setupRemotePooledRoot(tmp.dir, "feature/upstream-blocked");
 	const { failure: missingUpstream } = await dispatch(
 		"remove",

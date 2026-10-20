@@ -10,7 +10,7 @@ const database = `${tracker}/.beads/beads.db`;
 const integrations = { environment: "none", codex: false } as const;
 const options = { prefix: "fresh", owner: "project-owner" };
 
-test("initialization retains attribution and configures only the dedicated tracker", async () => {
+test("initialization retains attribution and configures only the dedicated tracker #test-336", async () => {
 	const { services, calls, checkouts } = initializationFixture(false);
 	expect(await initializeBeads(root, options, services, integrations)).toEqual({
 		...options,

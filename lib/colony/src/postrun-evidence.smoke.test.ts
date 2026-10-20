@@ -28,7 +28,7 @@ const events = [
  * One real filesystem fixture proves exact-thread lookup, absence and ambiguity
  * handling.
  */
-test("self-reaped Codex runs recover only their exact native counters", async () => {
+test("self-reaped Codex runs recover only their exact native counters #test-335", async () => {
 	const root = await mkdtemp(join(tmpdir(), "postrun-usage-"));
 	const stdout = join(root, "stdout.log");
 	const native = join(root, "sessions", "2026", "10", "08", `rollout-${THREAD}.jsonl`);

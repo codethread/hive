@@ -64,7 +64,7 @@ const blockMessage = [
 ].join("\n");
 
 // eslint-disable-next-line max-statements -- Verify the observable version/history preparation boundary together.
-test("release preparation updates every package from tag history without running setup hooks", async () => {
+test("release preparation updates every package from tag history without running setup hooks #test-120", async () => {
 	const root = await fixture();
 	try {
 		await git(root, ["tag", "v0.5.0"]);

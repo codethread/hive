@@ -83,7 +83,7 @@ readSpawnRequest(
 );
 const defaultSubmission = await fixture();
 
-test("default workflow submission captures one driver and the actual run anchor", async () => {
+test("default workflow submission captures one driver and the actual run anchor #test-424", async () => {
 	const { commands, selected, tracker, parent, submission } = defaultSubmission;
 	const result = await submitWorkflow("worker", submission, commands);
 	expect(selected).toEqual([
@@ -111,7 +111,7 @@ test.each([
 		selection: { kind: "source", path: "/caller/custom/workflow.ts" },
 	},
 ])(
-	"caller selector $selector is resolved before subprocess execution",
+	"caller selector $selector is resolved before subprocess execution #test-474",
 	async ({ selector, selection }) => {
 		const { commands, selected, submission, parent } = await fixture();
 		const result = await submitWorkflow("worker", { ...submission, ...selector }, commands);
@@ -135,38 +135,43 @@ test("same-run attachment rejects duplicate drivers before mutating the handoff"
 });
 
 // Confirm absence of publication, then attach without recreating the ordinary hierarchy.
-// eslint-disable-next-line max-statements
-test("confirmed orphan attachment retains its native parent and unfinished driver-handled visit", async () => {
-	const { commands, tracker, selected, handoffs, submission, parent } = await fixture();
-	const run = await commands.workflows.start({
-		parent,
-		endpoint: { actor: options.actor, repo: options.repo, db: options.beadsDb },
-		owner: "ct",
-		selection: { kind: "named", name: "do-work" },
-		inputFile: submission.inputFile,
-	});
-	const ids = [parent, run.id, ...run.active.map((entry) => entry.bead)];
-	const scope = trackerScope(tracker.repository, "inspect");
-	const before = await tracker.beads.showMany(scope, ids);
-	const result = await attachWorkflow({ kind: "worker", runId: run.id, options }, commands);
-	expect(result.workflow.runId).toBe(run.id);
-	expect(selected).toHaveLength(ONE);
-	expect(handoffs()).toBe(ONE);
-	const retained = await tracker.beads.showMany(scope, ids);
-	const runRecord = retained.find((record) => record.id === run.id)!;
-	expect(
-		retained.map(({ dependencies: _dependencies, dependents: _dependents, ...record }) => record),
-	).toEqual(
-		before.map(({ dependencies: _dependencies, dependents: _dependents, ...record }) => record),
-	);
-	expect(runRecord.dependencies).toContainEqual(
-		expect.objectContaining({ id: parent, dependency_type: "parent-child" }),
-	);
-	expect(readSpawnRequest(await tracker.beads.show(scope, result.request.id))).toMatchObject({
-		assignment: { kind: "driver", runId: run.id },
-		taskIds: [run.id],
-	});
-});
+
+test(
+	"confirmed orphan attachment retains its native parent and unfinished " +
+		"driver-handled visit #test-364",
+	// eslint-disable-next-line max-statements
+	async () => {
+		const { commands, tracker, selected, handoffs, submission, parent } = await fixture();
+		const run = await commands.workflows.start({
+			parent,
+			endpoint: { actor: options.actor, repo: options.repo, db: options.beadsDb },
+			owner: "ct",
+			selection: { kind: "named", name: "do-work" },
+			inputFile: submission.inputFile,
+		});
+		const ids = [parent, run.id, ...run.active.map((entry) => entry.bead)];
+		const scope = trackerScope(tracker.repository, "inspect");
+		const before = await tracker.beads.showMany(scope, ids);
+		const result = await attachWorkflow({ kind: "worker", runId: run.id, options }, commands);
+		expect(result.workflow.runId).toBe(run.id);
+		expect(selected).toHaveLength(ONE);
+		expect(handoffs()).toBe(ONE);
+		const retained = await tracker.beads.showMany(scope, ids);
+		const runRecord = retained.find((record) => record.id === run.id)!;
+		expect(
+			retained.map(({ dependencies: _dependencies, dependents: _dependents, ...record }) => record),
+		).toEqual(
+			before.map(({ dependencies: _dependencies, dependents: _dependents, ...record }) => record),
+		);
+		expect(runRecord.dependencies).toContainEqual(
+			expect.objectContaining({ id: parent, dependency_type: "parent-child" }),
+		);
+		expect(readSpawnRequest(await tracker.beads.show(scope, result.request.id))).toMatchObject({
+			assignment: { kind: "driver", runId: run.id },
+			taskIds: [run.id],
+		});
+	},
+);
 
 test("driver publication failure reports the existing run and uncertain request creation", async () => {
 	const current = await fixture();
@@ -228,7 +233,7 @@ test("stage dispatch uses native ancestry during initial frontier publication", 
 	expect(request.taskIds).toEqual([stage]);
 });
 
-test("unknown kind preserves the CLI failure envelope and creates no workflow", async () => {
+test("unknown kind preserves the CLI failure envelope and creates no workflow #test-383", async () => {
 	const { commands, selected, submission } = await fixture();
 	const failure: unknown = await submitWorkflow("missing", submission, commands).catch(
 		(error: unknown) => error,

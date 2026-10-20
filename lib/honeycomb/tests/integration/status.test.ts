@@ -42,7 +42,7 @@ afterEach(async () => {
 	await rm(tmp, { force: true, recursive: true });
 });
 
-test("reports absent slots for an empty pool", async () => {
+test("reports absent slots for an empty pool #test-276", async () => {
 	const { root } = await initRepoWithOrigin(tmp);
 	writeConfig({ command: "echo ready", poolSize: TWO_SLOTS, root, tmp });
 	const listed = await run(["git", "-C", root, "worktree", "list", "--porcelain"]);
@@ -95,7 +95,7 @@ function assertCommitMetadata(slot: { lastCommitIso: string; lastCommitSubject: 
 	expect(slot.lastCommitSubject).toBe("initial");
 }
 
-test("status JSON reports free, taken, dirty, and half-initialized slots", async () => {
+test("status JSON reports free, taken, dirty, and half-initialized slots #test-274", async () => {
 	const root = await initMixedPool();
 
 	const result = await dispatch("status", ["--cwd", root], deps);
@@ -135,7 +135,7 @@ test("status JSON reports free, taken, dirty, and half-initialized slots", async
 	assertCommitMetadata(free);
 });
 
-test("blocks when sibling and legacy nested worktrees claim the same pool slot", async () => {
+test("blocks when sibling and legacy nested worktrees claim the same pool slot #test-277", async () => {
 	const { root } = await initRepoWithOrigin(tmp);
 	writeConfig({ command: "echo ready", poolSize: SINGLE_SLOT, root, tmp });
 	await createPoolSlot({ branch: "wk-pool/feat1", index: SLOT.first, initialized: true, root });
@@ -165,7 +165,7 @@ async function initIgnoredSlot() {
 	return root;
 }
 
-test("gitignored files do not mark a slot dirty and non-pooled status is empty", async () => {
+test("gitignored files do not mark a slot dirty and non-pooled status is empty #test-275", async () => {
 	const root = await initIgnoredSlot();
 
 	const pooledResult = await dispatch("status", ["--cwd", root], deps);

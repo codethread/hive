@@ -8,14 +8,17 @@ test.each([
 	{ descriptor: "order.*", event: "order.next", declared: true },
 	{ descriptor: "order.*", event: "order", declared: true },
 	{ descriptor: "order.*", event: "orders.next", declared: false },
-])("event $event matches descriptor $descriptor: $declared", ({ descriptor, event, declared }) => {
-	const machine = createMachine({
-		id: "events",
-		initial: "work",
-		states: { work: { on: { [descriptor]: {} } } },
-	});
-	expect(declaresEvent(machine.getStateNodeById("events.work"), event)).toBe(declared);
-});
+])(
+	"event $event matches descriptor $descriptor: $declared #test-472",
+	({ descriptor, event, declared }) => {
+		const machine = createMachine({
+			id: "events",
+			initial: "work",
+			states: { work: { on: { [descriptor]: {} } } },
+		});
+		expect(declaresEvent(machine.getStateNodeById("events.work"), event)).toBe(declared);
+	},
+);
 
 test("ancestor event declarations are visible without evaluating guards", () => {
 	let evaluated = false;

@@ -13,6 +13,9 @@ import { readHistory } from "./history.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Match neighboring SQLite integration fixtures.
 import { tmpdir } from "node:os";
 
+const privateValuePattern =
+	/secret-value|hidden-value|access-value|client-value|db-value|attempt-value|PRIVATE PROMPT|UNRELATED RAW OUTPUT/u;
+
 const FIRST = 0;
 const ONE = 1;
 const EXIT_FAILURE = 6;
@@ -36,83 +39,85 @@ const request: RequestRecord = {
 	state: "waiting",
 };
 
-/* eslint-disable-next-line max-statements --
- * Exercise one failed operation and verify offline reads preserve its private database.
- */
-test("history retains native failure and confirmed partial effects without mutating inspected state", async () => {
-	const state = await mkdtemp(join(tmpdir(), "colony-history-"));
-	const store = openStore(state);
-	try {
-		store.saveRequest(repository.root, request);
-		const error = new CommandError("br update", {
-			code: EXIT_FAILURE,
-			stderr: "UNRELATED RAW OUTPUT",
-			stdout: JSON.stringify({
-				error: {
+test(
+	"history retains native failure and confirmed partial effects without mutating " +
+		"inspected state #test-313",
+	/* eslint-disable-next-line max-statements --
+	 * Exercise one failed operation and verify offline reads preserve its private database.
+	 */
+	async () => {
+		const state = await mkdtemp(join(tmpdir(), "colony-history-"));
+		const store = openStore(state);
+		try {
+			store.saveRequest(repository.root, request);
+			const error = new CommandError("br update", {
+				code: EXIT_FAILURE,
+				stderr: "UNRELATED RAW OUTPUT",
+				stdout: JSON.stringify({
+					error: {
+						code: "SYNC_CONFLICT",
+						message:
+							"Tracker failed token=secret-value Bearer hidden-value access_token=access-value " +
+							"client_secret=client-value DB_PASSWORD=db-value HIVE_ATTEMPT_TOKEN=attempt-value",
+					},
+				}),
+			});
+			await expect(
+				store.history.run(
+					{
+						checkpoint: () => store.requests(repository.root)[FIRST],
+						operation: "claim",
+						repository,
+						requestId: request.id,
+					},
+					(evidence) => {
+						let record = store.advanceRequest(repository.root, request, { type: "READY" });
+						evidence.step("tracker.claim", "task-a");
+						record = store.advanceRequest(repository.root, record, {
+							id: "task-a",
+							type: "ACQUIRED",
+						});
+						evidence.completed("tracker.claimed", "task-a");
+						store.advanceRequest(repository.root, record, { id: "task-b", type: "INTEND" });
+						evidence.step("tracker.claim", "task-b");
+						evidence.reference("/fixture/attempt/receipt.json");
+						return Promise.reject(error);
+					},
+				),
+			).rejects.toBe(error);
+			store.close();
+			const before = await files(state);
+			const result = readHistory(state, { failures: true, repository, request: request.id });
+			expect(result.events).toHaveLength(ONE);
+			expect(result.events[FIRST]).toMatchObject({
+				after: { claims: ["task-a"], pendingClaim: "task-b", state: "claiming" },
+				before: { claims: [], pendingClaim: null, state: "waiting" },
+				completedEffects: [{ operation: "tracker.claimed", target: "task-a" }],
+				failure: {
 					code: "SYNC_CONFLICT",
+					exitCode: EXIT_FAILURE,
 					message:
-						"Tracker failed token=secret-value Bearer hidden-value access_token=access-value " +
-						"client_secret=client-value DB_PASSWORD=db-value HIVE_ATTEMPT_TOKEN=attempt-value",
+						"Tracker failed token=[redacted] Bearer [redacted] access_token=[redacted] " +
+						"client_secret=[redacted] DB_PASSWORD=[redacted] HIVE_ATTEMPT_TOKEN=[redacted]",
+					step: { operation: "tracker.claim", target: "task-b" },
 				},
-			}),
-		});
-		await expect(
-			store.history.run(
-				{
-					checkpoint: () => store.requests(repository.root)[FIRST],
-					operation: "claim",
-					repository,
-					requestId: request.id,
-				},
-				(evidence) => {
-					let record = store.advanceRequest(repository.root, request, { type: "READY" });
-					evidence.step("tracker.claim", "task-a");
-					record = store.advanceRequest(repository.root, record, {
-						id: "task-a",
-						type: "ACQUIRED",
-					});
-					evidence.completed("tracker.claimed", "task-a");
-					store.advanceRequest(repository.root, record, { id: "task-b", type: "INTEND" });
-					evidence.step("tracker.claim", "task-b");
-					evidence.reference("/fixture/attempt/receipt.json");
-					return Promise.reject(error);
-				},
-			),
-		).rejects.toBe(error);
-		store.close();
-		const before = await files(state);
-		const result = readHistory(state, { failures: true, repository, request: request.id });
-		expect(result.events).toHaveLength(ONE);
-		expect(result.events[FIRST]).toMatchObject({
-			after: { claims: ["task-a"], pendingClaim: "task-b", state: "claiming" },
-			before: { claims: [], pendingClaim: null, state: "waiting" },
-			completedEffects: [{ operation: "tracker.claimed", target: "task-a" }],
-			failure: {
-				code: "SYNC_CONFLICT",
-				exitCode: EXIT_FAILURE,
-				message:
-					"Tracker failed token=[redacted] Bearer [redacted] access_token=[redacted] " +
-					"client_secret=[redacted] DB_PASSWORD=[redacted] HIVE_ATTEMPT_TOKEN=[redacted]",
-				step: { operation: "tracker.claim", target: "task-b" },
-			},
-			status: "failed",
-		});
-		expect(JSON.stringify(result)).not.toMatch(
-			/secret-value|hidden-value|access-value|client-value|db-value|attempt-value|PRIVATE PROMPT|UNRELATED RAW OUTPUT/u,
-		);
-		expect(readHistory(state, { failures: false, repository, request: "other" }).events).toEqual(
-			[],
-		);
-		expect(
-			readHistory(state, { failures: false, repository: { ...repository, beadsDb: "/other.db" } })
-				.events,
-		).toEqual([]);
-		expect(await files(state)).toEqual(before);
-	} finally {
-		store.close();
-		await rm(state, { force: true, recursive: true });
-	}
-});
+				status: "failed",
+			});
+			expect(JSON.stringify(result)).not.toMatch(privateValuePattern);
+			expect(readHistory(state, { failures: false, repository, request: "other" }).events).toEqual(
+				[],
+			);
+			expect(
+				readHistory(state, { failures: false, repository: { ...repository, beadsDb: "/other.db" } })
+					.events,
+			).toEqual([]);
+			expect(await files(state)).toEqual(before);
+		} finally {
+			store.close();
+			await rm(state, { force: true, recursive: true });
+		}
+	},
+);
 
 async function files(state: string): Promise<unknown> {
 	const names = await readdir(state);

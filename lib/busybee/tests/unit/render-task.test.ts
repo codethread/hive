@@ -18,7 +18,7 @@ test.each([
 		},
 		expected: { title: "Override", commands: { done: "DONE" }, bee: { kind: "worker" } },
 	},
-])("task rendering resolves $name", ({ result, expected }) => {
+])("task rendering resolves $name #test-520", ({ result, expected }) => {
 	const context = { result };
 	const rendered = renderTask(
 		{
@@ -37,6 +37,6 @@ test.each([
 test.each([
 	{ name: "nonrecord result", result: "not a record" },
 	{ name: "invalid title override", result: { title: "", instructions: "Work" } },
-])("task rendering rejects $name", ({ result }) => {
+])("task rendering rejects $name #test-360", ({ result }) => {
 	expect(() => renderTask({ title: "Worker", task: () => result }, {})).toThrow(z.ZodError);
 });

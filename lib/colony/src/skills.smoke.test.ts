@@ -34,7 +34,7 @@ afterAll(async () => {
 });
 
 test.each(COMMANDS)(
-	"$command discovers only its bundled metadata without repository services",
+	"$command discovers only its bundled metadata without repository services #test-270",
 	async ({ command, name, files }) => {
 		const listed = await source(command, ["skills", "list", "--json"]);
 		expect(listed).toMatchObject({ code: SUCCESS, stderr: "" });
@@ -51,7 +51,7 @@ test.each(COMMANDS)(
 );
 
 test.each(COMMANDS)(
-	"$command returns the same Markdown body through get and SKILL.md",
+	"$command returns the same Markdown body through get and SKILL.md #test-271",
 	async ({ command, name, resource }) => {
 		const instructions = await source(command, ["skills", "get", name]);
 		expect(instructions).toMatchObject({ code: SUCCESS, stderr: "" });
@@ -72,7 +72,7 @@ test.each(COMMANDS)(
 );
 
 test.each(COMMANDS)(
-	"$command loads a supporting resource independently as text or JSON",
+	"$command loads a supporting resource independently as text or JSON #test-272",
 	async ({ command, name, resource }) => {
 		const file = await source(command, ["skills", "file", name, resource, "--json"]);
 		expect(file).toMatchObject({ code: SUCCESS, stderr: "" });
@@ -112,7 +112,7 @@ test.each(
 	},
 );
 
-test.each(COMMANDS)("$command sends text skill errors to stderr", async ({ command }) => {
+test.each(COMMANDS)("$command sends text skill errors to stderr #test-273", async ({ command }) => {
 	const result = await source(command, ["skills", "get", "missing"]);
 	expect(result).toMatchObject({ code: USAGE_ERROR, stdout: "" });
 	expect(result.stderr).toStartWith(`${command}: `);

@@ -18,7 +18,7 @@ test.each([
 	{ conflict: "native", notifyExit: 1, unmerged: "" },
 	{ conflict: "native merge", notifyExit: 0, unmerged: "" },
 ])(
-	"publisher delivers $conflict conflict via stdin and retains failure with notifier exit $notifyExit",
+	"publisher delivers $conflict conflict via stdin and retains failure with notifier exit $notifyExit #test-205",
 	// Exercise the real CLI and notifier subprocess contract in one private fixture.
 	// eslint-disable-next-line max-statements
 	async ({ conflict, notifyExit, unmerged }) => {

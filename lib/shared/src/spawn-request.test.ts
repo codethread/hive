@@ -29,7 +29,7 @@ const original = beadSchema.parse({
 	updated_at: "fixture",
 });
 
-test("stdout inspection uses publication time independently of renumbered IDs and native timestamps", () => {
+test("stdout inspection uses publication time independently of renumbered IDs and native timestamps #test-353", () => {
 	const activity = {
 		attemptId: "second-attempt",
 		attemptNumber: 2,

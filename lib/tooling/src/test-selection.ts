@@ -14,7 +14,7 @@ export interface TestSelection {
 	suite: "ordinary" | "contracts";
 	/** Discovery arguments; contract invocations deliberately omit --changed. */
 	args: string[];
-	/** Contracts and full runs enforce the timing gate. */
+	/** Changed runs use exact cutoffs; contracts and full runs apply a 25% buffer. */
 	timingMode: "all" | "changed";
 }
 

@@ -11,7 +11,7 @@ import { tmpdir } from "node:os";
 const POLICY = 'owner="ct"\nhumans=["ct"]\n[formulas]\n';
 
 // eslint-disable-next-line max-statements -- Keep the bounded disposable filesystem scenario and cleanup together.
-test("filesystem discovery loads only immediate kind folders and fails loudly on bad layout", async () => {
+test("filesystem discovery loads only immediate kind folders and fails loudly on bad layout #test-312", async () => {
 	const root = await mkdtemp(join(tmpdir(), "bee-config-"));
 	const directory = join(root, ".hive", "bees");
 	try {

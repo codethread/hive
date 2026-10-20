@@ -151,7 +151,7 @@ test.each([
 	{ missing: "unknown-default", policy: "fresh_canonical" },
 	{ missing: "missing-defaults", policy: "fresh_canonical" },
 ])(
-	"offline $policy $missing refuses default selection before mutation and accepts an explicit local commit",
+	"offline $policy $missing refuses default selection before mutation and accepts an explicit local commit #test-181",
 	async ({ missing, policy }) => {
 		const { root, tip } = await missingDefault(missing, policy);
 		const failure = await offlineAdd(root);
@@ -165,7 +165,7 @@ test.each([
 );
 
 test.each(["local", "remote"] as const)(
-	"offline existing %s branch uses local state according to cached branch state",
+	"offline existing %s branch uses local state according to cached branch state #test-175",
 	async (state) => {
 		const { root, expected } = await existingBranch(state);
 		const result = await offlineAdd(root);
@@ -174,7 +174,7 @@ test.each(["local", "remote"] as const)(
 	},
 );
 
-test("offline base-current uses cwd's branch and missing explicit refs fail before creation", async () => {
+test("offline base-current uses cwd's branch and missing explicit refs fail before creation #test-180", async () => {
 	const { root, tip } = await stackedFixture();
 	const missing = await offlineAdd(root, ["--base", "absent"]);
 	expect(missing.exitCode).toBe(EXIT_CODES.USAGE);
@@ -185,7 +185,7 @@ test("offline base-current uses cwd's branch and missing explicit refs fail befo
 });
 
 test.each([{ flags: ["--skip-command"] }, { flags: ["--skip-command", "--no-network"] }])(
-	"skip-command retains regular copy/symlink setup (flags=$flags)",
+	"skip-command retains regular copy/symlink setup (flags=$flags) #test-182",
 	async ({ flags }) => {
 		const root = await copyFixture();
 		const result = await runCli([
@@ -206,7 +206,7 @@ test.each([{ flags: ["--skip-command"] }, { flags: ["--skip-command", "--no-netw
 	},
 );
 
-test("offline scopes every injected Git call against implicit object fetching", async () => {
+test("offline scopes every injected Git call against implicit object fetching #test-185", async () => {
 	const root = await nestedCopyFixture();
 	const live = testDeps();
 	const calls: string[][] = [];
@@ -226,7 +226,7 @@ test("offline scopes every injected Git call against implicit object fetching", 
 });
 
 test.each(["tag", "commit", "full-ref"])(
-	"offline explicit local %s base works without default metadata",
+	"offline explicit local %s base works without default metadata #test-183",
 	async (kind) => {
 		const { root, tip } = await missingDefault("unknown-default");
 		await run(["git", "-C", root, "tag", "start", tip]);
@@ -260,7 +260,7 @@ async function missingObjectFixture() {
 	return root;
 }
 
-test("offline missing promised checkout object fails loudly without implicit fetch", async () => {
+test("offline missing promised checkout object fails loudly without implicit fetch #test-184", async () => {
 	const root = await missingObjectFixture();
 	const result = await dispatch(
 		"add",
@@ -304,7 +304,7 @@ test.each([
 	{ state: "uncached-dirty", failure: DirtyCanonicalError },
 	{ state: "uncached-wrong", failure: WrongCanonicalBranchError },
 ])(
-	"offline fresh_canonical refuses $state without changing local work",
+	"offline fresh_canonical refuses $state without changing local work #test-179",
 	async ({ state, failure }) => {
 		const root = await unsafeCanonical(state);
 		const tip = await gitOut(root, "rev-parse", "HEAD");
@@ -325,7 +325,7 @@ test.each([
 );
 
 test.each(["origin_default", "fresh_canonical"])(
-	"offline %s uses known local default when cache is absent",
+	"offline %s uses known local default when cache is absent #test-176",
 	async (policy) => {
 		const { root, localTip } = await aheadDevelop(policy);
 		await run(["git", "-C", root, "update-ref", "-d", "refs/remotes/origin/develop"]);
@@ -336,20 +336,24 @@ test.each(["origin_default", "fresh_canonical"])(
 	},
 );
 
-test("offline origin_default uses cached default with absent local default and dirty other checkout", async () => {
-	const { root, cachedTip } = await aheadDevelop("origin_default");
-	await run(["git", "-C", root, "checkout", "-b", "other"]);
-	await run(["git", "-C", root, "branch", "-D", "develop"]);
-	await writeFile(join(root, "dirty.txt"), "dirty\n");
-	const current = await gitOut(root, "rev-parse", "HEAD");
-	const result = await offlineAdd(root);
-	expect(result.exitCode).toBe(EXIT_CODES.SUCCESS);
-	expect(await gitOut(root, "rev-parse", "feature/offline")).toBe(cachedTip);
-	expect(await gitOut(root, "rev-parse", "HEAD")).toBe(current);
-	expect(await Bun.file(join(root, "dirty.txt")).text()).toBe("dirty\n");
-});
+test(
+	"offline origin_default uses cached default with absent local default and dirty " +
+		"other checkout #test-177",
+	async () => {
+		const { root, cachedTip } = await aheadDevelop("origin_default");
+		await run(["git", "-C", root, "checkout", "-b", "other"]);
+		await run(["git", "-C", root, "branch", "-D", "develop"]);
+		await writeFile(join(root, "dirty.txt"), "dirty\n");
+		const current = await gitOut(root, "rev-parse", "HEAD");
+		const result = await offlineAdd(root);
+		expect(result.exitCode).toBe(EXIT_CODES.SUCCESS);
+		expect(await gitOut(root, "rev-parse", "feature/offline")).toBe(cachedTip);
+		expect(await gitOut(root, "rev-parse", "HEAD")).toBe(current);
+		expect(await Bun.file(join(root, "dirty.txt")).text()).toBe("dirty\n");
+	},
+);
 
-test("offline existing diverged branch warns and preserves its local commit", async () => {
+test("offline existing diverged branch warns and preserves its local commit #test-178", async () => {
 	const { root } = await existingBranch("local-remote");
 	await run(["git", "-C", root, "checkout", "feature/offline"]);
 	await commitFile({ content: "local\n", message: "local", path: "local.txt", repo: root });
@@ -361,17 +365,21 @@ test("offline existing diverged branch warns and preserves its local commit", as
 	expect(await gitOut(root, "rev-parse", "feature/offline")).toBe(tip);
 });
 
-test("offline present cached ref with missing commit fails instead of falling back to local default", async () => {
-	const { root } = await offlineFixture();
-	const refPath = join(root, ".git", "refs", "remotes", "origin", "main");
-	await writeFile(refPath, "1111111111111111111111111111111111111111\n");
-	await run(["git", "-C", root, "config", "remote.origin.promisor", "true"]);
-	const result = await dispatch(
-		"add",
-		["--cwd", root, "--branch", "feature/offline", "--no-network", "--skip-command", "--json"],
-		testDeps(),
-	);
-	expect(result.failure).toBeInstanceOf(UsageError);
-	expect(JSON.parse(result.stdout ?? "{}").message).not.toContain("absent.git");
-	expect(await pathExists(`${root}__feature--offline`)).toBe(false);
-});
+test(
+	"offline present cached ref with missing commit fails instead of falling back to " +
+		"local default #test-186",
+	async () => {
+		const { root } = await offlineFixture();
+		const refPath = join(root, ".git", "refs", "remotes", "origin", "main");
+		await writeFile(refPath, "1111111111111111111111111111111111111111\n");
+		await run(["git", "-C", root, "config", "remote.origin.promisor", "true"]);
+		const result = await dispatch(
+			"add",
+			["--cwd", root, "--branch", "feature/offline", "--no-network", "--skip-command", "--json"],
+			testDeps(),
+		);
+		expect(result.failure).toBeInstanceOf(UsageError);
+		expect(JSON.parse(result.stdout ?? "{}").message).not.toContain("absent.git");
+		expect(await pathExists(`${root}__feature--offline`)).toBe(false);
+	},
+);

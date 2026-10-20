@@ -45,7 +45,7 @@ test.each([
 	{ name: "malformed TOML", toml: "command =" },
 	{ name: "global selectors", toml: '[[project]]\nroot = "/repo"' },
 	{ name: "missing effective command", toml: "pool_size = 1" },
-])("invalid local $name fails before creating a worktree", async ({ toml }) => {
+])("invalid local $name fails before creating a worktree #test-283", async ({ toml }) => {
 	const { root } = await initRepoWithOrigin(tmp.dir);
 	await writeFile(join(root, "honeycomb.toml"), toml);
 	const result = await runCli(["add", "--branch", "feature/invalid", "--json"], root);

@@ -15,19 +15,22 @@ const EXECUTABLE_MODE = 0o755;
 test.each([
 	{ key: "branch.main.mergeOptions", value: "-s resolve", strategy: "squash" },
 	{ key: "pull.twohead", value: "resolve", strategy: "merge_commit" },
-])("$strategy refuses unpreviewable $key before mutation", async ({ key, value, strategy }) => {
-	const fixture = await prepareRenameConflict(key, value, strategy);
-	const before = await readFinishState(fixture);
-	const result = await dispatch("finish", finishArgs(fixture.worktreePath, strategy), deps);
-	expect(result.exitCode).toBe(EXIT_CODES.BLOCKED);
-	expect(JSON.parse(result.stdout ?? "{}")).toMatchObject({
-		reason: "blocked",
-		integrated: false,
-		cleanup_actions: [],
-		message: expect.stringContaining(key.toLowerCase()),
-	});
-	expect(await readFinishState(fixture)).toEqual(before);
-});
+])(
+	"$strategy refuses unpreviewable $key before mutation #test-95",
+	async ({ key, value, strategy }) => {
+		const fixture = await prepareRenameConflict(key, value, strategy);
+		const before = await readFinishState(fixture);
+		const result = await dispatch("finish", finishArgs(fixture.worktreePath, strategy), deps);
+		expect(result.exitCode).toBe(EXIT_CODES.BLOCKED);
+		expect(JSON.parse(result.stdout ?? "{}")).toMatchObject({
+			reason: "blocked",
+			integrated: false,
+			cleanup_actions: [],
+			message: expect.stringContaining(key.toLowerCase()),
+		});
+		expect(await readFinishState(fixture)).toEqual(before);
+	},
+);
 
 test.each([
 	{ strategy: "squash", attribute: "absent.json" },
@@ -35,7 +38,7 @@ test.each([
 	{ strategy: "squash", attribute: "README.md" },
 	{ strategy: "merge_commit", attribute: "README.md" },
 ])(
-	"$strategy permits a configured driver unused by the merge ($attribute)",
+	"$strategy permits a configured driver unused by the merge ($attribute) #test-96",
 	async ({ strategy, attribute }) => {
 		const fixture = await prepareSource(strategy);
 		await commitFile({
@@ -55,7 +58,7 @@ test.each([
 	},
 );
 
-test("needed external merge drivers block preview without executing their commands", async () => {
+test("needed external merge drivers block preview without executing their commands #test-98", async () => {
 	const fixture = await prepareDriverConflict();
 	const before = await readFinishState(fixture);
 	const sourceBefore = await readCheckoutState(fixture.worktreePath);
@@ -72,7 +75,7 @@ test("needed external merge drivers block preview without executing their comman
 	expect(await readCheckoutState(fixture.worktreePath)).toEqual(sourceBefore);
 });
 
-test("recursive merge-base drivers cannot escape the preview refusal", async () => {
+test("recursive merge-base drivers cannot escape the preview refusal #test-97", async () => {
 	const fixture = await prepareRecursiveDriverConflict();
 	const before = await readFinishState(fixture);
 	const sourceBefore = await readCheckoutState(fixture.worktreePath);

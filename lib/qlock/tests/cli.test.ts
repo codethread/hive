@@ -35,7 +35,7 @@ test("status of a free queue never joins it", async () => {
 	expect(harness.queue).toEqual(emptyQueue());
 });
 
-test("new exec times out retaining its ticket, and resumed exec does not reallocate", async () => {
+test("new exec times out retaining its ticket, and resumed exec does not reallocate #test-478", async () => {
 	const harness = fixture(finish(occupiedQueue(), 2));
 	expect(
 		await runCli(["exec", "-w", "2", "-E", "91", "--lock", "/lock", "--", "child"], harness.deps),
@@ -55,7 +55,7 @@ test("new exec times out retaining its ticket, and resumed exec does not realloc
 	expect(harness.commands).toEqual([["child"]]);
 });
 
-test("resumed exec waits for its existing ticket and claims before launching", async () => {
+test("resumed exec waits for its existing ticket and claims before launching #test-533", async () => {
 	const harness = fixture(occupiedQueue());
 	harness.deps.sleep = (ms) => {
 		harness.sleeps.push(ms);
@@ -208,7 +208,7 @@ test.each(
 		["status", "--lock", "/lock", "--", "--json"],
 		["--json", "status", "--lock", "/lock"],
 	].map((argv) => ({ argv })),
-)("rejects invalid invocation before queue IO: $argv", async ({ argv }) => {
+)("rejects invalid invocation before queue IO: $argv #test-528", async ({ argv }) => {
 	const harness = fixture();
 	expect(await runCli(argv, harness.deps)).toBe(2);
 	expect(harness.err.join("")).toContain("qlock:");
@@ -226,7 +226,7 @@ test.each(
 		["status", "--json", "--lock", " "],
 		["status", "--json", "--merge-target", "main", "--lock", "/lock"],
 	].map((argv) => ({ argv })),
-)("recognized JSON mode formats usage failures: $argv", async ({ argv }) => {
+)("recognized JSON mode formats usage failures: $argv #test-342", async ({ argv }) => {
 	const harness = fixture();
 	expect(await runCli(argv, harness.deps)).toBe(2);
 	expect(JSON.parse(harness.out.join(""))).toMatchObject({
@@ -242,7 +242,7 @@ test.each([
 	{ options: ["--lock", "relative.lock"], target: { lock: "relative.lock" } },
 	{ options: ["--merge-target", "main"], target: { mergeTarget: "refs/heads/main" } },
 ])(
-	"JSON usage errors retain parsed target options without resolving: $options",
+	"JSON usage errors retain parsed target options without resolving: $options #test-341",
 	async ({ options, target }) => {
 		const harness = fixture();
 		expect(await runCli(["status", "--json", ...options, "--bad"], harness.deps)).toBe(2);
@@ -261,23 +261,26 @@ test.each([
 	{ argv: ["exec", "--help"], heading: "Usage: qlock exec [options] -- <command> [args...]" },
 	{ argv: ["help", "exec"], heading: "Usage: qlock exec [options] -- <command> [args...]" },
 	{ argv: ["status", "--json", "--help"], heading: "Usage: qlock status [options]" },
-])("help stays concise and shows only supported options: $argv", async ({ argv, heading }) => {
-	const harness = fixture();
-	expect(await runCli(argv, harness.deps)).toBe(0);
-	const help = harness.out.join("");
-	expect(help).toContain(heading);
-	expect(help.split("\n").length).toBeLessThanOrEqual(30);
-	expect(/^\s+--json\s/mu.test(help)).toBe(argv[0] === "status");
-	expect(harness.err).toEqual([]);
-	expect(harness.opened).toBe(0);
-});
+])(
+	"help stays concise and shows only supported options: $argv #test-407",
+	async ({ argv, heading }) => {
+		const harness = fixture();
+		expect(await runCli(argv, harness.deps)).toBe(0);
+		const help = harness.out.join("");
+		expect(help).toContain(heading);
+		expect(help.split("\n").length).toBeLessThanOrEqual(30);
+		expect(/^\s+--json\s/mu.test(help)).toBe(argv[0] === "status");
+		expect(harness.err).toEqual([]);
+		expect(harness.opened).toBe(0);
+	},
+);
 
 test.each([
 	{ argv: ["-h"] },
 	{ argv: ["--help"] },
 	{ argv: ["exec", "--help"] },
 	{ argv: ["help", "exec"] },
-])("help illustrates how to resume after a wait timeout: $argv", async ({ argv }) => {
+])("help illustrates how to resume after a wait timeout: $argv #test-417", async ({ argv }) => {
 	const harness = fixture();
 	expect(await runCli(argv, harness.deps)).toBe(0);
 	const help = harness.out.join("");

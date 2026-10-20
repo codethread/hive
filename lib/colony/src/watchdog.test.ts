@@ -31,7 +31,7 @@ const alerted: WatchdogCheckpoint = {
 };
 
 test.each([false, true])(
-	"native Beads conflict reaches watchdog with publication wrapper %j",
+	"native Beads conflict reaches watchdog with publication wrapper %j #test-471",
 	/* eslint-disable-next-line max-statements --
 	 * One watchdog episode proves classification, delivery and deduplication together.
 	 */

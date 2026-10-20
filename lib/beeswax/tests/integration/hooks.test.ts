@@ -94,7 +94,7 @@ test.each([
 		typecheckExit: success,
 	},
 ])(
-	"pre-commit quality gates on $branch with lint=$lintExit and typecheck=$typecheckExit",
+	"pre-commit quality gates on $branch with lint=$lintExit and typecheck=$typecheckExit #test-242",
 	async ({ branch, commands, lintExit, typecheckExit }) => {
 		const root = await mkdtemp(join(tmpdir(), "hive commit hook "));
 		const env = environment(root, lintExit, typecheckExit);
@@ -151,20 +151,23 @@ test.each([
 		accepted: false,
 		commands: ["lint", "run typecheck"],
 	},
-])("artifact gates for $name", async ({ branch, snapshot, mixed, accepted, commands }) => {
-	const root = await mkdtemp(join(tmpdir(), "hive snapshot hook "));
-	const env = environment(root, success, qualityFailure);
-	try {
-		await prepare(root, branch, env);
-		await stageSnapshot(root, env, { snapshot, mixed });
-		const result = await executeHook(root, env);
-		expect(result.exitCode === success).toBe(accepted);
-		const log = await Bun.file(env.HOOK_LOG).text();
-		expect(log.trim().split("\n").filter(Boolean)).toEqual([...commands]);
-	} finally {
-		await rm(root, { force: true, recursive: true });
-	}
-});
+])(
+	"artifact gates for $name #test-243",
+	async ({ branch, snapshot, mixed, accepted, commands }) => {
+		const root = await mkdtemp(join(tmpdir(), "hive snapshot hook "));
+		const env = environment(root, success, qualityFailure);
+		try {
+			await prepare(root, branch, env);
+			await stageSnapshot(root, env, { snapshot, mixed });
+			const result = await executeHook(root, env);
+			expect(result.exitCode === success).toBe(accepted);
+			const log = await Bun.file(env.HOOK_LOG).text();
+			expect(log.trim().split("\n").filter(Boolean)).toEqual([...commands]);
+		} finally {
+			await rm(root, { force: true, recursive: true });
+		}
+	},
+);
 
 async function stageSnapshot(
 	root: string,

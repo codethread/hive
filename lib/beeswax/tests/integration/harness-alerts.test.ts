@@ -24,7 +24,7 @@ const input = JSON.stringify({
 const receiptPath: HarnessAlertDependencies["receiptPath"] = () => "/user-state/session.json";
 
 // eslint-disable-next-line max-statements -- Exercise both native protocol entry routes without application wrapping.
-test("registration emits native hook JSON and accepts the Pi payload without reading stdin", async () => {
+test("registration emits native hook JSON and accepts the Pi payload without reading stdin #test-378", async () => {
 	const fx = fixture();
 	const { output } = fx;
 	fx.deps.alertReceiptPath = receiptPath;

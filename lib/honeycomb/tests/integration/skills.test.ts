@@ -4,7 +4,7 @@ import { EXIT_CODES } from "../../src/errors.ts";
 
 const tmp = useTmpHome("honeycomb-skills-");
 
-test("skills lists bundled metadata outside a repository", async () => {
+test("skills lists bundled metadata outside a repository #test-280", async () => {
 	const result = await runCli(["skills", "list", "--json"], tmp.dir);
 	expect(result).toMatchObject({ exitCode: EXIT_CODES.SUCCESS, stderr: "" });
 	expect(JSON.parse(result.stdout)).toMatchObject({
@@ -22,7 +22,7 @@ test("skills lists bundled metadata outside a repository", async () => {
 	expect(defaultList).toEqual(result);
 });
 
-test("skills retrieves instructions and referenced resources as text or JSON", async () => {
+test("skills retrieves instructions and referenced resources as text or JSON #test-279", async () => {
 	const instructions = await runCli(["skills", "get", "git-workflow"], tmp.dir);
 	expect(instructions).toMatchObject({ exitCode: EXIT_CODES.SUCCESS, stderr: "" });
 	expect(instructions.stdout).not.toStartWith("---");
@@ -58,8 +58,11 @@ test.each([
 	{ args: ["file", "git-workflow", "../SKILL.md"] },
 	{ args: ["get"] },
 	{ args: ["unknown"] },
-])("skills rejects invalid requests with one JSON error document: %j", async ({ args }) => {
-	const result = await runCli(["skills", ...args, "--json"], tmp.dir);
-	expect(result).toMatchObject({ exitCode: EXIT_CODES.USAGE, stderr: "" });
-	expect(JSON.parse(result.stdout)).toMatchObject({ ok: false, kind: "error", reason: "usage" });
-});
+])(
+	"skills rejects invalid requests with one JSON error document: %j #test-281",
+	async ({ args }) => {
+		const result = await runCli(["skills", ...args, "--json"], tmp.dir);
+		expect(result).toMatchObject({ exitCode: EXIT_CODES.USAGE, stderr: "" });
+		expect(JSON.parse(result.stdout)).toMatchObject({ ok: false, kind: "error", reason: "usage" });
+	},
+);

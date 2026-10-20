@@ -34,7 +34,7 @@ async function prepareExistingBranch(branch: string, source: string) {
 	return root;
 }
 
-test("adds a new branch, runs setup, and writes ready JSON to stdout", async () => {
+test("adds a new branch, runs setup, and writes ready JSON to stdout #test-245", async () => {
 	const { root } = await initRepoWithOrigin(tmp.dir);
 	writeConfig({ command: `echo "$WK_ROOT" > "$WK_CREATED/hook-sentinel"`, root, tmp: tmp.dir });
 
@@ -64,7 +64,7 @@ test("adds a new branch, runs setup, and writes ready JSON to stdout", async () 
 	});
 	expect(await readFile(join(worktreePath, "hook-sentinel"), "utf8")).toBe(`${root}\n`);
 });
-test("--json captures setup output in the payload and keeps stderr silent", async () => {
+test("--json captures setup output in the payload and keeps stderr silent #test-246", async () => {
 	const { root } = await initRepoWithOrigin(tmp.dir);
 	writeConfig({ command: "echo setup-stdout\necho setup-stderr >&2", root, tmp: tmp.dir });
 
@@ -84,7 +84,7 @@ test("--json captures setup output in the payload and keeps stderr silent", asyn
 	expect(payload.setup_output).toContainEqual({ line: "setup-stdout", stream: "stdout" });
 	expect(payload.setup_output).toContainEqual({ line: "setup-stderr", stream: "stderr" });
 });
-test("uses inherited rule command for a repo without exact project config", async () => {
+test("uses inherited rule command for a repo without exact project config #test-248", async () => {
 	const { root } = await initRepoWithOrigin(tmp.dir);
 	const configHome = join(tmp.dir, "config-rule-command");
 	await mkdir(configHome, { recursive: true });
@@ -104,7 +104,7 @@ test("uses inherited rule command for a repo without exact project config", asyn
 		"inherited\n",
 	);
 });
-test("copies configured files before running setup", async () => {
+test("copies configured files before running setup #test-247", async () => {
 	const { root } = await initRepoWithOrigin(tmp.dir);
 	await writeFile(join(root, ".env"), "SECRET=setup\n");
 	writeConfig({
@@ -124,7 +124,7 @@ test.each([
 	{ branch: "feature/local", name: "existing local", source: "local" },
 	{ branch: "feature/remote", name: "existing remote-only", source: "remote" },
 	{ branch: "feature/both", name: "existing local and remote", source: "both" },
-])("adds $name branch", async ({ branch, source }) => {
+])("adds $name branch #test-244", async ({ branch, source }) => {
 	const root = await prepareExistingBranch(branch, source);
 	writeConfig({ command: "echo ready", root, tmp: tmp.dir });
 
@@ -135,7 +135,7 @@ test.each([
 		`${root}__${branch.replaceAll("/", "--")}`,
 	);
 });
-test("non-json add prints a one-line summary to stderr", async () => {
+test("non-json add prints a one-line summary to stderr #test-251", async () => {
 	const { root } = await initRepoWithOrigin(tmp.dir);
 	writeConfig({ command: "echo ready", root, tmp: tmp.dir });
 
@@ -145,7 +145,7 @@ test("non-json add prints a one-line summary to stderr", async () => {
 	expect(result.stdout).toBeUndefined();
 	expect(result.stderr).toBe(`honeycomb: added feature/human at ${root}__feature--human\n`);
 });
-test("accepts --force for wrapper compatibility", async () => {
+test("accepts --force for wrapper compatibility #test-249", async () => {
 	const { root } = await initRepoWithOrigin(tmp.dir);
 	writeConfig({ command: "echo ready", root, tmp: tmp.dir });
 	const result = await dispatch(
@@ -157,7 +157,7 @@ test("accepts --force for wrapper compatibility", async () => {
 	expect(result.exitCode).toBe(EXIT_CODES.SUCCESS);
 	expect(await pathExists(`${root}__feature--force`)).toBe(true);
 });
-test("without project config post_create_script_path is null", async () => {
+test("without project config post_create_script_path is null #test-250", async () => {
 	const { root } = await initRepoWithOrigin(tmp.dir);
 	setTestEnv("XDG_CONFIG_HOME", join(tmp.dir, "empty-config"));
 
@@ -169,7 +169,7 @@ test("without project config post_create_script_path is null", async () => {
 
 	expect(JSON.parse(result.stdout ?? "{}").post_create_script_path).toBeNull();
 });
-test("rejects reserved pool branch prefix", async () => {
+test("rejects reserved pool branch prefix #test-252", async () => {
 	const { root } = await initRepoWithOrigin(tmp.dir);
 	const { failure } = await dispatch(
 		"add",

@@ -147,7 +147,7 @@ test.each([
 	{ noNetwork: true, skipCommand: true, state: "warm" },
 ] as const)(
 	"real CLI pooled flags preserve copies and truthful marker (noNetwork=$noNetwork, " +
-		"skipCommand=$skipCommand, state=$state)",
+		"skipCommand=$skipCommand, state=$state) #test-103",
 	async (options) => {
 		const root = await poolFixture(options);
 		const flags = addFlags(options);
@@ -178,7 +178,7 @@ test.each([
 	{ exists: false, failure: "hook" },
 	{ exists: true, failure: "hook" },
 ] as const)(
-	"offline $failure failure rolls back the selected slot with no origin access (exists=$exists)",
+	"offline $failure failure rolls back the selected slot with no origin access (exists=$exists) #test-105",
 	async ({ exists, failure }) => {
 		const { root, trunk } = await rollbackFixture(exists, failure);
 		const result = await addPool(root, ["--no-network"]);
@@ -193,36 +193,40 @@ test.each([
 	},
 );
 
-test("offline unmarked occupied slot is a full-pool candidate and retains safety before forced recycle", async () => {
-	const root = await occupiedFixture();
-	const flags = [
-		"--cwd",
-		root,
-		"--branch",
-		"feature/new",
-		"--no-network",
-		"--skip-command",
-		"--json",
-	];
-	const full = await dispatch("add", flags, testDeps());
-	expect(JSON.parse(full.stdout ?? "{}")).toMatchObject({
-		kind: "pool_full",
-		candidates: [{ branch: "feature/old", slot: 1 }],
-	});
-	const unsafe = await dispatch("add", [...flags, "--slot", `${root}__feat1`], testDeps());
-	expect(unsafe.failure).toBeInstanceOf(UnmergedBranchError);
-	const recycled = await dispatch(
-		"add",
-		[...flags, "--slot", `${root}__feat1`, "--force"],
-		testDeps(),
-	);
-	expect(recycled.exitCode).toBe(EXIT_CODES.SUCCESS);
-	expect(await gitSucceeds(root, "show-ref", "--verify", "refs/heads/feature/old")).toBe(false);
-	expect(await markerExists(`${root}__feat1`)).toBe(false);
-});
+test(
+	"offline unmarked occupied slot is a full-pool candidate and retains safety " +
+		"before forced recycle #test-101",
+	async () => {
+		const root = await occupiedFixture();
+		const flags = [
+			"--cwd",
+			root,
+			"--branch",
+			"feature/new",
+			"--no-network",
+			"--skip-command",
+			"--json",
+		];
+		const full = await dispatch("add", flags, testDeps());
+		expect(JSON.parse(full.stdout ?? "{}")).toMatchObject({
+			kind: "pool_full",
+			candidates: [{ branch: "feature/old", slot: 1 }],
+		});
+		const unsafe = await dispatch("add", [...flags, "--slot", `${root}__feat1`], testDeps());
+		expect(unsafe.failure).toBeInstanceOf(UnmergedBranchError);
+		const recycled = await dispatch(
+			"add",
+			[...flags, "--slot", `${root}__feat1`, "--force"],
+			testDeps(),
+		);
+		expect(recycled.exitCode).toBe(EXIT_CODES.SUCCESS);
+		expect(await gitSucceeds(root, "show-ref", "--verify", "refs/heads/feature/old")).toBe(false);
+		expect(await markerExists(`${root}__feat1`)).toBe(false);
+	},
+);
 
 test.each(["unknown-default", "missing-defaults"])(
-	"pooled offline $missing needs explicit reset base even for existing branches",
+	"pooled offline $missing needs explicit reset base even for existing branches #test-104",
 	async (missing) => {
 		const { root, tip } = await missingResetFixture(missing);
 		const failure = await addPool(root, ["--no-network", "--skip-command"]);
@@ -269,7 +273,7 @@ async function existingCachedPoolFixture() {
 
 test(
 	"offline pooled existing branch fast-forwards from cache " +
-		"and setup rollback restores its original tip",
+		"and setup rollback restores its original tip #test-100",
 	async () => {
 		const { root, trunk, cached } = await existingCachedPoolFixture();
 		const failed = await addPool(root, ["--no-network"]);
@@ -283,7 +287,7 @@ test(
 	},
 );
 
-test("offline forced recycle and rollback prefer cached reset over an explicit older base", async () => {
+test("offline forced recycle and rollback prefer cached reset over an explicit older base #test-102", async () => {
 	const { root, cached } = await aheadPoolFixture("origin_default");
 	await run(["git", "-C", `${root}__feat2`, "checkout", "-b", "feature/old"]);
 	const failed = await addPool(root, ["--no-network", "--base", "main", "--force"]);

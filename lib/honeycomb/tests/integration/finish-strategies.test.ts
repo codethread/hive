@@ -70,7 +70,7 @@ async function assertConflictPreserved({
 }
 
 test.each([{ fresh: false }, { fresh: true }])(
-	"rebase_ff rebases source before advancing target (fresh=$fresh)",
+	"rebase_ff rebases source before advancing target (fresh=$fresh) #test-86",
 	async ({ fresh }) => {
 		const fixture = await prepareFinish("feature/rebase-finish", finishPolicy("rebase_ff", fresh));
 		await commitFile({
@@ -105,7 +105,7 @@ test.each([{ fresh: false, allowance: "#test-71" }])(
 		expect(await readCheckoutState(fixture.worktreePath)).toEqual(sourceBefore);
 	},
 );
-test("finish rejects CLI policy overrides before fresh_canonical mutates target", async () => {
+test("finish rejects CLI policy overrides before fresh_canonical mutates target #test-89", async () => {
 	const { remote, root, worktreePath } = await prepareFinish(
 		"feature/cli-policy-override",
 		'[project.add]\npolicy = "fresh_canonical"\n',
@@ -132,7 +132,7 @@ test("finish rejects CLI policy overrides before fresh_canonical mutates target"
 	expect(failure).toBeInstanceOf(UsageError);
 	expect(await readCheckoutState(root)).toEqual(originalState);
 });
-test("configured finish strategy is not overridden by CLI", async () => {
+test("configured finish strategy is not overridden by CLI #test-85", async () => {
 	const { root, worktreePath } = await prepareFinish(
 		"feature/configured-strategy",
 		'[project.finish]\nstrategy = "squash"\n',
@@ -157,7 +157,7 @@ test("configured finish strategy is not overridden by CLI", async () => {
 	const hookCwd = await readFile(evidence, "utf8");
 	expect(hookCwd.trim()).toBe(root);
 });
-test("merge preview errors fail loudly before fresh_canonical advancement", async () => {
+test("merge preview errors fail loudly before fresh_canonical advancement #test-87", async () => {
 	const fixture = await prepareFinish("feature/preview-error", finishPolicy("squash", true));
 	await commitFile({
 		content: "source\n",
@@ -187,7 +187,7 @@ test("merge preview errors fail loudly before fresh_canonical advancement", asyn
 	});
 	expect(await readFinishState(fixture)).toEqual(before);
 });
-test("non-fast-forward ff_only refuses without target modification", async () => {
+test("non-fast-forward ff_only refuses without target modification #test-88", async () => {
 	const { root, worktreePath } = await prepareFinish("feature/divergent-finish");
 	await commitFile({
 		content: "source\n",
@@ -213,7 +213,7 @@ test("non-fast-forward ff_only refuses without target modification", async () =>
 	expect(await readCheckoutState(root)).toEqual(targetState);
 });
 
-test("fresh_canonical advances the target before squash integration", async () => {
+test("fresh_canonical advances the target before squash integration #test-84", async () => {
 	const { remote, root, worktreePath } = await prepareFinish(
 		"feature/fresh-squash",
 		'[project.add]\npolicy = "fresh_canonical"\n[project.finish]\nstrategy = "squash"\n',

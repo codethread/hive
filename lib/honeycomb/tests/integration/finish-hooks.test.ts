@@ -29,7 +29,7 @@ describe.each([
 	beforeEach(async () => {
 		Object.assign(fixture, await prepareHookFailure(hook, strategy, fresh));
 	});
-	test("as a Git failure", async () => {
+	test("as a Git failure #test-99", async () => {
 		const before = await readFinishState(fixture);
 		const sourceBefore = await readCheckoutState(fixture.worktreePath);
 		const result = await dispatch("finish", finishArgs(fixture.worktreePath, strategy), deps);

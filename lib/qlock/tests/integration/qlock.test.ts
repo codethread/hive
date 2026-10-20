@@ -49,7 +49,7 @@ afterEach(async () => {
 	await rm(directory, { recursive: true, force: true });
 });
 
-test("exec preserves command arguments, streams and exit status, then frees the queue", async () => {
+test("exec preserves command arguments, streams and exit status, then frees the queue #test-74", async () => {
 	const result = await qlock([
 		"exec",
 		"-w",
@@ -115,7 +115,7 @@ test(
 );
 
 test(
-	"urgent tickets skip queued work without pre-empting a ready ticket",
+	"urgent tickets skip queued work without pre-empting a ready ticket #test-80",
 	// eslint-disable-next-line max-statements -- Verify the complete ordering lifecycle on one isolated queue.
 	async () => {
 		const first = await seedTicket();
@@ -167,7 +167,7 @@ test(
 );
 
 test(
-	"a running command holds the slot until its stdin-controlled exit",
+	"a running command holds the slot until its stdin-controlled exit #test-76",
 	// eslint-disable-next-line max-statements -- Coordinate one real child through its public streams and queue status.
 	async () => {
 		const runner = Bun.spawn(
@@ -228,13 +228,13 @@ test.each([
 	{ args: ["exec", "-w", "0", "--ticket", "bad", "--lock", "LOCK", "--", "true"] },
 	{ args: ["exec", "-w", "bad", "--lock", "LOCK", "--", "true"] },
 	{ args: ["status", "--merge-target", "refs/tags/main"] },
-])("invalid invocation $args reports usage", async ({ args }) => {
+])("invalid invocation $args reports usage #test-82", async ({ args }) => {
 	const result = await qlock(args);
 	expect(result.code).toBe(usage);
 	expect(result.stderr).toContain("qlock:");
 });
 
-test("parallel initial exec attempts retain unique tickets behind a held slot", async () => {
+test("parallel initial exec attempts retain unique tickets behind a held slot #test-75", async () => {
 	const first = await seedTicket();
 	const count = 12;
 	const results = await Promise.all(
@@ -253,7 +253,7 @@ test("parallel initial exec attempts retain unique tickets behind a held slot", 
 });
 
 test(
-	"competing exec processes cannot both launch a child on the same ticket",
+	"competing exec processes cannot both launch a child on the same ticket #test-79",
 	// eslint-disable-next-line max-statements -- Coordinate two contenders with child streams instead of sleeps.
 	async () => {
 		const ticket = await seedTicket();
@@ -300,7 +300,7 @@ test(
 );
 
 test(
-	"TERM reaches the child but retains the slot until that child exits",
+	"TERM reaches the child but retains the slot until that child exits #test-77",
 	// eslint-disable-next-line max-statements -- Signal and stdin acknowledgments synchronize the entire real lifecycle.
 	async () => {
 		const childStatus = 23;
@@ -350,7 +350,7 @@ test(
 	},
 );
 
-test("spawn failures release the reservation and child flags remain opaque", async () => {
+test("spawn failures release the reservation and child flags remain opaque #test-78", async () => {
 	const failed = await qlock([
 		"exec",
 		"-w",
@@ -386,7 +386,7 @@ test("spawn failures release the reservation and child flags remain opaque", asy
 	});
 });
 
-test("corrupt queue storage fails as one JSON error without resetting it", async () => {
+test("corrupt queue storage fails as one JSON error without resetting it #test-83", async () => {
 	await mkdir(`${lock}.d`);
 	const database = resolve(`${lock}.d`, "queue.sqlite");
 	await Bun.write(database, "not a SQLite database");
@@ -415,7 +415,7 @@ test.each([
 			':"ready","readyAt":0},{"id":2,"cwd":"/caller","urgent":null,"state":' +
 			'"ready","readyAt":0}]}',
 	},
-])("rejects $name in valid SQLite without resetting the queue", async ({ snapshot }) => {
+])("rejects $name in valid SQLite without resetting the queue #test-81", async ({ snapshot }) => {
 	await seedTicket();
 	const database = new Database(resolve(`${lock}.d`, "queue.sqlite"));
 	try {

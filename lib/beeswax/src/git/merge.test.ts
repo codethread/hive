@@ -17,7 +17,7 @@ function jsonl(...records: readonly string[]): string {
 	return `${records.join("\n")}\n`;
 }
 
-test("merges independent issue additions in stable ID order", () => {
+test("merges independent issue additions in stable ID order #test-507", () => {
 	const current = jsonl(issue("hv-b", "B"));
 	const other = jsonl(issue("hv-a", "A"));
 	const expected = jsonl(issue("hv-a", "A"), issue("hv-b", "B"));
@@ -80,7 +80,7 @@ test("keeps delete-versus-edit changes as a Git conflict", () => {
 });
 
 // eslint-disable-next-line max-statements -- Keep the three-way fixture and preservation assertions in one scenario.
-test("combines append-only comments with status changes and ignores local ID renumbering", () => {
+test("combines append-only comments with status changes and ignores local ID renumbering #test-512", () => {
 	const original = { id: "hv-a", status: "open", updated_at: "2026-10-10T00:00:00Z" };
 	const comment = {
 		author: "colony",

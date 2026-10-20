@@ -7,22 +7,26 @@ const HASH_LENGTH = 40;
 const revision = "a".repeat(HASH_LENGTH);
 const release = JSON.stringify({ version, revision, executables: ["beeswax"] });
 
-test("installation info uses the packaged revision and points to exact source without guessing a clone", async () => {
-	const paths: string[] = [];
-	const result = await installationInfo("/cellar/hive/bin/beeswax", {
-		read: (path) => {
-			paths.push(path);
-			return Promise.resolve(release);
-		},
-	});
-	expect(result).toMatchObject({
-		version,
-		revision,
-		metadata: "/cellar/hive/share/hive/release.json",
-		source: { status: "not_installed", ref: revision },
-	});
-	expect(paths).toEqual(["/cellar/hive/share/hive/release.json"]);
-});
+test(
+	"installation info uses the packaged revision and points to exact source without " +
+		"guessing a clone #test-473",
+	async () => {
+		const paths: string[] = [];
+		const result = await installationInfo("/cellar/hive/bin/beeswax", {
+			read: (path) => {
+				paths.push(path);
+				return Promise.resolve(release);
+			},
+		});
+		expect(result).toMatchObject({
+			version,
+			revision,
+			metadata: "/cellar/hive/share/hive/release.json",
+			source: { status: "not_installed", ref: revision },
+		});
+		expect(paths).toEqual(["/cellar/hive/share/hive/release.json"]);
+	},
+);
 
 test("missing metadata reports unknown revision and a version-pinned route", async () => {
 	const result = await installationInfo("/bin/beeswax", { read: () => Promise.resolve("") });
@@ -38,7 +42,7 @@ test("missing metadata reports unknown revision and a version-pinned route", asy
 	});
 });
 
-test("mismatched release metadata fails rather than attributing another revision", async () => {
+test("mismatched release metadata fails rather than attributing another revision #test-529", async () => {
 	await expect(
 		installationInfo("/bin/beeswax", {
 			read: () =>

@@ -7,7 +7,7 @@ const FAILURE = 1;
 const startInput = { hook_event_name: "SessionStart", session_id: "session", source: "startup" };
 
 test.each(["claude", "codex"] as const)(
-	"%s native callbacks use the installed identity protocol",
+	"%s native callbacks use the installed identity protocol #test-435",
 	async (harness) => {
 		const fx = fixture();
 		fx.deps.env.HIVE_AGENT_NAME = "supplied-bee";
@@ -51,7 +51,7 @@ test.each([
 	expect(fx.appended).toEqual([]);
 });
 
-test("failed export writes remain failed with no success context", async () => {
+test("failed export writes remain failed with no success context #test-524", async () => {
 	const fx = fixture();
 	fx.deps.env.CLAUDE_ENV_FILE = "/session/environment";
 	fx.deps.appendEnvironment = () => Promise.reject(new Error("write failed"));
@@ -71,7 +71,7 @@ test("Pi installation exports its embedded module without reading the applicatio
 	expect(fx.appended).toEqual([]);
 });
 
-test("offline changelog is available independently of hooks", async () => {
+test("offline changelog is available independently of hooks #test-436", async () => {
 	const fx = fixture();
 	expect(await runCli(["changelog", "--json"], fx.deps)).toBe(SUCCESS);
 	expect(JSON.parse(fx.output.join(""))).toMatchObject({

@@ -9,7 +9,7 @@ import { runCli } from "../../src/cli.ts";
 const SINGLE = 1;
 const EMPTY = 0;
 
-test("headless setup uses explicit flags, shared defaults and one silent JSON receipt", async () => {
+test("headless setup uses explicit flags, shared defaults and one silent JSON receipt #test-349", async () => {
 	const fx = preparedHead();
 	fx.deps.context.tty = true;
 	const code = await runCli(
@@ -76,7 +76,7 @@ test.each([
 		call: [{ cwd: "/worker" }, "/session.env"],
 	},
 ])(
-	"system $args preserves its protocol and forwards inputs",
+	"system $args preserves its protocol and forwards inputs #test-525",
 	// eslint-disable-next-line max-statements -- Verify each adapter through the CLI with captured inputs.
 	async ({ args, kind, call }) => {
 		const fx = fixture();
@@ -122,7 +122,7 @@ test("interactive choices and explicit options reach the same deterministic setu
 	expect(fx.commands).toContainEqual(["git", "config", "--local", "core.hooksPath", ".husky/_"]);
 });
 
-test("headless setup with no known tracker asks for a concrete flag before writes", async () => {
+test("headless setup with no known tracker asks for a concrete flag before writes #test-515", async () => {
 	const fx = fixture();
 	expect(await runCli(["setup", "--yes", "--json"], fx.deps)).toBe(EXIT.usage);
 	expect(fx.files.size).toBe(EXIT.success);
@@ -133,32 +133,36 @@ test("headless setup with no known tracker asks for a concrete flag before write
 	});
 });
 
-test("workflow skill installation requires harnesses and preserves existing content before setup writes", async () => {
-	const fx = fixture();
-	expect(
-		await runCli(["setup", "--tracker", "none", "--install-workflow-skill", "--json"], fx.deps),
-	).toBe(EXIT.usage);
-	expect(fx.files.size).toBe(EMPTY);
-	fx.output.length = EMPTY;
-	fx.files.set("/repo/.agents/skills/hive/SKILL.md", "custom workflow");
-	fx.deps.list = async () => ["hive"];
-	const before = new Map(fx.files);
-	expect(
-		await runCli(
-			["setup", "--tracker", "none", "--harness", "codex", "--install-workflow-skill", "--json"],
-			fx.deps,
-		),
-	).toBe(EXIT.failure);
-	expect(fx.files).toEqual(before);
-	expect(JSON.parse(fx.output.join(""))).toMatchObject({
-		ok: false,
-		cause: "workflow_skill_exists",
-		completed: [],
-	});
-});
+test(
+	"workflow skill installation requires harnesses and preserves existing content " +
+		"before setup writes #test-377",
+	async () => {
+		const fx = fixture();
+		expect(
+			await runCli(["setup", "--tracker", "none", "--install-workflow-skill", "--json"], fx.deps),
+		).toBe(EXIT.usage);
+		expect(fx.files.size).toBe(EMPTY);
+		fx.output.length = EMPTY;
+		fx.files.set("/repo/.agents/skills/hive/SKILL.md", "custom workflow");
+		fx.deps.list = async () => ["hive"];
+		const before = new Map(fx.files);
+		expect(
+			await runCli(
+				["setup", "--tracker", "none", "--harness", "codex", "--install-workflow-skill", "--json"],
+				fx.deps,
+			),
+		).toBe(EXIT.failure);
+		expect(fx.files).toEqual(before);
+		expect(JSON.parse(fx.output.join(""))).toMatchObject({
+			ok: false,
+			cause: "workflow_skill_exists",
+			completed: [],
+		});
+	},
+);
 
 test.each([false, true])(
-	"setup skill installation is explicit even with --yes and harnesses: %j",
+	"setup skill installation is explicit even with --yes and harnesses: %j #test-376",
 	// eslint-disable-next-line max-statements -- Verify invocation, receipt and nonpersistent setup intent together.
 	async (install) => {
 		const fx = fixture();
@@ -209,7 +213,7 @@ test.each([false, true])(
 	},
 );
 
-test("installer failure keeps setup phases and partial effects in one JSON receipt", async () => {
+test("installer failure keeps setup phases and partial effects in one JSON receipt #test-399", async () => {
 	const fx = fixture();
 	const execute = fx.deps.exec;
 	fx.deps.exec = async (argv, cwd) => {
@@ -234,7 +238,7 @@ test("installer failure keeps setup phases and partial effects in one JSON recei
 	});
 });
 
-test("existing endpoint is adopted by default without creating tracker history", async () => {
+test("existing endpoint is adopted by default without creating tracker history #test-500", async () => {
 	const fx = fixture();
 	fx.deps.context.beadsDb = "/custom/.beads/beads.db";
 	fx.files.set("/custom/.beads/beads.db", "database");
@@ -247,7 +251,7 @@ test("existing endpoint is adopted by default without creating tracker history",
 	});
 });
 
-test("setup failure retains confirmed phases and never claims completion", async () => {
+test("setup failure retains confirmed phases and never claims completion #test-499", async () => {
 	const fx = preparedHead();
 	fx.files.set("/repo/.husky/pre-commit", "custom hook\n");
 	expect(await runCli(["setup", "--tracker", "init", "--json"], fx.deps)).toBe(EXIT.failure);
@@ -278,7 +282,7 @@ test("setup preserves nested tracker effects in its public failure receipt", asy
 	expect(fx.errors).toEqual([]);
 });
 
-test("setup runs tracker preflight before writing local exclusions", async () => {
+test("setup runs tracker preflight before writing local exclusions #test-468", async () => {
 	const fx = fixture();
 	fx.deps.operations.preflight = async () => {
 		throw new BeeswaxError("tracker_exists", "existing store");
@@ -289,7 +293,7 @@ test("setup runs tracker preflight before writing local exclusions", async () =>
 	expect(JSON.parse(fx.output.join(""))).toMatchObject({ completed: [] });
 });
 
-test("setup reports reused Honeycomb policy separately from deliberate execution steps", async () => {
+test("setup reports reused Honeycomb policy separately from deliberate execution steps #test-351", async () => {
 	const fx = fixture();
 	const { exec } = fx.deps;
 	fx.deps.exec = async (argv, cwd) => {
@@ -334,7 +338,7 @@ test("setup reports reused Honeycomb policy separately from deliberate execution
 	expect(fx.commands.some((argv) => argv.includes("wake"))).toBe(false);
 });
 
-test("info emits one document outside a repository without checkout discovery", async () => {
+test("info emits one document outside a repository without checkout discovery #test-387", async () => {
 	const fx = fixture();
 	fx.deps.installationInfo = async () => ({
 		ok: true,
@@ -349,7 +353,7 @@ test("info emits one document outside a repository without checkout discovery", 
 });
 
 test.each([{ args: ["--unknown", "--json"] }, { args: ["setup", "--tracker", "wrong", "--json"] }])(
-	"usage failure is one JSON document without stderr: $args",
+	"usage failure is one JSON document without stderr: $args #test-350",
 	async ({ args }) => {
 		const fx = fixture();
 		expect(await runCli(args, fx.deps)).toBe(EXIT.usage);
@@ -382,7 +386,7 @@ test.each([
 		reference: "references/manual-recovery.md",
 	},
 ])(
-	"bundled $name and its reference need no repository operations",
+	"bundled $name and its reference need no repository operations #test-487",
 	async ({ name, start, reference }) => {
 		const fx = fixture();
 		expect(await runCli(["skills", "get", name, "--json"], fx.deps)).toBe(EXIT.success);
@@ -397,7 +401,7 @@ test.each([
 	},
 );
 
-test("hook migration prints user-guided outcomes without performing repository operations", async () => {
+test("hook migration prints user-guided outcomes without performing repository operations #test-490", async () => {
 	const fx = fixture();
 	expect(await runCli(["migrate", "hooks", "--json"], fx.deps)).toBe(EXIT.success);
 	expect(JSON.parse(fx.output.join(""))).toMatchObject({

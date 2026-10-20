@@ -19,7 +19,7 @@ const db = "/tracker/beads.db";
 const command = ["--repo", repo, "--db", db];
 
 // eslint-disable-next-line max-statements -- Verify the complete public payload and no-effect boundary together.
-test("system preview freezes active briefs and renders retained actor contexts without effects", async () => {
+test("system preview freezes active briefs and renders retained actor contexts without effects #test-330", async () => {
 	const fixture = await inspectionFixture();
 	const before = await fixture.records();
 	const result = await captureCli(
@@ -67,7 +67,7 @@ test("system preview freezes active briefs and renders retained actor contexts w
 	expect(await fixture.records()).toEqual(before);
 });
 
-test("ordinary preview stays structural and never invokes instruction renderers", async () => {
+test("ordinary preview stays structural and never invokes instruction renderers #test-331", async () => {
 	const fixture = await inspectionFixture();
 	const result = await captureCli([...command, "preview", fixture.id, "--json"], fixture.services);
 	expect(result.code).toBe(SUCCESS);
@@ -79,7 +79,7 @@ test("ordinary preview stays structural and never invokes instruction renderers"
 	expect(fixture.rendered()).toEqual([]);
 });
 
-test("system schema is discoverable without tracker access and tooling requires JSON", async () => {
+test("system schema is discoverable without tracker access and tooling requires JSON #test-332", async () => {
 	const services = createServices();
 	const result = await captureCli(["system", "schema", "--json"], services);
 	expect(result.code).toBe(SUCCESS);
@@ -95,7 +95,7 @@ test("system schema is discoverable without tracker access and tooling requires 
 	expect(human.stderr).toContain("--json");
 });
 
-test("system preview fails visibly on malformed projection before rendering callbacks", async () => {
+test("system preview fails visibly on malformed projection before rendering callbacks #test-423", async () => {
 	const fixture = await inspectionFixture("missing");
 	const result = await captureCli(
 		[...command, "system", "preview", fixture.id, "--json"],
@@ -112,7 +112,7 @@ test("system preview fails visibly on malformed projection before rendering call
 	expect(fixture.rendered()).toEqual([]);
 });
 
-test("checkpoint version reads no definition or callbacks and performs no writes", async () => {
+test("checkpoint version reads no definition or callbacks and performs no writes #test-422", async () => {
 	const fixture = await inspectionFixture();
 	const before = await fixture.records();
 	const services = {

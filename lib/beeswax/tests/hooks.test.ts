@@ -15,7 +15,7 @@ import { fixture } from "./support.ts";
 const root = "/repo";
 const config = defaultProjectConfig("husky");
 
-test("repeated generation preserves application bytes outside the owned section", async () => {
+test("repeated generation preserves application bytes outside the owned section #test-511", async () => {
 	const fx = fixture();
 	const app = `# application header\n${hookSection}\n\nprintf '%s\\n' custom\n`;
 	fx.files.set("/repo/.husky/pre-commit", app);

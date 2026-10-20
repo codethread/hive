@@ -18,7 +18,7 @@ const history: ChangelogRelease[] = [
 	{ version: "0.6.0", changes: [change] },
 ];
 
-test("latest selection excludes releases beyond the installed version", () => {
+test("latest selection excludes releases beyond the installed version #test-416", () => {
 	const page = queryChangelog(tool, history, { offset: 0 });
 	expect(page.releases.map((release) => release.version)).toEqual(["0.7.0"]);
 	expect(page.total).toBe(LATEST_CHANGES);

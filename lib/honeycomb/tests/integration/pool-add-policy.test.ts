@@ -34,7 +34,7 @@ async function prepareDivergedPool() {
 	return root;
 }
 
-test("pre_remote_check blocks pooled status before remote trunk detection", async () => {
+test("pre_remote_check blocks pooled status before remote trunk detection #test-131", async () => {
 	const { root, remote } = await initRepoWithOrigin(tmp.dir);
 	await commitOnRemoteDefault({
 		content: "remote\n",
@@ -63,7 +63,7 @@ test("pre_remote_check blocks pooled status before remote trunk detection", asyn
 	});
 	expect(await gitSucceeds(root, "show", "origin/main:pooled-status-remote.txt")).toBe(false);
 });
-test("fresh_canonical blocks dirty canonical root before pooled slot allocation", async () => {
+test("fresh_canonical blocks dirty canonical root before pooled slot allocation #test-129", async () => {
 	const { root, remote } = await initRepoWithOrigin(tmp.dir);
 	writeConfig({
 		command: "echo ready",
@@ -96,7 +96,7 @@ test("fresh_canonical blocks dirty canonical root before pooled slot allocation"
 		await gitSucceeds(root, "show-ref", "--verify", "refs/heads/feature/pooled-dirty-block"),
 	).toBe(false);
 });
-test("fresh_canonical fast-forwards canonical root before pooled branch checkout", async () => {
+test("fresh_canonical fast-forwards canonical root before pooled branch checkout #test-125", async () => {
 	const { root, remote } = await initRepoWithOrigin(tmp.dir);
 	writeConfig({
 		command: "echo ready",
@@ -119,7 +119,7 @@ test("fresh_canonical fast-forwards canonical root before pooled branch checkout
 	expect(await gitText(`${root}__feat1`, "show", "HEAD:pooled-fresh.txt")).toBe("fresh pooled\n");
 	expect(await gitOut(`${root}__feat1`, "branch", "--show-current")).toBe("feature/pooled-fresh");
 });
-test("origin_default pooled add uses fetched origin default without mutating canonical root", async () => {
+test("origin_default pooled add uses fetched origin default without mutating canonical root #test-126", async () => {
 	const { root, remote } = await initRepoWithOrigin(tmp.dir);
 	writeConfig({ command: "echo ready", poolSize: SINGLE_SLOT, root, tmp: tmp.dir });
 	await createPoolSlot({ branch: "wk-pool/feat1", index: SINGLE_SLOT, initialized: true, root });
@@ -142,7 +142,7 @@ test("origin_default pooled add uses fetched origin default without mutating can
 		"origin default\n",
 	);
 });
-test("fresh_canonical pooled explicit base bypasses canonical update requirement", async () => {
+test("fresh_canonical pooled explicit base bypasses canonical update requirement #test-128", async () => {
 	const { root, remote } = await initRepoWithOrigin(tmp.dir);
 	await createRemoteBranch(remote, "base/policy-check");
 	writeConfig({
@@ -177,7 +177,7 @@ test("fresh_canonical pooled explicit base bypasses canonical update requirement
 	});
 	expect(await gitText(`${root}__feat1`, "show", "HEAD:remote.txt")).toBe("base/policy-check\n");
 });
-test("fresh_canonical policy failure does not recycle an occupied pooled slot", async () => {
+test("fresh_canonical policy failure does not recycle an occupied pooled slot #test-130", async () => {
 	const { root, remote } = await initRepoWithOrigin(tmp.dir);
 	writeConfig({
 		command: "echo ready",
@@ -220,7 +220,7 @@ test("fresh_canonical policy failure does not recycle an occupied pooled slot", 
 		await gitSucceeds(root, "show-ref", "--verify", "refs/heads/feature/blocked-recycle"),
 	).toBe(false);
 });
-test("warns for diverged branches and rejects duplicates without side effects", async () => {
+test("warns for diverged branches and rejects duplicates without side effects #test-127", async () => {
 	const root = await prepareDivergedPool();
 	const warnDeps = testDeps();
 

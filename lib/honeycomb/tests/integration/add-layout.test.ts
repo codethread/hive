@@ -43,7 +43,7 @@ async function prepareMixedLayout() {
 	return { legacyPath: `${root}__feature--legacy`, manualPath, nestedPath, root };
 }
 
-test("creates nested worktrees under the canonical root without dirtying it", async () => {
+test("creates nested worktrees under the canonical root without dirtying it #test-199", async () => {
 	const root = await prepareNestedRoot();
 	const worktreePath = join(root, ".worktrees", "feature--nested");
 
@@ -62,7 +62,7 @@ test("creates nested worktrees under the canonical root without dirtying it", as
 	expect(await pathExists(join(worktreePath, ".git"))).toBe(true);
 	expect(await gitText(root, "status", "--porcelain")).toBe("");
 });
-test("keeps legacy and manual worktrees discoverable after changing location", async () => {
+test("keeps legacy and manual worktrees discoverable after changing location #test-200", async () => {
 	const { root, legacyPath, manualPath, nestedPath } = await prepareMixedLayout();
 
 	const legacy = await dispatch("path", ["--cwd", root, "--branch", "feature/legacy"], deps);

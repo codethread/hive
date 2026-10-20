@@ -62,7 +62,7 @@ afterAll(async () => {
 });
 
 test.each(cases)(
-	"recovery rejects a restored receipt %s mismatch before inventory or process effects",
+	"recovery rejects a restored receipt %s mismatch before inventory or process effects #test-519",
 	async (name) => {
 		const fixture = fixtures.get(name)!;
 		const inventory = mock(() => Promise.reject(new Error("Unexpected inventory refresh")));
@@ -80,7 +80,7 @@ test.each(cases)(
 );
 
 test.each(["driver", "stage"] as const)(
-	"unchanged %s authority continues after private checkpoint restoration",
+	"unchanged %s authority continues after private checkpoint restoration #test-344",
 	async (kind) => {
 		const fixture = continuation[kind];
 		const inventory = mock(() => Promise.resolve([]));

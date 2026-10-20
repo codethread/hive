@@ -26,7 +26,7 @@ test("Land graph shows review and delivery findings returning to checked work", 
 	expect(steps.review).toMatchObject({ kind: "task", bee: "reviewer" });
 });
 
-test("Land walkthrough follows real outcomes from checked work through local update", () => {
+test("Land walkthrough follows real outcomes from checked work through local update #test-402", () => {
 	let { snapshot } = exampleVisit(sampleContext, "initial");
 	for (const command of ["passed", "approved", "next", "next", "next"]) {
 		const outcome = availableOutcomes(snapshot, sampleContext).find(
@@ -47,7 +47,7 @@ test("Land worker instructions render retained evidence and the final caller bri
 	expect(renderInstructions("done", exampleContext).instructions).toContain(sampleContext.request);
 });
 
-test("Land preview samples use the same chart as their simulation", () => {
+test("Land preview samples use the same chart as their simulation #test-348", () => {
 	for (const sample of workflowSamples.filter((entry) => entry.definition.startsWith("land"))) {
 		const preview = samplePreview(sample);
 		expect(Object.keys(preview.actors[0]!.machine["states"]!)).toEqual(stepIds);

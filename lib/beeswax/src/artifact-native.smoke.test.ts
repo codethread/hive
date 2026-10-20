@@ -15,7 +15,8 @@ const PERMISSION_MASK = 0o777;
 const SUCCESS = 0;
 
 test(
-	"installation copies only named artifacts, sets executable permissions and replaces symlinks on repeated installs",
+	"installation copies only named artifacts, sets executable permissions and " +
+		"replaces symlinks on repeated installs #test-214",
 	// eslint-disable-next-line max-statements -- Verify observable installation outcomes in one disposable fixture.
 	async () => {
 		const root = await mkdtemp(join(tmpdir(), "hive-artifacts-"));

@@ -20,7 +20,7 @@ afterEach(async () => {
 	await rm(directory, { force: true, recursive: true });
 });
 
-test("skills lists discovery metadata without loading instruction bodies", async () => {
+test("skills lists discovery metadata without loading instruction bodies #test-254", async () => {
 	const listed = await invokeSkills(["list", "--json"]);
 	expect(listed).toMatchObject({ code: 0, stderr: "" });
 	const document = JSON.parse(listed.stdout);
@@ -46,7 +46,7 @@ test("skills lists discovery metadata without loading instruction bodies", async
 	);
 });
 
-test.each(skillNames)("skills retrieves %s through get and file routes", async (name) => {
+test.each(skillNames)("skills retrieves %s through get and file routes #test-255", async (name) => {
 	const text = await invokeSkills(["get", name]);
 	expect(text).toMatchObject({ code: 0, stderr: "" });
 	expect(text.stdout.startsWith("---")).toBe(false);
@@ -69,7 +69,7 @@ test.each([
 	{ args: ["file", "workflow-execution", "missing.md"] },
 	{ args: ["file", "workflow-execution", "../SKILL.md"] },
 	{ args: ["unknown"] },
-])("skills rejects invalid requests through the CLI: %j", async ({ args }) => {
+])("skills rejects invalid requests through the CLI: %j #test-256", async ({ args }) => {
 	const result = await invokeSkills([...args, "--json"]);
 	expect(result.code).not.toBe(SUCCESS);
 	expect(result.stderr).toBe("");
@@ -81,7 +81,7 @@ test.each([
 });
 
 test.each(skillNames)(
-	"the executable reads %s with an empty PATH and isolated home",
+	"the executable reads %s with an empty PATH and isolated home #test-253",
 	async (name) => {
 		const proc = Bun.spawn(
 			[

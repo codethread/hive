@@ -144,7 +144,7 @@ function leg(
 }
 
 // eslint-disable-next-line max-statements -- Check original evidence and additional-leg effects together.
-test("explicit continuation preserves the original receipt and verifies both inventories", async () => {
+test("explicit continuation preserves the original receipt and verifies both inventories #test-372", async () => {
 	const { deps, calls, saved, boundaryPhases } = fixture();
 	const result = await restartServer(target, deps, "replace-retained");
 	expect(result.daemon).toEqual(replacement);

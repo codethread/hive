@@ -113,137 +113,148 @@ interface PublishedVisit {
 	context: Record<string, unknown>;
 }
 
-// eslint-disable-next-line max-statements -- Follow both regions, the revision loop and the join in one replay.
-test.each(origins)("shipped parallel example joins both regions from %s", async (origin) => {
-	const fixture = await exampleFixture(parallel, {});
-	const events = [event("parallel-work.prepare")];
-	const initial = await fixture.simulate([], origin);
-	expect(identities(initial)).toEqual([
-		{ node: "parallel-work.prepare", command: "next", event: "PREPARED" },
-	]);
-	const branches = await fixture.simulate(events, origin);
-	expect(identities(branches)).toEqual([
-		{
-			node: "parallel-work.implementation.api.implement",
-			command: "next",
-			event: "API.IMPLEMENTED",
-		},
-		{ node: "parallel-work.implementation.docs.write", command: "next", event: "DOCS.WRITTEN" },
-	]);
-	events.push(
-		event("parallel-work.implementation.docs.write"),
-		event("parallel-work.implementation.docs.check", "revise"),
-	);
-	const revised = await fixture.simulate(events, origin);
-	expect(revised.actor.snapshot.value).toEqual({
-		implementation: { api: "implement", docs: "write" },
-	});
-	events.push(
-		event("parallel-work.implementation.api.implement"),
-		event("parallel-work.implementation.api.verify"),
-	);
-	const waiting = await fixture.simulate(events, origin);
-	expect(identities(waiting)).toEqual([
-		{ node: "parallel-work.implementation.docs.write", command: "next", event: "DOCS.WRITTEN" },
-	]);
-	events.push(
-		event("parallel-work.implementation.docs.write"),
-		event("parallel-work.implementation.docs.check", "approved"),
-	);
-	const joined = await fixture.simulate(events, origin);
-	expect(joined.actor.snapshot.value).toBe("handoff");
-	expect(joined.actor.instructions["parallel-work.handoff"]).toMatchObject({
-		kind: "rendered",
-		instructions: "Summarize both completed branches.",
-	});
-	events.push(event("parallel-work.handoff"));
-	const done = await fixture.simulate(events, origin);
-	expect(done.actor.snapshot).toEqual({ status: "done", value: "done" });
-	expect(done.choices).toEqual([]);
-	await fixture.assertUnchanged();
-});
+test.each(origins)(
+	"shipped parallel example joins both regions from %s #test-298",
+	// eslint-disable-next-line max-statements -- Follow both regions, the revision loop and the join in one replay.
+	async (origin) => {
+		const fixture = await exampleFixture(parallel, {});
+		const events = [event("parallel-work.prepare")];
+		const initial = await fixture.simulate([], origin);
+		expect(identities(initial)).toEqual([
+			{ node: "parallel-work.prepare", command: "next", event: "PREPARED" },
+		]);
+		const branches = await fixture.simulate(events, origin);
+		expect(identities(branches)).toEqual([
+			{
+				node: "parallel-work.implementation.api.implement",
+				command: "next",
+				event: "API.IMPLEMENTED",
+			},
+			{ node: "parallel-work.implementation.docs.write", command: "next", event: "DOCS.WRITTEN" },
+		]);
+		events.push(
+			event("parallel-work.implementation.docs.write"),
+			event("parallel-work.implementation.docs.check", "revise"),
+		);
+		const revised = await fixture.simulate(events, origin);
+		expect(revised.actor.snapshot.value).toEqual({
+			implementation: { api: "implement", docs: "write" },
+		});
+		events.push(
+			event("parallel-work.implementation.api.implement"),
+			event("parallel-work.implementation.api.verify"),
+		);
+		const waiting = await fixture.simulate(events, origin);
+		expect(identities(waiting)).toEqual([
+			{ node: "parallel-work.implementation.docs.write", command: "next", event: "DOCS.WRITTEN" },
+		]);
+		events.push(
+			event("parallel-work.implementation.docs.write"),
+			event("parallel-work.implementation.docs.check", "approved"),
+		);
+		const joined = await fixture.simulate(events, origin);
+		expect(joined.actor.snapshot.value).toBe("handoff");
+		expect(joined.actor.instructions["parallel-work.handoff"]).toMatchObject({
+			kind: "rendered",
+			instructions: "Summarize both completed branches.",
+		});
+		events.push(event("parallel-work.handoff"));
+		const done = await fixture.simulate(events, origin);
+		expect(done.actor.snapshot).toEqual({ status: "done", value: "done" });
+		expect(done.choices).toEqual([]);
+		await fixture.assertUnchanged();
+	},
+);
 
-// eslint-disable-next-line max-statements -- Exercise replanning, substitution and final guard together.
-test.each(origins)("shipped groceries example replans and completes from %s", async (origin) => {
-	const fixture = await exampleFixture(groceries, {});
-	const events = [event("groceries.planning.calendar", "busy", { meals: 3 })];
-	const busy = await fixture.simulate(events, origin);
-	expect(busy.actor.snapshot.value).toEqual({ recipes: "quick" });
-	expect(busy.actor.instructions["groceries.recipes.quick"]).toMatchObject({
-		kind: "rendered",
-	});
-	expect(instructions(busy, "groceries.recipes.quick")).toContain("fit the busy evenings");
-	events.push(...shoppingPath("quick"), event("groceries.shopping.build", "replan"));
-	const replan = await fixture.simulate(events, origin);
-	expect(replan.actor.snapshot.value).toEqual({ planning: "calendar" });
-	events.push(event("groceries.planning.calendar", "flexible", { meals: 5 }));
-	const flexible = await fixture.simulate(events, origin);
-	expect(flexible.actor.snapshot.value).toEqual({ recipes: "seasonal" });
-	events.push(
-		...shoppingPath("seasonal"),
-		event("groceries.shopping.build"),
-		event("groceries.shopping.availability", "unavailable"),
-	);
-	const fallback = await fixture.simulate(events, origin);
-	expect(fallback.actor.snapshot.value).toEqual({ shopping: "fallback" });
-	expect(identities(fallback)).toContainEqual({
-		node: "groceries.shopping.fallback",
-		command: "substitute",
-		event: "CHOICE.substitute",
-	});
-	events.push(
-		event("groceries.shopping.fallback", "substitute"),
-		event("groceries.shopping.availability", "available"),
-		event("groceries.budget.check", "within-budget"),
-		event("groceries.outputs.meal_plan"),
-		event("groceries.outputs.grocery_list"),
-	);
-	const confirm = await fixture.simulate(events, origin);
-	expect(confirm.actor.snapshot.value).toEqual({ outputs: "confirm" });
-	expect(confirm.actor.instructions["groceries.outputs.confirm"]).toMatchObject({
-		kind: "rendered",
-	});
-	expect(instructions(confirm, "groceries.outputs.confirm")).toContain("quantities match servings");
-	events.push(event("groceries.outputs.confirm", "done"));
-	const done = await fixture.simulate(events, origin);
-	expect(done.actor.snapshot.status).toBe("done");
-	expect(done.choices).toEqual([]);
-	await fixture.assertUnchanged();
-});
+test.each(origins)(
+	"shipped groceries example replans and completes from %s #test-297",
+	// eslint-disable-next-line max-statements -- Exercise replanning, substitution and final guard together.
+	async (origin) => {
+		const fixture = await exampleFixture(groceries, {});
+		const events = [event("groceries.planning.calendar", "busy", { meals: 3 })];
+		const busy = await fixture.simulate(events, origin);
+		expect(busy.actor.snapshot.value).toEqual({ recipes: "quick" });
+		expect(busy.actor.instructions["groceries.recipes.quick"]).toMatchObject({
+			kind: "rendered",
+		});
+		expect(instructions(busy, "groceries.recipes.quick")).toContain("fit the busy evenings");
+		events.push(...shoppingPath("quick"), event("groceries.shopping.build", "replan"));
+		const replan = await fixture.simulate(events, origin);
+		expect(replan.actor.snapshot.value).toEqual({ planning: "calendar" });
+		events.push(event("groceries.planning.calendar", "flexible", { meals: 5 }));
+		const flexible = await fixture.simulate(events, origin);
+		expect(flexible.actor.snapshot.value).toEqual({ recipes: "seasonal" });
+		events.push(
+			...shoppingPath("seasonal"),
+			event("groceries.shopping.build"),
+			event("groceries.shopping.availability", "unavailable"),
+		);
+		const fallback = await fixture.simulate(events, origin);
+		expect(fallback.actor.snapshot.value).toEqual({ shopping: "fallback" });
+		expect(identities(fallback)).toContainEqual({
+			node: "groceries.shopping.fallback",
+			command: "substitute",
+			event: "CHOICE.substitute",
+		});
+		events.push(
+			event("groceries.shopping.fallback", "substitute"),
+			event("groceries.shopping.availability", "available"),
+			event("groceries.budget.check", "within-budget"),
+			event("groceries.outputs.meal_plan"),
+			event("groceries.outputs.grocery_list"),
+		);
+		const confirm = await fixture.simulate(events, origin);
+		expect(confirm.actor.snapshot.value).toEqual({ outputs: "confirm" });
+		expect(confirm.actor.instructions["groceries.outputs.confirm"]).toMatchObject({
+			kind: "rendered",
+		});
+		expect(instructions(confirm, "groceries.outputs.confirm")).toContain(
+			"quantities match servings",
+		);
+		events.push(event("groceries.outputs.confirm", "done"));
+		const done = await fixture.simulate(events, origin);
+		expect(done.actor.snapshot.status).toBe("done");
+		expect(done.choices).toEqual([]);
+		await fixture.assertUnchanged();
+	},
+);
 
 test.each([
 	{ meals: 0, code: FAILURE },
 	{ meals: 2, code: SUCCESS },
-])("shipped groceries final guard respects saved meal count $meals", async ({ meals, code }) => {
-	const snapshot = groceriesMachine.getPersistedSnapshot(
-		groceriesMachine.resolveState({
-			value: { outputs: "confirm" },
-			context: { busyWeek: false, plannedMeals: meals, substitutions: 0 },
-		}),
-	);
-	const fixture = await exampleFixture(groceries, {}, { snapshot });
-	const result = await fixture.raw({
-		...fixture.request,
-		events: [event("groceries.outputs.confirm", "done")],
-	});
-	expect(result.code, result.stdout).toBe(code);
-	if (code === FAILURE) {
-		expect(JSON.parse(result.stdout)).toMatchObject({
-			reason: "simulation_event_blocked",
-			step: FIRST,
-			node: "groceries.outputs.confirm",
-			command: "done",
-		});
-	} else {
-		expect(workflowSimulationSchema.parse(JSON.parse(result.stdout)).actor.snapshot.status).toBe(
-			"done",
+])(
+	"shipped groceries final guard respects saved meal count $meals #test-300",
+	async ({ meals, code }) => {
+		const snapshot = groceriesMachine.getPersistedSnapshot(
+			groceriesMachine.resolveState({
+				value: { outputs: "confirm" },
+				context: { busyWeek: false, plannedMeals: meals, substitutions: 0 },
+			}),
 		);
-	}
-	await fixture.assertUnchanged();
-});
+		const fixture = await exampleFixture(groceries, {}, { snapshot });
+		const result = await fixture.raw({
+			...fixture.request,
+			events: [event("groceries.outputs.confirm", "done")],
+		});
+		expect(result.code, result.stdout).toBe(code);
+		if (code === FAILURE) {
+			expect(JSON.parse(result.stdout)).toMatchObject({
+				reason: "simulation_event_blocked",
+				step: FIRST,
+				node: "groceries.outputs.confirm",
+				command: "done",
+			});
+		} else {
+			expect(workflowSimulationSchema.parse(JSON.parse(result.stdout)).actor.snapshot.status).toBe(
+				"done",
+			);
+		}
+		await fixture.assertUnchanged();
+	},
+);
 
 test.each(origins)(
-	"shipped linear example renders caller context through completion from %s",
+	"shipped linear example renders caller context through completion from %s #test-299",
 	// eslint-disable-next-line max-statements -- Verify all three rendered stages and completion.
 	async (origin) => {
 		const fixture = await exampleFixture(linear, linearInput);
@@ -268,7 +279,7 @@ test.each(origins)(
 );
 
 test.each(origins)(
-	"shipped change-review plan rejects spawning or virtual-visit validation from %s",
+	"shipped change-review plan rejects spawning or virtual-visit validation from %s #test-302",
 	// eslint-disable-next-line max-statements -- Distinguish saved spawn rejection from virtual visit validation.
 	async (origin) => {
 		const { context } = initialTransition(changeReviewMachine, changeInput)[FIRST];
@@ -307,75 +318,79 @@ test.each(origins)(
 	},
 );
 
-// eslint-disable-next-line max-statements -- Verify child rendering, validation and rejected parent messaging.
-test("shipped retained reviewer validates revision and rejects sendParent without advancing the parent", async () => {
-	const child = changeReviewReviewer.getPersistedSnapshot(
-		initialTransition(changeReviewReviewer, reviewerInput)[FIRST],
-	);
-	const root = changeReviewMachine.getPersistedSnapshot(
-		initialTransition(changeReviewMachine, changeInput)[FIRST],
-	);
-	const snapshot = {
-		...root,
-		children: { "round-1-simulation": { src: "reviewer", snapshot: child } },
-	};
-	const fixture = await exampleFixture(changeReview, changeInput, {
-		snapshot,
-		published: {
+test(
+	"shipped retained reviewer validates revision and rejects sendParent without " +
+		"advancing the parent #test-301",
+	// eslint-disable-next-line max-statements -- Verify child rendering, validation and rejected parent messaging.
+	async () => {
+		const child = changeReviewReviewer.getPersistedSnapshot(
+			initialTransition(changeReviewReviewer, reviewerInput)[FIRST],
+		);
+		const root = changeReviewMachine.getPersistedSnapshot(
+			initialTransition(changeReviewMachine, changeInput)[FIRST],
+		);
+		const snapshot = {
+			...root,
+			children: { "round-1-simulation": { src: "reviewer", snapshot: child } },
+		};
+		const fixture = await exampleFixture(changeReview, changeInput, {
+			snapshot,
+			published: {
+				node: "change-reviewer.review",
+				path: ["round-1-simulation"],
+				context: reviewerInput,
+			},
+		});
+		const request = { ...fixture.request, actorId: 'actor:["round-1-simulation"]' };
+		const initial = await fixture.raw(request);
+		expect(initial.code, initial.stdout).toBe(SUCCESS);
+		const result = workflowSimulationSchema.parse(JSON.parse(initial.stdout));
+		expect(result.actor.path).toEqual(["round-1-simulation"]);
+		expect(result.actor.instructions["change-reviewer.review"]).toMatchObject({
+			kind: "frozen",
+			title: reviewTask.title,
+		});
+		expect(instructions(result, "change-reviewer.review")).toContain(
+			`Assigned revision: ${plan.revision}`,
+		);
+		expect(identities(result)).toEqual([
+			{ node: "change-reviewer.review", command: "approved", event: "approved" },
+			{ node: "change-reviewer.review", command: "changes", event: "changes" },
+		]);
+		const stale = await fixture.raw({
+			...request,
+			events: [event("change-reviewer.review", "approved", { ...approval, revision: "wrong" })],
+		});
+		expect(stale.code).toBe(FAILURE);
+		expect(JSON.parse(stale.stdout)).toMatchObject({
+			reason: "simulation_invalid_event",
+			step: FIRST,
+		});
+		const complete = await fixture.raw({
+			...request,
+			events: [event("change-reviewer.review", "approved", approval)],
+		});
+		expect(complete.code).toBe(FAILURE);
+		expect(JSON.parse(complete.stdout)).toMatchObject({
+			ok: false,
+			kind: "workflow_simulation",
+			reason: "simulation_unsupported",
+			step: FIRST,
 			node: "change-reviewer.review",
-			path: ["round-1-simulation"],
-			context: reviewerInput,
-		},
-	});
-	const request = { ...fixture.request, actorId: 'actor:["round-1-simulation"]' };
-	const initial = await fixture.raw(request);
-	expect(initial.code, initial.stdout).toBe(SUCCESS);
-	const result = workflowSimulationSchema.parse(JSON.parse(initial.stdout));
-	expect(result.actor.path).toEqual(["round-1-simulation"]);
-	expect(result.actor.instructions["change-reviewer.review"]).toMatchObject({
-		kind: "frozen",
-		title: reviewTask.title,
-	});
-	expect(instructions(result, "change-reviewer.review")).toContain(
-		`Assigned revision: ${plan.revision}`,
-	);
-	expect(identities(result)).toEqual([
-		{ node: "change-reviewer.review", command: "approved", event: "approved" },
-		{ node: "change-reviewer.review", command: "changes", event: "changes" },
-	]);
-	const stale = await fixture.raw({
-		...request,
-		events: [event("change-reviewer.review", "approved", { ...approval, revision: "wrong" })],
-	});
-	expect(stale.code).toBe(FAILURE);
-	expect(JSON.parse(stale.stdout)).toMatchObject({
-		reason: "simulation_invalid_event",
-		step: FIRST,
-	});
-	const complete = await fixture.raw({
-		...request,
-		events: [event("change-reviewer.review", "approved", approval)],
-	});
-	expect(complete.code).toBe(FAILURE);
-	expect(JSON.parse(complete.stdout)).toMatchObject({
-		ok: false,
-		kind: "workflow_simulation",
-		reason: "simulation_unsupported",
-		step: FIRST,
-		node: "change-reviewer.review",
-		command: "approved",
-	});
-	expect(JSON.parse(complete.stdout)).not.toHaveProperty("actor");
-	const initialChild = await fixture.raw({
-		...request,
-		start: { kind: "initial", input: reviewerInput },
-	});
-	expect(JSON.parse(initialChild.stdout)).toMatchObject({ reason: "simulation_unsupported" });
-	const rootReplay = await fixture.raw(fixture.request);
-	expect(JSON.parse(rootReplay.stdout)).toMatchObject({ reason: "simulation_unsupported" });
-	expect(await fixture.raw(request)).toEqual(initial);
-	await fixture.assertUnchanged();
-});
+			command: "approved",
+		});
+		expect(JSON.parse(complete.stdout)).not.toHaveProperty("actor");
+		const initialChild = await fixture.raw({
+			...request,
+			start: { kind: "initial", input: reviewerInput },
+		});
+		expect(JSON.parse(initialChild.stdout)).toMatchObject({ reason: "simulation_unsupported" });
+		const rootReplay = await fixture.raw(fixture.request);
+		expect(JSON.parse(rootReplay.stdout)).toMatchObject({ reason: "simulation_unsupported" });
+		expect(await fixture.raw(request)).toEqual(initial);
+		await fixture.assertUnchanged();
+	},
+);
 
 // --- Private fixtures ---
 

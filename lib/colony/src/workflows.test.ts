@@ -31,43 +31,46 @@ test.each([
 		selection: { kind: "source" as const, path: "/caller/workflow.ts" },
 		command: ["start", "/caller/workflow.ts"],
 	},
-])("workflow adapter forwards parent and endpoint for $command", async ({ selection, command }) => {
-	calls.length = 0;
-	const result = await commands.start({
-		parent: "original-1",
-		endpoint,
-		owner: "ct",
-		inputFile: "/caller/work.json",
-		selection,
-	});
-	expect(result).toEqual(run);
-	expect(calls).toEqual([
-		{
-			argv: [
-				"busybee",
-				"--repo",
-				"/execution",
-				"--db",
-				"/tracker/beads.db",
-				"--actor",
-				"agent",
-				"--json",
-				...command,
-				"--parent",
-				"original-1",
-				"--input-file",
-				"/caller/work.json",
-				"--owner",
-				"ct",
-				"--assignee",
-				"",
-			],
-			cwd: "/execution",
-		},
-	]);
-});
+])(
+	"workflow adapter forwards parent and endpoint for $command #test-334",
+	async ({ selection, command }) => {
+		calls.length = 0;
+		const result = await commands.start({
+			parent: "original-1",
+			endpoint,
+			owner: "ct",
+			inputFile: "/caller/work.json",
+			selection,
+		});
+		expect(result).toEqual(run);
+		expect(calls).toEqual([
+			{
+				argv: [
+					"busybee",
+					"--repo",
+					"/execution",
+					"--db",
+					"/tracker/beads.db",
+					"--actor",
+					"agent",
+					"--json",
+					...command,
+					"--parent",
+					"original-1",
+					"--input-file",
+					"/caller/work.json",
+					"--owner",
+					"ct",
+					"--assignee",
+					"",
+				],
+				cwd: "/execution",
+			},
+		]);
+	},
+);
 
-test("driver admission uses Busy Bee system with the selected endpoint", async () => {
+test("driver admission uses Busy Bee system with the selected endpoint #test-492", async () => {
 	calls.length = 0;
 	expect(await commands.prepareDriver(run.id, endpoint)).toEqual({
 		runId: run.id,

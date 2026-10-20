@@ -54,7 +54,7 @@ test.each([
 	{ branch: "blocked" as const, workflow: "blocked-review" },
 	{ branch: "in_progress" as const, workflow: "in-progress-review" },
 ])(
-	"ordinary $branch submission uses its named workflow and selected tracker",
+	"ordinary $branch submission uses its named workflow and selected tracker #test-434",
 	async ({ branch, workflow }) => {
 		await commands.start({
 			repository,
@@ -75,28 +75,32 @@ test.each([
 		expect(JSON.parse(savedInput)).toMatchObject({ branch, token: "scan" });
 	},
 );
-test("recovery invokes public bee retry for the exact predecessor with explicit cancellation only", async () => {
-	await commands.retry({
-		repository,
-		actor: "reviewer",
-		requestId: "predecessor",
-		resumeCancelled: false,
-		cwd: null,
-	});
-	expect(calls.at(-ONE)).toEqual(
-		expect.arrayContaining(["retry", "predecessor", "--actor", "reviewer"]),
-	);
-	expect(calls.at(-ONE)).not.toContain("--resume-cancelled");
-	await commands.retry({
-		repository,
-		actor: "reviewer",
-		requestId: "paused",
-		resumeCancelled: true,
-		cwd: "/original-checkout",
-	});
-	expect(calls.at(-ONE)).toContain("--resume-cancelled");
-	expect(calls.at(-ONE)).toContain("/original-checkout");
-});
+test(
+	"recovery invokes public bee retry for the exact predecessor with explicit " +
+		"cancellation only #test-466",
+	async () => {
+		await commands.retry({
+			repository,
+			actor: "reviewer",
+			requestId: "predecessor",
+			resumeCancelled: false,
+			cwd: null,
+		});
+		expect(calls.at(-ONE)).toEqual(
+			expect.arrayContaining(["retry", "predecessor", "--actor", "reviewer"]),
+		);
+		expect(calls.at(-ONE)).not.toContain("--resume-cancelled");
+		await commands.retry({
+			repository,
+			actor: "reviewer",
+			requestId: "paused",
+			resumeCancelled: true,
+			cwd: "/original-checkout",
+		});
+		expect(calls.at(-ONE)).toContain("--resume-cancelled");
+		expect(calls.at(-ONE)).toContain("/original-checkout");
+	},
+);
 
 const stoppedEvidence = {
 	ok: true,
@@ -167,7 +171,7 @@ test.each([
 	},
 	{ kind: "stage" as const, stageId: "saved-stage", requestIds: ["unrelated"], expected: false },
 ])(
-	"public saved $kind inspection binds the original assignment ($stageId, $expected)",
+	"public saved $kind inspection binds the original assignment ($stageId, $expected) #test-496",
 	async ({ kind, stageId, requestIds, expected }) => {
 		const observed = { argv: [] as string[], cwd: "" };
 		const boundary = workReviewCommands(
@@ -218,7 +222,7 @@ test.each([
 );
 
 test.each(["missing_checkpoint", "incompatible_definition"])(
-	"public %s inspection failure preserves evidence and refuses continuation",
+	"public %s inspection failure preserves evidence and refuses continuation #test-527",
 	async (reason) => {
 		const boundary = workReviewCommands(
 			{

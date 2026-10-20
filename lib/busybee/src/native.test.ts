@@ -41,7 +41,7 @@ test.each([
 	{ code: CONFLICT, conflict: true },
 	{ code: VALIDATION, conflict: false },
 ])(
-	"conditional writes preserve revision guards and classify native failure $code",
+	"conditional writes preserve revision guards and classify native failure $code #test-449",
 	// Keep the CAS scope, publication marker and fault classification in one boundary check.
 	// eslint-disable-next-line max-statements
 	async ({ code, conflict }) => {

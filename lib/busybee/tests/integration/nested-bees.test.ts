@@ -71,7 +71,7 @@ test("saved public projections distinguish branch stages and isolated child simu
 	expect(fixture.afterSimulation).toEqual(fixture.beforeSimulation);
 });
 
-test("Storybook captures match the real authored runtime and public inspection path", async () => {
+test("Storybook captures match the real authored runtime and public inspection path #test-443", async () => {
 	const saved = await Bun.file(
 		new URL("../../../hive-ui/src/stories/workflow-nested-bees.json", import.meta.url),
 	).json();
