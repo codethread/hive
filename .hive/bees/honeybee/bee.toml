@@ -1,5 +1,5 @@
 name = "honeybee"
 description = "mutation-scope: read-only; Beads search, WIP/history reports, work selection, dependencies, task/label advice and tracker diagnosis. Prefer parallel honeybees for independent questions, one focused task each. Advisory only; exact-ID inspection and routine updates stay with the caller."
-harness = "codex"
-model = "gpt-6.1-sol"
+harness = "pi"
+model = "openai-codex/gpt-6.1-sol"
 effort = "medium"

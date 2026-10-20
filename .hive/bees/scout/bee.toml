@@ -1,6 +1,6 @@
 name = "scout"
 description = "mutation-scope: read-only; Code finder for one narrow lookup: files, symbols, direct callers and tests. Returns verified pointers for the requester to re-read, not analysis. Do not use for design, change assessment, correctness reasoning, plans or estimates. Split unrelated lookups across scouts."
-harness = "codex-standard"
-model = "gpt-6-luna"
+harness = "pi"
+model = "openai-codex/gpt-6-luna"
 effort = "high"
 allow = []

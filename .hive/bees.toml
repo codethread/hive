@@ -11,8 +11,8 @@ worktree = 15
 
 [kinds.worker]
 description = "mutation-scope: mutating; Implement the linked task beads and verify their outcomes."
-harness = "codex"
-model = "gpt-6.1-sol"
+harness = "pi"
+model = "openai-codex/gpt-6.1-sol"
 effort = "high"
 system_prompt = '''
 Work on the related task beads.
@@ -24,8 +24,8 @@ Work on the related task beads.
 
 [kinds.slow-worker]
 description = "mutation-scope: mutating; Work through implementation tasks with more deliberate reasoning."
-harness = "codex"
-model = "gpt-6.1-sol"
+harness = "pi"
+model = "openai-codex/gpt-6.1-sol"
 effort = "xhigh"
 system_prompt = '''
 Work on the related task beads.
@@ -53,7 +53,7 @@ argv = [
 	"{{prompt}}",
 ]
 
-# Scout uses native Codex at standard tier, overriding inherited fast-mode settings.
+# Retained standard-tier Codex formula; overrides inherited fast-mode settings.
 [formulas.codex-standard]
 executable = "codex"
 headless = ["exec", "--json", "--dangerously-bypass-approvals-and-sandbox"]
