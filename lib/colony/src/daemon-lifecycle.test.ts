@@ -128,7 +128,7 @@ test.each(recoveryCases)("restart rejects $name after readiness", async ({ colon
 test("failed native startup reports confirmed effects without a fallback launch", async () => {
 	const { deps } = fixture();
 	const cause = Object.assign(new Error("Missing socket"), { code: "ENOENT" });
-	deps.request = () => Promise.reject(new DaemonUnavailableError("unavailable", { cause }));
+	deps.request = () => Promise.reject(new DaemonUnavailableError("status", "transport", cause));
 	deps.start = async (_target, effect) => {
 		await effect("native_service_submitted");
 		throw new Error("readiness failed");
@@ -261,7 +261,9 @@ test("interruption after replacement observation retains the receipt and retries
 			stops += ONE;
 		}
 		if (command.kind === "recover" && interrupted) {
-			return Promise.reject(new DaemonUnavailableError("caller interrupted"));
+			return Promise.reject(
+				new DaemonUnavailableError("recover", "transport", new Error("caller interrupted")),
+			);
 		}
 		return request(selected, command);
 	};
@@ -370,7 +372,7 @@ test("an unavailable retained replacement preserves its receipt without attempti
 	const { deps, effects } = fixture();
 	deps.pending = () => Promise.resolve(retained());
 	const cause = Object.assign(new Error("Missing socket"), { code: "ENOENT" });
-	deps.request = () => Promise.reject(new DaemonUnavailableError("unavailable", { cause }));
+	deps.request = () => Promise.reject(new DaemonUnavailableError("status", "transport", cause));
 	await expect(restartServer(target, deps)).rejects.toBeInstanceOf(DaemonLifecycleError);
 	expect(deps.record).not.toHaveBeenCalled();
 	expect(effects).toEqual([]);

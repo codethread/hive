@@ -1,7 +1,7 @@
 import type { DaemonResponse, ServerTarget } from "./client.ts";
+import { DaemonUnavailableError, connectionUnavailable } from "./client.ts";
 import type { ColonyRequest } from "@hive/shared";
 import type { ProcessFingerprint } from "./processes.ts";
-import { connectionUnavailable } from "./client.ts";
 
 const TIMEOUT_MS = 10_000;
 const RECOVERY_TIMEOUT_MS = 600_000;
@@ -13,6 +13,60 @@ export interface DaemonSupervisor {
 	/** Fully qualified native service target. */
 	service: string;
 }
+export interface ContinuationEvidence {
+	/** Recorded replacement selected for the single additional replacement leg. */
+	outgoing: {
+		/** Daemon lifetime bound to the graceful stop request. */
+		id: string;
+		/** Process ID reported by that daemon. */
+		pid: number;
+		/** Verified process fingerprint retained before stop submission. */
+		owner: ProcessFingerprint;
+	};
+	/** Confirmed effects of this additional leg, separate from the original effects. */
+	confirmedEffects: string[];
+	/** Lost stop response retained while handoff and process exit are inspected. */
+	stopFailure?:
+		| {
+				/** Request boundary that reported the failure. */
+				phase: "transport" | "response" | "decode" | "daemon";
+				/** Original request failure diagnostic. */
+				message: string;
+		  }
+		| undefined;
+}
+/** Saved progress of one explicit continuation; requested phases do not prove submission. */
+export type RestartContinuation = ContinuationEvidence &
+	(
+		| {
+				/** Admission saved; revalidate before recording stop intent. */
+				phase: "prepared";
+		  }
+		| {
+				/** Stop intent saved; resume by observing handoff and exit only. */
+				phase: "stop_requested";
+		  }
+		| {
+				/** Matched handoff and process exit verified; native startup may follow. */
+				phase: "drained";
+				/** Later inventory validated against the original restart manifest. */
+				handoff: Stopped;
+		  }
+		| {
+				/** Native start intent saved; resume by observing a replacement only. */
+				phase: "start_requested";
+				/** Verified outgoing handoff retained through uncertain startup. */
+				handoff: Stopped;
+		  }
+		| {
+				/** New daemon observed under native ownership; recovery may still be pending. */
+				phase: "observed";
+				/** Later inventory supplements the original recovery obligation. */
+				handoff: Stopped;
+				/** New daemon whose identity and recovery are checked on every retry. */
+				daemon: DaemonStatus;
+		  }
+	);
 export interface RestartCheckpoint {
 	/** Restart disposition retained if the caller is interrupted. */
 	state: "running" | "failed" | "done";
@@ -20,16 +74,21 @@ export interface RestartCheckpoint {
 	previous: { id: string; pid: number; owner: ProcessFingerprint } | null;
 	/** Durable registrations and attempts from the current or retained drained handoff. */
 	registrations: Stopped["registrations"] | null;
-	/** Observed replacement; repository recovery is verified before completion. */
+	/** Original observed replacement; an additional leg retains its new daemon separately. */
 	daemon: DaemonStatus | null;
 	/** Confirmed boundary effects, in order. */
 	confirmedEffects: string[];
+	/** Explicit additional replacement leg within this same restart obligation. */
+	continuation?: RestartContinuation | undefined;
 }
 export interface DaemonLifecycle {
 	/** Check platform, supervisor domain and runtime before stopping a daemon. */
 	prepare: (target: ServerTarget) => Promise<void>;
-	/** Recover the last quiescent handoff after an unavailable daemon. */
-	handoff: (target: ServerTarget) => Promise<Stopped | undefined>;
+	/** Read a handoff after verified exit, matching the outgoing fingerprint when supplied. */
+	handoff: (
+		target: ServerTarget,
+		outgoing?: ContinuationEvidence["outgoing"],
+	) => Promise<Stopped | undefined>;
 	/** Read the original manifest, identities and effects of an unfinished restart for this target. */
 	pending: (target: ServerTarget) => Promise<RestartCheckpoint | undefined>;
 	/** Atomically retain the restart handoff and effects. */
@@ -67,8 +126,10 @@ export interface RestartedDaemon {
 	daemon: DaemonStatus;
 	/** Independent native service ownership. */
 	supervisor: DaemonSupervisor;
-	/** Confirmed restart steps, including recovery verification. */
+	/** Confirmed effects of the original replacement leg, in order. */
 	confirmedEffects: string[];
+	/** Additional leg and its effects, present only for an explicit continuation. */
+	continuation?: RestartContinuation | undefined;
 }
 export class DaemonLifecycleError extends Error {
 	readonly reason = "daemon_lifecycle_incomplete";
@@ -122,6 +183,7 @@ export async function requestLazyServer(
 export async function restartServer(
 	target: ServerTarget,
 	deps: DaemonLifecycle,
+	mode: "inplace" | "replace-retained" = "inplace",
 ): Promise<RestartedDaemon> {
 	const effects: string[] = [];
 	let recording = false;
@@ -153,6 +215,11 @@ export async function restartServer(
 			if (pending.previous) {
 				previous = { id: pending.previous.id, pid: pending.previous.pid };
 			}
+		}
+		if (pending?.continuation || mode === "replace-retained") {
+			return await continueRestart(target, deps, checkpoint, () => {
+				recording = true;
+			});
 		}
 		const before = await availableStatus(target, deps);
 		if (pending?.daemon) {
@@ -217,6 +284,179 @@ export async function restartServer(
 }
 
 // --- Private functions ---
+// eslint-disable-next-line max-params, max-statements -- Preserve evidence across one additional replacement leg.
+async function continueRestart(
+	target: ServerTarget,
+	deps: DaemonLifecycle,
+	checkpoint: RestartCheckpoint,
+	admitted: () => void,
+): Promise<RestartedDaemon> {
+	const supervisor = deps.supervisor(target);
+	if (!checkpoint.daemon || !checkpoint.registrations) {
+		throw new Error(
+			"--replace-retained requires an unfinished restart receipt with an observed replacement " +
+				"and registration manifest",
+		);
+	}
+	let leg = checkpoint.continuation;
+	if (leg) {
+		assertReplacement(
+			target,
+			checkpoint.daemon,
+			{ ...checkpoint.daemon, id: leg.outgoing.id, pid: leg.outgoing.pid },
+			checkpoint.previous,
+		);
+		if (leg.outgoing.owner.pid !== leg.outgoing.pid) {
+			throw new Error("Continuation fingerprint does not match its outgoing PID");
+		}
+		if ("handoff" in leg) {
+			if (leg.handoff.id !== leg.outgoing.id) {
+				throw new Error("Continuation handoff does not match its outgoing lifetime");
+			}
+			verifyManifest(checkpoint.registrations, leg.handoff.registrations);
+		}
+	}
+	if (!leg || leg.phase === "prepared") {
+		const before = await availableStatus(target, deps);
+		if (!before) {
+			throw new Error("Recorded replacement daemon is unavailable");
+		}
+		assertReplacement(target, before, checkpoint.daemon, checkpoint.previous);
+		const owner = await deps.owner(target, before);
+		if (leg && !sameFingerprint(owner, leg.outgoing.owner)) {
+			throw new Error("Continuation outgoing process fingerprint changed");
+		}
+		await deps.verify(target, before, supervisor);
+		if ((await deps.observe(owner)) !== "live") {
+			throw new Error("Recorded replacement exited before continuation admission");
+		}
+		leg = {
+			phase: "prepared",
+			outgoing: { id: before.id, pid: before.pid, owner },
+			confirmedEffects: [],
+		};
+		checkpoint.continuation = leg;
+		admitted();
+		await deps.record(target, checkpoint);
+		leg = { ...leg, phase: "stop_requested" };
+		checkpoint.continuation = leg;
+		await deps.record(target, checkpoint);
+		try {
+			const stopped = await deps.request(target, { kind: "stop", expectedId: leg.outgoing.id });
+			if (stopped.kind !== "stopped" || stopped.id !== leg.outgoing.id) {
+				throw new Error("Stop did not acknowledge the continuation outgoing lifetime");
+			}
+			leg.confirmedEffects.push("stop_acknowledged");
+			await deps.record(target, checkpoint);
+		} catch (error) {
+			if (!(error instanceof DaemonUnavailableError)) {
+				throw error;
+			}
+			leg.stopFailure = { phase: error.phase, message: error.message };
+			await deps.record(target, checkpoint);
+		}
+	}
+	if (leg.phase !== "observed") {
+		admitted();
+	}
+	if (leg.phase === "stop_requested") {
+		const handoff = await waitForContinuationDrain(target, deps, leg.outgoing);
+		verifyManifest(checkpoint.registrations, handoff.registrations);
+		leg = {
+			...leg,
+			phase: "drained",
+			handoff,
+			confirmedEffects: [...leg.confirmedEffects, "handoff_verified", "outgoing_exited"],
+		};
+		checkpoint.continuation = leg;
+		await deps.record(target, checkpoint);
+	}
+	if (leg.phase === "drained") {
+		if (await availableStatus(target, deps)) {
+			throw new Error("Selected endpoint is occupied before continuation startup");
+		}
+		leg = { ...leg, phase: "start_requested" };
+		checkpoint.continuation = leg;
+		await deps.record(target, checkpoint);
+		const starting = leg;
+		await deps.start(target, async (effect) => {
+			starting.confirmedEffects.push(effect);
+			await deps.record(target, checkpoint);
+		});
+	}
+	if (leg.phase === "start_requested") {
+		const daemon = await waitForServer(target, deps);
+		assertReplacement(target, daemon, daemon, leg.outgoing);
+		await deps.verify(target, daemon, supervisor);
+		leg = {
+			...leg,
+			phase: "observed",
+			daemon,
+			confirmedEffects: [...leg.confirmedEffects, "replacement_observed"],
+		};
+		checkpoint.continuation = leg;
+		await deps.record(target, checkpoint);
+	}
+	const before = await availableStatus(target, deps);
+	if (!before) {
+		throw new Error("Continuation replacement daemon is unavailable");
+	}
+	assertReplacement(target, before, leg.daemon, leg.outgoing);
+	await deps.verify(target, before, supervisor);
+	admitted();
+	const daemon = await waitForRecovery(target, deps, leg.daemon, leg.outgoing);
+	await deps.verify(target, daemon, supervisor);
+	verifyRecovery(checkpoint.registrations, daemon);
+	verifyRecovery(leg.handoff.registrations, daemon);
+	leg.daemon = daemon;
+	leg.confirmedEffects.push("recovery_verified");
+	checkpoint.state = "done";
+	await deps.record(target, checkpoint);
+	return {
+		kind: "restarted",
+		previous: checkpoint.previous && { id: checkpoint.previous.id, pid: checkpoint.previous.pid },
+		daemon,
+		supervisor,
+		confirmedEffects: checkpoint.confirmedEffects,
+		continuation: leg,
+	};
+}
+
+async function waitForContinuationDrain(
+	target: ServerTarget,
+	deps: DaemonLifecycle,
+	outgoing: ContinuationEvidence["outgoing"],
+): Promise<Stopped> {
+	const deadline = deps.now() + RECOVERY_TIMEOUT_MS;
+	/* eslint-disable no-await-in-loop -- A lost stop response may complete later; never resubmit it. */
+	while (deps.now() < deadline) {
+		if ((await deps.observe(outgoing.owner)) === "stopped") {
+			const handoff = await deps.handoff(target, outgoing);
+			if (handoff) {
+				if (handoff.id !== outgoing.id) {
+					throw new Error("Continuation handoff does not match the outgoing daemon");
+				}
+				return handoff;
+			}
+		}
+		await deps.pause();
+	}
+	/* eslint-enable no-await-in-loop */
+	throw new Error(
+		"Continuation drain deadline expired without a matched handoff and verified exit; " +
+			"stop_requested is retained and retries only inspect handoff and exit",
+	);
+}
+
+function sameFingerprint(left: ProcessFingerprint, right: ProcessFingerprint): boolean {
+	return (
+		left.pid === right.pid &&
+		left.startTime === right.startTime &&
+		left.ppid === right.ppid &&
+		left.cmd === right.cmd
+	);
+}
+
 // eslint-disable-next-line max-params -- Recovery binds checkpoint updates to native ownership and effect recording.
 async function finishRecovery(
 	target: ServerTarget,
@@ -340,6 +580,14 @@ function verifyRecovery(
 			throw new Error(`Recovery has duplicate live attempts in ${colony.repository.root}`);
 		}
 	}
+	verifyManifest(registrations, durable);
+}
+
+// eslint-disable-next-line max-statements -- Verify complete membership, authority, intent and attempt pairs together.
+function verifyManifest(
+	registrations: Stopped["registrations"] | undefined,
+	durable: Stopped["registrations"],
+): void {
 	if (registrations === undefined) {
 		return;
 	}

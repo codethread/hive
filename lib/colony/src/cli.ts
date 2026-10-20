@@ -3,6 +3,7 @@
  * lifecycle.
  */
 import { Command, CommanderError } from "commander";
+import { DaemonRequestError, DaemonUnavailableError } from "./client.ts";
 import { beesConfigSchema, policyChangeSchema } from "@hive/shared";
 import {
 	changelogHistorySchema,
@@ -15,7 +16,6 @@ import type { AssessmentsResult } from "./assessments.ts";
 import { CommandError } from "@hive/beads";
 import { DaemonLifecycleError } from "./daemon-lifecycle.ts";
 import type { DaemonResponse } from "./client.ts";
-import { DaemonUnavailableError } from "./client.ts";
 import type { Explanation } from "./explain.ts";
 import type { HistoryResult } from "./history.ts";
 import type { InitOptions } from "./initial-config.ts";
@@ -115,8 +115,13 @@ export interface ColonyDependencies {
 	status: (options: ServerOptions) => Promise<DaemonResponse>;
 	/** Stop the selected running daemon. */
 	stop: (options: ServerOptions) => Promise<DaemonResponse>;
-	/** Replace the daemon through independent native supervision and verify recovery. */
-	restart: (options: ServerOptions) => Promise<RestartedDaemon>;
+	/** Restart or resume the selected daemon and verify native ownership and recovery. */
+	restart: (
+		options: ServerOptions & {
+			/** Select one additional replacement within an unfinished restart. */
+			replaceRetained: boolean;
+		},
+	) => Promise<RestartedDaemon>;
 	/** Write canonical configuration without overwriting it. */
 	init: (options: InitOptions) => Promise<InitializedResult>;
 	/** Execute the isolated Colony process. */
@@ -428,7 +433,12 @@ Policy diagnosis and activation: colony skills file operations references/recove
 			.command("restart")
 			.description("Restart the daemon and verify independent ownership and recovery"),
 	)
-		.action(async (options: ServerOptions) => {
+		.option(
+			"--replace-retained",
+			"Deliberately replace the recorded daemon once within an unfinished restart",
+			false,
+		)
+		.action(async (options: ServerOptions & { replaceRetained: boolean }) => {
 			writeColonyResult(await deps.restart(options), argv.includes("--json"), deps.stdout);
 		})
 		.addHelpText(
@@ -449,17 +459,37 @@ Durable registrations, Beads database selections, awake/asleep intent and surviv
 attempts are preserved. Temporary registrations and policy overrides end with the
 old daemon. Detached bees continue running.
 
-When an unfinished receipt records a replacement, retry with the same state/socket.
-A matching daemon with verified native ownership resumes checks against the
-original registration and attempt manifest without another stop/start. An
-unavailable, mismatched or unowned replacement fails before changing the receipt.
+With an unfinished receipt and no saved continuation, the default retry checks its
+recorded replacement in place against the original registration and attempt
+manifest. Keep the same state/socket. An unavailable, mismatched or unowned
+replacement fails before changing the receipt.
+
+To deliberately replace that recorded daemon once, use --replace-retained. Admission
+requires its exact endpoint, lifetime/PID, live process fingerprint and independent
+native ownership. The same restart.json retains the original previous, daemon,
+manifest and confirmedEffects; continuation records the additional leg separately.
+It saves stop intent before requesting graceful stop. A lost stop response triggers
+up to 10 minutes of inspection for the exact handoff and verified outgoing exit.
+Only then can native startup proceed. Recovery must preserve both the original
+and later handoff inventories, including intervening attempts; natural completion
+is allowed. Failed recovery or duplicate live attempts prevent completion.
+
+Retries of an unfinished continuation resume its saved phase, including when the
+flag is repeated. stop_requested only inspects handoff/exit; start_requested only
+observes a replacement. Neither call is resubmitted. A crash between saving intent
+and making its call can leave a retained failure that retry alone cannot resolve;
+diagnose the saved phase and effects. Once the new daemon is observed, retries
+finish its recovery in place.
 
 JSON success has kind restarted, previous (original id/pid or null when unobserved),
-daemon, supervisor (kind launchd or systemd) and confirmedEffects.
+daemon, supervisor (kind launchd or systemd) and confirmedEffects. Explicit
+continuation adds continuation with its phase, identities, handoff and own effects.
 Failure kind error with reason daemon_lifecycle_incomplete includes target,
-checkpoint, confirmedEffects, receipt path and diagnostics. Retain restart.json
-and daemon-handoff.json when present; inspect confirmed effects and resolve the
-failure before retrying. Pending recovery is not successful completion.
+checkpoint, confirmedEffects, receipt path and diagnostics, plus continuationPhase
+when present. Request failures include request and phase (transport, response,
+decode or daemon); a lost stop response is retained in continuation.stopFailure.
+Retain restart.json and daemon-handoff.json when present; inspect both sets of
+effects and resolve the failure before retrying. Pending recovery is not success.
 `,
 		);
 	try {
@@ -507,8 +537,16 @@ export function reportFailure(
 			target: error.target,
 			confirmedEffects: error.confirmedEffects,
 			checkpoint: error.checkpoint,
+			continuationPhase: error.checkpoint?.continuation?.phase,
 			receipt: `${error.target.state}/restart.json`,
 		});
+	}
+	let requestError = error;
+	if (error instanceof DaemonLifecycleError) {
+		requestError = error.cause;
+	}
+	if (requestError instanceof DaemonRequestError) {
+		Object.assign(failure, { request: requestError.request, phase: requestError.phase });
 	}
 	if (error instanceof RequestPublicationError) {
 		failure.requestId = error.requestId;

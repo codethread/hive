@@ -158,8 +158,13 @@ process.exitCode = await runCli(Bun.argv.slice(USER_ARGUMENTS_START), {
 			kind: "remove",
 			repository: await resolveRepository(options.repo, options.beadsDb),
 		}),
-	restart: (options) =>
-		withDaemonLock(target(options), () => restartServer(target(options), lifecycle)),
+	restart: (options) => {
+		let mode: "inplace" | "replace-retained" = "inplace";
+		if (options.replaceRetained) {
+			mode = "replace-retained";
+		}
+		return withDaemonLock(target(options), () => restartServer(target(options), lifecycle, mode));
+	},
 	// eslint-disable-next-line max-statements -- Foreground process ownership includes signal forwarding and cleanup.
 	serve: async (options) => {
 		const selected = target(options);

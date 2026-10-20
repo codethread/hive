@@ -1,5 +1,10 @@
 /* eslint-disable import/max-dependencies -- Native supervisor composes process, filesystem and wire evidence. */
-import type { DaemonStatus, DaemonSupervisor, RestartCheckpoint } from "./daemon-lifecycle.ts";
+import type {
+	ContinuationEvidence,
+	DaemonStatus,
+	DaemonSupervisor,
+	RestartCheckpoint,
+} from "./daemon-lifecycle.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Native service files and ownership receipts.
 import { access, mkdir, readFile, rename } from "node:fs/promises";
 import { daemonStatusResponseSchema, daemonStopResponseSchema } from "@hive/shared";
@@ -23,6 +28,33 @@ const ONE = 1;
 const NO_PID = "-";
 const HASH_LENGTH = 20;
 const LAUNCHD_PID = 1;
+const outgoingSchema = z.object({
+	id: z.string(),
+	pid: z.number().int().positive(),
+	owner: processFingerprintSchema,
+});
+const continuationEvidence = z.object({
+	outgoing: outgoingSchema,
+	confirmedEffects: z.array(z.string()),
+	stopFailure: z
+		.object({ phase: z.enum(["transport", "response", "decode", "daemon"]), message: z.string() })
+		.optional(),
+});
+/** Persisted form of RestartContinuation; the lifecycle type owns phase semantics. */
+const continuationSchema = z.discriminatedUnion("phase", [
+	continuationEvidence.extend({ phase: z.literal("prepared") }),
+	continuationEvidence.extend({ phase: z.literal("stop_requested") }),
+	continuationEvidence.extend({ phase: z.literal("drained"), handoff: daemonStopResponseSchema }),
+	continuationEvidence.extend({
+		phase: z.literal("start_requested"),
+		handoff: daemonStopResponseSchema,
+	}),
+	continuationEvidence.extend({
+		phase: z.literal("observed"),
+		handoff: daemonStopResponseSchema,
+		daemon: daemonStatusResponseSchema,
+	}),
+]);
 const pendingSchema = z.object({
 	/** Retained restart disposition; only unfinished checkpoints can resume. */
 	state: z.enum(["running", "failed", "done"]),
@@ -43,6 +75,8 @@ const pendingSchema = z.object({
 	daemon: daemonStatusResponseSchema.nullable(),
 	/** Confirmed restart effects in their original order. */
 	confirmedEffects: z.array(z.string()),
+	/** Additional replacement leg retained beside the original evidence. */
+	continuation: continuationSchema.optional(),
 	/** Endpoint selected when this restart was recorded. */
 	target: z.object({
 		/** Selected absolute Unix socket path. */
@@ -74,7 +108,10 @@ export async function readDaemonOwner(target: ServerTarget, status: DaemonStatus
 
 /** Retained server handoffs permit deliberate recovery after an interrupted caller. */
 // eslint-disable-next-line max-statements -- Match final handoff identity and prove its former owner is stopped.
-export async function readDaemonHandoff(target: ServerTarget) {
+export async function readDaemonHandoff(
+	target: ServerTarget,
+	expected?: ContinuationEvidence["outgoing"],
+) {
 	const source = await readOptionalJson(join(target.state, "daemon-handoff.json"));
 	if (source === undefined) {
 		return;
@@ -84,6 +121,17 @@ export async function readDaemonHandoff(target: ServerTarget) {
 	const owner = ownerSchema.parse(JSON.parse(ownerSource));
 	if (owner.id !== handoff.id) {
 		return;
+	}
+	if (
+		owner.socket !== target.socket ||
+		(expected &&
+			(owner.id !== expected.id ||
+				owner.process.pid !== expected.pid ||
+				owner.process.startTime !== expected.owner.startTime ||
+				owner.process.ppid !== expected.owner.ppid ||
+				owner.process.cmd !== expected.owner.cmd))
+	) {
+		throw new Error("Daemon handoff ownership does not match the selected outgoing process");
 	}
 	if ((await observeProcess(owner.process)) !== "stopped") {
 		throw new Error(
