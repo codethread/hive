@@ -90,7 +90,7 @@ export async function publishStdoutActivity(
 	return false;
 }
 
-/** Initial evidence and settlement publish immediately; unchanged output never makes a heartbeat. */
+/** Initial evidence and settlement bypass the throttle; unchanged output never makes a heartbeat. */
 export function stdoutActivityDue(
 	previous: StdoutActivity | undefined,
 	current: StdoutActivity,

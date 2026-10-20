@@ -183,6 +183,28 @@ export function openStore(state: string) {
 			database.query("DELETE FROM active_policies WHERE root = ?").run(root);
 		},
 		close: () => database.close(),
+		/** Current local attempt receipts only; no artifact reads, process probes or writes. */
+		currentAttempts: (root: string): AttemptInventory[] =>
+			attemptRowsSchema
+				.parse(
+					database
+						.query(
+							"SELECT attempts.id, attempts.spawn_id AS spawnId, attempts.directory, " +
+								"attempts.token, attempts.snapshot, attempts.state FROM attempts JOIN requests " +
+								"ON requests.root = attempts.root AND requests.spawn_id = attempts.spawn_id " +
+								"AND json_extract(requests.snapshot, '$.context.attemptId') = attempts.id " +
+								"WHERE attempts.root = ? AND json_extract(requests.snapshot, '$.state') != 'terminal' " +
+								"AND json_extract(requests.snapshot, '$.host') = ? " +
+								"AND json_extract(attempts.snapshot, '$.host') = ? ORDER BY attempts.rowid",
+						)
+						.all(root, hostname(), hostname()),
+				)
+				.map((row) => ({
+					id: row.id,
+					receipt: launchReceiptSchema.parse(JSON.parse(row.snapshot)),
+					spawnId: row.spawnId,
+					state: row.state,
+				})),
 		history: openHistory(database, state),
 		inventory,
 		policyHistory: (root: string): PolicyRevision[] =>

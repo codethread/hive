@@ -25,6 +25,8 @@ import type { BeadsService } from "@hive/beads";
 import type { ColonyActivity } from "./colony.ts";
 import { claimServer } from "./server-ownership.ts";
 import { createColony } from "./colony.ts";
+import { createFilesystemHints } from "./wake-hints.ts";
+import { dispatch } from "./dispatch.ts";
 import { match } from "ts-pattern";
 import { openStore } from "./store.ts";
 import { waitFor } from "xstate";
@@ -74,7 +76,11 @@ export async function serve(
 		registration: RunningColony["registration"],
 		activity: ColonyActivity,
 	) => {
-		const actor = createColony({ beads, repository, state: options.state, store }, activity);
+		const actor = createColony({ beads, repository, state: options.state, store }, activity, {
+			now: () => performance.now(),
+			observeHints: (notify) => createFilesystemHints(repository.beadsDb, notify),
+			scan: dispatch,
+		});
 		const policy = match(activity)
 			.with({ state: "awake" }, ({ config, revisionId }) => ({ config, revisionId }))
 			/* eslint-disable-next-line unicorn/no-null --
@@ -83,7 +89,11 @@ export async function serve(
 			.otherwise(() => null);
 		const colony = { actor, policy, registration, repository, recovered: false };
 		actor.subscribe((snapshot) => {
-			if (snapshot.matches("idle") || snapshot.matches("asleep") || snapshot.matches("failed")) {
+			if (
+				snapshot.matches({ awake: "idle" }) ||
+				snapshot.matches("asleep") ||
+				snapshot.matches("failed")
+			) {
 				colony.recovered = true;
 			}
 		});
@@ -415,6 +425,7 @@ export async function serve(
 		await pending;
 		await chmod(options.socket, SOCKET_MODE);
 	} catch (error) {
+		await Promise.all([...colonies.values()].map(({ actor }) => drain(actor)));
 		await server.stop(true);
 		store.close();
 		ownership.close();

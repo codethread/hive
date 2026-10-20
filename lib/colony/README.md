@@ -52,7 +52,7 @@ Discover requests through [native Beads queries](../../docs/agents/spawn-request
 
 Stdout activity is historical evidence, not a liveness verdict. `lastOutputAt` records the last modification of a nonempty attempt stdout log; `recordedAt` records publication. Empty log creation, stderr and polling do not count. A new attempt starts with unknown activity. Leave active logs unmodified.
 
-Awake reconciliation publishes first output, then changed activity at most once per 30 seconds; settlement flushes the final observation. Sleep/outage delays publication while detached workers keep writing. Source write time survives that delay; silence alone does not prove inactivity.
+For publication timing and final-flush behavior, see [reconciliation cadence](#reconciliation-cadence). Sleep/outage delays publication while detached workers keep writing; source write time survives that delay.
 
 ## Run a colony
 
@@ -131,6 +131,16 @@ Within a priority tier, default `bv-pagerank` uses the best linked task's score 
 BV runs only when individually feasible same-priority requests cannot all fit remaining colony, kind and launch-location capacity. Higher priorities reserve first; a later ranking failure does not undo earlier launches. The location bucket is the containing Git worktree or canonicalized external execution directory; later process directory changes do not move it.
 
 `colony list` shows active limits; `[limits.kinds]` overrides individual kinds. Zero prevents launches. Lowering limits leaves existing workers running and delays new work until occupancy fits every limit, including workers retained across sleep/removal. Waiting workflow drivers consume ordinary capacity.
+
+### Reconciliation cadence
+
+Each awake colony runs a full fresh native reconciliation pass immediately after watcher setup on wake or recovery. After a completed pass, unchanged stable-running or empty state uses a fixed 60-second quiet delay. Known starting, claiming, waiting, retrying, settling or changed state uses five seconds.
+
+Hints from the selected Beads database/WAL and current local attempt publications (`finish.json`, `worker.json`, `ownership.json`) shorten the idle deadline to five seconds after the previous pass completed, or immediately if that time has elapsed. Hints during a pass request a paced follow-up; repeated hints never postpone the deadline or overlap passes. Watch setup, runtime or unexpected-close failures emit a diagnostic, dispose watches and restore five-second polling until wake or actor replacement. Native reconciliation failures still fail visibly. Hints choose when to read; fresh native facts and existing ownership, claim and settlement checks remain authoritative.
+
+**60 seconds bounds only the quiet post-pass scheduling delay, not end-to-end cancellation or completion.** Missed hints, JSONL-only changes and unobserved worker exits can wait for that fallback plus in-flight, native and process work. JSONL has no fast watch; ingestion still depends on the selected tracker's native configuration. This change does not enable auto-import.
+
+Stdout/stderr do not trigger scans. First stdout activity is published when observed; later changes retain a 30-second minimum publication spacing, not a freshness guarantee. A throttled change can wait the remaining throttle interval plus another quiet interval of up to 60 seconds and processing time. Settlement still flushes the final observation once it runs.
 
 ## Completion and retries
 
