@@ -452,7 +452,7 @@ async function createRun(
 			{
 				...brief,
 				assignee: identity.assignee,
-				labels: [],
+				labels: ["busybee-workflow"],
 				owner: identity.owner,
 				parent: parentId,
 				status: "in_progress",
@@ -1454,7 +1454,12 @@ function nativeTaskOptions(
 		status: "open" | "in_progress";
 		title: string;
 		assignee?: string;
-	} = { ...brief, labels: [], owner: text.parse(identity.owner), status: "in_progress" };
+	} = {
+		...brief,
+		labels: ["busybee-workflow"],
+		owner: text.parse(identity.owner),
+		status: "in_progress",
+	};
 	if (meta.bee) {
 		creation.status = "open";
 	}

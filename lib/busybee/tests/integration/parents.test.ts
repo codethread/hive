@@ -146,6 +146,7 @@ test.each(commands.flatMap((command) => ordinaryTypes.map((type) => ({ command, 
 		expect(result.code, result.stdout).toBe(FIRST);
 		const run = runSummarySchema.parse(result.document);
 		const record = await beads.show(scope, run.id);
+		expect(record.labels).toEqual(["busybee-workflow"]);
 		expect(record.dependencies.filter((edge) => edge.dependency_type === "parent-child")).toEqual([
 			expect.objectContaining({ id: parent.id }),
 		]);
@@ -213,6 +214,10 @@ test(
 		]);
 		const checkpoint = root.dependencies.find((edge) => edge.dependency_type === "related")!;
 		const checkpointRecord = await beads.show(scope, checkpoint.id);
+		expect(root.labels).toEqual(["busybee-workflow"]);
+		expect(groupRecord.labels).toEqual(["busybee-workflow"]);
+		expect(workerRecord.labels).toEqual(["busybee-workflow"]);
+		expect(checkpointRecord.labels).toEqual(["busybee-checkpoint", "system"]);
 		expect(checkpointRecord.dependencies).toEqual([]);
 		const records = await beads.list(scope, { all: true, limit: FIRST });
 		expect(records.issues.map(({ id }) => id).toSorted()).toEqual(

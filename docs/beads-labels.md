@@ -1,6 +1,6 @@
 # Beads labels
 
-Use labels for classification and supported routing, not as a second issue schema. This is Hive's label vocabulary for ordinary tasks, merge beads and specialist evidence records; `br` accepts other strings, but that does not give them behavior or write authority in Hive. Spawn requests have the separate representation described below; do not add those labels to ordinary beads.
+Use labels for classification and supported routing, not as a second issue schema. This is Hive's label vocabulary for ordinary tasks, workflow work, merge beads and specialist evidence records; `br` accepts other strings, but that does not give them behavior or write authority in Hive. Spawn requests have the separate representation described below; do not add those labels to ordinary beads.
 
 ## Spawn request representation
 
@@ -12,11 +12,12 @@ Timestamped `Colony observation:` comments record minimal last-observed facts; l
 
 ## Taxonomy
 
-> [!info] For ordinary tasks, merge beads and evidence records, use only the labels below within their stated scope and authority.
+> [!info] Use only the labels below within their stated scope and authority; spawn-request labels are defined above.
 
 | Labels | Cardinality | Meaning and consumer |
 | --- | --- | --- |
-| `system` | Reserved marker | Automation-owned beads excluded from ordinary work by the `work` viewer recipe. Ordinary agents must not read, claim, modify, or execute these beads; access requires an explicit Bee/Colony operation or system-maintenance/debugging assignment. |
+| `system` | Reserved marker | Automation-owned coordination and execution records excluded from ordinary work by the `work` viewer recipe. Ordinary agents must not read, claim, modify, or execute these beads; access requires an explicit Bee/Colony operation or system-maintenance/debugging assignment. |
+| `busybee-workflow` | Engine-applied marker | Busy Bee stewards and applies this classification to workflow run, grouping and stage beads. The `work` viewer recipe excludes it; `workflows` selects it. Ordinary parent work and workflow system beads keep their existing labels. Access, assignment and routing remain unchanged. |
 | `hitl` | Marker | Human in the loop: the bead must be worked in tandem with the user, such as design work that needs their decisions. Bee refuses these tasks for autonomous execution; an agent works them only in a session with the user, confirming decisions as it goes. This is not a handoff: assigning `ct` hands work to the user, while `hitl` keeps an agent working with them. |
 | `response` | Filed response records only | Marks [filed responses](./agents/responses.md). Any authorized producer may publish its own; this grants no `evidence:*` stewardship. |
 | `merge` | Merge beads only | Identifies a provider-neutral merge-request reference for task lookup and linked UI presentation. Ordinary agents authorized to create or maintain the merge bead may apply this label; it is not specialist-owned or automation-reserved. Follow the [merge bead contract](./beads-meta.md#merge-beads). |

@@ -57,7 +57,13 @@ test("Bee setup fills missing viewer recipes in both checkouts and preserves unr
 	const personal = { filters: { status: ["in_progress"] } };
 	files.set(
 		"/worktree/.bv/recipes.yaml",
-		Bun.YAML.stringify({ theme: "dark", recipes: { personal } }),
+		Bun.YAML.stringify({
+			theme: "dark",
+			recipes: {
+				personal,
+				work: { description: "My work", filters: { exclude_tags: ["system"] } },
+			},
+		}),
 	);
 	const dependencies = {
 		beads: createMemoryBeads(),
@@ -77,14 +83,15 @@ test("Bee setup fills missing viewer recipes in both checkouts and preserves unr
 	for (const path of ["/worktree/.bv/recipes.yaml", "/selected/tracker/.bv/recipes.yaml"]) {
 		expect(Bun.YAML.parse(files.get(path) ?? "")).toMatchObject({
 			recipes: {
-				work: { filters: { exclude_tags: ["system"] } },
+				work: { filters: { exclude_tags: ["system", "busybee-workflow"] } },
 				system: { filters: { tags: ["system"] } },
+				workflows: { filters: { tags: ["busybee-workflow"] } },
 			},
 		});
 	}
 	expect(Bun.YAML.parse(files.get("/worktree/.bv/recipes.yaml") ?? "")).toMatchObject({
 		theme: "dark",
-		recipes: { personal },
+		recipes: { personal, work: { description: "My work" } },
 	});
 });
 

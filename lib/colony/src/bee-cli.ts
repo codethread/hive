@@ -184,7 +184,9 @@ export async function runBeeCli(argv: string[], deps: BeeDependencies): Promise<
 		});
 	registerSkills(program, "bee", deps.stdout);
 	inspectionOptions(
-		program.command("setup").description("Install Bee's attention preset and BV work/system views"),
+		program
+			.command("setup")
+			.description("Install Bee's attention preset and BV work/system/workflows views"),
 	)
 		.requiredOption(
 			"--actor <identity>",
@@ -200,9 +202,15 @@ Replaces only this saved preset.
 
 Also installs .bv/recipes.yaml in the caller's checkout and permanent tracker/state
 checkout. The selected database must be that repository's tracker .beads/beads.db.
-The work view excludes system-labelled records; the system view includes them.
-Preserves unrelated recipes and compatible work/system views. Conflicting views
-fail before writes; reconcile the named recipe and rerun. No issue labels change.
+
+Owned BV views filter by label:
+- work excludes system and busybee-workflow.
+- system selects system.
+- workflows selects busybee-workflow.
+
+Preserves unrelated recipes and compatible views. Upgrades the previous work filter
+(exclude_tags: [system]), preserving its description. Conflicting recipes fail before
+writes; reconcile the named recipe and rerun. No issue labels change.
 
 JSON failures retain presetRemoved, presetInstalled and recipesInstalled. Inspect
 those confirmed effects before retrying after interruption. No daemon or bee-kind

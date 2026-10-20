@@ -10,24 +10,36 @@ const NONEMPTY = 1;
 const PRESET = "bee-attention";
 const recipes = {
 	work: {
-		description: "Ordinary work, excluding automation beads",
-		filters: { exclude_tags: ["system"] },
+		description: "Ordinary work, excluding automation and workflow beads",
+		filters: { exclude_tags: ["system", "busybee-workflow"] },
 	},
 	system: { description: "Automation-owned records", filters: { tags: ["system"] } },
+	workflows: { description: "Busy Bee workflow work", filters: { tags: ["busybee-workflow"] } },
 };
 const recipeDocument = z.looseObject({ recipes: z.record(z.string(), z.unknown()).default({}) });
 const systemTag = z.tuple([z.literal("system")]);
+const workflowTag = z.tuple([z.literal("busybee-workflow")]);
+const workExclusions = z.union([
+	systemTag,
+	z.tuple([z.literal("system"), z.literal("busybee-workflow")]),
+]);
 const expectedRecipes = {
 	work: z
 		.object({
 			description: z.string().optional(),
-			filters: z.object({ exclude_tags: systemTag }).strict(),
+			filters: z.object({ exclude_tags: workExclusions }).strict(),
 		})
 		.strict(),
 	system: z
 		.object({
 			description: z.string().optional(),
 			filters: z.object({ tags: systemTag }).strict(),
+		})
+		.strict(),
+	workflows: z
+		.object({
+			description: z.string().optional(),
+			filters: z.object({ tags: workflowTag }).strict(),
 		})
 		.strict(),
 };
@@ -136,7 +148,7 @@ export async function setupBee(
 
 // --- Private functions ---
 
-// eslint-disable-next-line max-statements -- Preserve unrelated config while validating the two owned recipe names.
+// eslint-disable-next-line max-statements -- Preserve unrelated config while validating owned recipe names.
 function reconcileRecipes(contents: string, path: string): string {
 	let input: unknown = {};
 	if (contents !== "") {
@@ -144,16 +156,27 @@ function reconcileRecipes(contents: string, path: string): string {
 	}
 	const document = recipeDocument.parse(input);
 	let changed = false;
-	for (const name of ["work", "system"] as const) {
+	for (const name of ["work", "system", "workflows"] as const) {
 		const current = document.recipes[name];
 		if (current === undefined) {
 			document.recipes[name] = recipes[name];
 			changed = true;
-		} else if (!expectedRecipes[name].safeParse(current).success) {
-			throw new Error(
-				`Conflicting BV recipe ${name} in ${path}. ` +
-					"Reconcile it with Bee's system-label policy before rerunning bee setup.",
-			);
+		} else {
+			const expected = expectedRecipes[name].safeParse(current);
+			if (!expected.success) {
+				throw new Error(
+					`Conflicting BV recipe ${name} in ${path}. ` +
+						"Reconcile it with Bee's viewer policy (see bee setup --help) before rerunning bee setup.",
+				);
+			}
+			if (
+				name === "work" &&
+				"exclude_tags" in expected.data.filters &&
+				expected.data.filters.exclude_tags.length === NONEMPTY
+			) {
+				document.recipes[name] = { ...expected.data, filters: recipes.work.filters };
+				changed = true;
+			}
 		}
 	}
 	if (changed) {
