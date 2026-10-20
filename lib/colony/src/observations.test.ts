@@ -1,17 +1,27 @@
+/* eslint-disable max-statements -- Keep mutation, failure and partial-publication re-entry traces together. */
 /* eslint-disable unicorn/no-null -- Tests distinguish no output from observed stdout. */
+import { COLONY_STDOUT_PREFIX, latestStdoutActivity } from "@hive/shared";
 import { afterAll, expect, mock, test } from "bun:test";
 import { createSpawn, createTask, memoryTracker } from "./tracker.test-support.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Prepare deterministic stdout metadata outside behavior timing.
 import { mkdtemp, rm, utimes, writeFile } from "node:fs/promises";
-import { publishObservation, publishStdoutActivity, stdoutActivityDue } from "./observations.ts";
+import {
+	publishObservation,
+	publishRunningObservations,
+	publishStdoutActivity,
+	stdoutActivityDue,
+} from "./observations.ts";
 import type { Bead } from "@hive/beads";
 // eslint-disable-next-line import/no-nodejs-modules -- Match the established disposable artifact fixture pattern.
 import { join } from "node:path";
-import { latestStdoutActivity } from "@hive/shared";
 // eslint-disable-next-line import/no-nodejs-modules -- Keep stdout artifacts separate from live attempt logs.
 import { tmpdir } from "node:os";
 import { trackerScope } from "./tracker.ts";
 
+const ZERO = 0;
+const ONE = 1;
+const TWO = 2;
+const THREE = 3;
 const observationTracker = memoryTracker();
 const observationId = await createSpawn(observationTracker, await createTask(observationTracker));
 await observationTracker.beads.show(
@@ -61,6 +71,137 @@ const driftFixtures = new Map(
 	),
 );
 
+type RunningSeed = "empty" | "fact" | "stdout" | "both";
+type RunningChange =
+	| "none"
+	| "host"
+	| "unbound"
+	| "identity"
+	| "kind"
+	| "run"
+	| "stage"
+	| "tasks"
+	| "closed"
+	| "duplicate"
+	| "due";
+type RunningFailure =
+	| "none"
+	| "fact-read"
+	| "fact-write"
+	| "refresh"
+	| "stdout-before"
+	| "stdout-after";
+interface RunningScenario {
+	/** Native evidence present before the original snapshot. */
+	seed: RunningSeed;
+	/** Concurrent native mutation, if any. */
+	change: RunningChange;
+	/** Mutation between publications or at stdout's final read. */
+	point: "after-fact" | "before-stdout";
+	/** Injected failure point, including an error after a comment is committed. */
+	failure: RunningFailure;
+}
+const runningDefaults: RunningScenario = {
+	seed: "empty",
+	change: "none",
+	point: "after-fact",
+	failure: "none",
+};
+const runningCases = [
+	{ seed: "both", reads: 0, writes: [], trace: [] },
+	{ seed: "fact", reads: 1, writes: ["stdout"], trace: ["show", "stdout"] },
+	{ seed: "stdout", reads: 2, writes: ["fact"], trace: ["show", "fact", "show"] },
+	{
+		seed: "empty",
+		reads: 3,
+		writes: ["fact", "stdout"],
+		trace: ["show", "fact", "show", "show", "stdout"],
+	},
+] as const;
+const runningFixtures = await Promise.all(
+	runningCases.map(({ seed }) => runningFixture({ ...runningDefaults, seed })),
+);
+const concurrentFact = await runningFixture({ ...runningDefaults, seed: "stdout" });
+await publishObservation(concurrentFact.tracker, concurrentFact.id, "running: attempt 1");
+const authorityChanges = ["host", "unbound", "identity", "kind", "run", "stage", "tasks"] as const;
+const authorityCases = authorityChanges.flatMap((change) => [
+	{ change, point: "after-fact" as const, seed: "empty" as const },
+	{ change, point: "after-fact" as const, seed: "stdout" as const },
+	{ change, point: "before-stdout" as const, seed: "empty" as const },
+]);
+const authorityFixtures = await Promise.all(
+	authorityCases.map((scenario) => runningFixture({ ...runningDefaults, ...scenario })),
+);
+const concurrentCases = (["closed", "duplicate"] as const).flatMap((change) =>
+	(["after-fact", "before-stdout"] as const).map((point) => ({ change, point })),
+);
+const concurrentFixtures = await Promise.all(
+	concurrentCases.map((scenario) => runningFixture({ ...runningDefaults, ...scenario })),
+);
+const changedStdout = await runningFixture({ ...runningDefaults, seed: "stdout", change: "due" });
+const booleanCases = [
+	{ mode: "write", written: true, reads: 1 },
+	{ mode: "snapshot-noop", written: false, reads: 0 },
+	{ mode: "fresh-duplicate", written: false, reads: 1 },
+	{ mode: "closed", written: false, reads: 1 },
+] as const;
+const booleanFixtures = await Promise.all(
+	booleanCases.map(async ({ mode }) => {
+		const fixture = await publicationFixture("fact");
+		if (mode === "snapshot-noop") {
+			await fixture.publish();
+		}
+		const snapshot = await fixture.tracker.beads.show(fixture.scope, fixture.id);
+		if (mode === "fresh-duplicate") {
+			await fixture.publish();
+		} else if (mode === "closed") {
+			await fixture.tracker.beads.close(fixture.scope, fixture.id);
+		}
+		fixture.show.mockClear();
+		return { ...fixture, snapshot };
+	}),
+);
+const publicationFailures = ["fact-read", "fact-write"] as const;
+const publicationFailureFixtures = await Promise.all(
+	publicationFailures.map((failure) => runningFixture({ ...runningDefaults, failure })),
+);
+const retryFailures = ["refresh", "stdout-before", "stdout-after"] as const;
+const retryFixtures = await Promise.all(
+	retryFailures.map((failure) => runningFixture({ ...runningDefaults, failure })),
+);
+
+// Warm publication, authority rejection and metadata reads on separate fixtures outside test timing.
+const runningWarmup = await runningFixture(runningDefaults);
+await publishRunningObservations(
+	runningWarmup.context,
+	runningWarmup.receipt,
+	runningWarmup.snapshot,
+);
+const runningAuthorityWarmup = await runningFixture({
+	...runningDefaults,
+	change: "host",
+	point: "before-stdout",
+});
+let authorityWarmupRejected = false;
+try {
+	await publishRunningObservations(
+		runningAuthorityWarmup.context,
+		runningAuthorityWarmup.receipt,
+		runningAuthorityWarmup.snapshot,
+	);
+} catch (error) {
+	if (!(error instanceof Error)) {
+		throw error;
+	}
+	authorityWarmupRejected = true;
+}
+if (!authorityWarmupRejected) {
+	throw new Error("Authority warmup did not reject its native mutation");
+}
+const stdoutWarmup = await publicationFixture("stdout");
+await stdoutWarmup.publish();
+await Promise.all([stdoutWarmup.publish(), stdoutWarmup.publish()]);
+
 const previous = {
 	attemptId: "attempt-one",
 	attemptNumber: 1,
@@ -91,7 +232,7 @@ test("silence never refreshes an existing activity timestamp, including settleme
 	).toBe(false);
 });
 
-test("new attempts replace old activity with unknown and first actual output publishes immediately", () => {
+test("new attempts start with unknown activity and first output bypasses the throttle", () => {
 	const fresh = { ...previous, attemptId: "attempt-two", attemptNumber: 2, lastOutputAt: null };
 	expect(stdoutActivityDue(undefined, fresh)).toBe(true);
 	expect(stdoutActivityDue(previous, fresh)).toBe(true);
@@ -184,7 +325,267 @@ test("final stdout flush still publishes for a freshly closed request", async ()
 	expect(latestStdoutActivity(result)).toMatchObject({ lastOutputAt: stdoutTimestamp });
 });
 
+test.each([...runningCases])(
+	"running pair with $seed evidence uses only $reads extra native reads",
+	async (scenario) => {
+		const fixture = runningFixtures[runningCases.indexOf(scenario)]!;
+		await publishRunningObservations(fixture.context, fixture.receipt, fixture.snapshot);
+		expect(fixture.show).toHaveBeenCalledTimes(scenario.reads);
+		expect(fixture.writes).toEqual([...scenario.writes]);
+		expect(fixture.trace).toEqual([...scenario.trace]);
+		const current = await fixture.tracker.beads.show(fixture.scope, fixture.id);
+		expect(
+			current.comments.filter(({ text }) => text.startsWith("Colony observation:")),
+		).toHaveLength(ONE);
+		expect(latestStdoutActivity(current)).toMatchObject({ lastOutputAt: stdoutTimestamp });
+	},
+);
+
+test("a fresh duplicate running fact leaves the unchanged stdout snapshot valid", async () => {
+	await publishRunningObservations(
+		concurrentFact.context,
+		concurrentFact.receipt,
+		concurrentFact.snapshot,
+	);
+	expect(concurrentFact.trace).toEqual(["show"]);
+	expect(concurrentFact.writes).toEqual([]);
+});
+
+test.each(authorityCases)(
+	"running pair rejects native $change at $point with $seed initial evidence",
+	async (scenario) => {
+		const fixture = authorityFixtures[authorityCases.indexOf(scenario)]!;
+		await expect(
+			publishRunningObservations(fixture.context, fixture.receipt, fixture.snapshot),
+		).rejects.toBeInstanceOf(Error);
+		expect(fixture.writes).toEqual(["fact"]);
+		const current = await fixture.tracker.beads.show(fixture.scope, fixture.id);
+		expect(
+			current.comments.filter(({ text }) => text.startsWith("Colony observation:")),
+		).toHaveLength(ONE);
+	},
+);
+
+test.each(concurrentCases)(
+	"running pair respects native $change at $point without a second own comment",
+	async (scenario) => {
+		const fixture = concurrentFixtures[concurrentCases.indexOf(scenario)]!;
+		await publishRunningObservations(fixture.context, fixture.receipt, fixture.snapshot);
+		expect(fixture.writes).toEqual(["fact"]);
+		const current = await fixture.tracker.beads.show(fixture.scope, fixture.id);
+		if (scenario.change === "closed") {
+			expect(current.status).toBe("closed");
+			expect(latestStdoutActivity(current)).toBeUndefined();
+		} else {
+			expect(latestStdoutActivity(current)).toMatchObject({ lastOutputAt: stdoutTimestamp });
+		}
+	},
+);
+
+test("post-fact refresh observes due stdout instead of stale no-op eligibility", async () => {
+	await publishRunningObservations(
+		changedStdout.context,
+		changedStdout.receipt,
+		changedStdout.snapshot,
+	);
+	expect(changedStdout.writes).toEqual(["fact", "stdout"]);
+	expect(changedStdout.show).toHaveBeenCalledTimes(THREE);
+	const current = await changedStdout.tracker.beads.show(changedStdout.scope, changedStdout.id);
+	expect(latestStdoutActivity(current)).toMatchObject({ lastOutputAt: stdoutTimestamp });
+});
+
+test.each([...booleanCases])(
+	"fact publication returns $written for $mode, not eligibility or read success",
+	async (scenario) => {
+		const fixture = booleanFixtures[booleanCases.indexOf(scenario)]!;
+		expect(await fixture.publish(fixture.snapshot)).toBe(scenario.written);
+		expect(fixture.show).toHaveBeenCalledTimes(scenario.reads);
+	},
+);
+
+test.each([...publicationFailures])(
+	"fact publication rejects native %s failure rather than returning false",
+	async (failure) => {
+		const fixture = publicationFailureFixtures[publicationFailures.indexOf(failure)]!;
+		await expect(
+			publishObservation(fixture.context, fixture.id, "running: attempt 1", fixture.snapshot),
+		).rejects.toBeInstanceOf(Error);
+		expect(fixture.writes).toEqual([]);
+	},
+);
+
+test.each([...retryFailures])(
+	"running pair preserves partial effects after %s and deduplicates on re-entry",
+	async (failure) => {
+		const fixture = retryFixtures[retryFailures.indexOf(failure)]!;
+		await expect(
+			publishRunningObservations(fixture.context, fixture.receipt, fixture.snapshot),
+		).rejects.toBeInstanceOf(Error);
+		const snapshot = await fixture.tracker.beads.show(fixture.scope, fixture.id);
+		expect(
+			snapshot.comments.filter(({ text }) => text.startsWith("Colony observation:")),
+		).toHaveLength(ONE);
+		fixture.show.mockClear();
+		fixture.writes.length = 0;
+		fixture.trace.length = 0;
+		await publishRunningObservations(fixture.context, fixture.receipt, snapshot);
+		const current = await fixture.tracker.beads.show(fixture.scope, fixture.id);
+		expect(
+			current.comments.filter(({ text }) => text.startsWith("Colony observation:")),
+		).toHaveLength(ONE);
+		expect(
+			current.comments.filter(({ text }) => text.startsWith(COLONY_STDOUT_PREFIX)),
+		).toHaveLength(ONE);
+		if (failure === "stdout-after") {
+			expect(fixture.show).not.toHaveBeenCalled();
+			expect(fixture.writes).toEqual([]);
+		} else {
+			expect(fixture.show).toHaveBeenCalledTimes(ONE);
+			expect(fixture.writes).toEqual(["stdout"]);
+		}
+	},
+);
+
 // --- Fixtures ---
+async function runningFixture(scenario: RunningScenario) {
+	const fixture = await publicationFixture("stdout");
+	const { tracker, scope, id, receipt } = fixture;
+	const original = await tracker.beads.show(scope, id);
+	const anchors = {
+		original: original.dependencies[ZERO]!.id,
+		other: await createTask(tracker),
+		run: await createTask(tracker),
+	};
+	if (scenario.change === "run" || scenario.change === "stage") {
+		await tracker.beads.update(scope, [id], {
+			description: JSON.stringify({
+				...JSON.parse(original.description),
+				assignment: { kind: "stage", runId: anchors.run, stageId: anchors.original },
+			}),
+		});
+	}
+	if (scenario.seed === "fact" || scenario.seed === "both") {
+		await publishObservation(tracker, id, "running: attempt 1");
+	}
+	if (scenario.seed === "stdout" || scenario.seed === "both") {
+		await seedStdout(fixture, stdoutTimestamp, "2026-10-04T10:00:00.000Z");
+	}
+	const snapshot = await tracker.beads.show(scope, id);
+	const trace: string[] = [];
+	const writes: string[] = [];
+	let reads = ZERO;
+	let changed = false;
+	let failed = false;
+	const mutate = async () => {
+		if (changed || scenario.change === "none") {
+			return;
+		}
+		changed = true;
+		await mutateRunning(fixture, scenario.change, anchors);
+	};
+	const show = mock(async (...args: Parameters<typeof tracker.beads.show>) => {
+		reads += ONE;
+		trace.push("show");
+		if (
+			!failed &&
+			((scenario.failure === "fact-read" && reads === ONE) ||
+				(scenario.failure === "refresh" && reads === TWO))
+		) {
+			failed = true;
+			throw new Error("Injected native read failure");
+		}
+		if (scenario.point === "before-stdout" && reads === THREE) {
+			await mutate();
+		}
+		return tracker.beads.show(...args);
+	});
+	const add = async (...args: Parameters<typeof tracker.beads.comments.add>) => {
+		let kind = "stdout";
+		if (args[TWO].startsWith("Colony observation:")) {
+			kind = "fact";
+		}
+		if (
+			!failed &&
+			((scenario.failure === "fact-write" && kind === "fact") ||
+				(scenario.failure === "stdout-before" && kind === "stdout"))
+		) {
+			failed = true;
+			throw new Error("Injected native comment failure");
+		}
+		const result = await tracker.beads.comments.add(...args);
+		trace.push(kind);
+		writes.push(kind);
+		if (kind === "fact" && scenario.point === "after-fact") {
+			await mutate();
+		}
+		if (!failed && scenario.failure === "stdout-after" && kind === "stdout") {
+			failed = true;
+			throw new Error("Injected failure after native comment commitment");
+		}
+		return result;
+	};
+	const context = {
+		...tracker,
+		beads: { ...tracker.beads, show, comments: { ...tracker.beads.comments, add } },
+	};
+	return { ...fixture, context, receipt, snapshot, show, trace, writes };
+}
+
+async function mutateRunning(
+	fixture: Awaited<ReturnType<typeof publicationFixture>>,
+	change: RunningChange,
+	anchors: { original: string; other: string; run: string },
+) {
+	const { tracker, scope, id } = fixture;
+	if (change === "closed") {
+		await tracker.beads.close(scope, id);
+	} else if (change === "duplicate") {
+		await seedStdout(fixture, stdoutTimestamp, "2026-10-05T10:00:00.000Z");
+	} else if (change === "due") {
+		await seedStdout(fixture, "2026-10-03T10:00:00.000Z", "2026-10-05T10:00:00.000Z");
+	} else if (change === "identity") {
+		await tracker.beads.update(scope, [id], { assignee: "another-bee" });
+	} else {
+		const current = await tracker.beads.show(scope, id);
+		const description = JSON.parse(current.description);
+		if (change === "host") {
+			description.host = "another-host";
+		} else if (change === "unbound") {
+			delete description.host;
+		} else if (change === "kind") {
+			description.assignment = { kind: "stage", runId: anchors.run, stageId: anchors.original };
+		} else if (change === "run") {
+			description.assignment.runId = anchors.other;
+		} else {
+			if (change === "stage") {
+				description.assignment.stageId = anchors.other;
+			} else {
+				description.assignment.runId = anchors.other;
+			}
+			await tracker.beads.dep.remove(scope, id, anchors.original);
+			await tracker.beads.dep.add(scope, id, anchors.other, "related");
+		}
+		await tracker.beads.update(scope, [id], { description: JSON.stringify(description) });
+	}
+}
+
+function seedStdout(
+	fixture: Awaited<ReturnType<typeof publicationFixture>>,
+	lastOutputAt: string,
+	recordedAt: string,
+) {
+	return fixture.tracker.beads.comments.add(
+		fixture.scope,
+		fixture.id,
+		`${COLONY_STDOUT_PREFIX} ${JSON.stringify({
+			attemptId: fixture.receipt.id,
+			attemptNumber: fixture.receipt.attemptNumber,
+			lastOutputAt,
+			recordedAt,
+		})}`,
+	);
+}
+
 async function driftFixture({ kind, drift }: (typeof driftCases)[number]) {
 	const fixture = await publicationFixture(kind);
 	const { tracker, scope, id, publish, show } = fixture;

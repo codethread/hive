@@ -6,9 +6,63 @@ Historical delivery wording below describes those removed checks, not today's re
 
 Each section maps its scenarios to the original test titles; table-driven source titles retain their placeholders and expanded case counts. Variants inside a single original test remain part of that one case.
 
-All restoration pointers refer to Git revision `61e736f8e1f4bfad9b7338e140d33938d0426f71`, under `lib/colony/src/`. Restore files with `git show REV:PATH`. Reconciliation sources are removal ledger `hv-luv2v` comment 4466 and Colony scout `hv-hu8eo.1` comment 4404; follow-up work is `hv-luv2v`.
+Unless a section names another revision, restoration pointers refer to Git revision `61e736f8e1f4bfad9b7338e140d33938d0426f71`, under `lib/colony/src/`. Restore files with `git show REV:PATH`. For that revision, reconciliation sources are removal ledger `hv-luv2v` comment 4466 and Colony scout `hv-hu8eo.1` comment 4404; follow-up work is `hv-luv2v`.
 
-Fixtures used disposable repositories, real Beads databases, private state and OS processes. Workers were generated scripts, not model-provider sessions. Ranking invoked real BV; publication races used forwarding br wrappers. The PID-lifetime case fabricated historical fingerprints rather than forcing OS PID reuse. Watchdog delivery used a fixture socket server and fake notifier. The retained `lib/colony/scripts/native-smoke.ts` is a separate opt-in authenticated harness check; the other history smoke case also remains executable.
+The `61e736f8` fixtures used disposable repositories, real Beads databases, private state and OS processes. Workers were generated scripts, not model-provider sessions. Ranking invoked real BV; publication races used forwarding br wrappers. The PID-lifetime case fabricated historical fingerprints rather than forcing OS PID reuse. Watchdog delivery used a fixture socket server and fake notifier. The retained `lib/colony/scripts/native-smoke.ts` is a separate opt-in authenticated harness check; the other history smoke case also remains executable.
+
+## In-memory dispatch and reconciliation
+
+This later removal belongs to CPU work `hv-1jsulm.3`. Restore `lib/colony/src/colony-dispatch.test.ts` from Git revision `4d9797917f4101aaf26d173da0947adfe9722cec`: 193 lines, SHA-256 `03580ee6eb6e0ccb215255d954ab6d79fa918d6ce2d2582e5eec53235b7dbab1`.
+
+The suite exercised the real Colony actor and dispatch with a simulated clock, in-memory tracker and map-backed request checkpoints. Replacing fixture writes with the existing `Store` map seam, warming actor bootstrap, and trying default and priority-adjusted diagnostic runs still left cases at 1.5–3.6ms in strict changed-test runs against the 1.5ms cutoff. The whole coherent suite was removed under repository timing policy, without changing thresholds, allowances or timeouts; the [timing guide](../../lib/tooling/README.md#test-timing-report-and-landing-gate) explains the gate.
+
+A standalone diagnostic of the remediated suite passed seven cases and 22 assertions in 74ms outside CI. At removal, the CPU work had also run 19 clock/failure cases, request-authority/readiness/publication checks and ten real native-lifecycle diagnostics. These are distinct evidence: the in-memory suite did not prove actual native-process launch, and its standalone pass is not a retained CI gate or proof of the CPU goal.
+
+Restoration mapping (original title lines):
+
+| Source under `lib/colony/src/` | Original cases | Original title |
+| --- | --: | --- |
+| `colony-dispatch.test.ts:89` | 2 | new submission uses fresh native readiness after hint delivered=$delivered |
+| `colony-dispatch.test.ts:116` | 2 | interrupted native closure labels repair after hint delivered=$delivered without a retained request |
+| `colony-dispatch.test.ts:137` | 3 | a native %s edit after a waiting pass is checked at the next full reconciliation |
+
+```gherkin
+Scenario Outline: Read fresh submission readiness when reconciliation becomes due
+  Given a new spawn request whose task has an unresolved prerequisite
+  And hint delivery is <delivered>
+  When the scan deadline has not arrived
+  Then no request checkpoint exists
+  When the scan deadline arrives
+  Then a waiting checkpoint exists and the task remains unassigned
+  When the native request is closed as cancelled and reconciliation runs
+  Then the checkpoint outcome and native label record cancellation
+  Examples:
+    | delivered |
+    | true      |
+    | false     |
+
+Scenario Outline: Repair interrupted closure labels without a retained request
+  Given a spawn request closed as completed before any request checkpoint exists
+  And hint delivery is <delivered>
+  When reconciliation becomes due
+  Then native labels include succeeded and exclude pending
+  And no request checkpoint is retained
+  Examples:
+    | delivered |
+    | true      |
+    | false     |
+
+Scenario Outline: Reject changed native facts after a waiting pass
+  Given a waiting request whose native <field> changes
+  When a hint is delivered and the next full reconciliation runs
+  Then the Colony actor fails while the checkpoint remains waiting
+  And the original task remains unassigned
+  Examples:
+    | field    |
+    | host     |
+    | identity |
+    | tasks    |
+```
 
 ## Offline submission
 

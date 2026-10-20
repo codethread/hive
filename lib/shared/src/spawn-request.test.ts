@@ -29,7 +29,27 @@ const original = beadSchema.parse({
 	updated_at: "fixture",
 });
 
-test("stdout inspection uses publication time independently of renumbered IDs and native timestamps #test-353", () => {
+// Hoist fixture assembly and parser warmup outside test timing; assertions still call the selectors.
+const acknowledgmentFixture = prepareAcknowledgment();
+requestAcknowledgment(acknowledgmentFixture.bead);
+requestResolution(acknowledgmentFixture.bead);
+
+const malformedAcknowledgmentFixture = {
+	...original,
+	closed_at: "closure",
+	comments: [
+		{
+			author: "operator",
+			created_at: "fixture",
+			id: 1,
+			issue_id: original.id,
+			text: `${BEE_ACKNOWLEDGMENT_PREFIX} {}`,
+		},
+	],
+};
+warmMalformedAcknowledgment();
+
+test("stdout and lifecycle evidence are selected independently of comment order and IDs #test-353", () => {
 	const activity = {
 		attemptId: "second-attempt",
 		attemptNumber: 2,
@@ -62,6 +82,9 @@ test("stdout inspection uses publication time independently of renumbered IDs an
 	expect(latestStdoutActivity(original)).toBeUndefined();
 	expect(latestStdoutActivity(bead)).toEqual(activity);
 	expect(latestColonyObservation(bead)).toEqual(lifecycle);
+	const reversed = { ...bead, comments: bead.comments.toReversed() };
+	expect(latestStdoutActivity(reversed)).toEqual(activity);
+	expect(latestColonyObservation(reversed)).toEqual(lifecycle);
 });
 
 test("lifecycle observations remain ordered after local IDs and input order change", () => {
@@ -209,33 +232,7 @@ test("publication normalizes both namespaces and retains unrelated labels", () =
 // One closure fixture checks acceptance, native attribution and competing provenance together.
 // eslint-disable-next-line max-statements
 test("the first acknowledgment of this closure resolves attention with native attribution", () => {
-	const closedAt = "2026-10-04T10:00:00.123456Z";
-	const comment = { author: "operator", created_at: "2026-10-04T11:00:00Z", issue_id: original.id };
-	const first = {
-		...comment,
-		id: 2,
-		text: `${BEE_ACKNOWLEDGMENT_PREFIX} ${JSON.stringify({ closedAt, reason: "Handled elsewhere" })}`,
-	};
-	const bead = {
-		...original,
-		closed_at: closedAt,
-		comments: [
-			{
-				...comment,
-				author: "z-later-operator",
-				id: 3,
-				text: `${BEE_ACKNOWLEDGMENT_PREFIX} ${JSON.stringify({ closedAt, reason: "Later acknowledgment" })}`,
-			},
-			{
-				...comment,
-				id: 1,
-				text:
-					`${BEE_ACKNOWLEDGMENT_PREFIX} ` +
-					`${JSON.stringify({ closedAt: "earlier closure", reason: "Old acknowledgment" })}`,
-			},
-			first,
-		],
-	};
+	const { comment, bead } = acknowledgmentFixture;
 	expect(requestResolution(bead)).toEqual({ kind: "acknowledged" });
 	expect(requestAcknowledgment(bead)).toEqual({
 		acknowledgedAt: comment.created_at,
@@ -263,20 +260,7 @@ test("the first acknowledgment of this closure resolves attention with native at
 });
 
 test("malformed acknowledgment evidence fails visibly", () => {
-	const bead = {
-		...original,
-		closed_at: "closure",
-		comments: [
-			{
-				author: "operator",
-				created_at: "fixture",
-				id: 1,
-				issue_id: original.id,
-				text: `${BEE_ACKNOWLEDGMENT_PREFIX} {}`,
-			},
-		],
-	};
-	expect(() => requestResolution(bead)).toThrow(Error);
+	expect(() => requestResolution(malformedAcknowledgmentFixture)).toThrow(Error);
 });
 
 const recipe = {
@@ -422,3 +406,46 @@ test("read-only attribution retains task links independently of workflow executi
 	expect(() => readSpawnRequestAttribution({ ...bead, labels: [] })).toThrow(Error);
 	expect(() => readSpawnRequestAttribution({ ...bead, assignee: "" })).toThrow(Error);
 });
+
+function prepareAcknowledgment() {
+	const closedAt = "2026-10-04T10:00:00.123456Z";
+	const comment = { author: "operator", created_at: "2026-10-04T11:00:00Z", issue_id: original.id };
+	const first = {
+		...comment,
+		id: 2,
+		text: `${BEE_ACKNOWLEDGMENT_PREFIX} ${JSON.stringify({ closedAt, reason: "Handled elsewhere" })}`,
+	};
+	const bead = {
+		...original,
+		closed_at: closedAt,
+		comments: [
+			{
+				...comment,
+				author: "z-later-operator",
+				id: 3,
+				text: `${BEE_ACKNOWLEDGMENT_PREFIX} ${JSON.stringify({ closedAt, reason: "Later acknowledgment" })}`,
+			},
+			{
+				...comment,
+				id: 1,
+				text:
+					`${BEE_ACKNOWLEDGMENT_PREFIX} ` +
+					`${JSON.stringify({ closedAt: "earlier closure", reason: "Old acknowledgment" })}`,
+			},
+			first,
+		],
+	};
+	return { closedAt, comment, bead };
+}
+
+function warmMalformedAcknowledgment() {
+	try {
+		requestResolution(malformedAcknowledgmentFixture);
+	} catch (error) {
+		if (error instanceof Error) {
+			return;
+		}
+		throw error;
+	}
+	throw new Error("Malformed acknowledgment fixture was not rejected");
+}

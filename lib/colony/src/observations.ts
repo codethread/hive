@@ -26,8 +26,40 @@ const STDOUT_PUBLICATION_INTERVAL_MS = 30_000;
 const EMPTY = 0;
 
 /**
+ * Publish the running fact before stdout, reusing the caller's authority-checked snapshot for no-ops.
+ * A fact write invalidates that snapshot: refresh and verify host, identity, workflow assignment
+ * and tasks before stdout eligibility. Stdout still rechecks before writing; no read follows it.
+ * The comments are independent historical evidence, not an atomic pair or proof of liveness.
+ */
+export async function publishRunningObservations(
+	context: TrackerContext,
+	receipt: Pick<LaunchReceipt, "id" | "attemptNumber" | "spawnId" | "directory">,
+	snapshot: Bead,
+): Promise<void> {
+	let stdoutSnapshot = snapshot;
+	if (
+		await publishObservation(
+			context,
+			receipt.spawnId,
+			`running: attempt ${receipt.attemptNumber}`,
+			snapshot,
+		)
+	) {
+		stdoutSnapshot = await context.beads.show(
+			trackerScope(context.repository, "sys-colony"),
+			receipt.spawnId,
+		);
+		assertObservationAuthority(stdoutSnapshot, snapshot);
+	}
+	await publishStdoutActivity(context, receipt, false, stdoutSnapshot);
+}
+
+/**
  * Native comments retain history and deduplicate unchanged facts across restarts.
  * A same-phase snapshot can skip a no-op; due publication rereads native authority.
+ * Return true only after the awaited comment write succeeds, false for a no-op
+ * (including a snapshot-guarded closed request). Errors propagate; a successful write
+ * invalidates pre-write snapshots.
  */
 /* eslint-disable-next-line max-params --
  * Pass phase-local detail explicitly rather than retaining a shared cache.
@@ -37,25 +69,21 @@ export async function publishObservation(
 	id: string,
 	fact: string,
 	snapshot?: Bead,
-): Promise<void> {
+): Promise<boolean> {
 	const message = `${COLONY_OBSERVATION_PREFIX} ${fact}`;
 	if (snapshot && latestColonyObservation(snapshot)?.text === message) {
-		return;
+		return false;
 	}
 	const spawn = await beads.show(trackerScope(repository, "sys-colony"), id);
 	assertObservationAuthority(spawn, snapshot);
-	if (snapshot && spawn.status === "closed") {
-		return;
+	if ((snapshot && spawn.status === "closed") || latestColonyObservation(spawn)?.text === message) {
+		return false;
 	}
-	if (latestColonyObservation(spawn)?.text !== message) {
-		await beads.comments.add(trackerScope(repository, "sys-colony"), id, message);
-	}
+	await beads.comments.add(trackerScope(repository, "sys-colony"), id, message);
+	return true;
 }
 
-/**
- * Publish stdout metadata using publishObservation's no-op-only snapshot contract.
- * Return whether a comment was written; callers must discard pre-write snapshots.
- */
+/** Use publishObservation's no-op snapshot reuse and write-result contract for stdout metadata. */
 /* eslint-disable-next-line max-params, max-statements --
  * Keep final-flush policy, no-op reuse and the publication outcome together.
  */

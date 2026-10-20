@@ -9,7 +9,11 @@ import type { BeesConfig, RepositoryEndpoint, SpawnRequest } from "@hive/shared"
 import { acquireClaim, releaseClaims } from "./claims.ts";
 import { assign, createActor, setup } from "xstate";
 import { observeExecution, resumeExecution, stopExecution } from "./processes.ts";
-import { publishObservation, publishStdoutActivity } from "./observations.ts";
+import {
+	publishObservation,
+	publishRunningObservations,
+	publishStdoutActivity,
+} from "./observations.ts";
 import {
 	readSpawnRequest,
 	requestOutcomeSchema,
@@ -426,23 +430,9 @@ async function reconcileRequest(
 					type: "SETTLE",
 				});
 			} else if (attempt.state === "running") {
-				evidence.step("stdout.publish", record.id);
-				const stdoutPublished = await publishStdoutActivity(runtime, attempt.receipt, false, spawn);
-				let observationSnapshot = spawn;
-				if (stdoutPublished) {
-					observationSnapshot = await beads.show(
-						trackerScope(repository, record.context.identity),
-						record.id,
-					);
-					assertRequestAuthority(record, readSpawnRequest(observationSnapshot));
-				}
-				evidence.step("observation.publish", record.id);
-				await publishObservation(
-					runtime,
-					record.id,
-					`running: attempt ${attempt.receipt.attemptNumber}`,
-					observationSnapshot,
-				);
+				// Record the composite publication call, not confirmation of either comment write.
+				evidence.step("observations.publish-running", record.id);
+				await publishRunningObservations(runtime, attempt.receipt, spawn);
 			}
 		} else {
 			evidence.step("tracker.show-related", record.id);
