@@ -18,10 +18,14 @@ recipes:
         - busybee-workflow
   # beeswax:end bv-recipes
   work:
-    description: Ordinary work, excluding automation beads
+    description: Ordinary work, excluding automation and workflow beads
     filters:
-      exclude_tags: [system]
+      exclude_tags: [system, busybee-workflow]
   system:
-    description: Automation-owned work
+    description: Automation-owned records
     filters:
       tags: [system]
+  workflows:
+    description: Busy Bee workflow work
+    filters:
+      tags: [busybee-workflow]
