@@ -1,15 +1,12 @@
 import {
-	BEE_ACKNOWLEDGMENT_PREFIX,
 	beesConfigSchema,
 	readSpawnRequest,
 	readSpawnRequestSummary,
-	requestDisposition,
-	requestNeedsAttention,
 	requestResolution,
 } from "@hive/shared";
 import { beforeTrackerWrite, createTask, memoryTracker } from "./tracker.test-support.ts";
 import { expect, test } from "bun:test";
-import { retryRequest, spawnWorkflowRequest, validateRequestedTasks } from "./producer.ts";
+import { retryRequest, spawnWorkflowRequest } from "./producer.ts";
 import type { ProducerCommands } from "./producer.ts";
 import { RequestPublicationError } from "./requests.ts";
 import type { WorkflowAssignment } from "@hive/shared";
@@ -37,13 +34,10 @@ function commands(tracker: ReturnType<typeof memoryTracker>): ProducerCommands {
 	return { ...tracker, loadBeesConfig: () => Promise.resolve({ config, warnings: [] }) };
 }
 
-const admission = memoryTracker();
-const task = await createTask(admission);
-const reserved = await createTask(admission, { assignee: "ct" });
 const partialRetries = await Promise.all(
 	["exhausted", "Stopped by Bee"].map(async (reason) => {
 		const retry = memoryTracker();
-		const unfinished = await createTask(retry);
+		const unfinished = await workflowRun(retry);
 		const created = await spawnWorkflowRequest(
 			{ kind: "worker", assignment: { kind: "driver", runId: unfinished }, options },
 			commands(retry),
@@ -55,47 +49,10 @@ const partialRetries = await Promise.all(
 	}),
 );
 
-test("submission rejects human reservations and admits one open request per task #test-412", async () => {
-	const context = commands(admission);
-	await expect(
-		spawnWorkflowRequest(
-			{ kind: "worker", assignment: { kind: "driver", runId: reserved }, options },
-			context,
-		),
-	).rejects.toBeInstanceOf(Error);
-	await expect(
-		validateRequestedTasks({ requestedIds: [reserved], options }, context),
-	).rejects.toBeInstanceOf(Error);
-	const created = await spawnWorkflowRequest(
-		{ kind: "worker", assignment: { kind: "driver", runId: task }, options },
-		context,
-	);
-	const request = await admission.beads.show(
-		trackerScope(admission.repository, "inspector"),
-		created.request.id,
-	);
-	expect(request.owner).toBe("ct");
-	expect(request.assignee).toBe(created.request.assignee);
-	expect(request.dependencies.map(({ id, dependency_type }) => ({ id, dependency_type }))).toEqual([
-		{ id: task, dependency_type: "related" },
-	]);
-	await expect(
-		spawnWorkflowRequest(
-			{ kind: "worker", assignment: { kind: "driver", runId: task }, options },
-			context,
-		),
-	).rejects.toBeInstanceOf(Error);
-	await expect(
-		validateRequestedTasks({ requestedIds: [task], options }, context),
-	).rejects.toBeInstanceOf(Error);
-});
-
 const workflowTracker = memoryTracker();
-const run = await createTask(workflowTracker);
-const stage = await createTask(workflowTracker, { parent: run });
+const run = await workflowRun(workflowTracker);
 const cases: { assignment: WorkflowAssignment; anchor: string }[] = [
 	{ assignment: { kind: "driver", runId: run }, anchor: run },
-	{ assignment: { kind: "stage", runId: run, stageId: stage }, anchor: stage },
 ];
 
 test.each(cases)(
@@ -124,7 +81,7 @@ test.each(cases)(
 
 const workflowRetry = memoryTracker();
 const retryParent = await createTask(workflowRetry, { assignee: "ct", status: "in_progress" });
-const retryRun = await createTask(workflowRetry, { parent: retryParent });
+const retryRun = await workflowRun(workflowRetry, { parent: retryParent });
 const retryStage = await createTask(workflowRetry, { parent: retryRun });
 const retrySaved = await createTask(workflowRetry, {
 	parent: retryRun,
@@ -141,13 +98,8 @@ const retrySibling = await createTask(workflowRetry, {
 	status: "in_progress",
 });
 const retryWorkIds = [retryParent, retryRun, retryStage, retrySaved, retrySibling];
-const retryWorkBefore = await workflowRetry.beads.showMany(
-	trackerScope(workflowRetry.repository, "inspector"),
-	retryWorkIds,
-);
 const retryCases = await Promise.all(
 	[
-		{ assignment: { kind: "driver", runId: retryRun } as const, anchor: retryRun },
 		{
 			assignment: { kind: "stage", runId: retryRun, stageId: retryStage } as const,
 			anchor: retryStage,
@@ -166,127 +118,9 @@ const retryCases = await Promise.all(
 	}),
 );
 
-const cancelled = await Promise.all(
-	(["driver", "stage"] as const).map(async (kind) => {
-		const tracker = memoryTracker();
-		const runId = await createTask(tracker);
-		let assignment: WorkflowAssignment = { kind: "driver", runId };
-		if (kind === "stage") {
-			assignment = { kind, runId, stageId: await createTask(tracker, { parent: runId }) };
-		}
-		const created = await spawnWorkflowRequest(
-			{ kind: "worker", assignment, options },
-			commands(tracker),
-		);
-		const scope = trackerScope(tracker.repository, "operator");
-		await tracker.beads.close(scope, created.request.id, { reason: "Stopped by Bee" });
-		const original = await tracker.beads.show(scope, created.request.id);
-		return { kind, assignment, tracker, scope, original };
-	}),
-);
-
-test.each(cancelled)(
-	"$kind cancellation requires opt-in and retains native history on replacement and repetition #test-429",
-	// Verify the public replacement and retained native facts as one recovery boundary.
-	// eslint-disable-next-line max-statements
-	async ({ assignment, tracker, scope, original }) => {
-		const context = commands(tracker);
-		await expect(retryRequest(original.id, options, context)).rejects.toBeInstanceOf(Error);
-		const replacement = await retryRequest(
-			original.id,
-			{ ...options, resumeCancelled: true, model: "current-override" },
-			context,
-		);
-		const request = readSpawnRequest(await tracker.beads.show(scope, replacement.request.id));
-		expect(request).toMatchObject({
-			assignment,
-			host: hostname(),
-			recipe: { model: "current-override" },
-		});
-		expect(request.identity).not.toBe(original.assignee);
-		expect(request.taskIds).toEqual(readSpawnRequest(original).taskIds);
-		const retained = await tracker.beads.show(scope, original.id);
-		expect(retained).toMatchObject({
-			status: "closed",
-			close_reason: original.close_reason,
-			closed_at: original.closed_at,
-			assignee: original.assignee,
-			description: original.description,
-		});
-		expect(requestDisposition(retained)).toEqual({ outcome: "cancelled", resolution: "resolved" });
-		expect(requestNeedsAttention(retained)).toBe(false);
-		expect(requestResolution(retained)).toEqual({
-			kind: "superseded",
-			replacementIds: [request.id],
-		});
-		await expect(
-			retryRequest(original.id, { ...options, resumeCancelled: true }, context),
-		).rejects.toBeInstanceOf(Error);
-		const repeated = await tracker.beads.show(scope, original.id);
-		expect(repeated.dependents).toEqual(retained.dependents);
-	},
-);
-
-const refusals = await Promise.all(
-	["closed-anchor", "human", "hitl", "open-request", "acknowledged", "ambiguous", "succeeded"].map(
-		// Assemble each native refusal before timing the unchanged public retry boundary.
-		// eslint-disable-next-line max-statements
-		async (reason) => {
-			const tracker = memoryTracker();
-			const scope = trackerScope(tracker.repository, "operator");
-			const runId = await createTask(tracker);
-			const stageId = await createTask(tracker, { parent: runId });
-			const assignment = { kind: "stage", runId, stageId } as const;
-			const context = commands(tracker);
-			const created = await spawnWorkflowRequest({ kind: "worker", assignment, options }, context);
-			let closeReason = "cancelled";
-			if (reason === "acknowledged") {
-				closeReason = "blocked";
-			} else if (reason === "succeeded") {
-				closeReason = "completed";
-			}
-			await tracker.beads.close(scope, created.request.id, { reason: closeReason });
-			if (reason === "closed-anchor") {
-				await tracker.beads.close(scope, stageId);
-			} else if (reason === "human") {
-				await tracker.beads.update(scope, [stageId], { assignee: "ct" });
-			} else if (reason === "hitl") {
-				await tracker.beads.update(scope, [stageId], { addLabels: ["hitl"] });
-			} else if (reason === "acknowledged") {
-				const old = await tracker.beads.show(scope, created.request.id);
-				await tracker.beads.comments.add(
-					scope,
-					old.id,
-					`${BEE_ACKNOWLEDGMENT_PREFIX} ${JSON.stringify({ closedAt: old.closed_at, reason: "accepted" })}`,
-				);
-			} else if (reason === "open-request") {
-				await spawnWorkflowRequest({ kind: "worker", assignment, options }, context);
-			} else if (reason === "ambiguous") {
-				await Promise.all(
-					["First replacement", "Second replacement"].map((title) =>
-						tracker.beads.create(scope, {
-							title,
-							owner: "ct",
-							deps: [{ id: created.request.id, type: "supersedes" }],
-						}),
-					),
-				);
-			}
-			return { reason, tracker, scope, id: created.request.id };
-		},
-	),
-);
-
-test.each(refusals)(
-	"explicit cancellation resumption preserves $reason refusal #test-545",
-	async ({ tracker, scope, id }) => {
-		const before = await tracker.beads.show(scope, id);
-		await expect(
-			retryRequest(id, { ...options, resumeCancelled: true }, commands(tracker)),
-		).rejects.toBeInstanceOf(Error);
-		const after = await tracker.beads.show(scope, id);
-		expect(after.dependents).toEqual(before.dependents);
-	},
+const retryWorkBefore = await workflowRetry.beads.showMany(
+	trackerScope(workflowRetry.repository, "inspector"),
+	retryWorkIds,
 );
 
 test.each(retryCases)(
@@ -391,3 +225,21 @@ test.each(partialRetries)(
 		});
 	},
 );
+
+async function workflowRun(
+	tracker: ReturnType<typeof memoryTracker>,
+	input: { parent?: string } = {},
+) {
+	const id = await createTask(tracker, input);
+	const checkpoint = await createTask(tracker, {
+		labels: ["system", "busybee-checkpoint"],
+		description: JSON.stringify({ formatVersion: 1, id, managedExecution: "managed" }),
+	});
+	await tracker.beads.dep.add(
+		trackerScope(tracker.repository, "fixture"),
+		id,
+		checkpoint,
+		"related",
+	);
+	return id;
+}

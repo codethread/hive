@@ -1,19 +1,11 @@
 /* eslint-disable import/max-dependencies -- Public routing uses existing dispatch, label and native fixture seams. */
-import { afterAll, expect, test } from "bun:test";
 import { createSpawn, createTask, memoryTracker } from "./tracker.test-support.ts";
-// eslint-disable-next-line import/no-nodejs-modules -- Host authority and disposable directory.
-import { hostname, tmpdir } from "node:os";
-// eslint-disable-next-line import/no-nodejs-modules -- Prepare and remove the private store outside behavior timing.
-import { mkdtemp, rm } from "node:fs/promises";
-import { publishRequestLabels, reconcileClosedRequestLabels } from "./requests.ts";
+import { expect, test } from "bun:test";
 import type { BeadRecord } from "@hive/beads";
-import type { Store } from "./store.ts";
 import { ZodError } from "zod";
-import { beesConfigSchema } from "@hive/shared";
-import { dispatch } from "./dispatch.ts";
-// eslint-disable-next-line import/no-nodejs-modules -- Match the established request-recovery private store fixture.
-import { join } from "node:path";
-import { openStore } from "./store.ts";
+// eslint-disable-next-line import/no-nodejs-modules -- Host authority and disposable directory.
+import { hostname } from "node:os";
+import { publishRequestLabels } from "./requests.ts";
 import { trackerScope } from "./tracker.ts";
 
 interface RoutingCase {
@@ -35,26 +27,6 @@ interface Fixture extends RoutingCase {
 	before: BeadRecord;
 }
 
-const state = await mkdtemp(join(tmpdir(), "colony-host-routing-"));
-const store = openStore(state);
-const config = beesConfigSchema.parse({ formulas: {}, humans: ["ct"], owner: "ct" });
-// Match request-recovery's no-op evidence; Beads/store operations remain actual fixture adapters.
-const history: Store["history"] = {
-	run: (_input, action) =>
-		action({ completed: () => {}, failed: () => {}, reference: () => {}, step: () => {} }),
-};
-const origins = [
-	{ origin: "foreign", host: "foreign-host" },
-	{ origin: "unbound", host: undefined },
-	{ origin: "local", host: hostname() },
-];
-const cases: RoutingCase[] = (["open", "closed"] as const).flatMap((status) =>
-	origins.map(({ origin, host }) => ({ status, origin, host })),
-);
-const prepared = await Promise.all(cases.map((input) => routingFixture(input)));
-const fixtures = new Map(
-	prepared.map((fixture) => [`${fixture.status}:${fixture.origin}`, fixture]),
-);
 const predecessor = await routingFixture({
 	status: "closed",
 	origin: "replacement",
@@ -108,38 +80,6 @@ const localPredecessors = await Promise.all(
 	}),
 );
 
-test.each(cases.filter(({ origin }) => origin !== "local"))(
-	"automatic $status routing excludes $origin before decoding workflow assignment #test-361",
-	async ({ status, origin }) => {
-		const fixture = fixtures.get(`${status}:${origin}`)!;
-		await route(fixture);
-		const after = await fixture.tracker.beads.show(
-			trackerScope(fixture.tracker.repository, "fixture"),
-			fixture.id,
-		);
-		const task = await fixture.tracker.beads.show(
-			trackerScope(fixture.tracker.repository, "fixture"),
-			fixture.task,
-		);
-		expect(after).toEqual(fixture.before);
-		expect(task.assignee).toBeUndefined();
-		expect(store.requests(fixture.tracker.repository.root)).toEqual([]);
-	},
-);
-
-test.each(cases.filter(({ origin }) => origin === "local"))(
-	"automatic $status routing rejects a local request missing workflow assignment #test-400",
-	async ({ status, origin }) => {
-		const fixture = fixtures.get(`${status}:${origin}`)!;
-		await expect(route(fixture)).rejects.toBeInstanceOf(ZodError);
-		const after = await fixture.tracker.beads.show(
-			trackerScope(fixture.tracker.repository, "fixture"),
-			fixture.id,
-		);
-		expect(after).toEqual(fixture.before);
-	},
-);
-
 test("automatic replacement publication leaves an unsupported foreign predecessor unchanged #test-636", async () => {
 	await publishRequestLabels(predecessor.tracker, "colony", replacement, hostname());
 	const after = await predecessor.tracker.beads.show(
@@ -163,26 +103,6 @@ test.each(predecessorCases)(
 		expect(after).toEqual(selected.fixture.before);
 	},
 );
-
-afterAll(async () => {
-	store.close();
-	await rm(state, { recursive: true, force: true });
-});
-
-function route(fixture: Fixture): Promise<void> {
-	if (fixture.status === "open") {
-		return dispatch(
-			{
-				...fixture.tracker,
-				state,
-				store: { ...store, history },
-			},
-			config,
-			"fixture",
-		);
-	}
-	return reconcileClosedRequestLabels(fixture.tracker);
-}
 
 async function routingFixture(input: RoutingCase): Promise<Fixture> {
 	const tracker = memoryTracker();

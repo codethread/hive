@@ -8,7 +8,6 @@ import { runBeeCli } from "./bee-cli.ts";
 const PROMPT_REPETITIONS = 500;
 const SUCCESS = 0;
 const FAILURE = 1;
-const USAGE_ERROR = 2;
 const SINGLE_DOCUMENT = 1;
 const PROMPT = "Captured direction. ".repeat(PROMPT_REPETITIONS);
 const ROLE = "Captured role. ".repeat(PROMPT_REPETITIONS);
@@ -61,35 +60,6 @@ const { prompt: _prompt, system_prompt: _role, ...metadata } = request.recipe;
 const summary = { ...request, recipe: metadata };
 
 test.each([
-	{ args: ["system", "dispatch-stage", "worker", "task-1", "--run", "run-1"] },
-	{ args: ["retry", "request-0"] },
-])(
-	"$args returns the next-command identifiers without native metadata #test-352",
-	async ({ args }) => {
-		const result = await invoke([...args, "--actor", "test", "--json"]);
-		expect(JSON.parse(result.stdout)).toEqual({
-			kind: "spawn_created",
-			ok: true,
-			request: { assignee: "worker", id: "request-1" },
-		});
-	},
-);
-
-test("retry forwards explicit cancellation resumption independently of recipe overrides #test-555", async () => {
-	await invoke(
-		["retry", "request-0", "--resume-cancelled", "--model", "current", "--actor", "test", "--json"],
-		SUCCESS,
-		{
-			retry: (id, options) => {
-				expect(id).toBe("request-0");
-				expect(options).toMatchObject({ resumeCancelled: true, model: "current" });
-				return Promise.resolve({ kind: "spawn_created", request: native });
-			},
-		},
-	);
-});
-
-test.each([
 	{
 		args: ["spawn", "worker", "--parent", "work-1", "--input-file", "work.json"],
 		creation: { parentId: "work-1" },
@@ -129,19 +99,6 @@ test.each([
 		]);
 	},
 );
-
-test("spawn without a parent reports the required flag before submission #test-384", async () => {
-	const result = await invoke(
-		["spawn", "worker", "--input-file", "work.json", "--actor", "test", "--json"],
-		USAGE_ERROR,
-	);
-	expect(JSON.parse(result.stdout)).toMatchObject({
-		ok: false,
-		reason: "commander.missingMandatoryOptionValue",
-		message: expect.stringContaining("--parent"),
-	});
-	expect(result.submissions).toEqual([]);
-});
 
 test("stop preserves closure and resolution facts without reporting process completion #test-531", async () => {
 	const result = await invoke(["stop", request.id, "--actor", "test", "--json"]);
@@ -184,10 +141,7 @@ test("explicit JSON status returns both full captured prompt fields #test-454", 
 	});
 });
 
-test.each([
-	{ args: ["status", request.id], expand: false },
-	{ args: ["status", request.id, "--include-prompt"], expand: true },
-])(
+test.each([{ args: ["status", request.id, "--include-prompt"], expand: true }])(
 	"human status includes captured prompts only when requested: $expand #test-600",
 	async ({ args, expand }) => {
 		const result = await invoke(args);

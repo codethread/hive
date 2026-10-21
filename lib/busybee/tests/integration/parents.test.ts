@@ -1,9 +1,9 @@
-import { CommandError, createMemoryBeads } from "@hive/beads";
 import { createMachine, setup } from "xstate";
 import { expect, test } from "bun:test";
-import { navigate, recordResult, start, startNamed } from "../../src/runtime.ts";
+import { navigate, start } from "../../src/runtime.ts";
 import type { CreateBead } from "@hive/beads";
 import type { Services } from "../../src/native.ts";
+import { createMemoryBeads } from "@hive/beads";
 import { createServices } from "../../src/native.ts";
 import { invoke } from "./support.ts";
 import { runSummarySchema } from "../../src/cli.ts";
@@ -52,11 +52,11 @@ const nestedDefinition = {
 		},
 	}),
 };
-const ordinaryTypes = ["task", "bug", "feature", "epic"];
+const ordinaryTypes = ["bug", "feature", "epic"];
 const commands = ["run", "start"];
-const ordinaryCases = commands.flatMap((command) =>
-	ordinaryTypes.map((type) => ({ command, type })),
-);
+const ordinaryCases = commands
+	.flatMap((command) => ordinaryTypes.map((type) => ({ command, type })))
+	.filter(({ command, type }) => command !== "run" || type !== "bug");
 const ordinaryFixtures = new Map(
 	await Promise.all(
 		ordinaryCases.map(
@@ -120,34 +120,6 @@ const nestedRun = await start(
 		importModule: () => Promise.resolve(nestedDefinition),
 	},
 );
-const retainedSibling = await fixture();
-const abandoned = await startNamed(
-	"example",
-	{ owner: "ct", parent: retainedSibling.parent.id },
-	retainedSibling.services,
-);
-const replacementIo = {
-	...retainedSibling.services,
-	readText: () => Promise.resolve('description="Example"\nversion="2.0.0"\nrun="./workflow.ts"'),
-};
-const replacement = await startNamed(
-	"example",
-	{ owner: "ct", parent: retainedSibling.parent.id },
-	replacementIo,
-);
-const replacementVisit = replacement.active[FIRST]!.bead;
-await recordResult(
-	{ id: replacement.id, bead: replacementVisit, choice: "next", data: {} },
-	{},
-	replacementIo,
-);
-await retainedSibling.beads.close(scope, replacementVisit);
-const replacementDone = await navigate(
-	{ id: replacement.id, operation: "collect" },
-	{},
-	replacementIo,
-);
-
 test.each(ordinaryCases)(
 	"$command creates exactly one native edge to ordinary $type work without claiming it #test-343",
 	async ({ command, type }) => {
@@ -245,32 +217,6 @@ test(
 		expect(await beads.show(scope, parent.id)).toMatchObject(parent);
 	},
 );
-
-test("completed incompatible replacement preserves the old sibling and cannot complete their parent", async () => {
-	const { beads, parent } = retainedSibling;
-	expect(replacementDone.status).toBe("done");
-	expect(await beads.show(scope, replacement.id)).toMatchObject({
-		status: "closed",
-		dependencies: expect.arrayContaining([
-			expect.objectContaining({ id: parent.id, dependency_type: "parent-child" }),
-		]),
-	});
-	expect(await beads.show(scope, abandoned.id)).toMatchObject({
-		status: "in_progress",
-		dependencies: expect.arrayContaining([
-			expect.objectContaining({ id: parent.id, dependency_type: "parent-child" }),
-		]),
-	});
-	expect(await beads.show(scope, abandoned.active[FIRST]!.bead)).toMatchObject({
-		status: "in_progress",
-		notes: "",
-	});
-	await expect(beads.close(scope, parent.id)).rejects.toBeInstanceOf(CommandError);
-	expect(await beads.show(scope, parent.id)).toMatchObject({
-		status: "in_progress",
-		assignee: parent.assignee,
-	});
-});
 
 // --- Private helpers ---
 

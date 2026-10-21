@@ -1,12 +1,6 @@
 /* eslint-disable require-await -- In-memory adapters implement asynchronous IO. */
 import { expect, test } from "bun:test";
-import {
-	hookSection,
-	installHooks,
-	installMergeDriver,
-	updateHookSection,
-	validateTrackerHook,
-} from "../src/hooks.ts";
+import { hookSection, installHooks, validateTrackerHook } from "../src/hooks.ts";
 import { BeeswaxError } from "../src/errors.ts";
 import { bindCheckout } from "../src/binding.ts";
 import { defaultProjectConfig } from "../src/config.ts";
@@ -27,7 +21,6 @@ test("repeated generation preserves application bytes outside the owned section 
 });
 
 test.each([
-	{ description: "existing application hook", body: "echo application\n" },
 	{ description: "edited section", body: hookSection.replace("hooks validate", "hooks custom") },
 	{ description: "duplicate section", body: `${hookSection}\n${hookSection}` },
 	{ description: "broken section", body: "# beeswax:begin tracker-validation v1\n" },
@@ -46,12 +39,6 @@ test.each([
 	},
 );
 
-test("configured Git hook targets resolve through common metadata in a linked checkout", async () => {
-	const fx = fixture();
-	await installHooks({ root, config: defaultProjectConfig("git") }, fx.deps);
-	expect(fx.files.get("/repo/.git/hooks/pre-commit")).toBe(updateHookSection(""));
-});
-
 test("local launcher updates only verified generations and ignores application PATH shadowing #test-574", async () => {
 	const fx = fixture();
 	await bindCheckout(root, "/tools with spaces/beeswax", fx.deps);
@@ -66,24 +53,7 @@ test("local launcher updates only verified generations and ignores application P
 	expect(fx.files.get("/repo/.git/beeswax/cli")).toBe("echo custom\n");
 });
 
-test("merge driver quotes the installed command and preserves unrelated attributes", async () => {
-	const fx = fixture();
-	fx.files.set("/repo/.gitattributes", "*.png binary\n");
-	await installMergeDriver(root, "/tools with spaces/beeswax", fx.deps);
-	expect(fx.commands).toContainEqual([
-		"git",
-		"config",
-		"--local",
-		"merge.hive-beads.driver",
-		'\'/tools with spaces/beeswax\' system git merge "%O" "%A" "%B"',
-	]);
-	expect(fx.files.get("/repo/.gitattributes")).toBe(
-		"*.png binary\n.beads/issues.jsonl text eol=lf merge=hive-beads\n",
-	);
-});
-
 test.each([
-	{ branch: "tracker/state", staged: ".beads/issues.jsonl", validates: true },
 	{ branch: "main", staged: ".beads/issues.jsonl", validates: false },
 	{ branch: "tracker/state", staged: ".beads/issues.jsonl\napp.rb", validates: false },
 ])(

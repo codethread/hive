@@ -3,18 +3,20 @@ import { Close, Content, Description, Overlay, Portal, Root, Title } from "@radi
 import {
 	EMPTY,
 	loadWorkflow,
+	loadWorkflowOutcome,
 	preferences,
 	snapshot,
+	workflowOutcomes,
 	workflowSelection,
 	workflows,
 } from "./data.ts";
 import { Info, RefreshCw, Workflow, X } from "lucide-react";
+import type { WorkflowInspection, WorkflowOutcome } from "../contracts.ts";
 import { useEffect, useRef } from "react";
 import { Button } from "./primitives.tsx";
 import type { Resource } from "./data.ts";
 import { ResourceNotice } from "./ui.tsx";
 import { WorkflowDiagram } from "./workflow-diagram.tsx";
-import type { WorkflowInspection } from "../contracts.ts";
 import { pollVisibleWorkflow } from "./workflow-polling.ts";
 import { useParams } from "@tanstack/react-router";
 import { useStore } from "zustand";
@@ -82,23 +84,35 @@ function OpenWorkflowDialog({
 		(state) => state.entries[`${colonyId}/${id}`] ?? EMPTY,
 	);
 	const preview = snapshot(resource);
+	const native = useStore(
+		workflowOutcomes.store,
+		(state) => state.entries[`${colonyId}/${id}`] ?? EMPTY,
+	);
 	useEffect(
 		() =>
-			pollVisibleWorkflow((conditional) => loadWorkflow(colonyId, id, conditional), {
-				visible: () => document.visibilityState === "visible",
-				subscribe: (changed) => {
-					document.addEventListener("visibilitychange", changed);
-					return () => {
-						document.removeEventListener("visibilitychange", changed);
-					};
+			pollVisibleWorkflow(
+				async (conditional) => {
+					await Promise.all([
+						loadWorkflowOutcome(colonyId, id),
+						loadWorkflow(colonyId, id, conditional),
+					]);
 				},
-				schedule: (read, ms) => {
-					const timer = globalThis.setInterval(read, ms);
-					return () => {
-						globalThis.clearInterval(timer);
-					};
+				{
+					visible: () => document.visibilityState === "visible",
+					subscribe: (changed) => {
+						document.addEventListener("visibilitychange", changed);
+						return () => {
+							document.removeEventListener("visibilitychange", changed);
+						};
+					},
+					schedule: (read, ms) => {
+						const timer = globalThis.setInterval(read, ms);
+						return () => {
+							globalThis.clearInterval(timer);
+						};
+					},
 				},
-			}),
+			),
 		[colonyId, id],
 	);
 	return (
@@ -158,7 +172,7 @@ function OpenWorkflowDialog({
 								aria-busy={resource.kind === "loading"}
 								disabled={resource.kind === "loading"}
 								onClick={() => {
-									void loadWorkflow(colonyId, id);
+									void Promise.all([loadWorkflowOutcome(colonyId, id), loadWorkflow(colonyId, id)]);
 								}}
 							>
 								<RefreshCw
@@ -182,6 +196,7 @@ function OpenWorkflowDialog({
 					<Description className="sr-only">
 						Saved workflow state and temporary simulation for {id}. Neither changes the actual run.
 					</Description>
+					<WorkflowOutcomeBanner resource={native} />
 					<WorkflowContent
 						source={`workflow:${colonyId}/${id}`}
 						resource={resource}
@@ -191,6 +206,31 @@ function OpenWorkflowDialog({
 				</Content>
 			</Portal>
 		</Root>
+	);
+}
+
+function WorkflowOutcomeBanner({ resource }: { resource: Resource<WorkflowOutcome> }) {
+	const native = snapshot(resource);
+	let outcome = "unclassified";
+	if (native?.outcome.kind === "terminal") {
+		({ outcome } = native.outcome.fact);
+	}
+	if (native?.outcome.kind === "pending") {
+		outcome = "pending";
+	}
+	return (
+		<div className="border-b border-stroke px-4 py-2 text-sm" aria-label="Native workflow outcome">
+			<ResourceNotice resource={resource} source="workflow-outcome" label="Native outcome" />
+			{native !== null && (
+				<>
+					<strong>Native outcome: {outcome}</strong> · {native.nativeStatus}
+					{native.outcome.kind === "terminal" && <p>{native.outcome.fact.reason}</p>}
+					{!native.labelsCurrent && (
+						<p>Outcome query labels are stale; native closure is authoritative.</p>
+					)}
+				</>
+			)}
+		</div>
 	);
 }
 

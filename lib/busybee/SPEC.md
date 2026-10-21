@@ -10,13 +10,46 @@ Busy Bee is a general-purpose workflow engine. Domains supply charts, schemas an
 
 **Each bead represents a visit.** Only work at a published frontier is created. Its task callback renders the brief once, which remains fixed for that visit. An accepted worker result retires the visit even when a loop returns to the same state; untouched parallel tasks retain theirs. Projection observes published frontiers, not every XState microstep: unsubmitted states that leave and re-enter within one macrostep may retain their visit.
 
-**Workers complete; the driver collects.** `complete` validates an active worker visit's outcome and saves the original `{choice,data}` JSON in native task notes. It awaits the checkpoint update and lock release before attempting ordinary native closure, outside the tracked result-write scope. Closure enforces native Beads acceptance and child-completion gates. A closure refusal preserves the saved result without retaining the checkpoint lock. Completion does not advance the workflow. Narrative evidence belongs in comments; `record-result` remains the save-only primitive.
+**Workers complete; the driver collects.** `complete` validates an active worker visit's outcome and saves the original `{choice,data}` JSON in native task notes. After that checkpoint write and lock release, a separate short close phase reacquires ownership, checks for retirement and attempts ordinary native closure with a `succeeded` fact. Closure enforces native Beads acceptance and child-completion gates. A closure refusal preserves the saved result; the close phase releases its lock. Completion does not advance the workflow. Narrative evidence belongs in comments; `record-result` remains the save-only primitive.
 
-A retry with identical saved original choice and data can finish closing an open visit or acknowledge an already-closed visit, including after collection. It does not replace the saved outcome. Different or malformed saved results fail explicitly; a closed visit without saved evidence also fails. The envelope retains original input rather than schema-transformed output, so collection parses that input once when consuming it. These ordered writes are not an atomic transaction across result persistence and native closure.
+While the run and visit remain eligible, a retry with identical saved original choice and data can finish closing an open visit or acknowledge a matching successful closure, including after collection. It does not replace the saved outcome. Different or malformed saved results fail explicitly; a closed visit without saved evidence also fails. The envelope retains original input rather than schema-transformed output, so collection parses that input once when consuming it. These ordered writes are not an atomic transaction across result persistence and native closure.
 
-**Busy Bee owns progression.** `collect` consumes saved results from closed active driver-handled and Bee-dispatched visits, permitting a replacement driver to continue arbitrary payloads. Direct `next` and `choice` submissions require a still-active, already-closed driver-handled visit and a valid result. Closure records completion, not independent verification of the work; native policy can be overridden outside Busy Bee. A closed visit with a valid result remains consumable independently of its execution request; an unfinished Bee-dispatched visit whose terminal request has no pending replacement fails visibly with run, stage and request identifiers.
+**Busy Bee owns progression.** `collect` consumes saved results from closed active driver-handled and Bee-dispatched visits, permitting a replacement driver to continue arbitrary payloads. Direct `next` and `choice` submissions require a still-active, already-closed driver-handled visit and a valid result. Failed or cancelled visits cannot advance; stale outcome-label projections fail explicitly. Closure is not independent verification of the work; native policy can be overridden outside Busy Bee. An eligible closed visit with a valid result remains consumable independently of its execution request; an unfinished Bee-dispatched visit whose terminal request has no pending replacement fails visibly with run, stage and request identifiers.
 
 **Containers outlive their tasks.** Containers have no worker outcome. Busy Bee closes them when their stage finishes and closes the run on completion. Transitions that would create children beneath an existing closed bead, including the run, fail before publication. Completed work is never reopened to serve as a container.
+
+## Native workflow outcomes
+
+Native closure is authoritative for generated run, visit and grouping beads. Busy Bee writes JSON `close_reason` in the same native close operation that records `closed_at`:
+
+```json
+{
+	"kind": "busybee-lifecycle",
+	"formatVersion": 1,
+	"scope": "visit",
+	"runId": "example-run",
+	"outcome": "succeeded",
+	"reason": "Original worker result saved; visit completed."
+}
+```
+
+`scope` is `run`, `visit` or `group`; `outcome` is `succeeded`, `failed` or `cancelled`. A nonclosed bead is pending. An old unmarked closure is unclassified, not inferred success. Malformed marked facts or facts inconsistent with the native closure, run or scope fail visibly. The [Shared decoder](../shared/src/workflow-lifecycle.ts) owns this consumed representation.
+
+A worker choice answers the workflow's question; the closure fact describes execution. A review choosing `changes` can therefore complete successfully. Original `{choice,data}` stays in visit notes. Later retirement preserves completed descendants, their results and their closure facts. Native run outcome is distinct from the XState snapshot status returned by existing run views and previews.
+
+Busy Bee publishes the [registered outcome query labels](../../docs/beads-labels.md#taxonomy) after closure as a separate write. They are a derived index, never outcome authority. Projection failure retains native-close evidence and fails explicitly; inspect the reported bead and checkpoint before recovery. This is not a bulk historical classification or backfill mechanism.
+
+## Bounded unsuccessful settlement
+
+`settle RUN cancel|fail --reason TEXT` retires pending generated scope; `settle --help` owns invocation, schemas and diagnostics. It reads the checkpoint inventory without importing the workflow definition. It closes pending visits and groups bottom-up, then the run, with `cancelled` or `failed` facts. It leaves the saved chart state unchanged and does not submit authored outcomes.
+
+Settlement requires agreement between the checkpoint inventory and complete native ancestry. It preserves completed work and refuses unfinished manual descendants, human/HITL or other-agent reservations, and unsupported inventory. Ordinary native acceptance and child gates still apply. It neither closes the source task or ancestors nor decides their acceptance.
+
+New runs begin with checkpoint `managedExecution: "unmanaged"`. Before driver handoff effects or Bee-dispatched stage publication, Busy Bee stamps the coherent prior checkpoint `managed` under its existing ownership; that exposure never resets. Missing historical provenance is unknown, not proof of no execution; invalid present values fail. Explicit unmanaged provenance plus complete native inventory agreement and no contradictory requests permits settlement without a daemon.
+
+Managed or unknown exposure requires fresh clearance from the running owning-host Colony daemon registered for the selected repository/database. Busy Bee retains checkpoint ownership through inspection and closure; Colony serializes clearance with final claim/reservation/supervisor admission and checks native requests and retained attempts. Missing history, foreign/unbound hosts, live or unverified processes, and marked manual execution refuse clearance. Request publication and execution admission honor the native run/settlement fence. [Colony's clearance interface](../colony/README.md#workflow-execution-clearance) owns the observation contract.
+
+A run-note settlement intent fences further publication; it is not an alternative outcome. Partial effects retain that intent, checkpoint ownership and confirmed/uncertain IDs for inspection. There is no automatic replay, unlock or held-lock recovery. Settlement does not stop processes or supply a general workflow resolution engine. These guarantees require cooperating version-matched tools on one live database, not concurrent tracker exchange, arbitrary native edits, old writers or externally detached execution.
 
 ## Contracts and authority
 
@@ -95,4 +128,4 @@ Simulation creates and starts no live actors, executes no custom action effects,
 
 Preflight reads records without acquiring a mutation reservation, writing checkpoints/tasks, starting actors or spawning workers. It does import trusted definitions and call author validation/render functions; read-only engine behavior is not an I/O sandbox. Reports retain per-run failures and incompatibility produces a nonzero exit. Preflight is an authoring aid, not proof of future-path compatibility or the truth of completed work; see [preflight guidance](../../docs/busybee-workflows.md#preflight-existing-runs).
 
-The retained [native integration tests](./tests/integration/native.test.ts) exercise repository tracker selection, schema discovery without a database and executable JSON errors; the memory-backed [failure test](./tests/integration/failure.test.ts) covers initial actor failure before tasks are created. Closure, hierarchy, concurrency and publication-failure checks are parked in the [Busy Bee coverage record](../../docs/test-cases/busybee.md), with original assertions and restoration pointers. [Package agent guidance](./AGENTS.md#verification) maps the remaining checks. Update the relevant evidence when changing these decisions.
+The retained [native integration tests](./tests/integration/native.test.ts) exercise repository tracker selection, schema discovery without a database and executable JSON errors; the memory-backed [failure test](./tests/integration/failure.test.ts) covers initial actor failure before tasks are created. Earlier closure, hierarchy, concurrency and publication-failure checks are parked in the [Busy Bee coverage record](../../docs/test-cases/busybee.md). The later [authorized lifecycle removal](../../docs/test-cases/lifecycle-slow-test-removal.md) identifies a rejected cohort whose historical source pointers do not authorize restoration. [Package agent guidance](./AGENTS.md#verification) maps the remaining checks. Update the relevant evidence when changing these decisions.

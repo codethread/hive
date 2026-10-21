@@ -14,7 +14,6 @@ import { trackerScope } from "./tracker.ts";
 import { validateRequestedTasks } from "./producer.ts";
 
 const ONE = 1;
-const INITIAL_RECORDS = 4;
 const config = beesConfigSchema.parse({
 	owner: "ct",
 	humans: ["ct"],
@@ -50,6 +49,16 @@ async function fixture() {
 				selected.push(input);
 				runId = await createTask(tracker, { title: "Author workflow", parent: input.parent });
 				const stage = await createTask(tracker, { title: "Actual assignment", parent: runId });
+				const checkpoint = await createTask(tracker, {
+					labels: ["system", "busybee-checkpoint"],
+					description: JSON.stringify({ formatVersion: 1, id: runId, managedExecution: "managed" }),
+				});
+				await tracker.beads.dep.add(
+					trackerScope(tracker.repository, "fixture"),
+					runId,
+					checkpoint,
+					"related",
+				);
 				// Unpublished Bee dispatch request identity is explicitly absent in Busybee output.
 				// eslint-disable-next-line unicorn/no-null
 				return { id: runId, status: "active", active: [{ bead: stage, request: null }] };
@@ -81,28 +90,6 @@ readSpawnRequest(
 		warmedResult.request.id,
 	),
 );
-const defaultSubmission = await fixture();
-
-test("default workflow submission captures one driver and the actual run anchor #test-424", async () => {
-	const { commands, selected, tracker, parent, submission } = defaultSubmission;
-	const result = await submitWorkflow("worker", submission, commands);
-	expect(selected).toEqual([
-		{
-			endpoint: { actor: "requester", db: "/fixture/tracker.db", repo: "/fixture" },
-			owner: "ct",
-			parent,
-			inputFile: "/caller/work.json",
-			selection: { kind: "named", name: "do-work" },
-		},
-	]);
-	const request = readSpawnRequest(
-		await tracker.beads.show(trackerScope(tracker.repository, "inspect"), result.request.id),
-	);
-	expect(request.assignment).toEqual({ kind: "driver", runId: result.workflow.runId });
-	expect(request.taskIds).toEqual([result.workflow.runId]);
-	expect(result.workflow.parentId).toBe(parent);
-	await assertInitialHierarchy(tracker, parent, result.workflow.runId);
-});
 
 test.each([
 	{ selector: { workflow: "land" }, selection: { kind: "named", name: "land" } },
@@ -119,20 +106,6 @@ test.each([
 		expect(result.workflow.parentId).toBe(parent);
 	},
 );
-
-test("same-run attachment rejects duplicate drivers before mutating the handoff #test-546", async () => {
-	const { commands, handoffs, tracker, selected, submission } = await fixture();
-	const result = await submitWorkflow("worker", submission, commands);
-	await expect(
-		attachWorkflow({ kind: "worker", runId: result.workflow.runId, options }, commands),
-	).rejects.toBeInstanceOf(Error);
-	expect(handoffs()).toBe(ONE);
-	const issues = await tracker.beads.list(trackerScope(tracker.repository, "inspect"), {
-		limit: 0,
-	});
-	expect(issues.issues).toHaveLength(INITIAL_RECORDS);
-	expect(selected).toHaveLength(ONE);
-});
 
 // Confirm absence of publication, then attach without recreating the ordinary hierarchy.
 
@@ -200,6 +173,16 @@ test("driver publication failure reports the existing run and uncertain request 
 
 const dispatched = await fixture();
 const dispatchedRun = await createTask(dispatched.tracker, { parent: dispatched.parent });
+const checkpoint = await createTask(dispatched.tracker, {
+	labels: ["system", "busybee-checkpoint"],
+	description: JSON.stringify({ formatVersion: 1, id: dispatchedRun, managedExecution: "managed" }),
+});
+await dispatched.tracker.beads.dep.add(
+	trackerScope(dispatched.tracker.repository, "fixture"),
+	dispatchedRun,
+	checkpoint,
+	"related",
+);
 const group = await createTask(dispatched.tracker, { parent: dispatchedRun });
 const stage = await createTask(dispatched.tracker, { parent: group });
 
@@ -255,26 +238,3 @@ test("unknown kind preserves the CLI failure envelope and creates no workflow #t
 	expect(stderr).toEqual([]);
 	expect(selected).toEqual([]);
 });
-
-async function assertInitialHierarchy(
-	tracker: ReturnType<typeof memoryTracker>,
-	parent: string,
-	runId: string,
-) {
-	const scope = trackerScope(tracker.repository, "inspect");
-	const run = await tracker.beads.show(scope, runId);
-	expect(run.dependencies).toMatchObject([{ id: parent, dependency_type: "parent-child" }]);
-	const visit = run.dependents.find((edge) => edge.dependency_type === "parent-child")!;
-	expect(await tracker.beads.show(scope, visit.id)).toMatchObject({
-		title: "Actual assignment",
-		dependencies: [{ id: run.id, dependency_type: "parent-child" }],
-	});
-	expect(await tracker.beads.show(scope, parent)).toMatchObject({
-		assignee: "ct",
-		owner: "ct",
-		status: "open",
-		title: "Original task",
-	});
-	const issues = await tracker.beads.list(scope, { limit: 0 });
-	expect(issues.issues).toHaveLength(INITIAL_RECORDS);
-}

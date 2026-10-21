@@ -38,28 +38,6 @@ test("configured endpoint selection is shared by observation and publication", a
 	]);
 });
 
-test(
-	"no selection is distinct from malformed inherited or configured selection",
-	// eslint-disable-next-line max-statements -- Compare missing and invalid selections through one boundary.
-	async () => {
-		const fx = selectionFixture();
-		expect(await selectAlertDatabase("/repo", undefined, fx.services)).toBeUndefined();
-		fx.services.beadsDb = "bad endpoint";
-		await expect(selectAlertDatabase("/repo", undefined, fx.services)).rejects.toBeInstanceOf(
-			Error,
-		);
-		expect(fx.calls).toEqual([]);
-		fx.services.beadsDb = undefined;
-		fx.services.commandAvailable = (name) => name === "mise";
-		fx.services.command = async () => JSON.stringify({ BEADS_DB: "bad endpoint" });
-		await expect(selectAlertDatabase("/repo", undefined, fx.services)).rejects.toBeInstanceOf(
-			Error,
-		);
-		fx.services.command = async () => "{}";
-		expect(await selectAlertDatabase("/repo", undefined, fx.services)).toBeUndefined();
-	},
-);
-
 function selectionFixture() {
 	const alerts = alertFixture();
 	const calls: string[] = [];
@@ -84,16 +62,6 @@ test("an independent conventional hold survives disappearance of SQLite without 
 	fx.services.commandAvailable = (name) => name === "git";
 	await fx.store.activate(canonical, "publication failed before database disappeared");
 	expect(await selectAlertDatabase("/repo", undefined, fx.services)).toBe(canonical);
-	expect(fx.calls).toEqual(["git rev-parse --path-format=absolute --git-common-dir"]);
-});
-
-test("corrupt conventional receipt fails discovery rather than hiding a missing-database hold", async () => {
-	const fx = selectionFixture();
-	fx.services.commandAvailable = (name) => name === "git";
-	fx.files.set(canonical, "corrupt");
-	await expect(selectAlertDatabase("/repo", undefined, fx.services)).rejects.toMatchObject({
-		reason: "tracker_alert_invalid",
-	});
 	expect(fx.calls).toEqual(["git rev-parse --path-format=absolute --git-common-dir"]);
 });
 

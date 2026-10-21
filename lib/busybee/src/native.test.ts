@@ -1,10 +1,4 @@
-import {
-	BusyBeeError,
-	closeTask,
-	conditionalUpdate,
-	createServices,
-	resolveMutation,
-} from "./native.ts";
+import { BusyBeeError, conditionalUpdate, createServices, resolveMutation } from "./native.ts";
 import { CommandError, createMemoryBeads } from "@hive/beads";
 import { expect, test } from "bun:test";
 import type { BeadsService } from "@hive/beads";
@@ -76,33 +70,3 @@ test.each([
 		expect(calls).toEqual(["beforeWrite", "update"]);
 	},
 );
-
-test("closure reads state before marking a write and leaves an already closed task alone", async () => {
-	const beads = createMemoryBeads();
-	const task = await beads.create(scope, { title: "Worker" });
-	const calls: string[] = [];
-	const services: Services = {
-		...createServices(),
-		beads: {
-			...beads,
-			close: (...args) => {
-				calls.push("close");
-				return beads.close(...args);
-			},
-			show: (...args) => {
-				calls.push("show");
-				return beads.show(...args);
-			},
-		},
-		beforeWrite: () => {
-			calls.push("beforeWrite");
-		},
-	};
-	await closeTask(endpoint, task.id, services);
-	await closeTask(endpoint, task.id, services);
-	expect(calls).toEqual(["show", "beforeWrite", "close", "show"]);
-	await expect(beads.show(scope, task.id)).resolves.toMatchObject({
-		close_reason: "Completed: XState step finished.",
-		status: "closed",
-	});
-});

@@ -8,10 +8,10 @@ Hive's product packages are independently replaceable. They cooperate through co
 | --- | --- | --- |
 | `lib/beads` | The subset of the native Beads contract consumed by Hive, with native and in-memory adapters | Exports an injected service; owns no Hive scheduling or workflow policy |
 | `lib/colony` | Bee request interface and Colony CLI, daemon ownership, repository scheduling, task claims, retries, supervision and private persistence | Imports Shared contracts; consumes spawn beads through native `br`; launches native harness executables |
-| `lib/shared` | Consumed contracts: recipes, formulas, spawn requests, repository endpoints, daemon messages, workflow preview payloads and changelogs | Exports types, boundary parsers and small shared operations; owns no daemon, scheduler or product-specific CLI presentation |
+| `lib/shared` | Consumed contracts: recipes, formulas, spawn requests, native workflow outcomes, repository endpoints, daemon messages, workflow preview payloads and changelogs | Exports types, boundary parsers and small shared operations; owns no daemon, scheduler or product-specific CLI presentation |
 | `lib/honeycomb` | Worktree discovery and lifecycle, including canonical-root decisions | Public command interface; Bee and Colony obtain the canonical root through `honeycomb root` |
 | `lib/waggle` | Classifier discovery and execution | Independent `waggle` CLI; it does not decide runtime scheduling or mutate requests |
-| `lib/busybee` | Workflow navigation, task visits and per-run checkpoints | XState chooses transitions; native `br` stores work and checkpoints; optional Bee requests delegate execution to Colony |
+| `lib/busybee` | Workflow navigation, task visits, native outcome publication, bounded settlement and per-run checkpoints | XState chooses transitions; native `br` stores work and checkpoints; optional Bee requests delegate execution to Colony |
 | `lib/hive-ui` | Read-only work-board HTTP projections, route-driven browser snapshots and presentation | Imports Beads services and Shared contracts; selects repository/database pairs explicitly or through public Colony status and calls Busy Bee's public preview command |
 | `lib/scent` | Harness identity attribution and context | Installed command protocols and bundled Pi runtime; resolves native identity or adopts supplied Bee identity and preserves the selected tracker |
 | `lib/beeswax` | Consumer repository setup, Beads environment/publication, tracker alerts and recovery guidance, JSONL merging/validation, Git/harness adapters and executable installation | Installed CLI; imports Shared/Beads contracts and invokes installed Honeycomb and Scent |
@@ -23,6 +23,8 @@ Use Shared when actual consumers need the same contract. Spawn-request represent
 Beads' native adapter owns CLI arguments and output parsing. Consumer entry points inject that adapter; behavior tests inject its in-memory counterpart. Native conformance tests belong to Beads; filesystem, Git and process-boundary tests stay with the modules owning those effects.
 
 Hive UI owns browser/API schemas and read models. Its startup endpoint allowlist comes from explicit configuration or Colony's public status command, without daemon lifecycle effects or access to Colony's private store. Native Beads supplies task/request facts; BV supplies hierarchy topology from the native-selected JSONL export. Hive UI owns BV invocation, source validation, ordinary-family membership and native card hydration; the [hierarchy source contract](design/hive-ui.md#hierarchy-source) defines this read boundary.
+
+Hive UI reads native workflow outcomes directly through Beads and the Shared decoder, independently of definition or diagram availability. Busy Bee owns closure publication and the derived [outcome query index](beads-labels.md#taxonomy); neither labels nor UI presentation decide completion. The [native outcome and settlement contract](../lib/busybee/SPEC.md#native-workflow-outcomes) owns those rules.
 
 Busy Bee's public checkpoint identity and update time supply workflow provenance and freshness checks. The UI server calls `busybee system checkpoint`, `system preview` or `system simulate` with its selected repository/database pair and validates the Shared [checkpoint/inspection](../lib/shared/src/workflow-preview.ts) and [simulation](../lib/shared/src/workflow-simulation.ts) schemas. Busy Bee owns checkpoint interpretation, instruction rendering and stateless simulation. The browser holds user-supplied input, original event data and display snapshots; raw saved context and executable metadata stay in Busy Bee. This boundary needs no Colony state or simulation store. The [preview](../lib/busybee/SPEC.md#saved-state-preview) and [simulation](../lib/busybee/SPEC.md#simulation) contracts own projection and execution limits; the [UI design](design/hive-ui.md#workflow-preview) owns polling and local presentation.
 
@@ -53,7 +55,7 @@ Colony: awake colony -> prepare -> rank -> claim -> reserve attempt
                 minimal native Beads observations and closure
 ```
 
-Bee submission starts a Busy Bee workflow and captures its driver request. Bee-dispatched visits create stage requests within that run. Shared owns the driver/stage assignment contract; launch receipts and explicit retries retain the assigned run or stage. Workflow definitions own work and acceptance, while captured recipes describe execution.
+Bee submission starts a Busy Bee workflow and captures its driver request. Bee-dispatched visits create stage requests within that run. Shared owns the driver/stage assignment contract; launch receipts and explicit retries retain the assigned run or stage. Workflow definitions own work and acceptance, while captured recipes describe execution. Colony derives completion from each request's own native anchor: the stage for a worker, the run for a driver. [Anchor semantics](agents/spawn-requests.md#workflow-anchors) preserve successful stage execution independently of its authored choice and later run retirement.
 
 Workflow drivers consume ordinary capacity while waiting for workers. Colony neither suspends them nor reserves extra worker capacity; the user must raise quotas if drivers starve workers.
 
@@ -77,6 +79,8 @@ Colony's [client](../lib/colony/src/client.ts) uses the [Shared protocol](../lib
 | --- | --- | --- |
 | Task state and assignment | Native Beads, changed by task actors and Colony's explicit claim/release operations | Whether work is complete or available to the request identity |
 | Spawn request and closure | Native Beads; Bee creates/closes requests, Colony consumes and settles them | The requested recipe, identity, work links and request outcome; closure alone does not prove a worker has stopped |
+| Workflow outcome | Native `close_reason` and `closed_at`, published by Busy Bee; decoded by Shared | Generated run/visit/group succeeded, failed or cancelled; unmarked historical closure stays unclassified. Saved chart state and outcome labels are not closure authority. |
+| Managed-execution exposure and settlement fence | Busy Bee checkpoint provenance/ownership and native run-note intent | Whether daemon-free settlement has explicit unmanaged evidence, and whether publication/admission is fenced; neither proves process exit |
 | Last Colony observation | Native timestamped Beads comment published by Colony | What was last observed; it may be stale while asleep or unavailable |
 | Canonical defaults and policy | Canonical `.hive/bees.toml` and `.hive/bees/` kind files | Defaults for new recipes and policy loaded on wake/reset; existing captured recipes do not change |
 | Registration, checkpoints and revision history | Colony's private SQLite store | Durable awake intent, attempts and recovery checkpoints; transient policy is reloaded from canonical configuration on recovery |
@@ -85,6 +89,8 @@ Colony's [client](../lib/colony/src/client.ts) uses the [Shared protocol](../lib
 | Tracker alert and clearance | Beeswax's persistent user-local receipt, keyed by selected database path independently of Beads | Whether this endpoint has a recorded incident or verified clearance; not a distributed writer lock or proof of quiescence |
 
 Repository discovery, tracker selection and execution directory are independent. The canonical root identifies repository-wide configuration and registration. The selected absolute Beads path identifies tracker authority. The recipe's optional execution directory controls the harness working directory and capacity bucket. Choosing one never implicitly replaces another.
+
+For bounded workflow settlement, Busy Bee holds publication ownership while Colony supplies fresh owning-host execution clearance under its admission gate. The [settlement contract](../lib/busybee/SPEC.md#bounded-unsuccessful-settlement) defines unmanaged proof, inventory limits and retained partial effects; clearance is a local observation, not a distributed lease or process-stop operation.
 
 The supervisor owns its process group and local artifacts; it does not reconcile Beads or write the daemon database. The harness inherits that group; processes that detach or create separate groups are outside managed cleanup. Colony reserves an attempt before starting the supervisor and persists the verified supervisor handoff before granting execution permission. Recovery uses the same ownership checks before adoption, cleanup or replacement. Detailed commands, defaults and supported limitations are in the [Bee and Colony guide](../lib/colony/README.md).
 

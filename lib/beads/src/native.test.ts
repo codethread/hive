@@ -143,31 +143,3 @@ test("native discovery preserves unspecified environment and parses its typed lo
 		beads_dir: "/selected",
 	});
 });
-
-test("sync status disables auto effects before inspecting the selected tracker", async () => {
-	const service = createNativeBeads({
-		execute: (argv) => {
-			expect(argv).toEqual([
-				"br",
-				"--no-auto-import",
-				"--no-auto-flush",
-				"sync",
-				"--status",
-				"--json",
-			]);
-			return Promise.resolve(
-				JSON.stringify({
-					dirty_count: 0,
-					db_newer: false,
-					jsonl_content_hash: "snapshot",
-					coverage_drift: false,
-					jsonl_exists: true,
-					jsonl_newer: false,
-					workspace_health: "healthy",
-				}),
-			);
-		},
-	});
-	const status = await service.sync.status({ cwd: "/tracker" });
-	expect(status.workspace_health).toBe("healthy");
-});

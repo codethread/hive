@@ -1,8 +1,11 @@
 #!/usr/bin/env bun
 import { loadColonyActivity, serve } from "../src/server.ts";
 import { createNativeBeads } from "@hive/beads";
+// eslint-disable-next-line import/no-nodejs-modules -- Bind fresh execution observations to this host.
+import { hostname } from "node:os";
 import { launch } from "../src/launch.ts";
 import { match } from "ts-pattern";
+import { observeExecution } from "../src/processes.ts";
 import { resolveRepository } from "@hive/shared";
 import { version } from "../package.json";
 import { z } from "zod";
@@ -51,6 +54,9 @@ try {
 		.with({ kind: "serve" }, ({ socket, state }) =>
 			serve({ socket, state }, beads, {
 				loadActivity: loadColonyActivity,
+				observe: observeExecution,
+				host: hostname(),
+				now: () => new Date().toISOString(),
 			}),
 		)
 		.exhaustive();

@@ -81,6 +81,7 @@ function parseResponse(body: unknown, request: ColonyRequest["kind"]): ColonyRes
 
 function expectedResponse(request: ColonyRequest): string[] {
 	return match(request)
+		.with({ kind: "execution-clearance" }, () => ["execution-clearance"])
 		.with({ kind: "inspect" }, () => ["inspection"])
 		.with({ kind: "inspect-request" }, () => ["request-inspection"])
 		.with({ kind: "config" }, () => ["config"])

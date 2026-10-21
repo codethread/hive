@@ -1,0 +1,3078 @@
+{
+	"formatVersion": 1,
+	"baseCommit": "937c48ae486eb503a6927a9a8b26d7b096d5c6a1",
+	"baseTree": "2cdb018388746d8430941fe95cd54910c4e7cb74",
+	"inventoryScope": {
+		"afterTree": "ecf721a6636e5d83e28776aa175152d287be2ce2",
+		"meaning": "Historical original removal inventory. Counts, ranges, hashes and registry thresholds below describe baseCommit to afterTree, not the current-main refresh.",
+		"refreshRecord": "lifecycle-slow-test-removal.md#current-main-refresh"
+	},
+	"packetSha256": "1248fe104ace82c65f03966ad0a8672b3ddb40df69a977d2f7eb012650c71914",
+	"provenance": {
+		"sourceTask": "hv-00pk4.22",
+		"correctionResponse": "hv-ja7h74",
+		"architectureEvidence": "hv-e8i94.1.3.2",
+		"artifacts": [
+			{
+				"file": "removal-before-manifest.json",
+				"sha256": "2ea02f07a60b3fb1f6552dd7f4f774c556468c897aac1e320271776949b339d1"
+			},
+			{
+				"file": "removal-verified-manifest.json",
+				"sha256": "ebe26f3eae3a16cc80e9ebebfa464faa528999bac00bca81f2d0bef97d94352a"
+			}
+		]
+	},
+	"removedIds": 65,
+	"removedCases": 131,
+	"removedTestDeclarations": 62,
+	"retainedTestDeclarations": 59,
+	"files": [
+		{
+			"beforePath": "lib/busybee/tests/integration/lifecycle-inspection.test.ts",
+			"afterPath": null,
+			"beforeSha256": "9ab514f3f321f7f30089c628ce8beffa7daf15bfc698a3769b86fed5dd6f454e",
+			"afterSha256": null,
+			"beforeDeclarations": 5,
+			"afterDeclarations": 0,
+			"removed": [
+				{
+					"id": "#test-74",
+					"caseCount": 1,
+					"caseNames": [
+						"#test-74 uncertain final closure retains lock and exposes only confirmed native success"
+					],
+					"marker": {
+						"line": 107,
+						"source": "test(\"#test-74 uncertain final closure retains lock and exposes only confirmed native success\", async () => {"
+					},
+					"beforeDeclaration": {
+						"startOffset": 3326,
+						"endOffset": 4429,
+						"startLine": 107,
+						"endLine": 137,
+						"registration": "\"#test-74 uncertain final closure retains lock and exposes only confirmed native success\"",
+						"sha256": "7088ecd2bc9550ddf87daa6717df59ff78d1d2b4d11f003e7a506407a092ac2b",
+						"structuralSha256": "bbbdad88ed92b7bd90f81f873436717de6e6e666ef6234ea764ec79c4c6ce9b2"
+					},
+					"afterDeclaration": null
+				},
+				{
+					"id": "#test-75",
+					"caseCount": 1,
+					"caseNames": ["#test-75 lifecycle schema discovery never selects a native endpoint"],
+					"marker": {
+						"line": 159,
+						"source": "test(\"#test-75 lifecycle schema discovery never selects a native endpoint\", async () => {"
+					},
+					"beforeDeclaration": {
+						"startOffset": 5259,
+						"endOffset": 5980,
+						"startLine": 159,
+						"endLine": 177,
+						"registration": "\"#test-75 lifecycle schema discovery never selects a native endpoint\"",
+						"sha256": "b2384b11e1a4a2f745e508f1205dbd7f71dd870db14220f92c99616be08fce38",
+						"structuralSha256": "e802e3f2da24c530109ea0a53592cdcb05f3db19dcf09dc5b9941105ecaa8c9a"
+					},
+					"afterDeclaration": null
+				},
+				{
+					"id": "#test-76",
+					"caseCount": 1,
+					"caseNames": ["#test-76 native closure classification retains invalid_lifecycle"],
+					"marker": {
+						"line": 41,
+						"source": "title: \"#test-76 native closure classification retains invalid_lifecycle\","
+					},
+					"beforeDeclaration": {
+						"startOffset": 2511,
+						"endOffset": 3178,
+						"startLine": 87,
+						"endLine": 103,
+						"registration": "\"$title\"",
+						"sha256": "856cf5c624c0904c8ca2681787c07ce47b083f0011ac10e67d530e6f95718fd7",
+						"structuralSha256": "5f956da23844dbb45819600ba1fd715ec5a08aceac033acd1b49ef4cb062c2ed"
+					},
+					"afterDeclaration": null
+				},
+				{
+					"id": "#test-77",
+					"caseCount": 1,
+					"caseNames": [
+						"#test-77 refused final closure leaves lifecycle pending under retained publication ownership"
+					],
+					"marker": {
+						"line": 139,
+						"source": "test(\"#test-77 refused final closure leaves lifecycle pending under retained publication ownership\", async () => {"
+					},
+					"beforeDeclaration": {
+						"startOffset": 4431,
+						"endOffset": 5257,
+						"startLine": 139,
+						"endLine": 157,
+						"registration": "\"#test-77 refused final closure leaves lifecycle pending under retained publication ownership\"",
+						"sha256": "6c1a5536c78a39a5dddafeeb032375a12de1d0c9f6a2bfcc4267afb2555b6ea9",
+						"structuralSha256": "7566455577daaeb3069931361a51559d59480fce99d80b8b51bd397075567a5e"
+					},
+					"afterDeclaration": null
+				},
+				{
+					"id": "#test-79",
+					"caseCount": 1,
+					"caseNames": ["#test-79 native closure classification retains unavailable"],
+					"marker": {
+						"line": 36,
+						"source": "title: \"#test-79 native closure classification retains unavailable\","
+					},
+					"beforeDeclaration": {
+						"startOffset": 2511,
+						"endOffset": 3178,
+						"startLine": 87,
+						"endLine": 103,
+						"registration": "\"$title\"",
+						"sha256": "856cf5c624c0904c8ca2681787c07ce47b083f0011ac10e67d530e6f95718fd7",
+						"structuralSha256": "5f956da23844dbb45819600ba1fd715ec5a08aceac033acd1b49ef4cb062c2ed"
+					},
+					"afterDeclaration": null
+				},
+				{
+					"id": "#test-80",
+					"caseCount": 1,
+					"caseNames": ["#test-80 native closure classification retains invalid_lifecycle"],
+					"marker": {
+						"line": 46,
+						"source": "title: \"#test-80 native closure classification retains invalid_lifecycle\","
+					},
+					"beforeDeclaration": {
+						"startOffset": 2511,
+						"endOffset": 3178,
+						"startLine": 87,
+						"endLine": 103,
+						"registration": "\"$title\"",
+						"sha256": "856cf5c624c0904c8ca2681787c07ce47b083f0011ac10e67d530e6f95718fd7",
+						"structuralSha256": "5f956da23844dbb45819600ba1fd715ec5a08aceac033acd1b49ef4cb062c2ed"
+					},
+					"afterDeclaration": null
+				},
+				{
+					"id": "#test-81",
+					"caseCount": 1,
+					"caseNames": ["#test-81 native closure classification retains invalid_lifecycle"],
+					"marker": {
+						"line": 58,
+						"source": "title: \"#test-81 native closure classification retains invalid_lifecycle\","
+					},
+					"beforeDeclaration": {
+						"startOffset": 2511,
+						"endOffset": 3178,
+						"startLine": 87,
+						"endLine": 103,
+						"registration": "\"$title\"",
+						"sha256": "856cf5c624c0904c8ca2681787c07ce47b083f0011ac10e67d530e6f95718fd7",
+						"structuralSha256": "5f956da23844dbb45819600ba1fd715ec5a08aceac033acd1b49ef4cb062c2ed"
+					},
+					"afterDeclaration": null
+				},
+				{
+					"id": "#test-205",
+					"caseCount": 1,
+					"caseNames": [
+						"#test-205 requested missing diagram preserves native facts and default inspection remains compact"
+					],
+					"marker": {
+						"line": 62,
+						"source": "test(\"#test-205 requested missing diagram preserves native facts and default inspection remains compact\", async () => {"
+					},
+					"beforeDeclaration": {
+						"startOffset": 1747,
+						"endOffset": 2509,
+						"startLine": 62,
+						"endLine": 85,
+						"registration": "\"#test-205 requested missing diagram preserves native facts and default inspection remains compact\"",
+						"sha256": "eb434adf39e072c2bcba6cf27e6515dc774196de74073ddad65ded5139ab18e1",
+						"structuralSha256": "eba8a3a19c828ac7a708bbe181037dab9aac6d10640bc36f5dd41c8eb476bb29"
+					},
+					"afterDeclaration": null
+				}
+			],
+			"retained": []
+		},
+		{
+			"beforePath": "lib/shared/src/workflow-lifecycle.test.ts",
+			"afterPath": "lib/shared/src/workflow-lifecycle.test.ts",
+			"beforeSha256": "ab75e84a36edd06fdfde0082d5f152ff583a56017aabd338a22564225878623b",
+			"afterSha256": "82d88142d13d23758941f6efd8565b09f2e8d29c799bf1b39e32ff32a3519556",
+			"beforeDeclarations": 4,
+			"afterDeclarations": 3,
+			"removed": [
+				{
+					"id": "#test-78",
+					"caseCount": 4,
+					"caseNames": [
+						"#test-78 invalid tagged facts fail at the native read boundary",
+						"#test-78 invalid tagged facts fail at the native read boundary",
+						"#test-78 invalid tagged facts fail at the native read boundary",
+						"#test-78 invalid tagged facts fail at the native read boundary"
+					],
+					"marker": {
+						"line": 36,
+						"source": "])(\"#test-78 invalid tagged facts fail at the native read boundary\", (value) => {"
+					},
+					"beforeDeclaration": {
+						"startOffset": 760,
+						"endOffset": 1054,
+						"startLine": 31,
+						"endLine": 38,
+						"registration": "\"#test-78 invalid tagged facts fail at the native read boundary\"",
+						"sha256": "158f29fdaf91d38552c9c239b7b08b9eeeac2822f50e38db2bdc330c7234331c",
+						"structuralSha256": "028575eb316856321d319e2e33749803641aaefdef5dafd457fafb465ec9caaf"
+					},
+					"afterDeclaration": null
+				}
+			],
+			"retained": [
+				{
+					"beforeDeclaration": {
+						"startOffset": 413,
+						"endOffset": 569,
+						"startLine": 20,
+						"endLine": 22,
+						"registration": "\"native lifecycle marker retains its meaning across JSON serialization\"",
+						"sha256": "f54e447368d8112569f1bcc0a217a7bb4345cff83009ae65851bc05964025b3d",
+						"structuralSha256": "3a62440fec94232ca0ed10e24c9b56224b6ea297d3f0bfb82787f5166571b67f"
+					},
+					"afterDeclaration": {
+						"startOffset": 388,
+						"endOffset": 544,
+						"startLine": 19,
+						"endLine": 21,
+						"registration": "\"native lifecycle marker retains its meaning across JSON serialization\"",
+						"sha256": "f54e447368d8112569f1bcc0a217a7bb4345cff83009ae65851bc05964025b3d",
+						"structuralSha256": "3a62440fec94232ca0ed10e24c9b56224b6ea297d3f0bfb82787f5166571b67f"
+					},
+					"tokenSha256": "8b6bf47650532df97f62fb7ab95bda5be149c5e85c9693c7df5b76e28b3eec8a",
+					"structurallyEquivalent": true
+				},
+				{
+					"beforeDeclaration": {
+						"startOffset": 571,
+						"endOffset": 758,
+						"startLine": 24,
+						"endLine": 29,
+						"registration": "\"unmarked historic reason %s remains unclassified\"",
+						"sha256": "7e34fd67bb87039e2aa7ecd1a7733499d392f8554cc479ea96705fa96c107b5e",
+						"structuralSha256": "79fd2571c35bab988678438bb01cc5c34da75ff404cfa0fd02e24cf33045171d"
+					},
+					"afterDeclaration": {
+						"startOffset": 546,
+						"endOffset": 733,
+						"startLine": 23,
+						"endLine": 28,
+						"registration": "\"unmarked historic reason %s remains unclassified\"",
+						"sha256": "7e34fd67bb87039e2aa7ecd1a7733499d392f8554cc479ea96705fa96c107b5e",
+						"structuralSha256": "79fd2571c35bab988678438bb01cc5c34da75ff404cfa0fd02e24cf33045171d"
+					},
+					"tokenSha256": "877cd817f69f117db6c986bbb3fca429495164791ee8fe5e891ef11d72e22fde",
+					"structurallyEquivalent": true
+				},
+				{
+					"beforeDeclaration": {
+						"startOffset": 1056,
+						"endOffset": 2592,
+						"startLine": 40,
+						"endLine": 84,
+						"registration": "\"failed workflow resolution binds both closure fields and preserves failure after replacement\"",
+						"sha256": "edcc56accbb440002cf32fa2768a8fc6933dfbf24b9d9529bd3789e08bc7806d",
+						"structuralSha256": "fd01e6dcf382c137603efef882cd62f158dc0d7656880e4c8b21e12846c7d1da"
+					},
+					"afterDeclaration": {
+						"startOffset": 735,
+						"endOffset": 2271,
+						"startLine": 30,
+						"endLine": 74,
+						"registration": "\"failed workflow resolution binds both closure fields and preserves failure after replacement\"",
+						"sha256": "edcc56accbb440002cf32fa2768a8fc6933dfbf24b9d9529bd3789e08bc7806d",
+						"structuralSha256": "fd01e6dcf382c137603efef882cd62f158dc0d7656880e4c8b21e12846c7d1da"
+					},
+					"tokenSha256": "3ff1c24f57e075ec5dbfb2f970739f08ac7c2d0b57c11ba2bc8eba2dc29d91da",
+					"structurallyEquivalent": true
+				}
+			]
+		},
+		{
+			"beforePath": "lib/busybee/tests/integration/settlement-native.test.ts",
+			"afterPath": null,
+			"beforeSha256": "71a8a3c9208d7430b632d054769f27e21751519f6ac1c85e5d806675f8c271aa",
+			"afterSha256": null,
+			"beforeDeclarations": 1,
+			"afterDeclarations": 0,
+			"removed": [
+				{
+					"id": "#test-84",
+					"caseCount": 1,
+					"caseNames": [
+						"#test-84 ordinary native close refusal retains intent and truthful unfinished retirement"
+					],
+					"marker": {
+						"line": 19,
+						"source": "test(\"#test-84 ordinary native close refusal retains intent and truthful unfinished retirement\", async () => {"
+					},
+					"beforeDeclaration": {
+						"startOffset": 994,
+						"endOffset": 2322,
+						"startLine": 19,
+						"endLine": 58,
+						"registration": "\"#test-84 ordinary native close refusal retains intent and truthful unfinished retirement\"",
+						"sha256": "02770b5b4d56bf52f4c7827273ddbed22260c2f0167966e918eb65095b9c040f",
+						"structuralSha256": "07d2b7baabaca06075118491941ccdead9a9856a3ac5d1a65f4a3e6b7c152b96"
+					},
+					"afterDeclaration": null
+				}
+			],
+			"retained": []
+		},
+		{
+			"beforePath": "lib/busybee/tests/integration/settlement.test.ts",
+			"afterPath": null,
+			"beforeSha256": "75f809f3caeb36c2a13ab799c98eacb803feb8c8b705dee63d2782dc39f8c482",
+			"afterSha256": null,
+			"beforeDeclarations": 7,
+			"afterDeclarations": 0,
+			"removed": [
+				{
+					"id": "#test-85",
+					"caseCount": 1,
+					"caseNames": [
+						"#test-85 settlement preserves completed results and retires remaining work without author access"
+					],
+					"marker": {
+						"line": 56,
+						"source": "test(\"#test-85 settlement preserves completed results and retires remaining work without author access\", async () => {"
+					},
+					"beforeDeclaration": {
+						"startOffset": 1684,
+						"endOffset": 3914,
+						"startLine": 56,
+						"endLine": 112,
+						"registration": "\"#test-85 settlement preserves completed results and retires remaining work without author access\"",
+						"sha256": "d8600a99237eb6827a10c5274ec69dc0f5705615646c4e1db01565a0e35505a7",
+						"structuralSha256": "c74682272b725fcd31fd9b4df61c29d888771b6996eac88469124297eab1a5ea"
+					},
+					"afterDeclaration": null
+				},
+				{
+					"id": "#test-86",
+					"caseCount": 1,
+					"caseNames": [
+						"#test-86 failed acknowledgment and replacement resolve follow-up without rewriting failure"
+					],
+					"marker": {
+						"line": 114,
+						"source": "test(\"#test-86 failed acknowledgment and replacement resolve follow-up without rewriting failure\", async () => {"
+					},
+					"beforeDeclaration": {
+						"startOffset": 3916,
+						"endOffset": 5424,
+						"startLine": 114,
+						"endLine": 159,
+						"registration": "\"#test-86 failed acknowledgment and replacement resolve follow-up without rewriting failure\"",
+						"sha256": "b27ccf130b342daf5b48c910920aba4fe9f3a8c76372dda10145bbdabf71b7c2",
+						"structuralSha256": "16db8ecbaff9d70317dfe4c32031b9f6d4a388dd0136c3f587228f0b602fec7d"
+					},
+					"afterDeclaration": null
+				},
+				{
+					"id": "#test-87",
+					"caseCount": 5,
+					"caseNames": [
+						"#test-87 settlement refuses manual work before writing an intent or closure",
+						"#test-87 settlement refuses nested work before writing an intent or closure",
+						"#test-87 settlement refuses human work before writing an intent or closure",
+						"#test-87 settlement refuses hitl work before writing an intent or closure",
+						"#test-87 settlement refuses other-agent work before writing an intent or closure"
+					],
+					"marker": {
+						"line": 168,
+						"source": "\"#test-87 settlement refuses $kind work before writing an intent or closure\","
+					},
+					"beforeDeclaration": {
+						"startOffset": 5426,
+						"endOffset": 6862,
+						"startLine": 161,
+						"endLine": 199,
+						"registration": "\"#test-87 settlement refuses $kind work before writing an intent or closure\"",
+						"sha256": "f6f52c2d936446b321c533be57eb15b2394198ff531f016bd90a3afe3af84851",
+						"structuralSha256": "b6a722e0f451be459ef359a34a635a3ae932dcd38853a1b503d7c3e12e08ea52"
+					},
+					"afterDeclaration": null
+				},
+				{
+					"id": "#test-88",
+					"caseCount": 2,
+					"caseNames": [
+						"#test-88 uncertain native close preserves publication intent and honest facts (write happened: %s)",
+						"#test-88 uncertain native close preserves publication intent and honest facts (write happened: %s)"
+					],
+					"marker": {
+						"line": 202,
+						"source": "\"#test-88 uncertain native close preserves publication intent and honest facts (write happened: %s)\","
+					},
+					"beforeDeclaration": {
+						"startOffset": 6864,
+						"endOffset": 8441,
+						"startLine": 201,
+						"endLine": 245,
+						"registration": "\"#test-88 uncertain native close preserves publication intent and honest facts (write happened: %s)\"",
+						"sha256": "a931010e547eae74b2af8025289309717d01e8b31f8e7aedb13fec82eb1d433f",
+						"structuralSha256": "c16347f7abebe0398ce8528775081f8ea10bc0071f8ce5288cbeebccebfa836e"
+					},
+					"afterDeclaration": null
+				},
+				{
+					"id": "#test-89",
+					"caseCount": 1,
+					"caseNames": [
+						"#test-89 retirement between saved result and final close cannot publish successful visit completion"
+					],
+					"marker": {
+						"line": 248,
+						"source": "\"#test-89 retirement between saved result and final close \" +"
+					},
+					"beforeDeclaration": {
+						"startOffset": 8443,
+						"endOffset": 9772,
+						"startLine": 247,
+						"endLine": 286,
+						"registration": "\"#test-89 retirement between saved result and final close \" +\n\t\t\"cannot publish successful visit completion\"",
+						"sha256": "f4e4f435c3ee20f07a48bc603e6161944cc9b52d1f5a57c2ee6ac0a284ac0449",
+						"structuralSha256": "fb75e3d76c442a11dc1a89d827dba19b6a77ae364ec943d8ee055bdd869a7fb6"
+					},
+					"afterDeclaration": null
+				},
+				{
+					"id": "#test-90",
+					"caseCount": 1,
+					"caseNames": [
+						"#test-90 the final native visit close holds the same lock needed by retirement"
+					],
+					"marker": {
+						"line": 288,
+						"source": "test(\"#test-90 the final native visit close holds the same lock needed by retirement\", async () => {"
+					},
+					"beforeDeclaration": {
+						"startOffset": 9774,
+						"endOffset": 10824,
+						"startLine": 288,
+						"endLine": 321,
+						"registration": "\"#test-90 the final native visit close holds the same lock needed by retirement\"",
+						"sha256": "4c4d5063cdb9e106b68c0e5c5ed83248f0099bbf8543cc8e728dd7ea04743452",
+						"structuralSha256": "33cd36cad9682f5ab58329f973948b48a03e9a181caa8e99aa29f831167ff706"
+					},
+					"afterDeclaration": null
+				},
+				{
+					"id": "#test-91",
+					"caseCount": 1,
+					"caseNames": [
+						"#test-91 settlement schema and invalid success operation never select a native endpoint"
+					],
+					"marker": {
+						"line": 323,
+						"source": "test(\"#test-91 settlement schema and invalid success operation never select a native endpoint\", async () => {"
+					},
+					"beforeDeclaration": {
+						"startOffset": 10826,
+						"endOffset": 11511,
+						"startLine": 323,
+						"endLine": 343,
+						"registration": "\"#test-91 settlement schema and invalid success operation never select a native endpoint\"",
+						"sha256": "04dad192037d66d482a7940c8b769f9bdb3d745b41c47b347b4cdacb2e3f383a",
+						"structuralSha256": "e872ac06810a3629226f578a1169b402df0de4874f2358e9bd2e9edfe05f0696"
+					},
+					"afterDeclaration": null
+				}
+			],
+			"retained": []
+		},
+		{
+			"beforePath": "lib/colony/src/execution-clearance.test.ts",
+			"afterPath": "lib/colony/src/execution-clearance.test.ts",
+			"beforeSha256": "fa421dd11b272245daae863a199bacaf050bcc8dd848559f9f5f66cd0acd2c97",
+			"afterSha256": "d4ec049dcef36852f1fda3a81f4e7c6ef83662b8db8b83cfd7106419dcf8c2d4",
+			"beforeDeclarations": 6,
+			"afterDeclarations": 4,
+			"removed": [
+				{
+					"id": "#test-92",
+					"caseCount": 1,
+					"caseNames": [
+						"#test-92 clearance distinguishes no managed request from unverified missing request history"
+					],
+					"marker": {
+						"line": 19,
+						"source": "test(\"#test-92 clearance distinguishes no managed request from unverified missing request history\", async () => {"
+					},
+					"beforeDeclaration": {
+						"startOffset": 845,
+						"endOffset": 1566,
+						"startLine": 19,
+						"endLine": 32,
+						"registration": "\"#test-92 clearance distinguishes no managed request from unverified missing request history\"",
+						"sha256": "9ac5fd71ed5fb95ea62f174a7c738e42dac0b9f6b290ffa19a9fc686d62c13d1",
+						"structuralSha256": "7526c31713d13669c0bb2495d543e958db156971cc09e6c1c55eae01da1c44de"
+					},
+					"afterDeclaration": null
+				},
+				{
+					"id": "#test-93",
+					"caseCount": 1,
+					"caseNames": [
+						"#test-93 missing ownership and contrary retained inventory never become empty clear scope"
+					],
+					"marker": {
+						"line": 112,
+						"source": "test(\"#test-93 missing ownership and contrary retained inventory never become empty clear scope\", async () => {"
+					},
+					"beforeDeclaration": {
+						"startOffset": 4485,
+						"endOffset": 5372,
+						"startLine": 112,
+						"endLine": 132,
+						"registration": "\"#test-93 missing ownership and contrary retained inventory never become empty clear scope\"",
+						"sha256": "a9cf26c08a0849e84daba4217406a8701158eaef2d61ad2f75824f04aa482f61",
+						"structuralSha256": "4c6734f161ea937f404955715ee119967e6e94f32286e8d82d8745730243d780"
+					},
+					"afterDeclaration": null
+				}
+			],
+			"retained": [
+				{
+					"beforeDeclaration": {
+						"startOffset": 1568,
+						"endOffset": 2218,
+						"startLine": 34,
+						"endLine": 49,
+						"registration": "\"never-launched authority is independent of native request closure\"",
+						"sha256": "11cfe8d8c2ccad763e9181dbd4e4514c5fc0b680a4f78ae9eba37cb5133bb391",
+						"structuralSha256": "2b43c86e8ae1508f1587b69bb2cec27924f7587f80b7c252ce7210dbea894725"
+					},
+					"afterDeclaration": {
+						"startOffset": 845,
+						"endOffset": 1495,
+						"startLine": 19,
+						"endLine": 34,
+						"registration": "\"never-launched authority is independent of native request closure\"",
+						"sha256": "11cfe8d8c2ccad763e9181dbd4e4514c5fc0b680a4f78ae9eba37cb5133bb391",
+						"structuralSha256": "2b43c86e8ae1508f1587b69bb2cec27924f7587f80b7c252ce7210dbea894725"
+					},
+					"tokenSha256": "fd6d6811920ea6d454256a1a49e0ab88489c4eefd3b8c9d4316b6e42f1f81e5e",
+					"structurallyEquivalent": true
+				},
+				{
+					"beforeDeclaration": {
+						"startOffset": 2220,
+						"endOffset": 3241,
+						"startLine": 51,
+						"endLine": 81,
+						"registration": "\"clearance refuses $kind authority without a process-exit inference\"",
+						"sha256": "51bc5ba93cd6f4a7f4b7299834236b4b91f036b90e745a963c02789a3e28c3a3",
+						"structuralSha256": "0f01bc19886df7daec3e3d9acb161f6cf5a59a4e0bd5e32c1b26e4599b426a8b"
+					},
+					"afterDeclaration": {
+						"startOffset": 1497,
+						"endOffset": 2518,
+						"startLine": 36,
+						"endLine": 66,
+						"registration": "\"clearance refuses $kind authority without a process-exit inference\"",
+						"sha256": "51bc5ba93cd6f4a7f4b7299834236b4b91f036b90e745a963c02789a3e28c3a3",
+						"structuralSha256": "0f01bc19886df7daec3e3d9acb161f6cf5a59a4e0bd5e32c1b26e4599b426a8b"
+					},
+					"tokenSha256": "5af4a0405117d23c8ef69235ab16730680d9e6c1b11a5f68a2da6043d817cf98",
+					"structurallyEquivalent": true
+				},
+				{
+					"beforeDeclaration": {
+						"startOffset": 3243,
+						"endOffset": 4483,
+						"startLine": 83,
+						"endLine": 110,
+						"registration": "\"clearance checks earlier exited attempts even after the current attempt and request settled\"",
+						"sha256": "6a68eab0e9225bd1abff0f9d07962c999517a41e44aa91cab006f381be7b73b5",
+						"structuralSha256": "23766ad3dfc44ad4892dcd831ac2101603c99fab570a2d0e9292e56702ee143f"
+					},
+					"afterDeclaration": {
+						"startOffset": 2520,
+						"endOffset": 3760,
+						"startLine": 68,
+						"endLine": 95,
+						"registration": "\"clearance checks earlier exited attempts even after the current attempt and request settled\"",
+						"sha256": "6a68eab0e9225bd1abff0f9d07962c999517a41e44aa91cab006f381be7b73b5",
+						"structuralSha256": "23766ad3dfc44ad4892dcd831ac2101603c99fab570a2d0e9292e56702ee143f"
+					},
+					"tokenSha256": "145ed921550c73fb45b6fbb2ef837a0421fc2f0094dc7487f471f914215d2653",
+					"structurallyEquivalent": true
+				},
+				{
+					"beforeDeclaration": {
+						"startOffset": 5374,
+						"endOffset": 6375,
+						"startLine": 134,
+						"endLine": 158,
+						"registration": "\"an in-flight admission becomes visible before a queued clearance observation\"",
+						"sha256": "ca276549c3b47769d307ef8b5e5d324d1aaa70a0c9ec349ed7ae0cf83fce8adf",
+						"structuralSha256": "a0afbbc4d1d57d61dfd54309148a945932bf30a79374b99dac4ddc27ea2d9975"
+					},
+					"afterDeclaration": {
+						"startOffset": 3762,
+						"endOffset": 4763,
+						"startLine": 97,
+						"endLine": 121,
+						"registration": "\"an in-flight admission becomes visible before a queued clearance observation\"",
+						"sha256": "ca276549c3b47769d307ef8b5e5d324d1aaa70a0c9ec349ed7ae0cf83fce8adf",
+						"structuralSha256": "a0afbbc4d1d57d61dfd54309148a945932bf30a79374b99dac4ddc27ea2d9975"
+					},
+					"tokenSha256": "297e28c1c98fa437cfead54f7b0018f64a207000727540a42b1fa33e22579d2c",
+					"structurallyEquivalent": true
+				}
+			]
+		},
+		{
+			"beforePath": "lib/colony/src/execution-clearance.smoke.test.ts",
+			"afterPath": null,
+			"beforeSha256": "447a56c704d8a30d67e3e9f876b38a9f0904aea1832c5866e139405a22aa59bc",
+			"afterSha256": null,
+			"beforeDeclarations": 1,
+			"afterDeclarations": 0,
+			"removed": [
+				{
+					"id": "#test-94",
+					"caseCount": 1,
+					"caseNames": [
+						"#test-94 native request closure does not clear a real owned process until verified exit"
+					],
+					"marker": {
+						"line": 21,
+						"source": "test(\"#test-94 native request closure does not clear a real owned process until verified exit\", async () => {"
+					},
+					"beforeDeclaration": {
+						"startOffset": 1129,
+						"endOffset": 3779,
+						"startLine": 21,
+						"endLine": 101,
+						"registration": "\"#test-94 native request closure does not clear a real owned process until verified exit\"",
+						"sha256": "da67cb2c21463d30339de190fbb6c7fd8dd6094a827b4934d899b957398e7ab6",
+						"structuralSha256": "5980dc53a61e2344c1fc28cb63e6316c7de2b020ce12a32371e29c6c6f99f7a6"
+					},
+					"afterDeclaration": null
+				}
+			],
+			"retained": []
+		},
+		{
+			"beforePath": "lib/colony/src/inspection.test.ts",
+			"afterPath": "lib/colony/src/inspection.test.ts",
+			"beforeSha256": "da447e4eee891bbefadbfdae97ecb630be95b7dfcf59b435a3bc7df90a62cd79",
+			"afterSha256": "ec95aa13340b1449f587328a71f4df82744a86d3104e6a2101124aca54e3ba22",
+			"beforeDeclarations": 10,
+			"afterDeclarations": 9,
+			"removed": [
+				{
+					"id": "#test-95",
+					"caseCount": 1,
+					"caseNames": [
+						"#test-95 clearance CLI preserves endpoint/scope and bounded refusal through real typed transport"
+					],
+					"marker": {
+						"line": 353,
+						"source": "test(\"#test-95 clearance CLI preserves endpoint/scope and bounded refusal through real typed transport\", async () => {"
+					},
+					"beforeDeclaration": {
+						"startOffset": 12971,
+						"endOffset": 14293,
+						"startLine": 353,
+						"endLine": 391,
+						"registration": "\"#test-95 clearance CLI preserves endpoint/scope and bounded refusal through real typed transport\"",
+						"sha256": "73585e413fbd7c9a65c2f2a1a59dfd6ae2898d4b873076dc022cccd796f2fd71",
+						"structuralSha256": "4c48d93ba4286da5ca8b9c3757e2a10925fb067eaf2ecf11bf1267a7ec00d2fe"
+					},
+					"afterDeclaration": null
+				}
+			],
+			"retained": [
+				{
+					"beforeDeclaration": {
+						"startOffset": 5201,
+						"endOffset": 7014,
+						"startLine": 145,
+						"endLine": 199,
+						"registration": "\"diagnostic reads stay scoped with $historySize unrelated historical requests\"",
+						"sha256": "1bbbfa69d37da6e4ed5208c9ca296f586cd6e89227e238039c7b5dfe2043fac3",
+						"structuralSha256": "c408e9dc17402b14e8f3ee7f81896af5ad4b66f9bdb27b3d3859d7aa30724dd7"
+					},
+					"afterDeclaration": {
+						"startOffset": 5116,
+						"endOffset": 6929,
+						"startLine": 143,
+						"endLine": 197,
+						"registration": "\"diagnostic reads stay scoped with $historySize unrelated historical requests\"",
+						"sha256": "1bbbfa69d37da6e4ed5208c9ca296f586cd6e89227e238039c7b5dfe2043fac3",
+						"structuralSha256": "c408e9dc17402b14e8f3ee7f81896af5ad4b66f9bdb27b3d3859d7aa30724dd7"
+					},
+					"tokenSha256": "2ad6fa0cd54f21b8a1c794f5fb23122f4c15cd02e102df3c55594c45b1e718ef",
+					"structurallyEquivalent": true
+				},
+				{
+					"beforeDeclaration": {
+						"startOffset": 7016,
+						"endOffset": 7288,
+						"startLine": 201,
+						"endLine": 209,
+						"registration": "\"a repository without retained evidence has no checkpoint, attempts or reservations\"",
+						"sha256": "18900b63ee53d276895a62b8c1ba4597d88138636b4d87a20e454cc641610826",
+						"structuralSha256": "6ae9f24c62fb04396da6e2e6085941791e3285e465c1c522ba053c943f1a8f81"
+					},
+					"afterDeclaration": {
+						"startOffset": 6931,
+						"endOffset": 7203,
+						"startLine": 199,
+						"endLine": 207,
+						"registration": "\"a repository without retained evidence has no checkpoint, attempts or reservations\"",
+						"sha256": "18900b63ee53d276895a62b8c1ba4597d88138636b4d87a20e454cc641610826",
+						"structuralSha256": "6ae9f24c62fb04396da6e2e6085941791e3285e465c1c522ba053c943f1a8f81"
+					},
+					"tokenSha256": "c61a336e006ebce2eb56f67bc25ff59f0af0eeb92ef918d7f72b0d1888fb6e09",
+					"structurallyEquivalent": true
+				},
+				{
+					"beforeDeclaration": {
+						"startOffset": 7290,
+						"endOffset": 7856,
+						"startLine": 211,
+						"endLine": 222,
+						"registration": "\"public inspect retains complete target and other-request history\"",
+						"sha256": "31303469aaea63384237d8a2f9322aab926e218b0b494f710256df60f7c7592f",
+						"structuralSha256": "12f6f350f330c9e7d83fc17fc042f4607f3248b37aa9b13efe1ed0bcd7947043"
+					},
+					"afterDeclaration": {
+						"startOffset": 7205,
+						"endOffset": 7771,
+						"startLine": 209,
+						"endLine": 220,
+						"registration": "\"public inspect retains complete target and other-request history\"",
+						"sha256": "31303469aaea63384237d8a2f9322aab926e218b0b494f710256df60f7c7592f",
+						"structuralSha256": "12f6f350f330c9e7d83fc17fc042f4607f3248b37aa9b13efe1ed0bcd7947043"
+					},
+					"tokenSha256": "41a00cee1fa7b731aa38d9368a076d35b0042874ecbba67541b0405b3e5ad30a",
+					"structurallyEquivalent": true
+				},
+				{
+					"beforeDeclaration": {
+						"startOffset": 7953,
+						"endOffset": 9314,
+						"startLine": 225,
+						"endLine": 256,
+						"registration": "\"explain JSON excludes unrelated history and preserves capacity and selected process evidence\"",
+						"sha256": "788a38d9f6f4c98ce45d9b3ce30dde023c0869dd4991849f33a9bc27a80932c0",
+						"structuralSha256": "0feed1137b7150ddd05a1ed9c01f4ca7fb7f30c6ea2e8a2460e3f5c852ed2382"
+					},
+					"afterDeclaration": {
+						"startOffset": 7868,
+						"endOffset": 9229,
+						"startLine": 223,
+						"endLine": 254,
+						"registration": "\"explain JSON excludes unrelated history and preserves capacity and selected process evidence\"",
+						"sha256": "788a38d9f6f4c98ce45d9b3ce30dde023c0869dd4991849f33a9bc27a80932c0",
+						"structuralSha256": "0feed1137b7150ddd05a1ed9c01f4ca7fb7f30c6ea2e8a2460e3f5c852ed2382"
+					},
+					"tokenSha256": "5fd6111008b2d46c729f4ea3fdfcb1eea9f4b2fb6cf400cfa135128367e594f8",
+					"structurallyEquivalent": true
+				},
+				{
+					"beforeDeclaration": {
+						"startOffset": 9316,
+						"endOffset": 9879,
+						"startLine": 258,
+						"endLine": 273,
+						"registration": "\"failed and unavailable runtime reads preserve native evidence without falling back\"",
+						"sha256": "731e9fde316918a9861f0b309b2fa410506161ede0e3f53877e66458d8473906",
+						"structuralSha256": "4d1389f9c724867d0e5c5e7d355c8c08c60617907ecb5dbb959644a00d544d12"
+					},
+					"afterDeclaration": {
+						"startOffset": 9231,
+						"endOffset": 9794,
+						"startLine": 256,
+						"endLine": 271,
+						"registration": "\"failed and unavailable runtime reads preserve native evidence without falling back\"",
+						"sha256": "731e9fde316918a9861f0b309b2fa410506161ede0e3f53877e66458d8473906",
+						"structuralSha256": "4d1389f9c724867d0e5c5e7d355c8c08c60617907ecb5dbb959644a00d544d12"
+					},
+					"tokenSha256": "d0bd357c2dc9ffb5d86250770d29fbc659536beda3dc80d267e93acb83df6874",
+					"structurallyEquivalent": true
+				},
+				{
+					"beforeDeclaration": {
+						"startOffset": 9997,
+						"endOffset": 10758,
+						"startLine": 276,
+						"endLine": 293,
+						"registration": "\"capacity preserves duplicate local reservations and excludes foreign, unbound and orphan requests\"",
+						"sha256": "9270401219fef4deb8caae62ac20c466daa156219435da26e185180b1087e1fe",
+						"structuralSha256": "018dd39b113926b71f8e0058829320be805dec9174c769f0ec878fe606697062"
+					},
+					"afterDeclaration": {
+						"startOffset": 9912,
+						"endOffset": 10673,
+						"startLine": 274,
+						"endLine": 291,
+						"registration": "\"capacity preserves duplicate local reservations and excludes foreign, unbound and orphan requests\"",
+						"sha256": "9270401219fef4deb8caae62ac20c466daa156219435da26e185180b1087e1fe",
+						"structuralSha256": "018dd39b113926b71f8e0058829320be805dec9174c769f0ec878fe606697062"
+					},
+					"tokenSha256": "05c2c0e5a895fe15b46e21242bd90c936a0f148ddb1ac5344d0e378dd2b01b34",
+					"structurallyEquivalent": true
+				},
+				{
+					"beforeDeclaration": {
+						"startOffset": 10760,
+						"endOffset": 11271,
+						"startLine": 295,
+						"endLine": 305,
+						"registration": "\"checkpoint point reads return fresh writes and do not hydrate unrelated records\"",
+						"sha256": "695950a6aafdc1ba889c122e8e411f4de20d6aa39102e35160b0ace753190feb",
+						"structuralSha256": "a69c809ec0f3f725507561e75f651d14de0b809440236dc41b9b65d766348408"
+					},
+					"afterDeclaration": {
+						"startOffset": 10675,
+						"endOffset": 11186,
+						"startLine": 293,
+						"endLine": 303,
+						"registration": "\"checkpoint point reads return fresh writes and do not hydrate unrelated records\"",
+						"sha256": "695950a6aafdc1ba889c122e8e411f4de20d6aa39102e35160b0ace753190feb",
+						"structuralSha256": "a69c809ec0f3f725507561e75f651d14de0b809440236dc41b9b65d766348408"
+					},
+					"tokenSha256": "1594b2218ae869b944c99e61479ecfae0af8ea8fb863400b0d8aaaea5eb74ba8",
+					"structurallyEquivalent": true
+				},
+				{
+					"beforeDeclaration": {
+						"startOffset": 11273,
+						"endOffset": 12565,
+						"startLine": 307,
+						"endLine": 342,
+						"registration": "\"$source authority rejects retained tracker $tracker\"",
+						"sha256": "dcde07be3d05c7c41e754da1a557805c3acb63a8dec64fc2c6b9a06451153b7f",
+						"structuralSha256": "077cc91ef203483b3703c17f29ffd3d77a0b526fea0260370a9fd3a345bc8769"
+					},
+					"afterDeclaration": {
+						"startOffset": 11188,
+						"endOffset": 12480,
+						"startLine": 305,
+						"endLine": 340,
+						"registration": "\"$source authority rejects retained tracker $tracker\"",
+						"sha256": "dcde07be3d05c7c41e754da1a557805c3acb63a8dec64fc2c6b9a06451153b7f",
+						"structuralSha256": "077cc91ef203483b3703c17f29ffd3d77a0b526fea0260370a9fd3a345bc8769"
+					},
+					"tokenSha256": "a3639bedec040c2aae9e53515f33fb22d5985f0e2b1ed1f1b64b9d88a32ad72c",
+					"structurallyEquivalent": true
+				},
+				{
+					"beforeDeclaration": {
+						"startOffset": 12567,
+						"endOffset": 12832,
+						"startLine": 344,
+						"endLine": 348,
+						"registration": "\"unrelated malformed history is excluded from diagnostic hydration\"",
+						"sha256": "7f32153e30691f7c4af89f05bfd180540fdfcf84b58702cf4bec91748487e946",
+						"structuralSha256": "97f0102083cb1edf22a840690db8e462023538dc833b29f10381b4b2ff326271"
+					},
+					"afterDeclaration": {
+						"startOffset": 12482,
+						"endOffset": 12747,
+						"startLine": 342,
+						"endLine": 346,
+						"registration": "\"unrelated malformed history is excluded from diagnostic hydration\"",
+						"sha256": "7f32153e30691f7c4af89f05bfd180540fdfcf84b58702cf4bec91748487e946",
+						"structuralSha256": "97f0102083cb1edf22a840690db8e462023538dc833b29f10381b4b2ff326271"
+					},
+					"tokenSha256": "90187582a22c8038e6e8e75f50eae6e8b698a2856d451bd89c4f8d0cf423f948",
+					"structurallyEquivalent": true
+				}
+			]
+		},
+		{
+			"beforePath": "lib/colony/src/request-recovery.test.ts",
+			"afterPath": "lib/colony/src/request-recovery.test.ts",
+			"beforeSha256": "0b4c4e7dc73f1a5aca45080f090b64ce6e047fa0a0d146b543572c57ea340ced",
+			"afterSha256": "e08ffa2462e50704405503228b67ac574a658a33663fdf3181f5b7d8d7bf03d1",
+			"beforeDeclarations": 7,
+			"afterDeclarations": 1,
+			"removed": [
+				{
+					"id": "#test-96",
+					"caseCount": 9,
+					"caseNames": [
+						"#test-96 exit execution respects native succeeded anchor as completed",
+						"#test-96 finish execution respects native succeeded anchor as completed",
+						"#test-96 running execution respects native succeeded anchor as completed",
+						"#test-96 exit execution respects native cancelled anchor as cancelled",
+						"#test-96 finish execution respects native cancelled anchor as cancelled",
+						"#test-96 running execution respects native cancelled anchor as cancelled",
+						"#test-96 exit execution respects native failed anchor as blocked",
+						"#test-96 finish execution respects native failed anchor as blocked",
+						"#test-96 running execution respects native failed anchor as blocked"
+					],
+					"marker": {
+						"line": 283,
+						"source": "\"#test-96 $path execution respects native $outcome anchor as $requestOutcome\","
+					},
+					"beforeDeclaration": {
+						"startOffset": 10807,
+						"endOffset": 12851,
+						"startLine": 276,
+						"endLine": 345,
+						"registration": "\"#test-96 $path execution respects native $outcome anchor as $requestOutcome\"",
+						"sha256": "9da8b841ac2e838ff7e46031a1a91927acb8f68b5ae5fac0151e45bc71c245b6",
+						"structuralSha256": "6671d88a8f2d8faa122cbcb43e709d60966e1a9fecc518ab745560c207cb2551"
+					},
+					"afterDeclaration": null
+				},
+				{
+					"id": "#test-97",
+					"caseCount": 3,
+					"caseNames": [
+						"#test-97 exit with unfinished workflow preserves the pending run",
+						"#test-97 self-success with unfinished workflow preserves the pending run",
+						"#test-97 self-blocked with unfinished workflow preserves the pending run"
+					],
+					"marker": {
+						"line": 386,
+						"source": "\"#test-97 %s with unfinished workflow preserves the pending run\","
+					},
+					"beforeDeclaration": {
+						"startOffset": 14371,
+						"endOffset": 16037,
+						"startLine": 385,
+						"endLine": 429,
+						"registration": "\"#test-97 %s with unfinished workflow preserves the pending run\"",
+						"sha256": "80192ae60f6bac5eb209e703f9b53930ca24e333763287b0ac365a1aed6b22e0",
+						"structuralSha256": "49b1c31342a95a7e774d46ca30430b55ee9367af52b14257e4b6a1e3c1783025"
+					},
+					"afterDeclaration": null
+				},
+				{
+					"id": "#test-98",
+					"caseCount": 2,
+					"caseNames": [
+						"#test-98 exit cannot turn an unclassified closure into request success",
+						"#test-98 finish cannot turn an unclassified closure into request success"
+					],
+					"marker": {
+						"line": 432,
+						"source": "\"#test-98 %s cannot turn an unclassified closure into request success\","
+					},
+					"beforeDeclaration": {
+						"startOffset": 16039,
+						"endOffset": 17295,
+						"startLine": 431,
+						"endLine": 470,
+						"registration": "\"#test-98 %s cannot turn an unclassified closure into request success\"",
+						"sha256": "90aa870d5f9aac44b980ebaead2dcb3d4cc2ba075b2a29ecc32971ddddaebdc4",
+						"structuralSha256": "aabdd986e4e105d33a771a52a7d57b76514ff2aeebd8d485b7664d58d5810ba3"
+					},
+					"afterDeclaration": null
+				},
+				{
+					"id": "#test-100",
+					"caseCount": 6,
+					"caseNames": [
+						"#test-100 recovery rejects a restored receipt role mismatch before inventory or process effects",
+						"#test-100 recovery rejects a restored receipt run mismatch before inventory or process effects",
+						"#test-100 recovery rejects a restored receipt stage mismatch before inventory or process effects",
+						"#test-100 recovery rejects a restored receipt host mismatch before inventory or process effects",
+						"#test-100 recovery rejects a restored receipt identity mismatch before inventory or process effects",
+						"#test-100 recovery rejects a restored receipt tasks mismatch before inventory or process effects"
+					],
+					"marker": {
+						"line": 42,
+						"source": "\"#test-100 recovery rejects a restored receipt %s mismatch before inventory or process effects\","
+					},
+					"beforeDeclaration": {
+						"startOffset": 1944,
+						"endOffset": 2610,
+						"startLine": 41,
+						"endLine": 57,
+						"registration": "\"#test-100 recovery rejects a restored receipt %s mismatch before inventory or process effects\"",
+						"sha256": "3aad1ec87e429a8cb6261948fd09ac39b5240bb3baffe25d79ce1bb4aab5610f",
+						"structuralSha256": "d6b716c3e66246afae2f793c953580877facfd00b1a2ad257f286fd74d7ddcd5"
+					},
+					"afterDeclaration": null
+				},
+				{
+					"id": "#test-104",
+					"caseCount": 2,
+					"caseNames": [
+						"#test-104 unchanged driver authority continues after private checkpoint restoration",
+						"#test-104 unchanged stage authority continues after private checkpoint restoration"
+					],
+					"marker": {
+						"line": 60,
+						"source": "\"#test-104 unchanged %s authority continues after private checkpoint restoration\","
+					},
+					"beforeDeclaration": {
+						"startOffset": 2612,
+						"endOffset": 3826,
+						"startLine": 59,
+						"endLine": 89,
+						"registration": "\"#test-104 unchanged %s authority continues after private checkpoint restoration\"",
+						"sha256": "8e66f4606948438f7cac2d8eea46fb7a8ef919f1aa0aaa9f6fc520d9225e9dc5",
+						"structuralSha256": "cb9d9097cdf00294c620c315bbb6aff45362b7381c7325f97512980d34875125"
+					},
+					"afterDeclaration": null
+				},
+				{
+					"id": "#test-109",
+					"caseCount": 6,
+					"caseNames": [
+						"#test-109 acquisition request settles native succeeded anchor as completed",
+						"#test-109 unlaunched request settles native succeeded anchor as completed",
+						"#test-109 acquisition request settles native cancelled anchor as cancelled",
+						"#test-109 unlaunched request settles native cancelled anchor as cancelled",
+						"#test-109 acquisition request settles native failed anchor as blocked",
+						"#test-109 unlaunched request settles native failed anchor as blocked"
+					],
+					"marker": {
+						"line": 202,
+						"source": "\"#test-109 $path request settles native $outcome anchor as $requestOutcome\","
+					},
+					"beforeDeclaration": {
+						"startOffset": 7979,
+						"endOffset": 9627,
+						"startLine": 196,
+						"endLine": 244,
+						"registration": "\"#test-109 $path request settles native $outcome anchor as $requestOutcome\"",
+						"sha256": "63c138cd3fbccf4369cc934c69556bfed6fbb5a9da206b59ff2ac8341aa69d86",
+						"structuralSha256": "041bf4dc74de0f4ca161b2c8f680dd856039d78e1340935ddf3ab9bc2f2df981"
+					},
+					"afterDeclaration": null
+				}
+			],
+			"retained": [
+				{
+					"beforeDeclaration": {
+						"startOffset": 9629,
+						"endOffset": 10805,
+						"startLine": 246,
+						"endLine": 274,
+						"registration": "\"%s rejects an unclassified anchor without request success\"",
+						"sha256": "3b6a3c9bae8c880b0c97bb3ffad14311dce377e567da510fa9a8476d9c2effdc",
+						"structuralSha256": "53cd5916a73065b92413f9188c4c7397568a66441be936566eb24495ca9eb845"
+					},
+					"afterDeclaration": {
+						"startOffset": 1622,
+						"endOffset": 2798,
+						"startLine": 35,
+						"endLine": 63,
+						"registration": "\"%s rejects an unclassified anchor without request success\"",
+						"sha256": "3b6a3c9bae8c880b0c97bb3ffad14311dce377e567da510fa9a8476d9c2effdc",
+						"structuralSha256": "53cd5916a73065b92413f9188c4c7397568a66441be936566eb24495ca9eb845"
+					},
+					"tokenSha256": "040ab3cf9eaabd63d636c2f43e34ba7be7b14293dc78372240da0d0e87afd5fb",
+					"structurallyEquivalent": true
+				}
+			]
+		},
+		{
+			"beforePath": "lib/colony/src/host-routing.test.ts",
+			"afterPath": "lib/colony/src/host-routing.test.ts",
+			"beforeSha256": "99cce7c93d23904e0366d19a808ade784effe4cdb6d42d84ea8a9cc993f5e021",
+			"afterSha256": "8d9f01f218e362574e43d2fc1727fe7d689ac903e5fb949b181f6a3870df5735",
+			"beforeDeclarations": 5,
+			"afterDeclarations": 2,
+			"removed": [
+				{
+					"id": "#test-99",
+					"caseCount": 1,
+					"caseNames": [
+						"#test-99 clearance waits for an in-flight admission and observes its reserved attempt"
+					],
+					"marker": {
+						"line": 191,
+						"source": "test(\"#test-99 clearance waits for an in-flight admission and observes its reserved attempt\", async () => {"
+					},
+					"beforeDeclaration": {
+						"startOffset": 7061,
+						"endOffset": 10390,
+						"startLine": 191,
+						"endLine": 306,
+						"registration": "\"#test-99 clearance waits for an in-flight admission and observes its reserved attempt\"",
+						"sha256": "cd1296933ed30febf123e52557810b2083267749717151a194ad0ebde34ad5ce",
+						"structuralSha256": "a43702070f030bfe8825bf90f18eb35c56002f7ef2f4dac764ecdaa5bad91d1c"
+					},
+					"afterDeclaration": null
+				},
+				{
+					"id": "#test-107",
+					"caseCount": 4,
+					"caseNames": [
+						"#test-107 automatic open routing excludes foreign before decoding workflow assignment",
+						"#test-107 automatic open routing excludes unbound before decoding workflow assignment",
+						"#test-107 automatic closed routing excludes foreign before decoding workflow assignment",
+						"#test-107 automatic closed routing excludes unbound before decoding workflow assignment"
+					],
+					"marker": {
+						"line": 68,
+						"source": "\"#test-107 automatic $status routing excludes $origin before decoding workflow assignment\","
+					},
+					"beforeDeclaration": {
+						"startOffset": 2755,
+						"endOffset": 3412,
+						"startLine": 67,
+						"endLine": 84,
+						"registration": "\"#test-107 automatic $status routing excludes $origin before decoding workflow assignment\"",
+						"sha256": "0b9e7affdd0bc86c65d501ad5e31392ca27c1770dbf90d57ce1a7ec396b278df",
+						"structuralSha256": "cb4cf88b1c9b71ec42d04e3d288f276c7aa43774de438ce3abac01cc4ab1fbb2"
+					},
+					"afterDeclaration": null
+				},
+				{
+					"id": "#test-112",
+					"caseCount": 2,
+					"caseNames": [
+						"#test-112 automatic open routing rejects a local request missing workflow assignment",
+						"#test-112 automatic closed routing rejects a local request missing workflow assignment"
+					],
+					"marker": {
+						"line": 87,
+						"source": "\"#test-112 automatic $status routing rejects a local request missing workflow assignment\","
+					},
+					"beforeDeclaration": {
+						"startOffset": 3414,
+						"endOffset": 3872,
+						"startLine": 86,
+						"endLine": 97,
+						"registration": "\"#test-112 automatic $status routing rejects a local request missing workflow assignment\"",
+						"sha256": "460e39b20dd17f8dc91ab47b865418ed397dba174dc6cd5110304734c4c1880f",
+						"structuralSha256": "43992adb03afb978e383250063e9ea7c0e9eb452d8e90d4bafe5f25c92122cf4"
+					},
+					"afterDeclaration": null
+				}
+			],
+			"retained": [
+				{
+					"beforeDeclaration": {
+						"startOffset": 3874,
+						"endOffset": 4701,
+						"startLine": 99,
+						"endLine": 122,
+						"registration": "\"automatic replacement publication leaves an unsupported foreign predecessor unchanged\"",
+						"sha256": "676dd2cd72f25814d9be4eaf0f1815e9341b56b00da672d4521bac7c4fa455ef",
+						"structuralSha256": "cf2cfd463e6fcb71e3ec75247ae033119a4b2f7824e5964545c796f6b4728b4a"
+					},
+					"afterDeclaration": {
+						"startOffset": 1726,
+						"endOffset": 2553,
+						"startLine": 39,
+						"endLine": 62,
+						"registration": "\"automatic replacement publication leaves an unsupported foreign predecessor unchanged\"",
+						"sha256": "676dd2cd72f25814d9be4eaf0f1815e9341b56b00da672d4521bac7c4fa455ef",
+						"structuralSha256": "cf2cfd463e6fcb71e3ec75247ae033119a4b2f7824e5964545c796f6b4728b4a"
+					},
+					"tokenSha256": "663f71cc58321d9385c3af68778ed2f055fa8b64400f877b1205bf77c688df84",
+					"structurallyEquivalent": true
+				},
+				{
+					"beforeDeclaration": {
+						"startOffset": 4703,
+						"endOffset": 5258,
+						"startLine": 124,
+						"endLine": 137,
+						"registration": "\"local predecessor with current labels $current is validated before publication\"",
+						"sha256": "e764dcadb1d2a854eb148a61d3038ea1e7ad02ab49243129493a121164085e41",
+						"structuralSha256": "81818c362ed1017ec02a876b16a6799b268bb17acf3a4e1b2967282645aac1e3"
+					},
+					"afterDeclaration": {
+						"startOffset": 2555,
+						"endOffset": 3110,
+						"startLine": 64,
+						"endLine": 77,
+						"registration": "\"local predecessor with current labels $current is validated before publication\"",
+						"sha256": "e764dcadb1d2a854eb148a61d3038ea1e7ad02ab49243129493a121164085e41",
+						"structuralSha256": "81818c362ed1017ec02a876b16a6799b268bb17acf3a4e1b2967282645aac1e3"
+					},
+					"tokenSha256": "bcbceb453f046558387cd8545929333bcc793c7d1eeade78a7eae6baae67b36e",
+					"structurallyEquivalent": true
+				}
+			]
+		},
+		{
+			"beforePath": "lib/colony/src/claims.test.ts",
+			"afterPath": "lib/colony/src/claims.test.ts",
+			"beforeSha256": "9546b3c9a6b774d6ba1ad92af47a109f9d244f63dd6f38193f7d6c9bdedeeac1",
+			"afterSha256": "0b028dabb7729afe587d655b41a817aad5b10bab6f50a8f2e91aa44403c5e83b",
+			"beforeDeclarations": 5,
+			"afterDeclarations": 2,
+			"removed": [
+				{
+					"id": "#test-101",
+					"caseCount": 1,
+					"caseNames": [
+						"#test-101 claims preserve human ownership and release only unfinished tasks still owned by this bee"
+					],
+					"marker": {
+						"line": 145,
+						"source": "\"#test-101 claims preserve human ownership and release \" +"
+					},
+					"beforeDeclaration": {
+						"startOffset": 4954,
+						"endOffset": 6609,
+						"startLine": 144,
+						"endLine": 195,
+						"registration": "\"#test-101 claims preserve human ownership and release \" +\n\t\t\"only unfinished tasks still owned by this bee\"",
+						"sha256": "ba460861ff6ef13193639c7072012361adcd2c724b44e7749c27f3cb99578a3c",
+						"structuralSha256": "dc26a5056303f38cbc6ea762464f7146e9479ab2b56f227a6c153b58c8238a82"
+					},
+					"afterDeclaration": null
+				},
+				{
+					"id": "#test-102",
+					"caseCount": 1,
+					"caseNames": [
+						"#test-102 stopped root releases owned descendants while preserving protected and related work"
+					],
+					"marker": {
+						"line": 197,
+						"source": "test(\"#test-102 stopped root releases owned descendants while preserving protected and related work\", async () => {"
+					},
+					"beforeDeclaration": {
+						"startOffset": 6611,
+						"endOffset": 7563,
+						"startLine": 197,
+						"endLine": 216,
+						"registration": "\"#test-102 stopped root releases owned descendants while preserving protected and related work\"",
+						"sha256": "0fb8cd681729ca028c9d6da4f3eca7d97d7723f2e771c64286299f21495d430f",
+						"structuralSha256": "dbed2db5adfa07b7d8a7fcf9e6a36901f617867c21444e809e42dda3740140d8"
+					},
+					"afterDeclaration": null
+				},
+				{
+					"id": "#test-103",
+					"caseCount": 2,
+					"caseNames": [
+						"#test-103 driver cleanup stays beneath its captured claim in a parented workflow",
+						"#test-103 stage cleanup stays beneath its captured claim in a parented workflow"
+					],
+					"marker": {
+						"line": 219,
+						"source": "\"#test-103 %s cleanup stays beneath its captured claim in a parented workflow\","
+					},
+					"beforeDeclaration": {
+						"startOffset": 7565,
+						"endOffset": 9132,
+						"startLine": 218,
+						"endLine": 268,
+						"registration": "\"#test-103 %s cleanup stays beneath its captured claim in a parented workflow\"",
+						"sha256": "8545fa9e3b7cb3bba522f922feb6b2990779556c90591a536f5e698a2ac73f54",
+						"structuralSha256": "82347dd84e9cc2c1c694555ca907a3765c8dd45bca05bf59b627ec47627a6bb0"
+					},
+					"afterDeclaration": null
+				}
+			],
+			"retained": [
+				{
+					"beforeDeclaration": {
+						"startOffset": 9134,
+						"endOffset": 9934,
+						"startLine": 270,
+						"endLine": 295,
+						"registration": "\"claim leaves reserved or closed tasks unchanged: $outcome $input\"",
+						"sha256": "1a9daa82dfa6f821c19a6f0d95642a4d43fbb6d41e6e599399927da5f1559619",
+						"structuralSha256": "f00e145e246cf209934113f5403f40e24cfec87f49a82d2aa5941585514c75e8"
+					},
+					"afterDeclaration": {
+						"startOffset": 710,
+						"endOffset": 1510,
+						"startLine": 27,
+						"endLine": 52,
+						"registration": "\"claim leaves reserved or closed tasks unchanged: $outcome $input\"",
+						"sha256": "1a9daa82dfa6f821c19a6f0d95642a4d43fbb6d41e6e599399927da5f1559619",
+						"structuralSha256": "f00e145e246cf209934113f5403f40e24cfec87f49a82d2aa5941585514c75e8"
+					},
+					"tokenSha256": "b63c9fae5d2c55b7adad56aa32b76b79c6f9b671930b0215a1ebe8dfa42130f7",
+					"structurallyEquivalent": true
+				},
+				{
+					"beforeDeclaration": {
+						"startOffset": 9936,
+						"endOffset": 10895,
+						"startLine": 297,
+						"endLine": 327,
+						"registration": "\"a reservation changed after inspection produces a claim conflict with retained evidence\"",
+						"sha256": "a8a5f8da55924884532e8b92ff2110eb4d606b890f5b851f9e4eefb0fe6f1bd6",
+						"structuralSha256": "aec7234ba00a9907bfc7b012c3110f1393ef0f55016de1dee3b40d5a8275e204"
+					},
+					"afterDeclaration": {
+						"startOffset": 1512,
+						"endOffset": 2471,
+						"startLine": 54,
+						"endLine": 84,
+						"registration": "\"a reservation changed after inspection produces a claim conflict with retained evidence\"",
+						"sha256": "a8a5f8da55924884532e8b92ff2110eb4d606b890f5b851f9e4eefb0fe6f1bd6",
+						"structuralSha256": "aec7234ba00a9907bfc7b012c3110f1393ef0f55016de1dee3b40d5a8275e204"
+					},
+					"tokenSha256": "3c528974b0247d8f0e62190d8132ceca788f9526b14b7bde300521380d4cc7c6",
+					"structurallyEquivalent": true
+				}
+			]
+		},
+		{
+			"beforePath": "lib/colony/src/producer.test.ts",
+			"afterPath": "lib/colony/src/producer.test.ts",
+			"beforeSha256": "a61f422f0c72b4465b4c83a3c07c566ef8bfe3dace06e21bb063a90f7efad39d",
+			"afterSha256": "cc0276c0c6be21f7778b7f85398452b24d0f85368e965a16b99c1ee32cf81327",
+			"beforeDeclarations": 8,
+			"afterDeclarations": 5,
+			"removed": [
+				{
+					"id": "#test-105",
+					"caseCount": 1,
+					"caseNames": [
+						"#test-105 submission rejects human reservations and admits one open request per task"
+					],
+					"marker": {
+						"line": 70,
+						"source": "test(\"#test-105 submission rejects human reservations and admits one open request per task\", async () => {"
+					},
+					"beforeDeclaration": {
+						"startOffset": 2189,
+						"endOffset": 3564,
+						"startLine": 70,
+						"endLine": 107,
+						"registration": "\"#test-105 submission rejects human reservations and admits one open request per task\"",
+						"sha256": "5dfce152ec210abd7462e57ea239f24b6935f08072dad7d505c59ff5fed658dc",
+						"structuralSha256": "f5de242d0db76a28618067db3bb831031d4c5d17fee4c844db5f54fa9a52fa8d"
+					},
+					"afterDeclaration": null
+				},
+				{
+					"id": "#test-304",
+					"caseCount": 2,
+					"caseNames": [
+						"#test-304 driver cancellation requires opt-in and retains native history on replacement and repetition",
+						"#test-304 stage cancellation requires opt-in and retains native history on replacement and repetition"
+					],
+					"marker": {
+						"line": 144,
+						"source": "\"#test-304 %s cancellation requires opt-in and retains native history on replacement and repetition\","
+					},
+					"beforeDeclaration": {
+						"startOffset": 4990,
+						"endOffset": 7252,
+						"startLine": 143,
+						"endLine": 195,
+						"registration": "\"#test-304 %s cancellation requires opt-in and retains native history on replacement and repetition\"",
+						"sha256": "ef1101998c9c23cb33fb92504e697d3100bef886d5b4017bb81900397709cd84",
+						"structuralSha256": "1376d250d7927f868c832f63f9249273633ed852eac56f97aa6c6b43392e087d"
+					},
+					"afterDeclaration": null
+				},
+				{
+					"id": "#test-305",
+					"caseCount": 7,
+					"caseNames": [
+						"#test-305 explicit cancellation resumption preserves closed-anchor refusal",
+						"#test-305 explicit cancellation resumption preserves human refusal",
+						"#test-305 explicit cancellation resumption preserves hitl refusal",
+						"#test-305 explicit cancellation resumption preserves open-request refusal",
+						"#test-305 explicit cancellation resumption preserves acknowledged refusal",
+						"#test-305 explicit cancellation resumption preserves ambiguous refusal",
+						"#test-305 explicit cancellation resumption preserves succeeded refusal"
+					],
+					"marker": {
+						"line": 206,
+						"source": "\"#test-305 explicit cancellation resumption preserves %s refusal\","
+					},
+					"beforeDeclaration": {
+						"startOffset": 7254,
+						"endOffset": 9509,
+						"startLine": 197,
+						"endLine": 257,
+						"registration": "\"#test-305 explicit cancellation resumption preserves %s refusal\"",
+						"sha256": "074a569b952f4d84f2731dde5d1ea500b9f39b9d96e94b360e8e8e2b0423a1cc",
+						"structuralSha256": "3fa89722e3221c8bb4dbbb65f4d2d2971917b5a4d1568a84edb9ffde9044475d"
+					},
+					"afterDeclaration": null
+				}
+			],
+			"retained": [
+				{
+					"beforeDeclaration": {
+						"startOffset": 3566,
+						"endOffset": 4988,
+						"startLine": 109,
+						"endLine": 141,
+						"registration": "\"%s submission captures its scope and enforces duplicate admission\"",
+						"sha256": "5c9f8c940d05d5963708946c519d974e3912fdf4b1817e42bf6db4d82a9d4b03",
+						"structuralSha256": "0558fd0ad1f799fce9f529d9c3afde7b553c1d0f7297783a2221af88f8706949"
+					},
+					"afterDeclaration": {
+						"startOffset": 1980,
+						"endOffset": 3402,
+						"startLine": 66,
+						"endLine": 98,
+						"registration": "\"%s submission captures its scope and enforces duplicate admission\"",
+						"sha256": "5c9f8c940d05d5963708946c519d974e3912fdf4b1817e42bf6db4d82a9d4b03",
+						"structuralSha256": "0558fd0ad1f799fce9f529d9c3afde7b553c1d0f7297783a2221af88f8706949"
+					},
+					"tokenSha256": "a63c88f48667f8970d0fa943902b6369c9adab44082699012213902c3bbcd28d",
+					"structurallyEquivalent": true
+				},
+				{
+					"beforeDeclaration": {
+						"startOffset": 9511,
+						"endOffset": 11408,
+						"startLine": 259,
+						"endLine": 322,
+						"registration": "\"%s retry retains its existing anchor with current execution defaults\"",
+						"sha256": "7ba74592cf788eb27b8ac35f3ad258c951919ea4d1ab6b124ece1573471932b5",
+						"structuralSha256": "2b735055ade283cf1710e289c2be7fb67bd9ac047cea2251c6b4422f2f7dba69"
+					},
+					"afterDeclaration": {
+						"startOffset": 3404,
+						"endOffset": 5301,
+						"startLine": 100,
+						"endLine": 163,
+						"registration": "\"%s retry retains its existing anchor with current execution defaults\"",
+						"sha256": "7ba74592cf788eb27b8ac35f3ad258c951919ea4d1ab6b124ece1573471932b5",
+						"structuralSha256": "2b735055ade283cf1710e289c2be7fb67bd9ac047cea2251c6b4422f2f7dba69"
+					},
+					"tokenSha256": "5054f32b4cb35cfe66417d3e7b38be4a65062eec8af20a52cfa2df055d272dd8",
+					"structurallyEquivalent": true
+				},
+				{
+					"beforeDeclaration": {
+						"startOffset": 11537,
+						"endOffset": 13620,
+						"startLine": 326,
+						"endLine": 382,
+						"registration": "\"retry retains %s replacement when predecessor label publication fails\"",
+						"sha256": "ffccba3a9b3dcd084b80269a5076a8f72a928bfffb17c6fcd976be1492bee81b",
+						"structuralSha256": "0ad52f99650a16e720268bceaf2359789d983f27b722c3174943e1f336d6730f"
+					},
+					"afterDeclaration": {
+						"startOffset": 5430,
+						"endOffset": 7513,
+						"startLine": 167,
+						"endLine": 223,
+						"registration": "\"retry retains %s replacement when predecessor label publication fails\"",
+						"sha256": "ffccba3a9b3dcd084b80269a5076a8f72a928bfffb17c6fcd976be1492bee81b",
+						"structuralSha256": "0ad52f99650a16e720268bceaf2359789d983f27b722c3174943e1f336d6730f"
+					},
+					"tokenSha256": "8873552be821e1e135269f34803719ebbd73bd68e3071f36d6d9d1f86a28465a",
+					"structurallyEquivalent": true
+				},
+				{
+					"beforeDeclaration": {
+						"startOffset": 13622,
+						"endOffset": 14880,
+						"startLine": 384,
+						"endLine": 419,
+						"registration": "\"driver publication refuses lock $locked or intent $settlement before creating a request\"",
+						"sha256": "c7e4ccf423fba696141e6ec6e08abdf8850cebe68ab989b6f5e9ff46eadf8e0d",
+						"structuralSha256": "01c78753f5953e6b4dffcae6d0469e8d3b26a27453cddd98b8190ff70ed138f1"
+					},
+					"afterDeclaration": {
+						"startOffset": 7515,
+						"endOffset": 8773,
+						"startLine": 225,
+						"endLine": 260,
+						"registration": "\"driver publication refuses lock $locked or intent $settlement before creating a request\"",
+						"sha256": "c7e4ccf423fba696141e6ec6e08abdf8850cebe68ab989b6f5e9ff46eadf8e0d",
+						"structuralSha256": "01c78753f5953e6b4dffcae6d0469e8d3b26a27453cddd98b8190ff70ed138f1"
+					},
+					"tokenSha256": "4074184872818ea7a58d885dfbe0115280f98fe4263e25a8a115a958c86e0db6",
+					"structurallyEquivalent": true
+				},
+				{
+					"beforeDeclaration": {
+						"startOffset": 14882,
+						"endOffset": 15881,
+						"startLine": 421,
+						"endLine": 453,
+						"registration": "\"stage publication refuses a native settlement intent without reading the publisher lock\"",
+						"sha256": "5a2afab635ea82b6f805af6190f8795a97cf56da0730925503b93c74a3b316d0",
+						"structuralSha256": "6a77ddc6597b2593b3858e0c012f3a35d6ffaee52f0aec4ae13d7f59ff28292a"
+					},
+					"afterDeclaration": {
+						"startOffset": 8775,
+						"endOffset": 9774,
+						"startLine": 262,
+						"endLine": 294,
+						"registration": "\"stage publication refuses a native settlement intent without reading the publisher lock\"",
+						"sha256": "5a2afab635ea82b6f805af6190f8795a97cf56da0730925503b93c74a3b316d0",
+						"structuralSha256": "6a77ddc6597b2593b3858e0c012f3a35d6ffaee52f0aec4ae13d7f59ff28292a"
+					},
+					"tokenSha256": "6ab270042d586a21c8ede3c116262b3eee57be488ab07f05773dce5fc7a418ab",
+					"structurallyEquivalent": true
+				}
+			]
+		},
+		{
+			"beforePath": "lib/colony/src/workflow-submission.test.ts",
+			"afterPath": "lib/colony/src/workflow-submission.test.ts",
+			"beforeSha256": "379301851faf531e06f5ed9d23e14f85a96e2ee0716e57eb2f39cf170dad2d98",
+			"afterSha256": "6faa64c94e749c8f17525775c5e672e117b9d88ab5b742eb0075ac307e5dfb18",
+			"beforeDeclarations": 7,
+			"afterDeclarations": 6,
+			"removed": [
+				{
+					"id": "#test-106",
+					"caseCount": 1,
+					"caseNames": [
+						"#test-106 default workflow submission captures one driver and the actual run anchor"
+					],
+					"marker": {
+						"line": 89,
+						"source": "test(\"#test-106 default workflow submission captures one driver and the actual run anchor\", async () => {"
+					},
+					"beforeDeclaration": {
+						"startOffset": 2743,
+						"endOffset": 3632,
+						"startLine": 89,
+						"endLine": 108,
+						"registration": "\"#test-106 default workflow submission captures one driver and the actual run anchor\"",
+						"sha256": "53731f00c8ab6733e019d73b0f311a16a862571276d65200947e7483b5adeffc",
+						"structuralSha256": "d2d40527892cb9c6614c211b9d33fa154217c859e315091060e91f81305fbbb1"
+					},
+					"afterDeclaration": null
+				}
+			],
+			"retained": [
+				{
+					"beforeDeclaration": {
+						"startOffset": 3634,
+						"endOffset": 4268,
+						"startLine": 110,
+						"endLine": 124,
+						"registration": "\"caller selector $selector is resolved before subprocess execution\"",
+						"sha256": "ab83f90768d50f0c4ebd22240c21ab45e5dc369a96f4d946a2fd825348c9b6a3",
+						"structuralSha256": "18483cea62f97255eaae7f0e8def4fe50595697ebe64b0313710c0aae0e030e9"
+					},
+					"afterDeclaration": {
+						"startOffset": 2743,
+						"endOffset": 3377,
+						"startLine": 89,
+						"endLine": 103,
+						"registration": "\"caller selector $selector is resolved before subprocess execution\"",
+						"sha256": "ab83f90768d50f0c4ebd22240c21ab45e5dc369a96f4d946a2fd825348c9b6a3",
+						"structuralSha256": "18483cea62f97255eaae7f0e8def4fe50595697ebe64b0313710c0aae0e030e9"
+					},
+					"tokenSha256": "ab1e2a8fdd7c995fe730f6345890024b4cb92d45487bd7ef4f5348b1eca9bde3",
+					"structurallyEquivalent": true
+				},
+				{
+					"beforeDeclaration": {
+						"startOffset": 4270,
+						"endOffset": 4882,
+						"startLine": 126,
+						"endLine": 138,
+						"registration": "\"same-run attachment rejects duplicate drivers before mutating the handoff\"",
+						"sha256": "57caa07395904f18cdc98ca5a742c932b0be62468d882d969de8ae2989b6e816",
+						"structuralSha256": "15f1e98df9862ede3a7e5e463b38eefe259765c4d311223e917a3ba682cedcf3"
+					},
+					"afterDeclaration": {
+						"startOffset": 3379,
+						"endOffset": 3991,
+						"startLine": 105,
+						"endLine": 117,
+						"registration": "\"same-run attachment rejects duplicate drivers before mutating the handoff\"",
+						"sha256": "57caa07395904f18cdc98ca5a742c932b0be62468d882d969de8ae2989b6e816",
+						"structuralSha256": "15f1e98df9862ede3a7e5e463b38eefe259765c4d311223e917a3ba682cedcf3"
+					},
+					"tokenSha256": "99f75aad18581b100fe54cc218e3688e06df87c6928ee919edb390fa03c36eea",
+					"structurallyEquivalent": true
+				},
+				{
+					"beforeDeclaration": {
+						"startOffset": 5017,
+						"endOffset": 6498,
+						"startLine": 142,
+						"endLine": 172,
+						"registration": "\"confirmed orphan attachment retains its native parent and unfinished driver-handled visit\"",
+						"sha256": "279385899ec2856f3dedb8ec2ec52e95b1f18086d01d3ba319eb744b36ff50d6",
+						"structuralSha256": "f67f508622bcbdfbeb503466babd0517b028d6b5b10a716d5b6964ef0dee665e"
+					},
+					"afterDeclaration": {
+						"startOffset": 4126,
+						"endOffset": 5607,
+						"startLine": 121,
+						"endLine": 151,
+						"registration": "\"confirmed orphan attachment retains its native parent and unfinished driver-handled visit\"",
+						"sha256": "279385899ec2856f3dedb8ec2ec52e95b1f18086d01d3ba319eb744b36ff50d6",
+						"structuralSha256": "f67f508622bcbdfbeb503466babd0517b028d6b5b10a716d5b6964ef0dee665e"
+					},
+					"tokenSha256": "431d835e24ac91dade9c6d003a97b4924af5e2e4f3f5f80e6a1f5ae3c6683090",
+					"structurallyEquivalent": true
+				},
+				{
+					"beforeDeclaration": {
+						"startOffset": 6500,
+						"endOffset": 7335,
+						"startLine": 174,
+						"endLine": 197,
+						"registration": "\"driver publication failure reports the existing run and uncertain request creation\"",
+						"sha256": "a1ef29b12f3eb7e68d3eb31f422c2ad7b6b8056acd864e9948208c98084c0d32",
+						"structuralSha256": "bcee4ba829151f847050eb878ed8c36ca37afd8d85c769e0de5a524d092d516a"
+					},
+					"afterDeclaration": {
+						"startOffset": 5609,
+						"endOffset": 6444,
+						"startLine": 153,
+						"endLine": 176,
+						"registration": "\"driver publication failure reports the existing run and uncertain request creation\"",
+						"sha256": "a1ef29b12f3eb7e68d3eb31f422c2ad7b6b8056acd864e9948208c98084c0d32",
+						"structuralSha256": "bcee4ba829151f847050eb878ed8c36ca37afd8d85c769e0de5a524d092d516a"
+					},
+					"tokenSha256": "090c77aabb033ce6286d2bd498ace24d59a432d6d174ce67f46ccae55be287ba",
+					"structurallyEquivalent": true
+				},
+				{
+					"beforeDeclaration": {
+						"startOffset": 7337,
+						"endOffset": 8589,
+						"startLine": 199,
+						"endLine": 232,
+						"registration": "\"stage dispatch uses native ancestry during initial frontier publication\"",
+						"sha256": "103689bd149407a3e46ac5ac697a9658dee3694690214b4fb7a0e718f8aa0dc4",
+						"structuralSha256": "5a4890320080290ad84cfc6040c480ab803fa7c95faa170456487c4e04eebf4c"
+					},
+					"afterDeclaration": {
+						"startOffset": 6446,
+						"endOffset": 7698,
+						"startLine": 178,
+						"endLine": 211,
+						"registration": "\"stage dispatch uses native ancestry during initial frontier publication\"",
+						"sha256": "103689bd149407a3e46ac5ac697a9658dee3694690214b4fb7a0e718f8aa0dc4",
+						"structuralSha256": "5a4890320080290ad84cfc6040c480ab803fa7c95faa170456487c4e04eebf4c"
+					},
+					"tokenSha256": "bab8706259e1161502ce9d76a10de2c3ebfd5f8e3efb78e9057bb1847e4a8716",
+					"structurallyEquivalent": true
+				},
+				{
+					"beforeDeclaration": {
+						"startOffset": 8591,
+						"endOffset": 9296,
+						"startLine": 234,
+						"endLine": 255,
+						"registration": "\"unknown kind preserves the CLI failure envelope and creates no workflow\"",
+						"sha256": "8f692e2710424d1c5c5548287678cffcd92b2cfbd00bc82c28b8bdf0c66ecfda",
+						"structuralSha256": "defb2745d30ebf1298e6b23dffb1ba0681463382cb416c918e58ab77296764da"
+					},
+					"afterDeclaration": {
+						"startOffset": 7700,
+						"endOffset": 8405,
+						"startLine": 213,
+						"endLine": 234,
+						"registration": "\"unknown kind preserves the CLI failure envelope and creates no workflow\"",
+						"sha256": "8f692e2710424d1c5c5548287678cffcd92b2cfbd00bc82c28b8bdf0c66ecfda",
+						"structuralSha256": "defb2745d30ebf1298e6b23dffb1ba0681463382cb416c918e58ab77296764da"
+					},
+					"tokenSha256": "030b5f2d0ab116e83fd5d77c6e5d8fa5fb2b9ca32e57809bd47d33f8f7d5f476",
+					"structurallyEquivalent": true
+				}
+			]
+		},
+		{
+			"beforePath": "lib/colony/src/workflows.test.ts",
+			"afterPath": "lib/colony/src/workflows.test.ts",
+			"beforeSha256": "9a5d710bb99cfdefa5bb2895d27ba4a17c88c4680635f72d65777a9335368b35",
+			"afterSha256": "5542b78eab7b1b533036b0ee6fa3e0113702304b699d0e18219da5687e360029",
+			"beforeDeclarations": 6,
+			"afterDeclarations": 5,
+			"removed": [
+				{
+					"id": "#test-108",
+					"caseCount": 3,
+					"caseNames": [
+						"#test-108 workflow adapter forwards parent and endpoint for [ \"run\", \"do-work\" ]",
+						"#test-108 workflow adapter forwards parent and endpoint for [ \"run\", \"land\" ]",
+						"#test-108 workflow adapter forwards parent and endpoint for [ \"start\", \"/caller/workflow.ts\" ]"
+					],
+					"marker": {
+						"line": 41,
+						"source": "\"#test-108 workflow adapter forwards parent and endpoint for $command\","
+					},
+					"beforeDeclaration": {
+						"startOffset": 1070,
+						"endOffset": 2073,
+						"startLine": 33,
+						"endLine": 77,
+						"registration": "\"#test-108 workflow adapter forwards parent and endpoint for $command\"",
+						"sha256": "73b2afb686ae7bb27e65d4dc3f62165674dd019d2cc4d9209aec84bce336ec0d",
+						"structuralSha256": "40125f7f1bf17bf39fffd742f77eb360e32d45ffbfd59986fdbed060be1dd5c5"
+					},
+					"afterDeclaration": null
+				}
+			],
+			"retained": [
+				{
+					"beforeDeclaration": {
+						"startOffset": 2075,
+						"endOffset": 2616,
+						"startLine": 79,
+						"endLine": 104,
+						"registration": "\"driver admission selects advance preparation with the selected endpoint\"",
+						"sha256": "ac35f0097c815c177a44a64949aea402bd5615f29690b0c9c2176b9172e7dbb8",
+						"structuralSha256": "e62c8b7c1cf614a5e694c69f4b8ce71e842ac5ca38fec887f01267c20f3e9471"
+					},
+					"afterDeclaration": {
+						"startOffset": 1070,
+						"endOffset": 1611,
+						"startLine": 33,
+						"endLine": 58,
+						"registration": "\"driver admission selects advance preparation with the selected endpoint\"",
+						"sha256": "ac35f0097c815c177a44a64949aea402bd5615f29690b0c9c2176b9172e7dbb8",
+						"structuralSha256": "e62c8b7c1cf614a5e694c69f4b8ce71e842ac5ca38fec887f01267c20f3e9471"
+					},
+					"tokenSha256": "2b35a3f6731e72140aa08fcf8ea4b6f77a320b6ab50616bf30b77ea9567768b1",
+					"structurallyEquivalent": true
+				},
+				{
+					"beforeDeclaration": {
+						"startOffset": 2966,
+						"endOffset": 3396,
+						"startLine": 125,
+						"endLine": 134,
+						"registration": "\"Busybee partial failure retains its checkpoint and lock identity\"",
+						"sha256": "7d1452f21c3c907a0d0da272d4f902c400a55225ba66f19d127ce9bfdae13c61",
+						"structuralSha256": "661d8994c83f09d5ad3b9fe9593a4e174e2a72718964b1a195ad98aff4f1d2e1"
+					},
+					"afterDeclaration": {
+						"startOffset": 1961,
+						"endOffset": 2391,
+						"startLine": 79,
+						"endLine": 88,
+						"registration": "\"Busybee partial failure retains its checkpoint and lock identity\"",
+						"sha256": "7d1452f21c3c907a0d0da272d4f902c400a55225ba66f19d127ce9bfdae13c61",
+						"structuralSha256": "661d8994c83f09d5ad3b9fe9593a4e174e2a72718964b1a195ad98aff4f1d2e1"
+					},
+					"tokenSha256": "c4d08be3c378d84cc9d40224c760afcffa66749b0a4faea3b188053babfb7f02",
+					"structurallyEquivalent": true
+				},
+				{
+					"beforeDeclaration": {
+						"startOffset": 3398,
+						"endOffset": 4955,
+						"startLine": 136,
+						"endLine": 191,
+						"registration": "\"initialization failure preserves confirmed identities and uncertain operation: $context\"",
+						"sha256": "e0492878571ab56b736b186fbe4d74afaa20720317b3e016b8727c45304f0a32",
+						"structuralSha256": "366033bb692154a3a01e4e7dec8e5c94ee280da11d6965ca9197bad0223aa6a3"
+					},
+					"afterDeclaration": {
+						"startOffset": 2393,
+						"endOffset": 3950,
+						"startLine": 90,
+						"endLine": 145,
+						"registration": "\"initialization failure preserves confirmed identities and uncertain operation: $context\"",
+						"sha256": "e0492878571ab56b736b186fbe4d74afaa20720317b3e016b8727c45304f0a32",
+						"structuralSha256": "366033bb692154a3a01e4e7dec8e5c94ee280da11d6965ca9197bad0223aa6a3"
+					},
+					"tokenSha256": "6096c3c36b4fa24c88e83ce9e02a1055b6006d57286e578df94bef4891a16cc9",
+					"structurallyEquivalent": true
+				},
+				{
+					"beforeDeclaration": {
+						"startOffset": 4957,
+						"endOffset": 5903,
+						"startLine": 193,
+						"endLine": 232,
+						"registration": "\"lifecycle adapter reads source-independent publication fences at the selected endpoint\"",
+						"sha256": "1fd1714754dfe22337ca9d2a125ebff2ac150da59f1484a0cfec4b3de06e7aa6",
+						"structuralSha256": "42cbf4a996720a70c17473c4f0f2f0526b76d2afe7e1c319efcddddd6bafe679"
+					},
+					"afterDeclaration": {
+						"startOffset": 3952,
+						"endOffset": 4898,
+						"startLine": 147,
+						"endLine": 186,
+						"registration": "\"lifecycle adapter reads source-independent publication fences at the selected endpoint\"",
+						"sha256": "1fd1714754dfe22337ca9d2a125ebff2ac150da59f1484a0cfec4b3de06e7aa6",
+						"structuralSha256": "42cbf4a996720a70c17473c4f0f2f0526b76d2afe7e1c319efcddddd6bafe679"
+					},
+					"tokenSha256": "3da2255872b379cf489116eaf672294852cd742aafe0fa1842684a7d982c3577",
+					"structurallyEquivalent": true
+				},
+				{
+					"beforeDeclaration": {
+						"startOffset": 6569,
+						"endOffset": 7593,
+						"startLine": 265,
+						"endLine": 302,
+						"registration": "\"work adapter preserves typed expansion availability: $reason\"",
+						"sha256": "8201c2a43d11e4f91a34a357d48d7d469584be2636426c1b2e99ebfb37f1d03a",
+						"structuralSha256": "3a673ba8e5168061a617436312bb93472be92abf15029be81e45b6455dc23b45"
+					},
+					"afterDeclaration": {
+						"startOffset": 5564,
+						"endOffset": 6588,
+						"startLine": 219,
+						"endLine": 256,
+						"registration": "\"work adapter preserves typed expansion availability: $reason\"",
+						"sha256": "8201c2a43d11e4f91a34a357d48d7d469584be2636426c1b2e99ebfb37f1d03a",
+						"structuralSha256": "3a673ba8e5168061a617436312bb93472be92abf15029be81e45b6455dc23b45"
+					},
+					"tokenSha256": "a884cd0fcb8036509f5b3e349a858fe34c450018dca4fd842ae128358ded4f04",
+					"structurallyEquivalent": true
+				}
+			]
+		},
+		{
+			"beforePath": "lib/busybee/tests/integration/completion.test.ts",
+			"afterPath": "lib/busybee/tests/integration/completion.test.ts",
+			"beforeSha256": "527b2811a5ce2885726d89c5df05b6c2b86f83dbbf8422894b4446767737b28d",
+			"afterSha256": "2b7dda28cff62baf194e53569df0ea7b585dd9d9f9462f0cc7fe73475028eb82",
+			"beforeDeclarations": 10,
+			"afterDeclarations": 3,
+			"removed": [
+				{
+					"id": "#test-110",
+					"caseCount": 3,
+					"caseNames": [
+						"#test-110 complete cannot close while result persistence is pending",
+						"#test-110 complete cannot close while checkpoint persistence is pending",
+						"#test-110 complete cannot close while release persistence is pending"
+					],
+					"marker": {
+						"line": 70,
+						"source": "\"#test-110 complete cannot close while %s persistence is pending\","
+					},
+					"beforeDeclaration": {
+						"startOffset": 2586,
+						"endOffset": 3990,
+						"startLine": 69,
+						"endLine": 113,
+						"registration": "\"#test-110 complete cannot close while %s persistence is pending\"",
+						"sha256": "51912863427895359a784456e483a0eb5393c990f78ce840591e9bdc97ac359f",
+						"structuralSha256": "536b86055686486e693092d6b820d8a83916aac0c02f935eb47ffa2847bb106f"
+					},
+					"afterDeclaration": null
+				},
+				{
+					"id": "#test-114",
+					"caseCount": 1,
+					"caseNames": [
+						"#test-114 native closure refusal preserves exact result and releases checkpoint for retry"
+					],
+					"marker": {
+						"line": 147,
+						"source": "test(\"#test-114 native closure refusal preserves exact result and releases checkpoint for retry\", async () => {"
+					},
+					"beforeDeclaration": {
+						"startOffset": 5062,
+						"endOffset": 6104,
+						"startLine": 147,
+						"endLine": 181,
+						"registration": "\"#test-114 native closure refusal preserves exact result and releases checkpoint for retry\"",
+						"sha256": "0f2db24b4966a18c4ed156640673e85cb8ae9d10a3ff887e7b5d8787a913e2c0",
+						"structuralSha256": "cf113772d37c990d665775d4d33453f611dbe5fe2f109905277a6f50062caacf"
+					},
+					"afterDeclaration": null
+				},
+				{
+					"id": "#test-115",
+					"caseCount": 1,
+					"caseNames": [
+						"#test-115 identical retry after lost receipt and collection never recloses or rewrites the stage"
+					],
+					"marker": {
+						"line": 185,
+						"source": "test(\"#test-115 identical retry after lost receipt and collection never recloses or rewrites the stage\", async () => {"
+					},
+					"beforeDeclaration": {
+						"startOffset": 6240,
+						"endOffset": 7676,
+						"startLine": 185,
+						"endLine": 223,
+						"registration": "\"#test-115 identical retry after lost receipt and collection never recloses or rewrites the stage\"",
+						"sha256": "2cba4f520ccb6b0304f5e34573e51ef91ceff6416ecb8c9746846f8c25a262fb",
+						"structuralSha256": "b356571f24b9c7fcfe6d5337e1a031c50b1dd6f3fc375adfb67cba8baf3ccc65"
+					},
+					"afterDeclaration": null
+				},
+				{
+					"id": "#test-116",
+					"caseCount": 1,
+					"caseNames": ["#test-116 complete validates payload before saving or closing"],
+					"marker": {
+						"line": 225,
+						"source": "test(\"#test-116 complete validates payload before saving or closing\", async () => {"
+					},
+					"beforeDeclaration": {
+						"startOffset": 7678,
+						"endOffset": 8237,
+						"startLine": 225,
+						"endLine": 237,
+						"registration": "\"#test-116 complete validates payload before saving or closing\"",
+						"sha256": "75838829fa8cd49bd150578e30277aac123162ff26f6645c29952062fd218dfd",
+						"structuralSha256": "9ad8993f5335fb6ec7dbeedda0cd20623c7b15c6e7c541ad165a733bfb5640eb"
+					},
+					"afterDeclaration": null
+				},
+				{
+					"id": "#test-117",
+					"caseCount": 4,
+					"caseNames": [
+						"#test-117 closed visit refuses invalid_stage_result evidence: ",
+						"#test-117 closed visit refuses invalid_stage_result evidence: {",
+						"#test-117 closed visit refuses invalid_stage_result evidence: {\"choice\":\"next\"}",
+						"#test-117 closed visit refuses stage_result_conflict evidence: {\"choice\":\"next\",\"data\":{\"value\":\"different\"}}"
+					],
+					"marker": {
+						"line": 240,
+						"source": "\"#test-117 closed visit refuses $reason evidence: $notes\","
+					},
+					"beforeDeclaration": {
+						"startOffset": 8239,
+						"endOffset": 8818,
+						"startLine": 239,
+						"endLine": 251,
+						"registration": "\"#test-117 closed visit refuses $reason evidence: $notes\"",
+						"sha256": "9a471f5d410fbb280d7f23fd79d8e75d7149eee3bf1340bb3b8e489578562122",
+						"structuralSha256": "92b29dc8c4883784ee0bef585d4d8864b5b7e34d7596e4f2979e27048dd7da6b"
+					},
+					"afterDeclaration": null
+				},
+				{
+					"id": "#test-118",
+					"caseCount": 2,
+					"caseNames": [
+						"#test-118 closed active visit validates matching saved invalid_input evidence",
+						"#test-118 closed active visit validates matching saved unavailable_command evidence"
+					],
+					"marker": {
+						"line": 254,
+						"source": "\"#test-118 closed active visit validates matching saved $reason evidence\","
+					},
+					"beforeDeclaration": {
+						"startOffset": 8820,
+						"endOffset": 9491,
+						"startLine": 253,
+						"endLine": 267,
+						"registration": "\"#test-118 closed active visit validates matching saved $reason evidence\"",
+						"sha256": "452a0a9b5246bb502ffe67282df0437ae533fcc8d91ef9c6a1d6672a3e66f79a",
+						"structuralSha256": "f91560d9abb841b695f7e9383173a26f12a1d939ee8e6b8d8e6108a118fae831"
+					},
+					"afterDeclaration": null
+				},
+				{
+					"id": "#test-119",
+					"caseCount": 1,
+					"caseNames": [
+						"#test-119 generated worker guidance and discovery expose complete followed by driver collection"
+					],
+					"marker": {
+						"line": 308,
+						"source": "test(\"#test-119 generated worker guidance and discovery expose complete followed by driver collection\", async () => {"
+					},
+					"beforeDeclaration": {
+						"startOffset": 10677,
+						"endOffset": 11448,
+						"startLine": 308,
+						"endLine": 327,
+						"registration": "\"#test-119 generated worker guidance and discovery expose complete followed by driver collection\"",
+						"sha256": "d4a36ef0002b6fe5b180ad21aa488229a1ff6a9524eefe7bc7c981f53e17803d",
+						"structuralSha256": "1fdc21870cf38de3d87148422d0e1d8ec6c2347134e9698b20f7ce4124aaeb5b"
+					},
+					"afterDeclaration": null
+				}
+			],
+			"retained": [
+				{
+					"beforeDeclaration": {
+						"startOffset": 3992,
+						"endOffset": 4928,
+						"startLine": 115,
+						"endLine": 143,
+						"registration": "\"failed %s publication never attempts closure\"",
+						"sha256": "ea391cf8e45b01b22c2e1685109c1f86a1127ecd7966e58ca9430352bac8f678",
+						"structuralSha256": "30b4d4893ca052343643402c2dc5566e53f3b347d8bd98d207237a3fef1931f4"
+					},
+					"afterDeclaration": {
+						"startOffset": 2057,
+						"endOffset": 2993,
+						"startLine": 58,
+						"endLine": 86,
+						"registration": "\"failed %s publication never attempts closure\"",
+						"sha256": "ea391cf8e45b01b22c2e1685109c1f86a1127ecd7966e58ca9430352bac8f678",
+						"structuralSha256": "30b4d4893ca052343643402c2dc5566e53f3b347d8bd98d207237a3fef1931f4"
+					},
+					"tokenSha256": "95ad14d83a82d9c832db2ca13a688c20c89e244472f5213f73bde74bb603a0da",
+					"structurallyEquivalent": true
+				},
+				{
+					"beforeDeclaration": {
+						"startOffset": 9493,
+						"endOffset": 10165,
+						"startLine": 269,
+						"endLine": 295,
+						"registration": "\"matching open original payload accepts object key reordering without rewriting\"",
+						"sha256": "3268834a7db2b8ba366cdad5360c90ca5a3ec2d4db9d89076c0f96cc5da7c1d8",
+						"structuralSha256": "c1d98c5397a170154bb0da355a88d0c7500d39697fbfd686a3bbaadb2e32da93"
+					},
+					"afterDeclaration": {
+						"startOffset": 2995,
+						"endOffset": 3667,
+						"startLine": 88,
+						"endLine": 114,
+						"registration": "\"matching open original payload accepts object key reordering without rewriting\"",
+						"sha256": "3268834a7db2b8ba366cdad5360c90ca5a3ec2d4db9d89076c0f96cc5da7c1d8",
+						"structuralSha256": "c1d98c5397a170154bb0da355a88d0c7500d39697fbfd686a3bbaadb2e32da93"
+					},
+					"tokenSha256": "65de4b463cac3605cde4b10a429f3159633548ec95287a5c22060ecb81b64523",
+					"structurallyEquivalent": true
+				},
+				{
+					"beforeDeclaration": {
+						"startOffset": 10167,
+						"endOffset": 10675,
+						"startLine": 297,
+						"endLine": 306,
+						"registration": "\"human reserved stage remains open without saved results\"",
+						"sha256": "338ecf9bd9c6cd7b84eff139c8437cbcf613677ec43e227b8a1c725313dfce01",
+						"structuralSha256": "a8d5360335664cce5d9288aaa5c805a099ac1e1a4e75e00176724741deb43e9f"
+					},
+					"afterDeclaration": {
+						"startOffset": 3669,
+						"endOffset": 4177,
+						"startLine": 116,
+						"endLine": 125,
+						"registration": "\"human reserved stage remains open without saved results\"",
+						"sha256": "338ecf9bd9c6cd7b84eff139c8437cbcf613677ec43e227b8a1c725313dfce01",
+						"structuralSha256": "a8d5360335664cce5d9288aaa5c805a099ac1e1a4e75e00176724741deb43e9f"
+					},
+					"tokenSha256": "b5206847d91c5f30e0b1fc7c6b6e9fef6a2527ecbb481e31919fc9e6d05e8e05",
+					"structurallyEquivalent": true
+				}
+			]
+		},
+		{
+			"beforePath": "lib/colony/src/launch.test.ts",
+			"afterPath": "lib/colony/src/launch.test.ts",
+			"beforeSha256": "36c92a056ed2d3dab9ce92ca2be82abb8a4c116ad2c5bace3c884ea760d574b7",
+			"afterSha256": "79451c60165e439f19c2a119d43ebd968183a1a6eab47e9aa912744ad25c51fa",
+			"beforeDeclarations": 8,
+			"afterDeclarations": 6,
+			"removed": [
+				{
+					"id": "#test-111",
+					"caseCount": 1,
+					"caseNames": [
+						"#test-111 preparation finishes completed requests before formula or process effects"
+					],
+					"marker": {
+						"line": 11,
+						"source": "test(\"#test-111 preparation finishes completed requests before formula or process effects\", async () => {"
+					},
+					"beforeDeclaration": {
+						"startOffset": 603,
+						"endOffset": 1384,
+						"startLine": 11,
+						"endLine": 36,
+						"registration": "\"#test-111 preparation finishes completed requests before formula or process effects\"",
+						"sha256": "9de15fb076344c4ae966118890c103577cb897b37941645af79e7a56fbd161ac",
+						"structuralSha256": "6ae5967c519ee890e8b67b5f6b2167c2439cd95dc897409d21b01f52ec1708ec"
+					},
+					"afterDeclaration": null
+				},
+				{
+					"id": "#test-113",
+					"caseCount": 2,
+					"caseNames": [
+						"#test-113 preparation diagnoses legacy closed anchors",
+						"#test-113 preparation diagnoses malformed closed anchors"
+					],
+					"marker": {
+						"line": 172,
+						"source": "])(\"#test-113 preparation diagnoses $name closed anchors\", async ({ reason }) => {"
+					},
+					"beforeDeclaration": {
+						"startOffset": 5845,
+						"endOffset": 6465,
+						"startLine": 169,
+						"endLine": 184,
+						"registration": "\"#test-113 preparation diagnoses $name closed anchors\"",
+						"sha256": "4cc282d346b0db0fffb89fb4f67bf3a1184c6071d111ec93dbd6783f4b7852b2",
+						"structuralSha256": "111934924af7a42688b9d7b778e702ba56d1fb140767f0ff025709e54e8aec25"
+					},
+					"afterDeclaration": null
+				}
+			],
+			"retained": [
+				{
+					"beforeDeclaration": {
+						"startOffset": 1386,
+						"endOffset": 2186,
+						"startLine": 38,
+						"endLine": 68,
+						"registration": "\"preparation refuses another host before resolving task or process authority\"",
+						"sha256": "2503837cce07e610d6d301c08a67a6c674dd69ba6e43b18e5210d35b96199956",
+						"structuralSha256": "0d2a219289311faec64fcac0e5081f71a1d163ee9eebf436da43de9f3dfef645"
+					},
+					"afterDeclaration": {
+						"startOffset": 603,
+						"endOffset": 1403,
+						"startLine": 11,
+						"endLine": 41,
+						"registration": "\"preparation refuses another host before resolving task or process authority\"",
+						"sha256": "2503837cce07e610d6d301c08a67a6c674dd69ba6e43b18e5210d35b96199956",
+						"structuralSha256": "0d2a219289311faec64fcac0e5081f71a1d163ee9eebf436da43de9f3dfef645"
+					},
+					"tokenSha256": "efd082c93b7cb535f78e045921bb94961c2d749074853fa6a57c9fd85c17407f",
+					"structurallyEquivalent": true
+				},
+				{
+					"beforeDeclaration": {
+						"startOffset": 2399,
+						"endOffset": 3096,
+						"startLine": 80,
+						"endLine": 93,
+						"registration": "\"managed $target launch composes delivery without changing the captured recipe\"",
+						"sha256": "593b58f2f4727963370902d9a1961222115a617b504403daece1e155b47788cc",
+						"structuralSha256": "e8c88100b4d7ca6fa95607211b46f528adc359b6b6ac015f6254d006613220d9"
+					},
+					"afterDeclaration": {
+						"startOffset": 1616,
+						"endOffset": 2313,
+						"startLine": 53,
+						"endLine": 66,
+						"registration": "\"managed $target launch composes delivery without changing the captured recipe\"",
+						"sha256": "593b58f2f4727963370902d9a1961222115a617b504403daece1e155b47788cc",
+						"structuralSha256": "e8c88100b4d7ca6fa95607211b46f528adc359b6b6ac015f6254d006613220d9"
+					},
+					"tokenSha256": "0a09f457b203640d9e7c039304dc09f3c66ebc1c17e2ed43c8faf7e593e9ee1f",
+					"structurallyEquivalent": true
+				},
+				{
+					"beforeDeclaration": {
+						"startOffset": 3326,
+						"endOffset": 4855,
+						"startLine": 102,
+						"endLine": 136,
+						"registration": "\"Bee-dispatched stage under $type waits only for actual ancestor prerequisites (blocked: $blocked)\"",
+						"sha256": "b54441b38c8d5732ca29abd56508c4d8193d3b18dfcc5c69001812f84fd4d2dc",
+						"structuralSha256": "d3c1075461a8ff9c69bd765ddfe62a09dceb47143323baa435c245b962c92f4e"
+					},
+					"afterDeclaration": {
+						"startOffset": 2543,
+						"endOffset": 4072,
+						"startLine": 75,
+						"endLine": 109,
+						"registration": "\"Bee-dispatched stage under $type waits only for actual ancestor prerequisites (blocked: $blocked)\"",
+						"sha256": "b54441b38c8d5732ca29abd56508c4d8193d3b18dfcc5c69001812f84fd4d2dc",
+						"structuralSha256": "d3c1075461a8ff9c69bd765ddfe62a09dceb47143323baa435c245b962c92f4e"
+					},
+					"tokenSha256": "177135e2c3ae2ea2d5f5fde293649a87ba5f5ec8b3ec87fd3eb1e874a88931c7",
+					"structurallyEquivalent": true
+				},
+				{
+					"beforeDeclaration": {
+						"startOffset": 4857,
+						"endOffset": 5843,
+						"startLine": 138,
+						"endLine": 167,
+						"registration": "\"preparation settles $outcome without launching or inspecting a definition\"",
+						"sha256": "a5a85080b44b7d8f50c34793b8c726d3b402d2ef00174955f7418e792bf98535",
+						"structuralSha256": "a2e64b0b10d817d07a91d0e4caec177a8eb4cb6fd8a5667452a0e8d0c3fd810c"
+					},
+					"afterDeclaration": {
+						"startOffset": 4074,
+						"endOffset": 5060,
+						"startLine": 111,
+						"endLine": 140,
+						"registration": "\"preparation settles $outcome without launching or inspecting a definition\"",
+						"sha256": "a5a85080b44b7d8f50c34793b8c726d3b402d2ef00174955f7418e792bf98535",
+						"structuralSha256": "a2e64b0b10d817d07a91d0e4caec177a8eb4cb6fd8a5667452a0e8d0c3fd810c"
+					},
+					"tokenSha256": "61a2291df4c237372f77342ff62402212e7603ac7ba1e69ac94e61b73298f6a7",
+					"structurallyEquivalent": true
+				},
+				{
+					"beforeDeclaration": {
+						"startOffset": 6467,
+						"endOffset": 7779,
+						"startLine": 186,
+						"endLine": 227,
+						"registration": "\"preparation fences publication lock $locked and settlement $settlement before process effects\"",
+						"sha256": "ece5404bf2038540aec5e40def2e74ae01fa694176de12e868628d57c35d36c8",
+						"structuralSha256": "8a9269f4efdf09c6e307b7e8ed955b54732a1dce3fa1668dc74dcb6d3db895c0"
+					},
+					"afterDeclaration": {
+						"startOffset": 5062,
+						"endOffset": 6374,
+						"startLine": 142,
+						"endLine": 183,
+						"registration": "\"preparation fences publication lock $locked and settlement $settlement before process effects\"",
+						"sha256": "ece5404bf2038540aec5e40def2e74ae01fa694176de12e868628d57c35d36c8",
+						"structuralSha256": "8a9269f4efdf09c6e307b7e8ed955b54732a1dce3fa1668dc74dcb6d3db895c0"
+					},
+					"tokenSha256": "fcdc9e6670161d5b6fca5d49175576ccad1fa7fea1ccf8bb984f2d425bd4a916",
+					"structurallyEquivalent": true
+				},
+				{
+					"beforeDeclaration": {
+						"startOffset": 7781,
+						"endOffset": 8868,
+						"startLine": 229,
+						"endLine": 273,
+						"registration": "\"preparation rechecks native settlement intent after the public observation\"",
+						"sha256": "b825d1654e5362acf46da756348a2541bccf22d8aaed593d94b3de30fb96c316",
+						"structuralSha256": "5da7de86b711bd33765c0aea0fcae4054cb0e9fbb0bd271417ebe634876b77d3"
+					},
+					"afterDeclaration": {
+						"startOffset": 6376,
+						"endOffset": 7463,
+						"startLine": 185,
+						"endLine": 229,
+						"registration": "\"preparation rechecks native settlement intent after the public observation\"",
+						"sha256": "b825d1654e5362acf46da756348a2541bccf22d8aaed593d94b3de30fb96c316",
+						"structuralSha256": "5da7de86b711bd33765c0aea0fcae4054cb0e9fbb0bd271417ebe634876b77d3"
+					},
+					"tokenSha256": "488c3abea28fea50302854b795936a76775bfe4b25cbde7afe84b8fc3517bc3c",
+					"structurallyEquivalent": true
+				}
+			]
+		},
+		{
+			"beforePath": "lib/hive-ui/server/workflow.smoke.test.ts",
+			"afterPath": null,
+			"beforeSha256": "160735d040386e85351ec2ab7bd94f0ac23d95b851978184c00bfafc2f32b121",
+			"afterSha256": null,
+			"beforeDeclarations": 1,
+			"afterDeclarations": 0,
+			"removed": [
+				{
+					"id": "#test-200",
+					"caseCount": 1,
+					"caseNames": [
+						"#test-200 real public inspection keeps failed lifecycle visible when the diagram source is absent"
+					],
+					"marker": {
+						"line": 12,
+						"source": "test(\"#test-200 real public inspection keeps failed lifecycle visible when the diagram source is absent\", async () => {"
+					},
+					"beforeDeclaration": {
+						"startOffset": 535,
+						"endOffset": 3164,
+						"startLine": 12,
+						"endLine": 83,
+						"registration": "\"#test-200 real public inspection keeps failed lifecycle visible when the diagram source is absent\"",
+						"sha256": "55bae5619019150f72978991fa0dbdd215eddeae9f83e57be816e950ab992a35",
+						"structuralSha256": "f8e0a6eaa2a0ba73c7415461b89f81db5019484a8e1618552c050a7cb55abcbc"
+					},
+					"afterDeclaration": null
+				}
+			],
+			"retained": []
+		},
+		{
+			"beforePath": "lib/hive-ui/tests/workflow-lifecycle.test.tsx",
+			"afterPath": "lib/hive-ui/tests/workflow-lifecycle.test.tsx",
+			"beforeSha256": "178fb3def76a31cf56758d6174d13025054a4633c78ab8d4290a2ea067de1d38",
+			"afterSha256": "de38faa0c6dc443db6fa34e377800d031bfa5398020dae0fe51f68bf9d2c337a",
+			"beforeDeclarations": 2,
+			"afterDeclarations": 1,
+			"removed": [
+				{
+					"id": "#test-201",
+					"caseCount": 5,
+					"caseNames": [
+						"#test-201 native succeeded stays visible with resolved follow-up",
+						"#test-201 native failed stays visible with unresolved follow-up",
+						"#test-201 native failed stays visible with acknowledged follow-up",
+						"#test-201 native failed stays visible with superseded follow-up",
+						"#test-201 native cancelled stays visible with superseded follow-up"
+					],
+					"marker": {
+						"line": 34,
+						"source": "\"#test-201 native $outcome stays visible with $resolution.kind follow-up\","
+					},
+					"beforeDeclaration": {
+						"startOffset": 227,
+						"endOffset": 2085,
+						"startLine": 6,
+						"endLine": 64,
+						"registration": "\"#test-201 native $outcome stays visible with $resolution.kind follow-up\"",
+						"sha256": "891dd7b6fae99f17567128d088b8f26b87032082edb995ea311c433a0c34eb61",
+						"structuralSha256": "15a5bff25b838bd9da0dff4ccfc99fe624e3a201540c2f3b302ab2ebd609144f"
+					},
+					"afterDeclaration": null
+				}
+			],
+			"retained": [
+				{
+					"beforeDeclaration": {
+						"startOffset": 2087,
+						"endOffset": 2839,
+						"startLine": 66,
+						"endLine": 81,
+						"registration": "\"pending and unclassified native facts remain separate from publication observations\"",
+						"sha256": "464855ac7c3809797481d9442f126cf53359fed5957386d8c2ae07f6d39023b4",
+						"structuralSha256": "452cf8b1841d0d6c819baf45be86e2aadb2f84a7f96f60b98d378dd65c8ec006"
+					},
+					"afterDeclaration": {
+						"startOffset": 227,
+						"endOffset": 979,
+						"startLine": 6,
+						"endLine": 21,
+						"registration": "\"pending and unclassified native facts remain separate from publication observations\"",
+						"sha256": "464855ac7c3809797481d9442f126cf53359fed5957386d8c2ae07f6d39023b4",
+						"structuralSha256": "452cf8b1841d0d6c819baf45be86e2aadb2f84a7f96f60b98d378dd65c8ec006"
+					},
+					"tokenSha256": "6d6b3363aa51eb4c7ff4cd410359982c418035463200b32050cc362dc40d7a41",
+					"structurallyEquivalent": true
+				}
+			]
+		},
+		{
+			"beforePath": "lib/hive-ui/server/api.test.ts",
+			"afterPath": "lib/hive-ui/server/api.test.ts",
+			"beforeSha256": "2a29863353c1acefda71a72138b5900b6f3fab0c97c6935542e642368a15900f",
+			"afterSha256": "3337e3bf7677fe47b6365521a72cd29c7b7c43a6b24b01509ba23e64901e107e",
+			"beforeDeclarations": 4,
+			"afterDeclarations": 3,
+			"removed": [
+				{
+					"id": "#test-202",
+					"caseCount": 1,
+					"caseNames": [
+						"#test-202 simulation HTTP route parses replay and selects the endpoint and owning run"
+					],
+					"marker": {
+						"line": 96,
+						"source": "test(\"#test-202 simulation HTTP route parses replay and selects the endpoint and owning run\", async () => {"
+					},
+					"beforeDeclaration": {
+						"startOffset": 2849,
+						"endOffset": 4069,
+						"startLine": 96,
+						"endLine": 139,
+						"registration": "\"#test-202 simulation HTTP route parses replay and selects the endpoint and owning run\"",
+						"sha256": "40c7cee8e17014819a41ef39d96ed0d58cd6395539bde82270d71ea81356dccd",
+						"structuralSha256": "6ec8e1c01738b35527a04050a63e4b59fb251922dfc691e34a40a24ce35ee5e1"
+					},
+					"afterDeclaration": null
+				}
+			],
+			"retained": [
+				{
+					"beforeDeclaration": {
+						"startOffset": 4071,
+						"endOffset": 4918,
+						"startLine": 141,
+						"endLine": 158,
+						"registration": "\"simulation HTTP route rejects $name before dispatch\"",
+						"sha256": "9e69d63197faa6378fe9cc91c4344f3d0aaa3a95075e06e686f597beb221b234",
+						"structuralSha256": "079ba9b5f3d38e341051119c76a957af93c719280d9ce7f14c2febc74f2d10f0"
+					},
+					"afterDeclaration": {
+						"startOffset": 2730,
+						"endOffset": 3577,
+						"startLine": 95,
+						"endLine": 112,
+						"registration": "\"simulation HTTP route rejects $name before dispatch\"",
+						"sha256": "9e69d63197faa6378fe9cc91c4344f3d0aaa3a95075e06e686f597beb221b234",
+						"structuralSha256": "079ba9b5f3d38e341051119c76a957af93c719280d9ce7f14c2febc74f2d10f0"
+					},
+					"tokenSha256": "a4c32e761a3398bb78556a1d89ece660c574bc282af40b830a1e66d66701cbf8",
+					"structurallyEquivalent": true
+				},
+				{
+					"beforeDeclaration": {
+						"startOffset": 4920,
+						"endOffset": 5542,
+						"startLine": 160,
+						"endLine": 175,
+						"registration": "\"simulation HTTP route reports workflow adapter failures as unavailable\"",
+						"sha256": "6775e0c90a1c675ef261e61a40b321bc0f61d6cbf99fe165759993717d0a2fcd",
+						"structuralSha256": "94fa637226e04c5dfc28afe3d2cc3afadc0d61bb7bd267bee96cf4bea641832f"
+					},
+					"afterDeclaration": {
+						"startOffset": 3579,
+						"endOffset": 4201,
+						"startLine": 114,
+						"endLine": 129,
+						"registration": "\"simulation HTTP route reports workflow adapter failures as unavailable\"",
+						"sha256": "6775e0c90a1c675ef261e61a40b321bc0f61d6cbf99fe165759993717d0a2fcd",
+						"structuralSha256": "94fa637226e04c5dfc28afe3d2cc3afadc0d61bb7bd267bee96cf4bea641832f"
+					},
+					"tokenSha256": "8b0bce369ee94ec64030c1a97be24c94d072d06b4c642ffd72da4a543e11d0be",
+					"structurallyEquivalent": true
+				},
+				{
+					"beforeDeclaration": {
+						"startOffset": 5544,
+						"endOffset": 7229,
+						"startLine": 177,
+						"endLine": 236,
+						"registration": "\"workflow GET %s uses the production adapter with the selected owning run\"",
+						"sha256": "65a962d6e25c136032c7a17c51a91a7ab8125508a387949fec794032b39621b9",
+						"structuralSha256": "7d30ec576a589c598b0d2f552f3528ae85e35bbd65a9248cd4fcb43e6683f819"
+					},
+					"afterDeclaration": {
+						"startOffset": 4203,
+						"endOffset": 5888,
+						"startLine": 131,
+						"endLine": 190,
+						"registration": "\"workflow GET %s uses the production adapter with the selected owning run\"",
+						"sha256": "65a962d6e25c136032c7a17c51a91a7ab8125508a387949fec794032b39621b9",
+						"structuralSha256": "7d30ec576a589c598b0d2f552f3528ae85e35bbd65a9248cd4fcb43e6683f819"
+					},
+					"tokenSha256": "b8e7916b8438731bf3afcd947045b6b8a7b41ee616edecbb4a4948af3da00d12",
+					"structurallyEquivalent": true
+				}
+			]
+		},
+		{
+			"beforePath": "lib/busybee/tests/integration/inspection.test.ts",
+			"afterPath": "lib/busybee/tests/integration/inspection.test.ts",
+			"beforeSha256": "87dcdbbb518c46caacc5ceea97fa16db7d7fc47ae05e8c2494c596df64be6d13",
+			"afterSha256": "f42276008e5fff72226e502fc3084df443c5b803137e509d043875492d518f41",
+			"beforeDeclarations": 8,
+			"afterDeclarations": 3,
+			"removed": [
+				{
+					"id": "#test-203",
+					"caseCount": 1,
+					"caseNames": [
+						"#test-203 public inspection expands structure and instructions explicitly without native effects"
+					],
+					"marker": {
+						"line": 77,
+						"source": "test(\"#test-203 public inspection expands structure and instructions explicitly without native effects\", async () => {"
+					},
+					"beforeDeclaration": {
+						"startOffset": 2948,
+						"endOffset": 4141,
+						"startLine": 77,
+						"endLine": 110,
+						"registration": "\"#test-203 public inspection expands structure and instructions explicitly without native effects\"",
+						"sha256": "e41b9689fc2d98699dc04fa2a6a966a6370a0dd7537f230efa215e4d40cf3f0d",
+						"structuralSha256": "f909755c6621fcda7ca43b822f2e5acff3acf4d19f480b6bb220f2033e7cbcb5"
+					},
+					"afterDeclaration": null
+				},
+				{
+					"id": "#test-204",
+					"caseCount": 1,
+					"caseNames": [
+						"#test-204 public schema includes expansion failures and lone instructions reject before tracker access"
+					],
+					"marker": {
+						"line": 113,
+						"source": "\"#test-204 public schema includes expansion failures \" +"
+					},
+					"beforeDeclaration": {
+						"startOffset": 4143,
+						"endOffset": 4813,
+						"startLine": 112,
+						"endLine": 126,
+						"registration": "\"#test-204 public schema includes expansion failures \" +\n\t\t\"and lone instructions reject before tracker access\"",
+						"sha256": "77cefc86d3b3c45cb54715056bec83c1151eb32a20d1623900f9e27248dbd922",
+						"structuralSha256": "3db31f5ff95f0cd49c88546f9e22c0230b42a4acd80de276b5adedb062e15286"
+					},
+					"afterDeclaration": null
+				},
+				{
+					"id": "#test-206",
+					"caseCount": 1,
+					"caseNames": [
+						"#test-206 system preview freezes active briefs and renders retained actor contexts without effects"
+					],
+					"marker": {
+						"line": 22,
+						"source": "test(\"#test-206 system preview freezes active briefs and renders retained actor contexts without effects\", async () => {"
+					},
+					"beforeDeclaration": {
+						"startOffset": 850,
+						"endOffset": 2828,
+						"startLine": 22,
+						"endLine": 74,
+						"registration": "\"#test-206 system preview freezes active briefs and renders retained actor contexts without effects\"",
+						"sha256": "a9ce2b8f019dbc50e867851616ab8bb0c5bcef124a0550aa55cc89a53015b1ed",
+						"structuralSha256": "62b2611d52516d2ba1d2ff7961d51198405850a191767de83bc108049375401f"
+					},
+					"afterDeclaration": null
+				},
+				{
+					"id": "#test-207",
+					"caseCount": 1,
+					"caseNames": [
+						"#test-207 checkpoint version reads no definition or callbacks and performs no writes"
+					],
+					"marker": {
+						"line": 187,
+						"source": "test(\"#test-207 checkpoint version reads no definition or callbacks and performs no writes\", async () => {"
+					},
+					"beforeDeclaration": {
+						"startOffset": 6856,
+						"endOffset": 7672,
+						"startLine": 187,
+						"endLine": 212,
+						"registration": "\"#test-207 checkpoint version reads no definition or callbacks and performs no writes\"",
+						"sha256": "dc828040fd61985499f97d7df26d0e9c8c7b4867f14b9fa302bf873e38e1eb4d",
+						"structuralSha256": "df0bb846dc91365c79e86f7ad8f6893a4aeb633849dfac89854e4990d10e2d44"
+					},
+					"afterDeclaration": null
+				},
+				{
+					"id": "#test-208",
+					"caseCount": 1,
+					"caseNames": ["#test-208 checkpoint schema is available without tracker access"],
+					"marker": {
+						"line": 214,
+						"source": "test(\"#test-208 checkpoint schema is available without tracker access\", async () => {"
+					},
+					"beforeDeclaration": {
+						"startOffset": 7674,
+						"endOffset": 8096,
+						"startLine": 214,
+						"endLine": 222,
+						"registration": "\"#test-208 checkpoint schema is available without tracker access\"",
+						"sha256": "b7752411d86683f6a48f83fc22edd8374a884b917e980b82c5c6ec6422eeefb0",
+						"structuralSha256": "813dc93ebee92ae723dbad2acc520b5367c4ac8b240af2c83009a5c329c4ffc9"
+					},
+					"afterDeclaration": null
+				}
+			],
+			"retained": [
+				{
+					"beforeDeclaration": {
+						"startOffset": 4815,
+						"endOffset": 5524,
+						"startLine": 128,
+						"endLine": 146,
+						"registration": "\"ordinary preview stays structural and never invokes instruction renderers\"",
+						"sha256": "811e0f6d8fed99807ea0d3123796b1d9409487a8e4f928ec2072ad3f66fa5170",
+						"structuralSha256": "342afe6bfc576a8ed73ab64538e890466137533a936d1f10d85a5080882fb54c"
+					},
+					"afterDeclaration": {
+						"startOffset": 693,
+						"endOffset": 1402,
+						"startLine": 20,
+						"endLine": 38,
+						"registration": "\"ordinary preview stays structural and never invokes instruction renderers\"",
+						"sha256": "811e0f6d8fed99807ea0d3123796b1d9409487a8e4f928ec2072ad3f66fa5170",
+						"structuralSha256": "342afe6bfc576a8ed73ab64538e890466137533a936d1f10d85a5080882fb54c"
+					},
+					"tokenSha256": "20c6005beadc744876edd769aa2a925f9f770e828d97060b210c3091d6738fc6",
+					"structurallyEquivalent": true
+				},
+				{
+					"beforeDeclaration": {
+						"startOffset": 5526,
+						"endOffset": 6253,
+						"startLine": 148,
+						"endLine": 168,
+						"registration": "\"system schema is discoverable without tracker access and tooling requires JSON\"",
+						"sha256": "00a328377c93692472ce76618de5cb47eb19fd6ceb46fd70f4e24b5834d76656",
+						"structuralSha256": "1f8da95c6e656115b9c4300a4e19b41fd49e1f61e915311dccd5038025470aae"
+					},
+					"afterDeclaration": {
+						"startOffset": 1404,
+						"endOffset": 2131,
+						"startLine": 40,
+						"endLine": 60,
+						"registration": "\"system schema is discoverable without tracker access and tooling requires JSON\"",
+						"sha256": "00a328377c93692472ce76618de5cb47eb19fd6ceb46fd70f4e24b5834d76656",
+						"structuralSha256": "1f8da95c6e656115b9c4300a4e19b41fd49e1f61e915311dccd5038025470aae"
+					},
+					"tokenSha256": "feca0547d572852ee7ec98a4cb82f8a2a6f4268b1c9774a6da1ce23213f87e47",
+					"structurallyEquivalent": true
+				},
+				{
+					"beforeDeclaration": {
+						"startOffset": 6255,
+						"endOffset": 6854,
+						"startLine": 170,
+						"endLine": 185,
+						"registration": "\"unavailable diagram preserves native lifecycle before rendering callbacks\"",
+						"sha256": "cd391e79a270d27ced234ecccd657428f9d4121d9b6e11008427431aa19d5f7d",
+						"structuralSha256": "a7a5e29ca96f13a3eaaeb72ed604191936026fc9ee092d9128788e6f4d765f24"
+					},
+					"afterDeclaration": {
+						"startOffset": 2133,
+						"endOffset": 2732,
+						"startLine": 62,
+						"endLine": 77,
+						"registration": "\"unavailable diagram preserves native lifecycle before rendering callbacks\"",
+						"sha256": "cd391e79a270d27ced234ecccd657428f9d4121d9b6e11008427431aa19d5f7d",
+						"structuralSha256": "a7a5e29ca96f13a3eaaeb72ed604191936026fc9ee092d9128788e6f4d765f24"
+					},
+					"tokenSha256": "7d25b96c4b53981c3d24cfa81c596240ccdcc85913e021d5db1d9ff1fb8cae9e",
+					"structurallyEquivalent": true
+				}
+			]
+		},
+		{
+			"beforePath": "lib/busybee/tests/integration/lifecycle-transport.test.ts",
+			"afterPath": null,
+			"beforeSha256": "2b7255fefeab4674ab8d6495a92c5f1441b46b253c531d3632d75ef38cbba261",
+			"afterSha256": null,
+			"beforeDeclarations": 3,
+			"afterDeclarations": 0,
+			"removed": [
+				{
+					"id": "#test-300",
+					"caseCount": 1,
+					"caseNames": [
+						"#test-300 grouped authored rejection retries native refusal and transports successful facts"
+					],
+					"marker": {
+						"line": 41,
+						"source": "test(\"#test-300 grouped authored rejection retries native refusal and transports successful facts\", async () => {"
+					},
+					"beforeDeclaration": {
+						"startOffset": 1715,
+						"endOffset": 4395,
+						"startLine": 41,
+						"endLine": 106,
+						"registration": "\"#test-300 grouped authored rejection retries native refusal and transports successful facts\"",
+						"sha256": "be74be6fdffcb8e43af5ed735cb9fb6a0a16a4b23904ae564e0293a87b7e9ee7",
+						"structuralSha256": "1d6513944840944e9e8f5dcbefa41c7b8f9d8782c8f231a76efa4af505bf40dc"
+					},
+					"afterDeclaration": null
+				},
+				{
+					"id": "#test-301",
+					"caseCount": 1,
+					"caseNames": [
+						"#test-301 cancellation transports completed evidence and same-parent replacement provenance"
+					],
+					"marker": {
+						"line": 108,
+						"source": "test(\"#test-301 cancellation transports completed evidence and same-parent replacement provenance\", async () => {"
+					},
+					"beforeDeclaration": {
+						"startOffset": 4397,
+						"endOffset": 7511,
+						"startLine": 108,
+						"endLine": 195,
+						"registration": "\"#test-301 cancellation transports completed evidence and same-parent replacement provenance\"",
+						"sha256": "db7848d7a9e12368467a3e5b62f66cfcc88cf1a3f354dec2132324755414309b",
+						"structuralSha256": "b0ecffd13cdde9667672cb4572ba858d3cdf59bef230a3de3150576e252e2b0e"
+					},
+					"afterDeclaration": null
+				},
+				{
+					"id": "#test-302",
+					"caseCount": 1,
+					"caseNames": [
+						"#test-302 failed closure transports acknowledgment then replacement without rewriting failure"
+					],
+					"marker": {
+						"line": 197,
+						"source": "test(\"#test-302 failed closure transports acknowledgment then replacement without rewriting failure\", async () => {"
+					},
+					"beforeDeclaration": {
+						"startOffset": 7513,
+						"endOffset": 10331,
+						"startLine": 197,
+						"endLine": 276,
+						"registration": "\"#test-302 failed closure transports acknowledgment then replacement without rewriting failure\"",
+						"sha256": "1fd54f115676f4ec2efe8c1a8e00c5032553325135ac5b9203ea620986e2ba1e",
+						"structuralSha256": "07b360b4d08c17771d522045478fc6cdadb9e746c33f53bb6db311d12cddb7e3"
+					},
+					"afterDeclaration": null
+				}
+			],
+			"retained": []
+		},
+		{
+			"beforePath": "lib/colony/src/nurse-lifecycle.test.ts",
+			"afterPath": null,
+			"beforeSha256": "b86391ec2bc220a9e3368717676b41a3b893127c73ebc6cd836bc2ab9d51a0d4",
+			"afterSha256": null,
+			"beforeDeclarations": 1,
+			"afterDeclarations": 0,
+			"removed": [
+				{
+					"id": "#test-303",
+					"caseCount": 4,
+					"caseNames": [
+						"#test-303 nurse coverage retains its batch when native workflow disposition is pending",
+						"#test-303 nurse coverage retains its batch when native workflow disposition is unclassified",
+						"#test-303 nurse coverage retains its batch when native workflow disposition is failed",
+						"#test-303 nurse coverage retains its batch when native workflow disposition is cancelled"
+					],
+					"marker": {
+						"line": 10,
+						"source": "\"#test-303 nurse coverage retains its batch when native workflow disposition is %s\","
+					},
+					"beforeDeclaration": {
+						"startOffset": 264,
+						"endOffset": 1729,
+						"startLine": 9,
+						"endLine": 51,
+						"registration": "\"#test-303 nurse coverage retains its batch when native workflow disposition is %s\"",
+						"sha256": "7408fd615d0b014ddd36c45d69c4c4ebd36f2a970673d5f449dbcb113c2d0d81",
+						"structuralSha256": "785b96a4a3668126309ea8052a05afa0b4c4aec40dca6cd9bb704efa47ebe7b1"
+					},
+					"afterDeclaration": null
+				}
+			],
+			"retained": []
+		},
+		{
+			"beforePath": "lib/busybee/tests/integration/feature-task.test.ts",
+			"afterPath": "lib/busybee/tests/integration/feature-task.test.ts",
+			"beforeSha256": "6132034ad02617039471b6b51e18b9d7bb3bc399c7a8729d59a3cc82129402be",
+			"afterSha256": "5445a702feca20b7fe40daee82720d5215da1d0a20e0c0b072ae5c8f40260912",
+			"beforeDeclarations": 2,
+			"afterDeclarations": 1,
+			"removed": [
+				{
+					"id": "#test-306",
+					"caseCount": 1,
+					"caseNames": ["#test-306 feature tasks isolate, check, independently review and deliver"],
+					"marker": {
+						"line": 19,
+						"source": "test(\"#test-306 feature tasks isolate, check, independently review and deliver\", () => {"
+					},
+					"beforeDeclaration": {
+						"startOffset": 669,
+						"endOffset": 1200,
+						"startLine": 19,
+						"endLine": 28,
+						"registration": "\"#test-306 feature tasks isolate, check, independently review and deliver\"",
+						"sha256": "bb49987ada06a78af755aa180359ebb8f676d97b528e20b2725976709cfb1cdf",
+						"structuralSha256": "52986c00f07359632e3df004295d5b4609b3c760ce5452651c1cfbad5260e5e4"
+					},
+					"afterDeclaration": null
+				}
+			],
+			"retained": [
+				{
+					"beforeDeclaration": {
+						"startOffset": 1202,
+						"endOffset": 1706,
+						"startLine": 30,
+						"endLine": 39,
+						"registration": "\"$name returns through checked work and a fresh review\"",
+						"sha256": "479b933645871e075a25f07566bb2acf218ec388820fdf96436d0323ca46a353",
+						"structuralSha256": "dfd5a83dc5a69eb9e24246292692fcb654b12995a524fc93857728cab5c76be4"
+					},
+					"afterDeclaration": {
+						"startOffset": 550,
+						"endOffset": 1054,
+						"startLine": 17,
+						"endLine": 26,
+						"registration": "\"$name returns through checked work and a fresh review\"",
+						"sha256": "479b933645871e075a25f07566bb2acf218ec388820fdf96436d0323ca46a353",
+						"structuralSha256": "dfd5a83dc5a69eb9e24246292692fcb654b12995a524fc93857728cab5c76be4"
+					},
+					"tokenSha256": "e68fbdb12d989ca90c6723b2875dc2e6aeaf1b8b66ff5d2dc81878bda02a1e08",
+					"structurallyEquivalent": true
+				}
+			]
+		},
+		{
+			"beforePath": "lib/busybee/tests/integration/land.test.ts",
+			"afterPath": "lib/busybee/tests/integration/land.test.ts",
+			"beforeSha256": "fddf9a14d11169a1d293c5222715d020ee12073a2f674ed10077460c1d64d009",
+			"afterSha256": "9d62efbc41c3a6c6bae43cb530ee25f52a76ac0815fbfbe05738774d99aefea8",
+			"beforeDeclarations": 8,
+			"afterDeclarations": 4,
+			"removed": [
+				{
+					"id": "#test-307",
+					"caseCount": 1,
+					"caseNames": [
+						"#test-307 Land dispatches its existing review visit after the driver's passing checks"
+					],
+					"marker": {
+						"line": 89,
+						"source": "test(\"#test-307 Land dispatches its existing review visit after the driver's passing checks\", async () => {"
+					},
+					"beforeDeclaration": {
+						"startOffset": 3107,
+						"endOffset": 4312,
+						"startLine": 89,
+						"endLine": 120,
+						"registration": "\"#test-307 Land dispatches its existing review visit after the driver's passing checks\"",
+						"sha256": "e61355b3069e701a7a427484d6eb9baed232240ac312ba393e6a9aa7520768b1",
+						"structuralSha256": "4cacbd39ac2ccd1e42407042d0d54f9bbc26549d9b8fbf20a91ef076aac77cbb"
+					},
+					"afterDeclaration": null
+				},
+				{
+					"id": "#test-308",
+					"caseCount": 2,
+					"caseNames": [
+						"#test-308 Land collects reviewer approved into driver-owned finish",
+						"#test-308 Land collects reviewer changes into driver-owned check"
+					],
+					"marker": {
+						"line": 123,
+						"source": "\"#test-308 Land collects reviewer $choice into driver-owned $target\","
+					},
+					"beforeDeclaration": {
+						"startOffset": 4314,
+						"endOffset": 5007,
+						"startLine": 122,
+						"endLine": 139,
+						"registration": "\"#test-308 Land collects reviewer $choice into driver-owned $target\"",
+						"sha256": "9fa96c64867f4195db422f6414abda6107c42527908210114cd6e915f4a0d253",
+						"structuralSha256": "b630b0f27e888b104c32c91bedd09dfc91b9de2037476c56779cc00f52f2ccb5"
+					},
+					"afterDeclaration": null
+				},
+				{
+					"id": "#test-309",
+					"caseCount": 1,
+					"caseNames": [
+						"#test-309 Land dispatches a fresh reviewer visit after driver repair and checks"
+					],
+					"marker": {
+						"line": 142,
+						"source": "test(\"#test-309 Land dispatches a fresh reviewer visit after driver repair and checks\", async () => {"
+					},
+					"beforeDeclaration": {
+						"startOffset": 5052,
+						"endOffset": 6110,
+						"startLine": 142,
+						"endLine": 167,
+						"registration": "\"#test-309 Land dispatches a fresh reviewer visit after driver repair and checks\"",
+						"sha256": "5db4aca023c3352613a6d3b188306b084b05b4f992c2c2869f297ac02972992d",
+						"structuralSha256": "016312996d3603dc22d2af75b4cbd16c1ce5c0550776c2bc4b18cf43e7560d45"
+					},
+					"afterDeclaration": null
+				},
+				{
+					"id": "#test-310",
+					"caseCount": 4,
+					"caseNames": [
+						"#test-310 standalone-caller closes proven tasks after the Land run (completeParent: true)",
+						"#test-310 land-driver closes proven tasks after the Land run (completeParent: true)",
+						"#test-310 standalone-caller closes proven tasks after the Land run (completeParent: false)",
+						"#test-310 land-driver closes proven tasks after the Land run (completeParent: false)"
+					],
+					"marker": {
+						"line": 188,
+						"source": "\"#test-310 $caller closes proven tasks after the Land run (completeParent: $completeParent)\","
+					},
+					"beforeDeclaration": {
+						"startOffset": 6736,
+						"endOffset": 7983,
+						"startLine": 187,
+						"endLine": 210,
+						"registration": "\"#test-310 $caller closes proven tasks after the Land run (completeParent: $completeParent)\"",
+						"sha256": "3d4a5229beb49c086ad3f41f65cf09391380fad107e87377f7915f5011e997ed",
+						"structuralSha256": "12117de1a5622340237742762dd8002fe20d22c8b66610c8c06410f246bddebd"
+					},
+					"afterDeclaration": null
+				}
+			],
+			"retained": [
+				{
+					"beforeDeclaration": {
+						"startOffset": 6112,
+						"endOffset": 6734,
+						"startLine": 169,
+						"endLine": 185,
+						"registration": "\"the actual land chart navigates $name without executing landing effects\"",
+						"sha256": "15707e470f10778cf2516bfba739e8ccf9b456f136af617d502accb91e35974a",
+						"structuralSha256": "2cb78623644c9ad29f9ecb12536f673dc26a5d9728bc719ed7f3231904220067"
+					},
+					"afterDeclaration": {
+						"startOffset": 2295,
+						"endOffset": 2917,
+						"startLine": 71,
+						"endLine": 87,
+						"registration": "\"the actual land chart navigates $name without executing landing effects\"",
+						"sha256": "15707e470f10778cf2516bfba739e8ccf9b456f136af617d502accb91e35974a",
+						"structuralSha256": "2cb78623644c9ad29f9ecb12536f673dc26a5d9728bc719ed7f3231904220067"
+					},
+					"tokenSha256": "7e7ad2fe12478603b87dc14015d2bef24ee021620c95124a1c01a16a5004aa6e",
+					"structurallyEquivalent": true
+				},
+				{
+					"beforeDeclaration": {
+						"startOffset": 7985,
+						"endOffset": 8418,
+						"startLine": 212,
+						"endLine": 224,
+						"registration": "\"Land retains caller authorization and task references in its run brief\"",
+						"sha256": "8fe604418d617a17560c046e5c4f0c482b255076ccc291fe90d2f3385a9d6c48",
+						"structuralSha256": "ce38db7661eac681f9ccebc9122c68ef620d6cb68f00e48dcd8984054dfe6e3a"
+					},
+					"afterDeclaration": {
+						"startOffset": 2919,
+						"endOffset": 3352,
+						"startLine": 89,
+						"endLine": 101,
+						"registration": "\"Land retains caller authorization and task references in its run brief\"",
+						"sha256": "8fe604418d617a17560c046e5c4f0c482b255076ccc291fe90d2f3385a9d6c48",
+						"structuralSha256": "ce38db7661eac681f9ccebc9122c68ef620d6cb68f00e48dcd8984054dfe6e3a"
+					},
+					"tokenSha256": "7e2ca859b62ba1ebb5eb28be35a8fc5b6930525f1fab7e697acee49d37fe2f8f",
+					"structurallyEquivalent": true
+				},
+				{
+					"beforeDeclaration": {
+						"startOffset": 8420,
+						"endOffset": 9119,
+						"startLine": 226,
+						"endLine": 240,
+						"registration": "\"Land verifies integration before updating local tools and completing\"",
+						"sha256": "77837b9fdc37f1dc074764faf9777be11474495911a03fffd0b4225bee8b84e3",
+						"structuralSha256": "7602779b6a0fa296de44f50151dfeac060563654031051419b445c819e398a30"
+					},
+					"afterDeclaration": {
+						"startOffset": 3354,
+						"endOffset": 4053,
+						"startLine": 103,
+						"endLine": 117,
+						"registration": "\"Land verifies integration before updating local tools and completing\"",
+						"sha256": "77837b9fdc37f1dc074764faf9777be11474495911a03fffd0b4225bee8b84e3",
+						"structuralSha256": "7602779b6a0fa296de44f50151dfeac060563654031051419b445c819e398a30"
+					},
+					"tokenSha256": "a5570858937050787deb2fa6f912400aa328b85456ce9b3bd11e7585bdc5d579",
+					"structurallyEquivalent": true
+				},
+				{
+					"beforeDeclaration": {
+						"startOffset": 9166,
+						"endOffset": 10413,
+						"startLine": 243,
+						"endLine": 272,
+						"registration": "\"a land run requires retained input before publishing any tasks #test-21\"",
+						"sha256": "57dbbad8a637ed7ba5bf0dda7769c3c6f9ba5dd8ba8942d030a223639394379c",
+						"structuralSha256": "0f680b9da60e18645f90b24ce12f903dc17a73543eb83bf5d4713c20199a48ed"
+					},
+					"afterDeclaration": {
+						"startOffset": 4100,
+						"endOffset": 5347,
+						"startLine": 120,
+						"endLine": 149,
+						"registration": "\"a land run requires retained input before publishing any tasks #test-21\"",
+						"sha256": "57dbbad8a637ed7ba5bf0dda7769c3c6f9ba5dd8ba8942d030a223639394379c",
+						"structuralSha256": "0f680b9da60e18645f90b24ce12f903dc17a73543eb83bf5d4713c20199a48ed"
+					},
+					"tokenSha256": "6cce36eabcb42da03541a6d566648192685a406a70297e089b7551f3cc09e9a0",
+					"structurallyEquivalent": true
+				}
+			]
+		},
+		{
+			"beforePath": "lib/colony/src/work-review-lifecycle.test.ts",
+			"afterPath": "lib/colony/src/work-review-lifecycle.test.ts",
+			"beforeSha256": "445166786721fa73ce67ecfdaef061c69c89e69c4f2ac8a3f334921fb48fb17f",
+			"afterSha256": "bf5bfd1bec3d9476575bdc27e1a5859ca5bf5b1757d493cb4c02c8570a22382b",
+			"beforeDeclarations": 2,
+			"afterDeclarations": 1,
+			"removed": [
+				{
+					"id": "#test-311",
+					"caseCount": 5,
+					"caseNames": [
+						"#test-311 work-review completion keeps native pending separate from a successful request",
+						"#test-311 work-review completion keeps native unclassified separate from a successful request",
+						"#test-311 work-review completion keeps native failed separate from a successful request",
+						"#test-311 work-review completion keeps native cancelled separate from a successful request",
+						"#test-311 work-review completion keeps native succeeded separate from a successful request"
+					],
+					"marker": {
+						"line": 21,
+						"source": "\"#test-311 work-review completion keeps native $outcome separate from a successful request\","
+					},
+					"beforeDeclaration": {
+						"startOffset": 810,
+						"endOffset": 1563,
+						"startLine": 20,
+						"endLine": 36,
+						"registration": "\"#test-311 work-review completion keeps native $outcome separate from a successful request\"",
+						"sha256": "b9f94debff10074f0a45fb73815fce14cd27ddacf5837ca030980b8e66d93ab2",
+						"structuralSha256": "ac018622ca2c1d6609031934a297ee03bfda32d1774f4096030e81e84f5ce5fa"
+					},
+					"afterDeclaration": null
+				}
+			],
+			"retained": [
+				{
+					"beforeDeclaration": {
+						"startOffset": 1565,
+						"endOffset": 2349,
+						"startLine": 38,
+						"endLine": 56,
+						"registration": "\"native success does not release a review with a changed response %s\"",
+						"sha256": "0928dac989c7556b6024b202ff194d7b2be662886c4b54140c728c6d5f2f4ff2",
+						"structuralSha256": "b4886adc99b781c34692c01cf678ae22bfb7b30913b927e9e50ef9b61af25534"
+					},
+					"afterDeclaration": {
+						"startOffset": 498,
+						"endOffset": 1282,
+						"startLine": 12,
+						"endLine": 30,
+						"registration": "\"native success does not release a review with a changed response %s\"",
+						"sha256": "0928dac989c7556b6024b202ff194d7b2be662886c4b54140c728c6d5f2f4ff2",
+						"structuralSha256": "b4886adc99b781c34692c01cf678ae22bfb7b30913b927e9e50ef9b61af25534"
+					},
+					"tokenSha256": "5a1ca051e93f723bc2962b90da0ad12d223966990663f5389c8ac7fe8b762888",
+					"structurallyEquivalent": true
+				}
+			]
+		}
+	],
+	"registry": {
+		"before": 134,
+		"removed": 65,
+		"retained": 69,
+		"retainedEquivalent": true,
+		"thresholds": {
+			"SLOW": "1",
+			"XSLOW": "5",
+			"DANGER": "1000"
+		}
+	},
+	"deadSupportModules": [
+		{
+			"beforePath": "lib/busybee/tests/integration/lifecycle-transport-support.ts",
+			"afterPath": null,
+			"beforeSha256": "c12298d7dd021506003f23d31862061f86aadefbc4d497565efb13cfcb13fc5d",
+			"afterSha256": null
+		},
+		{
+			"beforePath": "lib/colony/src/owned-execution.test-support.ts",
+			"afterPath": null,
+			"beforeSha256": "c4be231c561f8138fd442eff174b7f959fa5365ef367781d26db0ca9c4a52d65",
+			"afterSha256": null
+		}
+	],
+	"deadSupportSymbols": [
+		"lib/busybee/tests/integration/support.ts:writeDefinition",
+		"lib/busybee/tests/integration/support.ts:imports",
+		"lib/colony/src/work-review-lifecycle.test.ts:scenarios",
+		"lib/colony/src/work-review-lifecycle.test.ts:Outcome"
+	],
+	"narrowedSupportHelpers": [
+		{
+			"path": "lib/colony/src/work-review-lifecycle.test.ts",
+			"symbol": "nativeState",
+			"parameter": "outcome",
+			"beforeType": "Outcome",
+			"afterType": "\"succeeded\"",
+			"removedBranches": ["pending", "unclassified"],
+			"retainedCall": "nativeState(\"succeeded\", active.runId)",
+			"retainedReturnSha256": "18e5585582824e418f5a7e2ccde7a4dfbdf91f8279b2cd8afa5fddcb1e7554b7"
+		}
+	],
+	"wholeTestFiles": [
+		"lib/busybee/tests/integration/lifecycle-inspection.test.ts",
+		"lib/busybee/tests/integration/settlement-native.test.ts",
+		"lib/busybee/tests/integration/settlement.test.ts",
+		"lib/colony/src/execution-clearance.smoke.test.ts",
+		"lib/hive-ui/server/workflow.smoke.test.ts",
+		"lib/busybee/tests/integration/lifecycle-transport.test.ts",
+		"lib/colony/src/nurse-lifecycle.test.ts"
+	]
+}

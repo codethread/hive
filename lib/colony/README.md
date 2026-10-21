@@ -90,6 +90,10 @@ Stopping the watcher does not disable its next boot start. To disable it, overri
 
 Attempt paths locate private invocation receipts, stdout, stderr and supervisor logs; files may not yet exist during startup. Generic inspection omits prompts, invocation arguments and tokens. Removal retains history, inspectable with the same repository/tracker selection; inspection changes neither membership nor execution.
 
+## Workflow execution clearance
+
+Busy Bee's [bounded settlement](../busybee/SPEC.md#bounded-unsuccessful-settlement) uses `colony system execution-clearance` when managed execution could exist. Read its `--help` for exact inventory, endpoint and ownership requirements; `colony system execution-clearance-schema --json` supplies offline schemas. The running owning-host daemon must retain the relevant history and have the repository/database registered. Clearance neither starts the daemon nor stops workers; a successful read can still report `refused` with blockers.
+
 ## Inspect operation and failure evidence
 
 `colony events --help` covers local operation history and filters. It reads existing state without contacting Beads/daemon, reconciling or creating/upgrading the database. Repository discovery still uses Honeycomb; SQLite may update reader coordination files, not records or WAL contents.
@@ -124,7 +128,7 @@ Hive's [configured formulas](../../.hive/bees.toml) show Codex and Pi role deliv
 
 ## Scheduling
 
-All unfinished linked work must be ready and available to the request identity. Closed work counts as satisfied; an all-closed request completes without launch. Requests use their highest task urgency, P0 before P1.
+Unfinished assigned work must be ready and available to the request identity. Colony reads the request's own [workflow anchor](../../docs/agents/spawn-requests.md#workflow-anchors): successful closure permits completion without launch; failed or cancelled closure retains that disposition, and unclassified closure fails visibly. Requests use their highest task urgency, P0 before P1.
 
 Within a priority tier, default `bv-pagerank` uses the best linked task's score from the complete visible graph, including closed/ephemeral tasks and unflushed edits. The [BV boundary](../../docs/integrations.md#bee-and-colony-runtime) owns database authority and completeness. Its native multi-query read is not atomic across concurrent commits. `ranking = "fifo"` orders ties by creation time, then ID, without BV.
 

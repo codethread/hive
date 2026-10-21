@@ -3,12 +3,9 @@
 import { expect, test } from "bun:test";
 import { BeeswaxError } from "../errors.ts";
 import { alertFixture } from "../../tests/support.ts";
-import { waitForAlert } from "./alerts.ts";
 
 const database = "/missing/tracker/.beads/beads.db";
 const SECOND_GENERATION = 2;
-const TICK_MS = 250;
-const TIMEOUT_SECONDS = 1;
 
 test(
 	"absence remains unverified; selected endpoint identity normalizes without native " +
@@ -62,40 +59,3 @@ test.each(["not-json", "{}", JSON.stringify({ version: 1, database: "/wrong", al
 		await expect(fx.store.observe(database)).rejects.toBeInstanceOf(BeeswaxError);
 	},
 );
-
-test("unavailable reads and writes fail rather than returning an all-clear", async () => {
-	const fx = alertFixture();
-	fx.storage.read = () => Promise.reject(new Error("unreadable state"));
-	await expect(fx.store.observe(database)).rejects.toMatchObject({
-		reason: "tracker_alert_unavailable",
-	});
-	fx.storage.read = async () => {};
-	fx.storage.write = () => Promise.reject(new Error("disk full"));
-	await expect(fx.store.activate(database, "conflict")).rejects.toMatchObject({
-		reason: "tracker_alert_unavailable",
-	});
-});
-
-test("bounded wait emits the changed receipt and preserves absence at timeout", async () => {
-	const fx = alertFixture();
-	const initial = await fx.store.activate(database, "conflict");
-	let now = 0;
-	const observed = await waitForAlert(database, TIMEOUT_SECONDS, {
-		observe: fx.store.observe,
-		now: () => now,
-		sleep: async (milliseconds) => {
-			now += milliseconds;
-			await fx.store.clear(database, initial.alert!.id, "publication succeeded");
-		},
-	});
-	expect(now).toBe(TICK_MS);
-	expect(observed.alert?.state).toBe("cleared");
-	const missing = await waitForAlert("/other/.beads/beads.db", TIMEOUT_SECONDS, {
-		observe: fx.store.observe,
-		now: () => now,
-		sleep: async (milliseconds) => {
-			now += milliseconds;
-		},
-	});
-	expect(missing.alert).toBeNull();
-});

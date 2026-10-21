@@ -52,6 +52,11 @@ beads.list = async (scope, selection) => {
 	return list(scope, selection);
 };
 await serve(target, beads, {
+	host: "fixture-host",
+	now: () => "2026-01-01T00:00:00Z",
+	observe: () => {
+		throw new Error("Unexpected clearance observation");
+	},
 	loadActivity: () =>
 		Promise.resolve({
 			state: "awake",

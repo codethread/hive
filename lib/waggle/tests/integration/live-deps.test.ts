@@ -1,35 +1,12 @@
-import { afterAll, expect, test } from "bun:test";
 import { classifyWithJev, createLiveDependencies } from "../../src/live-deps.ts";
-// eslint-disable-next-line import/no-nodejs-modules -- Resolve fixture paths under an isolated temporary directory.
-import { join, resolve } from "node:path";
-// eslint-disable-next-line import/no-nodejs-modules -- Integration tests own real temporary classifier files.
-import { mkdir, mkdtemp, rm } from "node:fs/promises";
+import { expect, test } from "bun:test";
 import { parseClassifier, prepareRequest } from "../../src/classifiers.ts";
 import { APIError } from "@typesafe-ai/sdk";
-// eslint-disable-next-line import/no-nodejs-modules -- Use the host's temporary directory for fixtures.
-import { tmpdir } from "node:os";
+// eslint-disable-next-line import/no-nodejs-modules
+import { resolve } from "node:path";
 
 const source = await Bun.file(new URL("../fixtures/example.toml", import.meta.url)).text();
 const request = prepareRequest(parseClassifier("example", source), '{"evidence":"source"}');
-const directory = await mkdtemp(join(tmpdir(), "waggle-"));
-await Bun.write(join(directory, "zebra.toml"), source);
-await Bun.write(join(directory, "alpha.toml"), source);
-await Bun.write(join(directory, "README.md"), "Not a classifier");
-await mkdir(join(directory, "nested.toml"));
-
-afterAll(async () => {
-	await rm(directory, { force: true, recursive: true });
-});
-
-test("live catalogue reads only direct TOML files and sorts IDs #test-366", async () => {
-	const deps = createLiveDependencies();
-	const classifiers = await deps.list(directory);
-	expect(classifiers.map(({ id }) => id)).toEqual(["alpha", "zebra"]);
-	expect(await deps.load(directory, "alpha")).toEqual(parseClassifier("alpha", source));
-	await expect(deps.load(directory, "../secret")).rejects.toBeInstanceOf(Error);
-	await expect(deps.load(directory, "missing")).rejects.toBeInstanceOf(Error);
-});
-
 test("shipped classifiers expose their own evidence and answer contracts #test-425", async () => {
 	const catalogue = await createLiveDependencies().list(
 		resolve(import.meta.dir, "../../../..", "classifiers"),

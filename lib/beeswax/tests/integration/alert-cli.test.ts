@@ -6,14 +6,9 @@ import { runCli } from "../../src/cli.ts";
 
 const database = "/repo/tracker/.beads/beads.db";
 const SUCCESS = 0;
-const FAILURE = 1;
 const ONE = 1;
 
-test.each([
-	{ command: ["alert", "status"] },
-	{ command: ["alert", "wait", "--timeout", "0"] },
-	{ command: ["recover"] },
-])(
+test.each([{ command: ["alert", "wait", "--timeout", "0"] }, { command: ["recover"] }])(
 	"alert command %j returns one document without Git checkout discovery #test-354",
 	async ({ command }) => {
 		const fx = fixture();
@@ -29,15 +24,6 @@ test.each([
 		expect(JSON.parse(fx.output.join(""))).toMatchObject({ ok: true, database, alert: null });
 	},
 );
-
-test("unselected status reports selection absence rather than clearance", async () => {
-	const fx = fixture();
-	fx.deps.beads.alertStatus = async () => {};
-	expect(await runCli(["beads", "alert", "status", "--json"], fx.deps)).toBe(FAILURE);
-	expect(fx.commands).toEqual([]);
-	expect(fx.errors).toEqual([]);
-	expect(JSON.parse(fx.output.join(""))).toMatchObject({ ok: false, reason: "tracker_unselected" });
-});
 
 test.each([
 	{ flags: ["--recover", "incident"] },

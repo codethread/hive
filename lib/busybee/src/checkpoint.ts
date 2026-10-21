@@ -2,6 +2,7 @@ import type { BeadRecord } from "@hive/beads";
 import { BusyBeeError } from "./native.ts";
 import type { ResolvedTask } from "./definition.ts";
 import type { Snapshot } from "xstate";
+import { managedExecutionSchema } from "@hive/shared";
 import { workflowVersionSchema } from "./compatibility.ts";
 import { z } from "zod";
 
@@ -21,6 +22,7 @@ const headerSchema = z.compile(
 		formatVersion: z.literal(FORMAT_VERSION),
 		hash: text,
 		id: text,
+		managedExecution: managedExecutionSchema.optional(),
 	}),
 );
 const retainedNameSchema = z.object({ kind: z.literal("named"), name: text });
@@ -61,6 +63,8 @@ export interface Visit {
 	visit: number;
 }
 export interface Run {
+	/** Monotonic managed-execution exposure; absent historical provenance remains unknown. */
+	managedExecution?: "unmanaged" | "managed";
 	/** Engine-owned checkpoint encoding, independent of workflow SemVer. */
 	formatVersion: typeof FORMAT_VERSION;
 	/** Currently published visits. */

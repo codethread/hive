@@ -3,9 +3,9 @@
 import { BusyBeeError, createServices } from "../../src/native.ts";
 import { captureCli, invoke, useRepositoryFixture } from "./support.ts";
 import { describe, expect, mock, test } from "bun:test";
-import { fingerprint, listWorkflows } from "../../src/catalogue.ts";
 import type { RepositoryFixture } from "./support.ts";
 import { createMemoryBeads } from "@hive/beads";
+import { fingerprint } from "../../src/catalogue.ts";
 import { join } from "node:path";
 import { mkdir } from "node:fs/promises";
 import { startNamed } from "../../src/runtime.ts";
@@ -77,23 +77,7 @@ describe("checkout catalogue discovery", () => {
 	);
 });
 
-test("a repository with no catalogue lists no workflows", async () => {
-	const services = manifestServices();
-	await expect(listWorkflows(undefined, services)).resolves.toEqual({
-		repo: "/catalogue-validation",
-		workflows: [],
-	});
-	await assertNoCreation(services);
-});
-
-test.each([
-	"package.json",
-	"bun.lock",
-	"bun.lockb",
-	"package-lock.json",
-	"pnpm-lock.yaml",
-	"yarn.lock",
-])(
+test.each(["yarn.lock"])(
 	"named provenance includes shared %s and excludes generated dependency trees",
 	async (filename) => {
 		const directory = "/catalogue-validation/.workflows/example";

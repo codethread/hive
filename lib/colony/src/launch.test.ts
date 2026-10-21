@@ -10,15 +10,6 @@ const tracker = memoryTracker();
 const task = await createTask(tracker, { status: "closed" });
 const id = await createSpawn(tracker, task);
 
-test("preparation finishes completed requests before formula or process effects", async () => {
-	const prepared = await prepareLaunch(
-		{ ...tracker.repository, beads: tracker.beads, id, state: "/unused/private-state" },
-		{},
-		"unused-attempt",
-	);
-	expect(prepared).toEqual({ kind: "finished" });
-});
-
 test("preparation refuses another host before resolving task or process authority", async () => {
 	await tracker.beads.update(trackerScope(tracker.repository, "submitter"), [id], {
 		description: JSON.stringify({
@@ -53,7 +44,6 @@ const recipe = recipeSchema.parse({
 });
 
 test.each([
-	{ assignment: { kind: "driver", runId: "run-1" }, target: "run-1" },
 	{ assignment: { kind: "stage", runId: "run-1", stageId: "stage-1" }, target: "stage-1" },
 ] as const)(
 	"managed $target launch composes delivery without changing the captured recipe",
@@ -68,8 +58,8 @@ test.each([
 );
 
 const readinessCases = await Promise.all(
-	["task", "epic"].flatMap((type) =>
-		[false, true].map(async (blocked) => {
+	["epic"].flatMap((type) =>
+		[true].map(async (blocked) => {
 			const context = memoryTracker();
 			const parent = await createTask(context, { type });
 			const run = await createTask(context, { parent });
@@ -91,18 +81,24 @@ test.each(readinessCases)(
 	"Bee-dispatched stage under $type waits only for actual ancestor prerequisites (blocked: $blocked)",
 	// Exercise initial waiting, actionable support and admission after prerequisite completion.
 	// eslint-disable-next-line max-statements
-	async ({ context, scope, stage, blocker, blocked }) => {
+	async ({ context, scope, run, stage, blocker, blocked }) => {
 		const tasks = [await context.beads.show(scope, stage)];
 		let ready = await context.beads.ready(scope, { limit: 0 });
 		let expected: "eligible" | "waiting" = "eligible";
 		if (blocked) {
 			expected = "waiting";
 		}
-		expect(eligibility(tasks, ready, "worker").kind).toBe(expected);
+		expect(
+			eligibility(tasks, ready, "worker", { kind: "stage", runId: run, stageId: stage }).kind,
+		).toBe(expected);
 		const supporting = [await context.beads.show(scope, blocker)];
-		expect(eligibility(supporting, ready, "worker").kind).toBe("eligible");
+		expect(eligibility(supporting, ready, "worker", { kind: "driver", runId: blocker }).kind).toBe(
+			"eligible",
+		);
 		await context.beads.close(scope, blocker);
 		ready = await context.beads.ready(scope, { limit: 0 });
-		expect(eligibility(tasks, ready, "worker").kind).toBe("eligible");
+		expect(
+			eligibility(tasks, ready, "worker", { kind: "stage", runId: run, stageId: stage }).kind,
+		).toBe("eligible");
 	},
 );

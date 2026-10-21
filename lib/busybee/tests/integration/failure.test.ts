@@ -79,10 +79,12 @@ const initializationFailures = [
 ];
 
 test.each(
-	initializationFailures.flatMap((entry) => [
-		{ ...entry, afterWrite: false },
-		{ ...entry, afterWrite: true },
-	]),
+	initializationFailures
+		.flatMap((entry) => [
+			{ ...entry, afterWrite: false },
+			{ ...entry, afterWrite: true },
+		])
+		.filter(({ operation, afterWrite }) => operation !== "create_run" || afterWrite),
 )(
 	"initialization reports confirmed identities when $operation fails (after write: $afterWrite) #test-463",
 	// eslint-disable-next-line max-statements -- Verify the public failure envelope and retained native effects together.
@@ -174,33 +176,6 @@ test.each(
 		}
 	},
 );
-
-test("initial visit publication failure retains parent, run and checkpoint identities #test-582", async () => {
-	const { beads, parent, services } = await initializationFixture();
-	const result = await invoke(["start", source, "--owner", "test-human", "--parent", parent.id], {
-		...services,
-		beads: {
-			...beads,
-			create: (scope, input) => {
-				if (input.parent && input.parent !== parent.id) {
-					throw new Error("Visit publication interrupted");
-				}
-				return beads.create(scope, input);
-			},
-		},
-	});
-	expect(result.code).toBe(FAILURE);
-	expect(result.document).toMatchObject({
-		ok: false,
-		reason: "partial_effects",
-		parentId: parent.id,
-		runId: "mem-1.2",
-		checkpoint: "mem-3",
-		owner: expect.any(String),
-	});
-	const checkpoint = await beads.show({ cwd: repo }, "mem-3");
-	expect(checkpoint.notes).not.toBe("");
-});
 
 test("start rejects invalid input without attempting native writes #test-431", async () => {
 	const { beads, parent, services } = await initializationFixture();

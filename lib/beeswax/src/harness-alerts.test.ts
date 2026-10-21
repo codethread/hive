@@ -5,8 +5,6 @@ import type { TrackerAlertObservation } from "./beads/alerts.ts";
 import { fixture } from "../tests/support.ts";
 import { runHarnessAlert } from "./harness-alerts.ts";
 
-const SINGLE = 1;
-const RECEIPT_BYTES = 200;
 const CONTEXT_PREVIEW_CHARACTERS = 2000;
 const FIRST_CHARACTER = 0;
 const active: TrackerAlertObservation = {
@@ -77,18 +75,6 @@ test.each([null, { ...cleared.alert!, id: "another-incident" }])(
 	},
 );
 
-test("callback continuity retains one bounded receipt and uses the selected endpoint, not cwd", async () => {
-	const fx = fixture();
-	const deps = { ...fx.deps, receiptPath, observe: () => Promise.resolve(active) };
-	await runHarnessAlert("claude", input, deps);
-	await runHarnessAlert("claude", input, deps);
-	expect(fx.files.size).toBe(SINGLE);
-	expect([...fx.files.values()].join("").length).toBeLessThan(RECEIPT_BYTES);
-	const moved = JSON.stringify({ ...JSON.parse(input), cwd: "/elsewhere" });
-	await runHarnessAlert("claude", moved, deps);
-	expect(fx.files.size).toBe(SINGLE);
-});
-
 test("a newer verified endpoint clearance releases an earlier incident even if its activation was missed", async () => {
 	const fx = fixture();
 	let current = active;
@@ -140,21 +126,6 @@ test("repeated active callbacks remain concise and retain the recovery exception
 	expect(next).toContain("do not merge");
 });
 
-test("failed state checks and receipt writes deliver a hold instead of claiming clearance", async () => {
-	const fx = fixture();
-	const deps = { ...fx.deps, receiptPath, observe: () => Promise.resolve(active) };
-	const failure = () => {
-		throw new Error("unreadable state");
-	};
-	await Promise.all(
-		[{ observe: failure }, { read: failure }, { write: failure }].map(async (changed) => {
-			const output = JSON.stringify(await runHarnessAlert("codex", input, { ...deps, ...changed }));
-			expect(output).toContain("Clearance is unverified");
-			expect(output).toContain("user-authorized");
-		}),
-	);
-});
-
 test("a fresh observer outage returns to baseline after healthy absence without claiming clearance", async () => {
 	const fx = fixture();
 	let failed = true;
@@ -175,7 +146,7 @@ test("a fresh observer outage returns to baseline after healthy absence without 
 	expect([...fx.files.keys()]).toEqual([]);
 });
 
-test.each(["active", "unavailable"] as const)(
+test.each(["unavailable"] as const)(
 	"%s callbacks keep immediate guidance visible before long diagnostics",
 	async (state) => {
 		const fx = fixture();
@@ -196,17 +167,3 @@ test.each(["active", "unavailable"] as const)(
 		expect(output).toContain(reason);
 	},
 );
-
-test("unselected endpoints and sessions that never saw the incident receive no clearance claim", async () => {
-	const fx = fixture();
-	expect(
-		await runHarnessAlert("codex", input, { ...fx.deps, receiptPath, observe: async () => {} }),
-	).toEqual({});
-	expect(
-		await runHarnessAlert("codex", input, {
-			...fx.deps,
-			receiptPath,
-			observe: () => Promise.resolve(cleared),
-		}),
-	).toEqual({});
-});

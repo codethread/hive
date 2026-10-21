@@ -1,6 +1,6 @@
 # Busy Bee
 
-Read [SPEC](./SPEC.md) before changing projection, completion, checkpoint ownership or definition loading. For workflow definitions, follow the [authoring guide](../../docs/busybee-workflows.md). Keep user operations in [README](./README.md) and concrete command/response examples in [POV](./POV.md).
+Read [SPEC](./SPEC.md) before changing projection, completion, native outcomes, settlement, checkpoint ownership or definition loading. For workflow definitions, follow the [authoring guide](../../docs/busybee-workflows.md). Keep user operations in [README](./README.md) and concrete command/response examples in [POV](./POV.md).
 
 ## Implementation seams
 
@@ -22,6 +22,6 @@ Use [repository fixtures](./tests/integration/support.ts) for real authoring and
 
 The native discovery fixture selects live SQLite storage with automatic JSONL export/import disabled: it has no published tracker endpoint. Retained native checks cover repository tracker selection, schema discovery without a database and executable JSON errors; the memory failure check covers initial actor failure before task creation.
 
-Coordinate native races with promise barriers at the I/O boundary. Inject `Services.now` and `Services.sleep` for deadline behavior. Check land branching paths and briefs through the actual chart. Default tracker configuration, postwrite failed-owner quarantine and native continuation after checkout removal are parked checks in the [coverage record](../../docs/test-cases/busybee.md); consult their scenarios and restoration pointers when changing those boundaries. Scripted Bee results launch no model, and land tests perform no real landing.
+Coordinate native races with promise barriers at the I/O boundary. Inject `Services.now` and `Services.sleep` for deadline behavior. Check land branching paths and briefs through the actual chart. Default tracker configuration, postwrite failed-owner quarantine and native continuation after checkout removal are parked checks in the [coverage record](../../docs/test-cases/busybee.md). Consult its historical scenarios when changing those boundaries; the later [rejected lifecycle cohort](../../docs/test-cases/lifecycle-slow-test-removal.md) remains removed, not a restoration backlog. Scripted Bee results launch no model, and land tests perform no real landing.
 
 Use a real Bun executable on `PATH` for child processes; a version-manager shim may reject disposable repositories before the CLI runs. Test local-bin installation with `BUN_INSTALL` set to an isolated temporary prefix.

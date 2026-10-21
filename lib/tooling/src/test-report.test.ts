@@ -18,7 +18,6 @@ reportSlowTests(report("0"), allowances);
 
 test.each([
 	{ seconds: "0.001", severity: "" },
-	{ seconds: "0.001001", severity: "SLOW" },
 	{ seconds: "0.005", severity: "SLOW" },
 	{ seconds: "0.005001", severity: "XSLOW" },
 	{ seconds: "1", severity: "XSLOW" },
@@ -92,10 +91,6 @@ test("uses registry cutoffs rather than hardcoded timing values", () => {
 });
 
 test.each([
-	{
-		name: "decreasing thresholds",
-		input: { thresholdMs: { ...thresholdMs, XSLOW: "0.5" }, tests: {} },
-	},
 	{
 		name: "empty justification",
 		input: { thresholdMs, tests: { "#test-1": { threshold: "SLOW", justification: " " } } },

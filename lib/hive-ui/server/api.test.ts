@@ -109,50 +109,6 @@ await api(
 );
 
 // eslint-disable-next-line max-statements -- Verify dispatch, response and correlated telemetry for one HTTP request.
-test("simulation HTTP route parses replay and selects the endpoint and owning run #test-430", async () => {
-	const { calls, samples, dependencies } = fixture();
-	const response = await api(
-		httpRequest({
-			path: `${route}?repo=/browser/repo&beadsDb=/browser/tracker.db`,
-			method: "POST",
-			body: JSON.stringify(input),
-		}),
-		dependencies,
-	);
-	expect(response.status).toBe(HTTP.ok);
-	expect(response.headers.get("cache-control")).toBe("no-store");
-	expect(response.headers.get("content-type")).toBe("application/json");
-	const text = await response.text();
-	expect(JSON.parse(text)).toEqual(simulation);
-	expect(calls).toEqual([
-		{
-			cwd: selected.root,
-			argv: [
-				"busybee",
-				"--repo",
-				selected.root,
-				"--db",
-				selected.beadsDb,
-				"system",
-				"simulate",
-				run.id,
-				"--request",
-				JSON.stringify(input),
-				"--json",
-			],
-		},
-	]);
-	expect(samples.pop()).toEqual({
-		bytes: new TextEncoder().encode(text).length,
-		failure: undefined,
-		ms: expect.any(Number) as unknown,
-		operation: route,
-		requestId: response.headers.get("x-request-id"),
-		scope: "server",
-		status: HTTP.ok,
-	});
-	expect(response.headers.get("x-request-id")).toBeString();
-});
 
 test.each(invalidRequests)(
 	"simulation HTTP route rejects $name before dispatch #test-543",

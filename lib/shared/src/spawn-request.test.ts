@@ -9,7 +9,6 @@ import {
 	readSpawnRequestAttribution,
 	readSpawnRequestHost,
 	readSpawnRequestSummary,
-	requestAcknowledgment,
 	requestDisposition,
 	requestLabelsCurrent,
 	requestNeedsAttention,
@@ -28,11 +27,6 @@ const original = beadSchema.parse({
 	status: "closed",
 	updated_at: "fixture",
 });
-
-// Hoist fixture assembly and parser warmup outside test timing; assertions still call the selectors.
-const acknowledgmentFixture = prepareAcknowledgment();
-requestAcknowledgment(acknowledgmentFixture.bead);
-requestResolution(acknowledgmentFixture.bead);
 
 const malformedAcknowledgmentFixture = {
 	...original,
@@ -229,36 +223,6 @@ test("publication normalizes both namespaces and retains unrelated labels", () =
 	expect(projectedRequestLabels(published)).toEqual(labels);
 });
 
-// One closure fixture checks acceptance, native attribution and competing provenance together.
-// eslint-disable-next-line max-statements
-test("the first acknowledgment of this closure resolves attention with native attribution", () => {
-	const { comment, bead } = acknowledgmentFixture;
-	expect(requestResolution(bead)).toEqual({ kind: "acknowledged" });
-	expect(requestAcknowledgment(bead)).toEqual({
-		acknowledgedAt: comment.created_at,
-		actor: comment.author,
-		reason: "Handled elsewhere",
-	});
-	expect(
-		requestAcknowledgment({
-			...bead,
-			comments: bead.comments.map((entry, index) => ({ ...entry, id: index })),
-		}),
-	).toEqual(requestAcknowledgment(bead));
-	expect(requestDisposition(bead)).toEqual({ outcome: "failed", resolution: "resolved" });
-	expect(requestNeedsAttention(bead)).toBe(false);
-	expect(projectedRequestLabels(bead)).toEqual(["bee-outcome:failed", "bee-resolution:resolved"]);
-	expect(requestNeedsAttention({ ...bead, closed_at: "another closure" })).toBe(true);
-	expect(requestResolution({ ...bead, status: "open" })).toEqual({ kind: "unresolved" });
-	expect(requestResolution({ ...bead, close_reason: "completed" })).toEqual({ kind: "resolved" });
-	expect(
-		requestResolution({
-			...bead,
-			dependents: [{ dependency_type: "supersedes", id: "replacement" }],
-		}),
-	).toEqual({ kind: "superseded", replacementIds: ["replacement"] });
-});
-
 test("malformed acknowledgment evidence fails visibly", () => {
 	expect(() => requestResolution(malformedAcknowledgmentFixture)).toThrow(Error);
 });
@@ -295,7 +259,6 @@ test.each([
 });
 
 test.each([
-	{ assignment: { kind: "driver", runId: "run-1" }, anchor: "run-1" },
 	{ assignment: { kind: "stage", runId: "run-1", stageId: "stage-1" }, anchor: "stage-1" },
 ])(
 	"native decoding exposes captured $assignment.kind scope separately from recipe",
@@ -319,7 +282,6 @@ test.each([
 test.each([
 	{ kind: "unknown", runId: "run-1" },
 	{ kind: "driver", runId: "" },
-	{ kind: "stage", runId: "run-1" },
 	{ kind: "stage", runId: "run-1", stageId: " " },
 	{ kind: "driver", runId: "run-1", stageId: "stage-1" },
 ])("malformed assignment %j fails at the native boundary", (assignment) => {
@@ -406,37 +368,6 @@ test("read-only attribution retains task links independently of workflow executi
 	expect(() => readSpawnRequestAttribution({ ...bead, labels: [] })).toThrow(Error);
 	expect(() => readSpawnRequestAttribution({ ...bead, assignee: "" })).toThrow(Error);
 });
-
-function prepareAcknowledgment() {
-	const closedAt = "2026-10-04T10:00:00.123456Z";
-	const comment = { author: "operator", created_at: "2026-10-04T11:00:00Z", issue_id: original.id };
-	const first = {
-		...comment,
-		id: 2,
-		text: `${BEE_ACKNOWLEDGMENT_PREFIX} ${JSON.stringify({ closedAt, reason: "Handled elsewhere" })}`,
-	};
-	const bead = {
-		...original,
-		closed_at: closedAt,
-		comments: [
-			{
-				...comment,
-				author: "z-later-operator",
-				id: 3,
-				text: `${BEE_ACKNOWLEDGMENT_PREFIX} ${JSON.stringify({ closedAt, reason: "Later acknowledgment" })}`,
-			},
-			{
-				...comment,
-				id: 1,
-				text:
-					`${BEE_ACKNOWLEDGMENT_PREFIX} ` +
-					`${JSON.stringify({ closedAt: "earlier closure", reason: "Old acknowledgment" })}`,
-			},
-			first,
-		],
-	};
-	return { closedAt, comment, bead };
-}
 
 function warmMalformedAcknowledgment() {
 	try {

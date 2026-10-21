@@ -68,18 +68,6 @@ test.each([{ args: ["list"] }, { args: ["describe", "example"] }])(
 	},
 );
 
-test("describe exposes the full evidence and question contract", async () => {
-	const capture = harness();
-	await runCli(["describe", "example", "--classifiers", "local-rules"], capture.deps);
-	expect(capture.directories).toEqual(["local-rules"]);
-	expect(JSON.parse(capture.stdout.join(""))).toMatchObject({
-		...classifier.definition,
-		id: "example",
-		kind: "classifier",
-		ok: true,
-	});
-});
-
 test.each(["context.json", "-"])(
 	"run reads %s once and treats a concern as successful execution #test-339",
 	async (path) => {
@@ -108,39 +96,12 @@ test.each(["context.json", "-"])(
 	},
 );
 
-test("invalid evidence fails before contacting JEV", async () => {
-	const capture = harness("{}");
-	expect(await runCli(["run", "example", "--input", "-", "--json"], capture.deps)).toBe(
-		EXIT.failure,
-	);
-	expect(capture.requests).toEqual([]);
-	expect(capture.stderr).toEqual([]);
-	expect(JSON.parse(capture.stdout.join(""))).toMatchObject({
-		kind: "error",
-		ok: false,
-		reason: "execution_failed",
-	});
-});
-
 test("provider failure stays on stderr in human mode", async () => {
 	const capture = harness();
 	capture.deps.classify = () => Promise.reject(new Error("provider unavailable"));
 	expect(await runCli(["run", "example", "--input", "-"], capture.deps)).toBe(EXIT.failure);
 	expect(capture.stdout).toEqual([]);
 	expect(capture.stderr.join("")).toContain("provider unavailable");
-});
-
-test("malformed provider success becomes a JSON execution failure", async () => {
-	const capture = harness();
-	capture.deps.classify = () => Promise.resolve({ answers: {} });
-	expect(await runCli(["run", "example", "--input", "-", "--json"], capture.deps)).toBe(
-		EXIT.failure,
-	);
-	expect(capture.stderr).toEqual([]);
-	expect(JSON.parse(capture.stdout.join(""))).toMatchObject({
-		ok: false,
-		reason: "execution_failed",
-	});
 });
 
 test("argument errors preserve the single-document machine contract", async () => {

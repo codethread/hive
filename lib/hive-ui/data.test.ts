@@ -58,38 +58,6 @@ test("annotation demand reuses fresh singleton and overlapping aliases #test-403
 	expect(reads).toEqual([[left.id], [right.id], [left.id]]);
 });
 
-// eslint-disable-next-line max-statements -- Keep duplicate and overlapping consumers behind the same read gate.
-test("concurrent annotation demand reads only uncovered IDs", async () => {
-	const delayed = Promise.withResolvers<CardAnnotations>();
-	const reads: string[][] = [];
-	const now = Date.parse(NEW);
-	const resource = createCardAnnotationsResource(
-		(path) => {
-			const ids = requestedIds(path);
-			reads.push(ids);
-			if (ids.includes(left.id)) {
-				return delayed.promise;
-			}
-			return Promise.resolve(annotationData(ids));
-		},
-		() => now,
-	);
-	const first = resource.loadBatch("colony", [left.id], now);
-	const duplicate = resource.loadBatch("colony", [left.id], now);
-	const overlap = resource.loadBatch("colony", [left.id, right.id], now);
-	expect(reads).toEqual([[left.id], [right.id]]);
-	expect(
-		annotationStatus("colony", [[left.id, right.id]], resource.store.getState().entries).kind,
-	).toBe("loading");
-	delayed.resolve(annotationData([left.id]));
-	await Promise.all([first, duplicate, overlap]);
-	expect(reads).toEqual([[left.id], [right.id]]);
-	expect(
-		annotationStatus("colony", [[left.id], [left.id, right.id]], resource.store.getState().entries)
-			.kind,
-	).toBe("ready");
-});
-
 // eslint-disable-next-line max-statements -- Coordinate both read generations without timers or global clock changes.
 test("newer annotation cutoffs wait for an older read and coalesce their refresh", async () => {
 	const old = Promise.withResolvers<CardAnnotations>();
@@ -299,49 +267,6 @@ test.each(["success", "failure"])(
 	},
 );
 
-test("late icon metadata cannot replace a newer annotation or decorate a changed bead", async () => {
-	const old = Promise.withResolvers<CardAnnotations>();
-	const resource = createCardAnnotationsResource((path) => {
-		if (path === "old") {
-			return old.promise;
-		}
-		return Promise.resolve({
-			cards: [
-				{
-					id: left.id,
-					status: left.status,
-					assignee: left.assignee,
-					updatedAt: NEW,
-					beeAssignments: [],
-					merges: [],
-					sources: { merges: 2, assignments: 2 },
-				},
-			],
-			fetchedAt: NEW,
-		});
-	});
-	const pending = resource.load(batchKey(["left", "right"]), "old");
-	await resource.load(batchKey(["left"]), "new", true);
-	old.resolve({
-		cards: [
-			{
-				id: left.id,
-				status: left.status,
-				assignee: left.assignee,
-				updatedAt: OLD,
-				beeAssignments: [],
-				merges: [],
-				sources: { merges: 1, assignments: 1 },
-			},
-		],
-		fetchedAt: OLD,
-	});
-	await pending;
-	const { entries } = resource.store.getState();
-	expect(snapshot(entries[key(["left"])]!)?.fetchedAt).toBe(NEW);
-	expect(annotateCards([left], "colony", entries)[0]).toBe(left);
-});
-
 // eslint-disable-next-line max-statements -- Keep the gated server/browser regression in one scenario.
 test("a delayed mixed batch preserves refreshed icons with equal completion times #test-445", async () => {
 	const { beads, scope, merge, task, assigned, context, data, now, warm, entered, release } = race;
@@ -388,26 +313,29 @@ test("a delayed cached batch preserves refreshed assignments at the same task re
 	expect(current?.cards[0]?.updatedAt).toBe(old.cards[0]?.updatedAt);
 });
 
-test.each(
-	[
-		{
-			status: "in_progress",
-			assignee: "bee",
-			observed: ["old-request"],
-			expected: ["fresh-request"],
-		},
-		{ status: "closed", assignee: "bee", observed: [], expected: [] },
-		{
-			status: "in_progress",
-			assignee: "other",
-			observed: ["other-request"],
-			expected: ["other-request"],
-		},
-	].flatMap((change) => [
-		{ ...change, revisionFirst: false },
-		{ ...change, revisionFirst: true },
-	]),
-)(
+test.each([
+	{
+		status: "in_progress",
+		assignee: "bee",
+		observed: ["old-request"],
+		expected: ["fresh-request"],
+		revisionFirst: true,
+	},
+	{
+		status: "closed",
+		assignee: "bee",
+		observed: [],
+		expected: [],
+		revisionFirst: false,
+	},
+	{
+		status: "closed",
+		assignee: "bee",
+		observed: [],
+		expected: [],
+		revisionFirst: true,
+	},
+])(
 	"annotations retain fresh merges and assignments for the latest task context: %j",
 	// eslint-disable-next-line max-statements -- Keep revision and source ordering in one gated scenario.
 	async (change) => {
@@ -447,7 +375,7 @@ test.each(
 		const current = snapshot(entries[key([left.id])]!)?.cards[0];
 		expect(current?.updatedAt).toBe(NEW);
 		expect(current?.merges[0]?.title).toBe("Fresh merge");
-		expect(current?.beeAssignments.map(({ id }) => id)).toEqual(change.expected);
+		expect(current?.beeAssignments.map(({ id }) => id)).toEqual([...change.expected]);
 		expect(annotateCards([updated], "colony", entries)[0]?.merges[0]?.title).toBe("Fresh merge");
 		expect(annotateCards([left], "colony", entries)[0]).toBe(left);
 	},

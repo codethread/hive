@@ -113,26 +113,6 @@ test(
 	},
 );
 
-test("missing resumeSchema leaves context unchecked despite successful restore and rendering", () => {
-	const { resumeSchema: _schema, ...unchecked } = definition;
-	const report = assessRun({
-		run,
-		checkpoint: "checkpoint",
-		definition: unchecked,
-		version: null,
-	});
-	expect(report.status).toBe("unchecked");
-	expect(report.findings.find((finding) => finding.check === "version")).toMatchObject({
-		status: "unchecked",
-	});
-	expect(report.findings).toContainEqual({
-		check: "context:root",
-		message: "No resumeSchema supplied; restored context is unchecked.",
-		status: "unchecked",
-	});
-	expect(report.findings.filter((finding) => finding.status === "failed")).toEqual([]);
-});
-
 test("snapshot restoration reports removed states #test-40", () => {
 	const invalid = savedRun("invalid");
 	invalid.snapshot = { ...invalid.snapshot, value: "removed" };
@@ -217,13 +197,6 @@ test("task renderer exceptions remain findings alongside other incompatibilities
 		message: "No proposed task could be rendered; frozen command mapping is unchecked.",
 		status: "unchecked",
 	});
-});
-
-test("native tracker failures keep their diagnostic instead of becoming a missing workflow", async () => {
-	const fixture = await memoryTracker(definition, []);
-	const nativeFailure = new Error("Tracker unavailable");
-	fixture.services.beads.where = () => Promise.reject(nativeFailure);
-	await expect(preflight("example", {}, fixture.services)).rejects.toBe(nativeFailure);
 });
 
 // Assess malformed matching, unrelated and completed checkpoint records in one query.

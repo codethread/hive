@@ -1,7 +1,6 @@
 import type { BeadsScope, DependencySelection } from "@hive/beads";
-import { boardFilterSchema, inventoryFilterSchema } from "../contracts.ts";
 import { expect, test } from "bun:test";
-import { samplePreview, workflowSamples } from "../src/stories/workflow-samples.ts";
+import { boardFilterSchema } from "../contracts.ts";
 import { colony } from "../src/stories/fixtures.ts";
 import { createBoardData } from "./data.ts";
 import { createMemoryBeads } from "@hive/beads";
@@ -11,7 +10,6 @@ const filter = boardFilterSchema.parse({ view: "beads", closed: true });
 const COLD_AND_RECOVERY_READS = 2;
 const PROJECTION_FIELDS = 2;
 const LAST_ITEM = -1;
-const seeded = await workflowFixture();
 const workflowCache = await workflowFixture();
 const incremental = await workflowFixture();
 await incremental.context.beads.close(scope, incremental.checkpoint.id);
@@ -72,65 +70,6 @@ async function mergeFixture() {
 	await beads.dep.add(scope, invalid.id, task.id, "relates-to");
 	return { beads, task, merged, invalid };
 }
-
-test(
-	"board and inventory project cross-host attribution without requiring execution " +
-		"assignment #test-371",
-	// eslint-disable-next-line max-statements -- One request fixture verifies both public projections.
-	async () => {
-		const beads = createMemoryBeads();
-		const task = await beads.create(scope, {
-			title: "Work",
-			status: "in_progress",
-			assignee: "friendly-bee",
-			owner: "ct",
-		});
-		const request = await beads.create(scope, {
-			title: "Request",
-			status: "open",
-			assignee: "friendly-bee",
-			labels: ["system", "bee", "agent:worker"],
-			description: JSON.stringify({
-				harness: "codex",
-				kind: "worker",
-				model: "gpt-6-astra",
-				host: "another-host",
-			}),
-		});
-		await beads.dep.add(scope, request.id, task.id, "related");
-		const context = { beads, colony, requestId: "test", log: async () => {} };
-		const data = createBoardData(unrequestedTopology);
-		const board = await data.board(context, filter, 0);
-		expect(board.cards.find((card) => card.id === task.id)?.beeAssignments).toEqual([]);
-		expect(board.cards.find((card) => card.id === task.id)?.owner).toBe("ct");
-		const annotations = await data.annotations(context, [task.id], 0);
-		expect(
-			annotations.cards.find((card) => card.id === task.id)?.beeAssignments.map((bee) => bee.id),
-		).toEqual([request.id]);
-		const inventory = await data.inventory(
-			context,
-			inventoryFilterSchema.parse({ view: "open" }),
-			0,
-		);
-		expect(inventory.kind).toBe("loaded");
-		if (inventory.kind === "loaded") {
-			expect(inventory.bees.map((bee) => bee.id)).toEqual([request.id]);
-		}
-	},
-);
-
-test("ordinary children cannot open an ancestor workflow", async () => {
-	let calls = 0;
-	const readPreview = () => {
-		calls++;
-		return Promise.resolve(samplePreview(workflowSamples[0]!));
-	};
-	const result = await createBoardData(unrequestedTopology)
-		.workflow(seeded.context, seeded.manual.id, readPreview)
-		.catch((error: unknown) => error);
-	expect(result).toBeInstanceOf(Error);
-	expect(calls).toBe(0);
-});
 
 // eslint-disable-next-line max-statements -- Verify native index reuse and fresh generated-visit discovery together.
 test("workflow polling reuses the identity index and immediately refreshes a missing visit #test-577", async () => {

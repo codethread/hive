@@ -56,4 +56,6 @@ In Bee execution, follow `bee finish --help` after completing your assigned run 
 
 Inspect confirmed effects and retained IDs after any command failure; a failed response can follow partial publication. For closure refusal or interrupted completion, follow `complete --help` before retrying. If collection reports missing or invalid saved data, recover the original outcome from evidence before resubmission.
 
+For explicitly authorized failure or cancellation of pending generated work, read `busybee settle --help`. Settlement is separate from successful completion and source acceptance; a request to resume work does not authorize retirement.
+
 For definition restoration failures, read [saved-run compatibility](../workflow-authoring/SKILL.md#evolve-existing-runs) with `busybee skills get workflow-authoring`. Retain run/task/evidence references and follow the task's recovery authorization; retrying does not authorize a duplicate run. A missing saved name needs the caller's workflow choice. Checkpoint locks retained after uncertain writes require inspection and explicit recovery; never steal them or force-close unfinished work.

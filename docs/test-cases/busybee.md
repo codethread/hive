@@ -1,6 +1,8 @@
 # Parked Busy Bee test cases
 
-These are removed executable checks, recorded for reconsideration rather than a new behavior contract. Remaining tests may cover portions. The 45 removed original cases measured over 1000ms; faster siblings and the unmeasured repository-default tracker-selection row remain.
+These are removed executable checks, recorded for reconsideration rather than a new behavior contract. Remaining tests may cover portions. This historical cohort removed 45 original cases measured over 1000ms, retaining faster siblings and the unmeasured repository-default tracker-selection row at that revision.
+
+The later [authorized lifecycle removal](./lifecycle-slow-test-removal.md) is a separate 65-ID / 131-case historical cohort with a current-main identity remap. It includes fast cases and overrides restoration guidance here where declarations overlap. Neither record claims equivalent remaining coverage or creates a substitute manual acceptance gate.
 
 Historical delivery wording below is not a new response contract. The current [response protocol](../agents/responses.md) keeps authored answers separate from saved `{choice,data}` outcomes and concise verification comments. Current [driver tests](../../lib/busybee/tests/integration/driver.test.ts) exercise response targeting and collection without treating response artifacts as workflow children.
 

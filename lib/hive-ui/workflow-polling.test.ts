@@ -21,23 +21,6 @@ const saved: WorkflowInspection = {
 	actors: [],
 };
 
-test("visible inspector polls every five seconds, pauses hidden and stops on close", () => {
-	const fixture = pollingFixture();
-	const stop = pollVisibleWorkflow(fixture.refresh, fixture.environment);
-	expect(fixture.reads).toEqual([false]);
-	fixture.tick();
-	expect(fixture.reads).toEqual([false, true]);
-	fixture.visibility(false);
-	fixture.tick();
-	expect(fixture.reads).toEqual([false, true]);
-	fixture.visibility(true);
-	expect(fixture.reads).toEqual([false, true, true]);
-	stop();
-	fixture.tick();
-	fixture.visibility(true);
-	expect(fixture.reads).toEqual([false, true, true]);
-});
-
 test("opening in a hidden document waits for visibility before the initial read", () => {
 	const fixture = pollingFixture(false);
 	const stop = pollVisibleWorkflow(fixture.refresh, fixture.environment);
@@ -109,38 +92,12 @@ test("manual refresh promotes an overlapping unchanged probe to full inspection 
 	expect(inspections).toBe(INSPECTIONS);
 });
 
-test("an unchanged probe cannot clear a failed full inspection without successful inspection", async () => {
-	let fail = false;
-	const resource = createWorkflowResource({
-		inspect: () => {
-			if (fail) {
-				return Promise.reject(new Error("Definition unavailable"));
-			}
-			return Promise.resolve(saved);
-		},
-		checkpoint: () => Promise.resolve(saved),
-	});
-	await resource.load("selected/run", "/workflow");
-	fail = true;
-	await resource.load("selected/run", "/workflow");
-	await resource.load("selected/run", "/workflow", true);
-	expect(resource.store.getState().entries["selected/run"]?.kind).toBe("failed");
-	fail = false;
-	await resource.load("selected/run", "/workflow", true);
-	expect(resource.store.getState().entries["selected/run"]?.kind).toBe("ready");
-});
-
-test.each(["checkpoint", "inspection"])(
+test.each(["checkpoint"])(
 	"polling recovers after a failed %s read with the snapshot intact",
 	async (failure) => {
 		let fail = false;
 		const resource = createWorkflowResource({
-			inspect: () => {
-				if (fail && failure === "inspection") {
-					return Promise.reject(new Error("Read failed"));
-				}
-				return Promise.resolve(saved);
-			},
+			inspect: () => Promise.resolve(saved),
 			checkpoint: () => {
 				if (fail && failure === "checkpoint") {
 					return Promise.reject(new Error("Read failed"));

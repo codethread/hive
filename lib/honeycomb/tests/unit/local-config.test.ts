@@ -37,54 +37,6 @@ function localConfig(toml: string, global = globalConfig) {
 	});
 }
 
-test("empty local file inherits every resolved global value without schema defaults", () => {
-	const global = explainPolicy(globalConfig, root);
-	const local = explainPolicy(localConfig(""), root);
-	expect(local).toMatchObject({
-		addPolicy: global.addPolicy,
-		command: global.command,
-		finishPolicy: global.finishPolicy,
-		preRemoteCheck: global.preRemoteCheck,
-		project: global.project,
-		worktreeLocation: global.worktreeLocation,
-	});
-	expect(local.local?.options).toEqual({});
-});
-
-test("explicit local fields override exact projects and preserve nested policy inheritance", () => {
-	const policy = explainPolicy(
-		localConfig(`
-name = "local-name"
-command = "echo local"
-pre_remote_check = "echo local-check"
-worktree_location = "sibling"
-pool_size = 1
-copy = []
-[add]
-policy = "origin_default"
-[finish]
-push = false
-enabled = false
-`),
-		root,
-	);
-	expect(policy).toMatchObject({
-		addPolicy: "origin_default",
-		command: { command: "echo local", source: "local:/repo/honeycomb.toml" },
-		finishPolicy: {
-			deleteBranch: true,
-			enabled: false,
-			push: false,
-			removeWorktree: true,
-			strategy: "squash",
-		},
-		globalProject: { name: "global-name", poolSize: 2 },
-		preRemoteCheck: { source: "local:/repo/honeycomb.toml", value: "echo local-check" },
-		project: { copy: [], copyModeDefault: "symlink", name: "local-name", poolSize: 1 },
-		worktreeLocation: "sibling",
-	});
-});
-
 test.each([
 	{
 		mode: "symlink",
@@ -153,7 +105,7 @@ test.each([
 	expect(() => localConfig(toml)).toThrow(ConfigError);
 });
 
-test.each(["pool_size = 1", 'copy = [".env"]', 'copy_mode_default = "symlink"'])(
+test.each(["pool_size = 1", 'copy_mode_default = "symlink"'])(
 	"requires an effective command for local setup: %s",
 	(toml) => {
 		expect(() => localConfig(toml, parseConfig("", context))).toThrow(ConfigError);

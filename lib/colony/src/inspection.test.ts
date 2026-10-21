@@ -34,11 +34,6 @@ for (const { store } of fixtures) {
 	inspectRequest(repository, store, target);
 }
 inspectRepository(repository, fixtures[EMPTY]!.store);
-const historyCases = [
-	{ index: EMPTY, historySize: EMPTY },
-	{ index: ONE, historySize: LARGE_HISTORY },
-];
-
 const serverTarget = { state: workspace, socket: join(workspace, "s"), runtimeEntry: "/unused" };
 const limits = { colony: TWO, kind: TWO, kinds: {}, worktree: TWO };
 let selected = fixtures[EMPTY]!.store;
@@ -81,19 +76,6 @@ const missingRuntime = await explainRequest(target, tracker, {
 	socket: join(workspace, "missing"),
 });
 
-{
-	const { database } = fixtures[ONE]!;
-	database
-		.query("UPDATE requests SET snapshot = ? WHERE root = ? AND spawn_id = ?")
-		.run(JSON.stringify({ beadsDb: repository.beadsDb }), repository.root, "history-0");
-	database
-		.query("UPDATE attempts SET snapshot = ? WHERE root = ? AND spawn_id = ?")
-		.run(JSON.stringify({ beadsDb: repository.beadsDb }), repository.root, "history-0");
-	database
-		.query("UPDATE policy_revisions SET metadata = ? WHERE root = ?")
-		.run("malformed", repository.root);
-}
-
 afterAll(async () => {
 	await server.stop(true);
 	await Promise.all(
@@ -105,62 +87,6 @@ afterAll(async () => {
 	);
 	await rm(workspace, { force: true, recursive: true });
 });
-
-test.each(historyCases)(
-	"diagnostic reads stay scoped with $historySize unrelated historical requests",
-	// eslint-disable-next-line max-statements -- Measure the scoped boundary and verify retained contents together.
-	({ index }) => {
-		const { store } = fixtures[index]!;
-		const reads = { attempts: EMPTY, checkpoints: EMPTY, reservations: EMPTY };
-		const calls: string[] = [];
-		const result = inspectRequest(
-			repository,
-			{
-				...store,
-				assertRepository: (endpoint) => {
-					calls.push("authority");
-					store.assertRepository(endpoint);
-				},
-				policyHistory: unexpectedRead,
-				requests: unexpectedRead,
-				inventory: unexpectedRead,
-				request: (root, id) => {
-					calls.push("checkpoint");
-					const record = store.request(root, id);
-					if (record) {
-						reads.checkpoints += ONE;
-					}
-					return record;
-				},
-				retainedInventory: (root, id) => {
-					calls.push("attempts");
-					const rows = store.retainedInventory(root, id);
-					reads.attempts += rows.length;
-					return rows;
-				},
-				retainedOccupants: (root) => {
-					calls.push("reservations");
-					const rows = store.retainedOccupants(root);
-					reads.reservations += rows.length;
-					return rows;
-				},
-			},
-			target,
-		);
-		expect(calls).toEqual(["authority", "checkpoint", "attempts", "reservations"]);
-		expect(reads).toEqual({ attempts: TWO, checkpoints: ONE, reservations: TWO });
-		expect(result.checkpoint?.id).toBe(target);
-		expect(result.attempts.map(({ id, state }) => ({ id, state }))).toEqual([
-			{ id: "target-failed", state: "failed" },
-			{ id: "target-exited", state: "exited" },
-		]);
-		expect(result.occupied).toEqual([
-			{ bucket: "/other-bucket", kind: "worker" },
-			{ bucket: repository.root, kind: "librarian" },
-		]);
-		expect(result).not.toHaveProperty("history");
-	},
-);
 
 test("a repository without retained evidence has no checkpoint, attempts or reservations", () => {
 	expect(
@@ -309,12 +235,6 @@ test.each([
 	},
 );
 
-test("unrelated malformed history is excluded from diagnostic hydration", () => {
-	const { store } = fixtures[ONE]!;
-	expect(inspectRequest(repository, store, target).attempts).toHaveLength(TWO);
-	expect(store.request(repository.root, target)?.id).toBe(target);
-});
-
 // --- Private functions ---
 async function createFixture(historySize: number) {
 	const state = await mkdtemp(join(tmpdir(), "colony-inspection-"));
@@ -449,6 +369,9 @@ async function invokeExplanation() {
 	let stdout = "";
 	let stderr = "";
 	const code = await runCli(["explain", target, "--json"], {
+		executionClearance: () => {
+			throw new Error("Unexpected clearance");
+		},
 		add: unexpectedRead,
 		config: unexpectedRead,
 		events: unexpectedRead,

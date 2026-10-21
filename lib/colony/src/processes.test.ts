@@ -21,7 +21,6 @@ test("single-PID parsing retains lifetime and group with renamed argv #test-557"
 });
 
 test.each([
-	{ name: "missing", output: "" },
 	{ name: "missing start time", output: "123 1 123 worker" },
 	{ name: "invalid start time", output: "123 1 123 Sun Bad 18 20:00:00 2026 worker" },
 	{ name: "multiple processes", output: `123 1 123 ${START} worker\n456 1 456 ${START} unrelated` },

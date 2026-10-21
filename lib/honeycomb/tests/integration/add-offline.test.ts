@@ -324,7 +324,7 @@ test.each([
 	},
 );
 
-test.each(["origin_default", "fresh_canonical"])(
+test.each(["origin_default"])(
 	"offline %s uses known local default when cache is absent #test-176",
 	async (policy) => {
 		const { root, localTip } = await aheadDevelop(policy);

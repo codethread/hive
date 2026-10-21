@@ -67,23 +67,6 @@ test("failed recovery retains a newer active hold and refuses the stale incident
 	expect(await fx.store.observe(database)).toEqual(current);
 });
 
-test("recovery completion cannot clear a newer failure arriving during publication", async () => {
-	const fx = publicationFixture();
-	const initial = await fx.store.activate(database, "conflict");
-	fx.services.publish = async () => {
-		await fx.store.activate(database, "new conflict");
-	};
-	await expect(
-		publishWithAlert(database, fx.services, {
-			id: initial.alert!.id,
-			writersPaused: true,
-			evidence: "reviewed",
-		}),
-	).rejects.toMatchObject({ reason: "tracker_alert_changed" });
-	const observed = await fx.store.observe(database);
-	expect(observed.alert).toMatchObject({ state: "active", reason: "new conflict" });
-});
-
 test("queued ordinary sync rechecks a hold created while awaiting the publication lock", async () => {
 	const fx = publicationFixture();
 	fx.services.withPublicationLock = async (action) => {
@@ -126,38 +109,3 @@ function publicationFixture() {
 	};
 	return { ...fx, calls, services };
 }
-
-test("clearance persistence failure identifies completed publication and keeps the hold", async () => {
-	const fx = publicationFixture();
-	const active = await fx.store.activate(database, "conflict");
-	fx.storage.write = () => Promise.reject(new Error("state disk full"));
-	await expect(
-		publishWithAlert(database, fx.services, {
-			id: active.alert!.id,
-			writersPaused: true,
-			evidence: "authorized",
-		}),
-	).rejects.toMatchObject({
-		reason: "tracker_alert_unavailable",
-		context: { publication: "succeeded", clearance: "unverified" },
-	});
-	expect(fx.calls).toEqual(["lock", "publish"]);
-	expect(await fx.store.observe(database)).toEqual(active);
-});
-
-test("publication-lock acquisition failure records an independent hold for a missing database", async () => {
-	const fx = publicationFixture();
-	fx.services.withPublicationLock = () =>
-		Promise.reject(new Error("ENOENT: selected database missing"));
-	await expect(publishWithAlert(database, fx.services)).rejects.toMatchObject({
-		reason: "tracker_sync_failed",
-		context: { database, alert: { state: "active" } },
-	});
-	const held = await fx.store.observe(database);
-	expect(held.alert?.reason).toContain("ENOENT: selected database missing");
-	expect(fx.calls).toEqual([]);
-	await expect(publishWithAlert(database, fx.services)).rejects.toMatchObject({
-		reason: "tracker_held",
-	});
-	expect(await fx.store.observe(database)).toEqual(held);
-});

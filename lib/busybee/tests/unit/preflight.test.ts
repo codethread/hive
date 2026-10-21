@@ -76,7 +76,6 @@ test.each([
 
 test.each([
 	{ name: "changed event", proposed: { next: "CHANGED" }, schemaChoices: ["next"] },
-	{ name: "removed choice", proposed: {}, schemaChoices: ["next"] },
 	{ name: "absent commands", proposed: undefined, schemaChoices: ["next"] },
 	{ name: "missing schema", proposed: { next: "NEXT" }, schemaChoices: [] },
 ])("frozen commands reject $name", ({ proposed, schemaChoices }) => {

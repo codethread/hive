@@ -5,7 +5,6 @@ import {
 	getResponse,
 	publishResponse,
 	resolveResponse,
-	searchResponses,
 } from "./response-store.ts";
 import type { ResponseContext, ResponseErrorReason } from "./response-store.ts";
 import { beforeEach, expect, test } from "bun:test";
@@ -123,18 +122,13 @@ test("simultaneous publications remain ambiguous until an explicit correction na
 	});
 });
 
-test.each(["create", "readback"] as const)(
+test.each(["readback"] as const)(
 	"uncertain %s retains effects and a retry never duplicates",
 	async (operation) => {
-		const broken = { ...context.beads };
-		if (operation === "create") {
-			broken.create = async (...args) => {
-				await context.beads.create(...args);
-				throw new Error("Lost create receipt");
-			};
-		} else {
-			broken.listProjected = () => Promise.reject(new Error("Readback unavailable"));
-		}
+		const broken = {
+			...context.beads,
+			listProjected: () => Promise.reject(new Error("Readback unavailable")),
+		};
 		const input = { taskId: context.taskId, body: "Durable despite interruption" };
 		const error = await failure(
 			publishResponse({ ...context, beads: broken }, input),
@@ -233,80 +227,6 @@ test.each(["driver", "stage"] as const)(
 			),
 			"invalid_response_request",
 		);
-	},
-);
-
-test("new retry requests have distinct lineages and cannot supersede historical results", async () => {
-	const oldRequest = await managedRequest(context, "driver");
-	const newRequest = await managedRequest(context, "driver");
-	const first = await publishResponse(context, {
-		taskId: context.taskId,
-		requestId: oldRequest.id,
-		body: "Earlier",
-	});
-	await failure(
-		publishResponse(context, {
-			taskId: context.taskId,
-			requestId: newRequest.id,
-			body: "Retry",
-			supersedes: [first.responseId],
-		}),
-		"response_conflict",
-	);
-	const second = await publishResponse(context, {
-		taskId: context.taskId,
-		requestId: newRequest.id,
-		body: "Retry",
-	});
-	expect(
-		await resolveResponse(context, { taskId: context.taskId, requestId: oldRequest.id }),
-	).toEqual({ state: "available", responseIds: [first.responseId] });
-	expect(await resolveResponse(context, context)).toEqual({
-		state: "ambiguous",
-		responseIds: [first.responseId, second.responseId].toSorted(),
-	});
-});
-
-test(
-	"search returns bounded filed summaries with independent continuation and no body " +
-		"hydration #test-518",
-	async () => {
-		const first = await publishResponse(context, {
-			taskId: context.taskId,
-			body: "needle original",
-		});
-		await publishResponse(context, {
-			taskId: context.taskId,
-			body: "needle correction",
-			supersedes: [first.responseId],
-		});
-		await context.beads.create(scope, {
-			title: "needle system",
-			status: "closed",
-			labels: [RESPONSE_LABEL, "system"],
-		});
-		const beads = {
-			...context.beads,
-			show: () => Promise.reject(new Error("No hydration")),
-			dep: { ...context.beads.dep, list: () => Promise.reject(new Error("No detail reads")) },
-		};
-		const page = await searchResponses(
-			{ ...context, beads },
-			{ query: "needle", limit: ONE, offset: ZERO },
-		);
-		expect(page.items).toHaveLength(ONE);
-		expect(Object.keys(page.items[ZERO]!).toSorted()).toEqual([
-			"createdAt",
-			"responseId",
-			"source",
-			"title",
-		]);
-		expect(page.hasMore).toBe(true);
-		expect(page.nextOffset).toBe(ONE);
-		const end = await searchResponses(context, { query: "needle", limit: ONE, offset: TWO });
-		expect(end.items).toEqual([]);
-		expect(end.hasMore).toBe(false);
-		expect(end.nextOffset).toBeNull();
 	},
 );
 

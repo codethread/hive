@@ -16,6 +16,11 @@ import {
 	spawnRequestLabels,
 } from "@hive/shared";
 import type { TrackerCommands, TrackerContext } from "./tracker.ts";
+import {
+	assertWorkflowAdmission,
+	readWorkflowCompletion,
+	readWorkflowPublication,
+} from "./workflow-anchor.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Canonical config and submission cwd paths.
 import { join, resolve } from "node:path";
 /* eslint-disable-next-line import/no-nodejs-modules --
@@ -164,6 +169,29 @@ async function createRequest(
 	options: SpawnOptions,
 ): Promise<SpawnResult> {
 	const { assignment, kind, requestedIds, supersedes } = input;
+	const root = await beads.show(trackerScope(endpoint, options.actor), assignment.runId);
+	const publication = await readWorkflowPublication(
+		{ beads, repository: endpoint },
+		root,
+		options.actor,
+	);
+	if (
+		publication.exposure === "unmanaged" ||
+		(assignment.kind === "driver" && publication.locked)
+	) {
+		throw new Error(`Workflow ${assignment.runId} is not prepared for managed publication`);
+	}
+	assertWorkflowAdmission(
+		await beads.show(trackerScope(endpoint, options.actor), assignment.runId),
+	);
+	const completion = await readWorkflowCompletion(
+		{ beads, repository: endpoint },
+		assignment,
+		options.actor,
+	);
+	if (completion.kind === "terminal") {
+		throw new Error(completion.message);
+	}
 	const { config } = await loadBeesConfig(endpoint.root);
 	const ids = await admitTasks(
 		{ beads, repository: endpoint },

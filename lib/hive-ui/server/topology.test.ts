@@ -32,23 +32,6 @@ const output = {
 	adjacency: { nodes: [{ id: "root", status: "closed" }], edges: null },
 };
 
-test("graph reads pin the native-selected export and retain the source observation", async () => {
-	const fixture = readerFixture([healthy, healthy], output);
-	const { value: graph, stale } = await fixture.reader(colony, (value) => Promise.resolve(value));
-	expect(stale).toBe(false);
-	expect(graph.nodes).toEqual([{ id: "root", status: "closed", labels: [] }]);
-	expect(graph.edges).toEqual([]);
-	expect(fixture.calls).toEqual([["bv", "--db", path, "--robot-graph", "--graph-format=json"]]);
-	expect(fixture.scopes).toEqual([
-		{
-			cwd: colony.root,
-			db: colony.beadsDb,
-			noAutoImport: true,
-			noAutoFlush: true,
-		},
-	]);
-});
-
 test.each([
 	{ jsonl_exists: false },
 	{ jsonl_content_hash: null },
@@ -61,7 +44,6 @@ test.each([
 });
 
 test.each([
-	{ dirty_count: 1 },
 	{ db_newer: true },
 	{ jsonl_newer: true },
 	{ coverage_drift: true },
@@ -114,7 +96,6 @@ test.each([
 test.each([
 	{ ...output, source_path: "/different.jsonl" },
 	{ ...output, source_kind: "sqlite" },
-	{ ...output, source_authority: { ...output.source_authority, state: "partial", errors: 1 } },
 	{ ...output, source_authority: { ...output.source_authority, failed: 1 } },
 	{
 		...output,

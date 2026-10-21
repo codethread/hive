@@ -24,6 +24,7 @@ import {
 } from "./runtime.ts";
 import { importDefinition, validate } from "./definition.ts";
 import { listWorkflows, namedDefinition } from "./catalogue.ts";
+import { settle, settlementRequestSchema, settlementResultSchema } from "./settlement.ts";
 import {
 	workflowCheckpointSchema,
 	workflowInspectionSchema,
@@ -77,6 +78,7 @@ const navigationHelp = {
 			"Read br show RUN --json for caller completion instructions and br show TASK --json for the full " +
 			"native brief, acceptance, assignment, children, blockers and delivery/closure instructions. " +
 			"Use discover --json for outcome payload schemas. " +
+			"Status is saved chart state; native close_reason records workflow outcome. " +
 			"Performs no native writes, but restores, starts and stops a workflow actor. " +
 			"For saved diagrams/state without creating actors, use preview --help.",
 	},
@@ -86,6 +88,7 @@ const navigationHelp = {
 		details:
 			"\nWorkers use complete to save their outcomes and close their tasks; the driver collects them. " +
 			"Collection can advance both driver-handled and Bee-dispatched visits and publish new work. " +
+			"Failed/cancelled visits and stale outcome query labels fail explicitly. " +
 			"Busy Bee closes completed groups and reports status done when it closes the run. " +
 			"Requires --actor or BD_ACTOR; see busybee --help for global options.",
 	},
@@ -550,11 +553,14 @@ function registerNavigation(invocation: Invocation): void {
 				"Read discover RUN --json for CHOICE and its schema. Pass the original payload with " +
 				"--data JSON or --data-file FILE; omission supplies {}. Notes hold only {choice,data}; " +
 				"put narrative evidence in comments.\n" +
-				"Complete validates and saves the original JSON, finishes the checkpoint write and " +
-				"releases its lock, then attempts ordinary native closure with Beads acceptance and child gates. " +
-				"Closure refusal preserves the saved result. Inspect the task, resolve the refusal and retry " +
-				"with the same original choice and data. A matching retry can finish closure or acknowledge " +
-				"an already-closed stage, even after collection. Different or malformed saved results fail; " +
+				"Complete saves the original JSON and releases its result-write lock. A separate short " +
+				"close phase reacquires ownership, checks retirement, then closes with a succeeded fact " +
+				"through Beads acceptance and child gates. It releases that lock after the close attempt. " +
+				"Closure refusal preserves the saved result. Inspect the task and run; while both remain " +
+				"eligible, retry with the same original choice and data. A matching retry can finish " +
+				"closure or acknowledge a matching successful closure, even after collection. " +
+				"Outcome-label publication is separate from native closure; inspect reported effects " +
+				"before retrying a failure. Different or malformed saved results fail; " +
 				"a closed stage without saved evidence also fails.\n" +
 				"Supports driver-handled and Bee-dispatched visits. The driver separately runs collect RUN " +
 				"to advance. Use record-result --help when saving without closure. " +
@@ -581,6 +587,7 @@ function registerNavigation(invocation: Invocation): void {
 			writeResult(await recordResult({ id, bead, choice, data }, options(), services), invocation);
 		});
 	registerRunViews(invocation);
+	registerSettlement(invocation);
 	cli
 		.command("next <run> <task>")
 		.description("Submit outcome next for a closed driver-handled task; see choice --help")
@@ -601,6 +608,7 @@ function registerNavigation(invocation: Invocation): void {
 		.addHelpText(
 			"after",
 			"\nDirect submission requires a still-active driver-handled visit already natively closed. " +
+				"Failed/cancelled visits and stale outcome query labels fail explicitly. " +
 				"Read discover RUN --json for its choices and schemas; next is shorthand for choice next " +
 				"and may also require a payload. Use --data JSON or --data-file FILE; omission supplies {}.\n" +
 				"For ordinary completion, use complete, then let the driver collect. " +
@@ -614,6 +622,61 @@ function registerNavigation(invocation: Invocation): void {
 				invocation,
 			);
 		});
+}
+
+function registerSettlement(invocation: Invocation): void {
+	const { cli, services } = invocation;
+	cli
+		.command("settle [run] [operation]")
+		.description("Fail or cancel pending generated scope without changing completed work")
+		.option("--schema", "Read input and success schemas without tracker access")
+		.option("--reason <text>", "Required retirement explanation")
+		.addHelpText(
+			"after",
+			"\nUse settle RUN cancel|fail --reason TEXT. Requires --actor or BD_ACTOR. " +
+				"Read input and success schemas offline with settle --schema --json. " +
+				"Success reports runId, operation and closedIds.\n\n" +
+				"Retires only pending generated scope, closing visits/groups bottom-up and the run last. " +
+				"Preserves completed work, original results and closure facts. Refuses unfinished manual " +
+				"descendants, human/HITL or other-agent reservations and unsupported inventory; native " +
+				"acceptance and child gates still apply. It does not close source work or ancestors, " +
+				"stop processes, change the saved chart state or recover a held checkpoint lock.\n\n" +
+				"Explicit unmanaged checkpoint provenance plus complete native inventory agreement " +
+				"permits daemon-free settlement. Missing history or no open request alone is not proof. " +
+				"Managed/unknown exposure requires fresh clearance from the running owning-host Colony " +
+				"daemon registered for this repository/database. Use matching Busy Bee/Bee/Colony versions " +
+				"on one live database; concurrent tracker exchange is not fenced.\n\n" +
+				"Checkpoint ownership and run-note intent fence publication/admission. Partial effects " +
+				"retain those fences and confirmed/uncertain IDs; inspect the reported native records " +
+				"before explicit recovery. There is no automatic replay or unlock. Native close_reason " +
+				"is authoritative; outcome query-label publication can fail after closure.",
+		)
+		.action(
+			async (
+				id: string | undefined,
+				operation: string | undefined,
+				selection: { reason?: string; schema?: boolean },
+			) => {
+				invocation.kind = "workflow_settlement";
+				if (selection.schema) {
+					invocation.kind = "workflow_settlement_schema";
+					const successSchema = settlementResultSchema.extend({
+						ok: z.literal(true),
+						kind: z.literal("workflow_settlement"),
+					});
+					writeResult(
+						{
+							inputSchema: z.toJSONSchema(settlementRequestSchema),
+							schema: z.toJSONSchema(successSchema),
+						},
+						invocation,
+					);
+					return;
+				}
+				const request = settlementRequestSchema.parse({ id, operation, reason: selection.reason });
+				writeResult(await settle(request, cli.opts<CliOptions>(), services), invocation);
+			},
+		);
 }
 
 function registerRunViews(invocation: Invocation): void {

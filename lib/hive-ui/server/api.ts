@@ -5,11 +5,15 @@ import {
 	boardScopeSchema,
 	inventoryFilterSchema,
 } from "../contracts.ts";
+import {
+	nativeWorkflowState,
+	workflowOutcomeLabelsCurrent,
+	workflowSimulationRequestSchema,
+} from "@hive/shared";
 import type { BeadsService } from "@hive/beads";
 import type { Colony } from "../contracts.ts";
 import type { createBoardData } from "./data.ts";
 import type { createWorkflowTools } from "./workflow.ts";
-import { workflowSimulationRequestSchema } from "@hive/shared";
 import { z } from "zod";
 
 const HTTP = {
@@ -137,6 +141,21 @@ export async function api(
 		const scope = boardScopeSchema.parse(JSON.parse(url.searchParams.get("scope") ?? "{}"));
 		status = HTTP.ok;
 		if (route["operation"] === "workflow") {
+			if (!simulation && url.searchParams.get("outcomeOnly") === "true") {
+				return respond(
+					await data.workflow(context, id, async (endpoint, runId) => {
+						const run = await beads.show({ cwd: endpoint.root, db: endpoint.beadsDb }, runId);
+						const outcome = nativeWorkflowState(run, { runId, scope: "run" });
+						return {
+							runId,
+							nativeStatus: run.status,
+							updatedAt: run.updated_at,
+							outcome,
+							labelsCurrent: workflowOutcomeLabelsCurrent(run.labels, outcome),
+						};
+					}),
+				);
+			}
 			if (simulation) {
 				status = HTTP.badRequest;
 				const input = workflowSimulationRequestSchema.parse(await request.json());

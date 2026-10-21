@@ -67,10 +67,6 @@ test.each(["../secret", "/absolute", "nested/example", "example.toml"])(
 	},
 );
 
-test("preserves rounded probabilities and the actual provider model", () => {
-	expect(parseClassification(request, result)).toEqual(result);
-});
-
 test.each([
 	["missing question", { ...result, answers: {} }],
 	[

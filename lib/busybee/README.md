@@ -95,6 +95,7 @@ Use `busybee --help` for the command flow and global options, then focused help 
 | Run status, active visits and optional frozen instructions | `busybee show --help`         |
 | Outcome choices and payload schemas                        | `busybee discover --help`     |
 | Saved diagrams and state for active or completed runs      | `busybee preview --help`      |
+| Explicit failure or cancellation of pending generated work | `busybee settle --help`       |
 | Tooling inspection, simulation and Bee driver admission    | `busybee system --help`       |
 
 The [preview contract](./SPEC.md#saved-state-preview) distinguishes structural preview from tooling inspection with frozen briefs and rendered instruction previews. [Simulation](./SPEC.md#simulation) evaluates temporary outcomes without advancing the saved run; use `busybee system simulate --help` for requests and schema discovery. [Hive UI](../hive-ui/README.md#workflow-preview) presents both Saved and Simulate modes. The [authoring guide](../../docs/busybee-workflows.md) covers definitions and validation limits.
@@ -121,7 +122,7 @@ Both driver-handled and Bee-dispatched worker visits are workflow auto beads: Bu
 
 A definition can request a Bee kind for a task. Entering that task submits a Bee request immediately; an awake Colony executes it through the [Bee and Colony interface](../colony/README.md).
 
-The worker follows the [delegation and result flow](#delegate-a-workflow-to-bee). Closure means the work finished: a review result can still request changes.
+The worker follows the [delegation and result flow](#delegate-a-workflow-to-bee). Successful execution is separate from its choice: a completed review can still request changes.
 
 ## Examples
 
@@ -159,7 +160,13 @@ The check stage completes implementation and full checks before a Bee-dispatched
 
 The run brief retains the canonical checkout and tracker endpoint, and owns post-done closure/publication instructions. Standalone Land publishes after authorized source closures; Land nested beneath Release leaves the final checkpoint to Release. [Delegation and result flow](#delegate-a-workflow-to-bee) covers worker delivery and collection.
 
-The [Land integration tests](./tests/integration/land.test.ts) exercise saved states and navigation without real merges, publication or GitHub actions.
+The [Land integration test](./tests/integration/land.test.ts) verifies that invalid retained input is rejected before tasks are published.
+
+## Native outcomes and retirement
+
+Generated run, visit and group closures record `succeeded`, `failed` or `cancelled` in native `close_reason`. Read them with `br show ID --json`; nonclosed work is pending and old unmarked closures remain unclassified. The [outcome contract](./SPEC.md#native-workflow-outcomes) distinguishes these facts from saved worker choices, chart status and derived query labels. Failed or cancelled visits cannot be collected as successful work.
+
+For explicitly authorized retirement of pending generated work, read `busybee settle --help`. The reason-required `cancel` and `fail` operations preserve completed work and ordinary source acceptance. [Settlement](./SPEC.md#bounded-unsuccessful-settlement) requires supported inventory, reservations and execution clearance; it is neither a process-stop command nor recovery for a held checkpoint lock. A successful settlement does not turn the saved chart into `done`.
 
 ## Resume and failures
 
@@ -171,7 +178,7 @@ Engine checkpoints use `formatVersion: 1`, independently of workflow SemVer. The
 
 For an incompatible named workflow that still exists, a bee may start a fresh run of the **same name for the same already-authorized scope without asking the user again**. Inspect `br show RUN --json` to recover its native parent and visit links, then `busybee input-schema NAME`. Prepare input for the current schema and use `busybee run NAME --parent ORIGINAL_PARENT --input-file FILE --owner HUMAN` with the retained repository, database and assignment options. Preserve the original request and authorization, source/target, scope, owner/assignment intent, tracker and old run/task/evidence references. Inspect completed and uncertain effects before execution; use the current workflow's triage and current evidence to continue remaining work without blindly replaying completed effects or bypassing checks and reviews. Retain the old run as history; starting fresh does not decide its closure.
 
-For abandoned, incompatible or uncertain partial work, inspect the retained run, visits, request IDs and comments (`br show ID --json`, `br comments ID --json`, and `bee status REQUEST --json`). Record completed effects, saved results, remaining acceptance and the next operator action in comments on unfinished work. Leave unfinished visits and runs open for an explicit handoff; a completed replacement does not satisfy an old sibling or allow their shared parent to close. Do not force-close unfinished work, detach history or steal a checkpoint lock to make completion appear successful. Busy Bee reports retained visit/request IDs and accepted-result references for incompatible runs, and an inspection command for partial writes.
+For abandoned, incompatible or uncertain partial work, inspect the retained run, visits, request IDs and comments (`br show ID --json`, `br comments ID --json`, and `bee status REQUEST --json`). Record completed effects, saved results, remaining acceptance and the next operator action in comments on unfinished work. Leave unfinished work open for an explicit handoff unless its authorized [settlement](#native-outcomes-and-retirement) passes the required checks. A completed replacement neither retires an old sibling nor satisfies their shared parent's acceptance. Do not force-close unfinished work, detach history or steal a checkpoint lock to make completion appear successful. Busy Bee reports retained visit/request IDs and accepted-result references for incompatible runs, and an inspection command for partial writes.
 
 If the saved workflow name no longer exists, **stop and ask the user which workflow to use**. Do not infer a replacement. A missing/malformed manifest in an existing workflow folder, invalid entry or unrelated I/O failure needs diagnosis of that failure. Busy Bee reports these separately from a missing name. It does not create a replacement run or migrate the saved snapshot. Explicit-file runs continue to identify their saved source file; the same-name recovery policy applies to named runs.
 

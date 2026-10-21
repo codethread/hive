@@ -40,11 +40,19 @@ Repeats preserve the original acknowledgment and repair labels. If synchronizati
 
 Acknowledgment precedes label publication. After `request_labels_pending`, fix the tracker failure and repeat `bee ack`; waking Colony alone does not repair an old failed/unresolved label pair.
 
+## Workflow anchors
+
+Colony reads each request's captured workflow anchor: the run for a driver, the visit for a stage worker. The [native workflow outcome](../../lib/busybee/SPEC.md#native-workflow-outcomes), not closure alone, determines completion. `succeeded` maps to request completion; `failed` maps to `blocked` settlement and a failed request; `cancelled` remains cancellation. Unmarked closed anchors and malformed facts fail visibly rather than becoming success. A pending stage beneath a terminal run is inconsistent.
+
+A successful review choosing `changes` is still successful stage execution. Later run cancellation preserves that completed stage and its request's own outcome. Workflow outcome labels are separate from the request outcome/resolution namespaces above. Existing request acknowledgment and replacement operations do not resolve or supersede a workflow run.
+
+Request publication and execution admission respect Busy Bee's retirement fence. [Bounded workflow settlement](../../lib/busybee/SPEC.md#bounded-unsuccessful-settlement) requires execution clearance where managed work could exist; closing a request alone supplies no such proof.
+
 ## Report your own execution finished
 
 `bee finish --help` owns worker delivery and completion instructions; [responses](./responses.md) are independent authored artifacts.
 
-Task closure leaves a live bee time for cleanup. After exit or `finish success`, Colony checks linked work; unfinished work follows bounded retry/exhaustion even after a success report. A validated `finish blocked` instead ends automatic retries, preserves closed tasks and blocked states, releases only unfinished claims still owned by that bee, and records the reason and unfinished IDs. The spawn closes failed/unresolved for caller attention.
+Successful anchor closure leaves a live bee time for cleanup. After exit or `finish success`, Colony checks the native anchor; unfinished work follows bounded retry/exhaustion even after a success report. A validated `finish blocked` instead ends automatic retries, preserves closed tasks and blocked states, releases only unfinished claims still owned by that bee, and records the reason and unfinished IDs. The spawn closes failed/unresolved for caller attention.
 
 After resolving the blocker, the caller uses `bee retry`. Blocked tasks must first become ready through an explicit update or dependency resolution. Retry creates a new request; it does not reopen the original or resume its session.
 

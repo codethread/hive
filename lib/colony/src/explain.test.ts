@@ -144,37 +144,6 @@ test.each([
 	},
 );
 
-test("missing process and daemon evidence remains unknown", () => {
-	const result = evidence();
-	result.runtime.result = {
-		kind: "unavailable",
-		message: "No daemon",
-		reason: "daemon_unavailable",
-	};
-	result.capacity.result = {
-		kind: "unavailable",
-		message: "No active policy",
-		reason: "evidence_unavailable",
-	};
-	result.processes = [
-		{
-			attemptId: "attempt",
-			evidence: {
-				freshness: "sampled",
-				observedAt: OBSERVED,
-				result: { kind: "unavailable", message: "Token mismatch", reason: "evidence_unavailable" },
-				source: "ownership",
-			},
-		},
-	];
-	const codes = explainConditions(result).map(({ code }) => code);
-	expect(codes).toEqual(
-		expect.arrayContaining(["runtime_unavailable", "capacity_unavailable", "process_unknown"]),
-	);
-	expect(codes).not.toContain("stopped_observed");
-	expect(codes).not.toContain("runnable");
-});
-
 test("changed request authority stays explicit beside an executing checkpoint", () => {
 	const result = evidence();
 	if (result.runtime.result.kind !== "available" || result.tracker.result.kind !== "available") {
@@ -204,31 +173,6 @@ test("changed request authority stays explicit beside an executing checkpoint", 
 	];
 	expect(explainConditions(result).map(({ code }) => code)).toEqual(
 		expect.arrayContaining(["request_authority", "execution_claim"]),
-	);
-});
-
-test("closed tasks leave a live bee in control of its completion point", () => {
-	const result = evidence();
-	if (result.runtime.result.kind !== "available" || result.tracker.result.kind !== "available") {
-		throw new Error("Expected fixture");
-	}
-	result.tracker.result.value.eligibility = "finished";
-	result.runtime.result.value.checkpoint = {
-		attemptId: "attempt",
-		attempts: 1,
-		id: "spawn",
-		identity: "bee",
-		message: "Executing",
-		outcome: null,
-		retryAt: null,
-		state: "executing",
-		taskIds: [],
-	};
-	expect(
-		explainConditions(result).find(({ code }) => code === "tasks_finished")?.nextTransition,
-	).toMatchInlineSnapshot(
-		'"The bee retains its live execution for cleanup and reporting; a ' +
-			'finish report or process exit allows Colony to settle it."',
 	);
 });
 

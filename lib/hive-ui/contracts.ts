@@ -1,5 +1,6 @@
-/* eslint-disable unicorn/max-nested-calls -- Boundary schemas keep complete discriminated variants visible together. */
+import { nativeWorkflowStateSchema } from "@hive/shared";
 import { z } from "zod";
+/* eslint-disable unicorn/max-nested-calls -- Boundary schemas keep complete discriminated variants visible together. */
 
 export {
 	workflowInspectionSchema,
@@ -373,3 +374,12 @@ export function annotationKey(colony: string, ids: string[]): string {
 export function hierarchyKey(colony: string, ids: string[]): string {
 	return `${colony}/${JSON.stringify([...new Set(ids)].toSorted())}`;
 }
+
+export const workflowOutcomeSchema = z.object({
+	runId: z.string(),
+	nativeStatus: z.string(),
+	updatedAt: z.string(),
+	outcome: nativeWorkflowStateSchema,
+	labelsCurrent: z.boolean(),
+});
+export type WorkflowOutcome = z.infer<typeof workflowOutcomeSchema>;

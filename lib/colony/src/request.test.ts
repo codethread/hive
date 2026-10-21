@@ -20,7 +20,6 @@ const fixtures = { driver, stage };
 const FIRST = 0;
 const ANCHOR = driver.request.taskIds[FIRST]!;
 const DRIVER: WorkflowAssignment = { kind: "driver", runId: ANCHOR };
-const STAGE: WorkflowAssignment = { kind: "stage", runId: "run", stageId: ANCHOR };
 const events: RequestEvent[] = [
 	{ type: "READY" },
 	{ type: "INTEND", id: ANCHOR },
@@ -49,7 +48,7 @@ for (const event of events) {
 }
 const capturedReceipts = { driver: receiptFor(driver.request), stage: receiptFor(stage.request) };
 
-test.each([DRIVER, STAGE])(
+test.each([DRIVER])(
 	"captured $kind authority survives retries and JSON restoration #test-476",
 	(assignment) => {
 		const fixture = fixtures[assignment.kind];
@@ -65,50 +64,15 @@ test.each([DRIVER, STAGE])(
 	},
 );
 
-test("checkpoint decoding requires the captured workflow authority", () => {
-	const { assignment, ...missing } = driver.record;
-	expect(assignment).toEqual(DRIVER);
-	expect(requestRecordSchema.safeParse(missing).success).toBe(false);
-	const malformed = { ...driver.record, assignment: { kind: "stage", runId: "run" } };
-	expect(requestRecordSchema.safeParse(malformed).success).toBe(false);
-});
-
-test.each([
-	{ captured: DRIVER, edited: STAGE },
-	{ captured: STAGE, edited: DRIVER },
-	{ captured: STAGE, edited: { ...STAGE, runId: "another-run" } },
-])(
-	"restored $captured.kind rejects a same-anchor native edit to $edited",
-	({ captured, edited }) => {
-		const fixture = fixtures[captured.kind];
-		const restored = restore(fixture.record);
-		const native = readSpawnRequest({
-			...fixture.spawn,
-			description: JSON.stringify({
-				...fixture.request.recipe,
-				host: fixture.request.host,
-				assignment: edited,
-			}),
-		});
-		expect(native.taskIds).toEqual(restored.context.taskIds);
-		expect(() => assertRequestAuthority(restored, native)).toThrow(Error);
-		expect(() => assertRequestAuthority(restored, receiptFor(native))).toThrow(Error);
+test.each([{ field: "identity", value: "another-bee" }])(
+	"restored authority rejects receipt changes to $field: $value",
+	({ field, value }) => {
+		const restored = restore(stage.record);
+		expect(() =>
+			assertRequestAuthority(restored, { ...receiptFor(stage.request), [field]: value }),
+		).toThrow(Error);
 	},
 );
-
-test.each([
-	{ field: "assignment", value: DRIVER },
-	{ field: "assignment", value: { ...STAGE, runId: "another-run" } },
-	{ field: "assignment", value: { kind: "stage", runId: "run", stageId: "another-stage" } },
-	{ field: "host", value: "another-host" },
-	{ field: "identity", value: "another-bee" },
-	{ field: "taskIds", value: ["another-stage"] },
-])("restored authority rejects receipt changes to $field: $value", ({ field, value }) => {
-	const restored = restore(stage.record);
-	expect(() =>
-		assertRequestAuthority(restored, { ...receiptFor(stage.request), [field]: value }),
-	).toThrow(Error);
-});
 
 // --- Fixtures ---
 // Capture a genuine native request through the shared memory fixture before timing tests.

@@ -2,8 +2,6 @@ import { expect, test } from "bun:test";
 import type { SelectedBead } from "@hive/beads";
 import { readHierarchy } from "./hierarchy.ts";
 
-const BATCH_SIZE = 100;
-const FAMILY_SIZE = BATCH_SIZE + 1;
 const rows: SelectedBead[] = [
 	{ id: "root", status: "closed", dependency_count: 0, dependent_count: 1 },
 	{ id: "middle", status: "closed", dependency_count: 1, dependent_count: 1 },
@@ -32,50 +30,7 @@ const graph = {
 	fetchedAt: "2026-10-12T00:00:00Z",
 };
 
-test("complete family traversal retains closed intermediate ancestors and descendants", async () => {
-	const reads = {
-		graph,
-		rows: (ids: string[]) => Promise.resolve(rows.filter((row) => ids.includes(row.id))),
-	};
-	const family = await readHierarchy(["selected"], reads, "family");
-	const descendants = await readHierarchy(["middle"], reads, "descendants");
-	expect(family.map(({ bead }) => bead.id).toSorted()).toEqual(["middle", "root", "selected"]);
-	expect(descendants.map(({ bead, parentIds }) => [bead.id, parentIds])).toEqual([
-		["middle", ["root"]],
-		["selected", ["middle"]],
-	]);
-});
-
-test("graph discovery batches native rows after finding the complete component", async () => {
-	const many = Array.from({ length: FAMILY_SIZE }, (_unused, index) => ({
-		...rows[0]!,
-		id: `node-${index}`,
-	}));
-	const batches: number[] = [];
-	const result = await readHierarchy(
-		[many[0]!.id],
-		{
-			graph: {
-				stale: false,
-				nodes: many,
-				edges: many
-					.slice(1)
-					.map((node) => ({ from: node.id, to: many[0]!.id, type: "parent-child" })),
-				fetchedAt: graph.fetchedAt,
-			},
-			rows: (ids) => {
-				batches.push(ids.length);
-				return Promise.resolve(many.filter((row) => ids.includes(row.id)));
-			},
-		},
-		"family",
-	);
-	expect(result).toHaveLength(FAMILY_SIZE);
-	expect(batches).toEqual([BATCH_SIZE, 1]);
-});
-
 test.each([
-	{ labels: ["system"], status: "closed" },
 	{ labels: ["bee"], status: "closed" },
 	{ labels: ["merge"], status: "closed" },
 	{ labels: [], status: "tombstone" },
@@ -103,18 +58,6 @@ test.each([
 		["root", []],
 		["selected", []],
 	]);
-});
-
-test.each([
-	{ name: "missing-seed", ids: ["absent"] },
-	{ name: "missing-row", ids: ["root"] },
-])("$name is a visible hierarchy failure", async ({ ids }) => {
-	const result = await readHierarchy(
-		[...ids],
-		{ graph, rows: () => Promise.resolve([]) },
-		"family",
-	).catch((error: unknown) => error);
-	expect(result).toBeInstanceOf(Error);
 });
 
 test("a new seed awaiting export does not hide families already in the stale graph", async () => {

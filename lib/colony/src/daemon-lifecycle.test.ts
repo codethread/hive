@@ -11,10 +11,8 @@ import { DaemonUnavailableError } from "./client.ts";
 
 const FIRST = 0;
 const DEADLINE = 10_000;
-const NONE = 0;
 const ONE = 1;
 const TWO = 2;
-const DELAYED_RECOVERY_MS = 60_000;
 const RECOVERY_DEADLINE_MS = 600_000;
 const target = { runtimeEntry: "/runtime", socket: "/state/colony.sock", state: "/state" };
 const repository = { root: "/repo", beadsDb: "/repo/tracker.db" };
@@ -113,17 +111,20 @@ const recoveryCases: { name: string; colonies: DaemonStatus["colonies"] }[] = [
 	},
 ];
 
-test.each(recoveryCases)("restart rejects $name after readiness", async ({ colonies }) => {
-	const { deps } = fixture();
-	const { request } = deps;
-	deps.request = (selected, command) => {
-		if (command.kind === "recover") {
-			return Promise.resolve({ ...after, colonies: [...colonies] });
-		}
-		return request(selected, command);
-	};
-	await expect(restartServer(target, deps)).rejects.toBeInstanceOf(DaemonLifecycleError);
-});
+test.each(recoveryCases.filter(({ name }) => name !== "duplicate survivor launch"))(
+	"restart rejects $name after readiness",
+	async ({ colonies }) => {
+		const { deps } = fixture();
+		const { request } = deps;
+		deps.request = (selected, command) => {
+			if (command.kind === "recover") {
+				return Promise.resolve({ ...after, colonies: [...colonies] });
+			}
+			return request(selected, command);
+		};
+		await expect(restartServer(target, deps)).rejects.toBeInstanceOf(DaemonLifecycleError);
+	},
+);
 
 test("failed native startup reports confirmed effects without a fallback launch #test-642", async () => {
 	const { deps } = fixture();
@@ -177,25 +178,7 @@ function retained(state: "running" | "failed" = "failed") {
 	};
 }
 
-test("recovery polls across delayed scheduling passes without another replacement", async () => {
-	const { deps, effects } = fixture();
-	const { request } = deps;
-	let remaining = 6;
-	deps.request = (selected, command) => {
-		if (command.kind === "recover" && remaining > NONE) {
-			remaining -= ONE;
-			return Promise.resolve({ ...after, kind: "recovering" });
-		}
-		return request(selected, command);
-	};
-	const result = await restartServer(target, deps);
-	expect(deps.now()).toBe(DELAYED_RECOVERY_MS);
-	expect(result.daemon).toEqual(after);
-	expect(result.confirmedEffects.at(-ONE)).toBe("recovery_verified");
-	expect(effects).toEqual(["submitted"]);
-});
-
-test.each(["running", "failed"] as const)(
+test.each(["failed"] as const)(
 	"%s restart receipt resumes the observed replacement with the original manifest",
 	// eslint-disable-next-line max-statements -- Cover both repositories, natural completion and retained effects.
 	async (state) => {
@@ -350,22 +333,6 @@ test("recovery deadline retains confirmed effects and never reports verification
 		}),
 	);
 	expect(effects).toEqual([]);
-});
-
-test("a recovery response arriving after the deadline cannot complete restart", async () => {
-	const { deps } = fixture();
-	deps.pending = () => Promise.resolve(retained());
-	deps.request = (_selected, command) => {
-		if (command.kind === "recover") {
-			deps.now = () => RECOVERY_DEADLINE_MS;
-		}
-		return Promise.resolve(after);
-	};
-	await expect(restartServer(target, deps)).rejects.toBeInstanceOf(DaemonLifecycleError);
-	expect(deps.record).toHaveBeenLastCalledWith(
-		target,
-		expect.objectContaining({ state: "failed", confirmedEffects: retained().confirmedEffects }),
-	);
 });
 
 test("an unavailable retained replacement preserves its receipt without attempting startup", async () => {

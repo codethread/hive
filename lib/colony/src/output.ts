@@ -49,6 +49,11 @@ export function writeColonyResult(
 // --- Private functions ---
 function formatResult(result: Result): string {
 	return match(result)
+		.with(
+			{ kind: "execution-clearance" },
+			({ scope, result: clearance }) =>
+				`Workflow ${scope.runId} execution clearance: ${clearance.kind}`,
+		)
 		.with({ kind: "initialized" }, ({ path }) => `Created canonical configuration: ${path}`)
 		.with(
 			{ kind: "launched" },

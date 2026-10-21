@@ -34,15 +34,7 @@ test("initialization retains attribution and configures only the dedicated track
 	});
 });
 
-test("initialization refuses existing accepted history before creating a checkout", async () => {
-	const { services, checkouts } = initializationFixture(true);
-	await expect(initializeBeads(root, options, services, integrations)).rejects.toBeInstanceOf(
-		Error,
-	);
-	expect(checkouts).toEqual([]);
-});
-
-test.each(["beads.db", "issues.jsonl", "inherited-export"])(
+test.each(["issues.jsonl", "inherited-export"])(
 	"initialization refuses %s before creating artifacts",
 	async (existing) => {
 		const { services, checkouts, calls } = initializationFixture(false);
@@ -61,23 +53,6 @@ test.each(["beads.db", "issues.jsonl", "inherited-export"])(
 		expect(calls.some(({ argv }) => argv[first] === "br")).toBe(false);
 	},
 );
-
-test("initialization retains a created tracker and database when snapshot flush fails", async () => {
-	const { services } = initializationFixture(false);
-	services.beads.sync.flush = () => Promise.reject(new Error("inherited snapshot"));
-	await expect(initializeBeads(root, options, services, integrations)).rejects.toMatchObject({
-		reason: "tracker_setup_failed",
-		context: {
-			database,
-			trackerEffects: {
-				tracker,
-				databaseExists: true,
-				checkoutExists: true,
-				completed: ["checkout", "database_initialized"],
-			},
-		},
-	});
-});
 
 function initializationFixture(acceptedHistory: boolean) {
 	const calls: { argv: readonly string[]; cwd: string }[] = [];

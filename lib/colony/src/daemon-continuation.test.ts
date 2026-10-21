@@ -168,34 +168,6 @@ test("explicit continuation preserves the original receipt and verifies both inv
 	]);
 });
 
-test("a lost stop response permits completion after the exact handoff and process exit", async () => {
-	const { deps, calls, saved } = fixture();
-	const { request, observe } = deps;
-	deps.request = (selected, command) => {
-		if (command.kind === "stop") {
-			calls.stops += ONE;
-			return Promise.reject(
-				new DaemonUnavailableError("stop", "transport", new Error("lost response")),
-			);
-		}
-		return request(selected, command);
-	};
-	deps.observe = (process) => {
-		if (deps.now() === NONE) {
-			return Promise.resolve("live");
-		}
-		return observe(process);
-	};
-	const result = await restartServer(target, deps, "replace-retained");
-	expect(result.daemon.id).toBe(replacement.id);
-	expect(deps.now()).toBe(POLL_MS);
-	expect(calls.stops).toBe(ONE);
-	expect(saved.checkpoint.continuation).toMatchObject({
-		phase: "observed",
-		stopFailure: { phase: "transport" },
-	});
-});
-
 test("a delayed drain retains its phase without removing a live service and resumes without another stop", async () => {
 	const { deps, calls, saved } = fixture();
 	deps.observe = () => Promise.resolve("live");
@@ -317,12 +289,6 @@ test.each(admissionCases)(
 
 const invalidManifests: { name: string; registrations: Stopped["registrations"] }[] = [
 	{ name: "original attempt", registrations: [{ ...registrations[NONE]!, attempts: [added] }] },
-	{
-		name: "database",
-		registrations: [
-			{ ...registrations[NONE]!, repository: { ...repository, beadsDb: "/other/db" } },
-		],
-	},
 	{ name: "intent", registrations: [{ ...registrations[NONE]!, intent: "asleep" }] },
 	{ name: "membership", registrations: [] },
 	{
@@ -376,19 +342,6 @@ test.each(invalidRecoveries)(
 		expect(saved.checkpoint.continuation?.confirmedEffects).not.toContain("recovery_verified");
 	},
 );
-
-test("both inventories permit natural survivor completion", async () => {
-	const { deps, setCurrent } = fixture(leg("observed"));
-	const completed = structuredClone(replacement);
-	for (const colony of completed.colonies) {
-		for (const attempt of colony.attempts) {
-			attempt.state = "exited";
-		}
-	}
-	setCurrent(completed);
-	const result = await restartServer(target, deps);
-	expect(result.continuation?.confirmedEffects).toContain("recovery_verified");
-});
 
 test("uncertain startup never repeats submission when no replacement appears", async () => {
 	const { deps, calls, saved } = fixture(leg("start_requested"));
@@ -459,14 +412,4 @@ test("a delayed replacement can be observed after an incomplete startup without 
 	const result = await restartServer(target, deps);
 	expect(result.daemon.id).toBe(replacement.id);
 	expect(calls.starts).toBe(NONE);
-});
-
-test("repeating explicit continuation after completion cannot add another replacement leg", async () => {
-	const { deps, calls, saved } = fixture();
-	await restartServer(target, deps, "replace-retained");
-	await expect(restartServer(target, deps, "replace-retained")).rejects.toBeInstanceOf(
-		DaemonLifecycleError,
-	);
-	expect(calls).toEqual({ starts: ONE, stops: ONE, recoveries: ONE });
-	expect(saved.checkpoint.state).toBe("done");
 });

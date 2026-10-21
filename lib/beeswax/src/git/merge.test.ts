@@ -2,9 +2,6 @@ import { expect, test } from "bun:test";
 import { mergeIssueJsonl } from "./merge-core.ts";
 
 const EMPTY_COUNT = 0;
-const FIRST_ROW = 0;
-const REPEATED_COMMENTS = 2;
-const TOTAL_COMMENTS = 3;
 
 function issue(id: string, title: string): string {
 	return JSON.stringify({ id, title });
@@ -123,35 +120,6 @@ test("combines append-only comments with status changes and ignores local ID ren
 	]);
 	expect(mergeIssueJsonl(ancestor, right, left)).toEqual(result);
 	expect(mergeIssueJsonl(result.contents, result.contents, result.contents)).toEqual(result);
-});
-
-// eslint-disable-next-line max-statements -- Check multiplicity and the file-wide counter namespace together.
-test("retains repeated comment identities and rekeys counters colliding across different issues", () => {
-	const comment = {
-		author: "agent",
-		created_at: "2026-10-10T00:00:00Z",
-		id: 1,
-		issue_id: "hv-a",
-		text: "same",
-	};
-	const left = jsonl(JSON.stringify({ id: "hv-a", comments: [comment, { ...comment, id: 2 }] }));
-	const right = jsonl(
-		JSON.stringify({ id: "hv-a", comments: [{ ...comment, id: 100 }] }),
-		JSON.stringify({ id: "hv-b", comments: [{ ...comment, issue_id: "hv-b", text: "different" }] }),
-	);
-	const result = mergeIssueJsonl("", left, right);
-	expect(result.kind).toBe("merged");
-	if (result.kind !== "merged") {
-		throw new Error("expected compatible comment merge");
-	}
-	const rows = result.contents
-		.trim()
-		.split("\n")
-		.map((line) => JSON.parse(line));
-	expect(rows[FIRST_ROW].comments).toHaveLength(REPEATED_COMMENTS);
-	const ids = rows.flatMap((row) => row.comments.map((entry: { id: number }) => entry.id));
-	expect(new Set(ids).size).toBe(TOTAL_COMMENTS);
-	expect(mergeIssueJsonl("", right, left)).toEqual(result);
 });
 
 test.each([

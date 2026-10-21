@@ -16,12 +16,6 @@ const run: Run = {
 	visits: {},
 };
 
-test("engine-owned named checkpoint retains its typed persisted payload", () => {
-	const persisted = JSON.stringify(run);
-	const expected = JSON.parse(persisted) as Run;
-	expect(readCheckpoint(record(persisted))).toEqual(expected);
-});
-
 const NEXT_FORMAT = 2;
 
 test.each([

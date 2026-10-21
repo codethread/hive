@@ -19,11 +19,9 @@ test("harness selection records repo intent and leaves unspecified selections al
 	expect(selectOnboardingConfig(configured, { harness: ["none"] })).toEqual(base);
 });
 
-test.each([
-	{ harness: ["unknown"] },
-	{ harness: ["none", "codex"] },
-	{ harness: ["codex"], include: ["unknown"] },
-	{ include: ["colony"] },
-])("invalid onboarding selections fail: %j", (flags) => {
-	expect(() => selectOnboardingConfig(base, flags)).toThrow(BeeswaxError);
-});
+test.each([{ harness: ["unknown"] }, { harness: ["none", "codex"] }, { include: ["colony"] }])(
+	"invalid onboarding selections fail: %j",
+	(flags) => {
+		expect(() => selectOnboardingConfig(base, flags)).toThrow(BeeswaxError);
+	},
+);

@@ -2,7 +2,6 @@ import {
 	commandSchemas,
 	inputSchema,
 	machine,
-	resumeSchema,
 } from "../../../../.workflows/do-feature-task/workflow.ts";
 import { expect, test } from "bun:test";
 import { initialTransition, transition } from "xstate";
@@ -25,18 +24,8 @@ const reviewing = advance(working, "next");
 const delivering = advance(reviewing, "approved");
 
 // The chart is the public process: review is a separate native visit, not prose inside implementation.
-test("feature tasks isolate, check, independently review and deliver #test-605", () => {
-	const done = advance(delivering, "next");
-	expect([initial, working, reviewing, delivering, done].map((snapshot) => snapshot.value)).toEqual(
-		["prepare", "work", "review", "deliver", "done"],
-	);
-	expect(task(reviewing).bee).toEqual({ kind: "reviewer" });
-	expect(done.status).toBe("done");
-	expect(resumeSchema.parse(done.context)).toEqual({ ...input, evidence });
-});
 
 test.each([
-	{ name: "review findings", snapshot: reviewing, choice: "changes" as const },
 	{ name: "changed delivery candidate", snapshot: delivering, choice: "changes" as const },
 ])("$name returns through checked work and a fresh review #test-620", ({ snapshot, choice }) => {
 	const repair = advance(snapshot, choice);

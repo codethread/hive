@@ -124,6 +124,9 @@ async function invoke(command: string, args: string[]) {
 	let stderr = "";
 	const deps = {
 		ack: unexpected,
+		executionClearance: () => {
+			throw new Error("Unexpected clearance");
+		},
 		add: unexpected,
 		attachWorkflow: unexpected,
 		config: unexpected,

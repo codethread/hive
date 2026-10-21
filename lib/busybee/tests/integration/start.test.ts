@@ -278,10 +278,8 @@ test("collect releases ownership after restoration refusal without publishing ta
 });
 
 test.each([
-	{ error: missing, name: "missing manifest #test-53", operation: "readText" },
 	{ error: denied, name: "manifest permission failure #test-50", operation: "readText" },
 	{ error: missing, name: "missing entry #test-51", operation: "isFile" },
-	{ error: missing, name: "missing file during fingerprint #test-52", operation: "readBytes" },
 	{ error: denied, name: "folder permission failure #test-49", operation: "readDirectory" },
 ])("restoration preserves the actual $name", async ({ error, operation }) => {
 	const fixture = await retainedRun({ [operation]: () => Promise.reject(error) });

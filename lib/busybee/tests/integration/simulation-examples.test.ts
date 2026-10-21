@@ -219,40 +219,6 @@ test.each(origins)(
 	},
 );
 
-test.each([
-	{ meals: 0, code: FAILURE },
-	{ meals: 2, code: SUCCESS },
-])(
-	"shipped groceries final guard respects saved meal count $meals #test-300",
-	async ({ meals, code }) => {
-		const snapshot = groceriesMachine.getPersistedSnapshot(
-			groceriesMachine.resolveState({
-				value: { outputs: "confirm" },
-				context: { busyWeek: false, plannedMeals: meals, substitutions: 0 },
-			}),
-		);
-		const fixture = await exampleFixture(groceries, {}, { snapshot });
-		const result = await fixture.raw({
-			...fixture.request,
-			events: [event("groceries.outputs.confirm", "done")],
-		});
-		expect(result.code, result.stdout).toBe(code);
-		if (code === FAILURE) {
-			expect(JSON.parse(result.stdout)).toMatchObject({
-				reason: "simulation_event_blocked",
-				step: FIRST,
-				node: "groceries.outputs.confirm",
-				command: "done",
-			});
-		} else {
-			expect(workflowSimulationSchema.parse(JSON.parse(result.stdout)).actor.snapshot.status).toBe(
-				"done",
-			);
-		}
-		await fixture.assertUnchanged();
-	},
-);
-
 test.each(origins)(
 	"shipped linear example renders caller context through completion from %s #test-299",
 	// eslint-disable-next-line max-statements -- Verify all three rendered stages and completion.

@@ -20,6 +20,7 @@ import {
 	requestInventorySchema,
 	workflowCheckpointSchema,
 	workflowInspectionSchema,
+	workflowOutcomeSchema,
 	workflowSimulationSchema,
 } from "../contracts.ts";
 import type {
@@ -75,6 +76,7 @@ export const annotations = createCardAnnotationsResource();
 export const details = createResource(detailSchema);
 export const hierarchies = createHierarchyResource();
 export const outlines = createResource(hierarchySchema);
+export const workflowOutcomes = createResource(workflowOutcomeSchema);
 export const workflows = createWorkflowResource();
 export const workflowSelection = createStore<
 	{ kind: "closed" } | { kind: "open"; colony: string; id: string; trigger: HTMLButtonElement }
@@ -87,6 +89,15 @@ export const preferences = createStore<Preferences>(() => ({
 	theme: "moss",
 	views: {},
 }));
+
+/** Read native outcome independently of checkpoint and diagram availability. */
+export function loadWorkflowOutcome(colony: string, id: string): Promise<void> {
+	return workflowOutcomes.load(
+		`${colony}/${id}`,
+		`/api/colonies/${colony}/workflow/${encodeURIComponent(id)}?outcomeOnly=true`,
+		true,
+	);
+}
 
 /** Open/manual reads inspect unconditionally; automatic polls check the checkpoint first. */
 export function loadWorkflow(colony: string, id: string, conditional = false): Promise<void> {

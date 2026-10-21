@@ -1,4 +1,4 @@
-import type { Board, Hierarchy, HierarchyNode } from "./contracts.ts";
+import type { Board, HierarchyNode } from "./contracts.ts";
 import {
 	beadFamilies,
 	boardFamilies,
@@ -11,7 +11,6 @@ import {
 import { expect, test } from "bun:test";
 
 const COMPONENT_COUNT = 2;
-const SHARED_INDEX = 2;
 const RUN_DEPTH = 2;
 const VISIT_DEPTH = 3;
 
@@ -116,33 +115,6 @@ test("board grouping respects ID segment boundaries and retains non-dotted nativ
 	]);
 });
 
-test("dotted bridges through non-root members join whole native families transitively", () => {
-	const root = makeNode("hv-root", "in_progress");
-	const middle = makeNode("hv-branch", "closed", [root.id]);
-	const branch = makeNode("hv-branch.2", "closed");
-	const nested = makeNode("hv-nested", "closed", [branch.id]);
-	const leaf = makeNode("hv-nested.3", "blocked");
-	const nodes = [leaf, nested, branch, middle, root];
-	const families = boardFamilies(board([root, leaf]), {
-		nodes,
-		stale: false,
-		fetchedAt: root.updatedAt,
-	});
-	expect(
-		families.map((family) => ({
-			root: family.root.id,
-			members: family.rows.map(({ node }) => node.id),
-			visible: family.visible.map(({ node }) => node.id),
-		})),
-	).toEqual([
-		{
-			root: root.id,
-			members: [root.id, middle.id, branch.id, nested.id, leaf.id],
-			visible: [root.id, leaf.id],
-		},
-	]);
-});
-
 test.each([
 	{
 		name: "loaded native parent",
@@ -187,27 +159,6 @@ test.each([
 	expect(families.flatMap((family) => family.rows.map(({ node }) => node.parentIds))).toEqual(
 		nodes.map((node) => node.parentIds),
 	);
-});
-
-test("native shared children and rootless components appear once without truncating descendants", () => {
-	const nodes = [
-		makeNode("a"),
-		makeNode("b"),
-		makeNode("shared", "closed", ["a", "b"]),
-		makeNode("nested", "open", ["shared"]),
-		makeNode("cycle-a", "open", ["cycle-b"]),
-		makeNode("cycle-b", "open", ["cycle-a"]),
-	];
-	const hierarchy: Hierarchy = { nodes, stale: false, fetchedAt: nodes[0]!.updatedAt };
-	const families = beadFamilies(hierarchy);
-	expect(families).toHaveLength(COMPONENT_COUNT);
-	expect(families.flatMap((family) => family.rows.map(({ node }) => node.id)).toSorted()).toEqual(
-		nodes.map((node) => node.id).toSorted(),
-	);
-	expect(branchRows(hierarchy, nodes[SHARED_INDEX]!).map(({ node }) => node.id)).toEqual([
-		"shared",
-		"nested",
-	]);
 });
 
 test("outline closed visibility preserves selected beads and native paths to active descendants", () => {

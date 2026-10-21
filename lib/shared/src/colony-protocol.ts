@@ -3,6 +3,51 @@ import { requestOutcomeSchema, requestStateSchema } from "./spawn-request.ts";
 import { z } from "zod";
 
 const NONEMPTY = 1;
+const text = z.string().min(NONEMPTY);
+const clearanceRequestSchema = z.strictObject({
+	id: text,
+	proof: z.enum(["never-launched", "stopped"]),
+	attemptIds: z.array(text),
+});
+const clearanceBlockerSchema = z.strictObject({
+	reason: text,
+	requestId: z.string().nullable(),
+	attemptId: z.string().nullable(),
+});
+const clearExecutionSchema = z.strictObject({
+	kind: z.literal("clear"),
+	/** No-managed-requests is a scoped absence proof, not a process-exit event. */
+	proof: z.enum(["no-managed-requests", "requests-cleared"]),
+	requests: z.array(clearanceRequestSchema),
+});
+const refusedExecutionSchema = z.strictObject({
+	kind: z.literal("refused"),
+	/** Concrete missing authority, reservation, live process or inventory disagreement. */
+	blockers: z.array(clearanceBlockerSchema).min(NONEMPTY),
+});
+
+export const COLONY_MANUAL_EXECUTION_PREFIX = "Colony manual execution:";
+export const executionClearanceSelectionSchema = z.strictObject({
+	/** Owning workflow run, whose checkpoint admission fence is held by the caller. */
+	runId: z.string().min(NONEMPTY),
+	/** Exact run and generated visit/group IDs inspected by Busy Bee. */
+	anchorIds: z.array(z.string().min(NONEMPTY)).min(NONEMPTY),
+});
+export type ExecutionClearanceSelection = z.infer<typeof executionClearanceSelectionSchema>;
+
+export const executionClearanceSchema = z.strictObject({
+	kind: z.literal("execution-clearance"),
+	/** Selected daemon endpoint; this observation grants no foreign-host authority. */
+	repository: z.strictObject({ root: text, beadsDb: text }),
+	/** Actual owning host performing the fresh execution observations. */
+	host: z.string().min(NONEMPTY),
+	/** Time the serialized observation completed; not a durable execution lease. */
+	observedAt: z.string().min(NONEMPTY),
+	/** Complete bounded inventory covered by this observation. */
+	scope: executionClearanceSelectionSchema,
+	result: z.discriminatedUnion("kind", [clearExecutionSchema, refusedExecutionSchema]),
+});
+export type ExecutionClearance = z.infer<typeof executionClearanceSchema>;
 
 /** Repository authority crosses the socket as a pair, independent of daemon cwd. */
 export const repositoryEndpointSchema = z.strictObject({
@@ -148,6 +193,11 @@ export const attemptDetailsSchema = attemptStatusSchema.extend({
 
 /** One operation per HTTP request on the selected local Unix socket. */
 export const colonyRequestSchema = z.discriminatedUnion("kind", [
+	z.strictObject({
+		kind: z.literal("execution-clearance"),
+		repository: repositoryEndpointSchema,
+		scope: executionClearanceSelectionSchema,
+	}),
 	z.strictObject({ kind: z.literal("status") }),
 	/** Poll recovery: return recovering until each installed colony has reached idle, asleep or failed, then status. */
 	z.strictObject({ kind: z.literal("recover") }),
@@ -215,6 +265,7 @@ export const daemonStatusResponseSchema = z.strictObject({
 
 /** Public responses are validated by the CLI at the transport boundary. */
 export const colonyResponseSchema = z.discriminatedUnion("kind", [
+	executionClearanceSchema,
 	z.strictObject({
 		/** All retained attempts for the selected request, including exited and failed attempts. */
 		attempts: z.array(attemptDetailsSchema),

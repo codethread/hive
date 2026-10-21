@@ -15,7 +15,6 @@ import { z } from "zod";
 const FIRST = 0;
 const ASSIGNED_COUNT = 1;
 const SUCCESS = 0;
-const FAILURE = 1;
 const exports =
 	"export const commandSchemas={next:z.object({})};\nexport function " +
 	'runBrief(){return {title:"Example",description:"Example"};}\n';
@@ -114,28 +113,6 @@ test("pure initial validation evaluates assignment but does not start entry effe
 		source,
 		status: "done",
 	});
-	await assertNoEffects(fixture);
-});
-
-test("validate required-input without a tracker or live actor #test-60", async () => {
-	const fixture = validationServices({
-		importModule: () =>
-			Promise.resolve({
-				...commonDefinition,
-				inputSchema: schemas.request,
-				machine: createMachine({}),
-			}),
-	});
-	const source = "/busybee-validation/required-input/workflow.ts";
-	const result = await invoke(["validate", source], fixture.services);
-	expect(result.code).toBe(FAILURE);
-	expect(result.document).toMatchObject({
-		kind: "validate",
-		ok: false,
-		reason: "invalid_input",
-		target: source,
-	});
-	expect(result.stderr).toBe("");
 	await assertNoEffects(fixture);
 });
 

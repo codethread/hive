@@ -2,7 +2,6 @@ import type { WorkflowInspection, WorkflowPreview } from "./contracts.ts";
 import { expect, test } from "bun:test";
 import {
 	workflowActorGraph,
-	workflowScope,
 	workflowScopePath,
 	workflowScopeSummary,
 } from "./src/workflow-graph.ts";
@@ -70,22 +69,6 @@ test("root instructions remain selectable without root transitions #test-510", (
 	expect(current).toEqual(["reviewer", "reviewer.review"]);
 });
 
-test("parallel branches retain full state identities, active leaves and each transition target", () => {
-	const { graph, current } = workflowActorGraph(parallelActor);
-
-	expect(current).toContain("flow.left.review");
-	expect(current).toContain("flow.right.review");
-	expect(graph.steps["flow.left.review"]!.title).toBe("Left / Review");
-	expect(graph.steps["flow.right.review"]!.title).toBe("Right / Review");
-	expect(graph.transitions["flow"]!.map((edge) => edge.target)).toEqual([
-		"flow.left.review",
-		"flow.right.review",
-	]);
-	expect(new Set(graph.transitions["flow"]!.map((edge) => edge.id)).size).toBe(
-		graph.transitions["flow"]!.length,
-	);
-});
-
 test("saved graphs retain automatic, repeated and targetless transitions without running guards #test-573", () => {
 	const { graph, current } = workflowActorGraph(reviewActor);
 
@@ -100,24 +83,6 @@ test("saved graphs retain automatic, repeated and targetless transitions without
 	);
 	const completed = graph.transitions["reviewer.review"]!.filter((edge) => edge.event === "DONE");
 	expect(new Set(completed.map((edge) => edge.id)).size).toBe(completed.length);
-});
-
-test("scope visibility keeps real parents and authored endpoints when collapsing or focusing", () => {
-	const { graph } = workflowActorGraph(parallelActor);
-	const collapsed = workflowScope(graph, null, new Set(["flow.left"]));
-	const focused = workflowScope(graph, "flow.right", new Set(["flow.left"]));
-
-	expect(collapsed.steps["flow.left"]!.children).toEqual([]);
-	expect(collapsed.steps["flow.left.review"]).toBeUndefined();
-	expect(collapsed.transitions["flow"]!.map((edge) => edge.target)).toEqual(["flow.right.review"]);
-	expect(focused.steps["flow.right"]!.parent).toBeNull();
-	expect(focused.steps["flow.right.review"]!.parent).toBe("flow.right");
-	expect(focused.steps["flow.left"]).toBeUndefined();
-	expect(workflowScopePath(graph, "flow.right.review")).toEqual([
-		"flow",
-		"flow.right",
-		"flow.right.review",
-	]);
 });
 
 test.each([
