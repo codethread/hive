@@ -1,5 +1,6 @@
 import { createNativeBeads, formatBeadsQuery } from "./native.ts";
 import { expect, test } from "bun:test";
+import { ZodError } from "zod";
 
 const ZERO = 0;
 const ONE = 1;
@@ -67,6 +68,72 @@ test.each(["list", "search"] as const)(
 		}
 	},
 );
+
+test("native routing projection preserves status, AND labels and unlimited selection", async () => {
+	const service = createNativeBeads({
+		execute: (argv) => {
+			expect(argv).toEqual([
+				"br",
+				"list",
+				"--status",
+				"closed",
+				"--label",
+				"system",
+				"--label",
+				"bee",
+				"--label",
+				"bee-outcome:pending",
+				"--limit",
+				"0",
+				"--fields",
+				"id,description",
+				"--json",
+			]);
+			return Promise.resolve(
+				JSON.stringify({
+					issues: [{ id: "request", description: "captured", title: "unrequested" }],
+					total: 1,
+					limit: 0,
+					offset: 0,
+					has_more: false,
+				}),
+			);
+		},
+	});
+	const page = await service.listProjected(
+		{ cwd: "/fixture" },
+		{ status: ["closed"], labels: ["system", "bee", "bee-outcome:pending"], limit: 0 },
+		["id", "description"],
+	);
+	expect(page.issues).toEqual([{ id: "request", description: "captured" }]);
+});
+
+test.each([
+	{ name: "missing id", row: { description: "captured" } },
+	{ name: "invalid id", row: { id: 42, description: "captured" } },
+	{ name: "missing description", row: { id: "request" } },
+	{ name: "invalid description", row: { id: "request", description: {} } },
+])("native routing projection rejects $name", async ({ row }) => {
+	const service = createNativeBeads({
+		execute: () =>
+			Promise.resolve(
+				JSON.stringify({
+					issues: [row],
+					total: 1,
+					limit: 0,
+					offset: 0,
+					has_more: false,
+				}),
+			),
+	});
+	await expect(
+		service.listProjected(
+			{ cwd: "/fixture" },
+			{ status: ["open"], labels: ["system", "bee"], limit: 0 },
+			["id", "description"],
+		),
+	).rejects.toBeInstanceOf(ZodError);
+});
 
 test.each([
 	{ mode: "flush" as const, flag: "--flush-only" },

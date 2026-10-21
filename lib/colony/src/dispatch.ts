@@ -80,11 +80,11 @@ async function prepareCandidates(
 	evidence.step("labels.reconcile-closed", repository.root);
 	await reconcileClosedRequestLabels(input);
 	evidence.step("tracker.list", repository.root);
-	const { issues } = await beads.list(trackerScope(repository, "sys-colony"), {
-		status: ["open"],
-		labels: SPAWN_REQUEST_LABELS,
-		limit: 0,
-	});
+	const { issues } = await beads.listProjected(
+		trackerScope(repository, "sys-colony"),
+		{ status: ["open"], labels: SPAWN_REQUEST_LABELS, limit: 0 },
+		["id", "description"],
+	);
 	const candidates: Candidate[] = [];
 	const records = new Map(store.requests(repository.root).map((record) => [record.id, record]));
 	for (const request of issues.filter((issue) => readSpawnRequestHost(issue) === hostname())) {

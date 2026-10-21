@@ -276,11 +276,15 @@ export async function reconcileClosedRequestLabels({
 	beads,
 	repository,
 }: TrackerContext): Promise<void> {
-	const { issues } = await beads.list(trackerScope(repository, "sys-colony"), {
-		status: ["closed"],
-		labels: [...SPAWN_REQUEST_LABELS, "bee-outcome:pending"],
-		limit: 0,
-	});
+	const { issues } = await beads.listProjected(
+		trackerScope(repository, "sys-colony"),
+		{
+			status: ["closed"],
+			labels: [...SPAWN_REQUEST_LABELS, "bee-outcome:pending"],
+			limit: 0,
+		},
+		["id", "description"],
+	);
 	for (const issue of issues.filter(
 		(candidate) => readSpawnRequestHost(candidate) === hostname(),
 	)) {
