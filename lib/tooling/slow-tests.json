@@ -2496,6 +2496,18 @@
 		"#test-647": {
 			"threshold": "DANGER",
 			"justification": "User explicitly approved timing allowances for all cross-host tracker regression tests on 2026-10-21. This native cloned-database contract verifies distinct child IDs and atomic parent/dependency preservation; measured 275-300ms. Retains the 5000ms timeout and assertion failures."
+		},
+		"#test-648": {
+			"threshold": "DANGER",
+			"justification": "User approved timing exemptions for cross-host tracker regressions on 2026-10-21. Real native/Git clones verify concurrent writers, child identities, comment union and rejected-push retry; measured 3764ms. Assertion failures and 30000ms timeout remain enforced."
+		},
+		"#test-649": {
+			"threshold": "DANGER",
+			"justification": "User approved timing exemptions for cross-host tracker regressions on 2026-10-21. Real native/Git clones verify genuine scalar conflicts preserve local state and Git history; measured 1071ms. Assertion failures and 30000ms timeout remain enforced."
+		},
+		"#test-650": {
+			"threshold": "DANGER",
+			"justification": "User approved timing exemptions for cross-host tracker regressions on 2026-10-21. Real native/Git interruption cases verify recovery before capture, after ref update and before push while both hosts continue work. Assertion failures and 30000ms timeout remain enforced."
 		}
 	}
 }

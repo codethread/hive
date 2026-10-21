@@ -290,7 +290,16 @@ export function createNativeBeads(options: NativeBeadsOptions = {}): BeadsServic
 		sync: {
 			import: (scope) => synchronize(scope, "--import-only"),
 			flush: (scope) => synchronize(scope, "--flush-only"),
-			merge: (scope) => synchronize(scope, "--merge"),
+			merge: async (scope, source) => {
+				await invoke({ ...scope, noAutoImport: true, noAutoFlush: true }, [
+					"sync",
+					"--merge",
+					"--base",
+					source.base,
+					"--from",
+					source.from,
+				]);
+			},
 			status: (scope) =>
 				read(
 					{ ...scope, noAutoImport: true, noAutoFlush: true },

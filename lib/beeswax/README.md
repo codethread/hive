@@ -128,6 +128,16 @@ Use `beeswax beads recover` for the non-mutating incident handoff and installed 
 
 Hive's [setup recipe](../../docs/repository-commands.md#setup-and-automation) coordinates installation and local configuration. [CLI artifacts](../tooling/README.md#cli-artifacts) covers build and installation. For release lock refreshes, read `beeswax lock --help`.
 
+### Snapshot exchange
+
+Snapshot exchange requires native `br sync --merge` with `--from` and `--base`; check the installed `br sync --help` before adoption. This capability is under source-level validation. Its first released native version and release adoption instructions are not yet established.
+
+For each receive attempt, Beeswax fetches the accepted remote snapshot and the snapshot at the Git common ancestor into separate inputs, then invokes one native merge. Native `br` owns reconciliation of task records, comments and relations, plus canonical database/export/base writeback under its locking and recovery safeguards. Hive adds no semantic merge or conflict override to this path, and routine publication neither copies the database nor redirects `BEADS_JSONL`.
+
+Git publishes a blob of the live native export through a private index. The commit retains local and accepted remote history, taking every non-snapshot path from the accepted remote tree. It updates the tracker branch and index without checking files out over the live database or export. Unstaged hook and recipe edits remain local; staged non-snapshot changes must be finished first. The separate `beeswax system git merge` protocol is not used by this publication path.
+
+Independent work is reconciled by native semantics; a true conflicting edit stops publication with an alert and retains the incoming/common-base inputs for authorized recovery. Neither Git history nor a successful exchange grants authority to overwrite a disputed record or competing claim. Use the [recovery handoff](#operate-the-tracker), preserving audit history and native safeguards rather than forcing a winner.
+
 ## Pack Git storage
 
 Run Git packing explicitly when object storage needs consolidation. Setup, hooks, tracker publication and background scheduling do not invoke it. The standalone executable needs only Git for this command; no setup, `br` or application dependencies are required.

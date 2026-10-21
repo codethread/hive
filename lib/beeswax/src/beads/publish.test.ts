@@ -21,10 +21,9 @@ interface FailureFixture {
 
 test.each([
 	{ kind: "existing Git", nativeCode: "IO_ERROR", alerts: 1, gitConflict: true },
-	{ kind: "merge Git", nativeCode: "IO_ERROR", alerts: 1, gitConflict: true },
 	{ kind: "native", nativeCode: "SYNC_CONFLICT", alerts: 1, gitConflict: false },
 	{ kind: "other", nativeCode: "IO_ERROR", alerts: 0, gitConflict: false },
-	{ kind: "merge error", nativeCode: "IO_ERROR", alerts: 0, gitConflict: false },
+	{ kind: "fetch error", nativeCode: "IO_ERROR", alerts: 0, gitConflict: false },
 ] as const)(
 	"publication stops and alerts only a verified conflict: $kind #test-494",
 	// Verify notification policy and tracker attribution across each typed sync failure.
@@ -77,7 +76,6 @@ function publicationFixture(fixture: FailureFixture) {
 	const original = originalErrors[fixture.nativeCode];
 	const calls: string[] = [];
 	const scopes: BeadsScope[] = [];
-	let merging = false;
 	// eslint-disable-next-line require-await, max-statements -- Fake the serial subprocess boundary without IO or timing.
 	const command: Command = async (argv) => {
 		const key = argv.join(" ");
@@ -96,7 +94,7 @@ function publicationFixture(fixture: FailureFixture) {
 				return "remote-revision";
 			}
 			case "git diff --name-only --diff-filter=U": {
-				if (fixture.kind === "existing Git" || merging) {
+				if (fixture.kind === "existing Git") {
 					return ".beads/issues.jsonl";
 				}
 				return "";
@@ -108,8 +106,7 @@ function publicationFixture(fixture: FailureFixture) {
 		if (argv[ONE] === "merge-base") {
 			return "common-revision";
 		}
-		if (argv[ONE] === "merge") {
-			merging = fixture.kind === "merge Git";
+		if (argv[ONE] === "fetch" && fixture.kind === "fetch error") {
 			throw original;
 		}
 		return "";
@@ -131,7 +128,7 @@ function publicationFixture(fixture: FailureFixture) {
 			flush: synchronize,
 		},
 	};
-	return { services: { beads, command }, original, calls, scopes };
+	return { services: { beads, command, write: () => Promise.resolve() }, original, calls, scopes };
 }
 
 function nativeFailure(code: string): CommandError {

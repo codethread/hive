@@ -187,7 +187,6 @@ test.each([
 test.each([
 	{ mode: "flush" as const, flag: "--flush-only" },
 	{ mode: "import" as const, flag: "--import-only" },
-	{ mode: "merge" as const, flag: "--merge" },
 ])(
 	"native $mode retains explicit selection and attribution independently of cwd",
 	async ({ mode, flag }) => {
@@ -209,6 +208,38 @@ test.each([
 		]);
 	},
 );
+
+test("native merge keeps the live export selected with explicit incoming and ancestor paths", async () => {
+	const calls: string[][] = [];
+	const service = createNativeBeads({
+		execute: (argv) => {
+			calls.push(argv);
+			return Promise.resolve("{}");
+		},
+	});
+	await service.sync.merge(
+		{ cwd: "/tracker", db: "/tracker/.beads/beads.db", actor: "worker" },
+		{ base: "/tracker/.beads/base.jsonl", from: "/tracker/.beads/incoming.jsonl" },
+	);
+	expect(calls).toEqual([
+		[
+			"br",
+			"--no-auto-import",
+			"--no-auto-flush",
+			"sync",
+			"--merge",
+			"--base",
+			"/tracker/.beads/base.jsonl",
+			"--from",
+			"/tracker/.beads/incoming.jsonl",
+			"--json",
+			"--db",
+			"/tracker/.beads/beads.db",
+			"--actor",
+			"worker",
+		],
+	]);
+});
 
 test("query diagnostics retain literal label groups, zero limits and hyphen-leading values", () => {
 	expect(

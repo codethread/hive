@@ -8,6 +8,7 @@ import { hostname } from "node:os";
 import { join } from "node:path";
 import { lock } from "proper-lockfile";
 import { trackerRoot } from "./environment.ts";
+import { validateStagedSnapshot } from "../git/validate.ts";
 
 const snapshot = ".beads/issues.jsonl";
 const publicationAttempts = 3;
@@ -21,17 +22,20 @@ interface Tracker {
 	database: string;
 	/** Remote hosting the accepted tracker branch. */
 	remote: string;
-	/** Full checkout retaining merge-driver and quality-hook code. */
+	/** Permanent checkout retaining the local runtime and live export. */
 	root: string;
 }
 
 export interface PublicationServices {
-	/** Git subprocess boundary. */
-	command: Command;
+	/** Git subprocess boundary; an explicit index isolates publication staging. */
+	command: (argv: readonly string[], cwd: string, index?: string) => Promise<string>;
 	/** Native sync boundary, separate from Git. */
 	beads: BeadsService;
+	/** Write the two Git inputs consumed by native synchronization. */
+	write: (path: string, contents: string) => Promise<void>;
 }
 
+/** Reconcile through native br, then publish its export without a Git checkout merge. */
 export async function syncBeads(
 	environment: TrackerEnvironment,
 	services: PublicationServices,
@@ -55,6 +59,7 @@ export async function syncBeads(
 	}
 }
 
+/** Serialize local Hive publishers; native br coordinates with ordinary tracker writers. */
 export async function withTrackerLock<Result>(
 	environment: TrackerEnvironment,
 	action: () => Promise<Result>,
@@ -77,10 +82,9 @@ export async function withTrackerLock<Result>(
 // --- Private functions ---
 
 async function publishTracker(tracker: Tracker, services: PublicationServices): Promise<void> {
-	// Retry only an observed concurrent remote publication, never a forced push.
-	/* eslint-disable no-await-in-loop */
+	await assertIndexReady(tracker, services.command);
+	/* eslint-disable no-await-in-loop -- Retry only an observed concurrent remote publication. */
 	for (let attempt = initialAttempt; attempt < publicationAttempts; attempt += nextAttempt) {
-		await checkpoint(tracker, services);
 		const accepted = await receive(tracker, services);
 		if (await pushSnapshot(tracker, accepted, services.command)) {
 			return;
@@ -106,74 +110,88 @@ async function selectTracker(environment: TrackerEnvironment, command: Command):
 	return { database: environment.BEADS_DB, remote, root };
 }
 
-async function assertCleanScope(tracker: Tracker, command: Command): Promise<void> {
+async function assertIndexReady(tracker: Tracker, command: Command): Promise<void> {
 	const unmerged = await command(["git", "diff", "--name-only", "--diff-filter=U"], tracker.root);
 	if (unmerged !== "") {
 		throw new BeadsGitConflictError(unmerged);
 	}
-	const changes = await command(["git", "status", "--porcelain"], tracker.root);
+	const staged = await command(["git", "diff", "--cached", "--name-only"], tracker.root);
 	if (
-		changes
+		staged
 			.split("\n")
 			.filter(Boolean)
-			.some((line) => !line.endsWith(` ${snapshot}`))
+			.some((path) => path !== snapshot)
 	) {
 		throw new Error(
-			`Tracker checkout has changes outside ${snapshot}; review them before synchronization.`,
+			"Tracker has staged configuration changes; finish that work before publication.",
 		);
 	}
 }
 
-async function reconcileDatabase(tracker: Tracker, services: PublicationServices): Promise<void> {
-	await services.beads.sync.merge({
-		cwd: tracker.root,
-		db: tracker.database,
-	});
-}
-
-async function commitSnapshot(tracker: Tracker, command: Command): Promise<void> {
-	const diff = await command(["git", "diff", "HEAD", "--", snapshot], tracker.root);
-	if (diff !== "") {
-		await command(["git", "add", "--update", "--", snapshot], tracker.root);
-		await command(["git", "commit", "-m", "chore(beads): publish tracker state"], tracker.root);
-	}
-}
-
-async function checkpoint(tracker: Tracker, services: PublicationServices): Promise<void> {
-	await assertCleanScope(tracker, services.command);
-	await reconcileDatabase(tracker, services);
-	await services.beads.sync.flush({
-		cwd: tracker.root,
-		db: tracker.database,
-	});
-	await commitSnapshot(tracker, services.command);
-}
-
+// eslint-disable-next-line max-statements -- Keep native reconciliation between Git input and publication.
 async function receive(tracker: Tracker, services: PublicationServices): Promise<string> {
-	const { command } = services;
-	await command(["git", "fetch", tracker.remote], tracker.root);
+	const { command, beads } = services;
+	await command(["git", "fetch", tracker.remote, "tracker/state"], tracker.root);
+	const head = await command(["git", "rev-parse", "HEAD"], tracker.root);
 	const accepted = await command(["git", "rev-parse", "@{upstream}"], tracker.root);
-	const ancestor = await command(["git", "merge-base", "HEAD", accepted], tracker.root);
-	if (ancestor !== accepted) {
-		await mergeSnapshot(tracker, accepted, command);
-		await reconcileDatabase(tracker, services);
-		await commitSnapshot(tracker, command);
-	}
+	// Git ancestry supplies the shared base; the last local native export does not.
+	const ancestor = await command(["git", "merge-base", head, accepted], tracker.root);
+	const base = join(tracker.root, ".beads/hive-sync-base.jsonl");
+	const from = join(tracker.root, ".beads/hive-sync-incoming.jsonl");
+	await Promise.all([
+		writeGitSnapshot(tracker, { revision: ancestor, path: base }, services),
+		writeGitSnapshot(tracker, { revision: accepted, path: from }, services),
+	]);
+	await beads.sync.merge({ cwd: tracker.root, db: tracker.database }, { base, from });
+	await commitSnapshot(tracker, { head, accepted, ancestor }, command);
 	return accepted;
 }
 
-async function mergeSnapshot(tracker: Tracker, accepted: string, command: Command): Promise<void> {
-	try {
-		await command(
-			["git", "merge", "-m", "chore(beads): receive tracker updates", accepted],
+async function writeGitSnapshot(
+	tracker: Tracker,
+	input: { revision: string; path: string },
+	services: PublicationServices,
+): Promise<void> {
+	const contents = await services.command(
+		["git", "show", `${input.revision}:${snapshot}`],
+		tracker.root,
+	);
+	await services.write(input.path, contents);
+}
+
+// eslint-disable-next-line max-statements -- Stage one export blob and retain both histories without checkout.
+async function commitSnapshot(
+	tracker: Tracker,
+	revisions: { head: string; accepted: string; ancestor: string },
+	command: PublicationServices["command"],
+): Promise<void> {
+	const { head, accepted, ancestor } = revisions;
+	const index = join(tracker.root, ".beads/hive-sync.index");
+	const blob = await command(["git", "hash-object", "-w", "--", snapshot], tracker.root);
+	// Preserve accepted non-snapshot files without publishing local configuration edits.
+	await command(["git", "read-tree", accepted], tracker.root, index);
+	await command(
+		["git", "update-index", "--add", "--cacheinfo", `100644,${blob},${snapshot}`],
+		tracker.root,
+		index,
+	);
+	await validateStagedSnapshot(tracker.root, (argv, cwd) => command(argv, cwd, index));
+	const tree = await command(["git", "write-tree"], tracker.root, index);
+	const acceptedTree = await command(["git", "rev-parse", `${accepted}^{tree}`], tracker.root);
+	let commit = accepted;
+	if (tree !== acceptedTree || ancestor !== head) {
+		const parents = ["-p", head];
+		if (ancestor !== accepted) {
+			parents.push("-p", accepted);
+		}
+		commit = await command(
+			["git", "commit-tree", tree, ...parents, "-m", "chore(beads): synchronize tracker state"],
 			tracker.root,
 		);
-	} catch (error) {
-		const unmerged = await command(["git", "diff", "--name-only", "--diff-filter=U"], tracker.root);
-		if (unmerged !== "") {
-			throw new BeadsGitConflictError(unmerged, { cause: error });
-		}
-		throw error;
+	}
+	if (commit !== head) {
+		await command(["git", "update-ref", "refs/heads/tracker/state", commit, head], tracker.root);
+		await command(["git", "read-tree", commit], tracker.root);
 	}
 }
 
@@ -190,7 +208,7 @@ async function pushSnapshot(
 		await command(["git", "push", tracker.remote, "HEAD:refs/heads/tracker/state"], tracker.root);
 		return true;
 	} catch (error) {
-		await command(["git", "fetch", tracker.remote], tracker.root);
+		await command(["git", "fetch", tracker.remote, "tracker/state"], tracker.root);
 		if ((await command(["git", "rev-parse", "@{upstream}"], tracker.root)) === accepted) {
 			throw error;
 		}

@@ -102,7 +102,9 @@ Beeswax owns installation, regeneration and removal of selected harness integrat
 
 The committed Beeswax configuration and lock are accepted project intent; machine receipts only record local observations. Application policy stays in application hook files. Beeswax owns its marked validation sections, using the same configured actual hook pair in the application and permanent tracker checkout. Setup preserves the tracker's accepted files and history.
 
-The [Beeswax guide](../lib/beeswax/README.md) owns setup, synchronization, tracker-alert delivery and installed recovery routes. Beeswax owns the reusable recovery procedure; [Beads integration](beads-integration.md) owns Hive's tracker exchange checkpoints, endpoint conventions and recovery authorization policy.
+Tracker publication separates native reconciliation from Git transport: native `br` owns record merges and canonical database/export/base writeback; Beeswax supplies the accepted remote and Git common-base inputs, then publishes only the native export without a checkout merge. Beeswax's standalone JSONL merge adapter is not publication authority. The [snapshot exchange contract](../lib/beeswax/README.md#snapshot-exchange) owns the native prerequisite and preservation rules.
+
+The [Beeswax guide](../lib/beeswax/README.md) owns setup, synchronization, tracker-alert delivery and installed recovery routes. Beeswax owns the reusable recovery procedure; [Beads integration](beads-integration.md) owns Hive's tracker exchange checkpoints, child identity conventions, endpoint conventions and recovery authorization policy.
 
 ## Honeycomb's execution boundary
 

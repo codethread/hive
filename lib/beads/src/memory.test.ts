@@ -36,7 +36,9 @@ test("filesystem synchronization rejects visibly and missing records retain nati
 	const memory = createMemoryBeads();
 	await expect(memory.sync.flush(scope)).rejects.toBeInstanceOf(Error);
 	await expect(memory.sync.import(scope)).rejects.toBeInstanceOf(Error);
-	await expect(memory.sync.merge(scope)).rejects.toBeInstanceOf(Error);
+	await expect(
+		memory.sync.merge(scope, { base: "base.jsonl", from: "incoming.jsonl" }),
+	).rejects.toBeInstanceOf(Error);
 	await expect(memory.sync.status(scope)).rejects.toBeInstanceOf(Error);
 	await expect(memory.show(scope, "missing")).rejects.toBeInstanceOf(CommandError);
 });

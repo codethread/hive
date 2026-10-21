@@ -70,7 +70,7 @@ export interface BeadsService {
 	sync: {
 		import: (scope: BeadsScope) => Promise<void>;
 		flush: (scope: BeadsScope) => Promise<void>;
-		merge: (scope: BeadsScope) => Promise<void>;
+		merge: (scope: BeadsScope, source: { base: string; from: string }) => Promise<void>;
 		/** Inspect without native auto-import or auto-flush side effects. */
 		status: (scope: BeadsScope) => Promise<SyncStatus>;
 	};

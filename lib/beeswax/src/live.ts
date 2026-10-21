@@ -190,7 +190,17 @@ export function createLiveDependencies(): Dependencies {
 							try {
 								await syncBeads(
 									selected,
-									{ beads: publicationBeads, command: io.command },
+									{
+										beads: publicationBeads,
+										write: io.write,
+										command: (argv, cwd, index) => {
+											const gitEnvironment = { ...environment };
+											if (index !== undefined) {
+												gitEnvironment.GIT_INDEX_FILE = index;
+											}
+											return runCommand(argv, cwd, gitEnvironment);
+										},
+									},
 									{
 										notify: sendConflictNotification,
 										report: (message) => {

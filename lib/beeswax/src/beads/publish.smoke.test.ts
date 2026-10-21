@@ -79,6 +79,7 @@ import { createNativeBeads } from ${JSON.stringify(nativeModule)};
 const environment = { BEADS_DB: ${JSON.stringify(database)} };
 await withTrackerLock(environment, () => syncBeads(environment, {
  beads: createNativeBeads({ execute: runCommand }), command: runCommand,
+ write: async (path, contents) => { await Bun.write(path, contents); },
 }));
 `,
 			);

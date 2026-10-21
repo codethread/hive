@@ -35,8 +35,12 @@ case "$0" in
    "branch --show-current") printf '%s\\n' tracker/state ;;
    "config --get branch.tracker/state.remote") printf '%s\\n' origin ;;
    "config --get branch.tracker/state.merge") printf '%s\\n' refs/heads/tracker/state ;;
-   "rev-parse @{upstream}"|"merge-base HEAD accepted") printf '%s\\n' accepted ;;
+   "rev-parse @{upstream}"|"merge-base local accepted") printf '%s\\n' accepted ;;
    "rev-parse HEAD") printf '%s\\n' local ;;
+   "hash-object -w -- .beads/issues.jsonl") printf '%s\\n' snapshot ;;
+   "write-tree") printf '%s\\n' candidate-tree ;;
+   "rev-parse accepted^{tree}") printf '%s\\n' accepted-tree ;;
+   "commit-tree candidate-tree -p local -m chore(beads): synchronize tracker state") printf '%s\\n' published ;;
   esac ;;
  */br)
   printf 'br %s\\n' "$*" >> ${shellLiteral(calls)}
@@ -124,8 +128,8 @@ process.stdout.write(JSON.stringify({results,active,cleared,heldCalls:after.slic
 				],
 			});
 			expect(result.cleared.alert.id).toBe(result.active.alert.id);
-			expect(result.trace).toContain("br sync --merge --json --db");
-			expect(result.trace).toContain("br sync --flush-only --json --db");
+			expect(result.trace).toContain("br --no-auto-import --no-auto-flush sync --merge --base");
+			expect(result.trace).toContain("--from");
 			expect(result.trace).toContain("push origin HEAD:refs/heads/tracker/state");
 		} finally {
 			await rm(root, { recursive: true, force: true });
