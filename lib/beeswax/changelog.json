@@ -1,5 +1,36 @@
 [
 	{
+		"version": "0.9.0",
+		"changes": [
+			{
+				"commit": "98ce7cb8b57f50d9aac5a2a724fa1656d4133e57",
+				"summary": "own namespaced BV viewer recipes",
+				"body": "Beeswax setup, update and sync now manage the required `_hive_work`, `_hive_system` and\n`_hive_workflows` recipes in an explicit Beeswax-marked YAML section of `.bv/recipes.yaml`, in the\ncaller checkout and selected permanent tracker checkout when available.\n`_hive_work` excludes `system` and `busybee-workflow`; the\nother two select their corresponding labels. The leading underscore marks ownership without hiding\nrecipes from BV discovery.\n\nThe project lock records the BV component's accepted revision. Existing locks without it need an\nexplicit update even at the same suite version; ordinary sync refuses implicit adoption. Setup/sync\nreceipts report confirmed recipe paths in `bvRecipes` and the `bv_recipes` completed phase; failures\nretain confirmed paths, including unchanged files.\n\nHive prompts use these namespaced views. Generic `work`, `system` and `workflows` recipes remain\nuser-owned, including custom filters and comments. Content outside the managed section is preserved;\nambiguous ownership stops for review. Viewer filters do not change native task authority or Colony's\nranking graph. Bee setup no longer manages BV recipes.",
+				"breaking": [
+					"Existing project locks without the BV component require an explicit Beeswax update before sync. Hive-based prompts now use `_hive_` recipe names; generic recipes remain user-owned."
+				],
+				"adoption": [
+					{
+						"requirement": "required",
+						"text": "upgrade the Hive suite together, then run `beeswax update --yes` in each adopting project.\nReview and commit `.bv/recipes.yaml` and the refreshed project contract and generated adapters;\nreview the permanent tracker's generated recipe file under that repository's publication policy. Run\n`beeswax sync` in each execution checkout, load the current onboarding in a new trusted harness\nsession, and change custom Hive-based prompts to `_hive_` recipe names. Verify `bv --robot-recipes`\nin the application and permanent tracker checkouts. Leave personal/generic views unchanged.\n`beeswax sync` reproduces an accepted contract; it does not adopt a new suite release."
+					}
+				]
+			},
+			{
+				"commit": "05094f7b3fd447eab23dd17f9f2d658114c6c6f6",
+				"summary": "require explicit instruction for human assignment",
+				"body": "Shared onboarding requires a human's explicit instruction before agents assign work to\nthat human. Without that instruction, agents record the needed human action or decision.\nExisting human assignments are preserved unless that human requests clearing them; human\nownership remains separate accountability.",
+				"breaking": [],
+				"adoption": [
+					{
+						"requirement": "optional",
+						"text": "remove local guidance that treats handoffs or reservations alone as permission\nto assign work to humans."
+					}
+				]
+			}
+		]
+	},
+	{
 		"version": "0.8.1",
 		"changes": [
 			{

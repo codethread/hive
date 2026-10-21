@@ -1,5 +1,29 @@
 [
 	{
+		"version": "0.9.0",
+		"changes": [
+			{
+				"commit": "16048e3327881e7e24ddb432f774a761fd97439c",
+				"summary": "keep workflow outcome schema imports browser-safe",
+				"body": "Import the native workflow outcome schema through a browser-safe Shared\nsubpath, keeping Node-only dependencies out of the browser bundle.",
+				"breaking": [],
+				"adoption": []
+			},
+			{
+				"commit": "384b538f0c05c81098ffa5cf741e772536b0701d",
+				"summary": "show native workflow outcome independently of diagrams",
+				"body": "The workflow preview adds a native-outcome banner with pending, succeeded,\nfailed, cancelled or unclassified closure, the terminal reason and stale-label\nwarnings. It reads Beads through the shared outcome contract even when a workflow\ndefinition or diagram is unavailable. Malformed native facts fail visibly;\nthe existing Saved chart state and simulation remain separate.",
+				"breaking": [],
+				"adoption": [
+					{
+						"requirement": "optional",
+						"text": "inspect the native-outcome banner when chart state and closure differ.\nNo UI configuration change or historical backfill is required."
+					}
+				]
+			}
+		]
+	},
+	{
 		"version": "0.8.1",
 		"changes": [
 			{

@@ -1,5 +1,59 @@
 [
 	{
+		"version": "0.9.0",
+		"changes": [
+			{
+				"commit": "98ce7cb8b57f50d9aac5a2a724fa1656d4133e57",
+				"summary": "limit setup to the attention preset",
+				"body": "`bee setup` now refreshes only the native `bee-attention` saved query in the selected database. It\naccepts the normal `--beads-db`/`BEADS_DB` selection without requiring a permanent tracker checkout.\nIt neither reads, validates nor writes BV recipes and needs no BV executable.\n\nThe `bee_setup` success receipt contains `repository` and `preset` alongside `ok` and `kind`;\n`recipes` is removed. Setup failures retain `repository`, `presetRemoved` and `presetInstalled`;\n`recipesInstalled` is removed. Inspect confirmed preset effects before retrying.",
+				"breaking": [
+					"`bee setup` no longer installs BV recipes. Its success receipt removes `recipes`, and failure receipts remove `recipesInstalled`; Beeswax now owns Hive's viewer recipes."
+				],
+				"adoption": [
+					{
+						"requirement": "required",
+						"text": "update consumers that read the removed recipe fields or rely on Bee setup to install\nviews. Upgrade the suite and use `beeswax update --yes` for the required `_hive_` recipes, following\n`beeswax changelog` for project-contract and prompt adoption. Personal recipes remain untouched."
+					}
+				]
+			},
+			{
+				"commit": "384b538f0c05c81098ffa5cf741e772536b0701d",
+				"summary": "honor workflow retirement during request publication",
+				"body": "Driver attachment, stage dispatch and retries now check native workflow anchors\nand publication readiness. A retired run, unfinished settlement or contradictory\nunmanaged provenance cannot admit a new request. Existing request acknowledgment,\nresolution and replacement history remain separate from workflow outcomes.",
+				"breaking": [
+					"request publication refuses terminal or inconsistent workflow\nscope rather than treating any closed anchor as completed work. Unmarked\nhistorical closures do not acquire an inferred successful outcome."
+				],
+				"adoption": [
+					{
+						"requirement": "required",
+						"text": "upgrade Bee with Busy Bee and Colony. Resolve reported authority or\npublication failures from retained evidence; a retry does not authorize reopening\nor retiring workflow work, and no bulk historical migration is required."
+					}
+				]
+			},
+			{
+				"commit": "2588b3cf10669152c32e5f1567130b8f2ee95c8b",
+				"summary": "introduce workflow-filtering views, superseded by Beeswax ownership",
+				"body": "This change introduced separate ordinary-work and workflow views for the\n`busybee-workflow` classification. Later in the 0.9.0 source history, commit 98ce7cb8 moved Hive's\nviews from Bee setup to Beeswax under `_hive_` names. The earlier generic-view\ninstaller and its `bee setup` adoption step are superseded.\n\nFor the released behavior, follow the setup entry above and `beeswax changelog`.\nBeeswax preserves generic/personal recipes. Viewer setup changes no issue labels;\nhistorical workflow classification requires a separately authorized backfill.",
+				"breaking": [],
+				"adoption": []
+			},
+			{
+				"commit": "b515256440403568fecbd799006b9f469c2fd3ac",
+				"summary": "remove auxiliary assessment and inactivity reports",
+				"body": "Remove `bee system assess` and `bee system report`. `bee system` now exposes\nBusy Bee stage dispatch. Managed bees continue to deliver answers through\n`bee response` and report execution completion through `bee finish`.",
+				"breaking": [
+					"`bee system assess` and `bee system report` are removed. Hive's `nurse`, `post-run-drone` and `drone` kinds are no longer available."
+				],
+				"adoption": [
+					{
+						"requirement": "required",
+						"text": "remove callers of the retired report commands. This repository's\n`nurse`, `post-run-drone` and `drone` kinds are removed; update submissions or\nkind selectors that name them. Install Bee with matching Colony,\ncolony-runtime, colony-worker and colony-watchdog executables, following\nColony's configuration and coordinated-restart guidance."
+					}
+				]
+			}
+		]
+	},
+	{
 		"version": "0.8.1",
 		"changes": [
 			{

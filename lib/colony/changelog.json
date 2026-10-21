@@ -1,5 +1,71 @@
 [
 	{
+		"version": "0.9.0",
+		"changes": [
+			{
+				"commit": "b6699e11decaae2dfe6460fcddb49217697ecb12",
+				"summary": "reduce routing and running-publication tracker reads",
+				"body": "Routing queries now select only `id` and `description` for closed pending-label\nrepair and open-request discovery. Status filters, AND-label matching and\nunlimited selection remain. Closed repair finishes before fresh open discovery;\nfull fresh reads still govern publication, registration and late authority checks.\nNo cache, configuration, CLI flag or native import/flush policy changes.\n\nThis record also covers 5f8727d4 and 98d74de6, whose integration messages kept\ntheir declarations only as quoted provenance. Running publication reuses\nauthority-checked snapshots for no-ops. A running-fact write precedes stdout\nand refreshes authority before stdout eligibility; due writes still check\nfresh native authority. The comments are independent history, not an atomic\npair or proof of liveness.\n\nFor fact-current running requests, cohorts of at most four sample owned stdout\nmetadata and share one fresh native batch read for due requests. All due rows\nare authority-checked before independent writes start. Admitted writes drain\nbefore further discovery, pass failure or sleep. Cancellation, finish and\nfailed/stopped reconciliation retain precedence. Cohorts recheck the captured\nattempt, immutable receipt, owned process and finish evidence; lifecycle drift\ngets one fresh serial fallback, while a changed same-ID receipt fails.\n\nThe batch gate is sampled, not atomic: native hydration, locks and auto-flush\ncan age rows, and later closure or authority edits can race historical comments.\nIt promises neither serial-gate freshness nor race-free cancellation or\ndeduplication. Failures retain request IDs and primary/secondary causes; a failed\nwrite may have committed, so re-entry uses fresh evidence to suppress duplicates.\n`observations.publish-running` and `observations.publish-running-stdout` record\nentry into publication, including no-ops, not confirmed writes. Initial\npublication and settlement's final flush are unchanged.\n\nThe polling and wake entries below retain their effects: 60-second quiet\nscheduling, five-second known-work/wake/degraded-watch scheduling and a\n30-second stdout throttle are not end-to-end freshness bounds.",
+				"breaking": [],
+				"adoption": [
+					{
+						"requirement": "required",
+						"text": "Install `bee`, `colony`, `colony-runtime`, `colony-worker`, `colony-watchdog` and\n`busybee` together from the same source release. Matching Busy Bee is required\nby the native workflow-outcome contract in 384b538f. Read the Bee, Colony and\nBusy Bee changelogs, coordinate active work, then follow\n`colony daemon restart --help` to restart through the native service manager with the same state/socket.\nDetached workers survive; existing captured recipes remain unchanged."
+					}
+				]
+			},
+			{
+				"commit": "384b538f0c05c81098ffa5cf741e772536b0701d",
+				"summary": "derive execution completion from each workflow anchor",
+				"body": "A driver follows its run's native outcome; a stage worker follows its own visit.\nSuccessful stage execution is independent of the authored choice and later run\ncancellation. Failed/cancelled anchors retain that disposition rather than\nbecoming successful requests; a pending stage under a terminal run fails visibly.\n\nAdd owning-host execution clearance for Busy Bee settlement, serialized with\nclaim/reservation/supervisor admission. Complete retained attempt evidence is\nrequired; closed requests alone do not prove process exit. Missing history,\nforeign/unbound hosts, live/unverified processes and marked manual launches\nrefuse clearance. This read neither starts the daemon nor stops workers.",
+				"breaking": [
+					"unmarked closed workflow anchors no longer imply successful\nrequest completion. Inspect the reported native evidence; existing Bee request\noutcome/resolution semantics are otherwise unchanged."
+				],
+				"adoption": [
+					{
+						"requirement": "required",
+						"text": "keep Colony and its companion executables coherent with Bee and Busy\nBee, and coordinate active work before refreshing the upgraded daemon through\n`colony daemon restart --help`. Preserve retained execution history; no workflow\nbackfill or blanket abandonment of historical runs is required."
+					}
+				]
+			},
+			{
+				"commit": "4d9797917f4101aaf26d173da0947adfe9722cec",
+				"summary": "use wake hints with a 60-second quiet fallback",
+				"body": "The default quiet delay changes from five to 60 seconds after a pass,\nonly for unchanged stable-running or empty colonies. Known transitions,\nwaiting/retry work and degraded watches retain five-second polling.\nDatabase/WAL and current-attempt publication hints shorten the deadline to\nfive seconds after the previous pass, or immediately if already elapsed.\nStartup/recovery scans remain immediate after watcher setup. Watch failures\nemit a diagnostic and restore five-second polling until wake or replacement.\nEach scan still reconciles fresh native facts; lifecycle authority and native\nimport settings are unchanged.\n\nThe 60-second bound is a quiet scheduling delay, not an end-to-end stop or\nfinish guarantee. Missed hints, JSONL-only changes and unobserved worker exits\ncan add that delay plus in-flight/native/process work. JSONL ingestion still\nrequires the existing native import configuration; auto-import is not enabled\nby this change. Stdout does not wake a scan. Its 30-second publication spacing\nis a throttle, not a freshness bound: a throttled change can wait the remaining\nthrottle plus up to another 60-second quiet interval and processing time.\nSettlement still flushes the final observation once it runs. Output silence\nis not a live-health verdict.",
+				"breaking": [
+					"Unchanged stable-running or empty colonies now use a 60-second quiet post-pass delay instead of five seconds. Neither this delay nor the 30-second stdout throttle guarantees observation freshness or end-to-end completion."
+				],
+				"adoption": [
+					{
+						"requirement": "required",
+						"text": "Upgrade the matching Colony companions together (`bee`, `colony`,\n`colony-runtime`, `colony-worker`, `colony-watchdog`), then deliberately restart\neach affected daemon with `colony daemon restart --json`, retaining its existing\nstate/socket selection. Read `colony daemon restart --help` for selection and\nrecovery. Detached workers survive the restart. Consumers relying on five-second\nquiet polling or 30-second observation freshness must allow the delays above."
+					}
+				]
+			},
+			{
+				"commit": "981e1b900ff57e3b41696bc1e768040fe71b66c7",
+				"summary": "reduce tracker reads while polling running bees",
+				"body": "Colony uses fewer native tracker commands by batching retained request\nreads, reusing same-phase detail for unchanged observations, and limiting\npreparation reads to waiting requests.\nThis optimization alone did not change polling cadence; 4d979791 subsequently\nintroduced the quiet-delay policy described above. Claims, observation writes\nand settlement still check current native facts.\n\nRequired for an already-running daemon: after upgrading, run\n`colony daemon restart --json` with the same state/socket selection to load\nthe new runtime. Detached workers continue running. Read\n`colony daemon restart --help` for restart prerequisites and recovery.",
+				"breaking": [],
+				"adoption": []
+			},
+			{
+				"commit": "b515256440403568fecbd799006b9f469c2fd3ac",
+				"summary": "remove hourly reviews, assessments and inactivity drones",
+				"body": "Remove automatic hourly work reviews, post-run assessments and inactivity\nDrone reviews. Automatic Nurse audits remain removed. Retire the entire\n`colony work-review` command group and `colony assessments`, including their\nschemas and results. Remove `auto_work_reviews`, `inactivity_drone` and\n`post_run_drone` configuration and the public policy fields `autoWorkReviews`,\n`inactivityDrone` and `postRunDrone`; `auto_nurse` remains unsupported.\n\nOrdinary scheduling, capacity, task claims, retries, settlement, stdout\nobservations and process ownership checks remain. The supervisor still handles\nowned execution stops; only auxiliary inspector deadlines are removed.\n\nExisting private rows and artifacts are not automatically deleted or migrated.\nAny historical cleanup requires a separately coordinated operation that\npreserves active requests, task state and process ownership.",
+				"breaking": [
+					"Hourly work reviews, post-run assessments and inactivity Drone reviews are removed, along with `colony work-review`, `colony assessments` and their configuration/result fields. Removed configuration keys are rejected."
+				],
+				"adoption": [
+					{
+						"requirement": "required",
+						"text": "remove `auto_work_reviews`, `inactivity_drone`, `post_run_drone` and\nany remaining `auto_nurse` keys from consuming repositories' canonical\n`.hive/bees.toml` before loading configuration. Update consumers of the retired\ncommands, result schemas and public policy fields. Install matching Bee,\nColony, colony-runtime, colony-worker and colony-watchdog executables together.\nCoordinate active workers with the runtime owner before an authorized daemon\nrestart. Installing binaries alone does not update the running daemon."
+					}
+				]
+			}
+		]
+	},
+	{
 		"version": "0.8.1",
 		"changes": [
 			{

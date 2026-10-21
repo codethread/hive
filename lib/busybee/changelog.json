@@ -1,5 +1,54 @@
 [
 	{
+		"version": "0.9.0",
+		"changes": [
+			{
+				"commit": "384b538f0c05c81098ffa5cf741e772536b0701d",
+				"summary": "record native outcomes and retire pending generated work",
+				"body": "Generated run, visit and group closure now records versioned succeeded, failed\nor cancelled facts in native `close_reason`. Original `{choice,data}` is preserved;\na completed review choosing changes is still successful execution. Derived\n`workflow-outcome:*` labels support native filtering; projection failures are\nexplicit and never replace native closure authority.\n\nAdd reason-required `busybee settle RUN cancel|fail --reason TEXT` for pending generated\nscope. It preserves completed work and source acceptance, refuses unfinished manual descendants, human/HITL or other-agent\nreservations and unsupported inventory, and requires owning-host execution clearance unless\nexplicit unmanaged provenance proves that no managed execution was exposed.\nPartial effects retain fences and evidence; settlement neither stops workers\nnor recovers held locks. Existing navigation commands remain unchanged.\n\nSettlement leaves saved chart state unchanged. Its fences require cooperating\nversion-matched tools on one live database; they do not fence concurrent tracker\nexchange or arbitrary native edits.",
+				"breaking": [
+					"closure text is now structured, and failed/cancelled visits\ncannot advance as completed work. Old unmarked closures remain unclassified;\nsaved chart status is not native outcome. No historical backfill is performed."
+				],
+				"adoption": [
+					{
+						"requirement": "required",
+						"text": "use matching Busy Bee, Bee and Colony versions on the same live\ndatabase; coordinate active work before refreshing the Colony daemon. Consumers\nthat interpret `close_reason` or equate closure with success must use the native\noutcome contract. Inspect retained partial effects before recovery, not replay."
+					},
+					{
+						"requirement": "optional",
+						"text": "read `busybee settle --help` before explicitly authorized retirement."
+					}
+				]
+			},
+			{
+				"commit": "2588b3cf10669152c32e5f1567130b8f2ee95c8b",
+				"summary": "label generated workflow work for filtering",
+				"body": "New workflow run, grouping and stage beads carry `busybee-workflow`. This\nclassification leaves access, assignment and routing unchanged. Ordinary parent\nwork and workflow system beads retain their existing labels.",
+				"breaking": [],
+				"adoption": [
+					{
+						"requirement": "optional",
+						"text": "explicitly backfill existing workflow run, grouping and stage beads\nfrom saved workflow records to include historical work in label-based views.\nNew creation labels do not backfill existing records."
+					}
+				]
+			},
+			{
+				"commit": "b515256440403568fecbd799006b9f469c2fd3ac",
+				"summary": "remove the hourly work-review workflow catalog",
+				"body": "Remove this repository's `blocked-review` and `in-progress-review` workflows\nand their shared work-review module. Busy Bee's general workflow execution,\nsaved outcomes and run completion remain unchanged.",
+				"breaking": [
+					"The `blocked-review` and `in-progress-review` definitions and their shared module are removed from Hive's workflow catalogue. Saved runs that depend on them can no longer restore from this checkout."
+				],
+				"adoption": [
+					{
+						"requirement": "required",
+						"text": "update catalog callers and configuration that select either removed\nworkflow. Inspect unfinished runs and their workers before adopting this\ncheckout; the removed definitions are no longer available for restoration.\nKeep any disposition of saved runs and workers explicit. This change neither\nmigrates nor automatically closes existing runs."
+					}
+				]
+			}
+		]
+	},
+	{
 		"version": "0.8.1",
 		"changes": [
 			{
