@@ -54,6 +54,16 @@ const nestedDefinition = {
 };
 const ordinaryTypes = ["task", "bug", "feature", "epic"];
 const commands = ["run", "start"];
+const ordinaryCases = commands.flatMap((command) =>
+	ordinaryTypes.map((type) => ({ command, type })),
+);
+const ordinaryFixtures = new Map(
+	await Promise.all(
+		ordinaryCases.map(
+			async ({ command, type }) => [`${command}:${type}`, await fixture({ type })] as const,
+		),
+	),
+);
 const invalidParents = [
 	{ name: "missing", reason: "missing_parent", supplied: false, status: "open", labels: [] },
 	{ name: "nonexistent", reason: "command_failed", supplied: true, status: "open", labels: [] },
@@ -138,10 +148,10 @@ const replacementDone = await navigate(
 	replacementIo,
 );
 
-test.each(commands.flatMap((command) => ordinaryTypes.map((type) => ({ command, type }))))(
+test.each(ordinaryCases)(
 	"$command creates exactly one native edge to ordinary $type work without claiming it #test-343",
 	async ({ command, type }) => {
-		const { beads, parent, services } = await fixture({ type });
+		const { beads, parent, services } = ordinaryFixtures.get(`${command}:${type}`)!;
 		const result = await invoke(creationArgs(command, parent.id), services);
 		expect(result.code, result.stdout).toBe(FIRST);
 		const run = runSummarySchema.parse(result.document);

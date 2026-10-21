@@ -42,6 +42,12 @@ let warmed = driver.record;
 for (const event of events) {
 	warmed = restore(transitionRequest(warmed, event));
 }
+const stageWarmup = await authorityFixture("stage");
+let warmedStage = stageWarmup.record;
+for (const event of events) {
+	warmedStage = restore(transitionRequest(warmedStage, event));
+}
+const capturedReceipts = { driver: receiptFor(driver.request), stage: receiptFor(stage.request) };
 
 test.each([DRIVER, STAGE])(
 	"captured $kind authority survives retries and JSON restoration #test-476",
@@ -53,7 +59,7 @@ test.each([DRIVER, STAGE])(
 			record = restore(transitionRequest(record, event));
 			expect(record.assignment).toEqual(assignment);
 			assertRequestAuthority(record, fixture.request);
-			assertRequestAuthority(record, receiptFor(fixture.request));
+			assertRequestAuthority(record, capturedReceipts[assignment.kind]);
 		}
 		expect(record.state).toBe("terminal");
 	},

@@ -1,10 +1,8 @@
 /* eslint-disable max-statements -- Keep mutation, failure and partial-publication re-entry traces together. */
 /* eslint-disable unicorn/no-null -- Tests distinguish no output from observed stdout. */
 import { COLONY_STDOUT_PREFIX, latestStdoutActivity } from "@hive/shared";
-import { afterAll, expect, mock, test } from "bun:test";
 import { createSpawn, createTask, memoryTracker } from "./tracker.test-support.ts";
-// eslint-disable-next-line import/no-nodejs-modules -- Prepare deterministic stdout metadata outside behavior timing.
-import { mkdtemp, rm, utimes, writeFile } from "node:fs/promises";
+import { expect, mock, test } from "bun:test";
 import {
 	publishObservation,
 	publishRunningObservations,
@@ -12,10 +10,7 @@ import {
 	stdoutActivityDue,
 } from "./observations.ts";
 import type { Bead } from "@hive/beads";
-// eslint-disable-next-line import/no-nodejs-modules -- Match the established disposable artifact fixture pattern.
-import { join } from "node:path";
-// eslint-disable-next-line import/no-nodejs-modules -- Keep stdout artifacts separate from live attempt logs.
-import { tmpdir } from "node:os";
+import type { readStdoutActivity } from "./observations.ts";
 import { trackerScope } from "./tracker.ts";
 
 const ZERO = 0;
@@ -29,12 +24,14 @@ await observationTracker.beads.show(
 	observationId,
 );
 
-const stdoutDirectory = await mkdtemp(join(tmpdir(), "colony-observations-"));
+const stdoutDirectory = "/fixture/owned-stdout";
 const stdoutTimestamp = "2026-10-04T10:00:00.000Z";
-const stdoutPath = join(stdoutDirectory, "stdout.log");
-await writeFile(stdoutPath, "Worker output\n");
-await utimes(stdoutPath, new Date(stdoutTimestamp), new Date(stdoutTimestamp));
-afterAll(() => rm(stdoutDirectory, { force: true, recursive: true }));
+const readActivity: typeof readStdoutActivity = (directory) => {
+	if (directory !== stdoutDirectory) {
+		return Promise.reject(new Error("Stdout read left the captured fixture directory"));
+	}
+	return Promise.resolve(stdoutTimestamp);
+};
 
 const unchangedFixtures = new Map(
 	await Promise.all(
@@ -176,6 +173,7 @@ await publishRunningObservations(
 	runningWarmup.context,
 	runningWarmup.receipt,
 	runningWarmup.snapshot,
+	readActivity,
 );
 const runningAuthorityWarmup = await runningFixture({
 	...runningDefaults,
@@ -188,6 +186,7 @@ try {
 		runningAuthorityWarmup.context,
 		runningAuthorityWarmup.receipt,
 		runningAuthorityWarmup.snapshot,
+		readActivity,
 	);
 } catch (error) {
 	if (!(error instanceof Error)) {
@@ -198,6 +197,7 @@ try {
 if (!authorityWarmupRejected) {
 	throw new Error("Authority warmup did not reject its native mutation");
 }
+const finalFlush = await publicationFixture("stdout");
 const stdoutWarmup = await publicationFixture("stdout");
 await stdoutWarmup.publish();
 await Promise.all([stdoutWarmup.publish(), stdoutWarmup.publish()]);
@@ -258,7 +258,7 @@ test.each(["fact", "stdout"] as const)(
 		const fixture = unchangedFixtures.get(kind)!;
 		const { snapshot } = fixture;
 		const standaloneShow = mock(fixture.tracker.beads.show);
-		// Both paths are unchanged; parallel metadata reads avoid serial filesystem scheduling overhead.
+		// Both paths remain unchanged while their native read counts are observed independently.
 		await Promise.all([
 			fixture.publish(snapshot),
 			fixture.publish(undefined, { ...fixture.tracker.beads, show: standaloneShow }),
@@ -314,10 +314,10 @@ test.each([...driftCases])(
 );
 
 test("final stdout flush still publishes for a freshly closed request", async () => {
-	const fixture = await publicationFixture("stdout");
+	const fixture = finalFlush;
 	const snapshot = await fixture.tracker.beads.show(fixture.scope, fixture.id);
 	await fixture.tracker.beads.close(fixture.scope, fixture.id, { reason: "completed" });
-	await publishStdoutActivity(fixture.context, fixture.receipt, true, snapshot);
+	await publishStdoutActivity(fixture.context, fixture.receipt, true, snapshot, readActivity);
 	expect(fixture.show.mock.calls.map(([, id]) => id)).toEqual([fixture.id]);
 	const result = await fixture.tracker.beads.show(fixture.scope, fixture.id);
 	expect(result.status).toBe("closed");
@@ -329,7 +329,12 @@ test.each([...runningCases])(
 	"running pair with $seed evidence uses only $reads extra native reads",
 	async (scenario) => {
 		const fixture = runningFixtures[runningCases.indexOf(scenario)]!;
-		await publishRunningObservations(fixture.context, fixture.receipt, fixture.snapshot);
+		await publishRunningObservations(
+			fixture.context,
+			fixture.receipt,
+			fixture.snapshot,
+			readActivity,
+		);
 		expect(fixture.show).toHaveBeenCalledTimes(scenario.reads);
 		expect(fixture.writes).toEqual([...scenario.writes]);
 		expect(fixture.trace).toEqual([...scenario.trace]);
@@ -346,6 +351,7 @@ test("a fresh duplicate running fact leaves the unchanged stdout snapshot valid"
 		concurrentFact.context,
 		concurrentFact.receipt,
 		concurrentFact.snapshot,
+		readActivity,
 	);
 	expect(concurrentFact.trace).toEqual(["show"]);
 	expect(concurrentFact.writes).toEqual([]);
@@ -356,7 +362,7 @@ test.each(authorityCases)(
 	async (scenario) => {
 		const fixture = authorityFixtures[authorityCases.indexOf(scenario)]!;
 		await expect(
-			publishRunningObservations(fixture.context, fixture.receipt, fixture.snapshot),
+			publishRunningObservations(fixture.context, fixture.receipt, fixture.snapshot, readActivity),
 		).rejects.toBeInstanceOf(Error);
 		expect(fixture.writes).toEqual(["fact"]);
 		const current = await fixture.tracker.beads.show(fixture.scope, fixture.id);
@@ -370,7 +376,12 @@ test.each(concurrentCases)(
 	"running pair respects native $change at $point without a second own comment",
 	async (scenario) => {
 		const fixture = concurrentFixtures[concurrentCases.indexOf(scenario)]!;
-		await publishRunningObservations(fixture.context, fixture.receipt, fixture.snapshot);
+		await publishRunningObservations(
+			fixture.context,
+			fixture.receipt,
+			fixture.snapshot,
+			readActivity,
+		);
 		expect(fixture.writes).toEqual(["fact"]);
 		const current = await fixture.tracker.beads.show(fixture.scope, fixture.id);
 		if (scenario.change === "closed") {
@@ -387,6 +398,7 @@ test("post-fact refresh observes due stdout instead of stale no-op eligibility",
 		changedStdout.context,
 		changedStdout.receipt,
 		changedStdout.snapshot,
+		readActivity,
 	);
 	expect(changedStdout.writes).toEqual(["fact", "stdout"]);
 	expect(changedStdout.show).toHaveBeenCalledTimes(THREE);
@@ -419,7 +431,7 @@ test.each([...retryFailures])(
 	async (failure) => {
 		const fixture = retryFixtures[retryFailures.indexOf(failure)]!;
 		await expect(
-			publishRunningObservations(fixture.context, fixture.receipt, fixture.snapshot),
+			publishRunningObservations(fixture.context, fixture.receipt, fixture.snapshot, readActivity),
 		).rejects.toBeInstanceOf(Error);
 		const snapshot = await fixture.tracker.beads.show(fixture.scope, fixture.id);
 		expect(
@@ -428,7 +440,7 @@ test.each([...retryFailures])(
 		fixture.show.mockClear();
 		fixture.writes.length = 0;
 		fixture.trace.length = 0;
-		await publishRunningObservations(fixture.context, fixture.receipt, snapshot);
+		await publishRunningObservations(fixture.context, fixture.receipt, snapshot, readActivity);
 		const current = await fixture.tracker.beads.show(fixture.scope, fixture.id);
 		expect(
 			current.comments.filter(({ text }) => text.startsWith("Colony observation:")),
@@ -616,7 +628,7 @@ async function publicationFixture(kind: "fact" | "stdout") {
 		if (kind === "fact") {
 			return publishObservation(input, id, "waiting: dependency", snapshot);
 		}
-		return publishStdoutActivity(input, receipt, false, snapshot);
+		return publishStdoutActivity(input, receipt, false, snapshot, readActivity);
 	};
 	return { tracker, id, scope, show, context, receipt, publish };
 }

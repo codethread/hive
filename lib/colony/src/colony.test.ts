@@ -237,6 +237,8 @@ test("native pass failure remains failed and closes hints and timers", async () 
 	const current = scenarios.nativeFailure;
 	await waitFor(current.actor, (snapshot) => snapshot.matches("failed"));
 	expect(current.actor.getSnapshot().context.message).toBe("native failure");
+	expect(current.diagnostics).toHaveLength(ONE);
+	expect(current.diagnostics[ZERO]).toContain("failed: native failure");
 	expect(current.disposed).toBe(true);
 	current.notify({ type: "HINT" });
 	current.clock.increment(SIXTY_SECONDS);
@@ -255,6 +257,10 @@ test.each(failureCases)(
 		await idle(current);
 		expect(current.scans).toEqual([ZERO, Math.max(FIVE_SECONDS, failedAt)]);
 		expect(current.actor.getSnapshot().context.degraded).toBe(true);
+		expect(current.diagnostics).toHaveLength(ONE);
+		expect(current.diagnostics[ZERO]).toContain(
+			"using five-second polling until wake: fixture watcher closed",
+		);
 		current.clock.increment(FIVE_SECONDS);
 		await idle(current);
 		expect(current.scans).toHaveLength(THREE);
@@ -326,6 +332,7 @@ function fixture(
 		records,
 		attempts,
 		disposed: false,
+		diagnostics: [] as string[],
 		notify: (_event: ColonyHintEvent) => {},
 	};
 	const actor = createColony(
@@ -345,6 +352,9 @@ function fixture(
 		{
 			clock,
 			now: () => clock.now(),
+			report: (message) => {
+				current.diagnostics.push(message);
+			},
 			observeHints: (notify) => {
 				current.notify = notify;
 				return {

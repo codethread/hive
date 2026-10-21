@@ -67,6 +67,7 @@ const pollingRecords = await Promise.all(
 	["first", "second"].map(() => pollingFixture(pollingTracker)),
 );
 await dispatch({ ...pollingTracker, state, store: { ...store, history } }, config, "fixture");
+const pollingInput = pollingInputFixture();
 const cancelled = await cancellationFixture();
 const missingTracker = memoryTracker();
 missingTracker.repository = { ...missingTracker.repository, root: "/fixture/missing-batch" };
@@ -121,32 +122,16 @@ test.each(["driver", "stage"] as const)(
  * Compare complete pass reads and preserved checkpoints at the service boundary.
  */
 test("retained nonwaiting requests share one native detail batch per pass", async () => {
+	const { input, show, showMany, list } = pollingInput;
 	const tracker = pollingTracker;
 	const records = pollingRecords;
-	const show = mock(tracker.beads.show);
-	const showMany = mock(async (...args: Parameters<typeof tracker.beads.showMany>) => {
-		const details = await tracker.beads.showMany(...args);
-		return details.toReversed();
-	});
-	const list = mock(tracker.beads.list);
-	const input = {
-		...tracker,
-		beads: { ...tracker.beads, show, showMany, list },
-		state,
-		store: {
-			...store,
-			history,
-			inventory: () => Promise.resolve([]),
-			retainedInventory: () => [],
-		},
-	};
 	await dispatch(input, config, "fixture");
 	expect(showMany.mock.calls.map(([, ids]) => ids)).toEqual([records.map(({ id }) => id)]);
 	expect(show.mock.calls.map(([, id]) => id)).toEqual(
 		records.flatMap(({ context }) => context.taskIds),
 	);
 	expect(list).toHaveBeenCalledTimes(LISTS_PER_PASS);
-	expect(store.requests(tracker.repository.root)).toEqual(records);
+	expect(input.store.requests(tracker.repository.root)).toEqual(records);
 });
 
 test("an incomplete native retained-request batch fails before inventory", async () => {
@@ -339,4 +324,38 @@ async function recoveryFixture(name: string, kind: WorkflowAssignment["kind"] = 
 	const saved = store.requests(tracker.repository.root)[FIRST]!;
 	const task = await tracker.beads.show(scope, taskId);
 	return { tracker, saved, scope, taskId, task };
+}
+
+function pollingInputFixture() {
+	const checkpoints = new Map(pollingRecords.map((record) => [record.id, record]));
+	const tracker = pollingTracker;
+	const show = mock(tracker.beads.show);
+	const showMany = mock(async (...args: Parameters<typeof tracker.beads.showMany>) => {
+		const details = await tracker.beads.showMany(...args);
+		return details.toReversed();
+	});
+	const list = mock(tracker.beads.list);
+	const input = {
+		...tracker,
+		beads: { ...tracker.beads, show, showMany, list },
+		state,
+		store: {
+			...store,
+			history,
+			request: (_root: string, id: string) => checkpoints.get(id),
+			requests: ((_root) => [...checkpoints.values()]) satisfies Store["requests"],
+			saveRequest: ((_root, record) => {
+				checkpoints.set(record.id, record);
+			}) satisfies Store["saveRequest"],
+			advanceRequest: ((_root, saved, event) => {
+				const next = transitionRequest(saved, event);
+				checkpoints.set(next.id, next);
+				return next;
+			}) satisfies Store["advanceRequest"],
+			inventory: () => Promise.resolve([]),
+			retainedInventory: () => [],
+			retainedOccupants: () => [],
+		},
+	};
+	return { input, show, showMany, list };
 }

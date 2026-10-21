@@ -23,6 +23,8 @@ interface ColonyServices extends Pick<ActorOptions<AnyActorLogic>, "clock"> {
 	observeHints: (notify: (event: ColonyHintEvent) => void) => ColonyHints;
 	/** Monotonic milliseconds used with the actor's timer clock. */
 	now: () => number;
+	/** Diagnostic sink for hint and scan failures; defaults to stderr. */
+	report?: (message: string) => void;
 }
 interface ScanContext {
 	/** Last native reconciliation failure. */
@@ -46,6 +48,7 @@ export function createColony(
 	activity: ColonyActivity,
 	services: ColonyServices,
 ) {
+	const report = services.report ?? ((message: string) => console.error(message));
 	const machine = setup({
 		actors: {
 			hints: fromCallback<HintCommand>(({ sendBack, receive }) => {
@@ -87,7 +90,7 @@ export function createColony(
 			degrade: assign({
 				degraded: ({ context, event }) => {
 					if (!context.degraded && event.type === "HINT_FAILURE") {
-						console.error(
+						report(
 							`Colony ${input.repository.root} hints failed (${input.repository.beadsDb}); ` +
 								`using five-second polling until wake: ${event.message}`,
 						);
@@ -131,7 +134,7 @@ export function createColony(
 					id: "hints",
 					src: "hints",
 					onError: {
-						actions: assign({ message: ({ event }) => scanFailure(input, event.error) }),
+						actions: assign({ message: ({ event }) => scanFailure(input, event.error, report) }),
 						target: "#colony.failed",
 					},
 				},
@@ -163,7 +166,7 @@ export function createColony(
 							],
 							onError: {
 								actions: assign({
-									message: ({ event }) => scanFailure(input, event.error),
+									message: ({ event }) => scanFailure(input, event.error, report),
 								}),
 								target: "#colony.failed",
 							},
@@ -222,7 +225,11 @@ function retainedScanState({ repository, store }: DispatchInput) {
 	};
 }
 
-function scanFailure(input: DispatchInput, error: unknown): string {
+function scanFailure(
+	input: DispatchInput,
+	error: unknown,
+	report: (message: string) => void,
+): string {
 	let message = String(error);
 	if (error instanceof Error) {
 		({ message } = error);
@@ -234,6 +241,6 @@ function scanFailure(input: DispatchInput, error: unknown): string {
 			operation: "Colony dispatch",
 		});
 	}
-	console.error(`Colony ${input.repository.root} failed: ${message}`);
+	report(`Colony ${input.repository.root} failed: ${message}`);
 	return message;
 }

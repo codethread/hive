@@ -25,16 +25,121 @@ import { trackerScope } from "./tracker.ts";
 const STDOUT_PUBLICATION_INTERVAL_MS = 30_000;
 const EMPTY = 0;
 
+export interface RunningObservationInput {
+	/** Current owned attempt; lifecycle eligibility remains the caller's responsibility. */
+	receipt: Pick<LaunchReceipt, "id" | "attemptNumber" | "spawnId" | "directory">;
+	/** Original detail already checked against retained request authority. */
+	snapshot: Bead;
+}
+
+export interface RunningStdoutFailure {
+	/** Request whose admitted comment failed, possibly after commitment. */
+	requestId: string;
+	/** Original transport failure, without replacing secondary failures. */
+	error: unknown;
+}
+
+export class RunningStdoutPublicationError extends AggregateError {
+	readonly failures: readonly RunningStdoutFailure[];
+
+	constructor(failures: readonly RunningStdoutFailure[]) {
+		super(
+			failures.map(({ error }) => error),
+			"Running stdout publication failed",
+		);
+		this.name = "RunningStdoutPublicationError";
+		this.failures = failures;
+	}
+}
+
+export function runningObservationCurrent({ receipt, snapshot }: RunningObservationInput): boolean {
+	return (
+		latestColonyObservation(snapshot)?.text ===
+		`${COLONY_OBSERVATION_PREFIX} running: attempt ${receipt.attemptNumber}`
+	);
+}
+
+/**
+ * Publish stdout for a caller-bounded cohort of distinct, fact-current running requests.
+ * Sample logs first; snapshots can skip no-ops, but due IDs need one fresh native gate.
+ * Validate all due rows, then immediately start independent writes and drain every result.
+ * Rows can age during native hydration and writes can queue; later closure or authority
+ * changes can race these historical comments. Admission is neither atomic nor a liveness check.
+ */
+/* eslint-disable-next-line max-statements -- Keep cohort validation, immediate admission and full drain together. */
+export async function publishRunningStdoutActivities(
+	{ beads, repository }: TrackerContext,
+	inputs: readonly RunningObservationInput[],
+	readActivity: typeof readStdoutActivity = readStdoutActivity,
+): Promise<void> {
+	const sampled = await Promise.all(
+		inputs.map(async ({ receipt, snapshot }) => ({
+			receipt,
+			snapshot,
+			activity: {
+				attemptId: receipt.id,
+				attemptNumber: receipt.attemptNumber,
+				lastOutputAt: await readActivity(receipt.directory),
+				recordedAt: new Date().toISOString(),
+			},
+		})),
+	);
+	const due = sampled.filter(({ snapshot, activity }) =>
+		stdoutActivityDue(latestStdoutActivity(snapshot), activity),
+	);
+	if (due.length === EMPTY) {
+		return;
+	}
+	const scope = trackerScope(repository, "sys-colony");
+	const ids = due.map(({ receipt }) => receipt.spawnId);
+	const fresh = await beads.showMany(scope, ids);
+	const byId = new Map(fresh.map((spawn) => [spawn.id, spawn]));
+	if (fresh.length !== ids.length || byId.size !== ids.length || ids.some((id) => !byId.has(id))) {
+		throw new Error("Running stdout publication requires complete, unambiguous request detail");
+	}
+	for (const { receipt, snapshot } of due) {
+		assertObservationAuthority(byId.get(receipt.spawnId)!, snapshot);
+	}
+	const admitted = due
+		.filter(({ receipt, activity }) => {
+			const spawn = byId.get(receipt.spawnId)!;
+			return spawn.status !== "closed" && stdoutActivityDue(latestStdoutActivity(spawn), activity);
+		})
+		.map(({ receipt, activity }) => ({
+			requestId: receipt.spawnId,
+			message: `${COLONY_STDOUT_PREFIX} ${JSON.stringify(activity)}`,
+		}));
+	const pending = admitted.map(({ requestId, message }) => {
+		try {
+			return beads.comments.add(scope, requestId, message);
+		} catch (error) {
+			return Promise.reject(error);
+		}
+	});
+	const settled = await Promise.allSettled(pending);
+	const failures: RunningStdoutFailure[] = [];
+	for (const [index, result] of settled.entries()) {
+		if (result.status === "rejected") {
+			failures.push({ requestId: admitted[index]!.requestId, error: result.reason });
+		}
+	}
+	if (failures.length !== EMPTY) {
+		throw new RunningStdoutPublicationError(failures);
+	}
+}
+
 /**
  * Publish the running fact before stdout, reusing the caller's authority-checked snapshot for no-ops.
  * A fact write invalidates that snapshot: refresh and verify host, identity, workflow assignment
  * and tasks before stdout eligibility. Stdout still rechecks before writing; no read follows it.
  * The comments are independent historical evidence, not an atomic pair or proof of liveness.
  */
+/* eslint-disable-next-line max-params -- Keep the typed stdout reader local to publication orchestration. */
 export async function publishRunningObservations(
 	context: TrackerContext,
 	receipt: Pick<LaunchReceipt, "id" | "attemptNumber" | "spawnId" | "directory">,
 	snapshot: Bead,
+	readActivity: typeof readStdoutActivity = readStdoutActivity,
 ): Promise<void> {
 	let stdoutSnapshot = snapshot;
 	if (
@@ -51,7 +156,7 @@ export async function publishRunningObservations(
 		);
 		assertObservationAuthority(stdoutSnapshot, snapshot);
 	}
-	await publishStdoutActivity(context, receipt, false, stdoutSnapshot);
+	await publishStdoutActivity(context, receipt, false, stdoutSnapshot, readActivity);
 }
 
 /**
@@ -92,11 +197,12 @@ export async function publishStdoutActivity(
 	receipt: Pick<LaunchReceipt, "id" | "attemptNumber" | "spawnId" | "directory">,
 	final = false,
 	snapshot?: Bead,
+	readActivity: typeof readStdoutActivity = readStdoutActivity,
 ): Promise<boolean> {
 	const activity: StdoutActivity = {
 		attemptId: receipt.id,
 		attemptNumber: receipt.attemptNumber,
-		lastOutputAt: await readStdoutActivity(receipt.directory),
+		lastOutputAt: await readActivity(receipt.directory),
 		recordedAt: new Date().toISOString(),
 	};
 	if (snapshot && !stdoutActivityDue(latestStdoutActivity(snapshot), activity, final)) {

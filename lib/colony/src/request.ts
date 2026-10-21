@@ -5,15 +5,19 @@
  * Durable JSON checkpoints explicitly preserve absent attempt, claim, deadline and
  * outcome fields.
  */
+import type { AttemptInventory, Store } from "./store.ts";
 import type { BeesConfig, RepositoryEndpoint, SpawnRequest } from "@hive/shared";
+import {
+	RunningStdoutPublicationError,
+	publishObservation,
+	publishRunningObservations,
+	publishRunningStdoutActivities,
+	publishStdoutActivity,
+	runningObservationCurrent,
+} from "./observations.ts";
 import { acquireClaim, releaseClaims } from "./claims.ts";
 import { assign, createActor, setup } from "xstate";
 import { observeExecution, resumeExecution, stopExecution } from "./processes.ts";
-import {
-	publishObservation,
-	publishRunningObservations,
-	publishStdoutActivity,
-} from "./observations.ts";
 import {
 	readSpawnRequest,
 	requestOutcomeSchema,
@@ -21,8 +25,9 @@ import {
 	workflowAssignmentSchema,
 } from "@hive/shared";
 import type { Bead } from "@hive/beads";
+import type { LaunchReceipt } from "./launch.ts";
 import type { OperationEvidence } from "./history.ts";
-import type { Store } from "./store.ts";
+import type { RunningObservationInput } from "./observations.ts";
 import type { TrackerContext } from "./tracker.ts";
 /* eslint-disable-next-line import/no-nodejs-modules --
  * Durable checkpoints retain authority only on their requesting host.
@@ -35,6 +40,7 @@ import { z } from "zod";
 
 const ZERO = 0;
 const ONE = 1;
+const RUNNING_STDOUT_COHORT_SIZE = 4;
 const contextSchema = z.strictObject({
 	attemptId: z.string().nullable(),
 	attempts: z.number().int().nonnegative(),
@@ -62,6 +68,22 @@ interface RequestRuntime extends TrackerContext {
 	store: Store;
 	/** Current canonical retry policy. */
 	config: BeesConfig;
+}
+interface RunningPublication extends RunningObservationInput {
+	/** Original checkpoint whose current attempt survived lifecycle reconciliation. */
+	record: RequestRecord;
+	/** Immutable receipt, retained for the local evidence recheck. */
+	receipt: LaunchReceipt;
+}
+interface RunningPublicationEvidence {
+	/** Checkpoint reread after candidate collection. */
+	record: RequestRecord | undefined;
+	/** Refreshed current attempt, not an adopted replacement. */
+	attempt: AttemptInventory | undefined;
+	/** Fresh owned-process observation. */
+	execution: Awaited<ReturnType<typeof observeExecution>>;
+	/** Fresh finish report for the captured attempt only. */
+	finish: Awaited<ReturnType<typeof readFinishReport>>;
 }
 export type RequestRecord = z.infer<typeof requestRecordSchema>;
 type RequestContext = z.infer<typeof contextSchema>;
@@ -242,6 +264,7 @@ export function assertRequestAuthority(
 }
 
 /** Awake passes resume durable checkpoints before considering replacement launches. */
+// eslint-disable-next-line max-statements -- Collect only surviving stable requests; lifecycle effects remain serial.
 export async function reconcileRequests(runtime: RequestRuntime): Promise<void> {
 	const { beads, repository, store } = runtime;
 	const records = store
@@ -252,23 +275,118 @@ export async function reconcileRequests(runtime: RequestRuntime): Promise<void> 
 		records.map(({ id }) => id),
 	);
 	const spawns = new Map(details.map((spawn) => [spawn.id, spawn]));
+	let running: RunningPublication[] = [];
 	for (const saved of records) {
 		const spawn = spawns.get(saved.id);
 		if (!spawn) {
 			throw new Error(`Missing retained request ${saved.id} in native detail batch`);
 		}
 		/* eslint-disable-next-line no-await-in-loop --
-		 * Finish each request's external effects before advancing another durable checkpoint.
+		 * Finish each request's serial lifecycle effects before collecting deferred stdout.
 		 */
-		await store.history.run(
-			{
-				checkpoint: () => store.requests(repository.root).find(({ id }) => id === saved.id),
-				operation: "reconcile",
-				repository,
-				requestId: saved.id,
-			},
-			(evidence) => reconcileRequest(runtime, saved, spawn, evidence),
-		);
+		const candidate = await reconcileWithHistory(runtime, saved, spawn);
+		if (candidate) {
+			running.push(candidate);
+		}
+		if (running.length === RUNNING_STDOUT_COHORT_SIZE) {
+			// eslint-disable-next-line no-await-in-loop -- Drain each freshly gated cohort before collecting another.
+			await reconcileRunningCohort(runtime, running);
+			running = [];
+		}
+	}
+	await reconcileRunningCohort(runtime, running);
+}
+
+/**
+ * Compare captured authority with fresh local evidence. Lifecycle drift returns false for
+ * serial reconciliation; mutation of the captured same-ID receipt throws instead.
+ */
+export function runningPublicationStillCurrent(
+	captured: Pick<RunningPublication, "record" | "receipt">,
+	current: RunningPublicationEvidence,
+): boolean {
+	assertRunningReceipt(captured, current.attempt);
+	return (
+		current.record?.state === "executing" &&
+		current.record.context.attemptId === captured.receipt.id &&
+		JSON.stringify(current.record) === JSON.stringify(captured.record) &&
+		current.attempt?.id === captured.receipt.id &&
+		current.attempt.state === "running" &&
+		current.execution.kind === "live" &&
+		current.finish === undefined
+	);
+}
+
+/* eslint-disable-next-line max-statements --
+ * Establish request-attributed history before the batch gate, then drain every history outcome.
+ */
+export async function publishRunningCohortWithHistory(
+	runtime: RequestRuntime,
+	inputs: readonly RunningPublication[],
+	publish: typeof publishRunningStdoutActivities = publishRunningStdoutActivities,
+): Promise<void> {
+	const { repository, store } = runtime;
+	const ready = inputs.map(() => Promise.withResolvers<void>());
+	const completion = Promise.withResolvers<PromiseSettledResult<void>>();
+	const histories = inputs.map(async (input, index) => {
+		try {
+			await store.history.run(
+				{
+					checkpoint: () => store.request(repository.root, input.record.id),
+					operation: "reconcile",
+					repository,
+					requestId: input.record.id,
+				},
+				async (evidence) => {
+					evidence.reference(input.receipt.directory);
+					// Record entry into cohort publication, not confirmation of this request's comment.
+					evidence.step("observations.publish-running-stdout", input.record.id);
+					ready[index]!.resolve();
+					const outcome = publicationOutcome(await completion.promise, input.record.id);
+					if (outcome.status === "rejected") {
+						throw outcome.reason;
+					}
+				},
+			);
+		} catch (error) {
+			ready[index]!.reject(error);
+			throw error;
+		}
+	});
+	const drained = Promise.allSettled(histories);
+	// eslint-disable-next-line init-declarations -- The try/catch assigns the actual outcome, never an assumed success.
+	let publication: PromiseSettledResult<void>;
+	try {
+		await Promise.all(ready.map(({ promise }) => promise));
+		await publish(runtime, inputs);
+		publication = { status: "fulfilled", value: undefined };
+	} catch (error) {
+		publication = { status: "rejected", reason: error };
+	}
+	completion.resolve(publication);
+	const results = await drained;
+	const secondary = results.flatMap((result, index) => {
+		const expected = publicationOutcome(publication, inputs[index]!.record.id);
+		if (
+			result.status === "rejected" &&
+			(expected.status !== "rejected" || result.reason !== expected.reason)
+		) {
+			return [
+				new Error(`Request ${inputs[index]!.record.id} stdout publication history failed`, {
+					cause: result.reason,
+				}),
+			];
+		}
+		return [];
+	});
+	if (secondary.length > ZERO) {
+		if (publication.status === "rejected") {
+			secondary.unshift(publication.reason);
+		}
+		throw new AggregateError(secondary, "Running stdout publication/history failed");
+	}
+	if (publication.status === "rejected") {
+		throw publication.reason;
 	}
 }
 
@@ -349,6 +467,139 @@ async function acquireRequest(
 }
 
 // --- Request effects ---
+// eslint-disable-next-line max-params -- Serial fallback bypasses collection without changing the lifecycle reconciler.
+function reconcileWithHistory(
+	runtime: RequestRuntime,
+	saved: RequestRecord,
+	spawn: Bead,
+	serial = false,
+): Promise<RunningPublication | undefined> {
+	const { repository, store } = runtime;
+	return store.history.run(
+		{
+			checkpoint: () => store.request(repository.root, saved.id),
+			operation: "reconcile",
+			repository,
+			requestId: saved.id,
+		},
+		async (evidence) => {
+			const candidate = await reconcileRequest(runtime, saved, spawn, evidence);
+			if (serial && candidate) {
+				evidence.step("observations.publish-running", saved.id);
+				await publishRunningObservations(runtime, candidate.receipt, spawn);
+				return;
+			}
+			return candidate;
+		},
+	);
+}
+
+// eslint-disable-next-line max-statements -- Abandon drifting cohorts once, preserving serial lifecycle precedence.
+async function reconcileRunningCohort(
+	runtime: RequestRuntime,
+	inputs: readonly RunningPublication[],
+): Promise<void> {
+	if (inputs.length === ZERO) {
+		return;
+	}
+	if (!(await runningCohortCurrent(runtime, inputs))) {
+		const { beads, repository, store } = runtime;
+		for (const input of inputs) {
+			assertRunningReceipt(
+				input,
+				store
+					.retainedInventory(repository.root, input.record.id)
+					.find(({ id }) => id === input.receipt.id),
+			);
+			// eslint-disable-next-line no-await-in-loop -- Drift abandons batching once; use ordinary fresh serial detail.
+			const spawn = await beads.show(trackerScope(repository, "sys-colony"), input.record.id);
+			assertRequestAuthority(input.record, readSpawnRequest(spawn));
+			const current = store.request(repository.root, input.record.id);
+			if (!current || current.context.attemptId !== input.receipt.id) {
+				throw new Error(
+					`Request ${input.record.id} changed its current attempt before publication`,
+				);
+			}
+			// eslint-disable-next-line no-await-in-loop -- Do not adopt a replacement or re-plan a second batch.
+			await reconcileWithHistory(runtime, current, spawn, true);
+		}
+		return;
+	}
+	await publishRunningCohortWithHistory(runtime, inputs);
+}
+
+// eslint-disable-next-line max-statements -- Revalidate captured local evidence before final tracker admission.
+async function runningCohortCurrent(
+	{ repository, store }: RequestRuntime,
+	inputs: readonly RunningPublication[],
+): Promise<boolean> {
+	const inventory = await store.inventory(
+		repository.root,
+		new Set(inputs.map(({ record }) => record.id)),
+	);
+	for (const input of inputs) {
+		const current = store.request(repository.root, input.record.id);
+		const attempt = inventory.find(({ id }) => id === input.receipt.id);
+		assertRunningReceipt(input, attempt);
+		if (
+			!current ||
+			current.state !== "executing" ||
+			current.context.attemptId !== input.receipt.id ||
+			JSON.stringify(current) !== JSON.stringify(input.record) ||
+			!attempt ||
+			attempt.state !== "running"
+		) {
+			return false;
+		}
+		// eslint-disable-next-line no-await-in-loop -- Sample each owned execution serially before cohort admission.
+		const execution = await observeExecution(attempt.receipt);
+		// eslint-disable-next-line no-await-in-loop -- Only the captured current attempt can supply finish evidence.
+		const finish = await readFinishReport(attempt.receipt);
+		if (
+			!runningPublicationStillCurrent(input, {
+				record: store.request(repository.root, input.record.id),
+				attempt,
+				execution,
+				finish,
+			})
+		) {
+			return false;
+		}
+	}
+	return true;
+}
+
+function assertRunningReceipt(
+	captured: Pick<RunningPublication, "record" | "receipt">,
+	attempt: AttemptInventory | undefined,
+): void {
+	if (
+		attempt?.id === captured.receipt.id &&
+		JSON.stringify(attempt.receipt) !== JSON.stringify(captured.receipt)
+	) {
+		throw new Error(
+			`Request ${captured.record.id} changed its immutable attempt receipt before publication`,
+		);
+	}
+}
+
+function publicationOutcome(
+	publication: PromiseSettledResult<void>,
+	id: string,
+): PromiseSettledResult<void> {
+	if (
+		publication.status === "rejected" &&
+		publication.reason instanceof RunningStdoutPublicationError
+	) {
+		const failure = publication.reason.failures.find(({ requestId }) => requestId === id);
+		if (failure) {
+			return { status: "rejected", reason: failure.error };
+		}
+		return { status: "fulfilled", value: undefined };
+	}
+	return publication;
+}
+
 /* eslint-disable-next-line max-statements, max-params --
  * Reconcile durable lifecycle state with current tracker and verified execution facts.
  */
@@ -357,7 +608,7 @@ async function reconcileRequest(
 	saved: RequestRecord,
 	spawn: Bead,
 	evidence: OperationEvidence,
-): Promise<void> {
+): Promise<RunningPublication | undefined> {
 	const { beads, repository, store } = runtime;
 	let record = saved;
 	const request = readSpawnRequest(spawn);
@@ -430,6 +681,10 @@ async function reconcileRequest(
 					type: "SETTLE",
 				});
 			} else if (attempt.state === "running") {
+				const input = { receipt: attempt.receipt, snapshot: spawn, record };
+				if (runningObservationCurrent(input)) {
+					return input;
+				}
 				// Record the composite publication call, not confirmation of either comment write.
 				evidence.step("observations.publish-running", record.id);
 				await publishRunningObservations(runtime, attempt.receipt, spawn);
@@ -465,6 +720,7 @@ async function reconcileRequest(
 	} else if (record.state === "retrying") {
 		store.advanceRequest(repository.root, record, { now: Date.now(), type: "TICK" });
 	}
+	return undefined;
 }
 // eslint-disable-next-line max-statements -- Release claims and publish the settled fact before the final checkpoint.
 async function finishSettlement(
