@@ -202,7 +202,9 @@ test("sync requires explicit acceptance of the BV component even at the same ver
 
 // eslint-disable-next-line max-statements -- Verify selected checkout effects without tracker-side project metadata.
 test("sync installs recipes when the selected tracker predates Beeswax configuration", async () => {
-	const fx = configured();
+	const fx = fixture();
+	await writeProjectConfig(root, defaultProjectConfig("none"), fx.deps);
+	await writeProjectLock(root, fx.deps);
 	fx.deps.context.beadsDb = "/selected/.beads/beads.db";
 	fx.files.set("/selected/.beads/beads.db", "database");
 	fx.files.set("/selected/.husky/pre-commit", hookSection);
@@ -213,6 +215,9 @@ test("sync installs recipes when the selected tracker predates Beeswax configura
 	).toMatchObject({ bvRecipes: ["/repo/.bv/recipes.yaml", "/selected/.bv/recipes.yaml"] });
 	expect(fx.files.get("/selected/.bv/recipes.yaml")).toContain("  _hive_work:");
 	expect(fx.files.has("/selected/.hive/beeswax/config.toml")).toBe(false);
+	expect(fx.files.has("/selected/.hive/beeswax/meta/lock.json")).toBe(false);
+	expect(fx.files.get("/selected/.husky/pre-commit")).toBe(hookSection);
+	expect(fx.files.get("/selected/.husky/pre-merge-commit")).toBe(hookSection);
 	expect(fx.files.has("/repo/.worktrees/tracker--state/.bv/recipes.yaml")).toBe(false);
 });
 
