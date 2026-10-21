@@ -12,6 +12,8 @@ A task can be ready for development yet still await a prerequisite. Conversely, 
 
 Create children when work needs separate acceptance, ownership or delegation. Parent links group related work; blocking dependencies order execution. A parent link alone does not make one child wait for another. Use `br dep --help` to express the actual prerequisite direction.
 
+For native child creation, use `br create --deps parent-child:PARENT` with the remaining task fields. This creates the child with a native hash ID and its parent link atomically, avoiding clone-local dotted-counter collisions across independent clones; see [child identities across clones](../../../../docs/beads-integration.md#child-identities-across-clones).
+
 Keep each delegated scope independently reviewable: identify writable paths, expected outputs, verification and boundaries with concurrent work. Keep integration and shared-file decisions with a named owner. Record newly discovered work under the existing scope when it contributes to that scope; keep independent work separate.
 
 Choose the accountable human owner from repository policy. Owner, assignee and mutation actor are distinct; a human owner does not reserve the task for human execution.
