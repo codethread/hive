@@ -323,13 +323,14 @@ function projectedSchema<Fields extends BeadProjection>(
 	return z.object(shape).transform((row) => row as ProjectedBead<Fields>);
 }
 function createArguments(input: CreateBead): string[] {
+	let dependencies = input.deps?.map(({ id, type }) => `${type}:${id}`);
+	if (input.parent !== undefined) {
+		dependencies = [...(dependencies ?? []), `parent-child:${input.parent}`];
+	}
 	return [
 		...fieldArguments(input),
 		...joinedValue("--labels", input.labels),
-		...joinedValue(
-			"--deps",
-			input.deps?.map(({ id, type }) => `${type}:${id}`),
-		),
+		...joinedValue("--deps", dependencies),
 	];
 }
 function fieldArguments(input: Partial<CreateBead>): string[] {
@@ -341,7 +342,6 @@ function fieldArguments(input: Partial<CreateBead>): string[] {
 		...optionalValue("--status", input.status),
 		...optionalValue("--owner", input.owner),
 		...optionalValue("--assignee", input.assignee),
-		...optionalValue("--parent", input.parent),
 		...optionalValue("--acceptance-criteria", input.acceptanceCriteria),
 		...optionalValue("--defer", input.defer),
 		...optionalValue("--due", input.due),
@@ -350,6 +350,7 @@ function fieldArguments(input: Partial<CreateBead>): string[] {
 function updateArguments(input: UpdateBead): string[] {
 	return [
 		...fieldArguments(input),
+		...optionalValue("--parent", input.parent),
 		...optionalValue("--notes", input.notes),
 		...optionalValue("--design", input.design),
 		...optionalValue("--if-unchanged", input.ifUnchanged),

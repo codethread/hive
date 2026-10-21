@@ -7,6 +7,55 @@ const ONE = 1;
 const HIDDEN_CLOSED = 3;
 const TOTAL_MATCHES = 4;
 
+test("native creation links its parent atomically alongside supplied dependencies", async () => {
+	const calls: string[][] = [];
+	const service = createNativeBeads({
+		execute: (argv) => {
+			calls.push(argv);
+			return Promise.resolve(
+				JSON.stringify({
+					id: "hv-child",
+					title: "Child",
+					status: "open",
+					priority: 2,
+					issue_type: "task",
+					created_at: "2026-10-21T00:00:00Z",
+					updated_at: "2026-10-21T00:00:00Z",
+				}),
+			);
+		},
+	});
+	await service.create(
+		{ cwd: "/fixture" },
+		{
+			title: "Child",
+			parent: "hv-parent",
+			deps: [{ id: "hv-other", type: "related" }],
+		},
+	);
+	expect(calls).toEqual([
+		[
+			"br",
+			"create",
+			"--title",
+			"Child",
+			"--deps",
+			"related:hv-other,parent-child:hv-parent",
+			"--json",
+		],
+	]);
+});
+
+test("native update retains parent reassignment", async () => {
+	const service = createNativeBeads({
+		execute: (argv) => {
+			expect(argv).toEqual(["br", "update", "hv-child", "--parent", "hv-parent", "--json"]);
+			return Promise.resolve("[]");
+		},
+	});
+	await service.update({ cwd: "/fixture" }, ["hv-child"], { parent: "hv-parent" });
+});
+
 test.each(["list", "search"] as const)(
 	"native projected %s preserves columns and page facts #test-579",
 	async (mode) => {

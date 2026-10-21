@@ -2492,6 +2492,10 @@
 		"#test-646": {
 			"threshold": "SLOW",
 			"justification": "Approved by ct on 2026-10-20 in hv-lconmm.1 for retained pre-policy coverage. lib/honeycomb/tests/unit/config.test.ts: invalid policy configuration fails loudly; the invalid defaults.add policy case measured 2.239ms in the integrated followup full check."
+		},
+		"#test-647": {
+			"threshold": "DANGER",
+			"justification": "User explicitly approved timing allowances for all cross-host tracker regression tests on 2026-10-21. This native cloned-database contract verifies distinct child IDs and atomic parent/dependency preservation; measured 275-300ms. Retains the 5000ms timeout and assertion failures."
 		}
 	}
 }
