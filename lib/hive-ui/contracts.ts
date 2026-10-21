@@ -1,4 +1,4 @@
-import { nativeWorkflowStateSchema } from "@hive/shared";
+import { nativeWorkflowStateSchema } from "@hive/shared/workflow-lifecycle";
 import { z } from "zod";
 /* eslint-disable unicorn/max-nested-calls -- Boundary schemas keep complete discriminated variants visible together. */
 
