@@ -293,6 +293,10 @@ export function addProjectCommands(
 			);
 		}
 		command
+			.addHelpText(
+				"after",
+				"\nReconciles Beeswax-owned _hive_ BV recipes; see beeswax setup --help for ownership and receipts.\n",
+			)
 			.description(`${description}; no tracker publication`)
 			.option("--executable <path>", "Stable installed CLI", deps.context.executable)
 			.action(async function synchronize(this: Command) {

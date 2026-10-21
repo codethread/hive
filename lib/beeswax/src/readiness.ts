@@ -66,8 +66,8 @@ export async function setupReadiness(
 				area: "bee_bv",
 				command: bee,
 				action:
-					"With a selected tracker, install Bee's attention query and work/system BV recipes in both checkouts. " +
-					"Then inspect bv --robot-recipes with the selected database.",
+					"Install Bee's attention query in the selected tracker. " +
+					"Verify Beeswax's _hive_ views with bv --robot-recipes in the application and permanent tracker checkouts.",
 			},
 			{
 				area: "colony_configuration",

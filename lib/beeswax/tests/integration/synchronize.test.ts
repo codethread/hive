@@ -2,8 +2,10 @@ import { defaultProjectConfig, writeProjectConfig } from "../../src/config.ts";
 import { expect, test } from "bun:test";
 import { hookSection, previousHookSection } from "../../src/templates.ts";
 import { lockSchema, writeProjectLock } from "../../src/project.ts";
+import type { ProjectLock } from "../../src/project.ts";
 import { fixture } from "../support.ts";
 import { runCli } from "../../src/cli.ts";
+import { synchronizeProject } from "../../src/synchronize.ts";
 import { version } from "../../package.json";
 
 const root = "/repo";
@@ -31,15 +33,17 @@ test(
 		expect(JSON.parse(fx.output.join(""))).toMatchObject({
 			ok: true,
 			kind: "project_synchronized",
+			bvRecipes: ["/repo/.bv/recipes.yaml"],
 			projectLockUpdated: false,
 		});
 		expect(fx.files.get("/repo/.hive/beeswax/meta/lock.json")).toBe(lock);
+		expect(fx.files.get("/repo/.bv/recipes.yaml")).toContain("  _hive_work:");
 		expect(fx.errors).toEqual([]);
 	},
 );
 
-test("update uses command availability at the project root without persisting machine state #test-389", async () => {
-	const fx = configured();
+test("same-version update accepts BV recipes and reports available changelog commands #test-389", async () => {
+	const fx = withoutBvContract();
 	fx.deps.commandAvailable = (name, cwd) => name === "beeswax" && cwd === root;
 	expect(await runCli(["update", "--json"], fx.deps)).toBe(success);
 	expect(JSON.parse(fx.output.join(""))).toMatchObject({
@@ -169,3 +173,74 @@ function withUnknownIdentity(identity: string) {
 	fx.files.set(path, JSON.stringify(lock));
 	return fx;
 }
+
+function withoutBvContract() {
+	const fx = configured();
+	const path = "/repo/.hive/beeswax/meta/lock.json";
+	const lock: ProjectLock = JSON.parse(fx.files.get(path) ?? "");
+	delete lock.components.bvRecipes;
+	fx.files.set(path, JSON.stringify(lock));
+	return fx;
+}
+
+test("sync requires explicit acceptance of the BV component even at the same version", async () => {
+	const fx = withoutBvContract();
+	const before = new Map(fx.files);
+
+	await expect(
+		synchronizeProject({ root, executable: "/opt/bin/beeswax", update: false }, fx.deps),
+	).rejects.toMatchObject({
+		reason: "project_update_required",
+		context: {
+			nextCommand: "beeswax update",
+			component: "bvRecipes",
+			completed: [],
+		},
+	});
+	expect(fx.files).toEqual(before);
+});
+
+// eslint-disable-next-line max-statements -- Verify selected checkout effects without tracker-side project metadata.
+test("sync installs recipes when the selected tracker predates Beeswax configuration", async () => {
+	const fx = configured();
+	fx.deps.context.beadsDb = "/selected/.beads/beads.db";
+	fx.files.set("/selected/.beads/beads.db", "database");
+	fx.files.set("/selected/.husky/pre-commit", hookSection);
+	fx.files.set("/selected/.husky/pre-merge-commit", hookSection);
+
+	expect(
+		await synchronizeProject({ root, executable: "/opt/bin/beeswax", update: false }, fx.deps),
+	).toMatchObject({ bvRecipes: ["/repo/.bv/recipes.yaml", "/selected/.bv/recipes.yaml"] });
+	expect(fx.files.get("/selected/.bv/recipes.yaml")).toContain("  _hive_work:");
+	expect(fx.files.has("/selected/.hive/beeswax/config.toml")).toBe(false);
+	expect(fx.files.has("/repo/.worktrees/tracker--state/.bv/recipes.yaml")).toBe(false);
+});
+
+test("an invalid selected tracker cannot receive BV recipes", async () => {
+	const fx = configured();
+	fx.deps.context.beadsDb = "/selected/.beads/beads.db";
+	fx.files.set("/selected/.beads/beads.db", "database");
+	const { command } = fx.deps;
+	fx.deps.command = (argv, cwd) => {
+		if (argv.includes("--show-current")) {
+			return Promise.resolve("main");
+		}
+		return command(argv, cwd);
+	};
+
+	expect(await runCli(["sync", "--json"], fx.deps)).toBe(failure);
+	expect(fx.files.has("/selected/.bv/recipes.yaml")).toBe(false);
+	expect(fx.files.has("/repo/.bv/recipes.yaml")).toBe(false);
+});
+
+test("later synchronization failures retain confirmed BV output in the receipt", async () => {
+	const fx = configured();
+	fx.files.set("/repo/.pi/extensions/beeswax.js", "// beeswax:begin onboarding v2\n");
+
+	expect(await runCli(["sync", "--json"], fx.deps)).toBe(failure);
+	expect(JSON.parse(fx.output.join(""))).toMatchObject({
+		reason: "onboarding_ambiguous",
+		bvRecipes: ["/repo/.bv/recipes.yaml"],
+		completed: expect.arrayContaining(["bv_recipes"]),
+	});
+});

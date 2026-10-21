@@ -163,7 +163,6 @@ test("setup forwards tracker selection and actor and returns a concise JSON rece
 					kind: "bee_setup",
 					repository,
 					preset: "bee-attention",
-					recipes: ["/checkout/.bv/recipes.yaml", "/tracker/.bv/recipes.yaml"],
 				});
 			},
 		},
@@ -174,7 +173,6 @@ test("setup forwards tracker selection and actor and returns a concise JSON rece
 		kind: "bee_setup",
 		repository,
 		preset: "bee-attention",
-		recipes: ["/checkout/.bv/recipes.yaml", "/tracker/.bv/recipes.yaml"],
 	});
 });
 

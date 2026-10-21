@@ -61,7 +61,7 @@ For merge-request creation, lookup or resolution, follow the [merge bead contrac
 ### Reservations and execution
 
 - Before changing labels, read the [taxonomy and stewardship registry](docs/beads-labels.md). Preserve labels owned by other specialists.
-- Exclude `system` from ordinary `search`, `list` and `ready` with `--exclude-label system`. Access requires an explicit Bee/Colony operation or system-maintenance/debugging assignment; your supplied `HIVE_SPAWN_ID` is authorized execution context. Viewer triage uses `bv --recipe work --robot-triage`.
+- Exclude `system` from ordinary `search`, `list` and `ready` with `--exclude-label system`. Access requires an explicit Bee/Colony operation or system-maintenance/debugging assignment; your supplied `HIVE_SPAWN_ID` is authorized execution context. Viewer triage uses `bv --recipe _hive_work --robot-triage`.
 - Autonomous agents skip `hitl`.
 - Colony executions verify supplied claims before working and follow `bee finish --help` for delivery and completion. Record final task updates locally before finishing.
 

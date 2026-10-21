@@ -249,6 +249,15 @@ or search local checkouts.
 				"\nHooks: husky bootstraps the bundled runner; git retains Git's default hook lookup.\n" +
 				"None skips framework bootstrap but still installs validation sections. Custom frameworks must invoke\n" +
 				"the --pre-commit/--pre-merge-commit files. Inspect formats with beeswax schema.\n" +
+				"BV: setup, update and sync maintain a Beeswax-marked section in .bv/recipes.yaml in the\n" +
+				"caller and selected permanent tracker checkout when available. Required views: _hive_work excludes\n" +
+				"system and busybee-workflow; _hive_system selects system; _hive_workflows selects busybee-workflow.\n" +
+				"Hive prompts use these names. User recipes outside the section, including work/system/workflows,\n" +
+				"stay untouched; ambiguous ownership fails for review. Commit the generated file with the contract.\n" +
+				"Verify bv --robot-recipes in both checkouts; Bee setup manages only its attention query.\n" +
+				"Existing locks without the BV component require beeswax update, even at the same version.\n" +
+				"Receipts list confirmed paths in bvRecipes and completion in the bv_recipes phase; failures\n" +
+				"retain confirmed paths, including unchanged files. Inspect them before retrying.\n" +
 				"Setup stays local; beads sync publishes. The readiness receipt reports configured artifacts,\n" +
 				"effective Honeycomb policy and next actions; execution remains not_verified. Review those\n" +
 				"actions through beeswax skills get repository-setup before declaring onboarding complete.\n" +

@@ -32,6 +32,7 @@ test("a committed contract reproduces intent without any local receipt", () => {
 	expect(contract).toMatchObject({
 		skills: ["repository-setup", "tracker-recovery"],
 		hooks: { ".husky/pre-commit": expect.any(String) },
+		components: { bvRecipes: { revision: 1 } },
 	});
 	expect([...files.keys()]).toEqual([
 		"/repo/.hive/beeswax/config.toml",

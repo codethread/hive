@@ -16,6 +16,9 @@
 		},
 		"skills": {
 			"revision": 1
+		},
+		"bvRecipes": {
+			"revision": 1
 		}
 	}
 }

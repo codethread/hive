@@ -4,6 +4,7 @@ import { installHooks, installMergeDriver } from "./hooks.ts";
 import {
 	projectMigration,
 	readProjectLock,
+	requireBvRecipesContract,
 	requireProjectConfig,
 	requireProjectGeneration,
 	requireProjectVersion,
@@ -17,9 +18,12 @@ import type { WorkspaceIO } from "./services.ts";
 import { applyOnboarding } from "./onboarding.ts";
 import { bindCheckout } from "./binding.ts";
 import { bootstrapHooks } from "./husky.ts";
+import { bvRecipeFiles } from "./bv-recipe-source.ts";
+import { installBvRecipes } from "./bv-recipes.ts";
 import { installTrackerHooks } from "./tracker-hooks.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Resolve this clone's conventional tracker.
 import { resolve } from "node:path";
+import { trackerRoot } from "./beads/environment.ts";
 import { updateChangelogs } from "./prime.ts";
 import { version } from "../package.json";
 
@@ -33,6 +37,7 @@ export async function synchronizeProject(
 ) {
 	const { root, executable, update } = options;
 	const completed: string[] = [];
+	const bvRecipes: string[] = [];
 	try {
 		const lock = await readProjectLock(root, io);
 		if (!lock) {
@@ -52,6 +57,7 @@ export async function synchronizeProject(
 		if (!update) {
 			requireProjectVersion(lock);
 			requireProjectConfig(lock, config);
+			requireBvRecipesContract(lock);
 		}
 		requireProjectGeneration(lock, config);
 		await verifyExecutable(root, executable, io);
@@ -67,10 +73,14 @@ export async function synchronizeProject(
 		);
 		const database =
 			io.context.beadsDb || resolve(common, "../.worktrees/tracker--state/.beads/beads.db");
+		const checkouts = [root];
 		if (await io.exists(database)) {
 			await installTrackerHooks({ repository: root, database, executable, config }, io);
 			completed.push("tracker_hooks");
+			checkouts.push(trackerRoot(database));
 		}
+		bvRecipes.push(...(await installBvRecipes(checkouts, bvRecipeFiles(io))));
+		completed.push("bv_recipes");
 		await bootstrapHooks(root, config.bootstrap.hooks, io);
 		completed.push("hook_bootstrap");
 		const onboarding = await applyOnboarding(root, config.onboarding, io);
@@ -87,6 +97,7 @@ export async function synchronizeProject(
 			kind: "project_synchronized",
 			repository: root,
 			hooks,
+			bvRecipes,
 			projectLockUpdated: update,
 			completed,
 		};
@@ -105,7 +116,12 @@ export async function synchronizeProject(
 			failure = error;
 		}
 		throw new BeeswaxError(failure.reason, failure.message, {
-			context: { ...failure.context, repository: root, completed },
+			context: {
+				...failure.context,
+				repository: root,
+				completed,
+				bvRecipes: failure.context.bvRecipes ?? bvRecipes,
+			},
 			exitCode: failure.exitCode,
 		});
 	}

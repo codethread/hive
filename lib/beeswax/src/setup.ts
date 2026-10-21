@@ -31,7 +31,10 @@ import type { WorkspaceIO } from "./services.ts";
 import { applyOnboarding } from "./onboarding.ts";
 import { bindCheckout } from "./binding.ts";
 import { bootstrapHooks } from "./husky.ts";
+import { bvRecipeFiles } from "./bv-recipe-source.ts";
+import { installBvRecipes } from "./bv-recipes.ts";
 import { setupReadiness } from "./readiness.ts";
+import { trackerRoot } from "./beads/environment.ts";
 import { z } from "zod";
 
 const NONEMPTY = 1;
@@ -45,7 +48,7 @@ export interface SetupFlags extends OnboardingFlags {
 	actor?: string;
 	/** Target checkout, defaulting to the calling directory. */
 	repo?: string;
-	/** Explicit creation, clone bootstrap, adoption or hooks-only setup. */
+	/** Explicit creation, clone bootstrap, adoption or setup without tracker operations. */
 	tracker?: TrackerMode;
 	/** Native Beads endpoint to adopt. */
 	beadsDb?: string;
@@ -78,7 +81,7 @@ export interface SetupOptions {
 	repo: string;
 	/** Explicit tracker operation. */
 	tracker: TrackerMode;
-	/** Selected absolute database, or empty for hook-only setup. */
+	/** Selected absolute database; unused when tracker is none. */
 	beadsDb: string;
 	/** Human owner used only for fresh initialization. */
 	owner: string;
@@ -186,6 +189,7 @@ export async function resolveSetup(
 // eslint-disable-next-line max-statements -- Keep this ordered CLI operation and its result together.
 export async function setupRepository(options: SetupOptions, deps: SetupDependencies) {
 	const completed: string[] = [];
+	const bvRecipes: string[] = [];
 	let database = "";
 	try {
 		const lock = await readProjectLock(options.repo, deps);
@@ -233,6 +237,12 @@ export async function setupRepository(options: SetupOptions, deps: SetupDependen
 			);
 			completed.push("tracker_hooks");
 		}
+		const checkouts = [options.repo];
+		if (database !== "") {
+			checkouts.push(trackerRoot(database));
+		}
+		bvRecipes.push(...(await installBvRecipes(checkouts, bvRecipeFiles(deps))));
+		completed.push("bv_recipes");
 		await bootstrapHooks(options.repo, options.config.bootstrap.hooks, deps);
 		completed.push("hooks");
 		const onboarding = await applyOnboarding(options.repo, options.config.onboarding, deps);
@@ -254,6 +264,7 @@ export async function setupRepository(options: SetupOptions, deps: SetupDependen
 			repository: options.repo,
 			database,
 			hooks,
+			bvRecipes,
 			lockfile,
 			completed,
 			readiness,
@@ -272,6 +283,7 @@ export async function setupRepository(options: SetupOptions, deps: SetupDependen
 				cause,
 				repository: options.repo,
 				completed,
+				bvRecipes: context.bvRecipes ?? bvRecipes,
 				database: database || context.database || "",
 			},
 		});

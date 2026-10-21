@@ -133,7 +133,7 @@ export function renderPrime(options: PrimeOptions): string {
 		"Preserve supplied BEADS_DB and actor identity. " +
 			"Native Beads owns tasks, assignments and readiness; BV is advisory.",
 		"Exclude automation-owned system beads from ordinary queries: " +
-			"br search/list/ready use --exclude-label system; BV uses bv --recipe work --robot-triage.",
+			"br search/list/ready use --exclude-label system; BV uses bv --recipe _hive_work --robot-triage.",
 		"Inspect, claim available work, perform it, verify acceptance and close with evidence. " +
 			"Preserve other assignees and HITL reservations.",
 		"Assign work to a human only when that human explicitly instructs it. " +

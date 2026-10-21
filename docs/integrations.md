@@ -63,6 +63,6 @@ Pi's [Beads extension](../.pi/extensions/beads.ts) displays the last successful 
 
 ### Automation bead maintenance and debugging
 
-Access to automation-owned records follows the [system-label authority](./beads-labels.md#taxonomy). The [`work` and `system` viewer recipes](../.bv/recipes.yaml) filter BV views; they do not authorize execution or filter `br` calls.
+Access to automation-owned records follows the [system-label authority](./beads-labels.md#taxonomy). The [Beeswax-managed `_hive_` viewer recipes](../lib/beeswax/README.md#bv-viewer-recipes) filter advisory BV views; they do not authorize execution, filter `br` calls or constrain Colony's ranking graph.
 
 For an authorized maintenance assignment, put its scope and system bead IDs in workflow input beneath an ordinary work parent. Use `bee spawn --help` for submission. [Spawn state and native queries](./agents/spawn-requests.md) owns lifecycle inspection and recovery.

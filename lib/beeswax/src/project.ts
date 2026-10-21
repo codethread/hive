@@ -23,6 +23,8 @@ export const lockSchema = z.strictObject({
 		hooks: hookComponentSchema,
 		mergeDriver: componentSchema,
 		skills: componentSchema,
+		/** Missing until an existing project explicitly accepts managed BV recipes. */
+		bvRecipes: componentSchema.optional(),
 	}),
 });
 export type ProjectLock = z.infer<typeof lockSchema>;
@@ -84,6 +86,17 @@ export function requireProjectGeneration(lock: ProjectLock, config: ProjectConfi
 	}
 }
 
+/** Ordinary sync requires accepted BV ownership even when the suite version is unchanged. */
+export function requireBvRecipesContract(lock: ProjectLock): void {
+	if (!lock.components.bvRecipes) {
+		throw new BeeswaxError(
+			"project_update_required",
+			'Run "beeswax update" to accept the required managed BV recipes before synchronization.',
+			{ context: { nextCommand: "beeswax update", component: "bvRecipes" } },
+		);
+	}
+}
+
 /** Record portable component intent for Git review; no machine paths, actors or timestamps enter this lock. */
 export async function writeProjectLock(root: string, io: WorkspaceIO): Promise<string> {
 	const config = await readProjectConfig(root, io);
@@ -102,6 +115,7 @@ export async function writeProjectLock(root: string, io: WorkspaceIO): Promise<s
 			hooks: { revision: HOOK_REVISION },
 			mergeDriver: { revision: REVISION },
 			skills: { revision: REVISION },
+			bvRecipes: { revision: REVISION },
 		},
 	};
 	const path = join(root, ".hive/beeswax/meta/lock.json");

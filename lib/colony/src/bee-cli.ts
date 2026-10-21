@@ -91,7 +91,7 @@ export interface AckOptions extends InspectionOptions {
 	reason: string;
 }
 export interface BeeDependencies {
-	/** Install Bee's saved query and checkout-local BV views. */
+	/** Refresh Bee's attention query in the selected database. */
 	setup: (options: BeeSetupOptions) => Promise<BeeSetupResult>;
 	/** File one authored response against its task and optional exact request. */
 	responsePublish: (task: string, options: PublishOptions) => Promise<ResponseCommandResult>;
@@ -184,9 +184,7 @@ export async function runBeeCli(argv: string[], deps: BeeDependencies): Promise<
 		});
 	registerSkills(program, "bee", deps.stdout);
 	inspectionOptions(
-		program
-			.command("setup")
-			.description("Install Bee's attention preset and BV work/system/workflows views"),
+		program.command("setup").description("Install Bee's attention preset in the selected database"),
 	)
 		.requiredOption(
 			"--actor <identity>",
@@ -200,23 +198,15 @@ Installs bee-attention for failed, unresolved spawn requests, including closed o
 Saved queries are local to the selected database; run setup for each tracker clone.
 Replaces only this saved preset.
 
-Also installs .bv/recipes.yaml in the caller's checkout and permanent tracker/state
-checkout. The selected database must be that repository's tracker .beads/beads.db.
+Uses --beads-db or BEADS_DB without requiring a permanent tracker checkout.
+No daemon, bee-kind configuration or BV executable is needed. No issue labels change.
+Beeswax manages Hive's BV views separately; see beeswax setup --help.
+This command neither reads nor writes BV recipes.
 
-Owned BV views filter by label:
-- work excludes system and busybee-workflow.
-- system selects system.
-- workflows selects busybee-workflow.
-
-Preserves unrelated recipes and compatible views. Upgrades the previous work filter
-(exclude_tags: [system]), preserving its description. Conflicting recipes fail before
-writes; reconcile the named recipe and rerun. No issue labels change.
-
-JSON failures retain presetRemoved, presetInstalled and recipesInstalled. Inspect
-those confirmed effects before retrying after interruption. No daemon or bee-kind
-configuration is needed. Verify BV discovery in both checkouts with bv --robot-recipes.
-
-Use --json for a machine-readable result. Read br query --help to run saved queries.
+With --json, success returns kind: bee_setup, repository and preset.
+Setup failures retain repository, presetRemoved and presetInstalled. Inspect those
+confirmed effects before retrying after interruption.
+Read br query --help to run saved queries.
 `,
 		)
 		.action(async (options: BeeSetupOptions) => {
@@ -548,9 +538,7 @@ function writeResult(
 		return;
 	}
 	if (result.kind === "bee_setup") {
-		stdout(
-			`Installed ${result.preset} in ${result.repository.beadsDb}.\nBV recipes: ${result.recipes.join(", ")}\n`,
-		);
+		stdout(`Installed ${result.preset} in ${result.repository.beadsDb}.\n`);
 		return;
 	}
 	if (result.kind === "bee_kinds") {
