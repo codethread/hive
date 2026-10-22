@@ -15,7 +15,7 @@ export const SUMMARY_FIELDS = [
 ] as const;
 export type SummaryBead = ProjectedBead<typeof SUMMARY_FIELDS>;
 
-const READ_BATCH = 100;
+const READ_BATCH = 500;
 const EXCLUDED_LABELS = new Set(["system", "bee", "merge"]);
 
 export interface HierarchyRecord {

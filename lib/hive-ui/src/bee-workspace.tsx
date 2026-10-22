@@ -34,8 +34,8 @@ export function BeeWorkspace({
 	);
 	const ancestry = snapshot(ancestryResource);
 	const scene = useMemo(
-		() => beeScene(inventory.bees, search.beeQuery, ancestry),
-		[inventory.bees, search.beeQuery, ancestry],
+		() => beeScene(inventory.bees, search.beeQuery, ancestry, inventory.requestParents),
+		[inventory.bees, search.beeQuery, ancestry, inventory.requestParents],
 	);
 
 	const selected = scene.requests.find((bee) => bee.id === search.request);
@@ -51,7 +51,7 @@ export function BeeWorkspace({
 		[navigate],
 	);
 	return (
-		<section aria-label="Bee provenance" className="min-w-0">
+		<section aria-label="Bee provenance" className="bee-workspace min-w-0">
 			<div className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-5 py-3">
 				<fieldset className="flex gap-2" aria-label="Bee presentation">
 					{(["outline", "graph"] as const).map((presentation) => (

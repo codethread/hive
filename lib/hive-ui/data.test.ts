@@ -1,14 +1,25 @@
-import { ANNOTATION_BATCH, annotationKey, hierarchyKey } from "./contracts.ts";
+import {
+	ANNOTATION_BATCH,
+	annotationKey,
+	boardFilterSchema,
+	boardKey,
+	hierarchyKey,
+} from "./contracts.ts";
 import type { CardAnnotations, Hierarchy, HierarchyNode } from "./contracts.ts";
 import {
 	annotateCards,
 	annotationStatus,
+	boardHierarchyKey,
+	boards,
 	createCardAnnotationsResource,
 	createHierarchyResource,
+	hierarchies,
+	loadBoard,
 	snapshot,
 } from "./src/data.ts";
-import { expect, test } from "bun:test";
-import { colony } from "./src/stories/fixtures.ts";
+import { board, colony } from "./src/stories/fixtures.ts";
+import { boardFamilies, separateHumanWork } from "./hierarchy.ts";
+import { expect, spyOn, test } from "bun:test";
 import { createBoardData } from "./server/data.ts";
 import { createMemoryBeads } from "@hive/beads";
 import { z } from "zod";
@@ -28,6 +39,51 @@ const SMALL_FAMILY = 2;
 const CACHE_LIFETIME = 10_000;
 const race = await annotationFixture();
 const assignmentRace = await assignmentFixture();
+const membership = await membershipFixture();
+
+// eslint-disable-next-line max-statements -- Exercise production reads and background replacement without timers.
+test("fast board membership changes retain known native families without claiming uncovered cards", async () => {
+	const { colonyId, filter, familyKey, root, child, sibling, uncovered, state, read, reads } =
+		membership;
+	const fetch = spyOn(globalThis, "fetch").mockImplementation(read);
+	try {
+		const retained = snapshot(hierarchies.store.getState().entries[familyKey]!);
+		expect(boardFamilies({ ...board, cards: state.cards }, retained)[0]?.layout).toBe("rails");
+		for (const cards of [
+			[child, sibling, uncovered],
+			[sibling, uncovered],
+		]) {
+			state.cards = cards;
+			reads.length = 0;
+			// eslint-disable-next-line no-await-in-loop -- Sequential fast polls change the same native page membership.
+			await loadBoard(colonyId, filter, { refreshAfter: Date.parse(NEW), background: false });
+			const current = snapshot(boards.store.getState().entries[boardKey(colonyId, filter)]!)!;
+			const hierarchy = snapshot(hierarchies.store.getState().entries[familyKey]!);
+			const families = boardFamilies(current, hierarchy);
+			expect(reads).toEqual(["board"]);
+			expect(hierarchy).toBe(retained);
+			expect(hierarchy?.fetchedAt).toBe(OLD);
+			expect(hierarchy?.stale).toBe(true);
+			expect(families[0]?.root.id).toBe(root.id);
+			expect(families[0]?.layout).toBe("rails");
+			expect(families[0]?.visible.map(({ node: entry }) => entry.id)).toEqual(
+				cards.filter((entry) => entry.id !== uncovered.id).map((entry) => entry.id),
+			);
+			expect(families[1]?.rows.map(({ node: entry }) => entry.id)).toEqual([uncovered.id]);
+			expect(
+				hierarchies.store.getState().entries[hierarchyKey(colonyId, [uncovered.id])],
+			).toBeUndefined();
+			const human = { ...current, cards: [{ ...sibling, assignee: sibling.owner }] };
+			expect(separateHumanWork(human, hierarchy, hierarchy).human[0]?.outlineId).toBe(root.id);
+		}
+		const nextPage = { ...filter, page: filter.page + 1 };
+		expect(
+			hierarchies.store.getState().entries[boardHierarchyKey(colonyId, nextPage)],
+		).toBeUndefined();
+	} finally {
+		fetch.mockRestore();
+	}
+});
 
 // eslint-disable-next-line max-statements -- Verify reuse and expiry with one deterministic resource clock.
 test("annotation demand reuses fresh singleton and overlapping aliases #test-403", async () => {
@@ -226,21 +282,46 @@ test("annotation demand caches absent IDs without dropping other cards #test-488
 	).toEqual([left.id]);
 });
 
-test("an older board response cannot republish a family after a newer member refresh #test-623", async () => {
-	const old = Promise.withResolvers<Hierarchy>();
+test("a retained board snapshot participates in overlapping member invalidation", async () => {
 	const resource = createHierarchyResource((path) => {
 		if (path === "old") {
-			return old.promise;
+			return Promise.resolve(original);
 		}
 		return Promise.resolve(moved);
 	});
-	const pending = resource.load(key(["left", "right"]), "old");
+	const scopedKey = boardHierarchyKey("colony", boardFilterSchema.parse({ view: "beads" }));
+	await resource.load(scopedKey, "old");
 	await resource.load(key(["right"]), "new", true);
-	old.resolve(original);
-	await pending;
-	expect(resource.store.getState().entries[key(["left", "right"])]?.kind).toBe("stale");
+	expect(resource.store.getState().entries[scopedKey]?.kind).toBe("stale");
+	expect(snapshot(resource.store.getState().entries[scopedKey]!)).toBe(original);
 	expect(snapshot(resource.store.getState().entries[key(["child"])]!)?.nodes).toEqual(moved.nodes);
 });
+
+test.each(["membership", "board"])(
+	"an older %s response cannot republish a family after a newer member refresh #test-623",
+	// eslint-disable-next-line max-statements -- Retain both board-key shapes at the same gated publication boundary.
+	async (scope) => {
+		const old = Promise.withResolvers<Hierarchy>();
+		const resource = createHierarchyResource((path) => {
+			if (path === "old") {
+				return old.promise;
+			}
+			return Promise.resolve(moved);
+		});
+		let resourceKey = key(["left", "right"]);
+		if (scope === "board") {
+			resourceKey = boardHierarchyKey("colony", boardFilterSchema.parse({ view: "beads" }));
+		}
+		const pending = resource.load(resourceKey, "old");
+		await resource.load(key(["right"]), "new", true);
+		old.resolve(original);
+		await pending;
+		expect(resource.store.getState().entries[resourceKey]?.kind).toBe("stale");
+		expect(snapshot(resource.store.getState().entries[key(["child"])]!)?.nodes).toEqual(
+			moved.nodes,
+		);
+	},
+);
 
 test.each(["success", "failure"])(
 	"an older member %s preserves a newer complete alias",
@@ -459,6 +540,57 @@ test("annotation status distinguishes recovered batches from unread or absent ba
 	expect(annotationStatus("colony", [["left"], ["right"]], entries).kind).toBe("empty");
 	expect(annotationStatus("colony", [], entries).kind).toBe("empty");
 });
+
+// eslint-disable-next-line max-statements -- Set up an observed background pass through production stores.
+async function membershipFixture() {
+	const colonyId = "membership-regression";
+	const filter = boardFilterSchema.parse({ view: "beads" });
+	const familyKey = boardHierarchyKey(colonyId, filter);
+	const root = node("root");
+	const child = node("child", [root.id]);
+	const sibling = node("sibling", [root.id]);
+	const uncovered = node("uncovered");
+	const state = {
+		cards: [child, sibling],
+		family: { nodes: [root, child, sibling], stale: true, fetchedAt: OLD },
+	};
+	const reads: string[] = [];
+	const read = (input: URL | RequestInfo) => {
+		if (typeof input !== "string") {
+			throw new TypeError("Expected a client API path");
+		}
+		const path = new URL(input, "http://hive");
+		const operation = path.pathname.split("/").pop()!;
+		reads.push(operation);
+		let data: unknown = state.family;
+		if (operation === "board") {
+			data = { ...board, cards: state.cards, fetchedAt: NEW };
+		} else if (operation === "annotations") {
+			data = annotationData(requestedIds(path.href));
+		}
+		return Promise.resolve(Response.json(data));
+	};
+	const fetch = spyOn(globalThis, "fetch").mockImplementation(
+		Object.assign(read, { preconnect: globalThis.fetch.preconnect }),
+	);
+	try {
+		await loadBoard(colonyId, filter, { refreshAfter: Date.parse(OLD) });
+	} finally {
+		fetch.mockRestore();
+	}
+	return {
+		colonyId,
+		filter,
+		familyKey,
+		root,
+		child,
+		sibling,
+		uncovered,
+		state,
+		reads,
+		read: Object.assign(read, { preconnect: globalThis.fetch.preconnect }),
+	};
+}
 
 // eslint-disable-next-line max-statements -- Keep the in-memory sources and inventory gate together.
 async function annotationFixture() {

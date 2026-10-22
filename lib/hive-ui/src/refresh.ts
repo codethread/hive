@@ -1,6 +1,7 @@
 import { assign, fromPromise, setup } from "xstate";
 
 export const REFRESH_INTERVAL_MS = 5000;
+export const BACKGROUND_REFRESH_INTERVAL_MS = 60_000;
 const visibilityEvent: { type: "SHOW" | "HIDE" } = { type: "SHOW" };
 
 export function createRefreshMachine(refresh: () => Promise<void>) {
@@ -33,4 +34,18 @@ export function createRefreshMachine(refresh: () => Promise<void>) {
 			},
 		},
 	});
+}
+
+/** Background work becomes due from its last start; the next poll decides when it runs. */
+export function createRefreshSchedule(now: () => number = Date.now) {
+	const backgrounds = new Map<string, number>();
+	return (key: string, force: boolean, refreshAfter = now()) => {
+		const previous = backgrounds.get(key);
+		const background =
+			force || previous === undefined || refreshAfter - previous >= BACKGROUND_REFRESH_INTERVAL_MS;
+		if (background) {
+			backgrounds.set(key, refreshAfter);
+		}
+		return { refreshAfter, background };
+	};
 }

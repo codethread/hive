@@ -1,5 +1,5 @@
-import type { BeadsScope, DependencySelection } from "@hive/beads";
 import { expect, test } from "bun:test";
+import type { BeadsScope } from "@hive/beads";
 import { boardFilterSchema } from "../contracts.ts";
 import { colony } from "../src/stories/fixtures.ts";
 import { createBoardData } from "./data.ts";
@@ -219,13 +219,9 @@ test("merge icons read both directions of labelled, closed and malformed referen
 	const calls: string[] = [];
 	const beads = {
 		...linked.beads,
-		showMany: () => Promise.reject(new Error("Task detail must remain lazy")),
-		dep: {
-			...linked.beads.dep,
-			list: (tracker: BeadsScope, id: string, selection: DependencySelection) => {
-				calls.push(id);
-				return linked.beads.dep.list(tracker, id, selection);
-			},
+		showMany: (tracker: BeadsScope, ids: readonly string[]) => {
+			calls.push(...ids);
+			return linked.beads.showMany(tracker, ids);
 		},
 	};
 	const data = createBoardData(unrequestedTopology);
@@ -321,4 +317,188 @@ test("failed graph validation never seeds the complete-family cache #test-506", 
 	expect(reads).toBe(COLD_AND_RECOVERY_READS);
 	expect(cached).toEqual(fresh);
 	expect(cached.fetchedAt).toBe(fetchedAt);
+});
+
+// eslint-disable-next-line max-statements -- Verify reuse and the next native revision through the public read model.
+test("annotation summaries reuse this refresh but reread changed tasks on the next refresh", async () => {
+	const beads = createMemoryBeads();
+	const task = await beads.create(scope, { title: "Current task" });
+	let reads = 0;
+	const context = {
+		beads: {
+			...beads,
+			listProjected: (...args: Parameters<typeof beads.listProjected>) => {
+				if (args[PROJECTION_FIELDS].includes("assignee")) {
+					reads += 1;
+				}
+				return beads.listProjected(...args);
+			},
+		},
+		colony,
+		requestId: "reuse",
+		log: async () => {},
+	};
+	let clock = 1;
+	const data = createBoardData(unrequestedTopology, () => clock);
+	await data.board(context, filter, clock);
+	await data.annotations(context, [task.id], clock);
+	expect(reads).toBe(1);
+	await beads.update(scope, [task.id], { status: "blocked" });
+	const next = await data.annotations(context, [task.id], ++clock);
+	expect(next.cards[0]?.status).toBe("blocked");
+	expect(reads).toBe(COLD_AND_RECOVERY_READS);
+});
+
+// eslint-disable-next-line max-statements -- Verify failed-refresh invalidation and recovery without timers.
+test("a failed native summary refresh invalidates prior rows for annotation retries", async () => {
+	const beads = createMemoryBeads();
+	const task = await beads.create(scope, { title: "Retry task" });
+	let fail = false;
+	const context = {
+		beads: {
+			...beads,
+			listProjected: (...args: Parameters<typeof beads.listProjected>) => {
+				if (fail) {
+					return Promise.reject(new Error("Native read failed"));
+				}
+				return beads.listProjected(...args);
+			},
+		},
+		colony,
+		requestId: "retry",
+		log: async () => {},
+	};
+	const data = createBoardData(unrequestedTopology, () => 1);
+	await data.board(context, filter, 1);
+	fail = true;
+	const failed = await data.board(context, filter, 1).catch((error: unknown) => error);
+	expect(failed).toBeInstanceOf(Error);
+	await beads.update(scope, [task.id], { status: "blocked" });
+	fail = false;
+	const retry = await data.annotations(context, [task.id], 1);
+	expect(retry.cards[0]?.status).toBe("blocked");
+});
+
+// eslint-disable-next-line max-statements -- Verify that late completion cannot regress annotation rows.
+test("an older native summary read cannot replace a newer refresh", async () => {
+	const beads = createMemoryBeads();
+	const task = await beads.create(scope, { title: "Concurrent task" });
+	const started = Promise.withResolvers<void>();
+	const release = Promise.withResolvers<void>();
+	let delay = true;
+	const context = {
+		beads: {
+			...beads,
+			listProjected: async (...args: Parameters<typeof beads.listProjected>) => {
+				const value = await beads.listProjected(...args);
+				if (delay && args[PROJECTION_FIELDS].includes("assignee")) {
+					delay = false;
+					started.resolve();
+					await release.promise;
+				}
+				return value;
+			},
+		},
+		colony,
+		requestId: "concurrent",
+		log: async () => {},
+	};
+	const clock = 1;
+	const data = createBoardData(unrequestedTopology, () => clock);
+	const old = data.board(context, filter, clock);
+	await started.promise;
+	await beads.update(scope, [task.id], { status: "blocked" });
+	await data.board(context, filter, clock);
+	release.resolve();
+	await old;
+	const result = await data.annotations(context, [task.id], clock);
+	expect(result.cards[0]?.status).toBe("blocked");
+});
+
+// eslint-disable-next-line max-statements -- Verify that late completion cannot regress annotation rows.
+test("a failed read fences older pending summaries from same-cutoff retries", async () => {
+	const beads = createMemoryBeads();
+	const task = await beads.create(scope, { title: "Concurrent task" });
+	const started = Promise.withResolvers<void>();
+	const release = Promise.withResolvers<void>();
+	let delay = true;
+	let fail = false;
+	const context = {
+		beads: {
+			...beads,
+			listProjected: async (...args: Parameters<typeof beads.listProjected>) => {
+				if (fail && args[PROJECTION_FIELDS].includes("assignee")) {
+					throw new Error("Native read failed");
+				}
+				const value = await beads.listProjected(...args);
+				if (delay && args[PROJECTION_FIELDS].includes("assignee")) {
+					delay = false;
+					started.resolve();
+					await release.promise;
+				}
+				return value;
+			},
+		},
+		colony,
+		requestId: "concurrent",
+		log: async () => {},
+	};
+	const data = createBoardData(unrequestedTopology, () => 1);
+	const old = data.board(context, filter, 1);
+	await started.promise;
+	await beads.update(scope, [task.id], { status: "blocked" });
+	fail = true;
+	const failure = await data.board(context, filter, 1).catch((error: unknown) => error);
+	expect(failure).toBeInstanceOf(Error);
+	fail = false;
+	release.resolve();
+	await old;
+	const result = await data.annotations(context, [task.id], 1);
+	expect(result.cards[0]?.status).toBe("blocked");
+});
+
+test("summary reuse never crosses endpoint selection", async () => {
+	const beads = createMemoryBeads();
+	const task = await beads.create(scope, { title: "Endpoint task" });
+	const context = { beads, colony, requestId: "endpoint", log: async () => {} };
+	const data = createBoardData(unrequestedTopology, () => 1);
+	await data.board(context, filter, 1);
+	await beads.update(scope, [task.id], { status: "blocked" });
+	const other = { ...context, colony: { ...colony, id: "other" } };
+	const result = await data.annotations(other, [task.id], 1);
+	expect(result.cards[0]?.status).toBe("blocked");
+});
+
+// eslint-disable-next-line max-statements -- Exercise hidden-history ambiguity and snapshot refresh together.
+test("automatic requester links use all history and refresh with inventory", async () => {
+	const beads = createMemoryBeads();
+	const recipe = {
+		labels: ["system", "bee", "agent:worker"],
+		description: JSON.stringify({ harness: "codex", kind: "worker", model: "gpt-6-astra" }),
+	};
+	const parent = await beads.create(scope, { ...recipe, title: "Parent", assignee: "parent-bee" });
+	const child = await beads.create(
+		{ ...scope, actor: "parent-bee" },
+		{ ...recipe, title: "Child", assignee: "child-bee" },
+	);
+	const context = { beads, colony, requestId: "test", log: async () => {} };
+	let clock = 1;
+	const data = createBoardData(unrequestedTopology, () => clock);
+	const inventoryFilter = boardFilterSchema.parse({ view: "open" });
+	const initial = await data.inventory(context, inventoryFilter, clock);
+	expect(initial.kind === "loaded" && initial.requestParents).toEqual([
+		{ parent: parent.id, child: child.id },
+	]);
+	await beads.create(scope, {
+		...recipe,
+		title: "Hidden duplicate",
+		assignee: "parent-bee",
+		status: "closed",
+	});
+	const cached = await data.inventory(context, inventoryFilter, clock);
+	expect(cached.kind === "loaded" && cached.requestParents).toEqual([
+		{ parent: parent.id, child: child.id },
+	]);
+	const refreshed = await data.inventory(context, inventoryFilter, ++clock);
+	expect(refreshed.kind === "loaded" && refreshed.requestParents).toEqual([]);
 });

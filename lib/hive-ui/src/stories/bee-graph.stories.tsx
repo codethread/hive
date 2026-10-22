@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { ancestry, bees, outcomeBees, worker } from "./fixtures.ts";
+import { ancestry, bees, outcomeBees, parentBee, worker } from "./fixtures.ts";
 import { BeeGraph } from "../bee-graph.tsx";
 import type { GraphProps } from "../graph-loader.ts";
 import { beeScene } from "../bee-scene.ts";
@@ -24,7 +24,7 @@ const meta = {
 		);
 	},
 	args: {
-		scene: beeScene(bees, "", null),
+		scene: beeScene(bees, "", null, []),
 		selected: undefined,
 		onSelect: fn<(id: string) => void>(),
 		theme: "moss",
@@ -51,16 +51,22 @@ type Story = StoryObj<typeof meta>;
 
 export const RecordedRequesters: Story = {};
 export const InferredAncestry: Story = {
-	args: { scene: beeScene(bees, "", ancestry), selected: worker.id },
+	args: { scene: beeScene(bees, "", ancestry, []), selected: worker.id },
+};
+export const InferredInventory: Story = {
+	args: {
+		scene: beeScene([worker, parentBee], "", null, [{ parent: parentBee.id, child: worker.id }]),
+		selected: parentBee.id,
+	},
 };
 export const HistoricalContext: Story = {
-	args: { scene: beeScene(bees, "amber", ancestry), selected: worker.id },
+	args: { scene: beeScene(bees, "amber", ancestry, []), selected: worker.id },
 };
-export const Outcomes: Story = { args: { scene: beeScene(outcomeBees, "", null) } };
-export const NoMatches: Story = { args: { scene: beeScene(bees, "no-such-bee", null) } };
+export const Outcomes: Story = { args: { scene: beeScene(outcomeBees, "", null, []) } };
+export const NoMatches: Story = { args: { scene: beeScene(bees, "no-such-bee", null, []) } };
 export const Paper: Story = {
 	globals: { theme: "paper" },
-	args: { scene: beeScene(bees, "", ancestry), selected: worker.id },
+	args: { scene: beeScene(bees, "", ancestry, []), selected: worker.id },
 };
 export const LongIdentity: Story = {
 	args: {
@@ -74,6 +80,7 @@ export const LongIdentity: Story = {
 			],
 			"",
 			null,
+			[],
 		),
 	},
 };

@@ -9,6 +9,8 @@ import {
 	Panel,
 	Position,
 	ReactFlow,
+	getNodesBounds,
+	useReactFlow,
 } from "@xyflow/react";
 import { Badge, Button, Card as SurfaceCard } from "./primitives.tsx";
 import { BeeActivity, outcomeName } from "./ui.tsx";
@@ -32,14 +34,14 @@ import {
 	Title as DialogTitle,
 	Trigger as DialogTrigger,
 } from "@radix-ui/react-dialog";
-import type { Edge, Node, NodeProps } from "@xyflow/react";
+import type { Edge, Node, NodeProps, Rect } from "@xyflow/react";
 import type { GraphLabel, NodeLabel } from "@dagrejs/dagre";
 import { graphlib, layout as runLayout } from "@dagrejs/dagre";
+import { useEffect, useMemo } from "react";
 import type { Bee } from "../contracts.ts";
 import type { GraphProps } from "./graph-loader.ts";
 import { beeActivity } from "./activity.ts";
 import { useActivityClock } from "./activity-clock.tsx";
-import { useMemo } from "react";
 
 const CARD = { width: 292, height: 172 };
 const ACTOR = { width: 184, height: 58 };
@@ -88,8 +90,6 @@ export function BeeGraph({ scene, selected, onSelect, theme }: GraphProps) {
 					nodes={nodes}
 					edges={graph.edges}
 					nodeTypes={NODE_TYPES}
-					fitView
-					fitViewOptions={FIT}
 					minZoom={MIN_ZOOM}
 					maxZoom={MAX_ZOOM}
 					nodesDraggable={false}
@@ -101,6 +101,7 @@ export function BeeGraph({ scene, selected, onSelect, theme }: GraphProps) {
 					colorMode={theme === "moss" ? "dark" : "light"}
 					aria-label="Bee provenance graph"
 				>
+					<FitGraph bounds={getNodesBounds(graph.nodes)} />
 					<Background gap={GRID_GAP} size={1} color="var(--line)" />
 					<Controls showInteractive={false} fitViewOptions={FIT} />
 					<Panel position="top-right" className="bee-graph-toolbar">
@@ -117,6 +118,16 @@ export function BeeGraph({ scene, selected, onSelect, theme }: GraphProps) {
 }
 
 // --- HTML nodes and deterministic layout of the supplied evidence ---
+
+function FitGraph({ bounds: { x, y, width, height } }: { bounds: Rect }) {
+	const { fitBounds, viewportInitialized } = useReactFlow();
+	useEffect(() => {
+		if (viewportInitialized) {
+			void fitBounds({ x, y, width, height }, FIT);
+		}
+	}, [viewportInitialized, fitBounds, x, y, width, height]);
+	return null;
+}
 
 function GraphInfo({ theme }: Pick<GraphProps, "theme">) {
 	return (

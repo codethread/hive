@@ -12,7 +12,14 @@ const meta = {
 	render: LoadedWorkspace,
 	args: {
 		colonyId: COLONY_ID,
-		inventory: { kind: "loaded", bees, total: bees.length, hasMore: false, readAt: OBSERVED_AT },
+		inventory: {
+			kind: "loaded",
+			bees,
+			requestParents: [],
+			total: bees.length,
+			hasMore: false,
+			readAt: OBSERVED_AT,
+		},
 		board,
 	},
 	parameters: {

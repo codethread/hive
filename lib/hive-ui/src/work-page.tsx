@@ -7,6 +7,7 @@ import {
 	annotateHierarchy,
 	annotationStatus,
 	annotations,
+	boardHierarchyKey,
 	boards,
 	colonies,
 	hierarchies,
@@ -22,7 +23,6 @@ import {
 	REQUEST_PAGE_SIZE,
 	boardFilterSchema,
 	boardKey,
-	hierarchyKey,
 	inventoryKey,
 	navigationSchema,
 } from "../contracts.ts";
@@ -117,14 +117,14 @@ export function WorkPage() {
 	const showWorkflowBeads = useStore(preferences, (state) => state.showWorkflowBeads);
 	const { colonyId } = useParams({ from: "/colonies/$colonyId" });
 	const search = useSearch({ from: "/colonies/$colonyId" });
-	useLiveRefresh(() => loadView(colonyId, search, true));
+	useLiveRefresh(() => loadView(colonyId, search, "poll"));
 	const filter = boardFilterSchema.parse(search);
 	const key = boardKey(colonyId, filter);
 	const resource = useStore(boards.store, (state) => state.entries[key] ?? EMPTY);
 	const annotationEntries = useStore(annotations.store, (state) => state.entries);
 	const base = snapshot(resource);
 	const board = base && { ...base, cards: annotateCards(base.cards, colonyId, annotationEntries) };
-	const hierarchyResourceKey = hierarchyKey(colonyId, board?.cards.map((card) => card.id) ?? []);
+	const hierarchyResourceKey = boardHierarchyKey(colonyId, filter);
 	const hierarchyResource = useStore(
 		hierarchies.store,
 		(state) => state.entries[hierarchyResourceKey] ?? EMPTY,

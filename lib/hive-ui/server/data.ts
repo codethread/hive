@@ -40,10 +40,10 @@ import { taskSelection } from "./query.ts";
 import { z } from "zod";
 
 const MAX_REQUESTS = 100;
-const METADATA_CONCURRENCY = 4;
 const TASK_MATCH_BATCH = 100;
 const METADATA_READ_BATCH = 100;
 const MAX_ANCESTORS = 8;
+const REQUEST_PARENT_CONCURRENCY = 4;
 const INVENTORY_TTL_MS = 10_000;
 // Read only the published identity index, independent of Busy Bee actor-state internals.
 const workflowVisitSchema = z.object({ bead: z.string() });
@@ -90,9 +90,50 @@ export function createBoardData(readTopology: ReadTopology, now: () => number = 
 	// A refresh cutoff is shared by its inventory, board and detail requests. Zero uses the normal TTL.
 	const inventories = new Map<string, SourceSnapshot<Inventory>>();
 	const pendingInventories = new Map<string, Promise<Inventory>>();
+	const parentReads = new WeakMap<Inventory, Promise<Inventory["requestParents"]>>();
 	const workflowIndexes = new Map<string, Map<string, WorkflowIdentity>>();
 	const workflows = cachedRead((context) => workflowRuns(context, workflowIndexes), observe, now);
 	const merges = cachedRead(taskMerges, observe, now);
+	// Annotations reuse summaries only within their refresh cutoff and the ten-second window.
+	let summarySequence = 0;
+	const summaryFences = new Map<string, number>();
+	const summaryRows = new Map<
+		string,
+		{ startedAt: number; sequence: number; value: SummaryBead }
+	>();
+	// eslint-disable-next-line max-statements -- Preserve native read-start ordering and invalidate failed observations.
+	const readSummaries: typeof summaries = async (context, selection, text) => {
+		const startedAt = now();
+		const sequence = ++summarySequence;
+		let rows: SummaryBead[] = [];
+		try {
+			rows = await summaries(context, selection, text);
+		} catch (error) {
+			summaryFences.set(context.colony.id, summarySequence);
+			for (const key of summaryRows.keys()) {
+				if (key.startsWith(`${context.colony.id}/`)) {
+					summaryRows.delete(key);
+				}
+			}
+			throw error;
+		}
+		if (sequence <= (summaryFences.get(context.colony.id) ?? 0)) {
+			return rows;
+		}
+		for (const [key, entry] of summaryRows) {
+			if (startedAt - entry.startedAt >= INVENTORY_TTL_MS) {
+				summaryRows.delete(key);
+			}
+		}
+		for (const row of rows) {
+			const key = `${context.colony.id}/${row.id}`;
+			const previous = summaryRows.get(key);
+			if (previous === undefined || previous.sequence < sequence) {
+				summaryRows.set(key, { startedAt, sequence, value: row });
+			}
+		}
+		return rows;
+	};
 	const branches = new Map<string, { startedAt: number; value: Hierarchy }>();
 	const pendingBranches = new Map<string, Promise<Hierarchy>>();
 	// eslint-disable-next-line max-statements -- Coalesce endpoint reads while retaining the original source freshness.
@@ -226,7 +267,7 @@ export function createBoardData(readTopology: ReadTopology, now: () => number = 
 				{
 					graph,
 					rows: async (batch) => {
-						const rows = await summaries(context, {
+						const rows = await readSummaries(context, {
 							ids: batch,
 							all: true,
 							limit: batch.length,
@@ -275,7 +316,10 @@ export function createBoardData(readTopology: ReadTopology, now: () => number = 
 			refreshAfter: number,
 		): Promise<Board> => {
 			const current = await inventory(context, filter, refreshAfter);
-			const { tasks, query } = await readTasks(context, filter, current.value);
+			const { tasks, query } = await readTasks(context, filter, {
+				inventory: current.value,
+				readSummaries,
+			});
 			const page = tasks.slice(0, PAGE_SIZE);
 			const projected = await cards(context, page, refreshAfter);
 			return {
@@ -338,7 +382,23 @@ export function createBoardData(readTopology: ReadTopology, now: () => number = 
 			refreshAfter: number,
 		): Promise<RequestInventory> => {
 			const current = await inventory(context, filter, refreshAfter);
-			return filterInventory(context, filter, current.value);
+			if (current.value.kind === "not_requested") {
+				return current.value;
+			}
+			const source = current.value;
+			let parents = parentReads.get(source);
+			if (parents === undefined) {
+				parents = (async () => {
+					try {
+						return await requestParents(context, source.bees);
+					} catch (error) {
+						parentReads.delete(source);
+						throw error;
+					}
+				})();
+				parentReads.set(source, parents);
+			}
+			return filterInventory(context, filter, { ...source, requestParents: await parents });
 		},
 		hierarchy: (context: ReadContext, ids: string[], refreshAfter: number) =>
 			hierarchy(context, ids, { direction: "family", refreshAfter }),
@@ -349,7 +409,26 @@ export function createBoardData(readTopology: ReadTopology, now: () => number = 
 			if (ids.length === 0) {
 				return { cards: [], fetchedAt: new Date(now()).toISOString() };
 			}
-			const tasks = await summaries(context, { ids, all: true, limit: ids.length });
+			const tasks: SummaryBead[] = [];
+			const missing: string[] = [];
+			for (const id of ids) {
+				const saved = summaryRows.get(`${context.colony.id}/${id}`);
+				if (
+					refreshAfter > 0 &&
+					saved !== undefined &&
+					saved.startedAt >= refreshAfter &&
+					now() - saved.startedAt < INVENTORY_TTL_MS
+				) {
+					tasks.push(saved.value);
+				} else {
+					missing.push(id);
+				}
+			}
+			if (missing.length > 0) {
+				tasks.push(
+					...(await readSummaries(context, { ids: missing, all: true, limit: missing.length })),
+				);
+			}
 			const needsAssignments = tasks.some(
 				(task) => task.status === "in_progress" && (task.assignee ?? "") !== "",
 			);
@@ -502,33 +581,27 @@ function cachedRead<Value>(
 // eslint-disable-next-line max-statements -- Traverse only the label-narrowed merge set, never task detail bodies.
 async function taskMerges(context: ReadContext): Promise<Map<string, MergeLink[]>> {
 	const selection = { labels: ["merge"], all: true, limit: 0 };
-	const fields = ["id", "title", "status", "description"] as const;
+	const fields = ["id"] as const;
 	const { issues } = await read(
 		context,
 		[...formatBeadsQuery(selection), "--fields", fields.join(",")],
 		() => context.beads.listProjected(readScope(context), selection, fields),
 	);
 	const merges = new Map<string, MergeLink[]>();
-	for (let offset = 0; offset < issues.length; offset += METADATA_CONCURRENCY) {
-		const batch = issues.slice(offset, offset + METADATA_CONCURRENCY);
-		// eslint-disable-next-line no-await-in-loop -- Bound native concurrency over the label-narrowed merge set.
-		const edges = await Promise.all(
-			batch.map((bead) =>
-				read(context, ["dep", "list", bead.id, "--direction", "both", "--type", "relates-to"], () =>
-					context.beads.dep.list(readScope(context), bead.id, {
-						direction: "both",
-						type: "relates-to",
-					}),
-				),
-			),
+	for (let offset = 0; offset < issues.length; offset += METADATA_READ_BATCH) {
+		const ids = issues.slice(offset, offset + METADATA_READ_BATCH).map((bead) => bead.id);
+		// eslint-disable-next-line no-await-in-loop -- Bound hydration to the label-selected merge records.
+		const references = await read(context, ["show", ...ids], () =>
+			context.beads.showMany(readScope(context), ids),
 		);
-		for (const [index, bead] of batch.entries()) {
+		for (const bead of references) {
 			const link = mergeLink(bead);
-			for (const edge of edges[index]!) {
-				let id = edge.issue_id;
-				if (id === bead.id) {
-					id = edge.depends_on_id;
-				}
+			const related = new Set(
+				[...bead.dependencies, ...bead.dependents]
+					.filter((edge) => edge.dependency_type === "relates-to")
+					.map((edge) => edge.id),
+			);
+			for (const id of related) {
 				const links = merges.get(id) ?? [];
 				links.push(link);
 				merges.set(id, links);
@@ -585,7 +658,7 @@ function relations(edges: BeadRecord["dependencies"]): Detail["dependencies"] {
 async function readTasks(
 	context: ReadContext,
 	filter: BoardFilter,
-	inventory: RequestInventory,
+	{ inventory, readSummaries }: { inventory: RequestInventory; readSummaries: typeof summaries },
 ): Promise<{ tasks: SummaryBead[]; query: string[] }> {
 	let taskIds: string[] = [];
 	if (inventory.kind === "loaded") {
@@ -609,7 +682,7 @@ async function readTasks(
 		"--fields",
 		SUMMARY_FIELDS.join(","),
 	];
-	const tasks = await summaries(context, selection, filter.query);
+	const tasks = await readSummaries(context, selection, filter.query);
 	const query = [
 		"br",
 		...args,
@@ -769,11 +842,58 @@ async function readInventory(context: ReadContext, scope: BoardScope): Promise<I
 	}
 	return {
 		bees: requests.map((request) => bee(request)),
+		requestParents: [],
 		total: requests.length,
 		hasMore: issues.length > limit,
 		kind: "loaded",
 		readAt: new Date().toISOString(),
 	};
+}
+
+/** Resolve names across native history, independent of the visible inventory page. */
+async function requestParents(
+	context: ReadContext,
+	requests: Bee[],
+): Promise<Inventory["requestParents"]> {
+	const identities = new Set(requests.map((request) => request.identity));
+	const names = [
+		...new Set(
+			requests.flatMap((request) => {
+				if (request.requester !== null && identities.has(request.requester)) {
+					return [request.requester];
+				}
+				return [];
+			}),
+		),
+	];
+	const parents = new Map<string, string>();
+	for (let start = 0; start < names.length; start += REQUEST_PARENT_CONCURRENCY) {
+		// eslint-disable-next-line no-await-in-loop -- Bound concurrent native subprocesses.
+		await Promise.all(
+			names.slice(start, start + REQUEST_PARENT_CONCURRENCY).map(async (name) => {
+				const selection = { all: true, labels: ["system", "bee"], assignee: name, limit: 2 };
+				const fields = ["id"] as const;
+				const { issues } = await read(
+					context,
+					[...formatBeadsQuery(selection), "--fields", "id"],
+					() => context.beads.listProjected(readScope(context), selection, fields),
+				);
+				if (issues.length === 1) {
+					parents.set(name, issues[0]!.id);
+				}
+			}),
+		);
+	}
+	return requests.flatMap((request) => {
+		if (request.requester === null) {
+			return [];
+		}
+		const parent = parents.get(request.requester);
+		if (parent === undefined) {
+			return [];
+		}
+		return [{ parent, child: request.id }];
+	});
 }
 
 function bee(bead: BeadRecord): Bee {

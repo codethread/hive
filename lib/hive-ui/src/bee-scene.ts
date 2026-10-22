@@ -7,16 +7,20 @@ export interface BeeScene {
 	matches: Bee[];
 	/** Matching requests plus explicitly loaded historical context, keyed by native ID. */
 	requests: Bee[];
-	/** Name matches verified by the bounded ancestry query; still not recorded parent IDs. */
+	/** Producer-verified name matches; still not recorded parent IDs. */
 	inferred: { parent: string; child: string }[];
 	/** Historical requests do not inflate the number of matches. */
 	contextIds: Set<string>;
 }
 
 /** Render only loaded evidence; never infer uniqueness from one inventory page. */
-// Merge only explicit ancestry evidence and retain the match/context distinction.
-// eslint-disable-next-line max-statements
-export function beeScene(bees: Bee[], query: string, ancestry: Provenance | null): BeeScene {
+// eslint-disable-next-line max-statements, max-params -- Merge both evidence sources, retaining match/context counts.
+export function beeScene(
+	bees: Bee[],
+	query: string,
+	ancestry: Provenance | null,
+	requestParents: BeeScene["inferred"],
+): BeeScene {
 	const text = query.toLocaleLowerCase();
 	const matches = bees.filter((bee) =>
 		[bee.id, bee.identity, bee.kind, bee.requester ?? "", ...bee.taskIds].some((value) =>
@@ -39,6 +43,12 @@ export function beeScene(bees: Bee[], query: string, ancestry: Provenance | null
 	if (ancestry?.end.kind === "cycle") {
 		const child = ancestry.chain.at(LAST)!;
 		inferred.push({ child: child.id, parent: ancestry.end.id });
+	}
+	const explicit = new Set(ancestry?.chain.map((bee) => bee.id));
+	for (const edge of requestParents) {
+		if (!explicit.has(edge.child) && requests.has(edge.child) && requests.has(edge.parent)) {
+			inferred.push(edge);
+		}
 	}
 	return { contextIds, inferred, matches, requests: [...requests.values()] };
 }

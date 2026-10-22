@@ -40,6 +40,7 @@ export const handlers = [
 					!narrowed ||
 					fixtureCards.some((card) => bee.taskIds.includes(card.id) && matches(card, filter)),
 			),
+			requestParents: [],
 			total: candidates.length,
 			hasMore: false,
 			readAt: OBSERVED_AT,

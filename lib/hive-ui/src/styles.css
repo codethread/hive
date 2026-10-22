@@ -546,6 +546,9 @@ body:has(.inspector[open], .filter-drawer[open]) {
 .work-layout {
 	flex: 1;
 }
+.work-layout:has(.bee-workspace) {
+	flex: 1 0 auto;
+}
 .view-notice {
 	display: flex;
 	flex-wrap: wrap;

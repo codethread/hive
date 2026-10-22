@@ -8,7 +8,7 @@
 - [Scent](../lib/scent/README.md) — native Pi, Claude Code and Codex identity behavior.
 - [Waggle](../lib/waggle/README.md) — semantic classifiers.
 - [qlock](../lib/qlock/README.md) — ticketed command and merge queues.
-- [Hive UI](../lib/hive-ui/README.md) — read-only work board and [component workshop](../lib/hive-ui/README.md#component-workshop).
+- [Hive UI](../lib/hive-ui/README.md) — read-only work board, [freshness and refresh limits](../lib/hive-ui/FRESHNESS.md), and [component workshop](../lib/hive-ui/README.md#component-workshop).
 
 ## Workflows
 

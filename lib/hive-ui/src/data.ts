@@ -36,6 +36,7 @@ import type {
 	WorkflowSimulationRequest,
 } from "../contracts.ts";
 import { beadFamilies } from "../hierarchy.ts";
+import { createRefreshSchedule } from "./refresh.ts";
 import { createStore } from "zustand/vanilla";
 import type { z } from "zod";
 
@@ -44,6 +45,7 @@ const workflowReads = {
 	inspect: (path: string) => request(path, workflowInspectionSchema),
 	checkpoint: (path: string) => request(`${path}?checkpointOnly=true`, workflowCheckpointSchema),
 };
+const refreshSchedule = createRefreshSchedule();
 let lastLoadKeys = { page: "", bead: "", ancestry: "" };
 export type Resource<Value> =
 	| { kind: "empty" }
@@ -188,7 +190,7 @@ export function loadColonies(): Promise<void> {
 export async function loadBoard(
 	colony: string,
 	filter: BoardFilter,
-	refreshAfter = 0,
+	{ refreshAfter = 0, background = true } = {},
 ): Promise<void> {
 	const search = new URLSearchParams({
 		filter: JSON.stringify(filter),
@@ -200,11 +202,18 @@ export async function loadBoard(
 		refreshAfter > 0,
 	);
 	const resource = boards.store.getState().entries[boardKey(colony, filter)];
-	if (resource?.kind === "ready") {
+	if (background && resource?.kind === "ready") {
 		const ids = resource.data.cards.map((card) => card.id);
 		await Promise.all([
 			loadAnnotations(colony, ids, refreshAfter),
-			...(filter.view === "beads" ? [loadHierarchy(colony, ids, refreshAfter)] : []),
+			...(filter.view === "beads"
+				? [
+						loadHierarchySnapshot(colony, ids, {
+							refreshAfter,
+							key: boardHierarchyKey(colony, filter),
+						}),
+					]
+				: []),
 		]);
 	}
 }
@@ -227,7 +236,7 @@ export function loadInventory(
 export async function loadBead(
 	colony: string,
 	id: string,
-	options: { scope: BoardScope; refreshAfter?: number },
+	options: { scope: BoardScope; refreshAfter?: number; background?: boolean },
 ): Promise<void> {
 	const search = new URLSearchParams({
 		refreshAfter: String(options.refreshAfter ?? 0),
@@ -240,7 +249,7 @@ export async function loadBead(
 		(options.refreshAfter ?? 0) > 0,
 	);
 	const resource = details.store.getState().entries[key];
-	if (resource?.kind === "ready") {
+	if (options.background !== false && resource?.kind === "ready") {
 		const work = [loadAnnotations(colony, [id], options.refreshAfter ?? 0)];
 		if (!resource.data.card.labels.includes("merge")) {
 			work.push(loadHierarchy(colony, [id], options.refreshAfter ?? 0));
@@ -248,25 +257,11 @@ export async function loadBead(
 		await Promise.all(work);
 	}
 }
-export async function loadHierarchy(
-	colony: string,
-	ids: string[],
-	refreshAfter = 0,
-): Promise<void> {
-	const key = hierarchyKey(colony, ids);
-	const search = new URLSearchParams({
-		ids: JSON.stringify(ids),
-		refreshAfter: String(refreshAfter),
-	});
-	await hierarchies.load(key, `/api/colonies/${colony}/hierarchy?${search}`, refreshAfter > 0);
-	const resource = hierarchies.store.getState().entries[key];
-	if (resource?.kind === "ready") {
-		await loadAnnotations(
-			colony,
-			resource.data.nodes.map((node) => node.id),
-			refreshAfter,
-		);
-	}
+export function boardHierarchyKey(colony: string, filter: BoardFilter): string {
+	return `${colony}/board/${boardKey(colony, filter)}`;
+}
+export function loadHierarchy(colony: string, ids: string[], refreshAfter = 0): Promise<void> {
+	return loadHierarchySnapshot(colony, ids, { refreshAfter, key: hierarchyKey(colony, ids) });
 }
 
 export async function loadAnnotations(
@@ -468,15 +463,18 @@ export function loadProvenance(colony: string, id: string, fresh = false): Promi
 		fresh,
 	);
 }
-/** Route changes load only changed visible resources; selection never refreshes the board behind it. */
+/**
+ * Polls refresh primary reads and include background work when due.
+ * Route changes load changed resources with background work; selection leaves the board alone.
+ */
 // eslint-disable-next-line max-statements -- Compare resource identities before dispatching independent visible reads.
 export async function loadView(
 	colony: string,
 	navigation: Navigation,
-	fresh = false,
+	fresh: boolean | "poll" = false,
 ): Promise<void> {
 	const scope = boardScopeSchema.parse(navigation);
-	const refreshAfter = fresh ? Date.now() : 0;
+
 	const keys = {
 		page: JSON.stringify([
 			boardKey(colony, boardFilterSchema.parse(navigation)),
@@ -488,28 +486,35 @@ export async function loadView(
 				? ""
 				: `${colony}/${navigation.ancestry}`,
 	};
+	const refreshAfter = Date.now();
 	const changed = {
-		page: fresh || keys.page !== lastLoadKeys.page,
-		bead: fresh || keys.bead !== lastLoadKeys.bead,
-		ancestry: fresh || keys.ancestry !== lastLoadKeys.ancestry,
+		page: fresh !== false || keys.page !== lastLoadKeys.page,
+		bead: fresh !== false || keys.bead !== lastLoadKeys.bead,
+		ancestry: fresh !== false || keys.ancestry !== lastLoadKeys.ancestry,
 	};
 	lastLoadKeys = keys;
 	const work: Promise<void>[] = [];
 	if (changed.page) {
+		const { background } = refreshSchedule(`page/${keys.page}`, fresh !== "poll", refreshAfter);
 		if (scope.view !== "beads") {
 			work.push(loadInventory(colony, inventoryFilterSchema.parse(navigation), refreshAfter));
 		}
 		if (scope.view === "beads" && navigation.outline !== undefined) {
-			work.push(loadOutline(colony, navigation.outline, refreshAfter));
+			if (background) {
+				work.push(loadOutline(colony, navigation.outline, refreshAfter));
+			}
 		} else if (scope.view === "beads" || navigation.request !== undefined) {
-			work.push(loadBoard(colony, boardFilterSchema.parse(navigation), refreshAfter));
+			work.push(
+				loadBoard(colony, boardFilterSchema.parse(navigation), { refreshAfter, background }),
+			);
 		}
 	}
 	if (changed.bead && navigation.bead !== undefined) {
-		work.push(loadBead(colony, navigation.bead, { refreshAfter, scope }));
+		const { background } = refreshSchedule(`bead/${keys.bead}`, fresh !== "poll", refreshAfter);
+		work.push(loadBead(colony, navigation.bead, { refreshAfter, scope, background }));
 	}
 	if (changed.ancestry && keys.ancestry !== "" && navigation.ancestry !== undefined) {
-		work.push(loadProvenance(colony, navigation.ancestry, fresh));
+		work.push(loadProvenance(colony, navigation.ancestry, fresh !== false));
 	}
 	await Promise.all(work);
 }
@@ -527,6 +532,26 @@ export function snapshot<Value>(resource: Resource<Value>): Value | null {
 }
 
 // --- Resource and HTTP ownership ---
+async function loadHierarchySnapshot(
+	colony: string,
+	ids: string[],
+	{ refreshAfter, key }: { refreshAfter: number; key: string },
+): Promise<void> {
+	const search = new URLSearchParams({
+		ids: JSON.stringify(ids),
+		refreshAfter: String(refreshAfter),
+	});
+	await hierarchies.load(key, `/api/colonies/${colony}/hierarchy?${search}`, refreshAfter > 0);
+	const resource = hierarchies.store.getState().entries[key];
+	if (resource?.kind === "ready") {
+		await loadAnnotations(
+			colony,
+			resource.data.nodes.map((node) => node.id),
+			refreshAfter,
+		);
+	}
+}
+
 function annotationBatches(ids: string[]): string[][] {
 	const batches: string[][] = [];
 	for (let offset = 0; offset < ids.length; offset += ANNOTATION_BATCH) {
