@@ -6,7 +6,9 @@ Publish at an authorized remote exchange checkpoint or after integration and fin
 
 ## Before exchange
 
-Check that the installed `br sync --help` supports `--merge --from INCOMING --base BASE`. This requires an unreleased native patch validated in custom builds across hosts, not merely a Homebrew upgrade. Builds with and without the capability can report the same version. No first native release or general release adoption route for this capability is established. If unavailable, stop adoption rather than substituting a Git checkout merge or redirecting `BEADS_JSONL`.
+Check that the `br` resolved on the execution environment's `PATH` supports `--merge --from INCOMING --base BASE` in `br sync --help`; inspect commit/features with `br version --json`. Builds with and without the capability can report the same version.
+
+Use Hive's [maintainer setup](https://github.com/codethread/hive/blob/main/CONTRIBUTING.md#native-beads-checkout) for a persistent local fork build, or its [Homebrew recipe](https://github.com/codethread/hive/blob/main/docs/releases.md#native-beads-dependency) for packaged installation. Follow the chosen route's `PATH` and update guidance, not `br upgrade`; stock Homebrew `br` alone lacks the patch. If the capability is unavailable, stop adoption rather than substituting a Git checkout merge or redirecting `BEADS_JSONL`.
 
 Finish staged non-snapshot changes before running `beeswax beads sync`. Unstaged hook and recipe edits stay local; publication preserves accepted remote non-snapshot files without checking them out over the runtime.
 

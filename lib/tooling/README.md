@@ -4,7 +4,7 @@
 
 Tracker bootstrap checks exercise real Git, filesystem, `br` and `mise` boundaries in [`bootstrap.contract.test.ts`](../beeswax/src/beads/bootstrap.contract.test.ts). Native/in-memory Beads API conformance lives in [`lib/beads/tests/contract/`](../beads/tests/contract/).
 
-Run `bun run test:contracts` for the complete conformance suite, including after changing the installed `br` outside Git. Ordinary `test:all` and `test:changed` runs select those contracts separately from Bun's discovery when Beads source, contract files or dependency/runtime configuration changes. Consumer-only changes do not select them. Selected contracts run in full regardless of ordinary-suite file/name filters. [`test-selection.ts`](src/test-selection.ts) owns the exact inputs; [`test-runner.ts`](src/test-runner.ts) owns comparison references and argument handling.
+Run `bun run test:contracts` for the complete conformance suite, including after changing the installed `br` outside Git and before adopting a new native dependency pin. [Native Beads upkeep](../../CONTRIBUTING.md#native-dependency-upkeep) owns that update procedure. Ordinary `test:all` and `test:changed` runs select those contracts separately from Bun's discovery when Beads source, contract files or dependency/runtime configuration changes. Consumer-only changes do not select them. Selected contracts run in full regardless of ordinary-suite file/name filters. [`test-selection.ts`](src/test-selection.ts) owns the exact inputs; [`test-runner.ts`](src/test-runner.ts) owns comparison references and argument handling.
 
 ## Test timing report and landing gate
 
@@ -32,7 +32,7 @@ Standalone executables embed Bun and static dependencies; native external tools 
 
 `bun run --filter '*' install:bin` installs already-built artifacts through Beeswax; see `beeswax artifacts install --help` for source/destination options. Installation replaces destination symlinks without modifying their targets. Keep Colony's daemon, worker and watchdog companions beside `bee` and `colony`; deliberately restart an existing daemon after updating its runtime.
 
-[`mise.toml`](../../mise.toml) owns setup ordering. `bun install` prepares a worktree without installing global commands. For Homebrew installation from tagged source, see the [release guide](../../docs/releases.md#homebrew-installation).
+[`mise.toml`](../../mise.toml) owns setup ordering. After installing workspace tools, it builds native `br` from a persistent checkout before tracker bootstrap; [maintainer setup](../../CONTRIBUTING.md#native-beads-checkout) owns its pins, cache and verification guidance. `bun install` prepares a worktree without installing global commands. For Homebrew installation, see the [release guide](../../docs/releases.md#homebrew-installation).
 
 ## Release tooling
 

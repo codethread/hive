@@ -6,14 +6,14 @@ Native `br` owns local reads, writes and publication reconciliation; its configu
 
 ## Bootstrap a clone
 
-Install Git, Bun, native `br`, and `mise`, then run the default setup task from the canonical checkout:
+Follow [maintainer setup](../CONTRIBUTING.md#set-up-a-source-checkout) for prerequisites and `PATH`, then run the default setup task from the canonical Hive checkout:
 
 ```nu
 mise trust
 mise run
 ```
 
-The [setup recipe](../mise.toml) installs the tools and bootstraps accepted `origin/tracker/state` history and its `.beads/issues.jsonl`. If that history is unavailable or setup fails, preserve existing state and follow [recovery](#conflicts-and-recovery).
+The [setup recipe](../mise.toml) installs Hive's tools and the [pinned native Beads build](../CONTRIBUTING.md#native-beads-checkout), then bootstraps accepted `origin/tracker/state` history and its `.beads/issues.jsonl`. If that history is unavailable or setup fails, preserve existing state and follow [recovery](#conflicts-and-recovery).
 
 ## Selecting storage
 

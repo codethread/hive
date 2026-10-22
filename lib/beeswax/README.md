@@ -147,7 +147,7 @@ Hive's [setup recipe](../../docs/repository-commands.md#setup-and-automation) co
 
 ### Snapshot exchange
 
-Snapshot exchange requires an unreleased native `br` patch providing `sync --merge` with `--from` and `--base`. Custom builds have passed live cross-host validation; upgrading Homebrew alone does not provide this capability. Check the installed `br sync --help` before adoption: version numbers alone do not establish support. The first native release containing it and general release adoption instructions are not yet established.
+Snapshot exchange requires native `br sync --merge` with `--from` and `--base`, provided by the published Beads fork. Follow [maintainer setup](../../CONTRIBUTING.md#native-beads-checkout) for the persistent local build, or [Homebrew installation](../../docs/releases.md#native-beads-dependency) for the packaged build. Those routes cover adoption and `PATH` verification; stock Homebrew `br` alone does not supply the patch. Check `br version --json` for commit/features and `br sync --help` for capability, not the version number alone.
 
 For each receive attempt, Beeswax fetches the accepted remote snapshot and the snapshot at the Git common ancestor into separate inputs, then invokes one native merge. Native `br` owns reconciliation of task records, comments and relations, plus canonical database/export/base writeback under its locking and recovery safeguards. Hive adds no semantic merge or conflict override to this path, and routine publication neither copies the database nor redirects `BEADS_JSONL`.
 

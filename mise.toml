@@ -5,9 +5,42 @@ run = '''
 bun install
 bun run --filter '*' build
 bun run --filter '*' install:bin
+mise run beads:install
+export PATH="$HOME/.local/bin:$PATH"
 beeswax beads bootstrap --environment mise
 mise exec -- bee setup --actor "${BD_ACTOR:-sys-beeswax}"
 beeswax sync
+'''
+
+[tasks."beads:install"]
+description = "Build and install the pinned Beads fork from its persistent maintainer checkout"
+tools.rust = "1.99.1"
+env.RUSTUP_TOOLCHAIN = "1.99.1"
+run = '''
+beads_repo="$HOME/dev/projects/beads_rust"
+beads_url="https://github.com/codethread/beads_rust.git"
+beads_revision="b77ae7094e9fde7cba304ba00d306ec483c6bdd2"
+if [ ! -e "$beads_repo" ]; then
+  mkdir -p "$HOME/dev/projects"
+  git clone "$beads_url" "$beads_repo"
+fi
+if [ -n "$(git --no-optional-locks -C "$beads_repo" status --porcelain)" ]; then
+  echo "Cannot install br: $beads_repo has local changes. Commit or stash them before setup." >&2
+  exit 1
+fi
+if [ "$(git -C "$beads_repo" rev-parse HEAD)" != "$beads_revision" ]; then
+  git -C "$beads_repo" cat-file -e "$beads_revision^{commit}" 2>/dev/null || \
+    git -C "$beads_repo" fetch "$beads_url" "$beads_revision"
+  git -C "$beads_repo" switch --detach "$beads_revision"
+fi
+GIT_OPTIONAL_LOCKS=0 cargo build --manifest-path "$beads_repo/Cargo.toml" --target-dir "$beads_repo/target" \
+  --release --locked --no-default-features --bin br
+beeswax artifacts install br --source "$beads_repo/target/release" --directory "$HOME/.local/bin"
+beads_selected="$(command -v br || true)"
+if [ -z "$beads_selected" ] || [ ! "$beads_selected" -ef "$HOME/.local/bin/br" ]; then
+  echo "Warning: PATH selects ${beads_selected:-no br executable}; put $HOME/.local/bin first before using Hive." >&2
+fi
+"$HOME/.local/bin/br" version --json
 '''
 
 [tasks.fmt]

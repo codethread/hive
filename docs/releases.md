@@ -4,19 +4,33 @@ Hive releases source. Its Homebrew formula builds the installed executables on t
 
 ## Homebrew installation
 
-The public `codethread/hive` repository also serves as the Homebrew tap. Once its formula is published, install with the explicit tap URL and fully qualified dependencies:
+The public `codethread/hive` repository also serves as the Homebrew tap. The [formula](../Formula/hive.rb) builds Hive and its pinned native Beads fork from source. The same-version repair pins a Hive source commit without moving the `v0.9.0` tag; Hive and native `br` version numbers remain unchanged.
+
+Once the reviewed formula is available in the tap, install with the explicit tap URL and fully qualified dependencies. If stock `br` is already installed, first run `brew unlink dicklesworthstone/tap/br` to avoid a link collision:
 
 ```sh
 brew tap codethread/hive https://github.com/codethread/hive.git
-brew install oven-sh/bun/bun dicklesworthstone/tap/br dicklesworthstone/tap/bv codethread/hive/hive
+brew install oven-sh/bun/bun dicklesworthstone/tap/bv codethread/hive/hive
 brew test codethread/hive/hive
 ```
 
-Bun is a build-only dependency. Git, Beads (`br`) and Beads Viewer (`bv`) are required at runtime. Installation and formula tests create neither a tracker nor a service. Keep Colony's five executables together; coordinate active work before deliberately restarting an upgraded Colony daemon.
+For an existing Hive `0.9.0` installation, use `brew reinstall codethread/hive/hive` after accepting the updated formula, then rerun `brew test`. An unchanged version does not trigger an ordinary upgrade.
+
+Bun and Rust are build-only dependencies. Git and Beads Viewer (`bv`) are external runtime dependencies; the formula installs its own `br` beside Hive's executables. Installation and formula tests create neither a tracker nor a service. Keep Colony's five executables together; coordinate active work before deliberately restarting an upgraded Colony daemon.
 
 Machine installation is separate from project setup. Each project supplies its Beads database, Bee configuration, workflow catalogue and workflow module dependencies. Busy Bee embeds Bun but loads trusted workflow modules from the selected checkout. Install that checkout's dependencies before running its workflows. Hive's clone setup is in [Contributing](../CONTRIBUTING.md#set-up-a-source-checkout).
 
 After upgrading the full suite, read the affected tools' changelogs, verify matching `beeswax --version` and `scent --version`, and run `beeswax update --yes` in each adopting project to refresh its saved contract and onboarding. Review and commit the generated changes, then follow [harness loading and trust](../lib/beeswax/README.md#load-onboarding-in-your-harness). `beeswax sync` reproduces the existing lock; it does not adopt the new version.
+
+### Native Beads dependency
+
+[`Formula/hive.rb`](../Formula/hive.rb) owns the packaged [Beads fork](https://github.com/codethread/beads_rust) revision. Homebrew fetches the pinned Git source and builds with Rust, the committed `Cargo.lock`, locked/offline Cargo installation and default features disabled, including upstream `self_update`. Maintainers instead use the [persistent source checkout](../CONTRIBUTING.md#native-beads-checkout); keep the two recipes' native pins aligned.
+
+Put the `bin` directory beneath the prefix printed by `brew --prefix codethread/hive/hive` before other `br` installations on `PATH`, including old manual copies in `~/.local/bin`. Formula caveats and `brew test` warn when the caller's `PATH` selects a different executable or none; a passing formula test does not clear that warning. Fix the execution environment before tracker operations. Colony inherits `PATH` at startup, so coordinate active work before restarting it to adopt a changed path.
+
+Verify that the resolved `br` is the formula's executable: `br version --json` must report the pinned commit without `self_update`, and `br sync --help` must expose `--from` and `--base`. Stock and patched builds can both report `0.7.6`; the version alone is not capability proof.
+
+Update packaged installations through Homebrew, not `br upgrade`. Follow [native dependency upkeep](../CONTRIBUTING.md#native-dependency-upkeep) when changing the fork pin, and run `brew test` for the packaged candidate as well as the native contracts before Homebrew adoption.
 
 ## Read tool changelogs
 
@@ -102,7 +116,7 @@ Upload no assets. GitHub supplies source downloads for the tag. Read back the re
 
 After the tag exists, create or resume a nested Honeycomb worktree from the same repository's default branch, anchored at `canonicalRoot`. Update `Formula/hive.rb` with the tag's source URL, `https://github.com/codethread/hive/archive/refs/tags/vVERSION.tar.gz`, and the SHA-256 of the downloaded tarball. The formula commit follows the source tag because that checksum depends on the tagged source.
 
-The formula declares `oven-sh/bun/bun` as a build dependency, runs `bun install --frozen-lockfile --ignore-scripts`, then invokes the package build scripts for installed tools, including Scent. Keep build targets, installed outputs and executable-version checks aligned with the released source; Colony produces several executables, while Waggle is development-only. Add newly released executables in this post-tag formula change. The formula installs their outputs together without running repository setup or starting services.
+The formula declares Bun and Rust as build dependencies. It prepares workspace dependencies with `bun install --frozen-lockfile --ignore-scripts`, builds the [pinned native Beads resource](#native-beads-dependency), then invokes the package build scripts for installed tools, including Scent. Keep build targets, installed outputs and executable-version checks aligned with the released source; Colony produces several executables, while Waggle is development-only. Add newly released executables in this post-tag formula change. Preserve native capability and caller-`PATH` checks alongside Hive version tests. The formula installs their outputs together without running repository setup or starting services.
 
 Check Ruby syntax, Homebrew style and audit, then perform an actual installation and `brew test` against the published source URL. Verify every installed executable's version, required dependencies and the absence of tracker or service creation. Record the tested host and dependency versions; use the tools' `--help` for invocation details.
 
