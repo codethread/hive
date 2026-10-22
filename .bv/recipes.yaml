@@ -20,8 +20,6 @@ recipes:
   work:
     description: Ordinary work, excluding automation and workflow beads
     filters:
-      actionable: true
-      status: [open, in_progress]
       exclude_tags: [system, busybee-workflow]
   system:
     description: Automation-owned records
