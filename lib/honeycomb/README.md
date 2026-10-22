@@ -39,8 +39,6 @@ honeycomb skills file git-workflow references/pooled-slots.md
 
 Each command supports `--json` using the standard Honeycomb envelope. Listing returns `kind: "skills_list"` with a `skills` array; reads return `kind: "skills_get"` with `name`, `path`, and `content`. Skill instructions contain only the Markdown body, without YAML frontmatter, in both text and JSON output. Unknown skills or resource paths fail with the usage exit code `12` and `reason: "usage"`.
 
-This proof of concept uses the `skills-handler` static provider for the catalogue, validation, and supporting-file lookup. Markdown lives in `lib/honeycomb/skills/` and Bun text imports embed it in the standalone executable. The `git-workflow` plugin skill is a discovery stub directing agents to the installed CLI. Adding another skill currently requires registering its text imports in `src/bundled-skills.ts`. No HTTP server or remote discovery endpoint is involved.
-
 ## Zsh completions
 
 Generate a completion script after installing Honeycomb:

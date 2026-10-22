@@ -31,6 +31,6 @@ See [repository setup](./lib/beeswax/README.md#configure-a-repository) for detai
 | [Busy Bee](./lib/busybee/README.md) | Run XState workflows as sequential, nested or concurrent Beads tasks |
 | [qlock](./lib/qlock/README.md) | Serialize commands with ticketed local queues |
 
-[Hive plugins](./plugins/README.md) provide Git worktree and merge queue guidance for Claude Code, Codex and Pi.
+Load [Beeswax onboarding](./lib/beeswax/README.md#load-onboarding-in-your-harness) in your harness for shared safety guidance and pointers to the installed tools.
 
 The [documentation index](./docs/README.md) covers guides and reference material. [Philosophy](./docs/PHILOSOPHY.md) explains the project's scope. To develop Hive, see [Contributing](./CONTRIBUTING.md).

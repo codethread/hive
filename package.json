@@ -2,9 +2,6 @@
 	"name": "hive",
 	"version": "0.9.1",
 	"private": true,
-	"keywords": [
-		"pi-package"
-	],
 	"workspaces": [
 		"lib/*"
 	],
@@ -52,10 +49,5 @@
 			"oxfmt --no-error-on-unmatched-pattern"
 		],
 		"!(*.jsonl|mockServiceWorker.js)": "oxfmt --no-error-on-unmatched-pattern"
-	},
-	"pi": {
-		"skills": [
-			"./plugins/honeycomb/skills"
-		]
 	}
 }
