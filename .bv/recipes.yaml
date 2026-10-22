@@ -1,9 +1,31 @@
 recipes:
-  work:
-    description: Ordinary work, excluding automation beads
+  # beeswax:begin bv-recipes v1
+  _hive_work:
+    description: Ordinary work, excluding automation and workflow beads
     filters:
-      exclude_tags: [system]
+      exclude_tags:
+        - system
+        - busybee-workflow
+  _hive_system:
+    description: Automation-owned records
+    filters:
+      tags:
+        - system
+  _hive_workflows:
+    description: Busy Bee workflow work
+    filters:
+      tags:
+        - busybee-workflow
+  # beeswax:end bv-recipes
+  work:
+    description: Ordinary work, excluding automation and workflow beads
+    filters:
+      exclude_tags: [system, busybee-workflow]
   system:
-    description: Automation-owned work
+    description: Automation-owned records
     filters:
       tags: [system]
+  workflows:
+    description: Busy Bee workflow work
+    filters:
+      tags: [busybee-workflow]
