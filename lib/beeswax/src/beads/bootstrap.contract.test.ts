@@ -1,4 +1,5 @@
 import { bootstrapBeads, localBootstrapServices } from "./bootstrap.ts";
+import { defaultProjectConfig, writeProjectConfig } from "../config.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Fixture paths.
 import { dirname, join } from "node:path";
 import { expect, test } from "bun:test";
@@ -6,8 +7,10 @@ import { expect, test } from "bun:test";
 import { mkdir, mkdtemp, realpath, rm } from "node:fs/promises";
 import type { Command } from "./environment.ts";
 import { createNativeBeads } from "@hive/beads";
+import { fixture as projectFixture } from "../../tests/support.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- System temporary directory.
 import { tmpdir } from "node:os";
+import { writeProjectLock } from "../project.ts";
 
 const timeout = 15_000;
 const success = 0;
@@ -30,6 +33,9 @@ function fixtureCommand(tmp: string, calls: string[][]): Command {
 				BEADS_DB: undefined,
 				BEADS_DIR: undefined,
 				BEADS_JSONL: undefined,
+				BD_LOCK_TIMEOUT: undefined,
+				BD_DB: undefined,
+				BD_DATABASE: undefined,
 				GIT_AUTHOR_EMAIL: "test@example.test",
 				GIT_AUTHOR_NAME: "Test",
 				GIT_COMMITTER_EMAIL: "test@example.test",
@@ -124,7 +130,21 @@ test(
 			const { calls, command, database, issue, remote, root, tracker } = await fixture(tmp);
 			const services = nativeServices(command);
 			const accepted = await command(["git", "rev-parse", "tracker/state"], remote);
-			expect(await bootstrapBeads(root, services)).toBe(database);
+			expect(
+				await bootstrapBeads(root, services, undefined, {
+					beads: { lock_timeout: 300_000 },
+					adopt: false,
+				}),
+			).toBe(database);
+			expect(
+				await services.beads.config.project({ cwd: root, db: database, actor: "pi" }),
+			).toMatchObject({ lock_timeout: "300000" });
+			const configured = calls.findIndex(
+				(argv) => argv.includes("set") && argv.includes("lock_timeout"),
+			);
+			const importedAt = calls.findIndex((argv) => argv.includes("--import-only"));
+			expect(configured).toBeGreaterThanOrEqual(success);
+			expect(configured).toBeLessThan(importedAt);
 			expect(await command(["git", "rev-parse", "--abbrev-ref", "@{upstream}"], tracker)).toBe(
 				"origin/tracker/state",
 			);
@@ -140,13 +160,19 @@ test(
 			});
 			const snapshot = await Bun.file(join(tracker, ".beads", "issues.jsonl")).text();
 			calls.length = 0;
-			expect(await bootstrapBeads(root, services)).toBe(database);
+			expect(
+				await bootstrapBeads(root, services, undefined, {
+					beads: { lock_timeout: 300_000 },
+					adopt: false,
+				}),
+			).toBe(database);
 			expect(
 				calls.some(
 					(argv) =>
 						argv.includes("--import-only") ||
 						argv.includes("--flush-only") ||
-						argv.includes("fetch"),
+						argv.includes("fetch") ||
+						(argv.includes("config") && argv.includes("set")),
 				),
 			).toBe(false);
 			expect(await Bun.file(join(tracker, ".beads", "issues.jsonl")).text()).toBe(snapshot);
@@ -217,6 +243,64 @@ test(
 			);
 			expect(preserved.title).toBe("Shared history");
 			expect(await Bun.file(snapshot).text()).toBe(contents);
+		} finally {
+			await rm(tmp, { force: true, recursive: true });
+		}
+	},
+	timeout,
+);
+
+test(
+	"direct bootstrap CLI requires accepted policy before creating or importing the tracker #test-656",
+	// eslint-disable-next-line max-statements -- Exercise drift refusal and accepted reproduction on one fresh clone.
+	async () => {
+		const tmp = await temporaryRoot();
+		try {
+			const { command, database, root } = await fixture(tmp);
+			const project = projectFixture();
+			await writeProjectConfig("/repo", defaultProjectConfig("none"), project.deps);
+			await writeProjectLock("/repo", project.deps);
+			await writeProjectConfig(
+				"/repo",
+				{ ...defaultProjectConfig("none"), beads: { lock_timeout: 300_000 } },
+				project.deps,
+			);
+			for (const [path, contents] of project.files) {
+				// eslint-disable-next-line no-await-in-loop -- Copy this project's portable contract into the disposable clone.
+				await Bun.write(path.replace("/repo", root), contents);
+			}
+			const argv = [
+				process.execPath,
+				join(import.meta.dir, "../../bin/beeswax.ts"),
+				"beads",
+				"bootstrap",
+				"--repo",
+				root,
+				"--environment",
+				"none",
+				"--no-codex",
+				"--json",
+			];
+			await expect(command(argv, root)).rejects.toBeInstanceOf(Error);
+			expect(await Bun.file(database).exists()).toBe(false);
+			await writeProjectLock("/repo", project.deps);
+			await Bun.write(
+				join(root, ".hive/beeswax/meta/lock.json"),
+				project.files.get("/repo/.hive/beeswax/meta/lock.json") ?? "",
+			);
+			expect(JSON.parse(await command(argv, root))).toMatchObject({
+				ok: true,
+				kind: "tracker_bootstrapped",
+				result: { database },
+			});
+			expect(
+				await nativeServices(command).beads.config.project({
+					actor: "pi",
+					cwd: root,
+					db: database,
+				}),
+			).toMatchObject({ lock_timeout: "300000" });
+			expect(await Bun.file(join(root, ".beads", "config.yaml")).exists()).toBe(false);
 		} finally {
 			await rm(tmp, { force: true, recursive: true });
 		}

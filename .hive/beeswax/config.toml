@@ -5,6 +5,9 @@ hooks = "husky"
 pre_commit = ".husky/pre-commit"
 pre_merge_commit = ".husky/pre-merge-commit"
 
+[beads]
+lock_timeout = 300000
+
 [onboarding]
 harnesses = ["claude", "codex", "pi"]
 include = []

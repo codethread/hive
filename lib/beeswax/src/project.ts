@@ -175,6 +175,7 @@ export function digestConfig(config: ProjectConfig): string {
 			bootstrap: config.bootstrap,
 			hooks: config.hooks,
 			onboarding: config.onboarding,
+			beads: config.beads,
 		}),
 	);
 }

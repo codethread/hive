@@ -7,10 +7,16 @@ import {
 	runCommand,
 	trackerRoot,
 } from "./environment.ts";
+import type { BeadsService } from "@hive/beads";
+import { BeeswaxError } from "../errors.ts";
+import type { ProjectConfig } from "../config.ts";
+import { createNativeBeads } from "@hive/beads";
 // eslint-disable-next-line import/no-nodejs-modules -- Repository CLI filesystem paths.
 import { join } from "node:path";
 
 export const localSetupServices: SetupServices = {
+	actor: process.env.BD_ACTOR ?? "sys-beeswax",
+	beads: createNativeBeads({ execute: runCommand }),
 	command: runCommand,
 	exists: (path) => Bun.file(path).exists(),
 	readConfig: async (path) => {
@@ -39,7 +45,18 @@ export type Selection =
 			root: string;
 	  };
 
+export interface TrackerPolicy {
+	/** Optional accepted native workspace policy; absence leaves native configuration alone. */
+	beads: ProjectConfig["beads"];
+	/** Explicit setup/update may replace a conflicting local value. */
+	adopt: boolean;
+}
+
 export interface SetupServices {
+	/** Attribution for explicit native configuration adoption. */
+	actor: string;
+	/** Selected native workspace configuration operations. */
+	beads: Pick<BeadsService, "config">;
 	/** Read existing local configuration, or an empty document when absent. */
 	readConfig: (path: string) => Promise<string>;
 	/** Check that adoption targets an existing runtime store. */
@@ -65,9 +82,11 @@ export async function setupBeads(
 	selection: Selection,
 	services: SetupServices,
 	integrations: SetupIntegrations = defaultSetupIntegrations,
+	policy?: TrackerPolicy,
 ): Promise<string> {
 	const environment = await selectEnvironment(selection, services.command);
 	await verifyDatabase(environment.BEADS_DB, services);
+	await applyTrackerPolicy(environment.BEADS_DB, policy, services);
 	if (integrations.environment === "mise") {
 		const path = join(cwd, "mise.local.toml");
 		const contents = await services.readConfig(path);
@@ -80,6 +99,38 @@ export async function setupBeads(
 		await services.write(path, renderCodexConfig(contents, environment));
 	}
 	return environment.BEADS_DB;
+}
+
+/** Apply accepted lock-wait policy to the selected tracker through native configuration. */
+export async function applyTrackerPolicy(
+	database: string,
+	policy: TrackerPolicy | undefined,
+	services: Pick<SetupServices, "beads" | "actor">,
+): Promise<void> {
+	if (policy?.beads === undefined) {
+		return;
+	}
+	const scope = { db: database, cwd: trackerRoot(database), actor: services.actor };
+	const current = await services.beads.config.project(scope);
+	const expected = String(policy.beads.lock_timeout);
+	if (current["lock_timeout"] === expected) {
+		return;
+	}
+	if (current["lock_timeout"] !== undefined && !policy.adopt) {
+		throw new BeeswaxError(
+			"configuration_changed",
+			"Native lock_timeout differs from accepted project policy. Run beeswax update to adopt the project value.",
+			{
+				context: {
+					database,
+					expected,
+					actual: current["lock_timeout"],
+					nextCommand: "beeswax update",
+				},
+			},
+		);
+	}
+	await services.beads.config.set(scope, "lock_timeout", expected);
 }
 
 // --- Private functions ---

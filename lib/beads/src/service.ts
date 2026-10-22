@@ -66,6 +66,13 @@ export interface BeadsService {
 		run: (scope: BeadsScope, name: string, overrides?: BeadSelection) => Promise<BeadPage>;
 		delete: (scope: BeadsScope, name: string) => Promise<QueryReceipt>;
 	};
+	/** Selected workspace filesystem configuration; memory rejects these operations. */
+	config: {
+		/** Project-only native values, without record import or export effects. */
+		project: (scope: BeadsScope) => Promise<Record<string, string>>;
+		/** Set a native key without record import or export effects. */
+		set: (scope: BeadsScope, key: string, value: string) => Promise<void>;
+	};
 	/** Filesystem synchronization stays at the live boundary; memory rejects these operations. */
 	sync: {
 		import: (scope: BeadsScope) => Promise<void>;

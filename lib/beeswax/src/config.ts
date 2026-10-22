@@ -23,6 +23,7 @@ export const configSchema = z.strictObject({
 	bootstrap: z.strictObject({ hooks: hookAdapterSchema }),
 	hooks: hooksSchema,
 	onboarding: onboardingSchema.optional(),
+	beads: z.strictObject({ lock_timeout: z.number().int().nonnegative().safe() }).optional(),
 });
 export type ProjectConfig = z.infer<typeof configSchema>;
 export const configPath = ".hive/beeswax/config.toml";

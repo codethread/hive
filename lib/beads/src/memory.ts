@@ -252,6 +252,10 @@ export function createMemoryBeads(options: MemoryBeadsOptions = {}): BeadsServic
 					return { status: "ok", name, action: "deleted" };
 				}),
 		},
+		config: {
+			project: unsupportedConfig,
+			set: unsupportedConfig,
+		},
 		sync: {
 			import: unsupportedSync,
 			flush: unsupportedSync,
@@ -272,6 +276,9 @@ function projectColumns<Fields extends BeadProjection>(
 // eslint-disable-next-line require-await -- Memory operations expose the same rejection boundary as native I/O.
 async function resolveMemory<Result>(operation: () => Result): Promise<Result> {
 	return operation();
+}
+function unsupportedConfig(): Promise<never> {
+	return Promise.reject(new Error("Memory Beads cannot configure filesystem state"));
 }
 function unsupportedSync(): Promise<never> {
 	return Promise.reject(new Error("Memory Beads cannot synchronize filesystem state"));

@@ -387,7 +387,7 @@ test.each([
 	},
 	{
 		name: "tracker-recovery",
-		start: "Stop ordinary tracker operations",
+		start: "Pre-publication `tracker_busy` alone",
 		reference: "references/manual-recovery.md",
 	},
 ])(

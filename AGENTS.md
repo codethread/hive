@@ -71,4 +71,4 @@ Local worktrees and bees share the selected database; startup/resume, claims and
 
 Run `bun run beads:sync` only for an explicit pull/remote refresh, once after landing/merge and final tracker updates, or a deliberate remote handoff/checkpoint. It exchanges the whole tracker. Before cross-clone work or synchronization recovery, follow [Beads integration](docs/beads-integration.md); a code pull does not refresh the live tracker, and local claims do not establish cross-clone ownership.
 
-On synchronization failure, stop tracker work and report it. Never force competing claims or merge `tracker/state` into code branches. Tracker publication does not authorize committing or pushing application code.
+On tracker alerts or synchronization failures other than [pre-publication `tracker_busy`](docs/beads-integration.md#conflicts-and-recovery), stop tracker work and report it. Never force competing claims or merge `tracker/state` into code branches. Tracker publication does not authorize committing or pushing application code.

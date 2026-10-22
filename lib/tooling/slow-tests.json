@@ -2508,6 +2508,38 @@
 		"#test-650": {
 			"threshold": "DANGER",
 			"justification": "User approved timing exemptions for cross-host tracker regressions on 2026-10-21. Real native/Git interruption cases verify recovery before capture, after ref update and before push while both hosts continue work. Assertion failures and 30000ms timeout remain enforced."
+		},
+		"#test-651": {
+			"threshold": "DANGER",
+			"justification": "User authorized retaining all new critical adoption tests and bypassing timing thresholds in hv-4nsutk on 2026-10-22. Native configuration works on the selected external tracker before database initialization, preserving unrelated values and native diagnostics; measured 49.438ms in the first changed-contract run. Assertions and test timeouts remain enforced."
+		},
+		"#test-652": {
+			"threshold": "DANGER",
+			"justification": "User authorized retaining all new critical adoption tests and bypassing timing thresholds in hv-4nsutk on 2026-10-22. The public CLI requires update to accept policy changes, targets only the selected tracker and leaves matching values unchanged; measured 10.950ms in the first changed-test run. Assertions and test timeouts remain enforced."
+		},
+		"#test-653": {
+			"threshold": "DANGER",
+			"justification": "User authorized retaining all new critical adoption tests and bypassing timing thresholds in hv-4nsutk on 2026-10-22. Synchronization refuses a conflicting local value and installs the accepted policy when missing; focused run measured 0.61ms. Assertions and test timeouts remain enforced."
+		},
+		"#test-654": {
+			"threshold": "DANGER",
+			"justification": "User authorized retaining all new critical adoption tests and bypassing timing thresholds in hv-4nsutk on 2026-10-22. Explicit tracker setup replaces a conflicting local value; absent policy leaves native configuration untouched. The focused run measured 0.14ms. Assertions and test timeouts remain enforced."
+		},
+		"#test-655": {
+			"threshold": "DANGER",
+			"justification": "User authorized retaining all new critical adoption tests and bypassing timing thresholds in hv-4nsutk on 2026-10-22. Fresh tracker initialization installs accepted native policy between init and first flush; focused run measured 0.16ms. Assertions and test timeouts remain enforced."
+		},
+		"#test-656": {
+			"threshold": "DANGER",
+			"justification": "User authorized retaining all new critical adoption tests and bypassing timing thresholds in hv-4nsutk on 2026-10-22. Direct bootstrap CLI proves unaccepted policy fails before creation/import, then accepted configuration reaches the external tracker in a disposable native clone. Reuses the existing bootstrap fixture and retains its explicit 15000ms timeout; assertion failures remain enforced."
+		},
+		"#test-657": {
+			"threshold": "DANGER",
+			"justification": "User authorized timing exemptions for critical cross-host tracker regressions. Publication lock contention must preserve both healthy and existing incident receipts without starting publication; assertions and test timeout remain enforced."
+		},
+		"#test-658": {
+			"threshold": "DANGER",
+			"justification": "User authorized timing exemptions for critical cross-host tracker regressions. Unknown lock failures and contention after publication starts must still activate an incident; assertions and test timeout remain enforced."
 		}
 	}
 }

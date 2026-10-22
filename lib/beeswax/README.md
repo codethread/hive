@@ -102,6 +102,21 @@ Integration reaches an agent only when its actual checkout contains the generate
 
 Ambiguous hooks or project metadata require interpretation: `beeswax migrate hooks` and `beeswax migrate setup` print agent tasks for resolving the reported conflict with you. These commands make no changes.
 
+### Native tracker waiting
+
+To opt into a five-minute native lock-acquisition budget, add this optional policy to `.hive/beeswax/config.toml`:
+
+```toml
+[beads]
+lock_timeout = 300000 # milliseconds
+```
+
+Accept the configuration change with `beeswax update`, or with `beeswax setup` for initial configuration. The existing configuration digest records acceptance; no release change is required. Setup, update and sync apply the policy only to the selected tracker's `.beads/config.yaml`. Each clone must adopt the contract locally; worktrees sharing that tracker share its policy.
+
+Explicit setup/update may replace a conflicting local value. `beeswax sync` and `beeswax beads bootstrap` instead stop on a conflict and direct you to `beeswax update`. Bootstrap applies the policy before importing records; new tracker initialization applies it immediately after `br init`, before the first flush.
+
+An absent policy leaves native configuration alone, including a previously installed value. A matching value needs no rewrite. Native configuration writes preserve unrelated values, not YAML comments or layout. Native CLI and environment precedence remains unchanged. This is a lock-wait budget, not a workflow deadline; routine session hooks and tracker publication (`beeswax beads sync`) do not install it.
+
 ## BV viewer recipes
 
 Setup, update and sync maintain a Beeswax-marked YAML section in `.bv/recipes.yaml` in the caller's checkout and the selected permanent tracker checkout, when available. These required views belong to Beeswax, independently of Bee's attention-query preset:
@@ -121,6 +136,8 @@ BV uses the selected `BEADS_DB`, but discovers project recipes in the checkout w
 ## Operate the tracker
 
 Use `beeswax beads env --json` to inspect the selected tracker and `beeswax beads sync --help` for explicit snapshot exchange. Each consuming repository sets its publication checkpoints; Hive's are in [Beads integration](../../docs/beads-integration.md). Discover merge and staged-validation protocols with `beeswax system git --help`.
+
+Pre-publication `tracker_busy` is an unsuccessful checkpoint, not an incident or clearance; retry after the active publisher finishes, preserving any existing hold.
 
 Failed native reconciliation or Git publication raises a durable alert outside the tracker, keyed by the selected database path. Alert state is user-local and is not exchanged with other clones or hosts. Pause Beads workflows, ordinary tracker operations and merges involving that tracker; independent non-Beads work may continue.
 

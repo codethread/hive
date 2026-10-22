@@ -4,6 +4,7 @@ import type { Dependencies } from "../src/cli.ts";
 import type { SetupOptions } from "../src/setup.ts";
 import { createAlertStore } from "../src/beads/alerts.ts";
 import { createBundledSkills } from "../src/skills.ts";
+import { createMemoryBeads } from "@hive/beads";
 import { version } from "../package.json";
 
 /** Small in-memory workspace seam; unexpected effects fail instead of silently passing. */
@@ -21,6 +22,7 @@ export function fixture() {
 		throw new Error("Unexpected test operation");
 	};
 	const deps: Dependencies = {
+		nativeBeads: createMemoryBeads(),
 		alertReceiptPath: (database, session) => `/state/${database}/${session.harness}-${session.id}`,
 		commandAvailable: () => false,
 		context: {

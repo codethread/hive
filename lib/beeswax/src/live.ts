@@ -21,6 +21,13 @@ import {
 // eslint-disable-next-line import/no-nodejs-modules -- Default human owner is the local account.
 import { homedir, userInfo } from "node:os";
 import { onboardingWizard, setupWizard } from "./wizard.ts";
+import {
+	projectMigration,
+	readProjectLock,
+	requireProjectConfig,
+	requireProjectGeneration,
+	requireProjectVersion,
+} from "./project.ts";
 import { syncBeads, withTrackerLock } from "./beads/publish.ts";
 import type { BootstrapServices } from "./beads/bootstrap.ts";
 import type { Dependencies } from "./cli.ts";
@@ -31,6 +38,7 @@ import { installationInfo } from "./info.ts";
 import { mergeFiles } from "./git/merge.ts";
 import { packRepository } from "./git/pack.ts";
 import { publishWithAlert } from "./beads/alerts-publication.ts";
+import { readProjectConfig } from "./config.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Artifact destinations are resolved at the native boundary.
 import { runSessionStart } from "./beads/hook.ts";
 import { selectAlertDatabase } from "./beads/alerts-selection.ts";
@@ -93,6 +101,7 @@ export function createLiveDependencies(): Dependencies {
 	});
 	return {
 		...io,
+		nativeBeads: beads,
 		alertReceiptPath: (database, session) => alertSessionReceiptPath(stateHome, database, session),
 		commandAvailable: (name, cwd) =>
 			Bun.which(name, { PATH: environment.PATH ?? "", cwd }) !== null,
@@ -124,25 +133,42 @@ export function createLiveDependencies(): Dependencies {
 						options,
 						withActor(options),
 						integrations(options),
+						{ beads: options.config.beads, adopt: true },
 					);
 					return initialized.database;
 				}
 				if (options.tracker === "bootstrap") {
-					return await bootstrapBeads(options.repo, withActor(options), integrations(options));
+					return await bootstrapBeads(options.repo, withActor(options), integrations(options), {
+						beads: options.config.beads,
+						adopt: true,
+					});
 				}
 				return await setupBeads(
 					options.repo,
 					{ kind: "database", database: options.beadsDb },
 					withActor(options),
 					integrations(options),
+					{ beads: options.config.beads, adopt: true },
 				);
 			},
 		},
 		beads: {
-			setup: (repo, selection, flags) =>
-				setupBeads(repo, selection, withActor(flags), integrations(flags)),
-			bootstrap: (repo, flags) => bootstrapBeads(repo, withActor(flags), integrations(flags)),
-			initialize: (repo, flags) =>
+			setup: async (repo, selection, flags) =>
+				setupBeads(
+					repo,
+					selection,
+					withActor(flags),
+					integrations(flags),
+					await acceptedTrackerPolicy(repo, io, true),
+				),
+			bootstrap: async (repo, flags) =>
+				bootstrapBeads(
+					repo,
+					withActor(flags),
+					integrations(flags),
+					await acceptedTrackerPolicy(repo, io, false),
+				),
+			initialize: async (repo, flags) =>
 				initializeBeads(
 					repo,
 					{
@@ -151,6 +177,7 @@ export function createLiveDependencies(): Dependencies {
 					},
 					withActor(flags),
 					integrations(flags),
+					await acceptedTrackerPolicy(repo, io, true),
 				),
 			environment: selectedEnvironment,
 			alertStatus: async (repo, database) => {
@@ -240,6 +267,23 @@ export function createLiveDependencies(): Dependencies {
 }
 
 // --- Private functions ---
+
+// eslint-disable-next-line max-statements -- Establish accepted intent before direct tracker setup effects.
+async function acceptedTrackerPolicy(repo: string, io: WorkspaceIO, adopt: boolean) {
+	const root = await io.command(["git", "rev-parse", "--show-toplevel"], repo);
+	const config = await readProjectConfig(root, io);
+	if (config?.beads === undefined) {
+		return;
+	}
+	const lock = await readProjectLock(root, io);
+	if (!lock) {
+		throw projectMigration("Native tracker policy requires a project lock from beeswax setup.");
+	}
+	requireProjectVersion(lock);
+	requireProjectConfig(lock, config);
+	requireProjectGeneration(lock, config);
+	return { beads: config.beads, adopt };
+}
 
 function workspaceIO(environment: NodeJS.ProcessEnv): WorkspaceIO {
 	const exec = async (argv: readonly string[], cwd: string): Promise<ProcessResult> => {

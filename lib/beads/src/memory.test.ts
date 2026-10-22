@@ -43,6 +43,12 @@ test("filesystem synchronization rejects visibly and missing records retain nati
 	await expect(memory.show(scope, "missing")).rejects.toBeInstanceOf(CommandError);
 });
 
+test("filesystem configuration rejects visibly rather than modelling native YAML", async () => {
+	const memory = createMemoryBeads();
+	await expect(memory.config.project(scope)).rejects.toBeInstanceOf(Error);
+	await expect(memory.config.set(scope, "lock_timeout", "300000")).rejects.toBeInstanceOf(Error);
+});
+
 test("typed records and saved filters are detached from mutable fixture storage", async () => {
 	const memory = createMemoryBeads();
 	const created = await memory.create(scope, { title: "one", labels: ["team"] });

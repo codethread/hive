@@ -209,6 +209,57 @@ test.each([
 	},
 );
 
+test("native configuration selects the tracker without record import or export effects", async () => {
+	const calls: { argv: string[]; cwd: string; env: NodeJS.ProcessEnv }[] = [];
+	const service = createNativeBeads({
+		env: { BEADS_DB: "old", BD_ACTOR: "old", SENTINEL: "kept" },
+		execute: (argv, cwd, env) => {
+			calls.push({ argv, cwd, env });
+			return Promise.resolve('{"lock_timeout":"300000","sync.auto_flush":"true"}');
+		},
+	});
+	const scope = {
+		cwd: "/execution",
+		db: "/tracker/.beads/beads.db",
+		actor: "worker",
+		noAutoImport: false,
+		noAutoFlush: false,
+	};
+	expect(await service.config.project(scope)).toEqual({
+		lock_timeout: "300000",
+		"sync.auto_flush": "true",
+	});
+	expect(await service.config.set(scope, "lock-timeout", "300000")).toBeUndefined();
+	expect(calls).toEqual(
+		[
+			["config", "list", "--project"],
+			["config", "set", "lock-timeout", "300000"],
+		].map((args) => ({
+			argv: [
+				"br",
+				"--no-auto-import",
+				"--no-auto-flush",
+				...args,
+				"--json",
+				"--db",
+				scope.db,
+				"--actor",
+				scope.actor,
+			],
+			cwd: scope.cwd,
+			env: { BEADS_DB: scope.db, BD_ACTOR: scope.actor, SENTINEL: "kept" },
+		})),
+	);
+});
+
+test.each([
+	{ name: "non-string value", output: { lock_timeout: 300_000 } },
+	{ name: "nested value", output: { sync: { auto_flush: "true" } } },
+])("native project configuration rejects $name at the boundary", async ({ output }) => {
+	const service = createNativeBeads({ execute: () => Promise.resolve(JSON.stringify(output)) });
+	await expect(service.config.project({ cwd: "/fixture" })).rejects.toBeInstanceOf(ZodError);
+});
+
 test("native merge keeps the live export selected with explicit incoming and ancestor paths", async () => {
 	const calls: string[][] = [];
 	const service = createNativeBeads({

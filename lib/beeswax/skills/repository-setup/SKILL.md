@@ -43,4 +43,4 @@ On failure, inspect completed phases, any `trackerEffects` and installer diagnos
 
 At an authorized remote exchange or integration checkpoint, read [publication guidance](references/publication.md). Retrieve linked resources with `beeswax skills file repository-setup PATH`.
 
-For tracker alerts or synchronization failures, load `beeswax skills get tracker-recovery` before further tracker work. It separates observers waiting for clearance from explicitly authorized recovery.
+For pre-publication `tracker_busy`, follow [publication contention](references/publication.md#publication-contention). For tracker alerts or other synchronization failures, load `beeswax skills get tracker-recovery` before further tracker work. It separates observers waiting for clearance from explicitly authorized recovery.

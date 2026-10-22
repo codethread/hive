@@ -9,6 +9,8 @@ Follow the application's task policy and authorization. Read `bee --help` for th
 
 Choose the role by description with `bee kinds`, then follow `bee spawn --help` to select a task-appropriate workflow and submit its input. Keep kind defaults unless the assignment needs an override; changing the workflow does not require replacing the role prompt. For role and prompt authoring, read `colony skills file operations references/configuration.md`.
 
+Keep the Bee command process alive while it waits for native tracker locks. Prefer the execution tool's asynchronous execution and polling when available; otherwise allow an outer command timeout sufficient for the configured native lock wait plus command work.
+
 Retain `request.id` for delivery, `request.identity` for assignment and `workflow.runId` for workflow navigation. Submission does not establish that execution started. The parent keeps its own assignment and completion policy.
 
 ## Inspect before taking the next action

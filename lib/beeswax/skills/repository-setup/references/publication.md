@@ -27,9 +27,13 @@ git push --set-upstream REMOTE tracker/state
 
 Review the snapshot and any other staged changes before committing. Once the snapshot is tracked and the upstream exists, use `beeswax beads sync` for subsequent exchange. Keep tracker history on `tracker/state`; it is not an application-branch merge.
 
+## Publication contention
+
+`tracker_busy` with `publication: "not_started"` means another local publisher held the publication lock before this invocation could acquire it. The checkpoint attempt was unsuccessful, but publication never began and no alert was created, cleared or replaced. Busy alone does not require pausing ordinary work or incident recovery; any existing hold still applies. You may retry the authorized checkpoint after the publisher finishes. Native lock-wait policy and automatic retries are unchanged.
+
 ## Recovery and cleanup
 
-On conflicting claims, JSONL conflicts or synchronization failure, stop tracker work and load `beeswax skills get tracker-recovery`. It owns waiting, authorization, writer quiescence and evidence-preserving recovery; `beeswax beads recover` prints the current incident handoff without changing it.
+On conflicting claims, JSONL conflicts or synchronization failures other than pre-publication `tracker_busy`, stop tracker work and load `beeswax skills get tracker-recovery`. It owns waiting, authorization, writer quiescence and evidence-preserving recovery; `beeswax beads recover` prints the current incident handoff without changing it.
 
 Retain `.beads/hive-sync-incoming.jsonl` and `.beads/hive-sync-base.jsonl` from the failed attempt alongside the live tracker state and diagnostics. These are the accepted remote and Git common-base inputs, not replacement live exports. Preserve audit history and native conflict safeguards; neither rerunning with force flags nor copying an input over the live export is routine recovery.
 

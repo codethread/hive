@@ -1,6 +1,11 @@
 import { BeeswaxError, errorMessage } from "../errors.ts";
-import type { SetupIntegrations, SetupServices } from "./setup.ts";
-import { defaultSetupIntegrations, localSetupServices, setupBeads } from "./setup.ts";
+import type { SetupIntegrations, SetupServices, TrackerPolicy } from "./setup.ts";
+import {
+	applyTrackerPolicy,
+	defaultSetupIntegrations,
+	localSetupServices,
+	setupBeads,
+} from "./setup.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Repository and tracker paths.
 import { dirname, join } from "node:path";
 // eslint-disable-next-line import/no-nodejs-modules -- Temporary Honeycomb configuration.
@@ -39,11 +44,12 @@ export const localBootstrapServices: BootstrapServices = {
 };
 
 /** Materialize this clone's accepted tracker without publishing or replacing existing state. */
-// eslint-disable-next-line max-statements -- One ordered bootstrap boundary keeps initialization and adoption together.
+// eslint-disable-next-line max-statements, max-params -- Keep policy at the ordered bootstrap boundary.
 export async function bootstrapBeads(
 	cwd: string,
 	services: BootstrapServices,
 	integrations: SetupIntegrations = defaultSetupIntegrations,
+	policy?: TrackerPolicy,
 ): Promise<string> {
 	const common = await services.command(commonDirectory, cwd);
 	const root = dirname(common);
@@ -59,6 +65,7 @@ export async function bootstrapBeads(
 		await ensureTracker(root, tracker, services);
 		completed.push("checkout");
 		await verifyTracker(tracker, common, services.command);
+		await applyTrackerPolicy(database, policy, services);
 		await importDatabase(tracker, database, services);
 		completed.push("database_ready");
 		/* eslint-disable no-await-in-loop -- Configure each checkout only after the shared endpoint is ready. */
@@ -95,6 +102,7 @@ export async function initializeBeads(
 	options: InitializeOptions,
 	services: BootstrapServices,
 	integrations: SetupIntegrations = defaultSetupIntegrations,
+	policy?: TrackerPolicy,
 ): Promise<InitializedTracker> {
 	const { common, root, tracker, database } = await preflightInitialization(
 		cwd,
@@ -128,6 +136,7 @@ export async function initializeBeads(
 			tracker,
 		);
 		completed.push("database_initialized");
+		await applyTrackerPolicy(database, policy, services);
 		await services.beads.sync.flush({ actor: services.actor, cwd: tracker, db: database });
 		completed.push("snapshot_flushed");
 		/* eslint-disable no-await-in-loop -- Configure all checkouts only after native initialization. */

@@ -54,6 +54,37 @@ test.each(["issues.jsonl", "inherited-export"])(
 	},
 );
 
+test("initialization adopts policy after init and before the first snapshot flush #test-655", async () => {
+	const { services, calls } = initializationFixture(false);
+	const phases: string[] = [];
+	const { command } = services;
+	services.command = (argv, cwd) => {
+		if (argv.includes("init")) {
+			phases.push("init");
+		}
+		return command(argv, cwd);
+	};
+	services.beads.config = {
+		project: () => Promise.resolve({}),
+		set: (scope, key, value) => {
+			expect(scope.db).toBe(database);
+			expect({ key, value }).toEqual({ key: "lock_timeout", value: "300000" });
+			phases.push("policy");
+			return Promise.resolve();
+		},
+	};
+	services.beads.sync.flush = () => {
+		phases.push("flush");
+		return Promise.resolve();
+	};
+	await initializeBeads(root, options, services, integrations, {
+		beads: { lock_timeout: 300_000 },
+		adopt: true,
+	});
+	expect(phases).toEqual(["init", "policy", "flush"]);
+	expect(calls.some(({ argv }) => argv.includes("--lock-timeout"))).toBe(false);
+});
+
 function initializationFixture(acceptedHistory: boolean) {
 	const calls: { argv: readonly string[]; cwd: string }[] = [];
 	const checkouts: { root: string; base: string | undefined }[] = [];

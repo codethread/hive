@@ -5,6 +5,8 @@ description: Run or resume Busy Bee workflows and deliver outcomes.
 
 The application's instructions, domain conventions, verification commands and authorization govern the work; Busy Bee supplies orchestration. Consult `busybee --help`, then focused command help for options. Use `--json` for complete schemas and machine-readable results.
 
+Keep Busy Bee commands alive during native tracker lock waits. Prefer asynchronous execution with polling when available; otherwise allow an outer timeout for the configured native lock wait plus command work.
+
 For definition authoring or refactoring, read [workflow-authoring](../workflow-authoring/SKILL.md) with `busybee skills get workflow-authoring`.
 
 ## Select the run

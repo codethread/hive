@@ -287,6 +287,22 @@ export function createNativeBeads(options: NativeBeadsOptions = {}): BeadsServic
 				read(scope, ["query", "run", name, ...selectionArguments(overrides)], pageSchema),
 			delete: (scope, name) => read(scope, ["query", "delete", name], queryReceiptSchema),
 		},
+		config: {
+			project: (scope) =>
+				read(
+					{ ...scope, noAutoImport: true, noAutoFlush: true },
+					["config", "list", "--project"],
+					z.record(z.string(), z.string()),
+				),
+			set: async (scope, key, value) => {
+				await invoke({ ...scope, noAutoImport: true, noAutoFlush: true }, [
+					"config",
+					"set",
+					key,
+					value,
+				]);
+			},
+		},
 		sync: {
 			import: (scope) => synchronize(scope, "--import-only"),
 			flush: (scope) => synchronize(scope, "--flush-only"),

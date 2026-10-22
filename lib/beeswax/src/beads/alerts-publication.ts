@@ -65,6 +65,14 @@ export async function publishWithAlert(
 		if (acquired) {
 			throw error;
 		}
+		if (error instanceof Error && "code" in error && error.code === "ELOCKED") {
+			throw new BeeswaxError(
+				"tracker_busy",
+				"Another local publisher holds the tracker lock; publication did not start. " +
+					"Retry the checkpoint after it finishes; any existing tracker hold still applies.",
+				{ context: { database, publication: "not_started" } },
+			);
+		}
 		await recordFailure(database, services.alerts, error);
 	}
 }

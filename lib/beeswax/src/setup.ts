@@ -26,6 +26,7 @@ import {
 	verifyExecutable,
 	writeProjectLock,
 } from "./project.ts";
+import type { BeadsService } from "@hive/beads";
 import type { OnboardingConfig } from "./onboarding.ts";
 import type { WorkspaceIO } from "./services.ts";
 import { applyOnboarding } from "./onboarding.ts";
@@ -109,6 +110,8 @@ export interface SetupOperations {
 }
 
 export interface SetupDependencies extends WorkspaceIO {
+	/** Native tracker configuration used only during explicit setup/update/sync. */
+	nativeBeads: Pick<BeadsService, "config">;
 	/** Native context read once by the application entry point. */
 	context: {
 		cwd: string;

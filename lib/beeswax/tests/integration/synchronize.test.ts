@@ -249,3 +249,90 @@ test("later synchronization failures retain confirmed BV output in the receipt",
 		completed: expect.arrayContaining(["bv_recipes"]),
 	});
 });
+
+// eslint-disable-next-line max-statements -- Follow acceptance and reproduction on the selected endpoint.
+test("native policy requires config acceptance, then update adopts only the selected tracker #test-652", async () => {
+	const fx = await selectedPolicyFixture();
+	const database = "/selected/.beads/beads.db";
+	const native = new Map<string, string>([
+		["lock_timeout", "1000"],
+		["issue_prefix", "keep"],
+	]);
+	const writes: string[] = [];
+	fx.deps.nativeBeads.config = {
+		project: (scope) => {
+			expect(scope).toEqual({ cwd: "/selected", db: database, actor: "codex" });
+			return Promise.resolve(Object.fromEntries(native));
+		},
+		set: (scope, key, value) => {
+			expect(scope.db).toBe(database);
+			writes.push(key);
+			native.set(key, value);
+			return Promise.resolve();
+		},
+	};
+	const before = new Map(fx.files);
+	expect(await runCli(["sync", "--json"], fx.deps)).toBe(failure);
+	expect(JSON.parse(fx.output.join(""))).toMatchObject({
+		reason: "configuration_changed",
+		completed: [],
+	});
+	expect(fx.files).toEqual(before);
+	expect(writes).toEqual([]);
+	fx.output.length = success;
+	expect(await runCli(["update", "--json"], fx.deps)).toBe(success);
+	expect(native).toEqual(
+		new Map([
+			["lock_timeout", "300000"],
+			["issue_prefix", "keep"],
+		]),
+	);
+	expect(writes).toEqual(["lock_timeout"]);
+	fx.output.length = success;
+	expect(await runCli(["sync", "--json"], fx.deps)).toBe(success);
+	expect(writes).toEqual(["lock_timeout"]);
+	expect(fx.files.has("/repo/.beads/config.yaml")).toBe(false);
+	expect(fx.files.has("/repo/.worktrees/tracker--state/.beads/config.yaml")).toBe(false);
+});
+
+test("accepted sync refuses a conflicting native value but installs a missing value #test-653", async () => {
+	const fx = await selectedPolicyFixture();
+	await writeProjectLock(root, fx.deps);
+	let native: Record<string, string> = { lock_timeout: "2000" };
+	fx.deps.nativeBeads.config = {
+		project: () => Promise.resolve(native),
+		set: (_scope, key, value) => {
+			native = { ...native, [key]: value };
+			return Promise.resolve();
+		},
+	};
+	await expect(
+		synchronizeProject({ root, executable: "/opt/bin/beeswax", update: false }, fx.deps),
+	).rejects.toMatchObject({
+		reason: "configuration_changed",
+		context: {
+			database: "/selected/.beads/beads.db",
+			actual: "2000",
+			expected: "300000",
+			nextCommand: "beeswax update",
+		},
+	});
+	expect(native).toEqual({ lock_timeout: "2000" });
+	native = { "sync.auto_import": "false" };
+	await synchronizeProject({ root, executable: "/opt/bin/beeswax", update: false }, fx.deps);
+	expect(native).toEqual({ "sync.auto_import": "false", lock_timeout: "300000" });
+});
+
+async function selectedPolicyFixture() {
+	const fx = configured();
+	await writeProjectConfig(
+		root,
+		{ ...defaultProjectConfig("husky"), beads: { lock_timeout: 300_000 } },
+		fx.deps,
+	);
+	fx.deps.context.beadsDb = "/selected/.beads/beads.db";
+	fx.files.set("/selected/.beads/beads.db", "database");
+	fx.files.set("/selected/.husky/pre-commit", hookSection);
+	fx.files.set("/selected/.husky/pre-merge-commit", hookSection);
+	return fx;
+}

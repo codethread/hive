@@ -45,7 +45,9 @@ New Hive-created children, including Bee and Busy Bee work, use native hash IDs 
 
 ## Conflicts and recovery
 
-On a tracker alert or synchronization failure, pause Beads workflows, ordinary tracker operations and merges involving that tracker. Use `beeswax beads recover --beads-db "$BEADS_DB"` for the installed recovery handoff, including observer waiting and explicitly user-authorized recovery. [Beeswax](../lib/beeswax/README.md#operate-the-tracker) owns the reusable procedure and independent alert state.
+Pre-publication `tracker_busy` alone is not an incident and does not release an existing hold; see [Beeswax's contention and recovery guidance](../lib/beeswax/README.md#operate-the-tracker).
+
+On a tracker alert or other synchronization failure, pause Beads workflows, ordinary tracker operations and merges involving that tracker. Use `beeswax beads recover --beads-db "$BEADS_DB"` for the installed recovery handoff, including observer waiting and explicitly user-authorized recovery. Beeswax owns the reusable procedure and independent alert state.
 
 Hive retains the selected database, actor and permanent checkout conventions above. Apply its [publication checkpoints](#synchronization-checkpoints) and coordinate Bee/Colony writers through their owning tools. Recovery authorization must cover the affected endpoint and any publication; it does not authorize application-code pushes. Keep incident evidence outside the affected tracker until ordinary writes are safe.
 

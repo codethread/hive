@@ -16,6 +16,7 @@ import type { Dependencies } from "./cli.ts";
 import type { OnboardingFlags } from "./config.ts";
 import type { WorkspaceIO } from "./services.ts";
 import { applyOnboarding } from "./onboarding.ts";
+import { applyTrackerPolicy } from "./beads/setup.ts";
 import { bindCheckout } from "./binding.ts";
 import { bootstrapHooks } from "./husky.ts";
 import { bvRecipeFiles } from "./bv-recipe-source.ts";
@@ -33,7 +34,10 @@ const NONEMPTY = 1;
 // eslint-disable-next-line max-statements -- Keep preflight, materialization and its partial-effect receipt together.
 export async function synchronizeProject(
 	options: { root: string; executable: string; update: boolean } & OnboardingFlags,
-	io: WorkspaceIO & Pick<Dependencies, "commandAvailable"> & { context: { beadsDb: string } },
+	io: WorkspaceIO &
+		Pick<Dependencies, "commandAvailable" | "nativeBeads"> & {
+			context: { beadsDb: string; actor: string };
+		},
 ) {
 	const { root, executable, update } = options;
 	const completed: string[] = [];
@@ -77,6 +81,14 @@ export async function synchronizeProject(
 		if (await io.exists(database)) {
 			await installTrackerHooks({ repository: root, database, executable, config }, io);
 			completed.push("tracker_hooks");
+			await applyTrackerPolicy(
+				database,
+				{ beads: config.beads, adopt: update },
+				{ beads: io.nativeBeads, actor: io.context.actor },
+			);
+			if (config.beads) {
+				completed.push("tracker_policy");
+			}
 			checkouts.push(trackerRoot(database));
 		}
 		bvRecipes.push(...(await installBvRecipes(checkouts, bvRecipeFiles(io))));

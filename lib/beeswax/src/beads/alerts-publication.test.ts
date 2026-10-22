@@ -79,6 +79,49 @@ test("queued ordinary sync rechecks a hold created while awaiting the publicatio
 	expect(fx.calls).toHaveLength(ZERO);
 });
 
+test("publication lock contention preserves alert state without starting publication #test-657", async () => {
+	const fx = publicationFixture();
+	const initial = await fx.store.observe(database);
+	fx.services.withPublicationLock = () =>
+		Promise.reject(
+			Object.assign(new Error("Lock file is already being held"), { code: "ELOCKED" }),
+		);
+	await expect(publishWithAlert(database, fx.services)).rejects.toMatchObject({
+		reason: "tracker_busy",
+		context: { database, publication: "not_started" },
+	});
+	expect(fx.calls).toEqual([]);
+	expect(await fx.store.observe(database)).toEqual(initial);
+	const incident = await fx.store.activate(database, "existing incident");
+	await expect(
+		publishWithAlert(database, fx.services, {
+			id: incident.alert!.id,
+			writersPaused: true,
+			evidence: "authorized recovery",
+		}),
+	).rejects.toMatchObject({ reason: "tracker_busy" });
+	expect(await fx.store.observe(database)).toEqual(incident);
+});
+
+test("only pre-acquisition contention avoids activating a publication incident #test-658", async () => {
+	const lockFailure = publicationFixture();
+	lockFailure.services.withPublicationLock = () =>
+		Promise.reject(Object.assign(new Error("Permission denied"), { code: "EACCES" }));
+	await expect(publishWithAlert(database, lockFailure.services)).rejects.toMatchObject({
+		reason: "tracker_sync_failed",
+	});
+	const lockIncident = await lockFailure.store.observe(database);
+	expect(lockIncident.alert?.state).toBe("active");
+	const publicationFailure = publicationFixture();
+	publicationFailure.services.publish = () =>
+		Promise.reject(Object.assign(new Error("Nested lock contention"), { code: "ELOCKED" }));
+	await expect(publishWithAlert(database, publicationFailure.services)).rejects.toMatchObject({
+		reason: "tracker_sync_failed",
+	});
+	const publicationIncident = await publicationFailure.store.observe(database);
+	expect(publicationIncident.alert?.state).toBe("active");
+});
+
 test("alert write failure preserves publication failure diagnostics", async () => {
 	const fx = publicationFixture();
 	fx.services.publish = () => Promise.reject(new Error("native merge conflict"));
