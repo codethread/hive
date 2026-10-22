@@ -6,7 +6,7 @@ Publish at an authorized remote exchange checkpoint or after integration and fin
 
 ## Before exchange
 
-Check that the installed `br sync --help` supports `--merge --from INCOMING --base BASE`. The native capability is under source-level validation; no first released version or release adoption instructions are established yet. If unavailable, stop adoption rather than substituting a Git checkout merge or redirecting `BEADS_JSONL`.
+Check that the installed `br sync --help` supports `--merge --from INCOMING --base BASE`. This requires an unreleased native patch validated in custom builds across hosts, not merely a Homebrew upgrade. Builds with and without the capability can report the same version. No first native release or general release adoption route for this capability is established. If unavailable, stop adoption rather than substituting a Git checkout merge or redirecting `BEADS_JSONL`.
 
 Finish staged non-snapshot changes before running `beeswax beads sync`. Unstaged hook and recipe edits stay local; publication preserves accepted remote non-snapshot files without checking them out over the runtime.
 
