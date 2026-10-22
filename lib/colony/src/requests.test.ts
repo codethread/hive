@@ -133,6 +133,9 @@ test("publication rebases a revision conflict while retaining unrelated labels #
 	expect(writes).toBe(TWO);
 });
 
+/* eslint-disable-next-line max-statements --
+ * Assert predecessor and replacement publication order together with the resulting labels.
+ */
 test("publication repairs superseded predecessors from native relationship facts", async () => {
 	const tracker = supersession;
 	const predecessor = await createSpawn(tracker, supersessionTask);
@@ -145,7 +148,30 @@ test("publication repairs superseded predecessors from native relationship facts
 			{ id: predecessor, type: "supersedes" },
 		],
 	});
-	await publishRequestLabels(tracker, "worker", replacement);
+	await tracker.beads.update(trackerScope(tracker.repository, "fixture"), [replacement], {
+		setLabels: ["system", "bee", "agent:worker"],
+	});
+	const calls: string[] = [];
+	const beads = {
+		...tracker.beads,
+		show: (...args: Parameters<typeof tracker.beads.show>) => {
+			calls.push(`show:${args[ONE]}`);
+			return tracker.beads.show(...args);
+		},
+		update: (...args: Parameters<typeof tracker.beads.update>) => {
+			calls.push(`update:${args[ONE].join(",")}`);
+			return tracker.beads.update(...args);
+		},
+	};
+	await publishRequestLabels({ ...tracker, beads }, "worker", replacement);
+	expect(calls).toEqual([
+		`show:${replacement}`,
+		`show:${predecessor}`,
+		`update:${predecessor}`,
+		`show:${predecessor}`,
+		`update:${replacement}`,
+		`show:${replacement}`,
+	]);
 	const old = await tracker.beads.show(trackerScope(tracker.repository, "inspector"), predecessor);
 	expect(old.close_reason).toBe("exhausted");
 	expect(old.labels).toContain("bee-outcome:failed");

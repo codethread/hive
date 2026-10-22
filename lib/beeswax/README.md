@@ -1,6 +1,6 @@
 # Beeswax
 
-Beeswax configures Beads trackers, snapshot publication, JSONL merging, Git hooks, executable installation and repository-local harness integrations, including Scent identity. Hive uses the same CLI as consuming repositories.
+Beeswax configures Beads trackers, Hive's BV viewer recipes, snapshot publication, JSONL merging, Git hooks, executable installation and repository-local harness integrations, including Scent identity. Hive uses the same CLI as consuming repositories.
 
 Generated setup scripts, Git hooks and tracker-alert callbacks use the adapters listed by `beeswax system --help`. Identity callbacks use the separately installed `scent` runtime.
 
@@ -88,7 +88,7 @@ Start a new session after setup. [Claude Code](https://code.claude.com/docs/en/h
 
 ## Commit the project contract
 
-Commit `.hive/beeswax/config.toml`, `.hive/beeswax/meta/lock.json` and the selected generated harness files. Configuration names the actual Git hook files, bootstrap adapter, selected harnesses and guidance filters. The lock records the accepted release, configuration digest and Git hook generation. Discover their schemas with `beeswax schema`.
+Commit `.hive/beeswax/config.toml`, `.hive/beeswax/meta/lock.json`, `.bv/recipes.yaml` and the selected generated harness files. Configuration names the actual Git hook files, bootstrap adapter, selected harnesses and guidance filters. The lock records the accepted release, configuration digest and managed component generations. Discover their schemas with `beeswax schema`.
 
 Beeswax owns only the marked `tracker-validation` section in each configured hook, preserving surrounding bytes and file mode. It validates snapshot-only commits on `tracker/state`, then returns to the surrounding hook. Application checks, commit-message policy and any snapshot exemption remain application-owned.
 
@@ -101,6 +101,22 @@ Setup, sync and update replace recognized versioned hook and onboarding sections
 Integration reaches an agent only when its actual checkout contains the generated files, the harness loads and trusts them, and the matching Beeswax and Scent releases are on its `PATH`. This also applies to Bee executions; sharing a repository or tracker does not copy adapters between worktrees.
 
 Ambiguous hooks or project metadata require interpretation: `beeswax migrate hooks` and `beeswax migrate setup` print agent tasks for resolving the reported conflict with you. These commands make no changes.
+
+## BV viewer recipes
+
+Setup, update and sync maintain a Beeswax-marked YAML section in `.bv/recipes.yaml` in the caller's checkout and the selected permanent tracker checkout, when available. These required views belong to Beeswax, independently of Bee's attention-query preset:
+
+| Recipe            | Filter                                  |
+| ----------------- | --------------------------------------- |
+| `_hive_work`      | Exclude `system` and `busybee-workflow` |
+| `_hive_system`    | Select `system`                         |
+| `_hive_workflows` | Select `busybee-workflow`               |
+
+An existing lock without the BV component requires `beeswax update`, even at the same suite version; ordinary sync does not adopt it.
+
+Use these names in Hive-based prompts. The `_hive_` prefix makes ownership explicit; it does not hide recipes from BV discovery. Personal recipes, including generic `work`, `system` and `workflows`, remain user-owned. Beeswax preserves content and comments outside its managed section and regenerates its own definitions. Ambiguous ownership fails with the affected path for review.
+
+BV uses the selected `BEADS_DB`, but discovers project recipes in the checkout where it runs. Verify `bv --robot-recipes` in both checkouts. These are advisory views, not task authority or Colony scheduling filters.
 
 ## Operate the tracker
 

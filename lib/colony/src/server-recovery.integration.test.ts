@@ -34,12 +34,13 @@ store.close();
 const gates = repositories.map(() => Promise.withResolvers<void>());
 const entered = repositories.map(() => Promise.withResolvers<void>());
 const { beads } = memoryTracker();
-const { list } = beads;
-beads.list = async (scope, selection) => {
+const { listProjected } = beads;
+// Hold each repository's dispatch read until its recovery probe releases it.
+beads.listProjected = async (scope, selection, fields) => {
 	const index = repositories.findIndex((repository) => repository.root === scope.cwd);
 	entered[index]!.resolve();
 	await gates[index]!.promise;
-	return list(scope, selection);
+	return listProjected(scope, selection, fields);
 };
 function unexpected(): never {
 	throw new Error("Disabled fixture operation");

@@ -15,7 +15,7 @@ The recipe's execution directory is separate from all three. Canonical `.hive/be
 
 Before configuring kinds or harness templates, or verifying a first execution, read [kind and harness configuration](references/configuration.md) with `colony skills file operations references/configuration.md`.
 
-For the attention query and BV views, follow `bee setup --help`. That setup operation requires this repository's permanent `tracker/state` database; other Bee operations keep their general selected-database contract.
+For the attention query in the selected database, follow `bee setup --help`. Beeswax owns Hive's BV views; follow `beeswax setup --help` for repository setup.
 
 ## Diagnose stalled execution
 

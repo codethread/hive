@@ -37,6 +37,7 @@ test("headless setup uses explicit flags, shared defaults and one silent JSON re
 		ok: true,
 		kind: "repository_setup",
 		database: "/repo/.worktrees/tracker--state/.beads/beads.db",
+		bvRecipes: ["/repo/.bv/recipes.yaml", "/repo/.worktrees/tracker--state/.bv/recipes.yaml"],
 		completed: [
 			"local_excludes",
 			"tracker",
@@ -44,10 +45,14 @@ test("headless setup uses explicit flags, shared defaults and one silent JSON re
 			"local_binding",
 			"merge_driver",
 			"tracker_hooks",
+			"bv_recipes",
 			"hooks",
 			"project_lock",
 		],
 	});
+	expect(fx.files.get("/repo/.worktrees/tracker--state/.bv/recipes.yaml")).toBe(
+		fx.files.get("/repo/.bv/recipes.yaml"),
+	);
 	expect(fx.trackers).toHaveLength(SINGLE);
 	expect(fx.trackers.at(EMPTY)).toMatchObject({
 		tracker: "init",

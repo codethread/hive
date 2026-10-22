@@ -96,7 +96,7 @@ The supervisor owns its process group and local artifacts; it does not reconcile
 
 ## Beeswax's setup boundary
 
-Beeswax owns reusable setup and tracker publication. Product policy stays with its product: Bee owns its attention-query preset, and Hive's setup recipe composes the two CLIs.
+Beeswax owns reusable setup, tracker publication and the required `_hive_` BV viewer recipes in marked YAML sections. User recipes outside those sections remain user-owned. Bee owns only its attention-query preset; Hive's setup recipe composes the two CLIs. Viewer filters do not constrain Colony's ranking graph.
 
 Beeswax owns installation, regeneration and removal of selected harness integrations. Scent remains the replaceable identity runtime behind an installed command boundary; neither product imports the other. Claude Code and Codex callbacks invoke Scent directly. Beeswax's small Pi loader obtains Scent's bundled Node-compatible module through the CLI and runs its factory inside Pi, where it can update environment and register callbacks. Runtime bytes belong to Scent; repository adapters and ownership markers belong to Beeswax.
 

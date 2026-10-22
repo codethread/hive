@@ -34,8 +34,9 @@ const callbackEntered = Promise.withResolvers<void>();
 const controller = new AbortController();
 let callbackFailure: unknown = null;
 const { beads } = memoryTracker();
-const { list } = beads;
-beads.list = async (scope, selection) => {
+const { listProjected } = beads;
+// Intercept dispatch's projected read to inject an inspection while the pass drains.
+beads.listProjected = async (scope, selection, fields) => {
 	entered.resolve();
 	await callbackGate.promise;
 	const callback = requestServer(
@@ -49,7 +50,7 @@ beads.list = async (scope, selection) => {
 	} catch (error) {
 		callbackFailure = error;
 	}
-	return list(scope, selection);
+	return listProjected(scope, selection, fields);
 };
 await serve(target, beads, {
 	host: "fixture-host",

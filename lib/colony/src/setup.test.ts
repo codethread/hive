@@ -1,6 +1,6 @@
+import { BeeSetupError, setupBee } from "./setup.ts";
 import { expect, test } from "bun:test";
 import { createMemoryBeads } from "@hive/beads";
-import { setupBee } from "./setup.ts";
 
 const repository = { root: "/repo", beadsDb: "/selected/tracker/.beads/beads.db" };
 const endpoint = { actor: "setup-test", cwd: repository.root, db: repository.beadsDb };
@@ -24,7 +24,6 @@ test(
 		const selections: { repo: string; database: string }[] = [];
 		const dependencies = {
 			beads,
-			setupFiles: viewerFixture().setupFiles,
 			resolveRepository: (repo: string, database: string) => {
 				selections.push({ repo, database });
 				return Promise.resolve(repository);
@@ -36,7 +35,6 @@ test(
 			kind: "bee_setup",
 			repository,
 			preset: "bee-attention",
-			recipes: ["/worktree/.bv/recipes.yaml", "/selected/tracker/.bv/recipes.yaml"],
 		});
 		expect(selections).toEqual([
 			{ repo: options.repo, database: repository.beadsDb },
@@ -51,110 +49,30 @@ test(
 	},
 );
 
-// eslint-disable-next-line max-statements -- Verify preservation and repeatability across both checkout files.
-test("Bee setup fills missing viewer recipes in both checkouts and preserves unrelated recipes #test-643", async () => {
-	const { files, setupFiles } = viewerFixture();
-	const personal = { filters: { status: ["in_progress"] } };
-	files.set(
-		"/worktree/.bv/recipes.yaml",
-		Bun.YAML.stringify({
-			theme: "dark",
-			recipes: {
-				personal,
-				work: { description: "My work", filters: { exclude_tags: ["system"] } },
-			},
-		}),
-	);
-	const dependencies = {
-		beads: createMemoryBeads(),
-		resolveRepository: () => Promise.resolve(repository),
-		setupFiles,
-	};
-	await setupBee(
-		{ repo: "/worktree", beadsDb: repository.beadsDb, actor: endpoint.actor },
-		dependencies,
-	);
-	const original = new Map(files);
-	await setupBee(
-		{ repo: "/worktree", beadsDb: repository.beadsDb, actor: endpoint.actor },
-		dependencies,
-	);
-	expect(files).toEqual(original);
-	for (const path of ["/worktree/.bv/recipes.yaml", "/selected/tracker/.bv/recipes.yaml"]) {
-		expect(Bun.YAML.parse(files.get(path) ?? "")).toMatchObject({
-			recipes: {
-				work: { filters: { exclude_tags: ["system", "busybee-workflow"] } },
-				system: { filters: { tags: ["system"] } },
-				workflows: { filters: { tags: ["busybee-workflow"] } },
-			},
-		});
-	}
-	expect(Bun.YAML.parse(files.get("/worktree/.bv/recipes.yaml") ?? "")).toMatchObject({
-		theme: "dark",
-		recipes: { personal, work: { description: "My work" } },
-	});
-});
-
-test("a conflicting tracker recipe prevents writes to either checkout or saved queries", async () => {
-	const { files, setupFiles } = viewerFixture();
-	files.set(
-		"/selected/tracker/.bv/recipes.yaml",
-		"recipes:\n  work:\n    filters:\n      tags: [personal]\n",
-	);
-	const original = new Map(files);
-	const beads = createMemoryBeads();
-	await expect(
-		setupBee(
-			{ repo: "/worktree", beadsDb: repository.beadsDb, actor: endpoint.actor },
-			{
-				beads,
-				resolveRepository: () => Promise.resolve(repository),
-				setupFiles,
-			},
-		),
-	).rejects.toMatchObject({
-		name: "BeeSetupError",
-		context: { presetInstalled: false, recipesInstalled: [] },
-	});
-	expect(files).toEqual(original);
-	expect(await beads.query.list(endpoint)).toMatchObject({ queries: [] });
-});
-
-test("a failed second viewer write retains the first file and query in the receipt", async () => {
-	const { files, setupFiles } = viewerFixture();
-	const { write } = setupFiles;
-	setupFiles.write = (path, contents) => {
-		if (path.startsWith("/selected/")) {
-			return Promise.reject(new Error("unwritable tracker"));
+test.each([{ existing: false }, { existing: true }])(
+	"Bee setup retains confirmed query effects when saving fails: existing=$existing",
+	async ({ existing }) => {
+		const beads = createMemoryBeads();
+		if (existing) {
+			await beads.query.save(endpoint, "bee-attention", { titleContains: "old" });
 		}
-		return write(path, contents);
-	};
-	await expect(
-		setupBee(
+		const result = setupBee(
 			{ repo: "/worktree", beadsDb: repository.beadsDb, actor: endpoint.actor },
 			{
-				beads: createMemoryBeads(),
+				beads: {
+					...beads,
+					query: {
+						...beads.query,
+						save: () => Promise.reject(new Error("query save failed")),
+					},
+				},
 				resolveRepository: () => Promise.resolve(repository),
-				setupFiles,
 			},
-		),
-	).rejects.toMatchObject({
-		context: { presetInstalled: true, recipesInstalled: ["/worktree/.bv/recipes.yaml"] },
-	});
-	expect(files.has("/worktree/.bv/recipes.yaml")).toBe(true);
-});
-
-function viewerFixture() {
-	const files = new Map<string, string>();
-	return {
-		files,
-		setupFiles: {
-			checkouts: () => Promise.resolve(["/worktree", "/selected/tracker"]),
-			read: (path: string) => Promise.resolve(files.get(path) ?? ""),
-			write: (path: string, contents: string) => {
-				files.set(path, contents);
-				return Promise.resolve();
-			},
-		},
-	};
-}
+		);
+		await expect(result).rejects.toBeInstanceOf(BeeSetupError);
+		await expect(result).rejects.toMatchObject({
+			context: { repository, presetRemoved: existing, presetInstalled: false },
+		});
+		expect(await beads.query.list(endpoint)).toMatchObject({ queries: [] });
+	},
+);
