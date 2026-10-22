@@ -1,5 +1,24 @@
 [
 	{
+		"version": "0.9.1",
+		"changes": [
+			{
+				"commit": "2f11c55f6246d5f84c3137ced735b49e33376a42",
+				"summary": "keep delegation commands alive during native tracker waits",
+				"body": "Bundled delegation guidance now tells agents to keep Bee commands alive while native\nBeads waits for tracker locks. Prefer asynchronous execution with polling, or allow an\nouter timeout for the configured native wait plus command work.\n\nOptional: align custom delegation wrappers with this guidance. Request IDs, captured\nrecipes and execution retry policy are unchanged.",
+				"breaking": [],
+				"adoption": []
+			},
+			{
+				"commit": "c07af645ee0ccaeaf903590648d35a3c65d60451",
+				"summary": "use independent IDs for delegated workflow work",
+				"body": "Workflows started by `bee spawn` inherit Busy Bee's native hash IDs for new runs, groups\nand visits, with atomic parent-child links instead of clone-local dotted child counters.\nSpawn request and response records retain their existing identity and relationship model.\nExisting workflow IDs and saved assignments remain valid.\n\nRequired for consumers that parse child IDs: follow the returned workflow references and\nnative parent-child edges. See `busybee changelog --release 0.9.1` for the shared creation\nchange; it does not authorize competing claims across clones.",
+				"breaking": [],
+				"adoption": []
+			}
+		]
+	},
+	{
 		"version": "0.9.0",
 		"changes": [
 			{

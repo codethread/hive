@@ -1,5 +1,33 @@
 [
 	{
+		"version": "0.9.1",
+		"changes": [
+			{
+				"commit": "2f11c55f6246d5f84c3137ced735b49e33376a42",
+				"summary": "configure native tracker lock waiting",
+				"body": "Projects can opt into a native lock-acquisition budget with `[beads] lock_timeout` in\n`.hive/beeswax/config.toml`, in milliseconds. Setup and update adopt the value in the\nselected tracker's native configuration; sync and bootstrap apply an accepted value but\nrefuse a conflicting local setting. An omitted policy leaves native configuration alone.\nSession hooks and tracker publication do not install this policy.\n\nOptional: set `lock_timeout = 300000` under `[beads]` for a five-minute budget, then run\n`beeswax update --yes` and review the project contract. Each clone must adopt it locally;\nworktrees sharing a tracker share its policy. This is a lock-wait budget, not a workflow\ndeadline. Native CLI and environment precedence is unchanged.",
+				"breaking": [],
+				"adoption": []
+			},
+			{
+				"commit": "2f11c55f6246d5f84c3137ced735b49e33376a42",
+				"summary": "report publisher contention without raising a tracker incident",
+				"body": "If another local publisher still holds the synchronization lock when acquisition ends,\n`beeswax beads sync` reports `tracker_busy` with `publication: \"not_started\"`. This failed\ncheckpoint neither creates an incident nor clears an existing hold. Failures after\npublication starts still use the tracker-alert and authorized-recovery path.\n\nRequired for automation handling sync failures: treat pre-publication `tracker_busy` as\na deferred checkpoint, preserve any existing hold and retry after the publisher finishes.\nOther failures still require the recovery handoff.",
+				"breaking": [],
+				"adoption": []
+			},
+			{
+				"commit": "4b71f1f0d5466a178331b7274409486a025a4b63",
+				"summary": "publish tracker snapshots through native reconciliation",
+				"body": "Tracker exchange now supplies the incoming Git snapshot and its common-ancestor snapshot\nto native `br sync --merge --from ... --base ...`. Native Beads reconciles records, comments\nand relationships while retaining its canonical database and export. Git publishes the\nvalidated export through a private index and a compare-and-swap branch update, without\nchecking files out over the live tracker. Only an observed competing remote publication\ntriggers a retry; genuine semantic conflicts retain evidence and stop for recovery.\n\nRequired: install Hive's pinned Beads fork before snapshot exchange. The Homebrew formula\nnow builds it alongside Hive; maintainer setup uses the persistent checkout through\n`mise run beads:install`. Put that installation's `br` first on PATH, verify its commit and\nfeatures with `br version --json`, and check `br sync --help` for `--from` and `--base`.\nA matching version number alone does not prove capability. For Homebrew adoption, unlink\nstock `dicklesworthstone/tap/br` if necessary and update the Hive formula installation;\nuse Homebrew rather than `br upgrade` for packaged updates. See docs/releases.md for the\ninstallation routes. Coordinate active work before changing a daemon's inherited PATH.\n\nFor retained synchronization failures, use `beeswax beads recover` and the bundled\nrecovery guidance before any authorized repair. Upgrading does not clear an existing\nincident or authorize overwriting a disputed record.",
+				"breaking": [
+					"Snapshot exchange now requires native br with explicit --from and --base merge inputs; stock br without that capability is insufficient."
+				],
+				"adoption": []
+			}
+		]
+	},
+	{
 		"version": "0.9.0",
 		"changes": [
 			{

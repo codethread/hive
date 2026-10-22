@@ -1,5 +1,29 @@
 [
 	{
+		"version": "0.9.1",
+		"changes": [
+			{
+				"commit": "3bbdd126ae08efd4008abebb2f37f6dddf24a0aa",
+				"summary": "reduce background refresh work",
+				"body": "While visible, the work board polls current task cards, selected bead details and Bee inventory\nfive seconds after the previous automatic load finishes. Family context, descendant outlines,\nmerge icons and Bee assignment annotations become due once a minute, on separate page and\ninspector schedules. Slow reads and hidden tabs extend these intervals; they are not freshness\ndeadlines. Fast changes to the matching card set retain known family context until its\nbackground read succeeds, without treating newly visible cards as covered by the older snapshot.\n\nWorkspace Refresh and browser reload request both tiers for the current view. Refresh bead\ndetails reads only that bead, its family and their annotations, not the board behind it. Batched\nnative reads and same-refresh summary reuse reduce repeated work without treating unchanged task\nrevisions as proof that related records are current.\n\nAn outdated tracker export can still leave family topology stale, with no dedicated visible\nstale-export notice. See lib/hive-ui/FRESHNESS.md for source limits and examples.",
+				"breaking": [],
+				"adoption": [
+					{
+						"requirement": "required",
+						"text": "After installing the updated build, restart the Hive UI server and reload the browser. Browser reload alone does not replace the server. Coordinate the refresh with its owner; no Colony restart is required for these UI changes."
+					}
+				]
+			},
+			{
+				"commit": "3bbdd126ae08efd4008abebb2f37f6dddf24a0aa",
+				"summary": "connect loaded Bee requester chains automatically",
+				"body": "Bee Outline and Graph now connect loaded request cards without requiring Load ancestry when the\nrequester name matches exactly one request across the selected tracker's history, including\nclosed requests. A name unique only on the current page is insufficient. Automatic links neither\nload hidden requests nor discover all descendants.\n\nLoad ancestry still adds historical context and explains ambiguous, missing, cyclic or\ndepth-limited chains. Its explicit evidence takes precedence over automatic links, including\nwhere traversal stops. The graph refits when its layout bounds change, and the workspace keeps\nthe graph canvas from shrinking out of view.",
+				"breaking": [],
+				"adoption": []
+			}
+		]
+	},
+	{
 		"version": "0.9.0",
 		"changes": [
 			{

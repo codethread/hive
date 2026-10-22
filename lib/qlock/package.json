@@ -1,6 +1,6 @@
 {
 	"name": "@hive/qlock",
-	"version": "0.9.0",
+	"version": "0.9.1",
 	"private": true,
 	"bin": {
 		"qlock": "./bin/qlock.ts"

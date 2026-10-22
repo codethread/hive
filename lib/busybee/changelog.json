@@ -1,5 +1,24 @@
 [
 	{
+		"version": "0.9.1",
+		"changes": [
+			{
+				"commit": "2f11c55f6246d5f84c3137ced735b49e33376a42",
+				"summary": "keep workflow commands alive during native tracker waits",
+				"body": "Bundled workflow-execution guidance now tells agents to keep Busy Bee commands alive\nwhile native Beads waits for a tracker lock. Prefer asynchronous execution with polling,\nor allow an outer timeout for the configured native wait plus command work.\n\nOptional: align custom execution wrappers with this guidance. No workflow schema,\ncompletion rule or lock-recovery authority changes.",
+				"breaking": [],
+				"adoption": []
+			},
+			{
+				"commit": "c07af645ee0ccaeaf903590648d35a3c65d60451",
+				"summary": "create workflow children with independent native IDs",
+				"body": "New workflow runs, groups and visits use ordinary native hash IDs with their parent-child\nrelationship created in the same native operation. They no longer depend on clone-local\ndotted child counters, so independent clones can create distinct children under a shared\nparent. Existing IDs, saved runs and parent relationships remain unchanged.\n\nRequired for consumers that derive ancestry from dotted IDs: use native parent-child\nrelationships and the IDs returned by Busy Bee instead. This change does not provide\ndistributed claims or make concurrent workflow execution across clones safe.",
+				"breaking": [],
+				"adoption": []
+			}
+		]
+	},
+	{
 		"version": "0.9.0",
 		"changes": [
 			{

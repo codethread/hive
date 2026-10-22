@@ -1,6 +1,6 @@
 {
 	"name": "@hive/scent",
-	"version": "0.9.0",
+	"version": "0.9.1",
 	"private": true,
 	"bin": {
 		"scent": "./src/bin/scent.ts"
