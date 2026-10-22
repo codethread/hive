@@ -7,6 +7,7 @@
 		".": "./src/index.ts",
 		"./workflow-preview": "./src/workflow-preview.ts",
 		"./workflow-simulation": "./src/workflow-simulation.ts",
+		"./workflow-lifecycle": "./src/workflow-lifecycle.ts",
 		"./changelog": "./src/changelog.ts"
 	},
 	"scripts": {
