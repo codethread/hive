@@ -67,11 +67,30 @@ export const machine = setup({
 				task: ({ context }: { context: Context }) => ({
 					instructions:
 						`Complete the assigned change in ${context.isolation.path}, including requested repairs, ` +
-						"then run bun run check before review.\n\n" +
+						"then run bun run check and record the checked base commit and content before review.\n\n" +
 						`Previous result: ${context.evidence}`,
 				}),
 			},
-			on: { NEXT: { actions: "remember", target: "review" } },
+			on: { NEXT: { actions: "remember", target: "librarian" } },
+		},
+		librarian: {
+			meta: {
+				title: "Review architectural conformity",
+				commands: { approved: "APPROVED", changes: "CHANGES" },
+				task: ({ context }: { context: Context }) => ({
+					bee: { kind: "librarian" },
+					instructions:
+						`Review the final checked change in ${context.isolation.path} against established architecture and ` +
+						"settled user intent; route new or unresolved architectural decisions to Architect. Record the " +
+						"base commit, reviewed commit or diff, findings and response ID. " +
+						"Choose approved for an aligned verdict; otherwise changes.\n\n" +
+						`Previous result: ${context.evidence}`,
+				}),
+			},
+			on: {
+				APPROVED: { actions: "remember", target: "review" },
+				CHANGES: { actions: "remember", target: "work" },
+			},
 		},
 		review: {
 			meta: {
@@ -81,7 +100,9 @@ export const machine = setup({
 					bee: { kind: "reviewer" },
 					instructions:
 						`Review the complete change in ${context.isolation.path} against acceptance and repository ` +
-						"standards; record the reviewed base, content and findings, choosing approved or changes.\n\n" +
+						"standards. Record the base commit, reviewed commit or diff and findings. " +
+						"Choose changes for required repairs or missing Librarian approval of the same base and content; " +
+						"otherwise approved.\n\n" +
 						`Previous result: ${context.evidence}`,
 				}),
 			},

@@ -27,6 +27,8 @@ type Input = z.infer<typeof inputSchema>;
 interface Context extends Input {
 	/** Latest visit evidence; earlier checks and reviews remain on their native beads. */
 	evidence: string;
+	/** Confirmed integration selects verification after both final reviews. */
+	alreadyIntegrated: boolean;
 }
 interface Event {
 	/** Outcome mapped by the active task. */
@@ -35,7 +37,10 @@ interface Event {
 	data: z.infer<typeof evidenceSchema>;
 }
 
-export const resumeSchema = inputSchema.extend({ evidence: z.string() });
+export const resumeSchema = inputSchema.extend({
+	evidence: z.string(),
+	alreadyIntegrated: z.boolean(),
+});
 
 export function runBrief(input: Input): { title: string; description: string } {
 	return {
@@ -50,10 +55,15 @@ export function runBrief(input: Input): { title: string; description: string } {
 
 export const machine = setup({
 	types: { context: {} as Context, input: {} as Input, events: {} as Event },
-	actions: { remember: assign(({ event }) => event.data) },
+	actions: {
+		remember: assign(({ event }) => event.data),
+		markIntegrated: assign({ alreadyIntegrated: true }),
+		markPending: assign({ alreadyIntegrated: false }),
+	},
+	guards: { alreadyIntegrated: ({ context }) => context.alreadyIntegrated },
 }).createMachine({
 	id: "land",
-	context: ({ input }) => ({ ...input, evidence: "" }),
+	context: ({ input }) => ({ ...input, evidence: "", alreadyIntegrated: false }),
 	initial: "check",
 	states: {
 		check: {
@@ -63,17 +73,39 @@ export const machine = setup({
 				task: ({ context }: { context: Context }) => ({
 					title: `Finish and check: ${targetTitle(context)}`,
 					instructions:
-						`1. Finish the agreed work for ${targetTitle(context)} and required specialist passes, ` +
-						"including Bookworm review of final changelog blocks under " +
-						"docs/releases.md#author-tool-changelog-records. " +
-						"If already landed, choose integrated with proof.\n" +
-						"2. Run bun run check on the complete change and record the checked base and content before passed.\n\n" +
+						`1. Finish the agreed work for ${targetTitle(context)} and obtain Bookworm's prose review, ` +
+						"including final changelog blocks under " +
+						"docs/releases.md#author-tool-changelog-records.\n" +
+						"2. Run bun run check on the complete change, at the integrated commit in the canonical checkout " +
+						"if already landed. Record the checked base commit and content; " +
+						"choose integrated with integration proof if already landed, otherwise passed.\n\n" +
 						`Previous result: ${context.evidence}`,
 				}),
 			},
 			on: {
-				PASSED: { actions: "remember", target: "review" },
-				INTEGRATED: { actions: "remember", target: "verify" },
+				PASSED: { actions: ["remember", "markPending"], target: "librarian" },
+				INTEGRATED: { actions: ["remember", "markIntegrated"], target: "librarian" },
+			},
+		},
+		librarian: {
+			meta: {
+				title: "Review architectural conformity",
+				commands: { approved: "APPROVED", changes: "CHANGES" },
+				task: ({ context }: { context: Context }) => ({
+					title: `Librarian review: ${targetTitle(context)}`,
+					bee: { kind: "librarian" },
+					instructions:
+						`Review the final checked change for ${targetTitle(context)} against established architecture and ` +
+						"settled user intent; route new or unresolved architectural decisions to Architect. " +
+						`Already integrated: ${context.alreadyIntegrated}; inspect the actual final base and content, ` +
+						`using ${context.canonicalRoot} for integrated work. Record the base commit, reviewed commit or diff, ` +
+						"findings and response ID. Choose approved for an aligned verdict; otherwise changes.\n\n" +
+						`Previous result: ${context.evidence}`,
+				}),
+			},
+			on: {
+				APPROVED: { actions: "remember", target: "review" },
+				CHANGES: { actions: "remember", target: "check" },
 			},
 		},
 		review: {
@@ -85,12 +117,18 @@ export const machine = setup({
 					bee: { kind: "reviewer" },
 					instructions:
 						`Review the complete checked change for ${targetTitle(context)} against acceptance and repository ` +
-						"standards; record the reviewed base, content and findings, choosing approved or changes.\n\n" +
+						"standards. For already integrated work, review the actual integrated change in " +
+						`${context.canonicalRoot}. Record the base commit, reviewed commit or diff and findings. ` +
+						"Choose changes for required repairs or missing Librarian approval of the same base and content; " +
+						"otherwise approved.\n\n" +
 						`Previous result: ${context.evidence}`,
 				}),
 			},
 			on: {
-				APPROVED: { actions: "remember", target: "finish" },
+				APPROVED: [
+					{ guard: "alreadyIntegrated", actions: "remember", target: "verify" },
+					{ actions: "remember", target: "finish" },
+				],
 				CHANGES: { actions: "remember", target: "check" },
 			},
 		},
@@ -116,18 +154,22 @@ export const machine = setup({
 		verify: {
 			meta: {
 				title: "Verify integration and cleanup",
-				commands: { next: "NEXT" },
+				commands: { next: "NEXT", changes: "CHANGES" },
 				task: ({ context }: { context: Context }) => ({
 					title: `Verify integration: ${targetTitle(context)}`,
 					instructions:
 						`1. From ${context.canonicalRoot}, verify clean synchronized main contains the intended change ` +
-						"and reviewed changelog blocks, then run bun run check at the integrated commit.\n" +
+						"and reviewed changelog blocks, then run bun run check at the integrated commit; " +
+						"choose changes if the actual final base or content differs from either review.\n" +
 						"2. Verify feature-worktree cleanup, using honeycomb remove --help " +
 						"with integration proof when needed.\n\n" +
 						`Previous result: ${context.evidence}`,
 				}),
 			},
-			on: { NEXT: { actions: "remember", target: "local-update" } },
+			on: {
+				NEXT: { actions: "remember", target: "local-update" },
+				CHANGES: { actions: "remember", target: "check" },
+			},
 		},
 		"local-update": {
 			meta: {

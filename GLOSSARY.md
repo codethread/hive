@@ -28,6 +28,10 @@ UI presentation names are defined in the nested [Hive UI glossary](./lib/hive-ui
 
 **Bee kind**: A named set of defaults describing how a bee runs, distinct from the identity of any bee using it.
 
+**Architect**: The bee kind responsible for authoring new or revised architectural decisions.
+
+**Librarian**: The bee kind responsible for curating established architectural guidance and reviewing conformity to it.
+
 **Colony**: Hive's scheduling and execution product, including its control CLI and hosting daemon. A repository's colony is its scheduling and reconciliation activity, which can be awake or asleep. _Avoid_: Daemon when referring to one repository's colony.
 
 **Colony daemon**: The server hosting colonies for registered repositories, distinct from any one colony or running bee.

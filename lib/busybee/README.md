@@ -144,19 +144,19 @@ The demo creates its original work bead and prints `repo`, `db`, `parent`, `inpu
 
 ## Deliver independent feature tasks
 
-Hive's [do-feature-task](../../.workflows/do-feature-task/workflow.ts) delivers an assigned task from an isolated worktree into a local feature base. Its four stages are prepare, work, Bee-dispatched review and delivery; requested changes return to work and renewed review. [Honeycomb's local-delivery guide](../honeycomb/README.md#local-feature-delivery) covers integration and cleanup.
+Hive's [do-feature-task](../../.workflows/do-feature-task/workflow.ts) delivers an assigned task from an isolated worktree into a local feature base. After implementation and checks, it dispatches Librarian for conformity review and Reviewer for code and test standards, then proceeds to delivery. Requested changes return to work and both reviews. [Honeycomb's local-delivery guide](../honeycomb/README.md#local-feature-delivery) covers integration and cleanup.
 
 Keep the workflow catalogue and driver in the canonical checkout. Read `busybee --repo CANONICAL_ROOT input-schema do-feature-task --json` for the `canonicalRoot`, `base` and `isolation` input; base and isolation identify distinct noncanonical worktrees on nondefault branches. The assignment and authorization remain on the source task.
 
 Use `bee spawn --help` to dispatch a `slow-worker` with `--workflow do-feature-task --parent SOURCE_ID --input-file FILE --cwd CANONICAL_ROOT`. These workflows and bee kinds are repository configuration, separate from executable installation. Native prerequisites and Colony capacity govern admission.
 
-The run brief owns post-done source completion. [Specialist guidance](../../docs/agents/specialists.md) applies according to the work; Architect advice is available for a focused continuity or blocker question.
+The run brief owns post-done source completion; the [specialist protocol](../../docs/agents/specialists.md) owns role selection and decision escalation.
 
 ## Landing from the current state
 
-The repository's [Land workflow](../../.workflows/land/workflow.ts) requires an explicit user request to land the agreed scope, including unfinished implementation. Read `busybee input-schema land` for input and follow the active briefs through check, review, finish, verify and local-update.
+The repository's [Land workflow](../../.workflows/land/workflow.ts) requires an explicit user request to land the agreed scope, including unfinished implementation. Read `busybee input-schema land` for input and follow its active briefs.
 
-The check stage completes implementation and full checks before a Bee-dispatched `reviewer` assesses the change. Findings or changes before integration return to check and renewed review; proven prior integration goes directly to verification. Each outcome carries evidence, with the visits and filed responses retaining the review trail.
+The check stage completes implementation, prose review and full checks before Bee-dispatched Librarian and Reviewer assess the final change. Findings or changes to content or base return through checks and both reviews. Proven prior integration also receives these reviews before verification, without repeating integration. Each outcome carries evidence, with the visits and filed responses retaining the review trail.
 
 The run brief retains the canonical checkout and tracker endpoint, and owns post-done closure/publication instructions. Standalone Land publishes after authorized source closures; Land nested beneath Release leaves the final checkpoint to Release. [Delegation and result flow](#delegate-a-workflow-to-bee) covers worker delivery and collection.
 

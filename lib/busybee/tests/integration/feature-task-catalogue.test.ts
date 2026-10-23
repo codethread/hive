@@ -21,7 +21,7 @@ const db = "/selected/beads.db";
 const actor = "simulated-driver";
 const evidence = "SIMULATED catalogue recovery, not real reviews, integration or cleanup.";
 const bytes = new TextEncoder().encode("unchanged canonical definition").buffer;
-const manifest = 'description="Feature delivery"\nversion="0.2.0"\nrun="./workflow.ts"';
+const manifest = 'description="Feature delivery"\nversion="0.3.0"\nrun="./workflow.ts"';
 
 // Mirror the injected authoring/catalogue harness in compatibility.test.ts.
 // The rendered-brief test separately checks the definition selects this caller checkout.
@@ -72,7 +72,7 @@ test.each(["prepare", "deliver"] as const)(
 					return Promise.resolve(JSON.stringify(input));
 				}
 				if (featureChanged && path.startsWith(`${basePath}/`)) {
-					return Promise.resolve(manifest.replace("0.2.0", "0.3.0"));
+					return Promise.resolve(manifest.replace("0.3.0", "0.4.0"));
 				}
 				return Promise.resolve(manifest);
 			},
@@ -100,7 +100,7 @@ test.each(["prepare", "deliver"] as const)(
 		expect(failure).toBeInstanceOf(BusyBeeError);
 		expect(failure).toMatchObject({
 			reason: "definition_changed",
-			context: { savedVersion: "0.2.0", proposedVersion: "0.3.0" },
+			context: { savedVersion: "0.3.0", proposedVersion: "0.4.0" },
 		});
 		const removedCheckout = await navigate(
 			{ id: run.id, operation: "show" },

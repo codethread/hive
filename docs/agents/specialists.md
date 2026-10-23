@@ -8,19 +8,28 @@ Delegate repository prose writing and review to bookworm, including prose embedd
 
 Supply the original request and corrections, rationale, exact writable files, audience, verified behavior and command examples, authoritative references, prior findings and revision/diff. Pass existing scout inventories and research rather than asking it to rediscover them. Identify unknowns explicitly.
 
-## Architectural intent
+## Architecture
 
-Use librarian for unclear ownership, domain concepts, seams or abstractions after reading [architecture](../architecture.md); for user corrections and recurring confusion; and for final-diff review of those concerns. Routine file placement needs no consultation. Reviewer owns code style and tests.
+Architect authors new or revised architectural decisions: domain meaning, patterns, module responsibilities, interfaces, seams and evolution. Librarian curates the accepted guidance: where it lives, what it means and whether a change conforms to it. Read [architecture](../architecture.md) and the relevant [domain records](domain.md) before selecting either role.
 
-Forward the original request, corrections and supplied rationale, prior advice and known evidence ID. Keep the accepted approach in the implementation task's design and return decisions/outcomes to the same [librarian evidence thread](../../.hive/bees/librarian/system_prompt.md#architectural-evidence-records). Evidence capture is part of the role; documentation edits need explicit scope.
+Librarian consultation is optional. Use it to locate or explain established guidance when that helps; routine lookups and clear placement rules need no consultation. Final Librarian review is mandatory before commit or handoff and covers the actual final base and diff. [Land](../../.workflows/land/workflow.ts) and [feature-task delivery](../../.workflows/do-feature-task/workflow.ts) dispatch that review before Reviewer. Repairs or a changed base return through checks and review.
+
+| Question or finding | Route |
+| --- | --- |
+| Where does a contract belong under an existing package rule? | Apply the rule; optionally ask Librarian for the governing reference and current interface. |
+| A new seam needs an ownership rule, or an accepted rule must change. | Architect decides or proposes within the task's authority; ct resolves decisions reserved to the user. |
+| A final diff departs from an established decision. | Librarian cites the rule and required repair; a proposed rule change goes to Architect. |
+| Agents repeatedly cannot find or interpret the guidance. | Librarian catalogs the questions and evidence; Architect resolves any new design decision and Bookworm encodes accepted guidance. |
+
+Forward the original request, corrections and rationale, relevant revisions, prior advice and known evidence ID. Keep accepted decisions in the implementation task's design and return decisions/outcomes to the same [Librarian evidence thread](../../.hive/bees/librarian/system_prompt.md#architectural-evidence-records). Recurring confusion is evidence of a guidance gap, not authority to invent a rule. Give Bookworm settled intent and explicit files for prose changes. Reviewer retains code-style and test-quality review.
 
 ## Operational architecture
 
-Use architect for a focused integration-continuity question or direction on a suspected blocker. Its [role prompt](../../.hive/bees/architect/system_prompt.md) owns the assessment; workflow briefs determine any required consultation. Reviewer owns code and test review, while librarian retains durable intent, architectural memory and `evidence:architecture` stewardship.
+Architect also handles focused integration-continuity questions and suspected blockers. Its [role prompt](../../.hive/bees/architect/system_prompt.md) owns the assessment; workflow briefs determine any required consultation. This is separate from Librarian's final conformity review and adds no universal Architect review gate.
 
 Architect may direct ordinary implementation and architectural changes within the accepted feature goal and authorization. Escalate to ct only when continuation requires changing that objective or authorization, an irreversible or destructive external effect, crossing a security or permission boundary, or resolving an explicit human reservation. These bounds preserve [philosophy](../PHILOSOPHY.md) and native safeguards. Resolve routine seam and implementation choices within that authority.
 
-The assignment selects `integration-review` or `unblock`. Outcomes are:
+For these operational assessments, the assignment selects `integration-review` or `unblock`. Outcomes are:
 
 | Outcome | Meaning and next action |
 | --- | --- |

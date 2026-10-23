@@ -20,18 +20,27 @@ type Snapshot = SnapshotFrom<typeof machine>;
 type Choice = keyof typeof commandSchemas;
 const [initial] = initialTransition(machine, input);
 const working = advance(initial, "next");
-const reviewing = advance(working, "next");
+const librarian = advance(working, "next");
+const reviewing = advance(librarian, "approved");
 const delivering = advance(reviewing, "approved");
 
-// The chart is the public process: review is a separate native visit, not prose inside implementation.
+test("feature tasks require Librarian conformity review before Reviewer", () => {
+	expect(librarian.value).toBe("librarian");
+	expect(task(librarian).bee).toEqual({ kind: "librarian" });
+	expect(reviewing.value).toBe("review");
+	expect(task(reviewing).bee).toEqual({ kind: "reviewer" });
+});
 
 test.each([
+	{ name: "Librarian findings", snapshot: librarian, choice: "changes" as const },
 	{ name: "changed delivery candidate", snapshot: delivering, choice: "changes" as const },
 ])("$name returns through checked work and a fresh review #test-620", ({ snapshot, choice }) => {
 	const repair = advance(snapshot, choice);
 	expect(repair.value).toBe("work");
 	expect(repair.context.evidence).toBe(evidence);
-	expect(advance(repair, "next").value).toBe("review");
+	const renewedLibrarian = advance(repair, "next");
+	expect(renewedLibrarian.value).toBe("librarian");
+	expect(advance(renewedLibrarian, "approved").value).toBe("review");
 });
 
 function advance(snapshot: Snapshot, choice: Choice): Snapshot {

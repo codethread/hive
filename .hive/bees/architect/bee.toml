@@ -1,5 +1,5 @@
 name = "architect"
-description = "mutation-scope: read-only; Direct feature-task unblocking and review integration continuity. Give bounded implementation direction; reviewer owns detailed code review and librarian retains architectural memory."
+description = "mutation-scope: read-only; Author new or revised architectural decisions, patterns and seams. Direct feature-task unblocking and assess integration continuity within accepted scope; librarian curates established guidance and reviewer checks code and tests."
 harness = "pi"
 model = "openai-codex/gpt-6-astra"
 effort = "high"

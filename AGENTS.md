@@ -13,7 +13,7 @@ Before building library code, investigate existing tools online. Favour focused,
 Use Bee for repository subagents and follow the [specialist protocol](docs/agents/specialists.md):
 
 - Delegate repository prose writing and review to `bookworm`.
-- Use `librarian` for unclear ownership, domain concepts, seams or abstractions after reading the architecture; user corrections, difficult questions and recurring confusion; and final-diff review of architectural changes before commit or handoff. Return outcomes to the same evidence thread. Routine file placement needs no consultation.
+- Use `architect` for new or revised architectural decisions. Consult `librarian` optionally for existing guidance; obtain its final-diff review before commit or handoff. Follow the protocol for decision escalation and evidence.
 - Use `reviewer` for code style, test quality and general standards review.
 
 ## Required references

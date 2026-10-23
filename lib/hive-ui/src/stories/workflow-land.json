@@ -8,12 +8,28 @@
 			"on": {
 				"PASSED": [
 					{
-						"target": ["#land.review"]
+						"target": ["#land.librarian"]
 					}
 				],
 				"INTEGRATED": [
 					{
-						"target": ["#land.verify"]
+						"target": ["#land.librarian"]
+					}
+				]
+			}
+		},
+		"librarian": {
+			"id": "land.librarian",
+			"type": "atomic",
+			"on": {
+				"APPROVED": [
+					{
+						"target": ["#land.review"]
+					}
+				],
+				"CHANGES": [
+					{
+						"target": ["#land.check"]
 					}
 				]
 			}
@@ -23,6 +39,10 @@
 			"type": "atomic",
 			"on": {
 				"APPROVED": [
+					{
+						"target": ["#land.verify"],
+						"guard": "alreadyIntegrated"
+					},
 					{
 						"target": ["#land.finish"]
 					}
@@ -57,6 +77,11 @@
 				"NEXT": [
 					{
 						"target": ["#land.local-update"]
+					}
+				],
+				"CHANGES": [
+					{
+						"target": ["#land.check"]
 					}
 				]
 			}

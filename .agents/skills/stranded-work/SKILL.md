@@ -45,7 +45,7 @@ Fan out independent tracker questions to small Honeybee assignments. Each assign
 
 Use the appropriate configured specialist for narrow source lookups. Keep these assignments factual; the analyst owns causal synthesis.
 
-For deep or multi-case diagnosis, retain one focused analyst with strong reasoning capability. Use the configured librarian for causal and ownership judgments, keeping follow-ups in the same evidence thread. If the user explicitly authorizes a harness subagent, prefer direct messages to that same analyst. Send compact facts, counterexamples and user corrections instead of restarting its context.
+For deep or multi-case diagnosis, retain one focused Architect for causal analysis and any new ownership or design decision. Consult Librarian optionally to explain existing rules and catalog guidance gaps and accepted outcomes. Keep follow-ups with the analyst and return outcomes to the same evidence thread. If the user explicitly authorizes a harness subagent, prefer direct messages to that same analyst. Send compact facts, counterexamples and user corrections instead of restarting its context.
 
 Ask the analyst for the leading falsifiable hypothesis and **one next missing fact** that could change its conclusion. Obtain that fact through a focused lookup, then return it to the same thread. Meanwhile, the coordinator continues triage and research and gives the human calm, concise updates about what is known, uncertain and happening next. Apply corrections promptly to every affected assignment the coordinator owns.
 

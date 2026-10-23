@@ -194,7 +194,7 @@ export function availableOutcomes(snapshot: LandSnapshot, sample: SampleContext)
 		return {
 			command,
 			event,
-			target: transitions[snapshot.value].find((edge) => edge.event === type)!.target,
+			target: advance(snapshot, event).snapshot.value,
 			enabled,
 		};
 	});

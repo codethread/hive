@@ -1,6 +1,6 @@
 ---
 name: librarian
-description: Consult the Hive librarian on architectural intent.
+description: Locate established architectural guidance, review conformity and catalog guidance gaps with Hive's Librarian.
 disable-model-invocation: true
 ---
 
