@@ -86,6 +86,6 @@ test.each([
 	{ ...sessionStart, source: "fork" },
 	{ ...sessionStart, hook_event_name: "Stop" },
 	{ ...sessionStart, hook_event_name: "SubagentStart" },
-])("invalid hook input fails at the boundary: $hook_event_name $source", (input) => {
+])("invalid hook input fails at the boundary: $hook_event_name $source #test-662", (input) => {
 	expect(() => codexIdentityHook(input, {})).toThrow(ZodError);
 });

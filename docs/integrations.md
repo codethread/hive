@@ -14,14 +14,14 @@ External dependencies and the contracts a replacement must satisfy. [Architectur
 | POSIX `sh` | Picker previews, using `git`, `awk` and `head` | With fzf | Preview builders in [`pick.ts`](../lib/honeycomb/src/commands/pick.ts), [`add.ts`](../lib/honeycomb/src/commands/add.ts) and the multiplexer |
 | Bun | Development runtime, compiler, package manager and test runner | Development and builds; embedded in installed CLIs | [CLI artifacts](../lib/tooling/README.md#cli-artifacts) |
 | br (Beads) | Native task and request authority | Bee/Colony and development | [`@hive/beads`](../lib/beads/README.md) |
-| bv (Beads Viewer) | PageRank scheduling | Default Colony ranking; optional with FIFO | [`ranking.ts`](../lib/colony/src/ranking.ts) |
+| bv (Beads Viewer) | PageRank scores and exported hierarchy topology | Default Colony ranking; Hive UI hierarchy reads | [`@hive/shared/bv`](../lib/shared/README.md#bv) |
 
 Honeycomb composes its subprocess services in [`live-deps.ts`](../lib/honeycomb/src/live-deps.ts). Replace implementations of [`services.ts`](../lib/honeycomb/src/services.ts) without changing lifecycle logic. Picker preview strings also couple shell, picker and multiplexer syntax.
 
 ## Bee and Colony runtime
 
 - **Honeycomb** resolves the canonical root. **br** supplies native task and request facts through the typed `@hive/beads` boundary. Tracker selection is explicit; see [Beads integration](./beads-integration.md).
-- **BV** reads the selected SQLite database directly in read-only mode and returns the complete visible graph's PageRank scores. The adapter verifies source authority and completeness. It neither exports nor reconciles the tracker. [Scheduling](../lib/colony/README.md#scheduling) explains when ranking runs and the FIFO alternative.
+- **BV** supplies complete PageRank scores from selected SQLite through the injected Shared adapter. [Scheduling](../lib/colony/README.md#scheduling) owns contention policy and the explicit FIFO alternative. Hive UI uses the adapter's separate JSONL graph read under its [hierarchy source contract](./design/hive-ui.md#hierarchy-source). The [BV reference](../lib/shared/README.md#native-adapter) owns native invocation, source validation and read-only guarantees.
 - **Native harnesses** receive formula tokens directly, with the execution directory, identity and tracker environment. Recipe text is not evaluated as shell syntax. Model access and authentication belong to the harness installation.
 - **Process ownership** requires supervisor artifacts and observed process fingerprints. A wrapper dispatching to an external daemon needs its own ownership contract; process exit alone does not prove task completion.
 

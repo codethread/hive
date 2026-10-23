@@ -60,7 +60,7 @@ test("failed export writes remain failed with no success context #test-524", asy
 	expect(fx.output.join("")).not.toContain("hookSpecificOutput");
 });
 
-test("Pi installation exports its embedded module without reading the application", async () => {
+test("Pi installation exports its embedded module without reading the application #test-668", async () => {
 	const fx = fixture();
 	expect(await runCli(["system", "pi-extension", "--json"], fx.deps)).toBe(SUCCESS);
 	expect(JSON.parse(fx.output.join(""))).toEqual({

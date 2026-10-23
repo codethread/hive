@@ -470,7 +470,7 @@ test("summary reuse never crosses endpoint selection", async () => {
 });
 
 // eslint-disable-next-line max-statements -- Exercise hidden-history ambiguity and snapshot refresh together.
-test("automatic requester links use all history and refresh with inventory", async () => {
+test("automatic requester links use all history and refresh with inventory #test-664", async () => {
 	const beads = createMemoryBeads();
 	const recipe = {
 		labels: ["system", "bee", "agent:worker"],

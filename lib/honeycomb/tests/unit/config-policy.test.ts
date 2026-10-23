@@ -109,7 +109,7 @@ test.each([
 		root: "/tmp/repo",
 		toml: preRemoteConfig,
 	},
-])("resolves pre_remote_check from $name", ({ toml, root, expected }) => {
+])("resolves pre_remote_check from $name #test-667", ({ toml, root, expected }) => {
 	expect(resolvePreRemoteCheck(parseConfig(toml), root)).toEqual(expected);
 });
 

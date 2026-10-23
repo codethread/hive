@@ -12,6 +12,7 @@ import type { RequestRecord } from "./request.ts";
 import { beesConfigSchema } from "@hive/shared";
 import { createAdmissionGate } from "./admission.ts";
 import { createColony } from "./colony.ts";
+import { createFakeBv } from "@hive/shared/bv";
 // eslint-disable-next-line import/no-nodejs-modules -- Resolve isolated fixture paths.
 import { join } from "node:path";
 import { newRequest } from "./request.ts";
@@ -195,6 +196,7 @@ function fixture(
 	const actor = createColony(
 		{
 			...tracker,
+			bv: createFakeBv(),
 			state,
 			withAdmission: createAdmissionGate(),
 			store: {

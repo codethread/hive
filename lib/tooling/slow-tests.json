@@ -77,34 +77,6 @@
 			"threshold": "XSLOW",
 			"justification": "ct approved retaining the measured Busy Bee slow cases after the per-file pyramid refactor on 2026-10-13. lib/busybee/tests/integration/land.test.ts: a land run requires retained input before publishing any tasks. Three fresh-process cold samples measured median 3.104ms, maximum 3.278ms. Retains this coherent behavior at its assessed cheapest faithful surface; real XState/native/import contracts are not mocked away. No timeout or global cutoff change. The integrated followup strict changed run measured 10.384ms; the XSLOW baseline follows ct's 2026-10-20 authorization in hv-lconmm.1."
 		},
-		"#test-22": {
-			"threshold": "XSLOW",
-			"justification": "ct approved retaining the measured Busy Bee slow cases after the per-file pyramid refactor on 2026-10-13. lib/busybee/tests/integration/land.test.ts: landing briefs keep the passing check gate with the worker before agent review. Three fresh-process cold samples measured median 2.378ms, maximum 5.385ms. Retains this coherent behavior at its assessed cheapest faithful surface; real XState/native/import contracts are not mocked away. No timeout or global cutoff change."
-		},
-		"#test-23": {
-			"threshold": "XSLOW",
-			"justification": "ct approved retaining the measured Busy Bee slow cases after the per-file pyramid refactor on 2026-10-13. lib/busybee/tests/integration/land.test.ts: the actual land chart navigates PR fixes, rebuttals, stale review, late feedback and fresh readiness without executing landing effects. Three fresh-process cold samples measured median 6.730ms, maximum 7.402ms. Retains this coherent behavior at its assessed cheapest faithful surface; real XState/native/import contracts are not mocked away. No timeout or global cutoff change."
-		},
-		"#test-24": {
-			"threshold": "XSLOW",
-			"justification": "ct approved retaining the measured Busy Bee slow cases after the per-file pyramid refactor on 2026-10-13. lib/busybee/tests/integration/land.test.ts: the actual land chart navigates checks already passed without local approval without executing landing effects. Three fresh-process cold samples measured median 5.117ms, maximum 7.881ms. Retains this coherent behavior at its assessed cheapest faithful surface; real XState/native/import contracts are not mocked away. No timeout or global cutoff change."
-		},
-		"#test-25": {
-			"threshold": "SLOW",
-			"justification": "ct approved retaining the measured Busy Bee slow cases after the per-file pyramid refactor on 2026-10-13. lib/busybee/tests/integration/land.test.ts: the actual land chart navigates reviewed PR already merged remotely without executing landing effects. Three fresh-process cold samples measured median 4.347ms, maximum 4.605ms. Retains this coherent behavior at its assessed cheapest faithful surface; real XState/native/import contracts are not mocked away. No timeout or global cutoff change."
-		},
-		"#test-26": {
-			"threshold": "XSLOW",
-			"justification": "ct approved retaining the measured Busy Bee slow cases after the per-file pyramid refactor on 2026-10-13. lib/busybee/tests/integration/land.test.ts: the actual land chart navigates reviewed content not yet committed without executing landing effects. Three fresh-process cold samples measured median 5.387ms, maximum 6.073ms. Retains this coherent behavior at its assessed cheapest faithful surface; real XState/native/import contracts are not mocked away. No timeout or global cutoff change."
-		},
-		"#test-27": {
-			"threshold": "XSLOW",
-			"justification": "ct approved retaining the measured Busy Bee slow cases after the per-file pyramid refactor on 2026-10-13. lib/busybee/tests/integration/land.test.ts: the actual land chart navigates unfinished work, failed checks, review findings, changed commits and retriage without executing landing effects. Three fresh-process cold samples measured median 5.501ms, maximum 6.051ms. Retains this coherent behavior at its assessed cheapest faithful surface; real XState/native/import contracts are not mocked away. No timeout or global cutoff change."
-		},
-		"#test-28": {
-			"threshold": "SLOW",
-			"justification": "ct approved retaining the measured Busy Bee slow cases after the per-file pyramid refactor on 2026-10-13. lib/busybee/tests/integration/land.test.ts: the actual land chart navigates worktree already integrated without executing landing effects. Three fresh-process cold samples measured median 2.562ms, maximum 2.636ms. Retains this coherent behavior at its assessed cheapest faithful surface; real XState/native/import contracts are not mocked away. No timeout or global cutoff change."
-		},
 		"#test-29": {
 			"threshold": "XSLOW",
 			"justification": "ct approved retaining the measured Busy Bee slow cases after the per-file pyramid refactor on 2026-10-13. lib/busybee/tests/integration/native.test.ts: native tracker discovery routes writes to the repository database with owner and actor. Three fresh-process cold samples measured median 219.343ms, maximum 221.540ms. Retains this coherent behavior at its assessed cheapest faithful surface; real XState/native/import contracts are not mocked away. No timeout or global cutoff change."
@@ -197,14 +169,6 @@
 			"threshold": "SLOW",
 			"justification": "ct approved retaining the measured Busy Bee slow cases after the per-file pyramid refactor on 2026-10-13. lib/busybee/tests/integration/start.test.ts: restoration preserves the actual missing entry. Three fresh-process cold samples measured median 1.500ms, maximum 1.602ms. Retains this coherent behavior at its assessed cheapest faithful surface; real XState/native/import contracts are not mocked away. No timeout or global cutoff change."
 		},
-		"#test-52": {
-			"threshold": "SLOW",
-			"justification": "ct approved retaining the measured Busy Bee slow cases after the per-file pyramid refactor on 2026-10-13. lib/busybee/tests/integration/start.test.ts: restoration preserves the actual missing file during fingerprint. Three fresh-process cold samples measured median 2.051ms, maximum 2.171ms. Retains this coherent behavior at its assessed cheapest faithful surface; real XState/native/import contracts are not mocked away. No timeout or global cutoff change."
-		},
-		"#test-53": {
-			"threshold": "SLOW",
-			"justification": "ct approved retaining the measured Busy Bee slow cases after the per-file pyramid refactor on 2026-10-13. lib/busybee/tests/integration/start.test.ts: restoration preserves the actual missing manifest. Three fresh-process cold samples measured median 1.388ms, maximum 1.505ms. Retains this coherent behavior at its assessed cheapest faithful surface; real XState/native/import contracts are not mocked away. No timeout or global cutoff change."
-		},
 		"#test-54": {
 			"threshold": "SLOW",
 			"justification": "ct approved retaining the measured Busy Bee slow cases after the per-file pyramid refactor on 2026-10-13. lib/busybee/tests/integration/start.test.ts: show rejects a changed named checkpoint before import with authorized same-scope recovery. Three fresh-process cold samples measured median 2.408ms, maximum 3.396ms. Retains this coherent behavior at its assessed cheapest faithful surface; real XState/native/import contracts are not mocked away. No timeout or global cutoff change."
@@ -228,10 +192,6 @@
 		"#test-59": {
 			"threshold": "SLOW",
 			"justification": "ct approved retaining the measured Busy Bee slow cases after the per-file pyramid refactor on 2026-10-13. lib/busybee/tests/integration/validation.test.ts: validate initial-error without a tracker or live actor. Three fresh-process cold samples measured median 1.528ms, maximum 1.554ms. Retains this coherent behavior at its assessed cheapest faithful surface; real XState/native/import contracts are not mocked away. No timeout or global cutoff change."
-		},
-		"#test-60": {
-			"threshold": "SLOW",
-			"justification": "ct approved retaining the measured Busy Bee slow cases after the per-file pyramid refactor on 2026-10-13. lib/busybee/tests/integration/validation.test.ts: validate required-input without a tracker or live actor. Three fresh-process cold samples measured median 2.571ms, maximum 2.843ms. Retains this coherent behavior at its assessed cheapest faithful surface; real XState/native/import contracts are not mocked away. No timeout or global cutoff change."
 		},
 		"#test-61": {
 			"threshold": "SLOW",
@@ -1189,10 +1149,6 @@
 			"threshold": "XSLOW",
 			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 11.972ms (lib/busybee/tests/integration/simulation-examples.test.ts)."
 		},
-		"#test-300": {
-			"threshold": "SLOW",
-			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 9.567ms (lib/busybee/tests/integration/simulation-examples.test.ts)."
-		},
 		"#test-301": {
 			"threshold": "XSLOW",
 			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 11.329ms (lib/busybee/tests/integration/simulation-examples.test.ts)."
@@ -1257,14 +1213,6 @@
 			"threshold": "XSLOW",
 			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 11.878ms (lib/busybee/tests/integration/simulation.test.ts)."
 		},
-		"#test-317": {
-			"threshold": "SLOW",
-			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 4.246ms (lib/busybee/tests/integration/simulation.test.ts)."
-		},
-		"#test-318": {
-			"threshold": "SLOW",
-			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 3.811ms (lib/busybee/tests/integration/simulation.test.ts)."
-		},
 		"#test-319": {
 			"threshold": "XSLOW",
 			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 34.993ms (lib/busybee/tests/integration/simulation.test.ts)."
@@ -1280,10 +1228,6 @@
 		"#test-322": {
 			"threshold": "XSLOW",
 			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 14.127ms (lib/busybee/tests/integration/simulation.test.ts)."
-		},
-		"#test-323": {
-			"threshold": "SLOW",
-			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 8.878ms (lib/busybee/tests/integration/simulation.test.ts)."
 		},
 		"#test-324": {
 			"threshold": "XSLOW",
@@ -1309,33 +1253,13 @@
 			"threshold": "XSLOW",
 			"justification": "Approved by ct on 2026-10-20 in hv-lconmm.1 for retained pre-policy coverage. lib/colony/src/responses.integration.test.ts: result retrieval preserves exact driver/stage identity after supersession without task hydration or readiness queries; it measured 13.384ms in the strict changed run."
 		},
-		"#test-330": {
-			"threshold": "XSLOW",
-			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 16.021ms (lib/busybee/tests/integration/inspection.test.ts)."
-		},
-		"#test-331": {
-			"threshold": "SLOW",
-			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 3.078ms (lib/busybee/tests/integration/inspection.test.ts)."
-		},
-		"#test-332": {
-			"threshold": "SLOW",
-			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.513ms (lib/busybee/tests/integration/inspection.test.ts)."
-		},
 		"#test-333": {
 			"threshold": "XSLOW",
 			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 10.020ms (lib/busybee/tests/integration/feature-task-catalogue.test.ts)."
 		},
-		"#test-334": {
-			"threshold": "SLOW",
-			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 9.666ms (lib/colony/src/workflows.test.ts)."
-		},
 		"#test-336": {
 			"threshold": "SLOW",
 			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 6.332ms (lib/beeswax/src/beads/bootstrap.test.ts)."
-		},
-		"#test-337": {
-			"threshold": "SLOW",
-			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 5.665ms (lib/beeswax/tests/integration/onboarding-lifecycle.test.ts)."
 		},
 		"#test-338": {
 			"threshold": "XSLOW",
@@ -1361,17 +1285,9 @@
 			"threshold": "SLOW",
 			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 4.503ms (lib/busybee/tests/integration/parents.test.ts)."
 		},
-		"#test-344": {
-			"threshold": "XSLOW",
-			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 12.968ms (lib/colony/src/request-recovery.test.ts)."
-		},
 		"#test-345": {
 			"threshold": "SLOW",
 			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 4.259ms (lib/colony/src/explain.test.ts)."
-		},
-		"#test-348": {
-			"threshold": "SLOW",
-			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 5.074ms (lib/hive-ui/workflow-explorer.test.ts)."
 		},
 		"#test-349": {
 			"threshold": "XSLOW",
@@ -1385,10 +1301,6 @@
 			"threshold": "SLOW",
 			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 1.894ms (lib/beeswax/tests/integration/cli.test.ts)."
 		},
-		"#test-352": {
-			"threshold": "SLOW",
-			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 3.780ms (lib/colony/src/bee-cli.integration.test.ts)."
-		},
 		"#test-353": {
 			"threshold": "SLOW",
 			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 3.561ms (lib/shared/src/spawn-request.test.ts)."
@@ -1401,29 +1313,13 @@
 			"threshold": "XSLOW",
 			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 11.486ms (lib/colony/src/setup.test.ts)."
 		},
-		"#test-356": {
-			"threshold": "SLOW",
-			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 3.004ms (lib/busybee/tests/integration/driver.test.ts)."
-		},
-		"#test-357": {
-			"threshold": "SLOW",
-			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.394ms (lib/busybee/tests/integration/driver.test.ts)."
-		},
 		"#test-358": {
 			"threshold": "SLOW",
 			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 5.677ms (lib/busybee/tests/integration/driver.test.ts)."
 		},
-		"#test-359": {
-			"threshold": "SLOW",
-			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 1.998ms (lib/busybee/tests/integration/driver.test.ts)."
-		},
 		"#test-360": {
 			"threshold": "SLOW",
 			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.969ms (lib/busybee/tests/unit/render-task.test.ts)."
-		},
-		"#test-361": {
-			"threshold": "XSLOW",
-			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 16.188ms (lib/colony/src/host-routing.test.ts)."
 		},
 		"#test-363": {
 			"threshold": "SLOW",
@@ -1437,29 +1333,13 @@
 			"threshold": "XSLOW",
 			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 4.968ms (lib/beeswax/tests/integration/synchronize.test.ts). The integrated followup strict changed run measured 13.492ms for sync materializing committed intent without publishing tracker state or rewriting the lock; the XSLOW baseline follows ct's 2026-10-20 authorization in hv-lconmm.1."
 		},
-		"#test-366": {
-			"threshold": "SLOW",
-			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.203ms (lib/waggle/tests/integration/live-deps.test.ts)."
-		},
 		"#test-367": {
 			"threshold": "SLOW",
 			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.156ms (lib/beeswax/src/onboarding.test.ts)."
 		},
-		"#test-368": {
-			"threshold": "SLOW",
-			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.007ms (lib/busybee/tests/integration/land.test.ts)."
-		},
 		"#test-369": {
 			"threshold": "SLOW",
 			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 3.370ms (lib/hive-ui/data.test.ts)."
-		},
-		"#test-370": {
-			"threshold": "SLOW",
-			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.568ms (lib/busybee/tests/integration/completion.test.ts)."
-		},
-		"#test-371": {
-			"threshold": "SLOW",
-			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.475ms (lib/hive-ui/server/data.test.ts)."
 		},
 		"#test-372": {
 			"threshold": "SLOW",
@@ -1493,10 +1373,6 @@
 			"threshold": "SLOW",
 			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.105ms (lib/colony/src/explain.test.ts)."
 		},
-		"#test-381": {
-			"threshold": "SLOW",
-			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 3.686ms (lib/busybee/tests/integration/simulation.test.ts)."
-		},
 		"#test-382": {
 			"threshold": "XSLOW",
 			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 1.882ms (lib/busybee/tests/integration/simulation.test.ts). The integrated followup full check measured 51.777ms for rejecting simulation_command_unavailable with step identity and no native effects; the XSLOW baseline follows ct's 2026-10-20 authorization in hv-lconmm.1."
@@ -1504,10 +1380,6 @@
 		"#test-383": {
 			"threshold": "SLOW",
 			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 8.908ms (lib/colony/src/workflow-submission.test.ts)."
-		},
-		"#test-384": {
-			"threshold": "SLOW",
-			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 6.564ms (lib/colony/src/bee-cli.integration.test.ts)."
 		},
 		"#test-385": {
 			"threshold": "SLOW",
@@ -1541,17 +1413,9 @@
 			"threshold": "SLOW",
 			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 4.927ms (lib/busybee/tests/integration/driver.test.ts)."
 		},
-		"#test-393": {
-			"threshold": "SLOW",
-			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 1.514ms (lib/busybee/tests/integration/land.test.ts)."
-		},
 		"#test-395": {
 			"threshold": "SLOW",
 			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.156ms (lib/shared/src/bees.test.ts)."
-		},
-		"#test-396": {
-			"threshold": "XSLOW",
-			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 10.862ms (lib/busybee/tests/integration/completion.test.ts)."
 		},
 		"#test-397": {
 			"threshold": "SLOW",
@@ -1565,29 +1429,13 @@
 			"threshold": "SLOW",
 			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 3.012ms (lib/beeswax/tests/integration/cli.test.ts)."
 		},
-		"#test-400": {
-			"threshold": "SLOW",
-			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.196ms (lib/colony/src/host-routing.test.ts)."
-		},
 		"#test-401": {
 			"threshold": "XSLOW",
 			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 13.774ms (lib/busybee/tests/integration/simulation.test.ts)."
 		},
-		"#test-402": {
-			"threshold": "SLOW",
-			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 1.757ms (lib/hive-ui/workflow-explorer.test.ts)."
-		},
 		"#test-403": {
 			"threshold": "SLOW",
 			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 1.659ms (lib/hive-ui/data.test.ts)."
-		},
-		"#test-404": {
-			"threshold": "SLOW",
-			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 1.619ms (lib/busybee/tests/integration/completion.test.ts)."
-		},
-		"#test-405": {
-			"threshold": "SLOW",
-			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 1.551ms (lib/busybee/tests/integration/land.test.ts)."
 		},
 		"#test-406": {
 			"threshold": "SLOW",
@@ -1608,10 +1456,6 @@
 		"#test-411": {
 			"threshold": "XSLOW",
 			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 12.183ms (lib/busybee/tests/integration/simulation.test.ts)."
-		},
-		"#test-412": {
-			"threshold": "SLOW",
-			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 7.160ms (lib/colony/src/producer.test.ts)."
 		},
 		"#test-413": {
 			"threshold": "XSLOW",
@@ -1645,18 +1489,6 @@
 			"threshold": "XSLOW",
 			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 1.555ms (lib/beeswax/src/beads/alerts-publication.test.ts). The integrated followup full check measured 18.160ms for retaining the publication hold during an alert despite a healthy native endpoint; the XSLOW baseline follows ct's 2026-10-20 authorization in hv-lconmm.1."
 		},
-		"#test-422": {
-			"threshold": "SLOW",
-			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 6.428ms (lib/busybee/tests/integration/inspection.test.ts)."
-		},
-		"#test-423": {
-			"threshold": "SLOW",
-			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.984ms (lib/busybee/tests/integration/inspection.test.ts)."
-		},
-		"#test-424": {
-			"threshold": "SLOW",
-			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 3.478ms (lib/colony/src/workflow-submission.test.ts)."
-		},
 		"#test-425": {
 			"threshold": "SLOW",
 			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 1.831ms (lib/waggle/tests/integration/live-deps.test.ts)."
@@ -1673,14 +1505,6 @@
 			"threshold": "SLOW",
 			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 1.604ms (lib/busybee/tests/integration/driver.test.ts)."
 		},
-		"#test-429": {
-			"threshold": "SLOW",
-			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 4.674ms (lib/colony/src/producer.test.ts)."
-		},
-		"#test-430": {
-			"threshold": "SLOW",
-			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 3.733ms (lib/hive-ui/server/api.test.ts)."
-		},
 		"#test-431": {
 			"threshold": "SLOW",
 			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 3.427ms (lib/busybee/tests/integration/failure.test.ts)."
@@ -1688,10 +1512,6 @@
 		"#test-432": {
 			"threshold": "SLOW",
 			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.466ms (lib/beeswax/src/beads/alerts.test.ts)."
-		},
-		"#test-433": {
-			"threshold": "SLOW",
-			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 4.802ms (lib/busybee/tests/integration/completion.test.ts)."
 		},
 		"#test-435": {
 			"threshold": "SLOW",
@@ -1740,10 +1560,6 @@
 		"#test-449": {
 			"threshold": "SLOW",
 			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.872ms (lib/busybee/src/native.test.ts)."
-		},
-		"#test-450": {
-			"threshold": "XSLOW",
-			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.678ms (lib/busybee/tests/integration/completion.test.ts). The integrated followup full check measured 16.537ms for completion awaiting result persistence; the XSLOW baseline follows ct's 2026-10-20 authorization in hv-lconmm.1."
 		},
 		"#test-452": {
 			"threshold": "SLOW",
@@ -1993,21 +1809,9 @@
 			"threshold": "SLOW",
 			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 4.837ms (lib/busybee/tests/integration/driver.test.ts)."
 		},
-		"#test-518": {
-			"threshold": "SLOW",
-			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 1.948ms (lib/colony/src/response-store.test.ts)."
-		},
-		"#test-519": {
-			"threshold": "SLOW",
-			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 1.649ms (lib/colony/src/request-recovery.test.ts)."
-		},
 		"#test-520": {
 			"threshold": "SLOW",
 			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 4.309ms (lib/busybee/tests/unit/render-task.test.ts)."
-		},
-		"#test-521": {
-			"threshold": "SLOW",
-			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 4.145ms (lib/busybee/tests/integration/land.test.ts)."
 		},
 		"#test-522": {
 			"threshold": "SLOW",
@@ -2050,8 +1854,8 @@
 			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.873ms (lib/qlock/tests/cli.test.ts)."
 		},
 		"#test-536": {
-			"threshold": "SLOW",
-			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 7.356ms (lib/busybee/tests/integration/parents.test.ts)."
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 7.356ms (lib/busybee/tests/integration/parents.test.ts). User approved retaining measured timing-only blockers during the BV landing on 2026-10-23. lib/busybee/tests/integration/parents.test.ts: $command rejects a $name parent before publishing any workflow effects #test-536. Worst observed full-check runtime: 62.667ms. Measured row: run rejects a missing parent before publishing any workflow effects. The stable ID applies to the existing table-driven title template."
 		},
 		"#test-537": {
 			"threshold": "SLOW",
@@ -2085,14 +1889,6 @@
 			"threshold": "SLOW",
 			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.284ms (lib/hive-ui/server/api.test.ts)."
 		},
-		"#test-545": {
-			"threshold": "SLOW",
-			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 1.888ms (lib/colony/src/producer.test.ts)."
-		},
-		"#test-546": {
-			"threshold": "SLOW",
-			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 3.811ms (lib/colony/src/workflow-submission.test.ts)."
-		},
 		"#test-547": {
 			"threshold": "SLOW",
 			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.926ms (lib/colony/src/requests.test.ts)."
@@ -2125,10 +1921,6 @@
 			"threshold": "XSLOW",
 			"justification": "Approved by ct on 2026-10-20 in hv-lconmm.1 for retained pre-policy coverage. lib/colony/src/processes.integration.test.ts: stopping the real owned process group and observing supervisor exit measured 91.221ms in the strict changed run."
 		},
-		"#test-555": {
-			"threshold": "SLOW",
-			"justification": "Approved by ct on 2026-10-20 in hv-lconmm.1 for retained pre-policy coverage. lib/colony/src/bee-cli.integration.test.ts: CLI forwarding of cancellation resumption independently of recipe overrides measured 3.865ms in the strict changed run."
-		},
 		"#test-556": {
 			"threshold": "SLOW",
 			"justification": "Approved by ct on 2026-10-20 in hv-lconmm.1 for retained pre-policy coverage. lib/colony/src/producer.test.ts: driver/stage submission scope and duplicate admission use in-memory Beads; the driver case measured 3.753ms in the strict changed run."
@@ -2136,14 +1928,6 @@
 		"#test-557": {
 			"threshold": "SLOW",
 			"justification": "Approved by ct on 2026-10-20 in hv-lconmm.1 for retained pre-policy coverage. lib/colony/src/processes.test.ts: parsing process lifetime and group fields with renamed argv measured 3.661ms in the strict changed run."
-		},
-		"#test-558": {
-			"threshold": "SLOW",
-			"justification": "Approved by ct on 2026-10-20 in hv-lconmm.1 for retained pre-policy coverage. lib/colony/src/claims.test.ts: claim/release coverage preserves the human owner, foreign claims and closed tasks; it measured 2.198ms in the strict changed run."
-		},
-		"#test-559": {
-			"threshold": "SLOW",
-			"justification": "Approved by ct on 2026-10-20 in hv-lconmm.1 for retained pre-policy coverage. lib/colony/src/claims.test.ts: releasing owned descendants while preserving protected and related work measured 2.986ms in the strict changed run."
 		},
 		"#test-560": {
 			"threshold": "SLOW",
@@ -2156,10 +1940,6 @@
 		"#test-562": {
 			"threshold": "SLOW",
 			"justification": "Approved by ct on 2026-10-20 in hv-lconmm.1 for retained pre-policy coverage. lib/colony/src/workflow-submission.test.ts: stage dispatch using native ancestry during initial frontier publication measured 2.590ms in the strict changed run."
-		},
-		"#test-563": {
-			"threshold": "SLOW",
-			"justification": "Approved by ct on 2026-10-20 in hv-lconmm.1 for retained pre-policy coverage. lib/colony/src/claims.test.ts: cleanup stays beneath the driver's or stage worker's captured claim; the stage case measured 4.159ms in the strict changed run."
 		},
 		"#test-564": {
 			"threshold": "SLOW",
@@ -2232,10 +2012,6 @@
 		"#test-581": {
 			"threshold": "SLOW",
 			"justification": "Approved by ct on 2026-10-20 in hv-lconmm.1 for retained pre-policy coverage. lib/busybee/tests/integration/driver.test.ts: handoff preserves an existing agent driver claim measured 1.903ms in the full check."
-		},
-		"#test-582": {
-			"threshold": "SLOW",
-			"justification": "Approved by ct on 2026-10-20 in hv-lconmm.1 for retained pre-policy coverage. lib/busybee/tests/integration/failure.test.ts: initial visit publication failure retains parent, run and checkpoint identities measured 1.884ms in the full check."
 		},
 		"#test-583": {
 			"threshold": "SLOW",
@@ -2324,14 +2100,6 @@
 		"#test-604": {
 			"threshold": "SLOW",
 			"justification": "Approved by ct on 2026-10-20 in hv-lconmm.1 for retained pre-policy coverage. lib/beeswax/src/onboarding.test.ts: deselection removes alert callbacks after the startup primer was already removed measured 1.983ms in the integrated followup full check."
-		},
-		"#test-605": {
-			"threshold": "SLOW",
-			"justification": "Approved by ct on 2026-10-20 in hv-lconmm.1 for retained pre-policy coverage. lib/busybee/tests/integration/feature-task.test.ts: feature tasks isolate, check, independently review and deliver measured 7.352ms in the integrated followup full check."
-		},
-		"#test-606": {
-			"threshold": "SLOW",
-			"justification": "Approved by ct on 2026-10-20 in hv-lconmm.1 for retained pre-policy coverage. lib/busybee/tests/integration/land.test.ts: Land verifies integration before updating local tools and completing measured 2.987ms in the integrated followup full check."
 		},
 		"#test-607": {
 			"threshold": "SLOW",
@@ -2437,10 +2205,6 @@
 			"threshold": "SLOW",
 			"justification": "Approved by ct on 2026-10-20 in hv-lconmm.1 for retained pre-policy coverage. lib/beeswax/tests/project.test.ts: the known previous skill catalogue can advance to the recovery catalogue measured 1.690ms in the integrated followup strict changed run."
 		},
-		"#test-633": {
-			"threshold": "SLOW",
-			"justification": "Approved by ct on 2026-10-20 in hv-lconmm.1 for retained pre-policy coverage. lib/busybee/tests/integration/land.test.ts: Land dispatches a fresh reviewer visit after driver repair and checks measured 4.336ms in the integrated followup strict changed run."
-		},
 		"#test-634": {
 			"threshold": "SLOW",
 			"justification": "Approved by ct on 2026-10-20 in hv-lconmm.1 for retained pre-policy coverage. lib/qlock/tests/cli.test.ts: status emits one JSON envelope without allocating a ticket measured 3.638ms in the integrated followup full check."
@@ -2476,10 +2240,6 @@
 		"#test-642": {
 			"threshold": "SLOW",
 			"justification": "Approved by ct on 2026-10-20 in hv-lconmm.1 for retained pre-policy coverage. lib/colony/src/daemon-lifecycle.test.ts: failed native startup reports confirmed effects without a fallback launch measured 1.527ms in the integrated followup strict changed run."
-		},
-		"#test-643": {
-			"threshold": "SLOW",
-			"justification": "Approved by ct on 2026-10-20 in hv-lconmm.1 for retained pre-policy coverage. lib/colony/src/setup.test.ts: Bee setup fills missing viewer recipes in both checkouts and preserves unrelated recipes measured 6.856ms in the integrated followup full check."
 		},
 		"#test-644": {
 			"threshold": "SLOW",
@@ -2540,6 +2300,74 @@
 		"#test-658": {
 			"threshold": "DANGER",
 			"justification": "User authorized timing exemptions for critical cross-host tracker regressions. Unknown lock failures and contention after publication starts must still activate an incident; assertions and test timeout remain enforced."
+		},
+		"#test-659": {
+			"threshold": "XSLOW",
+			"justification": "User approved one XSLOW allowance on 2026-10-22 for hv-l0x7h3. lib/shared/tests/contract/bv.test.ts retains native tracker setup and real bv I/O to verify complete (>200) selected SQLite scores versus exported JSONL membership, closed and unflushed records, unchanged non-SHM tracker artifacts, and failure on a corrupt selected database despite a valid export. Measured 642.020ms focused, 558.181ms changed-contract and 610.376ms full-contract. The alphabetical fake cannot verify this native contract. Assertions, global cutoffs and test timeouts remain unchanged."
+		},
+		"#test-660": {
+			"threshold": "SLOW",
+			"justification": "User approved retaining measured timing-only blockers during the BV landing on 2026-10-23. lib/shared/src/spawn-request.test.ts: read-only attribution retains task links independently of workflow execution authority. Worst observed full-check runtime: 3.114ms."
+		},
+		"#test-661": {
+			"threshold": "SLOW",
+			"justification": "User approved retaining measured timing-only blockers during the BV landing on 2026-10-23. lib/colony/src/observations-batch.test.ts: $kind failure preserves all causes, siblings and re-entry deduplication. Worst observed full-check runtime: 6.194ms. Measured row: after failure preserves all causes, siblings and re-entry deduplication. The stable ID applies to the existing table-driven title template."
+		},
+		"#test-662": {
+			"threshold": "SLOW",
+			"justification": "User approved retaining measured timing-only blockers during the BV landing on 2026-10-23. lib/scent/tests/codex.test.ts: invalid hook input fails at the boundary: $hook_event_name $source. Worst observed full-check runtime: 4.542ms. Measured row: invalid hook input fails at the boundary: SessionStart startup. The stable ID applies to the existing table-driven title template."
+		},
+		"#test-663": {
+			"threshold": "SLOW",
+			"justification": "User approved retaining measured timing-only blockers during the BV landing on 2026-10-23. lib/colony/src/requests.test.ts: publication repairs superseded predecessors from native relationship facts. Worst observed full-check runtime: 2.966ms."
+		},
+		"#test-664": {
+			"threshold": "SLOW",
+			"justification": "User approved retaining measured timing-only blockers during the BV landing on 2026-10-23. lib/hive-ui/server/data.test.ts: automatic requester links use all history and refresh with inventory. Worst observed full-check runtime: 2.737ms."
+		},
+		"#test-665": {
+			"threshold": "SLOW",
+			"justification": "User approved retaining measured timing-only blockers during the BV landing on 2026-10-23. lib/shared/src/bv.test.ts: graph refuses unusable authority even when stale: %j. Worst observed full-check runtime: 2.467ms. Measured row: graph refuses unusable authority even when stale: {\"sources\":[]}. The stable ID applies to the existing table-driven title template."
+		},
+		"#test-666": {
+			"threshold": "SLOW",
+			"justification": "User approved retaining measured timing-only blockers during the BV landing on 2026-10-23. lib/beads/src/native.test.ts: native creation links its parent atomically alongside supplied dependencies. Worst observed full-check runtime: 2.445ms."
+		},
+		"#test-667": {
+			"threshold": "SLOW",
+			"justification": "User approved retaining measured timing-only blockers during the BV landing on 2026-10-23. lib/honeycomb/tests/unit/config-policy.test.ts: resolves pre_remote_check from $name. Worst observed full-check runtime: 1.905ms. Measured row: resolves pre_remote_check from later rule. The stable ID applies to the existing table-driven title template."
+		},
+		"#test-668": {
+			"threshold": "SLOW",
+			"justification": "User approved retaining measured timing-only blockers during the BV landing on 2026-10-23. lib/scent/tests/cli.test.ts: Pi installation exports its embedded module without reading the application. Worst observed full-check runtime: 6.944ms."
+		},
+		"#test-669": {
+			"threshold": "SLOW",
+			"justification": "User approved retaining measured timing-only blockers during the BV landing on 2026-10-23. lib/colony/src/dispatch-projection.test.ts: discovery waits for closed repair and sees a misprojected request created during repair. Worst observed full-check runtime: 6.696ms."
+		},
+		"#test-670": {
+			"threshold": "SLOW",
+			"justification": "User approved retaining measured timing-only blockers during the BV landing on 2026-10-23. lib/shared/src/bv.test.ts: PageRank rejects $name. Worst observed full-check runtime: 2.756ms. Measured row: PageRank rejects missing scores. The stable ID applies to the existing table-driven title template."
+		},
+		"#test-671": {
+			"threshold": "SLOW",
+			"justification": "User approved retaining measured timing-only blockers during the BV landing on 2026-10-23. lib/shared/src/bv.test.ts: native reads construct their exact commands without leaking environment overrides. Worst observed full-check runtime: 1.964ms."
+		},
+		"#test-672": {
+			"threshold": "SLOW",
+			"justification": "User approved retaining measured timing-only blockers during the BV landing on 2026-10-23. lib/scent/tests/claude.test.ts: supplied $HIVE_AGENT_NAME and launcher metadata survive transitions. Worst observed full-check runtime: 5.017ms. Measured row: supplied interactive-bee and launcher metadata survive transitions. The stable ID applies to the existing table-driven title template."
+		},
+		"#test-673": {
+			"threshold": "SLOW",
+			"justification": "User approved retaining measured timing-only blockers during the BV landing on 2026-10-23. lib/scent/tests/claude.test.ts: missing environment route and failed writes fail loudly. Worst observed full-check runtime: 2.980ms."
+		},
+		"#test-674": {
+			"threshold": "SLOW",
+			"justification": "User approved retaining measured timing-only blockers during the BV landing on 2026-10-23. lib/colony/src/observations-batch.test.ts: $change drift in the last row admits no cohort comments. Worst observed strict changed-test runtime: 2.153ms. Measured rows: unbound 2.153ms; identity 1.729ms. The stable ID applies to the existing table-driven title template."
+		},
+		"#test-675": {
+			"threshold": "SLOW",
+			"justification": "User approved retaining measured timing-only blockers during the BV landing on 2026-10-23. lib/scent/tests/claude.test.ts: separate native CLI replaces inherited Bee binding and drops its kind and metadata. Observed strict changed-test runtime: 1.623ms."
 		}
 	}
 }

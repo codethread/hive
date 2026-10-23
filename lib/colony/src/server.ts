@@ -22,6 +22,7 @@ import { inspectRepository, inspectRequest } from "./inspection.ts";
 import { loadPolicy, policySnapshot, policyView, updatePolicy } from "./policy.ts";
 import type { ActivePolicy } from "./policy.ts";
 import type { BeadsService } from "@hive/beads";
+import type { BvService } from "@hive/shared/bv";
 import type { ColonyActivity } from "./colony.ts";
 import type { ExecutionClearanceRuntime } from "./execution-clearance.ts";
 import { claimServer } from "./server-ownership.ts";
@@ -60,9 +61,12 @@ export async function serve(
 	options: ServerOptions,
 	beads: BeadsService,
 	{
+		bv,
 		loadActivity,
 		...execution
 	}: Pick<ExecutionClearanceRuntime, "observe" | "host" | "now"> & {
+		/** Injected read-only ranking dependency. */
+		bv: Pick<BvService, "readPageRanks">;
 		/** Load canonical policy for activation and restoration. */
 		loadActivity: typeof loadColonyActivity;
 	},
@@ -84,6 +88,7 @@ export async function serve(
 		const actor = createColony(
 			{
 				beads,
+				bv,
 				repository,
 				state: options.state,
 				store,

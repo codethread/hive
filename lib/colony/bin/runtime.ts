@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 import { loadColonyActivity, serve } from "../src/server.ts";
 import { createNativeBeads } from "@hive/beads";
+import { createNativeBv } from "@hive/shared/bv";
 // eslint-disable-next-line import/no-nodejs-modules -- Bind fresh execution observations to this host.
 import { hostname } from "node:os";
 import { launch } from "../src/launch.ts";
@@ -53,6 +54,7 @@ try {
 		})
 		.with({ kind: "serve" }, ({ socket, state }) =>
 			serve({ socket, state }, beads, {
+				bv: createNativeBv({ env: process.env }),
 				loadActivity: loadColonyActivity,
 				observe: observeExecution,
 				host: hostname(),

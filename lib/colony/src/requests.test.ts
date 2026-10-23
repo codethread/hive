@@ -136,7 +136,7 @@ test("publication rebases a revision conflict while retaining unrelated labels #
 /* eslint-disable-next-line max-statements --
  * Assert predecessor and replacement publication order together with the resulting labels.
  */
-test("publication repairs superseded predecessors from native relationship facts", async () => {
+test("publication repairs superseded predecessors from native relationship facts #test-663", async () => {
 	const tracker = supersession;
 	const predecessor = await createSpawn(tracker, supersessionTask);
 	await tracker.beads.close(trackerScope(tracker.repository, "worker"), predecessor, {

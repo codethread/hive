@@ -7,7 +7,7 @@ const ONE = 1;
 const HIDDEN_CLOSED = 3;
 const TOTAL_MATCHES = 4;
 
-test("native creation links its parent atomically alongside supplied dependencies", async () => {
+test("native creation links its parent atomically alongside supplied dependencies #test-666", async () => {
 	const calls: string[][] = [];
 	const service = createNativeBeads({
 		execute: (argv) => {

@@ -11,6 +11,7 @@ import { api } from "./api.ts";
 import { appendFile } from "node:fs/promises";
 import { createBoardData } from "./data.ts";
 import { createNativeBeads } from "@hive/beads";
+import { createNativeBv } from "@hive/shared/bv";
 import { createTopologyReader } from "./topology.ts";
 import { createUiCommand } from "./cli.ts";
 import { createWorkflowTools } from "./workflow.ts";
@@ -83,7 +84,8 @@ async function startServer(options: UiOptions): Promise<void> {
 	const invoke = (argv: string[], cwd: string) => execute(argv, cwd, process.env);
 	const colonies = await readColonies(options, invoke);
 	const beads = createNativeBeads();
-	const data = createBoardData(createTopologyReader({ beads, execute: invoke }));
+	const bv = createNativeBv({ execute, env: process.env });
+	const data = createBoardData(createTopologyReader({ beads, bv }));
 	const workflow = createWorkflowTools(invoke);
 	const server = Bun.serve({
 		development,

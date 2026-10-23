@@ -48,32 +48,35 @@ test.each([
 test.each([
 	{ HIVE_AGENT_NAME: "interactive-bee", HIVE_AGENT_SESSION: "" },
 	{ HIVE_AGENT_NAME: "managed-bee", HIVE_AGENT_SOURCE: "bee" },
-])("supplied $HIVE_AGENT_NAME and launcher metadata survive transitions", async (supplied) => {
-	const env = Object.freeze({
-		...supplied,
-		CLAUDE_ENV_FILE: "/session/env",
-		BR_AGENT_NAME: "worker",
-		BR_MODEL: "launcher-model",
-		BR_EFFORT: "low",
-	});
-	await Promise.all(
-		["startup", "clear", "resume", "compact"].map(async (source) => {
-			const host = fixture(env);
-			const output = await host.run({ ...sessionStart, source, session_id: source });
-			const contents = host.writes[FIRST]?.[CONTENTS];
-			expect(output.hookSpecificOutput.additionalContext).toContain(
-				`--actor ${supplied.HIVE_AGENT_NAME}`,
-			);
-			expect(contents).toContain(`export HIVE_AGENT_SESSION='${source}'`);
-			expect(contents).toContain("export HIVE_AGENT_SOURCE='bee'");
-			expect(contents).toContain("export BR_MODEL='launcher-model'");
-			expect(contents).toContain("export BR_AGENT_NAME='worker'");
-			expect(contents).toContain("export BR_EFFORT='low'");
-		}),
-	);
-});
+])(
+	"supplied $HIVE_AGENT_NAME and launcher metadata survive transitions #test-672",
+	async (supplied) => {
+		const env = Object.freeze({
+			...supplied,
+			CLAUDE_ENV_FILE: "/session/env",
+			BR_AGENT_NAME: "worker",
+			BR_MODEL: "launcher-model",
+			BR_EFFORT: "low",
+		});
+		await Promise.all(
+			["startup", "clear", "resume", "compact"].map(async (source) => {
+				const host = fixture(env);
+				const output = await host.run({ ...sessionStart, source, session_id: source });
+				const contents = host.writes[FIRST]?.[CONTENTS];
+				expect(output.hookSpecificOutput.additionalContext).toContain(
+					`--actor ${supplied.HIVE_AGENT_NAME}`,
+				);
+				expect(contents).toContain(`export HIVE_AGENT_SESSION='${source}'`);
+				expect(contents).toContain("export HIVE_AGENT_SOURCE='bee'");
+				expect(contents).toContain("export BR_MODEL='launcher-model'");
+				expect(contents).toContain("export BR_AGENT_NAME='worker'");
+				expect(contents).toContain("export BR_EFFORT='low'");
+			}),
+		);
+	},
+);
 
-test("separate native CLI replaces inherited Bee binding and drops its kind and metadata", async () => {
+test("separate native CLI replaces inherited Bee binding and drops its kind and metadata #test-675", async () => {
 	const host = fixture(
 		Object.freeze({
 			CLAUDE_ENV_FILE: "/session/env",
@@ -135,7 +138,7 @@ test.each([
 	expect(host.writes).toEqual([]);
 });
 
-test("missing environment route and failed writes fail loudly", async () => {
+test("missing environment route and failed writes fail loudly #test-673", async () => {
 	await expect(fixture({}).run(sessionStart)).rejects.toBeInstanceOf(ZodError);
 	const error = new Error("unwritable environment file");
 	await expect(

@@ -8,7 +8,8 @@
 		"./workflow-preview": "./src/workflow-preview.ts",
 		"./workflow-lifecycle": "./src/workflow-lifecycle.ts",
 		"./workflow-simulation": "./src/workflow-simulation.ts",
-		"./changelog": "./src/changelog.ts"
+		"./changelog": "./src/changelog.ts",
+		"./bv": "./src/bv.ts"
 	},
 	"scripts": {
 		"test": "bun test --parallel --parallel-delay=0 --timeout=5000 --only-failures ./src",

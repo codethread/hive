@@ -345,7 +345,7 @@ test.each(["", " ", INVALID_HOST_NUMBER, null])(
 	},
 );
 
-test("read-only attribution retains task links independently of workflow execution authority", () => {
+test("read-only attribution retains task links independently of workflow execution authority #test-660", () => {
 	const bead = {
 		...original,
 		description: JSON.stringify({

@@ -53,6 +53,11 @@ beads.listProjected = async (scope, selection, fields) => {
 	return listProjected(scope, selection, fields);
 };
 await serve(target, beads, {
+	bv: {
+		readPageRanks: () => {
+			throw new Error("Unexpected ranking");
+		},
+	},
 	host: "fixture-host",
 	now: () => "2026-01-01T00:00:00Z",
 	observe: () => {

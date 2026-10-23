@@ -132,7 +132,7 @@ test("running fact predicate keeps attempt-specific fact interpretation in obser
 });
 
 test.each(authorityCases)(
-	"$change drift in the last row admits no cohort comments",
+	"$change drift in the last row admits no cohort comments #test-674",
 	async (scenario) => {
 		const fixture = authorityFixtures[authorityCases.indexOf(scenario)]!;
 		const input = fixture.inputs[THREE]!;
@@ -355,7 +355,7 @@ test("all distinct comments start immediately and retain every sibling effect", 
 });
 
 test.each([...failureCases])(
-	"$kind failure preserves all causes, siblings and re-entry deduplication",
+	"$kind failure preserves all causes, siblings and re-entry deduplication #test-661",
 	async (scenario) => {
 		const fixture = failureFixtures[failureCases.indexOf(scenario)]!;
 		const { errors, started, context } = failureContexts[failureCases.indexOf(scenario)]!;

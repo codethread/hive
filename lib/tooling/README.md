@@ -1,10 +1,24 @@
 # Repository tooling
 
-## Beads contract tests
+## Native contract tests
 
-Tracker bootstrap checks exercise real Git, filesystem, `br` and `mise` boundaries in [`bootstrap.contract.test.ts`](../beeswax/src/beads/bootstrap.contract.test.ts). Native/in-memory Beads API conformance lives in [`lib/beads/tests/contract/`](../beads/tests/contract/).
+Run `bun run test:contracts` for both Beads and BV contracts, including after changing installed `br` or `bv` outside Git and before adopting a new native dependency pin.
 
-Run `bun run test:contracts` for the complete conformance suite, including after changing the installed `br` outside Git and before adopting a new native dependency pin. [Native Beads upkeep](../../CONTRIBUTING.md#native-dependency-upkeep) owns that update procedure. Ordinary `test:all` and `test:changed` runs select those contracts separately from Bun's discovery when Beads source, contract files or dependency/runtime configuration changes. Consumer-only changes do not select them. Selected contracts run in full regardless of ordinary-suite file/name filters. [`test-selection.ts`](src/test-selection.ts) owns the exact inputs; [`test-runner.ts`](src/test-runner.ts) owns comparison references and argument handling.
+`test:all` and `test:changed` select native contracts independently of ordinary Bun discovery:
+
+- Beads source or manifest changes select Beads contracts and BV's Beads-dependent fixture.
+- BV implementation/tests, its execution helper or Shared manifest/runtime configuration select BV contracts.
+- Contract-file changes select their own suite; root dependency/runtime and test-runner/selection changes select both.
+
+Consumer-only changes do not select native contracts. Selected suites run in full regardless of ordinary-suite file/name filters. [`test-selection.ts`](src/test-selection.ts) owns the exact inputs; [`test-runner.ts`](src/test-runner.ts) owns comparison references and argument handling. Selection does not grant a [timing allowance](#allowed-slow-tests).
+
+### Beads contract tests
+
+Tracker bootstrap checks exercise real Git, filesystem, `br` and `mise` boundaries in [`bootstrap.contract.test.ts`](../beeswax/src/beads/bootstrap.contract.test.ts). Native/in-memory Beads API conformance lives in [`lib/beads/tests/contract/`](../beads/tests/contract/). [Native Beads upkeep](../../CONTRIBUTING.md#native-dependency-upkeep) owns the `br` update procedure.
+
+### BV contract tests
+
+The [BV native contract](../shared/tests/contract/bv.test.ts) covers selected SQLite ranking versus exported JSONL topology, complete scores and observational reads; it does not compare BV with the [alphabetical fake](../shared/README.md#alphabetical-test-fake).
 
 ## Test timing report and landing gate
 

@@ -43,7 +43,7 @@ const drifts = new Map(
 /* eslint-disable-next-line max-statements --
  * Keep paused repair, concurrent creation and the resulting read/write order in one test.
  */
-test("projected discovery waits for closed repair and sees a misprojected request created during repair", async () => {
+test("discovery waits for closed repair and sees a misprojected request created during repair #test-669", async () => {
 	const { beads, scope, store } = serial;
 	const entered = Promise.withResolvers<void>();
 	const resume = Promise.withResolvers<void>();
@@ -217,7 +217,18 @@ async function projectionFixture() {
 		retainedInventory: () => [],
 		retainedOccupants: () => [],
 	};
-	return { ...tracker, store, scope, task, withAdmission: createAdmissionGate() };
+	return {
+		...tracker,
+		bv: {
+			readPageRanks: () => {
+				throw new Error("Unexpected ranking for ineligible requests");
+			},
+		},
+		store,
+		scope,
+		task,
+		withAdmission: createAdmissionGate(),
+	};
 }
 
 async function waitingFixture() {

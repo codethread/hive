@@ -1,10 +1,13 @@
 import type { BeadsScope, SyncStatus } from "@hive/beads";
+import type { BvGraph, BvService } from "@hive/shared/bv";
 import { expect, test } from "bun:test";
 import type { Topology } from "./topology.ts";
 import { colony } from "../src/stories/fixtures.ts";
+import { createFakeBv } from "@hive/shared/bv";
 import { createMemoryBeads } from "@hive/beads";
 import { createTopologyReader } from "./topology.ts";
 
+const SOURCE_OBSERVATIONS = 3;
 const path = "/exports/selected.jsonl";
 const healthy: SyncStatus = {
 	dirty_count: 0,
@@ -15,29 +18,34 @@ const healthy: SyncStatus = {
 	jsonl_newer: false,
 	workspace_health: "healthy",
 };
-const output = {
-	source_path: path,
-	source_kind: "jsonl_local",
-	source_authority: {
-		state: "complete",
-		loaded: 1,
-		failed: 0,
-		errors: 0,
-		read_errors: 0,
-		skipped: 0,
-		sources: [{ stale: false, status: "loaded" }],
-	},
-	nodes: 1,
-	edges: 0,
-	adjacency: { nodes: [{ id: "root", status: "closed" }], edges: null },
+const graph: BvGraph = {
+	nodes: [{ id: "root", status: "closed", labels: [] }],
+	edges: [],
+	sourceStale: false,
 };
+
+test("graph reads select the native export and bracket hydration with read-only observations", async () => {
+	const fixture = readerFixture([healthy, healthy]);
+	const result = await fixture.reader(colony, consumeGraph);
+	expect(fixture.calls).toEqual([{ cwd: colony.root, jsonlPath: path }]);
+	expect(fixture.scopes).toEqual(
+		Array.from({ length: SOURCE_OBSERVATIONS }, () => ({
+			cwd: colony.root,
+			db: colony.beadsDb,
+			noAutoImport: true,
+			noAutoFlush: true,
+		})),
+	);
+	expect(result.value.nodes).toEqual(graph.nodes);
+	expect(result.stale).toBe(false);
+});
 
 test.each([
 	{ jsonl_exists: false },
 	{ jsonl_content_hash: null },
 	{ workspace_health: "unhealthy" },
 ])("unavailable native export rejects before graph consumption: %j", async (change) => {
-	const fixture = readerFixture([{ ...healthy, ...change }], output);
+	const fixture = readerFixture([{ ...healthy, ...change }]);
 	const result = await fixture.reader(colony, consumeGraph).catch((error: unknown) => error);
 	expect(result).toBeInstanceOf(Error);
 	expect(fixture.calls).toEqual([]);
@@ -49,31 +57,18 @@ test.each([
 	{ coverage_drift: true },
 	{ db_newer: true, dirty_count: 1, workspace_health: "degraded" },
 ])("export lag still consumes the readable graph: %j", async (change) => {
-	const fixture = readerFixture([{ ...healthy, ...change }, healthy], output);
+	const fixture = readerFixture([{ ...healthy, ...change }, healthy]);
 	const result = await fixture.reader(colony, consumeGraph);
 	expect(result.stale).toBe(true);
 	expect(result.value.stale).toBe(true);
 	expect(result.value.nodes.map((node) => node.id)).toEqual(["root"]);
 });
 
-test("BV stale-only authority remains readable without admitting dropped records", async () => {
-	const payload = {
-		...output,
-		source_authority: {
-			...output.source_authority,
-			state: "partial",
-			sources: [{ stale: true, status: "loaded" }],
-		},
-	};
-	const fixture = readerFixture([healthy, healthy], payload);
+test("BV source staleness contributes to UI freshness", async () => {
+	const fixture = readerFixture([healthy, healthy], { ...graph, sourceStale: true });
 	const result = await fixture.reader(colony, consumeGraph);
 	expect(result.stale).toBe(true);
-	const incomplete = readerFixture([healthy], {
-		...payload,
-		source_authority: { ...payload.source_authority, skipped: 1 },
-	});
-	const failure = await incomplete.reader(colony, consumeGraph).catch((error: unknown) => error);
-	expect(failure).toBeInstanceOf(Error);
+	expect(result.value.stale).toBe(true);
 });
 
 test.each([
@@ -82,43 +77,55 @@ test.each([
 	{ ...healthy, jsonl_newer: true },
 	{ ...healthy, coverage_drift: true },
 ])("a source change during row hydration returns usable stale data: %j", async (after) => {
-	const fixture = readerFixture([healthy, after], output);
+	const fixture = readerFixture([healthy, after]);
 	let consumed = false;
-	const value = Promise.resolve("rows");
 	const result = await fixture.reader(colony, () => {
 		consumed = true;
-		return value;
+		return Promise.resolve("rows");
 	});
 	expect(consumed).toBe(true);
 	expect(result).toEqual({ value: "rows", stale: true });
 });
 
-test.each([
-	{ ...output, source_path: "/different.jsonl" },
-	{ ...output, source_kind: "sqlite" },
-	{ ...output, source_authority: { ...output.source_authority, failed: 1 } },
-	{
-		...output,
-		edges: 1,
-		adjacency: {
-			...output.adjacency,
-			edges: [{ from: "root", to: "missing", type: "parent-child" }],
-		},
-	},
-])("partial or mismatched graph source cannot publish a hierarchy: %j", async (payload) => {
-	const fixture = readerFixture([healthy], payload);
+test("unreadable export after hydration rejects publication", async () => {
+	const fixture = readerFixture([healthy, { ...healthy, jsonl_exists: false }]);
 	const result = await fixture.reader(colony, consumeGraph).catch((error: unknown) => error);
 	expect(result).toBeInstanceOf(Error);
+	expect(fixture.scopes).toHaveLength(SOURCE_OBSERVATIONS);
 });
 
-function consumeGraph(graph: Topology): Promise<Topology> {
-	return Promise.resolve(graph);
+test("graph read failures propagate without consuming native rows", async () => {
+	const fixture = readerFixture([healthy]);
+	const failure = new Error("fixture graph failure");
+	fixture.bv.readGraph = () => Promise.reject(failure);
+	let consumed = false;
+	const rows = Promise.resolve("rows");
+	const result = await fixture
+		.reader(colony, () => {
+			consumed = true;
+			return rows;
+		})
+		.catch((error: unknown) => error);
+	expect(result).toBe(failure);
+	expect(consumed).toBe(false);
+});
+
+function consumeGraph(topology: Topology): Promise<Topology> {
+	return Promise.resolve(topology);
 }
 
-function readerFixture(statuses: SyncStatus[], payload: object) {
-	const calls: string[][] = [];
+function readerFixture(statuses: SyncStatus[], snapshot: BvGraph = graph) {
+	const calls: Parameters<BvService["readGraph"]>[0][] = [];
 	const scopes: BeadsScope[] = [];
 	const memory = createMemoryBeads();
+	const fake = createFakeBv({ graph: snapshot });
+	const bv = {
+		...fake,
+		readGraph: (input: Parameters<BvService["readGraph"]>[0]) => {
+			calls.push(input);
+			return fake.readGraph(input);
+		},
+	};
 	let index = 0;
 	const reader = createTopologyReader({
 		beads: {
@@ -127,12 +134,15 @@ function readerFixture(statuses: SyncStatus[], payload: object) {
 				scopes.push(scope);
 				return Promise.resolve({ database_path: colony.beadsDb, jsonl_path: path });
 			},
-			sync: { ...memory.sync, status: () => Promise.resolve(statuses[index++]!) },
+			sync: {
+				...memory.sync,
+				status: (scope) => {
+					scopes.push(scope);
+					return Promise.resolve(statuses[index++]!);
+				},
+			},
 		},
-		execute: (argv) => {
-			calls.push(argv);
-			return Promise.resolve(JSON.stringify(payload));
-		},
+		bv,
 	});
-	return { reader, calls, scopes };
+	return { reader, bv, calls, scopes };
 }

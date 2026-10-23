@@ -8,6 +8,7 @@ import { launchFence, prepareLaunch, startSupervisor, writeReceipt } from "./lau
 import { publishObservation, publishStdoutActivity } from "./observations.ts";
 import { publishRequestLabels, reconcileClosedRequestLabels } from "./requests.ts";
 import type { BeesConfig } from "@hive/shared";
+import type { BvService } from "@hive/shared/bv";
 import type { Occupant } from "./scheduler.ts";
 import type { OperationEvidence } from "./history.ts";
 import type { Preparation } from "./launch.ts";
@@ -28,6 +29,8 @@ import { trackerScope } from "./tracker.ts";
 const EMPTY = 0;
 const NEXT = 1;
 export interface DispatchInput extends TrackerContext {
+	/** Injected BV reader; ranking policy remains in dispatch. */
+	bv: Pick<BvService, "readPageRanks">;
 	/** Serialize launch handoff with the daemon's execution-clearance observation. */
 	withAdmission: WithAdmission;
 	/** Private daemon state directory. */
@@ -198,13 +201,9 @@ function candidateOccupant({ receipt }: Candidate): Occupant {
 	return { bucket: receipt.bucket, kind: receipt.recipe.kind };
 }
 
-async function rankCandidates(
-	{ repository, state }: DispatchInput,
-	candidates: Candidate[],
-): Promise<Candidate[]> {
+async function rankCandidates(input: DispatchInput, candidates: Candidate[]): Promise<Candidate[]> {
 	const scores = await pageRanks(
-		repository,
-		state,
+		input,
 		candidates.flatMap(({ scheduling }) => scheduling.taskIds),
 	);
 	return orderCandidates(candidates, ({ scheduling }) =>

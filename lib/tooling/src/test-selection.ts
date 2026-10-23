@@ -1,10 +1,20 @@
-const contractDirectory = "lib/beads/tests/contract/";
+const emptySelectionCount = 0;
+const beadsContractDirectory = "lib/beads/tests/contract/";
+const bvContractDirectory = "lib/shared/tests/contract/";
 const contractDependencyInputs = new Set([
-	"lib/beads/package.json",
 	"package.json",
 	"bun.lock",
 	"bunfig.toml",
 	"mise.toml",
+	"lib/tooling/src/test-selection.ts",
+	"lib/tooling/src/test-runner.ts",
+]);
+const bvDependencyInputs = new Set([
+	"lib/shared/src/bv.ts",
+	"lib/shared/src/bv.test.ts",
+	"lib/shared/src/bees-io.ts",
+	"lib/shared/package.json",
+	"lib/shared/tsconfig.json",
 ]);
 
 export type TestMode = "all" | "changed" | "contracts";
@@ -14,33 +24,40 @@ export interface TestSelection {
 	suite: "ordinary" | "contracts";
 	/** Discovery arguments; contract invocations deliberately omit --changed. */
 	args: string[];
-	/** Changed runs use exact cutoffs; contracts and full runs apply a 25% buffer. */
+	/** Ordinary changed runs use exact cutoffs; contracts and full runs apply a 25% buffer. */
 	timingMode: "all" | "changed";
 }
 
 /** Select native contracts from their own inputs, never from consumer imports. */
 export function selectTestRuns(mode: TestMode, changedPaths: readonly string[]): TestSelection[] {
-	const contracts: TestSelection = {
-		suite: "contracts",
-		args: [`./${contractDirectory}`],
-		timingMode: "all",
-	};
+	const directories = [beadsContractDirectory, bvContractDirectory];
 	if (mode === "contracts") {
-		return [contracts];
+		return [
+			{ suite: "contracts", args: directories.map((path) => `./${path}`), timingMode: "all" },
+		];
 	}
 	const ordinary: TestSelection = {
 		suite: "ordinary",
-		args: [`--path-ignore-patterns=${contractDirectory}**`],
+		args: ["--path-ignore-patterns=**/tests/contract/**"],
 		timingMode: mode,
 	};
-	const relevant = changedPaths.some(
-		(path) =>
-			path.startsWith("lib/beads/src/") ||
-			path.startsWith(contractDirectory) ||
-			contractDependencyInputs.has(path),
+	const nativeBeadsChanged = changedPaths.some(
+		(path) => path.startsWith("lib/beads/src/") || path === "lib/beads/package.json",
 	);
-	if (relevant) {
-		return [ordinary, contracts];
+	const globalChanged = changedPaths.some((path) => contractDependencyInputs.has(path));
+	const selected = directories.filter(
+		(directory) =>
+			globalChanged ||
+			nativeBeadsChanged ||
+			changedPaths.some((path) => path.startsWith(directory)) ||
+			(directory === bvContractDirectory &&
+				changedPaths.some((path) => bvDependencyInputs.has(path))),
+	);
+	if (selected.length === emptySelectionCount) {
+		return [ordinary];
 	}
-	return [ordinary];
+	return [
+		ordinary,
+		{ suite: "contracts", args: selected.map((path) => `./${path}`), timingMode: "all" },
+	];
 }
