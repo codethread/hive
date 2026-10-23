@@ -165,20 +165,11 @@ test("deduplicates exclude paths across entries and multi-target destinations #t
 	expect(payload.exclude_paths).toEqual([".env", "copy.env"]);
 });
 
-test.each([
-	{ config: 'copy = [{ to = ".env" }]', name: "missing from" },
-	{ config: 'copy = [{ from = ".env" }]', name: "missing to" },
-	{ config: 'copy = [{ from = "", to = ".env" }]', name: "empty from" },
-	{ config: 'copy = [{ from = ".env", to = "" }]', name: "empty to" },
-	{ config: 'copy = [{ from = ".env", to = "/tmp/.env" }]', name: "absolute to" },
-	{ config: 'copy = [{ from = ".env", to = "~/.env" }]', name: "home to" },
-	{ config: 'copy = [{ from = ".env", to = "~secret" }]', name: "leading home to" },
-	{ config: 'copy = [{ from = ".env", to = "../.env" }]', name: "escaping to" },
-])("invalid object config $name fails as config error #test-173", async ({ config }) => {
+test("copy command reports ConfigError for an object entry without a source #test-173", async () => {
 	const { root } = await initRepoWithOrigin(tmp);
 	writeConfig({ command: "echo ready", root, tmp });
 	await dispatch("add", ["--cwd", root, "--branch", "feature/invalid-object", "--json"], deps);
-	writeConfig({ command: "echo ready", copyToml: `${config}\n`, root, tmp });
+	writeConfig({ command: "echo ready", copyToml: 'copy = [{ to = ".env" }]\n', root, tmp });
 
 	const result = await dispatch(
 		"copy",

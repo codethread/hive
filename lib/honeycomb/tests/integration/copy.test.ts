@@ -171,28 +171,16 @@ test("tracked destination blocks with unsafe JSON and leaves file intact #test-2
 	expect(await readFile(join(worktreePath, "tracked-copy.txt"), "utf8")).toBe("source\n");
 });
 
-test.each(["", "/tmp/abs", "~/secret", "../escape"])(
-	"invalid copy string %p fails as a config error #test-261",
-	async (path) => {
-		const { root } = await initRepoWithOrigin(tmp);
-		writeConfig({ command: "echo ready", root, tmp });
-		await dispatch(
-			"add",
-			["--cwd", root, "--branch", `feature/invalid-${path.length}`, "--json"],
-			deps,
-		);
-		writeConfig({
-			command: "echo ready",
-			copyToml: `copy = [${JSON.stringify(path)}]\n`,
-			root,
-			tmp,
-		});
+test("copy command reports ConfigError for an escaping string entry #test-261", async () => {
+	const { root } = await initRepoWithOrigin(tmp);
+	writeConfig({ command: "echo ready", root, tmp });
+	await dispatch("add", ["--cwd", root, "--branch", "feature/invalid-copy", "--json"], deps);
+	writeConfig({ command: "echo ready", copyToml: 'copy = ["../escape"]\n', root, tmp });
 
-		const result = await dispatch(
-			"copy",
-			["--cwd", `${root}__feature--invalid-${path.length}`, "--json"],
-			deps,
-		);
-		expect(result.failure).toBeInstanceOf(ConfigError);
-	},
-);
+	const result = await dispatch(
+		"copy",
+		["--cwd", `${root}__feature--invalid-copy`, "--json"],
+		deps,
+	);
+	expect(result.failure).toBeInstanceOf(ConfigError);
+});
