@@ -60,7 +60,7 @@ export function alertStateHome(configured: string | undefined, home: string): st
 /** The resolved endpoint path is the key; repository display names do not participate. */
 export function alertStatePath(stateHome: string, database: string): string {
 	const key = createHash("sha256").update(database).digest("hex");
-	return join(stateHome, "beeswax/tracker-alerts", `${key}.json`);
+	return join(stateHome, "hive/beeswax/tracker-alerts", `${key}.json`);
 }
 
 /** Keep harness observations in user state under the selected endpoint, separate from tracker files. */
@@ -73,7 +73,7 @@ export function alertSessionReceiptPath(
 	const key = createHash("sha256").update(session.id).digest("hex");
 	return join(
 		stateHome,
-		"beeswax/tracker-alerts",
+		"hive/beeswax/tracker-alerts",
 		`${endpoint}.sessions`,
 		`${session.harness}-${key}.json`,
 	);

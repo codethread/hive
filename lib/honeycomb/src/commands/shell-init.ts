@@ -6,8 +6,14 @@ const EMPTY_COUNT = 0;
 const ZSH_INIT = `# Fuzzy-pick a worktree and change the current shell's directory.
 wk() {
 	emulate -L zsh
-	local cd_file target
-	cd_file=$(command mktemp) || return $?
+	local cd_file target state_home
+	state_home="\${XDG_STATE_HOME:-}"
+	if [[ "$state_home" != /* ]]; then
+		state_home="$HOME/.local/state"
+	fi
+	state_home="$state_home/hive/honeycomb"
+	command mkdir -p -- "$state_home" || return $?
+	cd_file=$(command mktemp "$state_home/picker.XXXXXX") || return $?
 	{
 		HONEYCOMB_CD_FILE="$cd_file" command honeycomb --interactive pick "$@" || return $?
 		target="$(command cat -- "$cd_file"; printf '.')"
@@ -24,7 +30,15 @@ wk() {
 
 const NU_INIT = `# Fuzzy-pick a worktree and change the current shell's directory.
 export def --env --wrapped wk [...args: string] {
-	let cd_file = (^mktemp | str trim)
+	let configured_state = ($env.XDG_STATE_HOME? | default "")
+	let state_root = if ($configured_state | str starts-with "/") {
+		$configured_state
+	} else {
+		$env.HOME | path join ".local" "state"
+	}
+	let state_home = ($state_root | path join "hive" "honeycomb")
+	mkdir $state_home
+	let cd_file = (^mktemp ($state_home | path join "picker.XXXXXX") | str trim)
 	try {
 		with-env { HONEYCOMB_CD_FILE: $cd_file } {
 			^honeycomb --interactive pick ...$args

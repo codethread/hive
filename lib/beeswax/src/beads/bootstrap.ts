@@ -9,13 +9,14 @@ import {
 // eslint-disable-next-line import/no-nodejs-modules -- Repository and tracker paths.
 import { dirname, join } from "node:path";
 // eslint-disable-next-line import/no-nodejs-modules -- Temporary Honeycomb configuration.
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, rm } from "node:fs/promises";
 import type { BeadsService } from "@hive/beads";
 import type { Command } from "./environment.ts";
+import { alertStateHome } from "./alerts-native.ts";
 import { createNativeBeads } from "@hive/beads";
+// eslint-disable-next-line import/no-nodejs-modules -- User state root at the native boundary.
+import { homedir } from "node:os";
 import { runCommand } from "./environment.ts";
-// eslint-disable-next-line import/no-nodejs-modules -- System temporary directory.
-import { tmpdir } from "node:os";
 import { z } from "zod";
 
 const commonDirectory = ["git", "rev-parse", "--path-format=absolute", "--git-common-dir"];
@@ -36,11 +37,23 @@ export interface BootstrapServices extends SetupServices {
 	createTracker: (root: string, base?: string) => Promise<string>;
 }
 
+export interface TrackerCheckoutServices {
+	/** Resolved state root, including explicit isolated fixture roots. */
+	stateHome: string;
+	/** Installed Honeycomb execution. */
+	command: Command;
+}
+
 export const localBootstrapServices: BootstrapServices = {
 	...localSetupServices,
 	actor: process.env.BD_ACTOR ?? "sys-beeswax",
 	beads: createNativeBeads({ execute: runCommand }),
-	createTracker: createTrackerCheckout,
+	createTracker: (root, base) =>
+		createTrackerCheckout(
+			root,
+			{ stateHome: alertStateHome(process.env.XDG_STATE_HOME, homedir()), command: runCommand },
+			base,
+		),
 };
 
 /** Materialize this clone's accepted tracker without publishing or replacing existing state. */
@@ -218,6 +231,40 @@ export async function preflightInitialization(
 	return { common, root, tracker, database };
 }
 
+export async function createTrackerCheckout(
+	root: string,
+	{ stateHome, command }: TrackerCheckoutServices,
+	base = "origin/tracker/state",
+): Promise<string> {
+	const scratch = join(stateHome, "hive/beeswax");
+	await mkdir(scratch, { recursive: true });
+	const configHome = await mkdtemp(join(scratch, "tracker-bootstrap-"));
+	try {
+		await Bun.write(join(configHome, "hive/honeycomb.toml"), 'worktree_location = "nested"\n');
+		const output = await command(
+			[
+				"env",
+				`XDG_CONFIG_HOME=${configHome}`,
+				"honeycomb",
+				"--cwd",
+				root,
+				"add",
+				"--branch",
+				trackerBranch,
+				"--base",
+				base,
+				"--no-network",
+				"--skip-command",
+				"--json",
+			],
+			root,
+		);
+		return readySchema.parse(JSON.parse(output)).worktree_path;
+	} finally {
+		await rm(configHome, { force: true, recursive: true });
+	}
+}
+
 // --- Private functions ---
 
 async function trackerFailure(
@@ -346,33 +393,5 @@ async function importDatabase(
 				`${database} sync --status --json and resolve the reported issues before bootstrap. ` +
 				"Read publication guidance with beeswax skills file repository-setup references/publication.md.",
 		);
-	}
-}
-
-async function createTrackerCheckout(root: string, base = "origin/tracker/state"): Promise<string> {
-	const configHome = await mkdtemp(join(tmpdir(), "hive-tracker-bootstrap-"));
-	try {
-		await Bun.write(join(configHome, "honeycomb.toml"), 'worktree_location = "nested"\n');
-		const output = await runCommand(
-			[
-				"env",
-				`XDG_CONFIG_HOME=${configHome}`,
-				"honeycomb",
-				"--cwd",
-				root,
-				"add",
-				"--branch",
-				trackerBranch,
-				"--base",
-				base,
-				"--no-network",
-				"--skip-command",
-				"--json",
-			],
-			root,
-		);
-		return readySchema.parse(JSON.parse(output)).worktree_path;
-	} finally {
-		await rm(configHome, { force: true, recursive: true });
 	}
 }

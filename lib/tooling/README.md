@@ -30,7 +30,7 @@ lib/example.test.ts:42 XSLOW 20.345ms suite > test description
 
 [`slow-tests.json`](./slow-tests.json) owns cutoffs and approved allowances. Severity is the highest cutoff strictly exceeded. Ordinary changed-test runs use the exact configured cutoffs. Full and contract runs multiply every cutoff by 1.25, giving a 25% buffer, including transitions above an allowed severity. Selected contracts use this buffer during `test:changed` too. Every run fails on unapproved `SLOW`, `XSLOW` or `DANGER` timings, even when all assertions pass. The buffer changes timing classification only; Bun's five-second timeout is unchanged.
 
-Bun failures retain native diagnostics and exit status, including errors JUnit omits. Failed/skipped tests add no timing lines; an empty changed selection is quiet. Missing or malformed required reports fail visibly. Temporary reports are removed after execution.
+Bun failures retain native diagnostics and exit status, including errors JUnit omits. Failed/skipped tests add no timing lines; an empty changed selection is quiet. Missing or malformed required reports fail visibly. Reports live in `<state-root>/hive/tooling/test-report-*/junit.xml`. The state root is `XDG_STATE_HOME` only when it is an absolute path; unset, empty or relative values use `$HOME/.local/state`. Each generated directory is removed when the run returns or throws; abrupt process termination can leave it behind.
 
 ### Allowed slow tests
 

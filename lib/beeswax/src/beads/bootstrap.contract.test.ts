@@ -1,10 +1,10 @@
-import { bootstrapBeads, localBootstrapServices } from "./bootstrap.ts";
+import { bootstrapBeads, createTrackerCheckout, localBootstrapServices } from "./bootstrap.ts";
+// eslint-disable-next-line import/no-nodejs-modules -- Isolated native Git and Beads fixtures.
+import { chmod, mkdir, mkdtemp, readdir, realpath, rm } from "node:fs/promises";
 import { defaultProjectConfig, writeProjectConfig } from "../config.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Fixture paths.
 import { dirname, join } from "node:path";
 import { expect, test } from "bun:test";
-// eslint-disable-next-line import/no-nodejs-modules -- Isolated native Git and Beads fixtures.
-import { mkdir, mkdtemp, realpath, rm } from "node:fs/promises";
 import type { Command } from "./environment.ts";
 import { createNativeBeads } from "@hive/beads";
 import { fixture as projectFixture } from "../../tests/support.ts";
@@ -14,17 +14,36 @@ import { writeProjectLock } from "../project.ts";
 
 const timeout = 15_000;
 const success = 0;
+const executableMode = 0o755;
 
 type History = "present" | "missing-snapshot" | "missing-branch";
 
 async function temporaryRoot(): Promise<string> {
-	const path = await mkdtemp(join(tmpdir(), "hive-bootstrap-"));
-	return await realpath(path);
+	const temporary = await mkdtemp(join(tmpdir(), "hive-bootstrap-"));
+	const path = await realpath(temporary);
+	const honeycomb = join(path, "bin/honeycomb");
+	const entry = new URL("../../../honeycomb/bin/honeycomb.ts", import.meta.url).pathname;
+	await Bun.write(
+		honeycomb,
+		`#!/bin/sh\nexec ${Bun.$.escape(process.execPath)} ${Bun.$.escape(entry)} "$@"\n`,
+	);
+	await chmod(honeycomb, executableMode);
+	return path;
 }
 
 function fixtureCommand(tmp: string, calls: string[][]): Command {
+	// eslint-disable-next-line max-statements -- Validate scratch config before the isolated native command.
 	return async (argv, cwd) => {
 		calls.push([...argv]);
+		const configArg = argv.find((arg) => arg.startsWith("XDG_CONFIG_HOME="));
+		if (configArg !== undefined) {
+			const configHome = configArg.slice("XDG_CONFIG_HOME=".length);
+			expect(configHome.startsWith(join(tmp, "state/hive/beeswax/tracker-bootstrap-"))).toBe(true);
+			expect(await Bun.file(join(configHome, "hive/honeycomb.toml")).text()).toBe(
+				'worktree_location = "nested"\n',
+			);
+			expect(await Bun.file(join(configHome, "honeycomb.toml")).exists()).toBe(false);
+		}
 		const child = Bun.spawn([...argv], {
 			cwd,
 			env: {
@@ -44,6 +63,7 @@ function fixtureCommand(tmp: string, calls: string[][]): Command {
 				GIT_CONFIG_NOSYSTEM: "1",
 				HOME: tmp,
 				HUSKY: "0",
+				PATH: `${join(tmp, "bin")}:${process.env.PATH}`,
 				// The fixture's fresh mise data has no shims; select the Bun already running this test.
 				MISE_BUN_VERSION: `path:${dirname(dirname(process.execPath))}`,
 				MISE_CACHE_DIR: join(tmp, "mise-cache"),
@@ -52,6 +72,7 @@ function fixtureCommand(tmp: string, calls: string[][]): Command {
 				MISE_TRUSTED_CONFIG_PATHS: tmp,
 				WK_ROOT: undefined,
 				XDG_CONFIG_HOME: join(tmp, "config"),
+				XDG_STATE_HOME: join(tmp, "state"),
 			},
 			stderr: "pipe",
 			stdout: "pipe",
@@ -128,7 +149,7 @@ test(
 		const tmp = await temporaryRoot();
 		try {
 			const { calls, command, database, issue, remote, root, tracker } = await fixture(tmp);
-			const services = nativeServices(command);
+			const services = nativeServices(command, tmp);
 			const accepted = await command(["git", "rev-parse", "tracker/state"], remote);
 			expect(
 				await bootstrapBeads(root, services, undefined, {
@@ -136,6 +157,7 @@ test(
 					adopt: false,
 				}),
 			).toBe(database);
+			expect(await readdir(join(tmp, "state/hive/beeswax"))).toEqual([]);
 			expect(
 				await services.beads.config.project({ cwd: root, db: database, actor: "pi" }),
 			).toMatchObject({ lock_timeout: "300000" });
@@ -192,7 +214,9 @@ test.each(["missing-snapshot", "missing-branch"] as const)(
 		const tmp = await temporaryRoot();
 		try {
 			const { command, database, root } = await fixture(tmp, history);
-			await expect(bootstrapBeads(root, nativeServices(command))).rejects.toBeInstanceOf(Error);
+			await expect(bootstrapBeads(root, nativeServices(command, tmp))).rejects.toBeInstanceOf(
+				Error,
+			);
 			expect(await Bun.file(database).exists()).toBe(false);
 			expect(await Bun.file(join(root, ".beads", "beads.db")).exists()).toBe(false);
 		} finally {
@@ -210,7 +234,9 @@ test(
 			const { command, database, root } = await fixture(tmp);
 			const selection = `[env]\nBEADS_DB = ${JSON.stringify(join(tmp, "other", ".beads", "beads.db"))}\n`;
 			await Bun.write(join(root, "mise.local.toml"), selection);
-			await expect(bootstrapBeads(root, nativeServices(command))).rejects.toBeInstanceOf(Error);
+			await expect(bootstrapBeads(root, nativeServices(command, tmp))).rejects.toBeInstanceOf(
+				Error,
+			);
 			expect(await Bun.file(database).exists()).toBe(false);
 			expect(await Bun.file(join(root, "mise.local.toml")).text()).toBe(selection);
 		} finally {
@@ -227,7 +253,7 @@ test(
 		const tmp = await temporaryRoot();
 		try {
 			const { command, database, issue, root, tracker } = await fixture(tmp);
-			const services = nativeServices(command);
+			const services = nativeServices(command, tmp);
 			await bootstrapBeads(root, services);
 			const snapshot = join(tracker, ".beads", "issues.jsonl");
 			const exported = await Bun.file(snapshot).text();
@@ -294,7 +320,7 @@ test(
 				result: { database },
 			});
 			expect(
-				await nativeServices(command).beads.config.project({
+				await nativeServices(command, tmp).beads.config.project({
 					actor: "pi",
 					cwd: root,
 					db: database,
@@ -308,10 +334,12 @@ test(
 	timeout,
 );
 
-function nativeServices(command: Command) {
+function nativeServices(command: Command, tmp: string) {
 	return {
 		...localBootstrapServices,
 		actor: "pi",
+		createTracker: (root: string, base?: string) =>
+			createTrackerCheckout(root, { command, stateHome: join(tmp, "state") }, base),
 		beads: createNativeBeads({ execute: (argv, cwd) => command(argv, cwd) }),
 		command,
 	};

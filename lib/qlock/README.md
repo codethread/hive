@@ -97,11 +97,11 @@ qlock exec --merge-target main -w 180 --ticket 42 -- honeycomb finish --json
 
 The second command illustrates resuming after a timeout; use the reported ticket ID, not a fixed value. Use the actual destination branch and any arguments the merge command requires. Use `--merge-target` instead of `--lock`. Run from a checkout of the destination repository. `honeycomb root` supplies its canonical path; that path and the full destination ref select one local queue. `main` and `refs/heads/main` share a queue; different repositories or destination branches do not.
 
-The merge lock is `/tmp/agent-merge-<sha256>.lock`, hashing the canonical path and full ref, each followed by a newline. `status` also accepts `--merge-target` instead of `--lock`.
+The merge lock is `<state-root>/hive/qlock/agent-merge-<sha256>.lock`, hashing the canonical path and full ref, each followed by a newline. The state root is `XDG_STATE_HOME` only when it is an absolute path; unset, empty or relative values use `$HOME/.local/state`. All participants must use the same state root; different roots select independent queues. Explicit `--lock` paths are unchanged. `status` also accepts `--merge-target` instead of `--lock`.
 
 ## Storage and process lifetime
 
-Each queue has one private SQLite database under `LOCK.d/queue.sqlite`. Short synchronous transactions serialize queue updates and execution claims; the database is not locked for the duration of a command. Competing state writers wait up to five seconds before reporting `queue_busy`, distinct from a ticket wait timeout. Corrupt state fails visibly instead of resetting the queue. Keep queues on a local filesystem: this is single-machine coordination, not a distributed lock. Do not remove an active queue's database or directory.
+Each queue has one private SQLite database under `LOCK.d/queue.sqlite`. Short synchronous transactions serialize queue updates and execution claims; the database is not locked for the duration of a command. Competing state writers wait up to five seconds before reporting `queue_busy`, distinct from a ticket wait timeout. Corrupt state fails visibly instead of resetting the queue. Keep queues on a local filesystem: this is single-machine coordination, not a distributed lock. Do not move or remove an active queue's database or directory.
 
 There is no daemon. Each invocation advances the queue, dropping expired ready tickets and dead runners. A timeout or waiting process exiting does not cancel a queued ticket. An urgent ticket does not pre-empt ready or running work. All participants must use the same qlock implementation; replacing it requires draining existing runners and queues first.
 

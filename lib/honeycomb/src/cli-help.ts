@@ -68,6 +68,8 @@ Use when:
   certain way for a repository.
 
 Notes:
+  Global config is read only from $XDG_CONFIG_HOME/hive/honeycomb.toml
+  (default ~/.config/hive/honeycomb.toml).
   Resolution starts with built-in defaults, applies matching root_glob rules in
   file order, then exact project overrides, then honeycomb.toml at the canonical
   root. Omitted local fields inherit global values. Use --json for the matched

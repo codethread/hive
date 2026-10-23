@@ -143,6 +143,10 @@ Failed native reconciliation or Git publication raises a durable alert outside t
 
 Use `beeswax beads recover` for the non-mutating incident handoff and installed recovery instructions, available without Hive sources. Read `beeswax beads alert status --help` for inspection or `beeswax beads alert wait --help` for bounded waiting without opening SQLite. Recovery requires explicit user authorization; only successful recovery publication clears the current incident. Recovery automation through Bee is a future possibility, not part of this version.
 
+Incident/clearance receipts, per-harness session receipts and their locks use only `${XDG_STATE_HOME:-$HOME/.local/state}/hive/beeswax/tracker-alerts/` (default `~/.local/state/hive/beeswax/tracker-alerts/`). An empty or relative `XDG_STATE_HOME` uses the default.
+
+Tracker creation also uses a generated `tracker-bootstrap-*` directory under the same `hive/beeswax` state root. Its temporary `XDG_CONFIG_HOME` contains `hive/honeycomb.toml`; it does not change your global configuration. The generated directory is removed on success or error; abrupt process termination can leave it behind.
+
 Hive's [setup recipe](../../docs/repository-commands.md#setup-and-automation) coordinates installation and local configuration. [CLI artifacts](../tooling/README.md#cli-artifacts) covers build and installation. For release lock refreshes, read `beeswax lock --help`.
 
 ### Snapshot exchange

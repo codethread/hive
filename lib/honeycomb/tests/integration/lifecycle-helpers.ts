@@ -14,6 +14,7 @@ export function useTmpHome(prefix: string) {
 	beforeEach(async () => {
 		state.dir = await mkdtemp(join(tmpdir(), prefix));
 		setTestEnv("HOME", state.dir);
+		setTestEnv("XDG_STATE_HOME", join(state.dir, "state"));
 		setTestEnv("GIT_CONFIG_NOSYSTEM", "1");
 		setTestEnv("GIT_CONFIG_GLOBAL", join(state.dir, "gitconfig"));
 		setTestEnv("XDG_CONFIG_HOME", join(state.dir, "config"));

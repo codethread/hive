@@ -1,11 +1,13 @@
 import { Database, SQLiteError } from "bun:sqlite";
 import type { Dependencies, LockTarget, QueueStore } from "./run.ts";
 import { EXIT, QlockError, emptyQueue, parseQueue } from "./queue.ts";
+// eslint-disable-next-line import/no-nodejs-modules -- Resolve caller-selected queue and database paths.
+import { isAbsolute, join, resolve } from "node:path";
 import type { QueueState } from "./queue.ts";
+// eslint-disable-next-line import/no-nodejs-modules -- Resolve the default user state root at the live boundary.
+import { homedir } from "node:os";
 // eslint-disable-next-line import/no-nodejs-modules -- Queue directory creation is a native filesystem boundary.
 import { mkdir } from "node:fs/promises";
-// eslint-disable-next-line import/no-nodejs-modules -- Resolve caller-selected queue and database paths.
-import { resolve } from "node:path";
 import { z } from "zod";
 
 const BUSY_TIMEOUT_MS = 5000;
@@ -14,9 +16,23 @@ const NONEMPTY = 1;
 const SIGNALS = ["SIGINT", "SIGTERM", "SIGHUP"] as const;
 const rowSchema = z.strictObject({ snapshot: z.string() });
 
+interface LockResolution {
+	/** User home used when no state root is selected. */
+	home: string;
+	/** Raw XDG_STATE_HOME; only absolute paths override the home-based default. */
+	stateHome: string | undefined;
+	/** Native repository identity and ref-validation commands. */
+	capture: typeof capture;
+}
+
 export function createLiveDependencies(): Dependencies {
 	return {
-		resolveLock,
+		resolveLock: (target) =>
+			resolveLock(target, {
+				home: homedir(),
+				stateHome: process.env.XDG_STATE_HOME,
+				capture,
+			}),
 		openQueue,
 		now: Date.now,
 		sleep: (milliseconds) => Bun.sleep(milliseconds),
@@ -74,19 +90,17 @@ export async function openQueue(lock: string): Promise<QueueStore> {
 	}
 }
 
-// --- Private functions ---
-
 // Validate the destination and resolve repository identity in one command boundary.
 // eslint-disable-next-line max-statements
-async function resolveLock(target: LockTarget): Promise<string> {
+export async function resolveLock(target: LockTarget, deps: LockResolution): Promise<string> {
 	if (target.kind === "path") {
 		return resolve(target.path);
 	}
-	const valid = await capture(["git", "check-ref-format", target.ref]);
+	const valid = await deps.capture(["git", "check-ref-format", target.ref]);
 	if (valid.code !== EXIT.success) {
 		throw new QlockError("usage", `Invalid merge target: ${target.ref}`, EXIT.usage);
 	}
-	const root = await capture(["honeycomb", "root"]);
+	const root = await deps.capture(["honeycomb", "root"]);
 	if (root.code !== EXIT.success) {
 		throw new QlockError(
 			"repository_lookup_failed",
@@ -95,8 +109,14 @@ async function resolveLock(target: LockTarget): Promise<string> {
 	}
 	const canonical = z.string().trim().min(NONEMPTY).parse(root.stdout);
 	const key = new Bun.CryptoHasher("sha256").update(`${canonical}\n${target.ref}\n`).digest("hex");
-	return `/tmp/agent-merge-${key}.lock`;
+	let { stateHome } = deps;
+	if (!stateHome || !isAbsolute(stateHome)) {
+		stateHome = join(deps.home, ".local", "state");
+	}
+	return join(stateHome, "hive", "qlock", `agent-merge-${key}.lock`);
 }
+
+// --- Private functions ---
 
 function isAlive(pid: number): boolean {
 	try {

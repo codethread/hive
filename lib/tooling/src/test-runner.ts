@@ -1,13 +1,13 @@
+// eslint-disable-next-line import/no-nodejs-modules -- Resolve report paths at the CLI boundary.
+import { isAbsolute, join } from "node:path";
 // eslint-disable-next-line import/no-nodejs-modules -- Own a private, short-lived JUnit report directory.
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, rm } from "node:fs/promises";
 import { parseSlowTestAllowances, reportTestRun } from "./test-report.ts";
 import type { TestSelection } from "./test-selection.ts";
-// eslint-disable-next-line import/no-nodejs-modules -- Resolve report paths at the CLI boundary.
-import { join } from "node:path";
+// eslint-disable-next-line import/no-nodejs-modules -- Resolve the default user state root at the CLI boundary.
+import { homedir } from "node:os";
 import { readChangedPaths } from "./test-git.ts";
 import { selectTestRuns } from "./test-selection.ts";
-// eslint-disable-next-line import/no-nodejs-modules -- Locate the system temporary directory.
-import { tmpdir } from "node:os";
 import { z } from "zod";
 
 const successExitCode = 0;
@@ -59,7 +59,13 @@ async function runTests(selection: TestSelection, testArgs: string[]): Promise<n
 	const allowances = parseSlowTestAllowances(
 		await Bun.file(new URL("../slow-tests.json", import.meta.url)).json(),
 	);
-	const directory = await mkdtemp(join(tmpdir(), "hive-test-report-"));
+	let stateHome = process.env.XDG_STATE_HOME;
+	if (!stateHome || !isAbsolute(stateHome)) {
+		stateHome = join(homedir(), ".local", "state");
+	}
+	const reportHome = join(stateHome, "hive", "tooling");
+	await mkdir(reportHome, { recursive: true });
+	const directory = await mkdtemp(join(reportHome, "test-report-"));
 	const report = Bun.file(join(directory, "junit.xml"));
 	try {
 		// Both scripts share Bun's existing parallelism and timeout policy here.

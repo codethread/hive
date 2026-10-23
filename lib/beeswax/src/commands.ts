@@ -318,7 +318,12 @@ export function addProjectCommands(
 function addTrackerAlerts(beads: Command, deps: Dependencies, emit: (value: object) => void): void {
 	const alert = beads
 		.command("alert")
-		.description("Inspect user-local tracker alert receipts without opening the database");
+		.description(
+			"Inspect user-local tracker alert receipts without opening the database.\n\n" +
+				"Receipts and locks use only $XDG_STATE_HOME/hive/beeswax/tracker-alerts/\n" +
+				"(default ~/.local/state/hive/beeswax/tracker-alerts/).\n" +
+				"An empty or relative XDG_STATE_HOME uses the default.",
+		);
 	alert
 		.command("status")
 		.option("--beads-db <path>", "Override BEADS_DB; does not open the database")

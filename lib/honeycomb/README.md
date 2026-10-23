@@ -81,6 +81,8 @@ The setting is a preference for newly created worktrees and missing pool slots. 
 
 There is no app database. Current state comes from git worktree metadata, filesystem paths, and config. Tmux integration consumes emitted path/session data; it is not the source of truth.
 
+Generated setup scripts live at `<state-root>/hive/honeycomb/<session>.wktree.*/post-create.sh`. The state root is `XDG_STATE_HOME` only when it is an absolute path; unset, empty or relative values use `$HOME/.local/state`. Honeycomb retains these directories after setup succeeds or fails; remove unused directories only after confirming no setup command still uses them.
+
 ## Basic use
 
 From any path inside a repository worktree set:
@@ -190,11 +192,13 @@ The text view groups related nodes without an inferred or ambiguous parent benea
 
 Config is optional. Without it, `honeycomb` still creates deterministic sibling worktrees.
 
-Global config is read from:
+Global config is read only from:
 
 ```text
-${XDG_CONFIG_HOME:-~/.config}/honeycomb.toml
+${XDG_CONFIG_HOME:-$HOME/.config}/hive/honeycomb.toml
 ```
+
+The default is `~/.config/hive/honeycomb.toml`. Configuration stays under the config root, separate from generated state.
 
 Repository-local config is read from `honeycomb.toml` at the **canonical root** (the path printed by `honeycomb root`). Commit that file to share setup and policy with the repository. Every worktree uses the canonical file, including commands invoked from a feature worktree or its subdirectories. A same-named file in a feature worktree is ignored; changes take effect when the canonical file changes.
 
@@ -409,7 +413,7 @@ Squash and merge previews require Git's built-in `ort` strategy: nonempty target
 
 ### zsh
 
-Add this line to `~/.zshrc`, then restart zsh:
+Add this line to `~/.zshrc`, then restart zsh. After upgrading Honeycomb, restart zsh or rerun the line to reload `wk`:
 
 ```text
 eval "$(honeycomb shell-init zsh)"
@@ -437,4 +441,6 @@ wk --cwd ~/dev/my-project   # pick from another repository
 wk --open                  # focus its multiplexer session instead of changing directory
 ```
 
-The engine owns selection and multiplexer behaviour; the function only applies the `HONEYCOMB_CD_FILE` handoff and cleans up its temporary file. Cancellation or failure leaves the current directory unchanged. Agents and scripts call `honeycomb` directly and must not pass `--interactive`.
+The engine owns selection and multiplexer behaviour; the function only applies the `HONEYCOMB_CD_FILE` handoff. Both shells create the handoff file with the `mktemp` template `<state-root>/hive/honeycomb/picker.XXXXXX`, using the same [state root](#how-it-works) as setup scripts. The function removes the file after use, including cancellation or failure. These ephemeral handoffs need no migration.
+
+Cancellation or failure leaves the current directory unchanged. Agents and scripts call `honeycomb` directly and must not pass `--interactive`.

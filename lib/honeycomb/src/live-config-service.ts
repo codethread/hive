@@ -21,9 +21,10 @@ export function createLiveConfigService(
 			return explainPolicy(config, canonicalRoot, (path) => canonicalPaths.get(path) ?? path);
 		},
 		read: (root) => {
-			const home = homedir();
+			const home = process.env.HOME || homedir();
 			const configPath = resolve(
-				process.env.XDG_CONFIG_HOME ?? resolve(home, ".config"),
+				process.env.XDG_CONFIG_HOME || resolve(home, ".config"),
+				"hive",
 				"honeycomb.toml",
 			);
 			const context = { cwd: process.cwd(), home, normalizePath };

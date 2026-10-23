@@ -30,6 +30,7 @@ let tmp = "";
 beforeEach(async () => {
 	tmp = await mkdtemp(join(tmpdir(), "honeycomb-test-"));
 	setTestEnv("HOME", tmp);
+	setTestEnv("XDG_STATE_HOME", join(tmp, "state"));
 	setTestEnv("GIT_CONFIG_NOSYSTEM", "1");
 	setTestEnv("GIT_CONFIG_GLOBAL", join(tmp, "gitconfig"));
 	setTestEnv("XDG_CONFIG_HOME", join(tmp, "config"));
@@ -47,9 +48,16 @@ async function initQueryRepo() {
 }
 
 async function writeRawConfig(configHome: string, content: string) {
-	await mkdir(configHome, { recursive: true });
-	await writeFile(join(configHome, "honeycomb.toml"), content);
+	await mkdir(join(configHome, "hive"), { recursive: true });
+	await writeFile(join(configHome, "hive", "honeycomb.toml"), content);
 	setTestEnv("XDG_CONFIG_HOME", configHome);
+}
+
+async function assertLegacyConfigIgnored(root: string, configHome: string) {
+	await mkdir(configHome);
+	await writeFile(join(configHome, "honeycomb.toml"), "invalid legacy config =");
+	setTestEnv("XDG_CONFIG_HOME", "");
+	expect(deps.config.explain(deps.config.read(root), root).worktreeLocation).toBe("sibling");
 }
 
 async function assertCanonicalList(root: string) {
@@ -90,7 +98,8 @@ test("root, list, json list, and non-pool path against a real repo #test-292", a
 
 test("config explain reports effective policy JSON #test-293", async () => {
 	const root = await initQueryRepo();
-	const configHome = join(tmp, "config-explain");
+	const configHome = join(tmp, ".config");
+	await assertLegacyConfigIgnored(root, configHome);
 	await writeRawConfig(
 		configHome,
 		`[defaults.finish]\n` +
@@ -110,6 +119,7 @@ test("config explain reports effective policy JSON #test-293", async () => {
 			`delete_branch = true\n`,
 	);
 
+	setTestEnv("XDG_CONFIG_HOME", "");
 	const result = await dispatch("config", ["explain", "--cwd", root, "--json"], deps);
 	const payload = JSON.parse(result.stdout ?? "{}");
 

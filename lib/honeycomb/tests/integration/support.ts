@@ -93,7 +93,7 @@ export function writeConfig(options: {
 	const configHome = join(tmp, "config");
 	// The writeConfig helper stays synchronous so every integration suite can call it inline
 	// oxlint-disable-next-line node/no-sync
-	mkdirSync(configHome, { recursive: true });
+	mkdirSync(join(configHome, "hive"), { recursive: true });
 	let poolLine = "";
 	if (poolSize) {
 		poolLine = `pool_size = ${poolSize}\n`;
@@ -101,7 +101,7 @@ export function writeConfig(options: {
 	// The writeConfig helper stays synchronous so every integration suite can call it inline
 	// oxlint-disable-next-line node/no-sync
 	writeFileSync(
-		join(configHome, "honeycomb.toml"),
+		join(configHome, "hive", "honeycomb.toml"),
 		`[[project]]\nroot = "${root}"\ncommand = '''\n${command}\n'''\n${poolLine}${copyToml ?? ""}`,
 	);
 	setTestEnv("XDG_CONFIG_HOME", configHome);

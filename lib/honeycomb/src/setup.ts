@@ -20,14 +20,13 @@ import {
 	writeFile,
 } from "node:fs/promises";
 // oxlint-disable-next-line import/no-nodejs-modules -- Workspace paths are resolved at this IO boundary.
-import { dirname, join, resolve } from "node:path";
+import { dirname, isAbsolute, join, resolve } from "node:path";
 // These operations implement the existing synchronous WorkspaceFiles contract.
 // oxlint-disable-next-line import/no-nodejs-modules
-import { existsSync, mkdtempSync, realpathSync, writeFileSync } from "node:fs";
-// oxlint-disable-next-line import/no-nodejs-modules -- Setup uses the user's home and temporary directory.
-import { homedir, tmpdir } from "node:os";
-
+import { existsSync, mkdirSync, mkdtempSync, realpathSync, writeFileSync } from "node:fs";
 import type { CopyEntry } from "./domain/config.ts";
+// oxlint-disable-next-line import/no-nodejs-modules -- Setup resolves the user's state root.
+import { homedir } from "node:os";
 
 const EMPTY_PATH_COUNT = 0;
 
@@ -100,8 +99,15 @@ export function createLiveWorkspaceFiles(): WorkspaceFiles {
 
 function writePostCreateScript(spec: PostCreateScriptSpec): string {
 	const session = sessionNameForWorktreePath(spec.created);
+	let stateHome = process.env.XDG_STATE_HOME;
+	if (!stateHome || !isAbsolute(stateHome)) {
+		stateHome = resolve(process.env.HOME || homedir(), ".local", "state");
+	}
+	const scratchRoot = resolve(stateHome, "hive", "honeycomb");
 	// oxlint-disable-next-line node/no-sync -- WorkspaceFiles returns the completed script path synchronously.
-	const sessionDir = mkdtempSync(join(tmpdir(), `${session}.wktree.`));
+	mkdirSync(scratchRoot, { recursive: true });
+	// oxlint-disable-next-line node/no-sync -- WorkspaceFiles returns the completed script path synchronously.
+	const sessionDir = mkdtempSync(join(scratchRoot, `${session}.wktree.`));
 	const scriptPath = resolve(sessionDir, "post-create.sh");
 	// The synchronous script contract requires the executable to exist on return.
 	// oxlint-disable-next-line node/no-sync

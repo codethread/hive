@@ -440,7 +440,7 @@ Pooled cleanup reports `"recycle_worktree"` instead of `"remove_worktree"`. If p
 
 ### Config
 
-Global config is read from `honeycomb.toml` under XDG config home. Project entries define exact canonical roots for bootstrap, pools, copy setup, and exact policy overrides. Policy configuration also supports defaults and root-glob rules that can affect repositories without requiring bootstrap setup. A repository-local `honeycomb.toml` at the canonical root supplies a final patch using the same applicable option shapes, with no `root`, `root_glob`, `defaults`, `rule` or `project` selectors. See the [configuration guide](../../README.md#repository-local-configuration) for local syntax, inheritance, validation and editor schemas.
+Global config is read only from `hive/honeycomb.toml` under XDG config home (default `~/.config/hive/honeycomb.toml`). Project entries define exact canonical roots for bootstrap, pools, copy setup, and exact policy overrides. Policy configuration also supports defaults and root-glob rules that can affect repositories without requiring bootstrap setup. A repository-local `honeycomb.toml` at the canonical root supplies a final patch using the same applicable option shapes, with no `root`, `root_glob`, `defaults`, `rule` or `project` selectors. See the [configuration guide](../../README.md#repository-local-configuration) for local syntax, inheritance, validation and editor schemas.
 
 Top-level fields:
 

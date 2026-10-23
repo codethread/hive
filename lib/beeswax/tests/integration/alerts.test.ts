@@ -1,7 +1,7 @@
 /* eslint-disable import/no-nodejs-modules -- Disposable filesystem and process-boundary fixtures. */
+import { alertStatePath, createNativeAlertStore } from "../../src/beads/alerts-native.ts";
 import { chmod, mkdir, mkdtemp, rm } from "node:fs/promises";
 import { expect, test } from "bun:test";
-import { createNativeAlertStore } from "../../src/beads/alerts-native.ts";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 
@@ -29,9 +29,12 @@ test(
 					await chmod(path, EXECUTABLE);
 				}),
 			);
+			const legacy = alertStatePath(state, database).replace("/hive/beeswax/", "/beeswax/");
+			await Bun.write(legacy, "legacy receipt must not be read or replaced");
 			const store = createNativeAlertStore(state);
 			const absent = await store.observe(database);
 			expect(absent.alert).toBeNull();
+			expect(await Bun.file(legacy).text()).toBe("legacy receipt must not be read or replaced");
 			await Promise.all([
 				store.activate(database, "first failure"),
 				createNativeAlertStore(state).activate(database, "second failure"),

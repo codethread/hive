@@ -34,15 +34,22 @@ async function prepareExistingBranch(branch: string, source: string) {
 	return root;
 }
 
+// oxlint-disable-next-line max-statements -- Verify native setup and its default scratch destination together.
 test("adds a new branch, runs setup, and writes ready JSON to stdout #test-245", async () => {
 	const { root } = await initRepoWithOrigin(tmp.dir);
 	writeConfig({ command: `echo "$WK_ROOT" > "$WK_CREATED/hook-sentinel"`, root, tmp: tmp.dir });
-
-	const result = await dispatch(
-		"add",
-		["--cwd", root, "--branch", "feature/new", "--json"],
-		testDeps(),
-	);
+	const live = testDeps();
+	setTestEnv("XDG_STATE_HOME", "relative/state");
+	const result = await dispatch("add", ["--cwd", root, "--branch", "feature/new", "--json"], {
+		...live,
+		hooks: {
+			...live.hooks,
+			runInline: (path, options) => {
+				expect(path).toStartWith(join(tmp.dir, ".local/state/hive/honeycomb/"));
+				return live.hooks.runInline(path, options);
+			},
+		},
+	});
 
 	expect(result.exitCode).toBe(EXIT_CODES.SUCCESS);
 	const worktreePath = `${root}__feature--new`;
@@ -87,9 +94,9 @@ test("--json captures setup output in the payload and keeps stderr silent #test-
 test("uses inherited rule command for a repo without exact project config #test-248", async () => {
 	const { root } = await initRepoWithOrigin(tmp.dir);
 	const configHome = join(tmp.dir, "config-rule-command");
-	await mkdir(configHome, { recursive: true });
+	await mkdir(join(configHome, "hive"), { recursive: true });
 	await writeFile(
-		join(configHome, "honeycomb.toml"),
+		join(configHome, "hive", "honeycomb.toml"),
 		`[[rule]]\n` +
 			`root_glob = "${await realpath(tmp.dir)}/**"\n` +
 			`command = '''\n` +

@@ -25,10 +25,10 @@ const { initRepoWithOrigin } = useOriginFixture();
 async function prepareLegacyPool() {
 	const { root } = await initRepoWithOrigin(tmp.dir);
 	const configHome = join(tmp.dir, "config-mixed-pool");
-	await mkdir(configHome, { recursive: true });
+	await mkdir(join(configHome, "hive"), { recursive: true });
 	setTestEnv("XDG_CONFIG_HOME", configHome);
 	await writeFile(
-		join(configHome, "honeycomb.toml"),
+		join(configHome, "hive", "honeycomb.toml"),
 		`[[project]]\nroot = "${root}"\ncommand = "echo ready"\npool_size = 1\n`,
 	);
 	await createPoolSlot({
@@ -45,7 +45,7 @@ async function prepareMixedPool() {
 	const { root, configHome } = await prepareLegacyPool();
 
 	await writeFile(
-		join(configHome, "honeycomb.toml"),
+		join(configHome, "hive", "honeycomb.toml"),
 		`worktree_location = "sibling"\n` +
 			`\n` +
 			`[[project]]\n` +

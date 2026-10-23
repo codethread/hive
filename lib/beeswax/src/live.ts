@@ -14,6 +14,7 @@ import { appendFile, chmod, readdir, realpath, rm } from "node:fs/promises";
 import { basename, resolve } from "node:path";
 import {
 	bootstrapBeads,
+	createTrackerCheckout,
 	initializeBeads,
 	localBootstrapServices,
 	preflightInitialization,
@@ -64,16 +65,18 @@ export function createLiveDependencies(): Dependencies {
 	};
 	const io = workspaceIO(environment);
 	const beads = createNativeBeads({ execute: io.command });
+	const stateHome = alertStateHome(environment.XDG_STATE_HOME, homedir());
 	const services: BootstrapServices = {
 		...localBootstrapServices,
 		actor: context.actor,
 		beads,
 		command: io.command,
+		createTracker: (root, base) =>
+			createTrackerCheckout(root, { stateHome, command: io.command }, base),
 		exists: io.exists,
 		readConfig: io.read,
 		write: io.write,
 	};
-	const stateHome = alertStateHome(environment.XDG_STATE_HOME, homedir());
 	const alerts = createNativeAlertStore(stateHome);
 	const selectedAlertDatabase = (repo: string, database?: string) =>
 		selectAlertDatabase(repo, database, {

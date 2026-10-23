@@ -23,9 +23,9 @@ const SECONDS = 1000;
 // eslint-disable-next-line unicorn/no-null -- The public queue contract uses null for the ordinary FIFO lane.
 const ORDINARY = null;
 const HELP = `
-Merge queue (instead of --lock):
+Merge queue (instead of --lock; child merge target must match):
   qlock exec --merge-target main -w 180 -- honeycomb finish --json
-The child merge command must target the same branch; --merge-target selects only the queue.
+Storage paths and shared state root: qlock skills file command-queues references/merge-queues.md
 `;
 const EXEC_HELP = `
 Example: wait, timeout, resume

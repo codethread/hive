@@ -35,6 +35,7 @@ let tmp = "";
 beforeEach(async () => {
 	tmp = await mkdtemp(join(tmpdir(), "honeycomb-copy-test-"));
 	setTestEnv("HOME", tmp);
+	setTestEnv("XDG_STATE_HOME", join(tmp, "state"));
 	setTestEnv("GIT_CONFIG_NOSYSTEM", "1");
 	setTestEnv("GIT_CONFIG_GLOBAL", join(tmp, "gitconfig"));
 	setTestEnv("XDG_CONFIG_HOME", join(tmp, "config"));
