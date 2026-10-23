@@ -1,5 +1,5 @@
 /* eslint-disable unicorn/no-null -- Request fixtures preserve explicit absence in the public output contract. */
-import { expect, test } from "bun:test";
+import { expect, mock, test } from "bun:test";
 import type { BeeDependencies } from "./bee-cli.ts";
 import type { RequestView } from "./requests.ts";
 import type { WorkflowSpawnOptions } from "./workflow-submission.ts";
@@ -8,6 +8,7 @@ import { runBeeCli } from "./bee-cli.ts";
 const PROMPT_REPETITIONS = 500;
 const SUCCESS = 0;
 const FAILURE = 1;
+const USAGE_ERROR = 2;
 const SINGLE_DOCUMENT = 1;
 const PROMPT = "Captured direction. ".repeat(PROMPT_REPETITIONS);
 const ROLE = "Captured role. ".repeat(PROMPT_REPETITIONS);
@@ -183,11 +184,47 @@ test("setup reports saved-query failures as a silent-stderr JSON error #test-625
 	expect(JSON.parse(result.stdout)).toMatchObject({ ok: false, message: "Query write failed" });
 });
 
+test.each([{ args: ["run", "librarian", "--json"] }, { args: ["--json", "run", "librarian"] }])(
+	"run rejects --json without calling the launcher: $args",
+	async ({ args }) => {
+		const run = mock<BeeDependencies["run"]>(() => Promise.resolve());
+		const result = await invoke(args, FAILURE, { run });
+		expect(JSON.parse(result.stdout)).toMatchObject({ ok: false, kind: "error" });
+		expect(run).not.toHaveBeenCalled();
+	},
+);
+
+test.each([
+	{ args: ["run", "librarian", "extra-task"] },
+	{ args: ["run", "librarian", "--cwd", "/tmp"] },
+])("run rejects unsupported inputs without calling the launcher: $args", async ({ args }) => {
+	const run = mock<BeeDependencies["run"]>(() => Promise.resolve());
+	const result = await execute(args, { run });
+	expect(result).toMatchObject({ code: USAGE_ERROR, stdout: "" });
+	expect(result.stderr).toStartWith("bee: ");
+	expect(run).not.toHaveBeenCalled();
+});
+
+test("run passes the bee kind and empty options to the launcher without CLI output", async () => {
+	const run = mock<BeeDependencies["run"]>(() => Promise.resolve());
+	const result = await execute(["run", "librarian"], { run });
+	expect(result).toMatchObject({ code: SUCCESS, stdout: "", stderr: "" });
+	expect(run.mock.calls).toEqual([["librarian", {}]]);
+});
+
 async function invoke(
 	args: readonly string[],
 	exitCode = SUCCESS,
 	overrides: Partial<BeeDependencies> = {},
 ) {
+	const result = await execute(args, overrides);
+	expect(result.code).toBe(exitCode);
+	expect(result.errors).toEqual([]);
+	expect(result.documents).toHaveLength(SINGLE_DOCUMENT);
+	return result;
+}
+
+async function execute(args: readonly string[], overrides: Partial<BeeDependencies>) {
 	const stdout: string[] = [];
 	const stderr: string[] = [];
 	const submissions: { kind: string; options: WorkflowSpawnOptions }[] = [];
@@ -224,10 +261,15 @@ async function invoke(
 		stop: () => Promise.resolve({ kind: "request_stopped", repository, request: stopped }),
 		...overrides,
 	};
-	expect(await runBeeCli([...args], deps)).toBe(exitCode);
-	expect(stderr).toEqual([]);
-	expect(stdout).toHaveLength(SINGLE_DOCUMENT);
-	return { stdout: stdout.join(""), submissions };
+	const code = await runBeeCli([...args], deps);
+	return {
+		code,
+		documents: stdout,
+		errors: stderr,
+		stdout: stdout.join(""),
+		stderr: stderr.join(""),
+		submissions,
+	};
 }
 
 function workflowResult(): ReturnType<BeeDependencies["spawn"]> {
