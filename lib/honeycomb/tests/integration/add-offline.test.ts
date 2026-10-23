@@ -4,7 +4,6 @@ import {
 	GitError,
 	NonFastForwardCanonicalError,
 	UsageError,
-	WrongCanonicalBranchError,
 	dispatch,
 } from "../../src/index";
 import {
@@ -251,35 +250,19 @@ test("offline missing promised checkout object fails loudly without implicit fet
 
 async function unsafeCanonical(state: string) {
 	const { root } = await aheadDevelop("fresh_canonical");
-	if (state.startsWith("uncached-")) {
+	if (state === "uncached-dirty") {
 		await run(["git", "-C", root, "update-ref", "-d", "refs/remotes/origin/develop"]);
-	}
-	if (state.endsWith("dirty")) {
 		await writeFile(join(root, "dirty.txt"), "dirty\n");
+	} else {
+		await commitFile({ content: "local\n", message: "local", path: "local.txt", repo: root });
 	}
-	if (state.endsWith("wrong")) {
-		await run(["git", "-C", root, "checkout", "-b", "other"]);
-	}
-	await changeCanonicalHistory(root, state);
 	return root;
 }
 
-async function changeCanonicalHistory(root: string, state: string) {
-	if (state === "ahead") {
-		await run(["git", "-C", root, "merge", "--ff-only", "origin/develop"]);
-	}
-	if (state === "ahead" || state === "diverged") {
-		await commitFile({ content: "local\n", message: "local", path: "local.txt", repo: root });
-	}
-}
-
+// Refusal ordering is covered in ../unit/canonical-default.test.ts; these cases check lifecycle effects.
 test.each([
-	{ state: "dirty", failure: DirtyCanonicalError },
-	{ state: "wrong", failure: WrongCanonicalBranchError },
-	{ state: "ahead", failure: NonFastForwardCanonicalError },
 	{ state: "diverged", failure: NonFastForwardCanonicalError },
 	{ state: "uncached-dirty", failure: DirtyCanonicalError },
-	{ state: "uncached-wrong", failure: WrongCanonicalBranchError },
 ])(
 	"offline fresh_canonical refuses $state without changing local work #test-179",
 	async ({ state, failure }) => {

@@ -1,6 +1,7 @@
 import type { BranchState, Slot } from "../domain/worktree.ts";
 import type { Deps, GitRunner, ProgressReporter } from "../services.ts";
 import {
+	createCanonicalGitObservations,
 	createLocalGitRefs,
 	detectBranchState,
 	detectOriginDefaultBranch,
@@ -202,6 +203,7 @@ async function resolveBranchBase(
 	const { base, deps, config, noNetwork, root } = options;
 	const defaultBase = await resolveDefaultBaseForNewBranch({
 		refs: createLocalGitRefs(deps.git, root),
+		canonical: createCanonicalGitObservations(deps.git, root),
 		base,
 		branchState,
 		git: deps.git,

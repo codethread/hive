@@ -7,10 +7,13 @@ import {
 	TargetNotFreshError,
 	UsageError,
 } from "../errors.ts";
+import {
+	assertCanonicalCanFastForward,
+	createCanonicalGitObservations,
+} from "../application/branches.ts";
 import { GitError } from "../git/error.ts";
 import type { GitRunner } from "../services.ts";
 import type { Worktree } from "../domain/worktree.ts";
-import { assertCanonicalCanFastForward } from "../application/branches.ts";
 
 const MERGE_CONFLICT = 1;
 const PREVIEW_DRIVER_REQUIRED = "honeycomb-preview-needs-external-driver";
@@ -284,7 +287,7 @@ async function assertCanonicalFresh(
 	root: string,
 	targetBranch: string,
 ): Promise<string> {
-	await assertCanonicalCanFastForward(git, root, targetBranch);
+	await assertCanonicalCanFastForward(createCanonicalGitObservations(git, root), targetBranch);
 	return `origin/${targetBranch}`;
 }
 

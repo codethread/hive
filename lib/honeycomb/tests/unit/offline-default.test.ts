@@ -12,6 +12,7 @@ const cached = "refs/remotes/origin/develop";
 const local = "refs/heads/develop";
 const git: GitRunner = { run: unexpectedGit, runRaw: unexpectedGit };
 const options = {
+	canonical: { cleanliness: unexpectedGit, checkout: unexpectedGit, headAncestry: unexpectedGit },
 	base: null,
 	branchState: "none",
 	git,
@@ -76,7 +77,7 @@ test("an unresolvable cached commit fails without querying the local fallback", 
 });
 
 test.each(["local", "remote", "local-remote"] as const)(
-	"existing %s branch bypasses default reads and ignores an explicit base",
+	"existing %s branch bypasses default and canonical reads and ignores an explicit base",
 	async (branchState) => {
 		const refs = createRefFixture({ defaultBranch: null, refs: [], commits: {} });
 		expect(

@@ -42,6 +42,34 @@ export interface LocalGitRefs {
 	commit: (ref: string) => Promise<CommitRead>;
 }
 
+export type CanonicalCheckout =
+	| {
+			/** HEAD is attached to a local branch. */
+			kind: "branch";
+			/** Short branch name, independent of the designated default. */
+			name: string;
+	  }
+	| {
+			/** HEAD is detached from any branch. */
+			kind: "detached";
+	  };
+
+/** Whether HEAD ancestry was established; unproven does not imply divergence. */
+export type AncestryProof = "proven" | "unproven";
+
+/**
+ * Read-only canonical worktree checks, separate from LocalGitRefs discovery.
+ * Sequential reads are not an atomic snapshot; callers retain lifecycle and mutation authority.
+ */
+export interface CanonicalGitObservations {
+	/** Empty porcelain status is clean; reported changes are dirty. Read failures reject. */
+	cleanliness: () => Promise<"clean" | "dirty">;
+	/** Read the current branch or detached state. Read failures reject. */
+	checkout: () => Promise<CanonicalCheckout>;
+	/** Prove HEAD is an ancestor of targetRef; any nonzero Git exit is unproven, launch failures reject. */
+	headAncestry: (targetRef: string) => Promise<AncestryProof>;
+}
+
 interface ComparisonRequest {
 	/** Branch whose integration is being verified. */
 	branch: string;
@@ -63,6 +91,18 @@ export function createLocalGitRefs(git: GitRunner, root: string): LocalGitRefs {
 		defaultBranch: () => readLocalDefaultBranch(git, root),
 		hasRef: (ref) => refExists(git, root, ref),
 		commit: (ref) => readCommit(git, root, ref),
+	};
+}
+
+/** Bind reads to the canonical root and supplied runner, preserving any no-lazy-fetch scope. */
+export function createCanonicalGitObservations(
+	git: GitRunner,
+	root: string,
+): CanonicalGitObservations {
+	return {
+		cleanliness: () => readCanonicalCleanliness(git, root),
+		checkout: () => readCanonicalCheckout(git, root),
+		headAncestry: (ref) => readHeadAncestry(git, root, ref),
 	};
 }
 
@@ -100,6 +140,8 @@ export async function detectOriginDefaultBranch(git: GitRunner, root: string): P
 
 export async function resolveDefaultBaseForNewBranch(options: {
 	refs: LocalGitRefs;
+	/** Canonical checks used only by fresh_canonical default-base selection. */
+	canonical: CanonicalGitObservations;
 	git: GitRunner;
 	root: string;
 	policy: AddPolicy;
@@ -192,21 +234,34 @@ export async function resolveLocalBaseCommit(
 	return resolveCommitRef({ git, label: "--base", ref, root });
 }
 
+/** Reject dirty or wrong/detached checkouts before checking ancestry. */
 export async function assertCanonicalCanFastForward(
-	git: GitRunner,
-	root: string,
+	canonical: CanonicalGitObservations,
 	defaultBranch: string,
 ): Promise<void> {
-	await assertCanonicalOnDefault(git, root, defaultBranch);
-	await assertHeadIsAncestorOf(git, root, `origin/${defaultBranch}`);
+	await assertCanonicalOnDefault(canonical, defaultBranch);
+	const ref = `origin/${defaultBranch}`;
+	if ((await canonical.headAncestry(ref)) === "unproven") {
+		throw new NonFastForwardCanonicalError(`canonical root cannot fast-forward to ${ref}`);
+	}
 }
 
-export async function fastForwardCanonicalDefault(
-	git: GitRunner,
-	root: string,
-	defaultBranch: string,
-): Promise<void> {
-	await assertCanonicalCanFastForward(git, root, defaultBranch);
+/**
+ * Apply the guards, then let native --ff-only enforce the merge against current refs.
+ * No lock or retry bridges observation and mutation; merge failures propagate.
+ */
+export async function fastForwardCanonicalDefault(options: {
+	/** Observations bound to the same canonical root and scoped runner as the merge. */
+	canonical: CanonicalGitObservations;
+	/** Git runner that performs the mutation after the read-only guards. */
+	git: GitRunner;
+	/** Canonical root receiving the fast-forward. */
+	root: string;
+	/** Default branch required in the canonical worktree; origin/<defaultBranch> is the target. */
+	defaultBranch: string;
+}): Promise<void> {
+	const { canonical, git, root, defaultBranch } = options;
+	await assertCanonicalCanFastForward(canonical, defaultBranch);
 	await git.run(["-C", root, "merge", "--ff-only", `origin/${defaultBranch}`]);
 }
 
@@ -295,6 +350,7 @@ export async function refExists(git: GitRunner, root: string, ref: string): Prom
 // --- Private functions ---
 
 async function resolvePolicyDefaultBase({
+	canonical,
 	git,
 	root,
 	policy,
@@ -305,14 +361,14 @@ async function resolvePolicyDefaultBase({
 	if (noNetwork && !(await refs.hasRef(`refs/remotes/origin/${defaultBranch}`))) {
 		const localBase = await resolveOfflineDefaultBase(refs);
 		if (policy === "fresh_canonical") {
-			await assertCanonicalOnDefault(git, root, defaultBranch);
+			await assertCanonicalOnDefault(canonical, defaultBranch);
 		}
 		return localBase;
 	}
 	if (policy !== "fresh_canonical") {
 		return `origin/${defaultBranch}`;
 	}
-	await fastForwardCanonicalDefault(git, root, defaultBranch);
+	await fastForwardCanonicalDefault({ canonical, git, root, defaultBranch });
 	return defaultBranch;
 }
 
@@ -342,16 +398,20 @@ async function requireLocalDefaultBranch(refs: LocalGitRefs): Promise<string> {
 }
 
 async function assertCanonicalOnDefault(
-	git: GitRunner,
-	root: string,
+	canonical: CanonicalGitObservations,
 	defaultBranch: string,
 ): Promise<void> {
-	await assertCanonicalClean(git, root);
-	const current = await git.run(["-C", root, "branch", "--show-current"]);
-	if (current.stdout.trim() !== defaultBranch) {
+	if ((await canonical.cleanliness()) === "dirty") {
+		throw new DirtyCanonicalError("canonical root has uncommitted changes");
+	}
+	const current = await canonical.checkout();
+	let name = "detached HEAD";
+	if (current.kind === "branch") {
+		({ name } = current);
+	}
+	if (current.kind === "detached" || current.name !== defaultBranch) {
 		throw new WrongCanonicalBranchError(
-			`canonical root must be checked out on ${defaultBranch}; currently on ` +
-				`${current.stdout.trim() || "detached HEAD"}`,
+			`canonical root must be checked out on ${defaultBranch}; currently on ${name}`,
 		);
 	}
 }
@@ -403,18 +463,29 @@ function requireCommit(result: CommitRead, label: string, ref: string): string {
 	return result.oid;
 }
 
-async function assertCanonicalClean(git: GitRunner, root: string): Promise<void> {
+async function readCanonicalCleanliness(git: GitRunner, root: string): Promise<"clean" | "dirty"> {
 	const status = await git.run(["-C", root, "status", "--porcelain=v1"]);
-	if (status.stdout.trim() !== "") {
-		throw new DirtyCanonicalError("canonical root has uncommitted changes");
+	if (status.stdout.trim() === "") {
+		return "clean";
 	}
+	return "dirty";
 }
 
-async function assertHeadIsAncestorOf(git: GitRunner, root: string, ref: string): Promise<void> {
-	const ancestor = await git.runRaw(["-C", root, "merge-base", "--is-ancestor", "HEAD", ref]);
-	if (ancestor.exitCode !== EXIT_CODES.SUCCESS) {
-		throw new NonFastForwardCanonicalError(`canonical root cannot fast-forward to ${ref}`);
+async function readCanonicalCheckout(git: GitRunner, root: string): Promise<CanonicalCheckout> {
+	const current = await git.run(["-C", root, "branch", "--show-current"]);
+	const name = current.stdout.trim();
+	if (name === "") {
+		return { kind: "detached" };
 	}
+	return { kind: "branch", name };
+}
+
+async function readHeadAncestry(git: GitRunner, root: string, ref: string): Promise<AncestryProof> {
+	const ancestor = await git.runRaw(["-C", root, "merge-base", "--is-ancestor", "HEAD", ref]);
+	if (ancestor.exitCode === EXIT_CODES.SUCCESS) {
+		return "proven";
+	}
+	return "unproven";
 }
 
 async function resolveIntegrationBase(options: ComparisonRequest): Promise<string> {
