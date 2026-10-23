@@ -20,6 +20,28 @@ const DIFF_FOUND = 1;
 const NO_PATHS = 0;
 const NOT_SYMBOLIC = 1;
 
+export type CommitRead =
+	| {
+			/** Resolved commit object. */
+			kind: "commit";
+			/** Full object ID. */
+			oid: string;
+	  }
+	| {
+			/** Ref cannot be resolved to an existing commit. */
+			kind: "unresolvable";
+	  };
+
+/** Read-only local observations; callers retain lifecycle and mutation authority. */
+export interface LocalGitRefs {
+	/** Read the local origin/HEAD branch name, independent of target ref presence; null if undesignated. */
+	defaultBranch: () => Promise<string | null>;
+	/** Check exact full-ref membership; failure is not absence. */
+	hasRef: (fullRef: string) => Promise<boolean>;
+	/** Peel a ref to a commit without substituting another ref. */
+	commit: (ref: string) => Promise<CommitRead>;
+}
+
 interface ComparisonRequest {
 	/** Branch whose integration is being verified. */
 	branch: string;
@@ -33,6 +55,15 @@ interface ComparisonRequest {
 	source: string;
 	/** Target commit or ref that must contain the source changes. */
 	target: string;
+}
+
+/** Bind reads to root using the supplied GitRunner; offline callers supply a no-lazy-fetch runner. */
+export function createLocalGitRefs(git: GitRunner, root: string): LocalGitRefs {
+	return {
+		defaultBranch: () => readLocalDefaultBranch(git, root),
+		hasRef: (ref) => refExists(git, root, ref),
+		commit: (ref) => readCommit(git, root, ref),
+	};
 }
 
 export async function detectBranchState(
@@ -68,6 +99,7 @@ export async function detectOriginDefaultBranch(git: GitRunner, root: string): P
 }
 
 export async function resolveDefaultBaseForNewBranch(options: {
+	refs: LocalGitRefs;
 	git: GitRunner;
 	root: string;
 	policy: AddPolicy;
@@ -135,20 +167,20 @@ export async function resolveTreeDefaultBranch(
 	return { branch, head: resolved.stdout.trim(), ref };
 }
 
-/** Resolve a commit without contacting origin or substituting the current HEAD. */
-export async function resolveOfflineDefaultBase(git: GitRunner, root: string): Promise<string> {
-	const trunk = await resolveDefaultBranchName(git, root, true);
+/** Resolve the cached default commit, using the local default only when the cached ref is absent. */
+export async function resolveOfflineDefaultBase(refs: LocalGitRefs): Promise<string> {
+	const trunk = await requireLocalDefaultBranch(refs);
 	const cached = `refs/remotes/origin/${trunk}`;
-	if (await refExists(git, root, cached)) {
-		return resolveCommitRef({ git, label: "cached origin default branch", ref: cached, root });
+	if (await refs.hasRef(cached)) {
+		return requireCommit(await refs.commit(cached), "cached origin default branch", cached);
 	}
 	const ref = `refs/heads/${trunk}`;
-	if (!(await refExists(git, root, ref))) {
+	if (!(await refs.hasRef(ref))) {
 		throw new UsageError(
 			`cached origin and local default branch ${trunk} are missing; pass --base <local-ref> with --no-network`,
 		);
 	}
-	return resolveCommitRef({ git, label: "local default branch", ref, root });
+	return requireCommit(await refs.commit(ref), "local default branch", ref);
 }
 
 export async function resolveLocalBaseCommit(
@@ -267,10 +299,11 @@ async function resolvePolicyDefaultBase({
 	root,
 	policy,
 	noNetwork,
+	refs,
 }: Parameters<typeof resolveDefaultBaseForNewBranch>[number]): Promise<string> {
-	const defaultBranch = await resolveDefaultBranchName(git, root, noNetwork);
-	if (noNetwork && !(await refExists(git, root, `refs/remotes/origin/${defaultBranch}`))) {
-		const localBase = await resolveOfflineDefaultBase(git, root);
+	const defaultBranch = await resolveDefaultBranchName({ git, root, noNetwork, refs });
+	if (noNetwork && !(await refs.hasRef(`refs/remotes/origin/${defaultBranch}`))) {
+		const localBase = await resolveOfflineDefaultBase(refs);
 		if (policy === "fresh_canonical") {
 			await assertCanonicalOnDefault(git, root, defaultBranch);
 		}
@@ -283,15 +316,23 @@ async function resolvePolicyDefaultBase({
 	return defaultBranch;
 }
 
-async function resolveDefaultBranchName(
-	git: GitRunner,
-	root: string,
-	noNetwork: boolean,
-): Promise<string> {
+function resolveDefaultBranchName({
+	git,
+	root,
+	noNetwork,
+	refs,
+}: Pick<
+	Parameters<typeof resolveDefaultBaseForNewBranch>[number],
+	"git" | "root" | "noNetwork" | "refs"
+>): Promise<string> {
 	if (!noNetwork) {
 		return detectOriginDefaultBranch(git, root);
 	}
-	const trunk = await readLocalDefaultBranch(git, root);
+	return requireLocalDefaultBranch(refs);
+}
+
+async function requireLocalDefaultBranch(refs: LocalGitRefs): Promise<string> {
+	const trunk = await refs.defaultBranch();
 	if (!trunk) {
 		throw new TrunkDetectionError(
 			"origin/HEAD is unknown locally; pass --base <local-ref> with --no-network",
@@ -337,6 +378,10 @@ async function resolveCommitRef(options: {
 	root: string;
 }): Promise<string> {
 	const { git, label, ref, root } = options;
+	return requireCommit(await readCommit(git, root, ref), label, ref);
+}
+
+async function readCommit(git: GitRunner, root: string, ref: string): Promise<CommitRead> {
 	const resolved = await git.runRaw([
 		"-C",
 		root,
@@ -346,9 +391,16 @@ async function resolveCommitRef(options: {
 		`${ref}^{commit}`,
 	]);
 	if (resolved.exitCode !== EXIT_CODES.SUCCESS || resolved.stdout.trim() === "") {
+		return { kind: "unresolvable" };
+	}
+	return { kind: "commit", oid: resolved.stdout.trim() };
+}
+
+function requireCommit(result: CommitRead, label: string, ref: string): string {
+	if (result.kind === "unresolvable") {
 		throw new UsageError(`${label} must name an existing commit: ${ref}`);
 	}
-	return resolved.stdout.trim();
+	return result.oid;
 }
 
 async function assertCanonicalClean(git: GitRunner, root: string): Promise<void> {

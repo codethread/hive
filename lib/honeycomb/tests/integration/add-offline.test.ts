@@ -82,17 +82,11 @@ async function aheadDevelop(policy: string) {
 	return { root, localTip, cachedTip };
 }
 
-async function missingDefault(missing: string, policy = "origin_default") {
-	const { root } = await offlineFixture(policy);
+async function missingDefault() {
+	const { root } = await offlineFixture();
 	const tip = await gitOut(root, "rev-parse", "HEAD");
 	await run(["git", "-C", root, "checkout", "-b", "other"]);
-	if (missing === "unknown-default") {
-		await run(["git", "-C", root, "symbolic-ref", "--delete", "refs/remotes/origin/HEAD"]);
-	}
-	if (missing === "missing-defaults") {
-		await run(["git", "-C", root, "branch", "-D", "main"]);
-		await run(["git", "-C", root, "update-ref", "-d", "refs/remotes/origin/main"]);
-	}
+	await run(["git", "-C", root, "symbolic-ref", "--delete", "refs/remotes/origin/HEAD"]);
 	return { root, tip };
 }
 
@@ -146,23 +140,6 @@ async function nestedCopyFixture() {
 	});
 	return root;
 }
-
-test.each([
-	{ missing: "unknown-default", policy: "fresh_canonical" },
-	{ missing: "missing-defaults", policy: "fresh_canonical" },
-])(
-	"offline $policy $missing refuses default selection before mutation and accepts an explicit local commit #test-181",
-	async ({ missing, policy }) => {
-		const { root, tip } = await missingDefault(missing, policy);
-		const failure = await offlineAdd(root);
-		expect(failure.exitCode).not.toBe(EXIT_CODES.SUCCESS);
-		expect(JSON.parse(failure.stdout).message).toContain("--base");
-		expect(await pathExists(`${root}__feature--offline`)).toBe(false);
-		const result = await offlineAdd(root, ["--base", tip]);
-		expect(result.exitCode).toBe(EXIT_CODES.SUCCESS);
-		expect(await gitOut(root, "rev-parse", "feature/offline")).toBe(tip);
-	},
-);
 
 test.each(["local", "remote"] as const)(
 	"offline existing %s branch uses local state according to cached branch state #test-175",
@@ -228,7 +205,7 @@ test("offline scopes every injected Git call against implicit object fetching #t
 test.each(["tag", "commit", "full-ref"])(
 	"offline explicit local %s base works without default metadata #test-183",
 	async (kind) => {
-		const { root, tip } = await missingDefault("unknown-default");
+		const { root, tip } = await missingDefault();
 		await run(["git", "-C", root, "tag", "start", tip]);
 		const refs = { tag: "start", commit: tip, "full-ref": "refs/remotes/origin/main" };
 		const result = await offlineAdd(root, ["--base", refs[kind as keyof typeof refs]]);
@@ -321,18 +298,6 @@ test.each([
 		expect(await gitSucceeds(root, "show-ref", "--verify", "refs/heads/feature/offline")).toBe(
 			false,
 		);
-	},
-);
-
-test.each(["origin_default"])(
-	"offline %s uses known local default when cache is absent #test-176",
-	async (policy) => {
-		const { root, localTip } = await aheadDevelop(policy);
-		await run(["git", "-C", root, "update-ref", "-d", "refs/remotes/origin/develop"]);
-		const result = await offlineAdd(root);
-		expect(result.exitCode).toBe(EXIT_CODES.SUCCESS);
-		expect(await gitOut(root, "rev-parse", "feature/offline")).toBe(localTip);
-		expect(await gitOut(root, "rev-parse", "develop")).toBe(localTip);
 	},
 );
 

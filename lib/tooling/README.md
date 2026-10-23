@@ -2,13 +2,14 @@
 
 ## Native contract tests
 
-Run `bun run test:contracts` for both Beads and BV contracts, including after changing installed `br` or `bv` outside Git and before adopting a new native dependency pin.
+Run `bun run test:contracts` for Beads, BV and Honeycomb local Git ref contracts, including after changing installed `br`, `bv` or `git` outside Git and before adopting a new native dependency pin.
 
 `test:all` and `test:changed` select native contracts independently of ordinary Bun discovery:
 
 - Beads source or manifest changes select Beads contracts and BV's Beads-dependent fixture.
 - BV implementation/tests, its execution helper or Shared manifest/runtime configuration select BV contracts.
-- Contract-file changes select their own suite; root dependency/runtime and test-runner/selection changes select both.
+- Honeycomb contracts are selected by these paths under `lib/honeycomb/`: `src/application/branches.ts`, `src/services.ts`, `src/errors.ts`, `src/git/{error,executor,worktrees}.ts`, `tests/integration/{lifecycle-helpers,support}.ts`, `package.json` and `tsconfig.json`.
+- Contract-directory changes select their own suite; root dependency/runtime and test-runner/selection changes select all three.
 
 Consumer-only changes do not select native contracts. Selected suites run in full regardless of ordinary-suite file/name filters. [`test-selection.ts`](src/test-selection.ts) owns the exact inputs; [`test-runner.ts`](src/test-runner.ts) owns comparison references and argument handling. Selection does not grant a [timing allowance](#allowed-slow-tests).
 
@@ -19,6 +20,10 @@ Tracker bootstrap checks exercise real Git, filesystem, `br` and `mise` boundari
 ### BV contract tests
 
 The [BV native contract](../shared/tests/contract/bv.test.ts) covers selected SQLite ranking versus exported JSONL topology, complete scores and observational reads; it does not compare BV with the [alphabetical fake](../shared/README.md#alphabetical-test-fake).
+
+### Honeycomb contract tests
+
+The [local Git ref contract](../honeycomb/tests/contract/local-git-refs.test.ts) checks live/fixture parity for default designation, exact ref presence and commit resolution, including annotated tags and missing/non-commit refs. It also checks invalid default namespaces and Git read errors. Offline policy tests use the [typed fixture](../honeycomb/tests/contract/local-git-refs-fixture.ts); [native add tests](../honeycomb/tests/integration/add-offline.test.ts) retain checkout, canonical safety and missing-object boundaries.
 
 ## Test timing report and landing gate
 

@@ -1,6 +1,7 @@
 import type { BranchState, Slot } from "../domain/worktree.ts";
 import type { Deps, GitRunner, ProgressReporter } from "../services.ts";
 import {
+	createLocalGitRefs,
 	detectBranchState,
 	detectOriginDefaultBranch,
 	readLocalDefaultBranch,
@@ -45,12 +46,12 @@ export async function resolvePoolResetCommit(options: {
 		((await refExists(deps.git, root, `refs/remotes/origin/${trunk}`)) ||
 			(await refExists(deps.git, root, `refs/heads/${trunk}`)))
 	) {
-		return resolveOfflineDefaultBase(deps.git, root);
+		return resolveOfflineDefaultBase(createLocalGitRefs(deps.git, root));
 	}
 	if (base) {
 		return resolveLocalBaseCommit(deps.git, root, base);
 	}
-	return resolveOfflineDefaultBase(deps.git, root);
+	return resolveOfflineDefaultBase(createLocalGitRefs(deps.git, root));
 }
 
 export async function captureExistingBranchHead(options: {
@@ -200,6 +201,7 @@ async function resolveBranchBase(
 ): Promise<string | null> {
 	const { base, deps, config, noNetwork, root } = options;
 	const defaultBase = await resolveDefaultBaseForNewBranch({
+		refs: createLocalGitRefs(deps.git, root),
 		base,
 		branchState,
 		git: deps.git,
