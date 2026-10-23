@@ -24,7 +24,7 @@ const graph: BvGraph = {
 	sourceStale: false,
 };
 
-test("graph reads select the native export and bracket hydration with read-only observations", async () => {
+test("graph reads select the native export and bracket hydration with read-only observations #test-676", async () => {
 	const fixture = readerFixture([healthy, healthy]);
 	const result = await fixture.reader(colony, consumeGraph);
 	expect(fixture.calls).toEqual([{ cwd: colony.root, jsonlPath: path }]);

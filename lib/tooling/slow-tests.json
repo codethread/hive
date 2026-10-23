@@ -2368,6 +2368,18 @@
 		"#test-675": {
 			"threshold": "SLOW",
 			"justification": "User approved retaining measured timing-only blockers during the BV landing on 2026-10-23. lib/scent/tests/claude.test.ts: separate native CLI replaces inherited Bee binding and drops its kind and metadata. Observed strict changed-test runtime: 1.623ms."
+		},
+		"#test-676": {
+			"threshold": "SLOW",
+			"justification": "User approved retaining measured timing-only blockers during the BV landing on 2026-10-23. lib/hive-ui/server/topology.test.ts: graph reads select the native export and bracket hydration with read-only observations. Observed integrated full-check runtime: 9.397ms."
+		},
+		"#test-677": {
+			"threshold": "SLOW",
+			"justification": "User approved retaining measured timing-only blockers during the BV landing on 2026-10-23. lib/shared/src/workflow-outcome-index.test.ts: invalid exposure proof never becomes unmanaged: %j. Observed integrated full-check runtime: 4.159ms."
+		},
+		"#test-678": {
+			"threshold": "SLOW",
+			"justification": "User approved retaining measured timing-only blockers during the BV landing on 2026-10-23. lib/shared/src/spawn-request.test.ts: malformed assignment %j fails at the native boundary. Observed integrated full-check runtime: 2.784ms."
 		}
 	}
 }

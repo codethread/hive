@@ -284,7 +284,7 @@ test.each([
 	{ kind: "driver", runId: "" },
 	{ kind: "stage", runId: "run-1", stageId: " " },
 	{ kind: "driver", runId: "run-1", stageId: "stage-1" },
-])("malformed assignment %j fails at the native boundary", (assignment) => {
+])("malformed assignment %j fails at the native boundary #test-678", (assignment) => {
 	expect(() =>
 		readSpawnRequestSummary({
 			...original,

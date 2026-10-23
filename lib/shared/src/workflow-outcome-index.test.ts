@@ -47,7 +47,7 @@ test.each([{ kind: "pending" }, { kind: "unavailable", reason: "unclassified_clo
 );
 
 test.each([{ formatVersion: 1, id: "other", managedExecution: "unmanaged" }])(
-	"invalid exposure proof never becomes unmanaged: %j",
+	"invalid exposure proof never becomes unmanaged: %j #test-677",
 	(header) => {
 		expect(() => workflowManagedExposure({ description: JSON.stringify(header) }, "run")).toThrow(
 			Error,
