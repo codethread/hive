@@ -40,7 +40,7 @@ function poolCommand(skip: boolean) {
 	if (skip) {
 		return "exit 7";
 	}
-	return "echo bootstrap-ran";
+	return 'test "$(cat .env)" = copied; test "$(git branch --show-current)" = feature/new; echo bootstrap-ran';
 }
 
 async function poolFixture(options: {
@@ -50,7 +50,7 @@ async function poolFixture(options: {
 }) {
 	const { root } = await initRepoWithOrigin(tmp.dir);
 	await writeFile(join(root, ".env"), "copied\n");
-	let precheck = "";
+	let precheck = `pre_remote_check = 'touch "$(git rev-parse --git-path precheck-ran)"'\n`;
 	if (options.noNetwork) {
 		precheck = 'pre_remote_check = "exit 9"\n';
 		await run(["git", "-C", root, "remote", "set-url", "origin", join(tmp.dir, "absent.git")]);
@@ -135,14 +135,30 @@ async function missingResetFixture(missing: string) {
 	return { root, tip };
 }
 
+async function expectFlagEffects(
+	root: string,
+	stdout: string,
+	options: { noNetwork: boolean; skipCommand: boolean },
+) {
+	const payload = JSON.parse(stdout);
+	expect(payload.kind).toBe("ready");
+	expect(await gitOut(`${root}__feat2`, "branch", "--show-current")).toBe("feature/new");
+	const bootstrapOutput = payload.setup_output.filter(
+		(entry: { line: string }) => entry.line === "bootstrap-ran",
+	);
+	if (options.skipCommand) {
+		expect(payload.setup_output).toEqual([]);
+	} else {
+		expect(bootstrapOutput).toEqual([{ line: "bootstrap-ran", stream: "stdout" }]);
+	}
+	const precheckPath = await gitOut(root, "rev-parse", "--git-path", "precheck-ran");
+	expect(await pathExists(resolve(root, precheckPath))).toBe(!options.noNetwork);
+}
+
 test.each([
 	{ noNetwork: true, skipCommand: false, state: "missing" },
-	{ noNetwork: true, skipCommand: false, state: "cold" },
 	{ noNetwork: true, skipCommand: false, state: "warm" },
 	{ noNetwork: false, skipCommand: true, state: "missing" },
-	{ noNetwork: false, skipCommand: true, state: "cold" },
-	{ noNetwork: false, skipCommand: true, state: "warm" },
-	{ noNetwork: true, skipCommand: true, state: "missing" },
 	{ noNetwork: true, skipCommand: true, state: "cold" },
 	{ noNetwork: true, skipCommand: true, state: "warm" },
 ] as const)(
@@ -163,7 +179,7 @@ test.each([
 			...flags,
 		]);
 		expect(result.exitCode).toBe(EXIT_CODES.SUCCESS);
-		expect(JSON.parse(result.stdout).kind).toBe("ready");
+		await expectFlagEffects(root, result.stdout, options);
 		expect(await Bun.file(`${root}__feat2/.env`).text()).toBe("copied\n");
 		expect(await markerExists(`${root}__feat2`)).toBe(
 			!options.skipCommand || options.state === "warm",

@@ -1,5 +1,5 @@
+import type { Deps, HookRunner, ProgressReporter, WorkspaceFiles } from "../services.ts";
 import { EXIT_CODES, PreRemoteCheckError } from "../errors.ts";
-import type { Deps } from "../services.ts";
 import type { PostCreateScriptSpec } from "../domain/worktree.ts";
 import type { TreesConfig } from "../domain/config.ts";
 
@@ -24,7 +24,14 @@ export async function runPreRemoteCheck(
 }
 
 export async function runBootstrap(
-	deps: Pick<Deps, "files" | "hooks" | "progress">,
+	deps: {
+		/** Bootstrap script generation. */
+		files: Pick<WorkspaceFiles, "writePostCreateScript">;
+		/** Bootstrap script execution. */
+		hooks: Pick<HookRunner, "runInline">;
+		/** Bootstrap output forwarding. */
+		progress: Pick<ProgressReporter, "stream">;
+	},
 	spec: PostCreateScriptSpec,
 ): Promise<void> {
 	const scriptPath = deps.files.writePostCreateScript(spec);

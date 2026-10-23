@@ -28,7 +28,7 @@ import {
 import type { Deps } from "../services.ts";
 import { listWorktrees } from "../application/repository.ts";
 import { projectNameFor } from "../domain/config.ts";
-import { runBootstrap } from "../application/hooks.ts";
+import { setupPooledCheckout } from "../application/pooled-setup.ts";
 import { toAddPayload } from "../protocol.ts";
 
 interface PooledAddOptions {
@@ -128,16 +128,14 @@ async function populatePooledSlot(options: Allocation): Promise<void> {
 		progress: deps.progress,
 		worktreePath: slot.path,
 	});
-	await deps.files.copy({ root, target: slot.path, entries: project.copy, git: deps.git });
-	if (!options.skipCommand && command) {
-		await runBootstrap(deps, {
-			command,
-			created: slot.path,
-			pooled: true,
-			projectName: projectNameFor(project, root),
-			root,
-		});
-	}
+	await setupPooledCheckout(deps, {
+		root,
+		target: slot.path,
+		entries: project.copy,
+		projectName: projectNameFor(project, root),
+		command,
+		skipCommand: options.skipCommand,
+	});
 }
 
 async function allocatePooledSlot(options: Allocation): Promise<ReadyAddPayload> {
