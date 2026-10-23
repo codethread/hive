@@ -26,49 +26,54 @@ type SkillsResult =
 	  };
 
 /** Register offline instruction reads independently of queue admission and storage. */
-export function registerSkills(program: Command, stdout: (text: string) => void): void {
+export function registerSkills(
+	program: Command,
+	stdout: (text: string) => void,
+	loadSkills: () => Promise<SkillProvider>,
+): void {
 	const skills = program
 		.command("skills")
 		.description("Read bundled agent skills (default: list); works offline outside a repository")
 		.option("--json", "One JSON result or error; put before other options")
 		.action(async function list(this: Command) {
-			writeResult(this, stdout, await listSkills());
+			writeResult(this, stdout, await listSkills(await loadSkills()));
 		});
 	skills
 		.command("list")
 		.description("List names and descriptions; --json also includes resource paths")
 		.option("--json", "One JSON result or error")
 		.action(async function list(this: Command) {
-			writeResult(this, stdout, await listSkills());
+			writeResult(this, stdout, await listSkills(await loadSkills()));
 		});
 	skills
 		.command("get <name>")
 		.description("Print a skill's Markdown body without frontmatter")
 		.option("--json", "One JSON result or error")
 		.action(async function get(this: Command, name: string) {
-			writeResult(this, stdout, await readSkill(name, "SKILL.md"));
+			writeResult(this, stdout, await readSkill(await loadSkills(), name, "SKILL.md"));
 		});
 	skills
 		.command("file <name> <path>")
 		.description("Read an advertised resource; SKILL.md returns the same body as get")
 		.option("--json", "One JSON result or error")
 		.action(async function file(this: Command, name: string, path: string) {
-			writeResult(this, stdout, await readSkill(name, path));
+			writeResult(this, stdout, await readSkill(await loadSkills(), name, path));
 		});
 }
 
 // --- Private functions ---
 
-async function listSkills(): Promise<SkillsResult> {
-	const { createBundledSkills } = await import("./bundled-skills.ts");
-	const catalog = await createBundledSkills().getSkills();
+async function listSkills(provider: SkillProvider): Promise<SkillsResult> {
+	const catalog = await provider.getSkills();
 	const skills = catalog.map(({ name, description, files }) => ({ name, description, files }));
 	return { kind: "skills_list", skills };
 }
 
-async function readSkill(name: string, path: string): Promise<SkillsResult> {
-	const { createBundledSkills } = await import("./bundled-skills.ts");
-	const provider = createBundledSkills();
+async function readSkill(
+	provider: SkillProvider,
+	name: string,
+	path: string,
+): Promise<SkillsResult> {
 	const catalog = await provider.getSkills();
 	const skill = catalog.find((entry) => entry.name === name);
 	if (!skill) {

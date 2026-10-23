@@ -9,6 +9,7 @@ import {
 	renderChangelog,
 } from "@hive/shared/changelog";
 import { normalizeError, runRequest } from "./run.ts";
+import type { SkillProvider } from "skills-handler";
 import type { Ticket } from "./queue.ts";
 import changelog from "../changelog.json";
 import { registerSkills } from "./skills.ts";
@@ -37,6 +38,11 @@ Example: wait, timeout, resume
 No background execution. Ready tickets expire after 30s.
 `;
 
+export interface CliDependencies extends Dependencies {
+	/** Load bundled instructions only when a skills command needs them. */
+	loadSkills: () => Promise<SkillProvider>;
+}
+
 interface TargetOptions {
 	/** Explicit caller-supplied lock path. */
 	lock?: string;
@@ -61,7 +67,7 @@ interface ExecOptions extends TargetOptions {
 }
 
 /** Own parsing and output only; queue and process work uses injected dependencies. */
-export async function runCli(argv: readonly string[], deps: Dependencies): Promise<number> {
+export async function runCli(argv: readonly string[], deps: CliDependencies): Promise<number> {
 	let exitCode: number = EXIT.success;
 	const program = createProgram(deps, async (request, json) => {
 		const result = await runRequest(request, deps);
@@ -89,7 +95,7 @@ export async function runCli(argv: readonly string[], deps: Dependencies): Promi
 // --- Private functions ---
 
 function createProgram(
-	deps: Dependencies,
+	deps: CliDependencies,
 	action: (request: Request, json: boolean) => Promise<void>,
 ): Command {
 	const program = new Command()
@@ -193,7 +199,7 @@ Child exit codes pass through and can overlap these codes; use qlock's diagnosti
 				options.json === true,
 			);
 		});
-	registerSkills(program, deps.stdout);
+	registerSkills(program, deps.stdout, deps.loadSkills);
 	return program;
 }
 

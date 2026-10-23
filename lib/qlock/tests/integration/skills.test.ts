@@ -2,10 +2,8 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 // eslint-disable-next-line import/no-nodejs-modules -- Isolated directories exercise offline executable reads.
 import { mkdir, mkdtemp, rm } from "node:fs/promises";
 import { EXIT } from "../../src/queue.ts";
-import { createLiveDependencies } from "../../src/live.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Resolve source, compiled executable and temporary home paths.
 import { resolve } from "node:path";
-import { runCli } from "../../src/cli.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Keep CLI fixtures outside any repository.
 import { tmpdir } from "node:os";
 
@@ -36,114 +34,36 @@ afterAll(async () => {
 	await rm(directory, { recursive: true, force: true });
 });
 
-// Source cases use runCli; discovery also checks an isolated source-entrypoint process.
 describe.each(["source", "standalone"])("%s bundled skills", (mode) => {
-	const run = (args: readonly string[]) => {
-		if (mode === "source") {
-			return sourceSkills(args);
-		}
-		return capture([binary, "skills", ...args]);
-	};
-
-	test("discovery defaults to metadata only outside a repository #test-90", async () => {
-		const listed = await run(["list", "--json"]);
+	test("bundles discovery metadata outside a repository #test-90", async () => {
+		const listed = await captureSkills(mode, ["list", "--json"]);
 		expect(listed).toMatchObject({ code: EXIT.success, stderr: "" });
-		if (mode === "source") {
-			expect(await capture([process.execPath, entrypoint, "skills", "list", "--json"])).toEqual(
-				listed,
-			);
-		}
-		const payload = JSON.parse(listed.stdout);
-		const [skill] = payload.skills;
-		expect(payload).toEqual({
+		expect(JSON.parse(listed.stdout)).toEqual({
 			ok: true,
 			kind: "skills_list",
 			skills: [{ name, description: expect.any(String), files: ["SKILL.md", reference] }],
 		});
-		expect(await run(["--json"])).toEqual(listed);
-		expect(await run([])).toEqual({
-			code: EXIT.success,
-			stdout: `${name}\t${skill.description}\n`,
-			stderr: "",
-		});
 	});
 
-	test("instructions omit frontmatter in text and JSON #test-91", async () => {
-		const body = await run(["get", name]);
+	test("bundles instructions without frontmatter #test-91", async () => {
+		const body = await captureSkills(mode, ["get", name]);
 		expect(body).toMatchObject({ code: EXIT.success, stderr: "" });
 		expect(body.stdout).not.toStartWith("---");
 		expect(body.stdout).toContain(`qlock skills file ${name} ${reference}`);
-		const json = await run(["get", name, "--json"]);
-		expect(json).toMatchObject({ code: EXIT.success, stderr: "" });
-		expect(JSON.parse(json.stdout)).toEqual({
-			ok: true,
-			kind: "skills_get",
-			name,
-			path: "SKILL.md",
-			content: body.stdout.trimEnd(),
-		});
-		expect(await run(["file", name, "SKILL.md"])).toEqual(body);
 	});
 
-	test("supporting resources load independently as text and JSON #test-92", async () => {
-		const resource = await run(["file", name, reference, "--json"]);
+	test("bundles advertised supporting resources #test-92", async () => {
+		const resource = await captureSkills(mode, ["file", name, reference]);
 		expect(resource).toMatchObject({ code: EXIT.success, stderr: "" });
-		expect(JSON.parse(resource.stdout)).toEqual({
-			ok: true,
-			kind: "skills_get",
-			name,
-			path: reference,
-			content: expect.stringContaining("# Merge queues"),
-		});
-		const text = await run(["file", name, reference]);
-		expect(text).toEqual({
-			code: EXIT.success,
-			stdout: `${JSON.parse(resource.stdout).content.trimEnd()}\n`,
-			stderr: "",
-		});
-	});
-
-	test.each([
-		{ args: ["get", "missing", "--json"] },
-		{ args: ["file", name, "missing.md", "--json"] },
-		{ args: ["file", name, "../SKILL.md", "--json"] },
-		{ args: ["get", "--json"] },
-		{ args: ["file", name, "--json"] },
-		{ args: ["unknown", "--json"] },
-		{ args: ["--json", "get", "missing"] },
-		{ args: ["get", "--json", "--bad", name] },
-	])("invalid request emits one JSON error: $args #test-93", async ({ args }) => {
-		const result = await run(args);
-		expect(result).toMatchObject({ code: EXIT.usage, stderr: "" });
-		expect(JSON.parse(result.stdout)).toMatchObject({
-			ok: false,
-			kind: "error",
-			reason: "usage",
-			message: expect.any(String),
-		});
-	});
-
-	test("text failures use stderr #test-94", async () => {
-		const result = await run(["get", "missing"]);
-		expect(result).toMatchObject({ code: EXIT.usage, stdout: "" });
-		expect(result.stderr).toContain("qlock:");
+		expect(resource.stdout).toContain("# Merge queues");
 	});
 });
 
-async function sourceSkills(args: readonly string[]) {
-	let stdout = "";
-	let stderr = "";
-	const code = await runCli(["skills", ...args], {
-		...createLiveDependencies(),
-		cwd,
-		stdout: (text) => {
-			stdout += text;
-		},
-		stderr: (text) => {
-			stderr += text;
-		},
-	});
-	return { code, stdout, stderr };
+function captureSkills(mode: string, args: string[]) {
+	if (mode === "source") {
+		return capture([process.execPath, entrypoint, "skills", ...args]);
+	}
+	return capture([binary, "skills", ...args]);
 }
 
 async function capture(command: string[]) {

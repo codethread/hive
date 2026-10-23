@@ -4,6 +4,7 @@ import { createLiveDependencies, openQueue } from "../../src/live.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Isolated filesystem fixtures exercise a compiled CLI.
 import { mkdir, mkdtemp, realpath, rm } from "node:fs/promises";
 import { Database } from "bun:sqlite";
+import { createStaticProvider } from "skills-handler";
 // eslint-disable-next-line import/no-nodejs-modules -- Locate the executable and fixture paths.
 import { resolve } from "node:path";
 import { runCli } from "../../src/cli.ts";
@@ -420,6 +421,7 @@ async function liveQlock(args: readonly string[]) {
 	let stderr = "";
 	const code = await runCli(args, {
 		...createLiveDependencies(),
+		loadSkills: () => Promise.resolve(createStaticProvider([])),
 		cwd: directory,
 		stdout: (text) => {
 			stdout += text;

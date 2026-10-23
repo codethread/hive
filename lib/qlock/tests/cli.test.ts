@@ -1,9 +1,10 @@
 // Tests spell out expected IDs, timings and the domain null urgency.
 /* eslint-disable no-magic-numbers, unicorn/no-null */
-import type { Dependencies, LockTarget, Request, TicketRequest } from "../src/run.ts";
 import { QlockError, emptyQueue, finish } from "../src/queue.ts";
+import type { Request, TicketRequest } from "../src/run.ts";
 import { expect, test } from "bun:test";
 import type { QueueState } from "../src/queue.ts";
+import { cliFixture as fixture } from "./cli-fixture.ts";
 import { runCli } from "../src/cli.ts";
 import { runRequest } from "../src/run.ts";
 
@@ -349,56 +350,4 @@ function occupiedQueue(): QueueState {
 			{ id: 2, cwd: "/caller", urgent: null, state: "queued" },
 		],
 	};
-}
-
-function fixture(queue = emptyQueue()) {
-	const state = {
-		queue,
-		now: 0,
-		out: [] as string[],
-		err: [] as string[],
-		commands: [] as string[][],
-		targets: [] as LockTarget[],
-		sleeps: [] as number[],
-		opened: 0,
-		closed: 0,
-	};
-	const deps: Dependencies = {
-		resolveLock: (target) => {
-			state.targets.push(target);
-			return Promise.resolve("/lock");
-		},
-		openQueue: () => {
-			state.opened += 1;
-			return Promise.resolve({
-				update: (transform) => {
-					state.queue = transform(state.queue);
-					return state.queue;
-				},
-				close: () => {
-					state.closed += 1;
-				},
-			});
-		},
-		now: () => state.now,
-		sleep: (ms) => {
-			state.sleeps.push(ms);
-			state.now += ms;
-			return Promise.resolve();
-		},
-		isAlive: () => true,
-		execute: (command) => {
-			state.commands.push(command);
-			return Promise.resolve(23);
-		},
-		pid: 42,
-		cwd: "/caller",
-		stdout: (text) => {
-			state.out.push(text);
-		},
-		stderr: (text) => {
-			state.err.push(text);
-		},
-	};
-	return Object.assign(state, { deps });
 }
