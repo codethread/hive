@@ -5,7 +5,10 @@ import { parseOptions, parseOutputMode } from "../protocol.ts";
 import type { Deps } from "../services.ts";
 
 /** Read bundled skills without consulting Git, repository configuration, or the network. */
-export async function skillsCommand(args: string[], deps: Deps): Promise<CommandResult> {
+export async function skillsCommand(
+	args: string[],
+	deps: Pick<Deps, "skills">,
+): Promise<CommandResult> {
 	const output = parseOutputMode(parseOptions(args));
 	const [action = "list"] = args;
 	if (action === "list") {

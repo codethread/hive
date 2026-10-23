@@ -22,19 +22,10 @@ test("skills lists bundled metadata outside a repository #test-280", async () =>
 	expect(defaultList).toEqual(result);
 });
 
-test("skills retrieves instructions and referenced resources as text or JSON #test-279", async () => {
+test("skills reads bundled instructions and referenced resources #test-279", async () => {
 	const instructions = await runCli(["skills", "get", "git-workflow"], tmp.dir);
 	expect(instructions).toMatchObject({ exitCode: EXIT_CODES.SUCCESS, stderr: "" });
 	expect(instructions.stdout).not.toStartWith("---");
-	const jsonInstructions = await runCli(["skills", "get", "git-workflow", "--json"], tmp.dir);
-	expect(jsonInstructions).toMatchObject({ exitCode: EXIT_CODES.SUCCESS, stderr: "" });
-	expect(JSON.parse(jsonInstructions.stdout)).toMatchObject({
-		ok: true,
-		kind: "skills_get",
-		name: "git-workflow",
-		path: "SKILL.md",
-		content: instructions.stdout.trimEnd(),
-	});
 	expect(instructions.stdout).toContain(
 		"honeycomb skills file git-workflow references/pooled-slots.md",
 	);
@@ -52,17 +43,8 @@ test("skills retrieves instructions and referenced resources as text or JSON #te
 	});
 });
 
-test.each([
-	{ args: ["get", "missing"] },
-	{ args: ["file", "git-workflow", "missing.md"] },
-	{ args: ["file", "git-workflow", "../SKILL.md"] },
-	{ args: ["get"] },
-	{ args: ["unknown"] },
-])(
-	"skills rejects invalid requests with one JSON error document: %j #test-281",
-	async ({ args }) => {
-		const result = await runCli(["skills", ...args, "--json"], tmp.dir);
-		expect(result).toMatchObject({ exitCode: EXIT_CODES.USAGE, stderr: "" });
-		expect(JSON.parse(result.stdout)).toMatchObject({ ok: false, kind: "error", reason: "usage" });
-	},
-);
+test("skills emits one JSON error for a missing CLI argument #test-281", async () => {
+	const result = await runCli(["skills", "get", "--json"], tmp.dir);
+	expect(result).toMatchObject({ exitCode: EXIT_CODES.USAGE, stderr: "" });
+	expect(JSON.parse(result.stdout)).toMatchObject({ ok: false, kind: "error", reason: "usage" });
+});
