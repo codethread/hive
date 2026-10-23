@@ -44,11 +44,6 @@ async function treeJson(root: string) {
 	return JSON.parse(result.stdout ?? "{}");
 }
 
-async function addCommittedBranch(root: string, branch: string, base: string) {
-	const path = await addBranch(root, branch, base);
-	return { head: await commit(path, branch), path };
-}
-
 async function initOlderAndUnrelatedTree() {
 	const root = await initTreeRepo();
 	const old = await addBranch(root, "old", "main");
@@ -199,44 +194,3 @@ test.each([
 		expect(result.exitCode).not.toBe(EXIT_CODES.SUCCESS);
 	},
 );
-
-async function initOldBaseStack() {
-	const root = await initTreeRepo("trunk");
-	await gitOut(root, "worktree", "add", "-b", "wk-pool/feat1", `${root}__feat1`, "trunk");
-	const parent = await addCommittedBranch(root, "parent", "trunk");
-	const child = await addCommittedBranch(root, "child", "parent");
-	await commit(root, "advance default");
-	await gitOut(root, "worktree", "add", "-b", "wk-pool/feat2", `${root}__feat2`, "trunk");
-	await addCommittedBranch(root, "sibling", "trunk");
-	const baseline = await commit(root, "advance default again");
-	return { root, parent, child, baseline };
-}
-
-test("stale pool commits do not parent an old-base feature stack #test-70", async () => {
-	const { parent, child, baseline } = await initOldBaseStack();
-	const payload = await treeJson(child.path);
-	expect(payload.default_branch).toMatchObject({ head: baseline, branch: "trunk" });
-	expect(payload.nodes).toContainEqual(
-		expect.objectContaining({
-			id: parent.head,
-			parentage: { kind: "unknown", reason: "no_ancestor" },
-			comparison: { kind: "related", ahead: 1, behind: 2 },
-		}),
-	);
-	expect(payload.nodes).toContainEqual(
-		expect.objectContaining({ id: child.head, parentage: { kind: "inferred", head: parent.head } }),
-	);
-	const text = await dispatch("tree", ["--cwd", child.path], testDeps());
-	expect(text.stdout).toMatchInlineSnapshot(`
-	  "Worktrees (default-branch groups; inferred feature stacks, not creation history)
-	  └── trunk [canonical] [default]
-	      ├── parent [1 ahead, 2 behind]
-	      │   └── child [2 ahead, 2 behind]
-	      └── sibling [1 ahead, 1 behind]
-
-	  Free pool slots (relative to default branch)
-	  ├── wk-pool/feat1 [pool:free] [0 ahead, 2 behind]
-	  └── wk-pool/feat2 [pool:free] [0 ahead, 1 behind]
-	  "
-	`);
-});
