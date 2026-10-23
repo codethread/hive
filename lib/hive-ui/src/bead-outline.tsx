@@ -11,7 +11,7 @@ import {
 import type { Hierarchy, HierarchyNode } from "../contracts.ts";
 import { Link, useSearch } from "@tanstack/react-router";
 import { branchRows, outlineHierarchy, unclosed } from "../hierarchy.ts";
-import { OutlineClosedToggle } from "./outline-controls.tsx";
+import { OutlineControls } from "./outline-controls.tsx";
 import { WorkflowIndicator } from "./workflow-preview.tsx";
 import { statusName } from "./filter-controls.tsx";
 import { useStore } from "zustand";
@@ -19,7 +19,8 @@ import { useStore } from "zustand";
 const INDENT = 24;
 
 export function BeadOutline({ colonyId, id }: { colonyId: string; id: string }) {
-	const includeClosed = useStore(preferences, (state) => state.outlineClosed);
+	const closed = useStore(preferences, (state) => state.outlineClosed);
+	const workflows = useStore(preferences, (state) => state.outlineWorkflows);
 	const resource = useStore(outlines.store, (state) => state.entries[`${colonyId}/${id}`] ?? EMPTY);
 	const annotationEntries = useStore(annotations.store, (state) => state.entries);
 	const hierarchy = annotateHierarchy(snapshot(resource), colonyId, annotationEntries);
@@ -62,7 +63,7 @@ export function BeadOutline({ colonyId, id }: { colonyId: string; id: string }) 
 							</p>
 						</div>
 						<div className="flex shrink-0 flex-wrap items-center gap-4">
-							<OutlineClosedToggle />
+							<OutlineControls />
 							<Link
 								from="/colonies/$colonyId"
 								to="."
@@ -78,7 +79,10 @@ export function BeadOutline({ colonyId, id }: { colonyId: string; id: string }) 
 							<span>Bead</span>
 							<span>Status · priority · assignee</span>
 						</header>
-						<OutlineBranch hierarchy={outlineHierarchy(hierarchy, includeClosed, id)} root={root} />
+						<OutlineBranch
+							hierarchy={outlineHierarchy(hierarchy, { closed, workflows }, id)}
+							root={root}
+						/>
 					</div>
 				</>
 			)}
@@ -86,7 +90,7 @@ export function BeadOutline({ colonyId, id }: { colonyId: string; id: string }) 
 	);
 }
 
-// --- Full subtree, scoped to the deliberate outline navigation ---
+// --- Filtered subtree, scoped to the deliberate outline navigation ---
 function OutlineBranch({ hierarchy, root }: { hierarchy: Hierarchy; root: HierarchyNode }) {
 	const search = useSearch({ from: "/colonies/$colonyId" });
 	return (

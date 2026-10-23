@@ -33,14 +33,27 @@ export function unclosed(node: HierarchyNode): boolean {
 	return node.status !== "closed" && node.status !== "tombstone";
 }
 
-/** Hide closed-only branches while retaining the selected bead and native paths to visible beads. */
+/**
+ * Hide workflow beads before closed-only branches, always retaining the selected bead.
+ * Promote descendants past hidden workflow ancestors; retain closed ancestors of visible beads.
+ */
 // eslint-disable-next-line max-statements -- Ancestor traversal shares a single native index and visited set.
 export function outlineHierarchy(
 	hierarchy: Hierarchy,
-	includeClosed: boolean,
+	visibility: { closed: boolean; workflows: boolean },
 	selected: string,
 ): Hierarchy {
-	if (includeClosed) {
+	if (!visibility.workflows) {
+		hierarchy = withoutHierarchyNodes(
+			hierarchy,
+			new Set(
+				hierarchy.nodes
+					.filter((node) => node.isWorkflowGenerated && node.id !== selected)
+					.map((node) => node.id),
+			),
+		);
+	}
+	if (visibility.closed) {
 		return hierarchy;
 	}
 	const byId = new Map(hierarchy.nodes.map((node) => [node.id, node]));
@@ -197,7 +210,7 @@ export function separateHumanWork(
 	};
 }
 
-/** Promote visible tasks past hidden ancestors for board presentation only. */
+/** Promote visible tasks past hidden ancestors without mutating the native hierarchy. */
 export function withoutHierarchyNodes(hierarchy: Hierarchy, hidden: Set<string>): Hierarchy {
 	const byId = new Map(hierarchy.nodes.map((node) => [node.id, node]));
 	return {

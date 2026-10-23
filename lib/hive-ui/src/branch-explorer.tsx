@@ -2,7 +2,7 @@ import type { Hierarchy, HierarchyNode } from "../contracts.ts";
 import { Link, useSearch } from "@tanstack/react-router";
 import { beadFamilies, hierarchyChildren, outlineHierarchy } from "../hierarchy.ts";
 import { MergeLinks } from "./merge-links.tsx";
-import { OutlineClosedToggle } from "./outline-controls.tsx";
+import { OutlineControls } from "./outline-controls.tsx";
 import { WorkflowIndicator } from "./workflow-preview.tsx";
 import { preferences } from "./data.ts";
 import { statusName } from "./filter-controls.tsx";
@@ -18,14 +18,15 @@ export function BranchExplorer({
 	selected: string;
 	onSelect: () => void;
 }) {
-	const includeClosed = useStore(preferences, (state) => state.outlineClosed);
-	const visible = outlineHierarchy(hierarchy, includeClosed, selected);
+	const closed = useStore(preferences, (state) => state.outlineClosed);
+	const workflows = useStore(preferences, (state) => state.outlineWorkflows);
+	const visible = outlineHierarchy(hierarchy, { closed, workflows }, selected);
 	const families = beadFamilies(visible);
 	const childrenById = hierarchyChildren(visible);
 	return (
 		<aside className="branch-explorer" aria-label="Bead hierarchy">
 			<div className="branch-explorer-controls">
-				<OutlineClosedToggle />
+				<OutlineControls />
 			</div>
 			<div className="branch-explorer-content">
 				{families.map((family) => (
@@ -61,7 +62,7 @@ export function BranchExplorer({
 	);
 }
 
-// --- Native links; selecting a bead changes only the inspector URL selection ---
+// --- Filtered tree; links select native beads through the inspector URL ---
 function BranchNode({
 	node,
 	childrenById,

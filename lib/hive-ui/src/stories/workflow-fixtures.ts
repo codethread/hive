@@ -121,7 +121,7 @@ export function workflowDetail(id: string, source = workflowHierarchy): Detail {
 			"Original work, workflow runs and generated visits are ordinary native beads. " +
 			"Use the branch explorer to follow the containing work and higher ancestors, " +
 			"or open the bead outline for this scope’s descendants. " +
-			"Include closed reveals completed runs and visits.",
+			"Turn on Workflows and Closed to reveal completed runs and visits.",
 		acceptanceCriteria:
 			"- [x] Keep the native containing task and ancestors\n- [ ] Complete the selected work and verify its children",
 		comments: [

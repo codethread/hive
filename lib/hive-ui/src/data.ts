@@ -63,6 +63,8 @@ interface Preferences {
 	showWorkflowBeads: boolean;
 	/** Closed visibility shared by outline views, independent of the Kanban predicate. */
 	outlineClosed: boolean;
+	/** Workflow visibility shared by the bead outline and branch explorer, independent of the board. */
+	outlineWorkflows: boolean;
 	/** Sidebar width preference, independent of URL filters and native data reads. */
 	sidebarCollapsed: boolean;
 	/** Two settled visual themes; kept outside the component lifecycle. */
@@ -87,6 +89,7 @@ export const provenance = createResource(provenanceSchema);
 export const preferences = createStore<Preferences>(() => ({
 	showWorkflowBeads: false,
 	outlineClosed: false,
+	outlineWorkflows: false,
 	sidebarCollapsed: true,
 	theme: "moss",
 	views: {},

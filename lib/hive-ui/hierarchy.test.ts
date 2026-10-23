@@ -170,18 +170,19 @@ test("outline closed visibility preserves selected beads and native paths to act
 		makeNode("deleted", "tombstone", ["root"]),
 	];
 	const hierarchy = { nodes, stale: false, fetchedAt: nodes[0]!.updatedAt };
-	expect(outlineHierarchy(hierarchy, false, "root").nodes.map((node) => node.id)).toEqual([
-		"root",
-		"parent",
-		"active",
-	]);
-	expect(outlineHierarchy(hierarchy, false, "closed").nodes.map((node) => node.id)).toEqual([
-		"root",
-		"parent",
-		"active",
-		"closed",
-	]);
-	expect(outlineHierarchy(hierarchy, true, "root").nodes).toEqual(nodes);
+	expect(
+		outlineHierarchy(hierarchy, { closed: false, workflows: true }, "root").nodes.map(
+			(node) => node.id,
+		),
+	).toEqual(["root", "parent", "active"]);
+	expect(
+		outlineHierarchy(hierarchy, { closed: false, workflows: true }, "closed").nodes.map(
+			(node) => node.id,
+		),
+	).toEqual(["root", "parent", "active", "closed"]);
+	expect(outlineHierarchy(hierarchy, { closed: true, workflows: true }, "root").nodes).toEqual(
+		nodes,
+	);
 });
 
 test.each([

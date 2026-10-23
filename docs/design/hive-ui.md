@@ -15,7 +15,7 @@ The nested [Hive UI glossary](../../lib/hive-ui/GLOSSARY.md) owns the canonical 
 | Workflow preview | `Beads/Workflow preview` | `WorkflowIndicator` |
 | Bead card | `Beads/Bead card` | `BeadCard` |
 | Bead board | `Beads/Bead board` | `BeadBoard` |
-| Bead outline | `Beads/Bead outline` | `BeadOutline`, `OutlineClosedToggle` |
+| Bead outline | `Beads/Bead outline` | `BeadOutline`, `OutlineControls` |
 | Branch explorer | `Beads/Branch explorer` | `BranchExplorer` |
 | Bead inspector | `Beads/Bead inspector` | `Inspector` |
 | Canvas | `Workflow preview/Canvas` | `WorkflowCanvas`, `WorkflowWorkspace` (including **Parallel states**) |
@@ -134,7 +134,7 @@ Workflow provenance is a separate producer-owned read contract. [`server/data.ts
 
 An empty index loads all retained checkpoint descriptions in one native read after enumeration, avoiding a subprocess per batch at startup. Cold cost therefore still scales with retained history; warm refreshes reduce description payloads but retain a complete ID/revision enumeration.
 
-`isWorkflowGenerated` describes broad creation provenance, independently of whether a record is actionable workflow auto work. Agent-created nested tasks remain unmarked. The header's **Show workflow beads** control defaults off and hides generated records after native task pagination, so a visible page can contain fewer than 60 cards. Manual tasks are promoted past hidden ancestors for board presentation; inspector and outline retain the complete native hierarchy. Toggling visibility performs no new native reads.
+`isWorkflowGenerated` describes broad creation provenance, independently of whether a record is actionable workflow auto work. Agent-created nested tasks remain unmarked. The header's **Show workflow beads** control defaults off and hides generated records after native task pagination, so a visible page can contain fewer than 60 cards. Manual tasks are promoted past hidden ancestors for board presentation. Loaded and cached native hierarchies remain complete. The bead outline and inspector’s branch explorer share **Workflows** and **Closed** preferences, both defaulting off independently of board filters. Their presentation hides workflow-generated beads first, promoting manual descendants past hidden ancestors while retaining the selected bead (the dedicated outline’s root), even if generated. The closed filter then hides closed-only branches while retaining ancestors of visible beads. These filters operate on loaded data without new reads or mutations to native relationships.
 
 ### Hierarchy source
 

@@ -89,6 +89,7 @@ export function resetStoryState(): void {
 	preferences.setState({
 		showWorkflowBeads: false,
 		outlineClosed: false,
+		outlineWorkflows: false,
 		sidebarCollapsed: true,
 		views: {},
 	});
