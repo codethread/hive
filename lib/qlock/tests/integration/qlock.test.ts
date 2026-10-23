@@ -12,7 +12,6 @@ import { tmpdir } from "node:os";
 
 const entrypoint = resolve(import.meta.dirname, "../../bin/qlock.ts");
 const queued = 75;
-const gone = 3;
 const usage = 2;
 const childFailure = 19;
 const success = 0;
@@ -70,49 +69,6 @@ test("exec preserves command arguments, streams and exit status, then frees the 
 		stderr: "",
 	});
 });
-
-test(
-	"timeout retains a new ticket and resumed exec preserves FIFO without allocation #test-72",
-	// eslint-disable-next-line max-statements -- Verify ticket identity throughout timeout, resumption and completion.
-	async () => {
-		const first = await seedTicket();
-		const waiting = await qlock(["exec", "-w", "0", "--lock", lock, "--", "printf", "not yet"]);
-		expect(waiting.code).toBe(queued);
-		expect(waiting.stdout).toBe("");
-		const second = timeoutTicket(waiting.stderr);
-		const resumed = await qlock([
-			"exec",
-			"-w",
-			"0",
-			"--ticket",
-			second,
-			"--lock",
-			lock,
-			"--",
-			"true",
-		]);
-		expect(resumed.code).toBe(queued);
-		expect(timeoutTicket(resumed.stderr)).toBe(second);
-		const status = await qlock(["status", "--json", "--lock", lock]);
-		expect(JSON.parse(status.stdout).tickets.map((ticket: { id: number }) => ticket.id)).toEqual(
-			[first, second].map(Number),
-		);
-		await expect(
-			qlock(["exec", "-w", "0", "--ticket", first, "--lock", lock, "--", "true"]),
-		).resolves.toMatchObject({ code: 0 });
-		await expect(
-			qlock(["exec", "-w", "0", "--ticket", second, "--lock", lock, "--", "printf", "resumed"]),
-		).resolves.toMatchObject({
-			code: 0,
-			stdout: "resumed",
-			stderr: "",
-		});
-		await expect(
-			qlock(["exec", "-w", "0", "--ticket", second, "--lock", lock, "--", "true"]),
-		).resolves.toMatchObject({ code: gone });
-		await expect(qlock(["status", "--lock", lock])).resolves.toMatchObject({ stdout: "free\n" });
-	},
-);
 
 test(
 	"urgent tickets skip queued work without pre-empting a ready ticket #test-80",

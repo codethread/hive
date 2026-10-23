@@ -35,6 +35,7 @@ test("status of a free queue never joins it #test-639", async () => {
 	expect(harness.queue).toEqual(emptyQueue());
 });
 
+// eslint-disable-next-line max-statements -- Verify ticket identity throughout timeout, resumption and completion.
 test("new exec times out retaining its ticket, and resumed exec does not reallocate #test-478", async () => {
 	const harness = fixture(finish(occupiedQueue(), 2));
 	expect(
@@ -44,13 +45,22 @@ test("new exec times out retaining its ticket, and resumed exec does not realloc
 	expect(harness.err.join("")).toContain("--ticket 3");
 	expect(harness).toMatchObject({ out: [], commands: [] });
 	expect(harness.queue.tickets.map(({ id }) => id)).toEqual([1, 3]);
+	const resume = execRequest({ kind: "existing", id: 3 });
+	const waiting = runRequest(resume, harness.deps);
+	await expect(waiting).rejects.toBeInstanceOf(QlockError);
+	await expect(waiting).rejects.toMatchObject({
+		reason: "timed_out",
+		context: { ticket: 3, position: 2, total: 2 },
+	});
+	expect(harness.queue.nextId).toBe(4);
+	expect(harness.queue.tickets.map(({ id }) => id)).toEqual([1, 3]);
 	harness.queue = finish(harness.queue, 1);
-	expect(
-		await runCli(
-			["exec", "-w", "0", "--ticket", "3", "--lock", "/lock", "--", "child"],
-			harness.deps,
-		),
-	).toBe(23);
+	await expect(runRequest(resume, harness.deps)).resolves.toEqual({ kind: "executed", code: 23 });
+	expect(harness.queue).toEqual({ nextId: 4, tickets: [] });
+	expect(harness.commands).toEqual([["child"]]);
+	const repeated = runRequest(resume, harness.deps);
+	await expect(repeated).rejects.toBeInstanceOf(QlockError);
+	await expect(repeated).rejects.toMatchObject({ reason: "ticket_gone", context: { ticket: 3 } });
 	expect(harness.queue).toEqual({ nextId: 4, tickets: [] });
 	expect(harness.commands).toEqual([["child"]]);
 });
