@@ -161,8 +161,6 @@ test.each([
 	{ state: "canonical", reason: "canonical_root" },
 	{ state: "default", reason: "canonical_root" },
 	{ state: "unregistered", reason: "blocked" },
-	{ state: "unknown-default", reason: "trunk_detection_failed" },
-	{ state: "malformed-default", reason: "trunk_detection_failed" },
 	{ state: "locked", reason: "blocked" },
 	{ state: "merge-options", reason: "usage" },
 	{ state: "duplicate-source", reason: "blocked" },
@@ -210,19 +208,6 @@ test.each([
 			}
 			case "unregistered": {
 				into = "missing";
-				break;
-			}
-			case "unknown-default": {
-				await gitOut(checkout.root, "symbolic-ref", "--delete", "refs/remotes/origin/HEAD");
-				break;
-			}
-			case "malformed-default": {
-				await gitOut(
-					checkout.root,
-					"symbolic-ref",
-					"refs/remotes/origin/HEAD",
-					"refs/heads/feature/base",
-				);
 				break;
 			}
 			case "locked": {

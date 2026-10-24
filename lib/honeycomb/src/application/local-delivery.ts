@@ -12,8 +12,9 @@ import {
 import type { Deps, GitRunner } from "../services.ts";
 import { listWorktrees, resolveWorktreeContainingPath } from "./repository.ts";
 import { GitError } from "../git/error.ts";
+import type { LocalGitRefs } from "./branches.ts";
 import type { Worktree } from "../domain/worktree.ts";
-import { readLocalDefaultBranch } from "./branches.ts";
+import { createLocalGitRefs } from "./branches.ts";
 
 const ONE_DESTINATION = 1;
 const NOT_ANCESTOR = 1;
@@ -60,7 +61,7 @@ export async function prepareLocalDelivery(
 	deps: Deps,
 ): Promise<LocalDelivery> {
 	const { canonical, source, target } = await selectLocalCheckouts(request, deps);
-	await assertFeatureBranches(deps.git, canonical.path, { source, target });
+	await assertFeatureBranches(createLocalGitRefs(deps.git, canonical.path), { source, target });
 	const commonDir = await gitValue(deps.git, canonical.path, [
 		"rev-parse",
 		"--path-format=absolute",
@@ -156,6 +157,31 @@ export function localDeliveryReceipt(delivery: LocalDelivery) {
 	};
 }
 
+/**
+ * Require a local default designation and exclude that branch from both delivery checkouts.
+ * Read only the default name, not its tip; read failures propagate.
+ */
+export async function assertFeatureBranches(
+	refs: Pick<LocalGitRefs, "defaultBranch">,
+	checkouts: {
+		/** Local branch supplying the change. */
+		source: { branch: string };
+		/** Local branch receiving the change. */
+		target: { branch: string };
+	},
+): Promise<void> {
+	const { source, target } = checkouts;
+	const defaultBranch = await refs.defaultBranch();
+	if (!defaultBranch) {
+		throw new TrunkDetectionError(
+			"local delivery requires the local origin/HEAD default-branch designation",
+		);
+	}
+	if (source.branch === defaultBranch || target.branch === defaultBranch) {
+		throw new CanonicalRootError("local delivery cannot use the default branch");
+	}
+}
+
 // --- Private functions ---
 
 // eslint-disable-next-line max-statements -- Keep selection and its refusal conditions together.
@@ -196,23 +222,6 @@ async function selectLocalCheckouts(request: LocalDeliveryRequest, deps: Deps) {
 		source: { ...source, branch: sourceBranch },
 		target: { ...target, branch: targetBranch },
 	};
-}
-
-async function assertFeatureBranches(
-	git: GitRunner,
-	root: string,
-	checkouts: { source: LocalDelivery["source"]; target: LocalDelivery["target"] },
-): Promise<void> {
-	const { source, target } = checkouts;
-	const defaultBranch = await readLocalDefaultBranch(git, root);
-	if (!defaultBranch) {
-		throw new TrunkDetectionError(
-			"local delivery requires the local origin/HEAD default-branch designation",
-		);
-	}
-	if (source.branch === defaultBranch || target.branch === defaultBranch) {
-		throw new CanonicalRootError("local delivery cannot use the default branch");
-	}
 }
 
 function requireActiveBranch(worktree: Worktree): string {
