@@ -127,18 +127,12 @@ test("fresh_canonical fast-forwards clean canonical default before creating a br
 	expect(await gitText(`${root}__feature--fresh`, "show", "HEAD:fresh.txt")).toBe("fresh\n");
 });
 test("fresh_canonical blocks dirty canonical root with JSON reason #test-156", async () => {
-	const { root, remote } = await initRepoWithOrigin(tmp.dir);
+	const { root } = await initRepoWithOrigin(tmp.dir);
 	writeConfig({
 		command: "echo ready",
 		copyToml: '[project.add]\npolicy = "fresh_canonical"\n',
 		root,
 		tmp: tmp.dir,
-	});
-	await commitOnRemoteDefault({
-		content: "remote\n",
-		message: "dirty block update",
-		path: "dirty-block.txt",
-		remote,
 	});
 	await writeFile(join(root, "dirty.txt"), "dirty\n");
 
@@ -156,18 +150,12 @@ test("fresh_canonical blocks dirty canonical root with JSON reason #test-156", a
 	expect(await pathExists(`${root}__feature--dirty-block`)).toBe(false);
 });
 test("fresh_canonical blocks wrong canonical branch with JSON reason #test-154", async () => {
-	const { root, remote } = await initRepoWithOrigin(tmp.dir);
+	const { root } = await initRepoWithOrigin(tmp.dir);
 	writeConfig({
 		command: "echo ready",
 		copyToml: '[project.add]\npolicy = "fresh_canonical"\n',
 		root,
 		tmp: tmp.dir,
-	});
-	await commitOnRemoteDefault({
-		content: "remote\n",
-		message: "wrong branch update",
-		path: "wrong-branch.txt",
-		remote,
 	});
 	await run(["git", "-C", root, "checkout", "-b", "other"]);
 
