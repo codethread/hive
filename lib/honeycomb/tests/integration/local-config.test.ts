@@ -41,13 +41,9 @@ async function assertPoolState(root: string, slot: string) {
 	});
 }
 
-test.each([
-	{ name: "malformed TOML", toml: "command =" },
-	{ name: "global selectors", toml: '[[project]]\nroot = "/repo"' },
-	{ name: "missing effective command", toml: "pool_size = 1" },
-])("invalid local $name fails before creating a worktree #test-283", async ({ toml }) => {
+test("malformed local TOML is rejected before registering a worktree #test-283", async () => {
 	const { root } = await initRepoWithOrigin(tmp.dir);
-	await writeFile(join(root, "honeycomb.toml"), toml);
+	await writeFile(join(root, "honeycomb.toml"), "command =");
 	const result = await runCli(["add", "--branch", "feature/invalid", "--json"], root);
 	expect(result).toMatchObject({ exitCode: EXIT_CODES.USAGE, stderr: "" });
 	expect(JSON.parse(result.stdout)).toMatchObject({

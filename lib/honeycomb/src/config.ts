@@ -10,7 +10,7 @@ import type {
 } from "./domain/config.ts";
 import type { RawConfig, RawRepositoryConfig } from "./schemas.ts";
 import { RepositoryConfigSchema, createConfigSchema } from "./schemas.ts";
-// eslint-disable-next-line import/no-nodejs-modules -- Config file paths normalize against the real filesystem.
+// eslint-disable-next-line import/no-nodejs-modules -- Configuration file and copy paths use platform path semantics.
 import { basename, normalize, resolve } from "node:path";
 import {
 	expandConfigGlob,
@@ -29,7 +29,7 @@ type ProjectRaw = RawConfig["project"][number];
 type FinishRaw = NonNullable<RawConfig["defaults"]["finish"]>;
 
 interface RepositoryConfigContext {
-	/** Canonical root whose local configuration is being parsed. */
+	/** Canonical root to which the local configuration applies. */
 	canonicalRoot: string;
 	/** Injected path canonicalization used for matching inherited settings. */
 	normalizePath: ConfigPathContext["normalizePath"];
@@ -53,7 +53,7 @@ export function parseConfig(toml: string, context: ConfigPathContext): TreesConf
 	return projectConfig(result.data, context);
 }
 
-/** Parse the canonical-root file as a final patch over the loaded global configuration. */
+/** Parse and schema-validate canonical-root TOML, then apply it over loaded global configuration. */
 export function parseRepositoryConfig(
 	toml: string,
 	config: TreesConfig,
@@ -64,7 +64,19 @@ export function parseRepositoryConfig(
 	if (!result.success) {
 		throw new ConfigError(`Invalid ${path}:\n${z.prettifyError(result.error)}`);
 	}
-	const raw = result.data;
+	return applyRepositoryConfig(result.data, config, context);
+}
+
+/**
+ * Apply trusted RepositoryConfigSchema output as a new local layer, leaving config unchanged.
+ * Use injected path matching for inheritance and effective-command validation after layering.
+ */
+export function applyRepositoryConfig(
+	raw: RawRepositoryConfig,
+	config: TreesConfig,
+	context: RepositoryConfigContext,
+): TreesConfig {
+	const path = resolve(context.canonicalRoot, "honeycomb.toml");
 	const project = findProjectForRoot(config, context.canonicalRoot, context.normalizePath);
 	const options = projectRepositoryOptions(raw, project?.copyModeDefault ?? "copy");
 	const layered = { ...config, local: { options, path, root: context.canonicalRoot } };
