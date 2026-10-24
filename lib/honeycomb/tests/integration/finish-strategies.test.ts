@@ -26,9 +26,10 @@ const { initRepoWithOrigin } = useOriginFixture();
 
 async function prepareFinish(branch: string, policy = "") {
 	const { remote, root } = await initRepoWithOrigin(tmp.dir);
+	const worktreePath = `${root}__${branch.replaceAll("/", "--")}`;
 	writeConfig({ command: "echo ready", copyToml: policy, root, tmp: tmp.dir });
-	await dispatch("add", ["--cwd", root, "--branch", branch, "--json"], deps);
-	return { branch, remote, root, worktreePath: `${root}__${branch.replaceAll("/", "--")}` };
+	await createWorktree({ root, branch, path: worktreePath, startPoint: "origin/main" });
+	return { branch, remote, root, worktreePath };
 }
 
 async function assertRebasedHistory(root: string, targetHead: string) {
@@ -132,7 +133,7 @@ test("finish uses the configured squash strategy and runs the commit hook #test-
 	expect(hookCwd.trim()).toBe(root);
 });
 test("merge preview errors fail loudly before fresh_canonical advancement #test-87", async () => {
-	const fixture = await preparePreviewSource();
+	const fixture = await prepareFinish("feature/preview-error", finishPolicy("squash", true));
 	await commitFile({
 		content: "source\n",
 		message: "source work",
@@ -219,20 +220,6 @@ test("fresh_canonical advances the target before squash integration #test-84", a
 });
 
 // --- Private functions ---
-
-async function preparePreviewSource() {
-	const branch = "feature/preview-error";
-	const { remote, root } = await initRepoWithOrigin(tmp.dir);
-	const worktreePath = `${root}__${branch.replaceAll("/", "--")}`;
-	writeConfig({
-		command: "echo ready",
-		copyToml: finishPolicy("squash", true),
-		root,
-		tmp: tmp.dir,
-	});
-	await createWorktree({ root, branch, path: worktreePath, startPoint: "origin/main" });
-	return { branch, remote, root, worktreePath };
-}
 
 async function installSuccessfulHook(root: string, name: string): Promise<string> {
 	const hook = join(root, ".git", "hooks", name);
