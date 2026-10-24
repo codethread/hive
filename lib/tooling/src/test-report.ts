@@ -36,7 +36,23 @@ const testAttributes = z.object({
 	time: nonemptyText.pipe(z.coerce.number<string>().nonnegative()),
 });
 
-type Allowances = z.infer<typeof allowanceSchema>;
+/** Validated cutoffs in milliseconds and maximum permitted severity per test ID. */
+export type Allowances = z.infer<typeof allowanceSchema>;
+
+/**
+ * Validated passing case with decoded name/classname, nonempty file and digit-only line text.
+ * The numeric time is nonnegative and measured in seconds.
+ */
+export type TestTiming = z.infer<typeof testAttributes>;
+
+interface TimingRun {
+	/** Cutoff policy from {@link TestRun.mode}. */
+	mode: TestRun["mode"];
+	/** Native status from {@link TestRun.exitCode}. */
+	exitCode: number;
+	/** Cases satisfying {@link TestTiming}; callers exclude failed, errored and skipped cases. */
+	testCases: readonly TestTiming[];
+}
 
 interface TestRun {
 	/** Changed runs use exact cutoffs; full/contract runs apply a 25% buffer to every cutoff. */
@@ -64,7 +80,10 @@ export function parseSlowTestAllowances(value: unknown): Allowances {
 
 /** Report passing tests above their allowed severity; failures stay in Bun's diagnostics. */
 export function reportSlowTests(xml: string, allowances: Allowances): string[] {
-	return collectSlowTests(xml, allowances, exactTimingMultiplier).map(({ line }) => line);
+	return reportTestTimings(
+		{ mode: "changed", exitCode: successExitCode, testCases: decodeTestTimings(xml) },
+		allowances,
+	).lines;
 }
 
 export function reportTestRun(run: TestRun, allowances: Allowances): TestRunFeedback {
@@ -77,7 +96,15 @@ export function reportTestRun(run: TestRun, allowances: Allowances): TestRunFeed
 		}
 		return { lines: [], exitCode: run.exitCode, guidance: undefined };
 	}
-	const timings = collectSlowTests(run.xml, allowances, timingMultipliers[run.mode]);
+	return reportTestTimings(
+		{ mode: run.mode, exitCode: run.exitCode, testCases: decodeTestTimings(run.xml) },
+		allowances,
+	);
+}
+
+/** Apply timing policy to trusted inputs without parsing or runtime validation. */
+export function reportTestTimings(run: TimingRun, allowances: Allowances): TestRunFeedback {
+	const timings = collectSlowTests(run.testCases, allowances, timingMultipliers[run.mode]);
 	const lines = timings.map(({ line }) => line);
 	if (lines.length === emptyTimingReportLength) {
 		return { lines, exitCode: run.exitCode, guidance: undefined };
@@ -97,7 +124,7 @@ export function reportTestRun(run: TestRun, allowances: Allowances): TestRunFeed
 
 // --- Private functions ---
 
-function collectSlowTests(xml: string, allowances: Allowances, multiplier: number) {
+function decodeTestTimings(xml: string): TestTiming[] {
 	const root = Bun.XML.parse(xml, { compact: false });
 	if (root.name !== "testsuites") {
 		throw new Error("Expected Bun JUnit testsuites report");
@@ -107,7 +134,15 @@ function collectSlowTests(xml: string, allowances: Allowances, multiplier: numbe
 			(testCase) =>
 				!elements(testCase).some((child) => ["failure", "error", "skipped"].includes(child.name)),
 		)
-		.map((testCase) => testAttributes.parse(testCase.attributes))
+		.map((testCase) => testAttributes.parse(testCase.attributes));
+}
+
+function collectSlowTests(
+	testCases: readonly TestTiming[],
+	allowances: Allowances,
+	multiplier: number,
+) {
+	return testCases
 		.toSorted((left, right) => right.time - left.time)
 		.flatMap((testCase) => {
 			const durationMs = testCase.time * millisecondsPerSecond;
