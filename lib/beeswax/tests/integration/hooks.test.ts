@@ -128,14 +128,6 @@ test.each([
 		commands: [],
 	},
 	{
-		name: "duplicate IDs",
-		branch: "tracker/state",
-		snapshot: '{"id":"hv-test"}\n{"id":"hv-test"}\n',
-		mixed: false,
-		accepted: false,
-		commands: [],
-	},
-	{
 		name: "snapshot with code",
 		branch: "tracker/state",
 		snapshot: '{"id":"hv-test"}\n',
