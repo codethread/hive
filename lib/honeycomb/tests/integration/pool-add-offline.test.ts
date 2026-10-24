@@ -1,4 +1,11 @@
-import { ConfigError, EXIT_CODES, HookError, UnmergedBranchError, dispatch } from "../../src/index";
+import {
+	ConfigError,
+	EXIT_CODES,
+	HookError,
+	UnmergedBranchError,
+	UsageError,
+	dispatch,
+} from "../../src/index";
 import {
 	commitOnRemoteDefault,
 	createPoolSlot,
@@ -120,18 +127,13 @@ async function occupiedFixture() {
 	return root;
 }
 
-async function missingResetFixture(missing: string) {
+async function missingResetFixture() {
 	const root = await poolFixture({ noNetwork: true, skipCommand: true, state: "cold" });
 	const tip = await gitOut(root, "rev-parse", "HEAD");
 	await run(["git", "-C", root, "branch", "feature/new"]);
 	await run(["git", "-C", root, "checkout", "-b", "other"]);
-	if (missing === "unknown-default") {
-		await run(["git", "-C", root, "symbolic-ref", "--delete", "refs/remotes/origin/HEAD"]);
-	}
-	if (missing === "missing-defaults") {
-		await run(["git", "-C", root, "branch", "-D", "main"]);
-		await run(["git", "-C", root, "update-ref", "-d", "refs/remotes/origin/main"]);
-	}
+	await run(["git", "-C", root, "branch", "-D", "main"]);
+	await run(["git", "-C", root, "update-ref", "-d", "refs/remotes/origin/main"]);
 	return { root, tip };
 }
 
@@ -241,19 +243,35 @@ test(
 	},
 );
 
-test.each(["unknown-default", "missing-defaults"])(
-	"pooled offline $missing needs explicit reset base even for existing branches #test-104",
-	async (missing) => {
-		const { root, tip } = await missingResetFixture(missing);
-		const failure = await addPool(root, ["--no-network", "--skip-command"]);
-		expect(failure.exitCode).not.toBe(EXIT_CODES.SUCCESS);
-		expect(JSON.parse(failure.stdout ?? "{}").message).toContain("--base");
-		expect(await gitOut(`${root}__feat2`, "branch", "--show-current")).toBe("wk-pool/feat2");
-		const success = await addPool(root, ["--no-network", "--skip-command", "--base-current"]);
-		expect(success.exitCode).toBe(EXIT_CODES.SUCCESS);
-		expect(await gitOut(`${root}__feat2`, "rev-parse", "HEAD")).toBe(tip);
-	},
-);
+test("pooled offline add preserves refs on missing-default refusal and accepts --base-current #test-104", async () => {
+	const { root, tip } = await missingResetFixture();
+	const slot = `${root}__feat2`;
+	const slotHead = await gitOut(slot, "rev-parse", "HEAD");
+	const failure = await addPool(root, ["--no-network", "--skip-command"]);
+	await assertResetRefusal({ result: failure, root, tip, slotHead });
+	const success = await addPool(root, ["--no-network", "--skip-command", "--base-current"]);
+	expect(success.exitCode).toBe(EXIT_CODES.SUCCESS);
+	expect(JSON.parse(success.stdout ?? "{}")).toMatchObject({ kind: "ready" });
+	expect(await gitOut(slot, "branch", "--show-current")).toBe("feature/new");
+	expect(await gitOut(slot, "rev-parse", "HEAD")).toBe(tip);
+});
+
+async function assertResetRefusal(options: {
+	result: Awaited<ReturnType<typeof dispatch>>;
+	root: string;
+	tip: string;
+	slotHead: string;
+}) {
+	const { result, root, tip, slotHead } = options;
+	const slot = `${root}__feat2`;
+	expect(result.failure).toBeInstanceOf(UsageError);
+	expect(result.exitCode).toBe(EXIT_CODES.USAGE);
+	expect(JSON.parse(result.stdout ?? "{}")).toMatchObject({ ok: false, reason: "usage" });
+	expect(JSON.parse(result.stdout ?? "{}").message).toContain("--base");
+	expect(await gitOut(slot, "branch", "--show-current")).toBe("wk-pool/feat2");
+	expect(await gitOut(slot, "rev-parse", "HEAD")).toBe(slotHead);
+	expect(await gitOut(root, "rev-parse", "feature/new")).toBe(tip);
+}
 
 async function aheadPoolFixture(policy: string) {
 	const { root, remote } = await initRepoWithOrigin(tmp.dir);

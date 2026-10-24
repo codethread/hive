@@ -5,11 +5,9 @@ import {
 	createLocalGitRefs,
 	detectBranchState,
 	detectOriginDefaultBranch,
-	readLocalDefaultBranch,
-	refExists,
 	resolveDefaultBaseForNewBranch,
 	resolveLocalBaseCommit,
-	resolveOfflineDefaultBase,
+	resolveOfflinePoolResetCommit,
 } from "../application/branches.ts";
 import { EXIT_CODES } from "../errors.ts";
 import type { TreesConfig } from "../domain/config.ts";
@@ -39,20 +37,9 @@ export async function resolvePoolResetCommit(options: {
 	const { base, deps, noNetwork, root } = options;
 	if (!noNetwork) {
 		const trunk = await detectOriginDefaultBranch(deps.git, root);
-		return resolveLocalBaseCommit(deps.git, root, `origin/${trunk}`);
+		return resolveLocalBaseCommit(createLocalGitRefs(deps.git, root), `origin/${trunk}`);
 	}
-	const trunk = await readLocalDefaultBranch(deps.git, root);
-	if (
-		trunk &&
-		((await refExists(deps.git, root, `refs/remotes/origin/${trunk}`)) ||
-			(await refExists(deps.git, root, `refs/heads/${trunk}`)))
-	) {
-		return resolveOfflineDefaultBase(createLocalGitRefs(deps.git, root));
-	}
-	if (base) {
-		return resolveLocalBaseCommit(deps.git, root, base);
-	}
-	return resolveOfflineDefaultBase(createLocalGitRefs(deps.git, root));
+	return resolveOfflinePoolResetCommit(createLocalGitRefs(deps.git, root), base);
 }
 
 export async function captureExistingBranchHead(options: {
@@ -213,7 +200,7 @@ async function resolveBranchBase(
 	});
 	const selectedBase = base ?? defaultBase;
 	if (branchState === "none" && selectedBase) {
-		return resolveLocalBaseCommit(deps.git, root, selectedBase);
+		return resolveLocalBaseCommit(createLocalGitRefs(deps.git, root), selectedBase);
 	}
 	return selectedBase;
 }

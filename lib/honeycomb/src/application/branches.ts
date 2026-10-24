@@ -225,13 +225,33 @@ export async function resolveOfflineDefaultBase(refs: LocalGitRefs): Promise<str
 	return requireCommit(await refs.commit(ref), "local default branch", ref);
 }
 
-export async function resolveLocalBaseCommit(
-	git: GitRunner,
-	root: string,
-	base: string,
+/**
+ * Prefer the cached origin default over the local default for offline pool reset.
+ * Use an explicit base only if no default is designated or both default refs are absent.
+ * Read failures and unresolvable selected refs fail instead of falling back.
+ * Reads are sequential observations, not an atomic snapshot.
+ */
+export async function resolveOfflinePoolResetCommit(
+	refs: LocalGitRefs,
+	base: string | null,
 ): Promise<string> {
-	const ref = await resolveBaseRef(git, root, base);
-	return resolveCommitRef({ git, label: "--base", ref, root });
+	const trunk = await refs.defaultBranch();
+	if (
+		trunk &&
+		((await refs.hasRef(`refs/remotes/origin/${trunk}`)) ||
+			(await refs.hasRef(`refs/heads/${trunk}`)))
+	) {
+		return resolveOfflineDefaultBase(refs);
+	}
+	if (base) {
+		return resolveLocalBaseCommit(refs, base);
+	}
+	return resolveOfflineDefaultBase(refs);
+}
+
+export async function resolveLocalBaseCommit(refs: LocalGitRefs, base: string): Promise<string> {
+	const ref = await resolveBaseRef(refs, base);
+	return requireCommit(await refs.commit(ref), "--base", ref);
 }
 
 /** Reject dirty or wrong/detached checkouts before checking ancestry. */
@@ -265,20 +285,20 @@ export async function fastForwardCanonicalDefault(options: {
 	await git.run(["-C", root, "merge", "--ff-only", `origin/${defaultBranch}`]);
 }
 
-export async function resolveBaseRef(git: GitRunner, root: string, base: string): Promise<string> {
+export async function resolveBaseRef(refs: LocalGitRefs, base: string): Promise<string> {
 	if (base.startsWith("origin/")) {
 		const remoteName = base.slice("origin/".length);
-		if (await refExists(git, root, `refs/remotes/origin/${remoteName}`)) {
+		if (await refs.hasRef(`refs/remotes/origin/${remoteName}`)) {
 			return `refs/remotes/origin/${remoteName}`;
 		}
 	}
-	if (await refExists(git, root, `refs/heads/${base}`)) {
+	if (await refs.hasRef(`refs/heads/${base}`)) {
 		return `refs/heads/${base}`;
 	}
-	if (await refExists(git, root, `refs/remotes/origin/${base}`)) {
+	if (await refs.hasRef(`refs/remotes/origin/${base}`)) {
 		return `refs/remotes/origin/${base}`;
 	}
-	return resolveCommitRef({ git, label: "--base", ref: base, root });
+	return requireCommit(await refs.commit(base), "--base", base);
 }
 
 export async function assertBranchHasMergedUpstream(
