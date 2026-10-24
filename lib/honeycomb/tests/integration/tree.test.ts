@@ -109,8 +109,6 @@ test.each(["symbolic-ref", "rev-parse", "rev-list", "merge-base"])(
 	"%s errors fail as git_failed instead of appearing as uncertain parents #test-145",
 	async (operation) => {
 		const root = await initTreeRepo();
-		const branch = await addBranch(root, "branch", "main");
-		await commit(branch, "branch");
 		const deps = testDeps();
 		const result = await dispatch("tree", ["--cwd", root, "--json"], {
 			...deps,
@@ -133,6 +131,11 @@ test.each(["symbolic-ref", "rev-parse", "rev-list", "merge-base"])(
 		});
 		expect(result.exitCode).toBe(EXIT_CODES.FAILURE);
 		expect(result.failure).toBeInstanceOf(GitError);
+		expect(result.failure).toMatchObject({
+			args: expect.arrayContaining([operation]),
+			gitExitCode: GIT_FAILURE,
+			stderr: "missing commit object",
+		});
 		expect(result.stderr).toBeUndefined();
 		expect(JSON.parse(result.stdout ?? "{}")).toMatchObject({
 			kind: "error",
