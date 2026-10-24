@@ -147,24 +147,6 @@ test("untracked file inside tracked directory destination is allowed #test-168",
 	});
 });
 
-test("deduplicates exclude paths across entries and multi-target destinations #test-172", async () => {
-	const { root } = await initRepoWithOrigin(tmp);
-	await writeFile(join(root, ".env"), "one\n");
-	writeConfig({
-		command: "echo ready",
-		copyToml:
-			'copy = [".env", { from = ".env", to = [".env", "copy.env"] }, { from = ".env", to = "copy.env" }]\n',
-		root,
-		tmp,
-	});
-	await dispatch("add", ["--cwd", root, "--branch", "feature/dedup", "--json"], deps);
-
-	const result = await dispatch("copy", ["--cwd", `${root}__feature--dedup`, "--json"], deps);
-	const payload = JSON.parse(result.stdout ?? "{}");
-
-	expect(payload.exclude_paths).toEqual([".env", "copy.env"]);
-});
-
 test("copy command reports ConfigError for an object entry without a source #test-173", async () => {
 	const { root } = await initRepoWithOrigin(tmp);
 	writeConfig({ command: "echo ready", root, tmp });

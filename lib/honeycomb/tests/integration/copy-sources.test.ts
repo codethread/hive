@@ -121,6 +121,7 @@ async function initObjectSources() {
 }
 
 async function assertObjectContents(worktreePath: string) {
+	expect(await readFile(join(worktreePath, "root.env"), "utf8")).toBe("root\n");
 	expect(await readFile(join(worktreePath, "copied/root.env"), "utf8")).toBe("root\n");
 	expect(await readFile(join(worktreePath, "copied/absolute.env"), "utf8")).toBe("absolute\n");
 	expect(await readFile(join(worktreePath, "copied/home-again.env"), "utf8")).toBe("home\n");
@@ -132,6 +133,9 @@ function assertObjectPayload(
 ) {
 	const { root, absoluteSource, homeSource } = sources;
 	expect(payload.copied).toEqual([
+		{ from: join(root, "root.env"), to: "root.env", type: "file" },
+		{ from: join(root, "root.env"), to: "root.env", type: "file" },
+		{ from: join(root, "root.env"), to: "copied/root.env", type: "file" },
 		{ from: join(root, "root.env"), to: "copied/root.env", type: "file" },
 		{ from: absoluteSource, to: "copied/absolute.env", type: "file" },
 		{ from: homeSource, to: "copied/home.env", type: "file" },
@@ -142,36 +146,43 @@ function assertObjectPayload(
 		"copied/home-again.env",
 		"copied/home.env",
 		"copied/root.env",
+		"root.env",
 	]);
 }
 
-test("copies object file sources from root-relative, absolute, and home paths #test-188", async () => {
-	const { root, absoluteSource, homeRelative, homeSource } = await initObjectSources();
+test(
+	"copies root-relative, absolute, and home file sources " +
+		"and reports sorted unique exclude paths #test-172 #test-188",
+	async () => {
+		const { root, absoluteSource, homeRelative, homeSource } = await initObjectSources();
 
-	try {
-		writeConfig({
-			command: "echo ready",
-			copyToml:
-				`copy = [\n` +
-				`  { from = "root.env", to = "copied/root.env" },\n` +
-				`  { from = ${JSON.stringify(absoluteSource)}, to = "copied/absolute.env" },\n` +
-				`  { from = "~/${homeRelative}", to = ["copied/home.env", "copied/home-again.env"] },\n` +
-				`]\n`,
-			root,
-			tmp,
-		});
-		await dispatch("add", ["--cwd", root, "--branch", "feature/object-files", "--json"], deps);
-		const worktreePath = `${root}__feature--object-files`;
+		try {
+			writeConfig({
+				command: "echo ready",
+				copyToml:
+					`copy = [\n` +
+					`  "root.env",\n` +
+					`  { from = "root.env", to = ["root.env", "copied/root.env"] },\n` +
+					`  { from = "root.env", to = "copied/root.env" },\n` +
+					`  { from = ${JSON.stringify(absoluteSource)}, to = "copied/absolute.env" },\n` +
+					`  { from = "~/${homeRelative}", to = ["copied/home.env", "copied/home-again.env"] },\n` +
+					`]\n`,
+				root,
+				tmp,
+			});
+			await dispatch("add", ["--cwd", root, "--branch", "feature/object-files", "--json"], deps);
+			const worktreePath = `${root}__feature--object-files`;
 
-		const result = await dispatch("copy", ["--cwd", worktreePath, "--json"], deps);
-		const payload = JSON.parse(result.stdout ?? "{}");
+			const result = await dispatch("copy", ["--cwd", worktreePath, "--json"], deps);
+			const payload = JSON.parse(result.stdout ?? "{}");
 
-		await assertObjectContents(worktreePath);
-		assertObjectPayload(payload, { absoluteSource, homeSource, root });
-	} finally {
-		await rm(homeSource, { force: true });
-	}
-});
+			await assertObjectContents(worktreePath);
+			assertObjectPayload(payload, { absoluteSource, homeSource, root });
+		} finally {
+			await rm(homeSource, { force: true });
+		}
+	},
+);
 
 async function initDirectorySource() {
 	const { root } = await initRepoWithOrigin(tmp);
