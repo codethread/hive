@@ -48,18 +48,6 @@ async function initializationFixture() {
 	return { beads, parent, services };
 }
 
-// Warm definition/checkpoint schemas and the public command before measured failure cases.
-const warmup = await initializationFixture();
-await invoke(["start", source, "--owner", "test-human", "--parent", "mem-1"], warmup.services);
-await invoke(["start", source, "--owner", "test-human", "--parent", "mem-1"], {
-	...warmup.services,
-	beads: {
-		...warmup.beads,
-		create: () => Promise.reject(new Error("Warm failure diagnostic")),
-	},
-});
-await warmup.beads.list({ cwd: repo }, { all: true, limit: EMPTY });
-
 const initializationFailures = [
 	{ operation: "create_run", creates: NEXT, links: EMPTY, confirmed: {}, records: EMPTY },
 	{
