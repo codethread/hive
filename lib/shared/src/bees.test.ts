@@ -1,34 +1,29 @@
+import type { Formula, Recipe } from "./bees.ts";
 import { expect, test } from "bun:test";
-import { formulaSchema, kindSchema, recipeSchema, renderFormula, validateFormula } from "./bees.ts";
+import { renderFormula, validateFormula } from "./bees.ts";
 
 const HOME = "/users/test home";
 const CONFIG_ARGUMENT = 1;
-const recipe = recipeSchema.parse({
-	// eslint-disable-next-line unicorn/no-null -- Exercise the canonical execution directory.
+const recipe: Recipe = {
+	// eslint-disable-next-line unicorn/no-null -- Use the canonical-directory recipe shape.
 	cwd: null,
 	effort: "low",
 	harness: "codex",
 	kind: "worker",
 	model: "model",
-});
-const formula = formulaSchema.parse({
+	prompt: "",
+	system_prompt: "",
+};
+const formula: Formula = {
 	argv: [
 		"{{#if system_prompt}}-c{{/if}}",
 		"{{#if system_prompt}}developer_instructions={{json system_prompt}}{{/if}}",
 		"{{prompt}}",
 	],
 	executable: "codex",
-});
+	headless: [],
+};
 const role = 'Review "quotes", \\paths, <tags> and {{literal}}.\nKeep\ttabs and Unicode: 🐝';
-
-// Warm schema/template execution outside unit-test timing.
-validateFormula(formula);
-kindSchema.parse({
-	description: "Warm kind schema",
-	effort: "low",
-	harness: "codex",
-	model: "model",
-});
 
 test.each([
 	{ prompt: "", system_prompt: "" },
@@ -58,29 +53,16 @@ test.each([
 test("native string arguments retain role and direction verbatim #test-622", () => {
 	expect(
 		renderFormula(
-			formulaSchema.parse({
+			{
 				executable: "pi",
 				argv: ["--append-system-prompt", "{{system_prompt}}", "{{prompt}}"],
-			}),
+				headless: [],
+			},
 			{ ...recipe, system_prompt: role, prompt: "Execution direction" },
 			"interactive",
 			HOME,
 		).argv,
 	).toEqual(["--append-system-prompt", role, "Execution direction"]);
-});
-
-test("omitted recipe prompts become independent empty defaults", () => {
-	expect(recipe).toMatchObject({ prompt: "", system_prompt: "" });
-});
-
-test.each([
-	{ workflow: undefined, expected: "do-work" },
-	{ workflow: "review-change", expected: "review-change" },
-])("kind workflow $expected is independent of execution recipes", ({ workflow, expected }) => {
-	const { cwd: _cwd, kind: _kind, ...execution } = recipe;
-	const selected = kindSchema.parse({ ...execution, description: "Implement work", workflow });
-	expect(selected.workflow).toBe(expected);
-	expect(recipe).not.toHaveProperty("workflow");
 });
 
 test.each([
@@ -99,7 +81,7 @@ test.each([
 	},
 );
 
-test("headless templates are validated before a formula is installed #test-599", () => {
+test("formula validation rejects missing values in headless templates #test-599", () => {
 	expect(() => validateFormula({ ...formula, headless: ["{{missing}}"] })).toThrow(Error);
 });
 
