@@ -1,6 +1,7 @@
+import type { BeeKind, BeesConfig } from "@hive/shared";
 import { expect, test } from "bun:test";
+import { loadBeesConfig, resolveBeesConfig } from "./config.ts";
 import type { ConfigFiles } from "./config.ts";
-import { loadBeesConfig } from "./config.ts";
 
 const CENTRAL = "/repo/.hive/bees.toml";
 const POLICY = 'owner="ct"\nhumans=["ct"]\n[formulas]\n';
@@ -11,8 +12,26 @@ const INLINE =
 	'reviewer."\nharness="pi"\nmodel="central-model"\neffort="low"\nprompt="Central ' +
 	'instructions"\n';
 
-// Warm the schema at fixture setup, outside unit-test timing.
-await loadBeesConfig("/repo", fixture({ [CENTRAL]: POLICY }));
+const typedKind: BeeKind = {
+	description: "Review changes.",
+	effort: "high",
+	harness: "codex",
+	hidden: false,
+	model: "folder-model",
+	prompt: "",
+	system_prompt: "",
+	workflow: "do-work",
+};
+const typedConfig: BeesConfig = {
+	formulas: {},
+	humans: ["ct"],
+	kinds: {},
+	limits: { colony: 1, kind: 1, kinds: {}, worktree: 1 },
+	max_retries: 0,
+	owner: "ct",
+	ranking: "fifo",
+	retry_delay_ms: 0,
+};
 
 test("folder names do not name kinds, and sibling prompts are captured verbatim #test-413", async () => {
 	const { config, warnings } = await loadBeesConfig(
@@ -38,17 +57,39 @@ test("folder names do not name kinds, and sibling prompts are captured verbatim 
 	expect(warnings).toEqual([]);
 });
 
-test("central definitions replace whole duplicate kinds and report every shadowed file #test-541", async () => {
-	const { config, warnings } = await loadBeesConfig(
-		"/repo",
-		fixture({
-			[CENTRAL]: POLICY + INLINE,
-			"/repo/.hive/bees/a/bee.toml": DEFINITION,
-			"/repo/.hive/bees/a/prompt.md": "A instructions",
-			"/repo/.hive/bees/z/bee.toml": DEFINITION,
-			"/repo/.hive/bees/z/prompt.md": "Z instructions",
-		}),
-	);
+test("central kinds replace whole folder definitions and warn in source order #test-541", () => {
+	const central: BeesConfig = {
+		...typedConfig,
+		kinds: {
+			reviewer: {
+				...typedKind,
+				description: "Central reviewer.",
+				effort: "low",
+				harness: "pi",
+				model: "central-model",
+				prompt: "Central instructions",
+			},
+		},
+	};
+	const { config, warnings } = resolveBeesConfig({ config: central, source: CENTRAL }, [
+		{
+			name: "reviewer",
+			kind: {
+				...typedKind,
+				allow: ["discarded-selector"],
+				hidden: true,
+				prompt: "A instructions",
+				system_prompt: "A role",
+				workflow: "folder-workflow",
+			},
+			source: "/repo/.hive/bees/a/bee.toml",
+		},
+		{
+			name: "reviewer",
+			kind: { ...typedKind, prompt: "Z instructions", system_prompt: "Z role" },
+			source: "/repo/.hive/bees/z/bee.toml",
+		},
+	]);
 	expect(config.kinds["reviewer"]).toEqual({
 		description: "Central reviewer.",
 		effort: "low",
@@ -65,19 +106,37 @@ test("central definitions replace whole duplicate kinds and report every shadowe
 	]);
 });
 
-test("duplicate folder names for a kind fail without a central winner #test-615", async () => {
-	await expect(
-		loadBeesConfig(
-			"/repo",
-			fixture({
-				[CENTRAL]: POLICY,
-				"/repo/.hive/bees/a/bee.toml": DEFINITION,
-				"/repo/.hive/bees/a/prompt.md": "A instructions",
-				"/repo/.hive/bees/b/bee.toml": DEFINITION,
-				"/repo/.hive/bees/b/prompt.md": "B instructions",
-			}),
-		),
-	).rejects.toBeInstanceOf(Error);
+test("duplicate declared kind names fail without a central winner #test-615", () => {
+	const resolve = () =>
+		resolveBeesConfig({ config: typedConfig, source: CENTRAL }, [
+			{ name: "reviewer", kind: typedKind, source: "/repo/.hive/bees/a/bee.toml" },
+			{ name: "reviewer", kind: typedKind, source: "/repo/.hive/bees/b/bee.toml" },
+		]);
+	expect(resolve).toThrow(Error);
+	expect(resolve).toThrowErrorMatchingInlineSnapshot(
+		`"Duplicate bee kind reviewer: /repo/.hive/bees/a/bee.toml and /repo/.hive/bees/b/bee.toml"`,
+	);
+});
+
+test("merged kinds satisfy central selectors without mutating central configuration", () => {
+	const caller = { ...typedKind, allow: ["helper"] };
+	const central: BeesConfig = { ...typedConfig, kinds: { caller } };
+	const result = resolveBeesConfig({ config: central, source: CENTRAL }, [
+		{ name: "helper", kind: typedKind, source: "/repo/.hive/bees/helper/bee.toml" },
+	]);
+	expect(result).toEqual({
+		config: { ...central, kinds: { caller, helper: typedKind } },
+		warnings: [],
+	});
+	expect(central.kinds).toEqual({ caller });
+});
+
+test("effective configuration rejects unknown kind selectors", () => {
+	const central: BeesConfig = {
+		...typedConfig,
+		kinds: { caller: { ...typedKind, allow: ["missing"] } },
+	};
+	expect(() => resolveBeesConfig({ config: central, source: CENTRAL }, [])).toThrow(Error);
 });
 
 test.each([
@@ -127,6 +186,55 @@ test.each([
 		});
 	},
 );
+
+test("a centrally shadowed folder still requires its definition file", async () => {
+	const failure = await loadBeesConfig(
+		"/repo",
+		fixture({
+			[CENTRAL]: POLICY + INLINE,
+			"/repo/.hive/bees/a/prompt.md": "Shadowed prompt",
+		}),
+	).catch((error: unknown) => error);
+	expect(failure).toBeInstanceOf(Error);
+	expect(failure).toMatchObject({ cause: { code: "ENOENT" } });
+	expect(failure).toMatchInlineSnapshot(
+		`[Error: Cannot load /repo/.hive/bees/a/bee.toml: Error: Missing fixture /repo/.hive/bees/a/bee.toml]`,
+	);
+});
+
+test("prompt read errors other than ENOENT retain nested paths and causes", async () => {
+	const prompt = "/repo/.hive/bees/a/prompt.md";
+	const denied = Object.assign(new Error("Denied"), { code: "EACCES" });
+	const files = fixture({
+		[CENTRAL]: POLICY,
+		"/repo/.hive/bees/a/bee.toml": DEFINITION,
+	});
+	const failure = await loadBeesConfig("/repo", {
+		...files,
+		readText: (path) => {
+			if (path === prompt) {
+				return Promise.reject(denied);
+			}
+			return files.readText(path);
+		},
+	}).catch((error: unknown) => error);
+	expect(failure).toBeInstanceOf(Error);
+	expect(failure).toMatchObject({ cause: { cause: denied } });
+	expect(failure).toMatchInlineSnapshot(
+		`[Error: Cannot load /repo/.hive/bees/a/bee.toml: Error: Cannot load /repo/.hive/bees/a/prompt.md: Error: Denied]`,
+	);
+});
+
+test("malformed canonical input retains its source path and parser cause", async () => {
+	const failure = await loadBeesConfig("/repo", fixture({ [CENTRAL]: "not valid TOML" })).catch(
+		(error: unknown) => error,
+	);
+	expect(failure).toBeInstanceOf(Error);
+	expect(failure).toMatchObject({ cause: expect.any(Error) });
+	expect(failure).toMatchInlineSnapshot(
+		`[Error: Cannot load /repo/.hive/bees.toml: SyntaxError: TOML Parse error: Expected '=' after a key but found 'v']`,
+	);
+});
 
 // --- Private functions ---
 function fixture(contents: Record<string, string>): ConfigFiles {

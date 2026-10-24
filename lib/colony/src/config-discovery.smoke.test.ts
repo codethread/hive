@@ -11,7 +11,7 @@ import { tmpdir } from "node:os";
 const POLICY = 'owner="ct"\nhumans=["ct"]\n[formulas]\n';
 
 // eslint-disable-next-line max-statements -- Keep the bounded disposable filesystem scenario and cleanup together.
-test("filesystem discovery loads only immediate kind folders and fails loudly on bad layout #test-312", async () => {
+test("filesystem discovery composes ordered kind sources and rejects invalid configuration #test-312", async () => {
 	const root = await mkdtemp(join(tmpdir(), "bee-config-"));
 	const directory = join(root, ".hive", "bees");
 	try {
@@ -42,6 +42,35 @@ test("filesystem discovery loads only immediate kind folders and fails loudly on
 			model: "file-model",
 			prompt: "File instructions\n",
 		});
+		const canonical = join(root, ".hive", "bees.toml");
+		const central =
+			`${POLICY}[kinds.reviewer]\ndescription="Central reviewer."\nharness="codex"\n` +
+			`model="central"\neffort="low"\nprompt="Central direction"\n`;
+		await Bun.write(canonical, central);
+		// Prefix folders distinguish folder-name sorting from sorting complete definition paths.
+		await Promise.all(
+			["a", "a-"].flatMap((folder) => [
+				Bun.write(
+					join(directory, folder, "bee.toml"),
+					'name="reviewer"\ndescription="Folder reviewer."\nharness="codex"\n' +
+						'model="folder"\neffort="low"\n',
+				),
+				Bun.write(join(directory, folder, "prompt.md"), "Folder direction"),
+				Bun.write(join(directory, folder, "system_prompt.md"), "Folder role"),
+			]),
+		);
+		const overridden = await loadBeesConfig(root);
+		expect(overridden.config.kinds["reviewer"]).toMatchObject({
+			model: "central",
+			prompt: "Central direction",
+			system_prompt: "",
+		});
+		expect(overridden.warnings).toEqual([
+			`${canonical} overrides bee kind reviewer from ${join(directory, "a", "bee.toml")}`,
+			`${canonical} overrides bee kind reviewer from ${join(directory, "a-", "bee.toml")}`,
+		]);
+		await Bun.write(canonical, `${central}[formulas.broken]\nexecutable="{{#if"\nargv=[]\n`);
+		await expect(loadBeesConfig(root)).rejects.toBeInstanceOf(Error);
 		await rm(join(root, ".hive", "bees.toml"));
 		await Bun.write(join(root, "bees.toml"), POLICY);
 		await expect(loadBeesConfig(root)).rejects.toBeInstanceOf(Error);

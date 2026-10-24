@@ -1,7 +1,7 @@
+import type { BeeKind, BeesConfig } from "@hive/shared";
 import { beesConfigSchema, kindSchema, validateBeesConfig } from "@hive/shared";
 // eslint-disable-next-line import/no-nodejs-modules -- Configuration discovery stays at the filesystem boundary.
 import { readFile, readdir } from "node:fs/promises";
-import type { BeesConfig } from "@hive/shared";
 // eslint-disable-next-line import/no-nodejs-modules -- Resolve canonical config and sibling prompt paths.
 import { join } from "node:path";
 import { z } from "zod";
@@ -22,11 +22,22 @@ export interface LoadedBeesConfig {
 	/** Central definitions that shadow folder definitions, for bee kinds presentation. */
 	warnings: string[];
 }
+export interface ConfigSource {
+	/** Central policy and inline kinds before precedence resolution. */
+	config: BeesConfig;
+	/** Canonical file path for diagnostics. */
+	source: string;
+}
+export interface KindSource {
+	/** Declared kind name, independent of its folder name. */
+	name: string;
+	/** Folder kind with sibling prompt text included. */
+	kind: BeeKind;
+	/** Folder definition path for diagnostics. */
+	source: string;
+}
 
 /** Load canonical configuration and kind folders once for every Bee/Colony consumer. */
-/* eslint-disable-next-line max-statements --
- * Keep source loading, precedence and diagnostics together at this IO boundary.
- */
 export async function loadBeesConfig(
 	root: string,
 	files: ConfigFiles = liveFiles,
@@ -44,9 +55,6 @@ export async function loadBeesConfig(
 		});
 		return beesConfigSchema.parse(Bun.TOML.parse(text));
 	});
-	const centralNames = new Set(Object.keys(config.kinds));
-	const sources = new Map<string, string>();
-	const warnings: string[] = [];
 	const directory = join(root, ".hive", "bees");
 	const folders = await files.directories(directory);
 	const definitions = await Promise.all(
@@ -56,9 +64,26 @@ export async function loadBeesConfig(
 			return { kind: definition.kind, name: definition.name, source };
 		}),
 	);
+	return resolveBeesConfig({ config, source: path }, definitions);
+}
+
+/**
+ * Resolve schema-validated, defaulted inputs with definitions in loader-sorted folder order.
+ * Central kinds win whole; selectors and formulas are validated once on the merged result.
+ * Return new config/kinds records without mutating inputs.
+ */
+// eslint-disable-next-line max-statements -- Keep precedence, source diagnostics and effective validation together.
+export function resolveBeesConfig(
+	central: ConfigSource,
+	definitions: readonly KindSource[],
+): LoadedBeesConfig {
+	const config = { ...central.config, kinds: { ...central.config.kinds } };
+	const centralNames = new Set(Object.keys(config.kinds));
+	const sources = new Map<string, string>();
+	const warnings: string[] = [];
 	for (const { name, kind, source } of definitions) {
 		if (centralNames.has(name)) {
-			warnings.push(`${path} overrides bee kind ${name} from ${source}`);
+			warnings.push(`${central.source} overrides bee kind ${name} from ${source}`);
 		} else {
 			const previous = sources.get(name);
 			if (previous !== undefined) {
