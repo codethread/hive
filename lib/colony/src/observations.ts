@@ -25,6 +25,14 @@ import { trackerScope } from "./tracker.ts";
 const STDOUT_PUBLICATION_INTERVAL_MS = 30_000;
 const EMPTY = 0;
 
+export interface ObservationContext extends Pick<TrackerContext, "repository"> {
+	/** Existing tracker operations consumed by serial observation publication. */
+	beads: Pick<BeadsService, "show"> & {
+		/** Append native comments with caller attribution. */
+		comments: Pick<BeadsService["comments"], "add">;
+	};
+}
+
 export interface RunningObservationContext extends Pick<TrackerContext, "repository"> {
 	/** Existing tracker operations consumed by batch stdout publication. */
 	beads: Pick<BeadsService, "showMany"> & {
@@ -144,7 +152,7 @@ export async function publishRunningStdoutActivities(
  */
 /* eslint-disable-next-line max-params -- Keep the typed stdout reader local to publication orchestration. */
 export async function publishRunningObservations(
-	context: TrackerContext,
+	context: ObservationContext,
 	receipt: Pick<LaunchReceipt, "id" | "attemptNumber" | "spawnId" | "directory">,
 	snapshot: Bead,
 	readActivity: typeof readStdoutActivity = readStdoutActivity,
@@ -178,7 +186,7 @@ export async function publishRunningObservations(
  * Pass phase-local detail explicitly rather than retaining a shared cache.
  */
 export async function publishObservation(
-	{ beads, repository }: TrackerContext,
+	{ beads, repository }: ObservationContext,
 	id: string,
 	fact: string,
 	snapshot?: Bead,
@@ -201,7 +209,7 @@ export async function publishObservation(
  * Keep final-flush policy, no-op reuse and the publication outcome together.
  */
 export async function publishStdoutActivity(
-	{ beads, repository }: TrackerContext,
+	{ beads, repository }: ObservationContext,
 	receipt: Pick<LaunchReceipt, "id" | "attemptNumber" | "spawnId" | "directory">,
 	final = false,
 	snapshot?: Bead,

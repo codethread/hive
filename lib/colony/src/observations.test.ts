@@ -1,29 +1,22 @@
-/* eslint-disable max-statements -- Keep mutation, failure and partial-publication re-entry traces together. */
+/* eslint-disable max-statements -- Keep authority mutations, failure injection and publication order together. */
 /* eslint-disable unicorn/no-null -- Tests distinguish no output from observed stdout. */
-import { createSpawn, createTask, memoryTracker } from "./tracker.test-support.ts";
+import type { Bead, BeadRecord, BeadsService } from "@hive/beads";
+import { COLONY_OBSERVATION_PREFIX, COLONY_STDOUT_PREFIX, spawnRequestLabels } from "@hive/shared";
+import type { ObservationContext, readStdoutActivity } from "./observations.ts";
+import type { Recipe, WorkflowAssignment } from "@hive/shared";
 import { expect, mock, test } from "bun:test";
 import {
 	publishObservation,
 	publishRunningObservations,
-	publishStdoutActivity,
 	stdoutActivityDue,
 } from "./observations.ts";
-import type { Bead } from "@hive/beads";
-import { COLONY_STDOUT_PREFIX } from "@hive/shared";
-import type { readStdoutActivity } from "./observations.ts";
+// eslint-disable-next-line import/no-nodejs-modules -- Bind fixture authority to the publication host.
+import { hostname } from "node:os";
 import { trackerScope } from "./tracker.ts";
 
 const ZERO = 0;
 const ONE = 1;
 const TWO = 2;
-const THREE = 3;
-const observationTracker = memoryTracker();
-const observationId = await createSpawn(observationTracker, await createTask(observationTracker));
-await observationTracker.beads.show(
-	trackerScope(observationTracker.repository, "inspector"),
-	observationId,
-);
-
 const stdoutDirectory = "/fixture/owned-stdout";
 const stdoutTimestamp = "2026-10-04T10:00:00.000Z";
 const readActivity: typeof readStdoutActivity = (directory) => {
@@ -33,72 +26,22 @@ const readActivity: typeof readStdoutActivity = (directory) => {
 	return Promise.resolve(stdoutTimestamp);
 };
 
-const unchangedFixtures = new Map(
-	await Promise.all(
-		(["fact"] as const).map(async (kind) => {
-			const fixture = await publicationFixture(kind);
-			await fixture.publish();
-			const snapshot = await fixture.tracker.beads.show(fixture.scope, fixture.id);
-			fixture.show.mockClear();
-			return [kind, { ...fixture, snapshot }] as const;
-		}),
-	),
-);
-
-const dueFixtures = new Map(
-	await Promise.all(
-		(["fact"] as const).map(async (kind) => [kind, await publicationFixture(kind)] as const),
-	),
-);
 const driftCases = [
 	{ kind: "fact", drift: "host" },
 	{ kind: "fact", drift: "closed" },
 	{ kind: "fact", drift: "duplicate" },
 ] as const;
-const driftFixtures = new Map(
-	await Promise.all(
-		driftCases.map(
-			async (input) => [`${input.kind}:${input.drift}`, await driftFixture(input)] as const,
-		),
-	),
-);
-
-type RunningSeed = "empty" | "fact" | "stdout" | "both";
-type RunningChange =
-	| "none"
-	| "host"
-	| "unbound"
-	| "identity"
-	| "kind"
-	| "run"
-	| "stage"
-	| "tasks"
-	| "closed"
-	| "duplicate"
-	| "due";
-type RunningFailure =
-	| "none"
-	| "fact-read"
-	| "fact-write"
-	| "refresh"
-	| "stdout-before"
-	| "stdout-after";
-interface RunningScenario {
-	/** Native evidence present before the original snapshot. */
-	seed: RunningSeed;
-	/** Concurrent native mutation, if any. */
-	change: RunningChange;
-	/** Mutation between publications or at stdout's final read. */
-	point: "after-fact" | "before-stdout";
-	/** Injected failure point, including an error after a comment is committed. */
-	failure: RunningFailure;
-}
-const runningDefaults: RunningScenario = {
-	seed: "empty",
-	change: "none",
-	point: "after-fact",
-	failure: "none",
+const runningDefaults = { seed: "empty", change: "none", failure: "none" } as const;
+const recipe: Recipe = {
+	cwd: null,
+	effort: "low",
+	harness: "fixture",
+	kind: "worker",
+	model: "fixture",
+	prompt: "Complete assigned tasks",
+	system_prompt: "Worker role",
 };
+
 const authorityChanges = ["host", "unbound", "identity", "kind", "run", "stage"] as const;
 const authorityCases = authorityChanges
 	.flatMap((change) => [
@@ -106,47 +49,13 @@ const authorityCases = authorityChanges
 		{ change, point: "after-fact" as const, seed: "stdout" as const },
 	])
 	.filter(({ change, seed }) => change !== "kind" || seed !== "empty");
-const authorityFixtures = await Promise.all(
-	authorityCases.map((scenario) => runningFixture({ ...runningDefaults, ...scenario })),
-);
 const booleanCases = [
 	{ mode: "write", written: true, reads: 1 },
 	{ mode: "snapshot-noop", written: false, reads: 0 },
 	{ mode: "fresh-duplicate", written: false, reads: 1 },
 	{ mode: "closed", written: false, reads: 1 },
 ] as const;
-const booleanFixtures = await Promise.all(
-	booleanCases.map(async ({ mode }) => {
-		const fixture = await publicationFixture("fact");
-		if (mode === "snapshot-noop") {
-			await fixture.publish();
-		}
-		const snapshot = await fixture.tracker.beads.show(fixture.scope, fixture.id);
-		if (mode === "fresh-duplicate") {
-			await fixture.publish();
-		} else if (mode === "closed") {
-			await fixture.tracker.beads.close(fixture.scope, fixture.id);
-		}
-		fixture.show.mockClear();
-		return { ...fixture, snapshot };
-	}),
-);
 const publicationFailures = ["fact-read", "fact-write"] as const;
-const publicationFailureFixtures = await Promise.all(
-	publicationFailures.map((failure) => runningFixture({ ...runningDefaults, failure })),
-);
-// Warm publication, authority rejection and metadata reads on separate fixtures outside test timing.
-const runningWarmup = await runningFixture(runningDefaults);
-await publishRunningObservations(
-	runningWarmup.context,
-	runningWarmup.receipt,
-	runningWarmup.snapshot,
-	readActivity,
-);
-const stdoutWarmup = await publicationFixture("stdout");
-await stdoutWarmup.publish();
-await Promise.all([stdoutWarmup.publish(), stdoutWarmup.publish()]);
-
 const previous = {
 	attemptId: "attempt-one",
 	attemptNumber: 1,
@@ -185,8 +94,7 @@ test("new attempts start with unknown activity and first output bypasses the thr
 });
 
 test("injected observations deduplicate unchanged facts and retain their native attribution #test-591", async () => {
-	const tracker = observationTracker;
-	const id = observationId;
+	const { tracker, id } = publicationFixture();
 	await publishObservation(tracker, id, "waiting: dependency");
 	await publishObservation(tracker, id, "waiting: dependency");
 	await publishObservation(tracker, id, "waiting: capacity");
@@ -197,48 +105,42 @@ test("injected observations deduplicate unchanged facts and retain their native 
 	]);
 });
 
-test.each(["fact"] as const)(
-	"unchanged %s uses zero snapshot reads but standalone publication still reads once",
-	async (kind) => {
-		const fixture = unchangedFixtures.get(kind)!;
-		const { snapshot } = fixture;
-		const standaloneShow = mock(fixture.tracker.beads.show);
-		// Both paths remain unchanged while their native read counts are observed independently.
-		await Promise.all([
-			fixture.publish(snapshot),
-			fixture.publish(undefined, { ...fixture.tracker.beads, show: standaloneShow }),
-		]);
-		expect(fixture.show).not.toHaveBeenCalled();
-		expect(standaloneShow.mock.calls.map(([scope, id]) => ({ actor: scope.actor, id }))).toEqual([
-			{ actor: "sys-colony", id: fixture.id },
-		]);
-		expect(await fixture.tracker.beads.show(fixture.scope, fixture.id)).toEqual(snapshot);
-	},
-);
+test("unchanged fact uses zero snapshot reads but standalone publication still reads once", async () => {
+	const fixture = publicationFixture();
+	seedFact(fixture);
+	const snapshot = await fixture.tracker.beads.show(fixture.scope, fixture.id);
+	fixture.show.mockClear();
+	const standaloneShow = mock(fixture.tracker.beads.show);
+	// Both paths remain unchanged while their native read counts are observed independently.
+	await Promise.all([
+		fixture.publish(snapshot),
+		fixture.publish(undefined, { ...fixture.tracker.beads, show: standaloneShow }),
+	]);
+	expect(fixture.show).not.toHaveBeenCalled();
+	expect(standaloneShow.mock.calls.map(([scope, id]) => ({ actor: scope.actor, id }))).toEqual([
+		{ actor: "sys-colony", id: fixture.id },
+	]);
+	expect(await fixture.tracker.beads.show(fixture.scope, fixture.id)).toEqual(snapshot);
+});
 
-test.each(["fact"] as const)(
-	"due %s refreshes once and retains native publication attribution",
-	async (kind) => {
-		const fixture = dueFixtures.get(kind)!;
-		const snapshot = await fixture.tracker.beads.show(fixture.scope, fixture.id);
-		await fixture.publish(snapshot);
-		expect(fixture.show.mock.calls.map(([scope, id]) => ({ actor: scope.actor, id }))).toEqual([
-			{ actor: "sys-colony", id: fixture.id },
-		]);
-		const result = await fixture.tracker.beads.show(fixture.scope, fixture.id);
-		expect(result.comments.map(({ author }) => author)).toEqual(["sys-colony"]);
-		expect(result.comments.map(({ text }) => text)).toEqual([
-			"Colony observation: waiting: dependency",
-		]);
-	},
-);
+test("due fact refreshes once and retains native publication attribution", async () => {
+	const fixture = publicationFixture();
+	const snapshot = await fixture.tracker.beads.show(fixture.scope, fixture.id);
+	await fixture.publish(snapshot);
+	expect(fixture.show.mock.calls.map(([scope, id]) => ({ actor: scope.actor, id }))).toEqual([
+		{ actor: "sys-colony", id: fixture.id },
+	]);
+	const result = await fixture.tracker.beads.show(fixture.scope, fixture.id);
+	expect(result.comments.map(({ author }) => author)).toEqual(["sys-colony"]);
+	expect(result.comments.map(({ text }) => text)).toEqual([
+		"Colony observation: waiting: dependency",
+	]);
+});
 
 test.each([...driftCases])(
 	"due $kind publication rechecks native $drift drift after its phase snapshot",
-	async ({ kind, drift }) => {
-		const { tracker, scope, id, show, publish, snapshot, before } = driftFixtures.get(
-			`${kind}:${drift}`,
-		)!;
+	async ({ drift }) => {
+		const { tracker, scope, id, show, publish, snapshot, before } = driftFixture(drift);
 		// eslint-disable-next-line unicorn/prefer-ternary -- Distinguish rejection assertions without a forbidden ternary.
 		if (drift === "host") {
 			await expect(publish(snapshot)).rejects.toBeInstanceOf(Error);
@@ -253,7 +155,7 @@ test.each([...driftCases])(
 test.each(authorityCases)(
 	"running pair rejects native $change at $point with $seed initial evidence",
 	async (scenario) => {
-		const fixture = authorityFixtures[authorityCases.indexOf(scenario)]!;
+		const fixture = runningFixture({ ...runningDefaults, ...scenario });
 		await expect(
 			publishRunningObservations(fixture.context, fixture.receipt, fixture.snapshot, readActivity),
 		).rejects.toBeInstanceOf(Error);
@@ -268,7 +170,7 @@ test.each(authorityCases)(
 test.each([...booleanCases])(
 	"fact publication returns $written for $mode, not eligibility or read success",
 	async (scenario) => {
-		const fixture = booleanFixtures[booleanCases.indexOf(scenario)]!;
+		const fixture = booleanFixture(scenario.mode);
 		expect(await fixture.publish(fixture.snapshot)).toBe(scenario.written);
 		expect(fixture.show).toHaveBeenCalledTimes(scenario.reads);
 	},
@@ -277,7 +179,7 @@ test.each([...booleanCases])(
 test.each([...publicationFailures])(
 	"fact publication rejects native %s failure rather than returning false",
 	async (failure) => {
-		const fixture = publicationFailureFixtures[publicationFailures.indexOf(failure)]!;
+		const fixture = runningFixture({ ...runningDefaults, failure });
 		await expect(
 			publishObservation(fixture.context, fixture.id, "running: attempt 1", fixture.snapshot),
 		).rejects.toBeInstanceOf(Error);
@@ -285,177 +187,207 @@ test.each([...publicationFailures])(
 	},
 );
 
-// --- Fixtures ---
-async function runningFixture(scenario: RunningScenario) {
-	const fixture = await publicationFixture("stdout");
-	const { tracker, scope, id, receipt } = fixture;
-	const original = await tracker.beads.show(scope, id);
-	const anchors = {
-		original: original.dependencies[ZERO]!.id,
-		other: await createTask(tracker),
-		run: await createTask(tracker),
+test("running pair publishes fact before stdout from the sampled source", async () => {
+	const fixture = runningFixture(runningDefaults);
+	const add = mock(fixture.context.beads.comments.add);
+	const context = { ...fixture.context, beads: { ...fixture.context.beads, comments: { add } } };
+	const scope = {
+		cwd: fixture.tracker.repository.root,
+		db: fixture.tracker.repository.beadsDb,
+		actor: "sys-colony",
 	};
+	await publishRunningObservations(context, fixture.receipt, fixture.snapshot, readActivity);
+	expect(fixture.show.mock.calls.map(([readScope]) => readScope)).toEqual([scope, scope, scope]);
+	expect(add.mock.calls.map(([writeScope]) => writeScope)).toEqual([scope, scope]);
+	expect(fixture.writes).toEqual(["fact", "stdout"]);
+	expect(fixture.trace).toEqual(["show", "fact", "show", "show", "stdout"]);
+	expect(fixture.record.comments.map(({ author }) => author)).toEqual(["sys-colony", "sys-colony"]);
+	expect(fixture.record.comments[ZERO]!.text).toBe(
+		`${COLONY_OBSERVATION_PREFIX} running: attempt 1`,
+	);
+	const stdout = fixture.record.comments[ONE]!.text;
+	expect(stdout.startsWith(COLONY_STDOUT_PREFIX)).toBe(true);
+	expect(JSON.parse(stdout.slice(COLONY_STDOUT_PREFIX.length))).toEqual({
+		attemptId: fixture.receipt.id,
+		attemptNumber: fixture.receipt.attemptNumber,
+		lastOutputAt: stdoutTimestamp,
+		recordedAt: expect.any(String),
+	});
+});
+
+// --- Fixtures ---
+function booleanFixture(mode: (typeof booleanCases)[number]["mode"]) {
+	const fixture = publicationFixture();
+	if (mode === "snapshot-noop") {
+		seedFact(fixture);
+	}
+	const snapshot = structuredClone(fixture.record);
+	if (mode === "fresh-duplicate") {
+		seedFact(fixture);
+	} else if (mode === "closed") {
+		fixture.record.status = "closed";
+	}
+	return { ...fixture, snapshot };
+}
+
+function runningFixture(scenario: {
+	seed: "empty" | "stdout";
+	change: "none" | (typeof authorityChanges)[number];
+	failure: "none" | (typeof publicationFailures)[number];
+}) {
+	const fixture = publicationFixture();
+	const { tracker, record, request } = fixture;
 	if (scenario.change === "run" || scenario.change === "stage") {
-		await tracker.beads.update(scope, [id], {
-			description: JSON.stringify({
-				...JSON.parse(original.description),
-				assignment: { kind: "stage", runId: anchors.run, stageId: anchors.original },
-			}),
-		});
+		request.assignment = { kind: "stage", runId: "run-one", stageId: "task-one" };
+		record.description = JSON.stringify(request);
 	}
-	if (scenario.seed === "fact" || scenario.seed === "both") {
-		await publishObservation(tracker, id, "running: attempt 1");
+	if (scenario.seed === "stdout") {
+		appendComment(
+			record,
+			"inspector",
+			`${COLONY_STDOUT_PREFIX} ${JSON.stringify({
+				attemptId: fixture.receipt.id,
+				attemptNumber: fixture.receipt.attemptNumber,
+				lastOutputAt: stdoutTimestamp,
+				recordedAt: "2026-10-04T10:00:00.000Z",
+			})}`,
+		);
 	}
-	if (scenario.seed === "stdout" || scenario.seed === "both") {
-		await seedStdout(fixture, stdoutTimestamp, "2026-10-04T10:00:00.000Z");
-	}
-	const snapshot = await tracker.beads.show(scope, id);
+	const snapshot = structuredClone(record);
 	const trace: string[] = [];
 	const writes: string[] = [];
-	let reads = ZERO;
-	let changed = false;
-	let failed = false;
-	const mutate = async () => {
-		if (changed || scenario.change === "none") {
-			return;
-		}
-		changed = true;
-		await mutateRunning(fixture, scenario.change, anchors);
-	};
-	const show = mock(async (...args: Parameters<typeof tracker.beads.show>) => {
-		reads += ONE;
+	const show = mock((...args: Parameters<BeadsService["show"]>) => {
 		trace.push("show");
-		if (
-			!failed &&
-			((scenario.failure === "fact-read" && reads === ONE) ||
-				(scenario.failure === "refresh" && reads === TWO))
-		) {
-			failed = true;
-			throw new Error("Injected native read failure");
-		}
-		if (scenario.point === "before-stdout" && reads === THREE) {
-			await mutate();
+		if (scenario.failure === "fact-read") {
+			return Promise.reject(new Error("Injected native read failure"));
 		}
 		return tracker.beads.show(...args);
 	});
-	const add = async (...args: Parameters<typeof tracker.beads.comments.add>) => {
-		let kind = "stdout";
-		if (args[TWO].startsWith("Colony observation:")) {
-			kind = "fact";
-		}
-		if (
-			!failed &&
-			((scenario.failure === "fact-write" && kind === "fact") ||
-				(scenario.failure === "stdout-before" && kind === "stdout"))
-		) {
-			failed = true;
+	const add: BeadsService["comments"]["add"] = async (...args) => {
+		const fact = args[TWO].startsWith(COLONY_OBSERVATION_PREFIX);
+		if (scenario.failure === "fact-write" && fact) {
 			throw new Error("Injected native comment failure");
 		}
 		const result = await tracker.beads.comments.add(...args);
+		let kind = "stdout";
+		if (fact) {
+			kind = "fact";
+			mutateRunning(fixture, scenario.change);
+		}
 		trace.push(kind);
 		writes.push(kind);
-		if (kind === "fact" && scenario.point === "after-fact") {
-			await mutate();
-		}
-		if (!failed && scenario.failure === "stdout-after" && kind === "stdout") {
-			failed = true;
-			throw new Error("Injected failure after native comment commitment");
-		}
 		return result;
 	};
-	const context = {
-		...tracker,
-		beads: { ...tracker.beads, show, comments: { ...tracker.beads.comments, add } },
-	};
-	return { ...fixture, context, receipt, snapshot, show, trace, writes };
+	const context: ObservationContext = { ...tracker, beads: { show, comments: { add } } };
+	return { ...fixture, context, snapshot, show, trace, writes };
 }
 
-async function mutateRunning(
-	fixture: Awaited<ReturnType<typeof publicationFixture>>,
-	change: RunningChange,
-	anchors: { original: string; other: string; run: string },
+function mutateRunning(
+	{ record, request }: ReturnType<typeof publicationFixture>,
+	change: "none" | (typeof authorityChanges)[number],
 ) {
-	const { tracker, scope, id } = fixture;
-	if (change === "closed") {
-		await tracker.beads.close(scope, id);
-	} else if (change === "duplicate") {
-		await seedStdout(fixture, stdoutTimestamp, "2026-10-05T10:00:00.000Z");
-	} else if (change === "due") {
-		await seedStdout(fixture, "2026-10-03T10:00:00.000Z", "2026-10-05T10:00:00.000Z");
-	} else if (change === "identity") {
-		await tracker.beads.update(scope, [id], { assignee: "another-bee" });
-	} else {
-		const current = await tracker.beads.show(scope, id);
-		const description = JSON.parse(current.description);
-		if (change === "host") {
-			description.host = "another-host";
-		} else if (change === "unbound") {
-			delete description.host;
-		} else if (change === "kind") {
-			description.assignment = { kind: "stage", runId: anchors.run, stageId: anchors.original };
-		} else if (change === "run") {
-			description.assignment.runId = anchors.other;
-		} else {
-			if (change === "stage") {
-				description.assignment.stageId = anchors.other;
-			} else {
-				description.assignment.runId = anchors.other;
-			}
-			await tracker.beads.dep.remove(scope, id, anchors.original);
-			await tracker.beads.dep.add(scope, id, anchors.other, "related");
-		}
-		await tracker.beads.update(scope, [id], { description: JSON.stringify(description) });
+	if (change === "none") {
+		return;
 	}
+	if (change === "identity") {
+		record.assignee = "another-bee";
+	} else if (change === "host") {
+		request.host = "another-host";
+	} else if (change === "unbound") {
+		delete request.host;
+	} else if (change === "kind") {
+		request.assignment = { kind: "stage", runId: "run-one", stageId: "task-one" };
+	} else if (change === "run") {
+		request.assignment = { kind: "stage", runId: "another-run", stageId: "task-one" };
+	} else {
+		request.assignment = { kind: "stage", runId: "run-one", stageId: "another-stage" };
+		record.dependencies[ZERO]!.id = "another-stage";
+	}
+	record.description = JSON.stringify(request);
 }
 
-function seedStdout(
-	fixture: Awaited<ReturnType<typeof publicationFixture>>,
-	lastOutputAt: string,
-	recordedAt: string,
-) {
-	return fixture.tracker.beads.comments.add(
-		fixture.scope,
-		fixture.id,
-		`${COLONY_STDOUT_PREFIX} ${JSON.stringify({
-			attemptId: fixture.receipt.id,
-			attemptNumber: fixture.receipt.attemptNumber,
-			lastOutputAt,
-			recordedAt,
-		})}`,
-	);
-}
-
-async function driftFixture({ kind, drift }: (typeof driftCases)[number]) {
-	const fixture = await publicationFixture(kind);
-	const { tracker, scope, id, publish, show } = fixture;
-	const snapshot = await tracker.beads.show(scope, id);
+function driftFixture(drift: (typeof driftCases)[number]["drift"]) {
+	const fixture = publicationFixture();
+	const snapshot = structuredClone(fixture.record);
 	if (drift === "host") {
-		await tracker.beads.update(scope, [id], {
-			description: JSON.stringify({ ...JSON.parse(snapshot.description), host: "another-host" }),
-		});
+		fixture.request.host = "another-host";
+		fixture.record.description = JSON.stringify(fixture.request);
 	} else if (drift === "closed") {
-		await tracker.beads.close(scope, id, { reason: "Stopped by Bee" });
+		fixture.record.status = "closed";
 	} else {
-		await publish();
+		seedFact(fixture);
 	}
-	const before = await tracker.beads.show(scope, id);
-	show.mockClear();
-	return { ...fixture, snapshot, before };
+	return { ...fixture, snapshot, before: structuredClone(fixture.record) };
 }
 
-async function publicationFixture(kind: "fact" | "stdout") {
-	const tracker = memoryTracker();
-	const id = await createSpawn(tracker, await createTask(tracker));
-	const scope = trackerScope(tracker.repository, "inspector");
-	const show = mock(tracker.beads.show);
-	const context = { ...tracker, beads: { ...tracker.beads, show } };
-	const receipt = { id: "attempt-one", attemptNumber: 1, spawnId: id, directory: stdoutDirectory };
-	const publish = (snapshot?: Bead, beads = context.beads) => {
-		const input = { ...tracker, beads };
-		if (kind === "fact") {
-			return publishObservation(input, id, "waiting: dependency", snapshot);
-		}
-		return publishStdoutActivity(input, receipt, false, snapshot, readActivity);
+function publicationFixture() {
+	const repository = { beadsDb: "/fixture/tracker.db", root: "/fixture" };
+	const request: Recipe & { host?: string; assignment: WorkflowAssignment } = {
+		...recipe,
+		host: hostname(),
+		assignment: { kind: "driver", runId: "task-one" },
 	};
-	return { tracker, id, scope, show, context, receipt, publish };
+	const id = "request-one";
+	const timestamp = "2026-10-03T00:00:00.000Z";
+	const record: BeadRecord = {
+		id,
+		title: "Running request",
+		issue_type: "task",
+		notes: "",
+		design: "",
+		acceptance_criteria: "",
+		assignee: "worker",
+		owner: "ct",
+		status: "open",
+		priority: ONE,
+		description: JSON.stringify(request),
+		labels: spawnRequestLabels("worker"),
+		created_at: timestamp,
+		updated_at: timestamp,
+		dependencies: [
+			{ dependency_type: "related", id: "task-one", title: "Work", status: "open", priority: ONE },
+		],
+		dependents: [],
+		comments: [],
+	};
+	const records = new Map([[id, record]]);
+	const tracker: ObservationContext = {
+		repository,
+		beads: {
+			show: (_scope, target) => Promise.resolve(structuredClone(records.get(target)!)),
+			comments: {
+				add: (scope, target, text) =>
+					Promise.resolve(appendComment(records.get(target)!, scope.actor!, text)),
+			},
+		},
+	};
+	const scope = trackerScope(repository, "inspector");
+	const show = mock(tracker.beads.show);
+	const context: ObservationContext = { ...tracker, beads: { ...tracker.beads, show } };
+	const receipt = {
+		id: "attempt-one",
+		attemptNumber: ONE,
+		spawnId: id,
+		directory: stdoutDirectory,
+	};
+	const publish = (snapshot?: Bead, beads = context.beads) =>
+		publishObservation({ repository, beads }, id, "waiting: dependency", snapshot);
+	return { tracker, id, scope, show, context, receipt, publish, record, request };
+}
+
+function seedFact({ record }: ReturnType<typeof publicationFixture>) {
+	appendComment(record, "sys-colony", `${COLONY_OBSERVATION_PREFIX} waiting: dependency`);
+}
+
+function appendComment(record: BeadRecord, author: string, text: string) {
+	const id = record.comments.length + ONE;
+	const comment = {
+		id,
+		issue_id: record.id,
+		author,
+		created_at: new Date(Date.parse(record.created_at) + id).toISOString(),
+		text,
+	};
+	record.comments.push(comment);
+	return { ...comment };
 }
