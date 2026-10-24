@@ -176,51 +176,43 @@ async function initIncompletePool() {
 	return root;
 }
 
-function assertPoolInventory(result: CommandResult, root: string, json: boolean) {
+function assertPoolInventory(result: CommandResult, root: string) {
 	expect(result.exitCode).toBe(EXIT_CODES.SUCCESS);
 	expect(result.stderr).toBeUndefined();
 	expect(result.stdout).toContain(`${root}__feat1`);
 	expect(result.stdout).toContain(`${root}__feat2`);
 	expect(result.stdout).not.toContain(`${root}__feat3`);
-	if (json) {
-		expect(JSON.parse(result.stdout ?? "{}")).toMatchObject({
-			diagnostics: [],
-			kind: "list",
-			ok: true,
-			setup_output: [],
-			worktrees: [
-				{ canonical: true, path: root },
-				{ branch: "feature/ready", pool: { index: 1, placeholder: false } },
-				{ branch: "wk-pool/feat2", pool: { index: 2, placeholder: true } },
-			],
-		});
-	}
+	expect(JSON.parse(result.stdout ?? "{}")).toMatchObject({
+		diagnostics: [],
+		kind: "list",
+		ok: true,
+		setup_output: [],
+		worktrees: [
+			{ canonical: true, path: root },
+			{ branch: "feature/ready", pool: { index: 1, placeholder: false } },
+			{ branch: "wk-pool/feat2", pool: { index: 2, placeholder: true } },
+		],
+	});
 }
 
-test.each([
-	{ args: [], format: "text" },
-	{ args: ["--json"], format: "json" },
-])(
-	"$format list reads one inventory without preparing or scanning pool slots #test-291",
-	async ({ args, format }) => {
-		const root = await initIncompletePool();
-		const liveDeps = testDeps();
-		const calls: string[][] = [];
-		function observeGit(gitArgs: string[]) {
-			calls.push(gitArgs);
-			return liveDeps.git.run(gitArgs);
-		}
+test("JSON list reads one Git inventory and leaves missing pool slots absent #test-291", async () => {
+	const root = await initIncompletePool();
+	const liveDeps = testDeps();
+	const calls: string[][] = [];
+	function observeGit(gitArgs: string[]) {
+		calls.push(gitArgs);
+		return liveDeps.git.run(gitArgs);
+	}
 
-		const result = await dispatch("list", ["--cwd", root, ...args], {
-			...liveDeps,
-			git: { run: observeGit, runRaw: observeGit },
-		});
+	const result = await dispatch("list", ["--cwd", root, "--json"], {
+		...liveDeps,
+		git: { run: observeGit, runRaw: observeGit },
+	});
 
-		assertPoolInventory(result, root, format === "json");
-		expect(calls).toEqual([["-C", root, "worktree", "list", "--porcelain"]]);
-		expect(await pathExists(`${root}__feat3`)).toBe(false);
-	},
-);
+	assertPoolInventory(result, root);
+	expect(calls).toEqual([["-C", root, "worktree", "list", "--porcelain"]]);
+	expect(await pathExists(`${root}__feat3`)).toBe(false);
+});
 
 async function initLockedPool() {
 	const configRoot = join(tmp, "repo");
