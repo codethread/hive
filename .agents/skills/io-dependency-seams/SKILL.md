@@ -5,13 +5,15 @@ description: Use when implementing or refactoring an I/O boundary in code.
 
 # I/O dependency seams
 
-## Inject I/O
+## Dependency Injection
 
 Always pass I/O dependencies into application functions as injected functions or services, directly or through an existing context. Compose live adapters at application entry points. Refactor consumers that create their own I/O dependencies or access them through globals.
 
 ## Keep the domain honest
 
-Keep the interface honest about the dependency. Use Git operations when a generic `vcs` facade would still leak Git concepts; typed injection does not imply interchangeability. When a coherent domain abstraction could usefully hide or translate dependency details, consider a facade and make those semantics explicit.
+Expose named domain operations, not a generic `execute(argv)` mock. Keep dependency-specific concepts explicit when a generic facade would merely rename them; typed injection does not imply interchangeability. A domain facade earns its place by hiding or translating those details with explicit semantics.
+
+For adapter fidelity and the split between consumer and live tests, follow [Contract Testing](../testing/SKILL.md#integration-testing).
 
 ## Choose the relevant guidance
 

@@ -66,33 +66,10 @@ When designing an interface, ask:
 
 ## Designing for testability
 
-Good interfaces make testing natural:
-
-1. **Accept dependencies, don't create them.**
-
-```typescript
-// Testable
-function processOrder(order, paymentGateway) {}
-
-// Hard to test
-function processOrder(order) {
-	const gateway = new StripeGateway();
-}
-```
-
-2. **Return results, don't produce side effects.**
-
-```typescript
-// Testable
-function calculateDiscount(cart): Discount {}
-
-// Hard to test
-function applyDiscount(cart): void {
-	cart.total -= discount;
-}
-```
-
-3. **Small surface area.** Fewer methods = fewer tests needed. Fewer params = simpler test setup.
+- **Functional Core, Imperative Shell.** Keep policy over typed values in the core; keep I/O and composition in the shell. Return decisions and results rather than mutating caller-owned inputs.
+- **Parse, Don't Validate.** Parse external inputs once with a maintained parser/schema, then pass domain shapes inward. Trust those guarantees instead of revalidating interior values.
+- **Dependency Injection.** Follow [I/O dependency seams](../io-dependency-seams/SKILL.md) for injected functions or services and live-adapter composition. Prefer a local seam over a broad abstraction built only to support tests.
+- **Small surface area.** Fewer methods and simpler parameters reduce setup, not the number of meaningful behaviours to verify.
 
 ## Relationships
 

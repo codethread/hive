@@ -17,10 +17,12 @@ Run `bun run test:changed` at intervals, such as completing a subtask, to check 
 
 ## Writing tests
 
+Use the **Test Pyramid**: exercise policy with typed, already-valid values. Repeated configuration parsing or Git/filesystem/process setup is accidental integration unless that boundary is the behaviour under test. For isolating policy and injecting dependencies, follow [designing for testability](../codebase-design/SKILL.md#designing-for-testability).
+
 - Import APIs from `bun:test`. Prefer `test.each` / `it.each` when cases share setup and assertions; use a plain test when a table would be artificial.
 - Keep table rows pure data, without functions, promises, side effects or assertions.
+- Assert observable results and state transitions, not implementation choreography. Assert ordering when it is part of the contract.
 - Assert failures by error class (`toBeInstanceOf`), not hardcoded message strings. When a message's interpolated values are what the test proves, snapshot it with `toMatchInlineSnapshot`.
-- Inject service dependencies so unit tests can use fakes or overrides. Keep real IO in independently selectable integration/end-to-end suites.
 - Scripts already parallelise isolated test files. Keep tests sequential within files sharing mutable fixtures or environment state.
 
 ## Timing
@@ -28,6 +30,8 @@ Run `bun run test:changed` at intervals, such as completing a subtask, to check 
 Check runner-reported durations when adding or editing unit tests and aim for fast, focused tests. All unapproved timing severities and test timeouts require the remediation below.
 
 Use the [timing report guide](../../../lib/tooling/README.md#test-timing-report-and-landing-gate) for cutoff, full/contract buffer and allowance rules. If timing fails, use focused reruns or `--parallel=1` to diagnose resource contention or a slow individual test.
+
+Compare fresh-process samples, include cold initialization, and report ranges and contention rather than a best time. Moving work into unmeasured setup or warmup is not an optimization; removing a hidden warmup can expose genuine composition cost. An allowance changes the gate, not the cost.
 
 ### Addressing slow tests
 
@@ -38,4 +42,8 @@ Use the [timing report guide](../../../lib/tooling/README.md#test-timing-report-
 
 ## Integration testing
 
-Seams between systems need testing to verify contract adherence, but this should only be validated once. After that most tests can rely on a mock or fixture built against the validated contracted.
+Use **Contract Testing** to establish the consumed semantics against the real dependency, then let consumer tests use a faithful fake. Keep a small live suite for adapter/wiring and custom parsing semantics rather than re-testing a maintained parser/schema's generic syntax and default machinery. Follow the [migration guide](../io-dependency-seams/references/migrate.md) for shared live/fake scenarios covering consumed quirks and failures.
+
+Before consolidating integration cases, inventory meaningful assertions and name their retained test or trusted type/schema guarantee. Preserve failure, recovery and ordering contracts. Typed fixtures establish trusted inputs, not runtime validation coverage.
+
+Keep real I/O integration/end-to-end suites independently selectable. External-tool contracts can legitimately cost more than policy tests; keep that cost visible rather than repeating every policy permutation there.
