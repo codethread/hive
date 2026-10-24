@@ -1,6 +1,7 @@
 /* eslint-disable import/max-dependencies --
  * Dispatch composes scheduling, claims and supervision boundaries.
  */
+import type { RequestRecord, RequestStore } from "./request.ts";
 import { SPAWN_REQUEST_LABELS, readSpawnRequest, readSpawnRequestHost } from "@hive/shared";
 import { assertRequestAuthority, claimRequest, newRequest, reconcileRequests } from "./request.ts";
 import { compareCandidates, hasCapacity, hasContention } from "./scheduler.ts";
@@ -12,7 +13,6 @@ import type { BvService } from "@hive/shared/bv";
 import type { Occupant } from "./scheduler.ts";
 import type { OperationEvidence } from "./history.ts";
 import type { Preparation } from "./launch.ts";
-import type { RequestRecord } from "./request.ts";
 import type { Store } from "./store.ts";
 import type { TrackerContext } from "./tracker.ts";
 import type { WithAdmission } from "./admission.ts";
@@ -35,8 +35,8 @@ export interface DispatchInput extends TrackerContext {
 	withAdmission: WithAdmission;
 	/** Private daemon state directory. */
 	state: string;
-	/** Concrete durable reservation owner. */
-	store: Store;
+	/** Durable request, reservation and attempt operations shared with the colony machine. */
+	store: RequestStore & Pick<Store, "currentAttempts" | "reserve">;
 }
 
 interface Candidate extends Extract<Preparation, { kind: "prepared" }> {

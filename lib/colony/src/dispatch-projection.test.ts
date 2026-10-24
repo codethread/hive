@@ -1,49 +1,41 @@
 /* eslint-disable import/max-dependencies --
  * Keep dispatch's tracker, admission and store fixtures together.
  */
-import { SPAWN_REQUEST_LABELS, beesConfigSchema, readSpawnRequest } from "@hive/shared";
-import { afterAll, expect, mock, test } from "bun:test";
+import { SPAWN_REQUEST_LABELS, readSpawnRequest } from "@hive/shared";
 import { createSpawn, createTask, memoryTracker } from "./tracker.test-support.ts";
-// eslint-disable-next-line import/no-nodejs-modules -- Prepare and clean state directories outside behavior timing.
-import { mkdtemp, rm } from "node:fs/promises";
+import { expect, mock, test } from "bun:test";
 import { newRequest, transitionRequest } from "./request.ts";
+import type { BeesConfig } from "@hive/shared";
 import { CommandError } from "@hive/beads";
+import type { DispatchInput } from "./dispatch.ts";
 import type { RequestRecord } from "./request.ts";
 import type { Store } from "./store.ts";
 import { createAdmissionGate } from "./admission.ts";
 import { dispatch } from "./dispatch.ts";
-// eslint-disable-next-line import/no-nodejs-modules -- Locate the isolated request fixture artifacts.
-import { join } from "node:path";
-import { openStore } from "./store.ts";
-// eslint-disable-next-line import/no-nodejs-modules -- Locate disposable state, never the running Colony's database.
-import { tmpdir } from "node:os";
 import { trackerScope } from "./tracker.ts";
 
 const ONE = 1;
-const state = await mkdtemp(join(tmpdir(), "colony-dispatch-projection-"));
-const base = openStore(state);
-const config = beesConfigSchema.parse({ formulas: {}, humans: ["ct"], owner: "ct" });
-const warmup = await projectionFixture();
-await createSpawn(warmup, warmup.task);
-await dispatch({ ...warmup, state }, config, "fixture");
-const serial = await projectionFixture();
-const closed = await createSpawn(serial, serial.task);
-await serial.beads.close(serial.scope, closed, { reason: "completed" });
+const state = "/fixture/dispatch-projection";
+const config: BeesConfig = {
+	formulas: {},
+	humans: ["ct"],
+	owner: "ct",
+	kinds: {},
+	limits: { colony: 4, kind: 2, kinds: {}, worktree: 2 },
+	max_retries: 3,
+	ranking: "bv-pagerank",
+	retry_delay_ms: 250,
+};
 const failureCases = ["closed", "open"];
-const failures = new Map(
-	await Promise.all(
-		failureCases.map(async (status) => [status, await projectionFixture()] as const),
-	),
-);
 const driftCases = ["host", "tasks"];
-const drifts = new Map(
-	await Promise.all(driftCases.map(async (field) => [field, await waitingFixture()] as const)),
-);
 
 /* eslint-disable-next-line max-statements --
  * Keep paused repair, concurrent creation and the resulting read/write order in one test.
  */
 test("discovery waits for closed repair and sees a misprojected request created during repair #test-669", async () => {
+	const serial = await projectionFixture();
+	const closed = await createSpawn(serial, serial.task);
+	await serial.beads.close(serial.scope, closed, { reason: "completed" });
 	const { beads, scope, store } = serial;
 	const entered = Promise.withResolvers<void>();
 	const resume = Promise.withResolvers<void>();
@@ -124,7 +116,7 @@ test("discovery waits for closed repair and sees a misprojected request created 
 test.each(failureCases)(
 	"native %s projection errors propagate without falling back to full lists",
 	async (status) => {
-		const fixture = failures.get(status)!;
+		const fixture = await projectionFixture();
 		const error = new CommandError("br list", {
 			code: 1,
 			stdout: "",
@@ -152,7 +144,7 @@ test.each(failureCases)(
 test.each(driftCases)(
 	"waiting discovery rejects %s drift without replacing captured authority",
 	async (field) => {
-		const fixture = drifts.get(field)!;
+		const fixture = await waitingFixture();
 		const { beads, scope, id, record } = fixture;
 		const listProjected = mock(async (...args: Parameters<typeof beads.listProjected>) => {
 			const page = await beads.listProjected(...args);
@@ -187,18 +179,14 @@ test.each(driftCases)(
 	},
 );
 
-afterAll(async () => {
-	base.close();
-	await rm(state, { recursive: true, force: true });
-});
-
 async function projectionFixture() {
 	const tracker = memoryTracker();
 	const scope = trackerScope(tracker.repository, "sys-colony");
 	const task = await createTask(tracker, { labels: ["hitl"] });
 	const records = new Map<string, RequestRecord>();
-	const store = {
-		...base,
+	const store: DispatchInput["store"] = {
+		reserve: unexpectedLaunch,
+		supervisor: unexpectedLaunch,
 		history: {
 			run: (_input, action) =>
 				action({ completed: () => {}, failed: () => {}, reference: () => {}, step: () => {} }),
@@ -215,7 +203,7 @@ async function projectionFixture() {
 		}) satisfies Store["advanceRequest"],
 		inventory: () => Promise.resolve([]),
 		retainedInventory: () => [],
-		retainedOccupants: () => [],
+		currentAttempts: () => [],
 	};
 	return {
 		...tracker,
@@ -238,4 +226,8 @@ async function waitingFixture() {
 	const record = newRequest(await fixture.beads.show(fixture.scope, id), fixture.repository);
 	fixture.store.saveRequest(fixture.repository.root, record);
 	return { ...fixture, id, extra, record };
+}
+
+function unexpectedLaunch(): never {
+	throw new Error("Ineligible fixture unexpectedly launched an attempt");
 }

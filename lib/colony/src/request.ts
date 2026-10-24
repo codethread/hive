@@ -65,9 +65,20 @@ export const requestRecordSchema = z.strictObject({
 	id: z.string(),
 	state: requestStateSchema,
 });
+export type RequestStore = Pick<
+	Store,
+	| "advanceRequest"
+	| "history"
+	| "inventory"
+	| "request"
+	| "requests"
+	| "retainedInventory"
+	| "saveRequest"
+	| "supervisor"
+>;
 interface RequestRuntime extends TrackerContext {
 	/** Durable request and attempt checkpoints. */
-	store: Store;
+	store: RequestStore;
 	/** Current canonical retry policy. */
 	config: BeesConfig;
 }
