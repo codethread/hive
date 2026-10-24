@@ -1,28 +1,41 @@
+import type { BeesConfig, Invocation } from "@hive/shared";
 import { expect, test } from "bun:test";
-import type { Invocation } from "@hive/shared";
 import { RESPONSE_PROTOCOL } from "./response-protocol.ts";
 import type { RunRuntime } from "./run.ts";
-import { parseBeesConfig } from "@hive/shared";
 import { runKind } from "./run.ts";
 
-const config = parseBeesConfig(`owner="ct"
-humans=["ct"]
-[formulas.native]
-headless=["--print"]
-executable="interactive"
-argv=["{{model}}", "{{effort}}", "{{system_prompt}}", "{{prompt}}", "{{cwd}}"]
-[formulas.alternate]
-headless=["exec"]
-executable="~/other-interactive"
-argv=["{{model}}", "{{effort}}", "{{system_prompt}}", "{{prompt}}"]
-[kinds.librarian]
-description="Discuss architecture."
-harness="native"
-model="default-model"
-effort="low"
-system_prompt="Role instructions"
-prompt=""
-`);
+const config: BeesConfig = {
+	owner: "ct",
+	humans: ["ct"],
+	formulas: {
+		native: {
+			headless: ["--print"],
+			executable: "interactive",
+			argv: ["{{model}}", "{{effort}}", "{{system_prompt}}", "{{prompt}}", "{{cwd}}"],
+		},
+		alternate: {
+			headless: ["exec"],
+			executable: "~/other-interactive",
+			argv: ["{{model}}", "{{effort}}", "{{system_prompt}}", "{{prompt}}"],
+		},
+	},
+	kinds: {
+		librarian: {
+			description: "Discuss architecture.",
+			harness: "native",
+			model: "default-model",
+			effort: "low",
+			system_prompt: "Role instructions",
+			prompt: "",
+			hidden: false,
+			workflow: "do-work",
+		},
+	},
+	limits: { colony: 4, kind: 2, kinds: {}, worktree: 2 },
+	max_retries: 3,
+	ranking: "bv-pagerank",
+	retry_delay_ms: 250,
+};
 const CURRENT_DIRECTORY = "/repo/worktree/subdirectory";
 const FIRST = 0;
 const ONE_LAUNCH = 1;
@@ -38,9 +51,6 @@ const inherited = {
 	PATH: "/bin",
 	SHELL_VALUE: "inherited",
 };
-
-// Warm schemas and rendering outside the unit-test timing window.
-await runKind("librarian", {}, fixture().runtime);
 
 test(
 	"interactive run inherits the directory and shell with fresh attribution, without " +
