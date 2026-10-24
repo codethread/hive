@@ -1,6 +1,6 @@
+import { DirtySlotError, UsageError } from "../errors.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Worktree paths are real filesystem paths by contract.
 import { basename, dirname, isAbsolute, resolve } from "node:path";
-import { UsageError } from "../errors.ts";
 import type { WorktreeLocation } from "./config.ts";
 
 const LEGACY_NESTED_WORKTREE_DIR = ".wktree";
@@ -52,7 +52,7 @@ export interface Slot {
 	exists: boolean;
 	/** Checked-out local branch, if any. */
 	branch: string | null;
-	/** Whether the slot is available on its placeholder branch. */
+	/** Whether the slot holds its reserved placeholder branch. */
 	placeholder: boolean;
 	/** Whether Git reports uncommitted changes or cannot read the slot's status. */
 	dirty: boolean;
@@ -177,6 +177,23 @@ export interface WorktreeTreeNode {
 	parentage: WorktreeParentage;
 	/** Counts against the default branch; absent for a missing HEAD. */
 	comparison: TreeComparison | undefined;
+}
+
+/**
+ * Route explicit selection independently of initialization.
+ * "recycle" delegates safety checks and force handling to the recycler.
+ */
+export function explicitSlotAction(
+	slot: Readonly<Pick<Slot, "path" | "exists" | "placeholder" | "dirty">>,
+	force: boolean,
+): "allocate" | "recycle" {
+	if (!slot.exists || (slot.placeholder && !slot.dirty)) {
+		return "allocate";
+	}
+	if (slot.placeholder && !force) {
+		throw new DirtySlotError(`slot ${slot.path} has uncommitted changes; pass --force to recycle`);
+	}
+	return "recycle";
 }
 
 /** Git reports an all-zero HEAD for an unborn branch and no HEAD for a bare entry. */

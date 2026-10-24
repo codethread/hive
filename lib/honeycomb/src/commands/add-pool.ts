@@ -1,7 +1,6 @@
 import type { BranchState, PoolState, Slot, Worktree } from "../domain/worktree.ts";
 import {
 	ConfigError,
-	DirtySlotError,
 	DuplicateBranchError,
 	HoneycombError,
 	PickerCancelled,
@@ -26,6 +25,7 @@ import {
 	toPoolFullPayload,
 } from "./add-pool-picker.ts";
 import type { Deps } from "../services.ts";
+import { explicitSlotAction } from "../domain/worktree.ts";
 import { listWorktrees } from "../application/repository.ts";
 import { projectNameFor } from "../domain/config.ts";
 import { setupPooledCheckout } from "../application/pooled-setup.ts";
@@ -253,13 +253,8 @@ async function selectExplicitSlot(options: PreparedPool, slotPath: string): Prom
 	if (!selected) {
 		throw new UsageError(`pool slot not found: ${slotPath}`);
 	}
-	if (!selected.exists || (selected.placeholder && !selected.dirty)) {
+	if (explicitSlotAction(selected, options.force) === "allocate") {
 		return selected;
-	}
-	if (selected.placeholder && !options.force) {
-		throw new DirtySlotError(
-			`slot ${selected.path} has uncommitted changes; pass --force to recycle`,
-		);
 	}
 	return (await recycleAndReadSlot(options, selected, options.force)) ?? selected;
 }

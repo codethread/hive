@@ -244,7 +244,6 @@ test.each([{ location: "sibling" }, { location: "nested" }] as const)(
 test.each([
 	{ state: "dirty", branch: "feature/occupied", initialized: false },
 	{ state: "clean", branch: "feature/occupied", initialized: false },
-	{ state: "dirty", branch: "wk-pool/feat1", initialized: false },
 	{ state: "dirty", branch: "wk-pool/feat1", initialized: true },
 ] as const)(
 	"explicit $branch remains protected (state=$state, initialized=$initialized) #test-118",
@@ -260,7 +259,17 @@ test.each([
 		);
 
 		expect(result.failure).toBeInstanceOf(SAFETY_FAILURE[state]);
-		expect(await poolSlots(root)).toMatchObject([{ branch, initialized }, { exists: false }]);
+		expect(await poolSlots(root)).toMatchObject([
+			{
+				branch,
+				initialized,
+				exists: true,
+				placeholder: branch === "wk-pool/feat1",
+				dirty: state === "dirty",
+				path: `${root}__feat1`,
+			},
+			{ exists: false },
+		]);
 		expect(await gitText(`${root}__feat1`, "status", "--porcelain")).toBe(before);
 	},
 );
