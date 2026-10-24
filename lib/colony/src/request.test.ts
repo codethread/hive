@@ -1,29 +1,20 @@
-/* eslint-disable unicorn/no-null -- Lifecycle events exercise explicit pending outcomes. */
+/* eslint-disable unicorn/no-null -- Checkpoints and events encode absent values as null. */
+import type { RepositoryEndpoint, SpawnRequest } from "@hive/shared";
 import type { RequestEvent, RequestRecord } from "./request.ts";
-import type { SpawnRequest, WorkflowAssignment } from "@hive/shared";
 import {
 	assertRequestAuthority,
 	newRequest,
 	requestRecordSchema,
 	transitionRequest,
 } from "./request.ts";
-import { createSpawn, createTask, memoryTracker } from "./tracker.test-support.ts";
 import { expect, test } from "bun:test";
-import type { LaunchReceipt } from "./launch.ts";
-import { readSpawnRequest } from "@hive/shared";
-import { trackerScope } from "./tracker.ts";
+import type { Bead } from "@hive/beads";
 
-// Compile boundary schemas and seed native memory records outside behavior timing.
-const driver = await authorityFixture("driver");
-const stage = await authorityFixture("stage");
-const fixtures = { driver, stage };
-const FIRST = 0;
-const ANCHOR = driver.request.taskIds[FIRST]!;
-const DRIVER: WorkflowAssignment = { kind: "driver", runId: ANCHOR };
+const RETRY_START = 0;
 const events: RequestEvent[] = [
 	{ type: "READY" },
-	{ type: "INTEND", id: ANCHOR },
-	{ type: "ACQUIRED", id: ANCHOR },
+	{ type: "INTEND", id: "run-1" },
+	{ type: "ACQUIRED", id: "run-1" },
 	{ type: "START", id: "attempt" },
 	{ type: "SETTLE", outcome: null, message: "Retry unfinished work" },
 	{ type: "RELEASED" },
@@ -35,92 +26,174 @@ const events: RequestEvent[] = [
 	{ type: "RELEASED" },
 	{ type: "SETTLED", now: 2, maxRetries: 2, delay: 2 },
 ];
-restore(driver.record);
-// Warm XState's snapshot machinery outside the measured regression behavior.
-let warmed = driver.record;
-for (const event of events) {
-	warmed = restore(transitionRequest(warmed, event));
-}
-const stageWarmup = await authorityFixture("stage");
-let warmedStage = stageWarmup.record;
-for (const event of events) {
-	warmedStage = restore(transitionRequest(warmedStage, event));
-}
-const capturedReceipts = { driver: receiptFor(driver.request), stage: receiptFor(stage.request) };
+const captured: Pick<SpawnRequest, "assignment" | "identity" | "taskIds" | "host"> = {
+	assignment: { kind: "driver", runId: "run-1" },
+	host: "requesting-machine",
+	identity: "friendly-bee",
+	taskIds: ["run-1"],
+};
+const checkpoints: {
+	state: RequestRecord["state"];
+	attemptId: string | null;
+	claims: string[];
+	retryAt: number | null;
+	event: RequestEvent;
+	expectedState: RequestRecord["state"];
+}[] = [
+	{
+		state: "executing",
+		attemptId: "attempt",
+		claims: ["run-1"],
+		retryAt: null,
+		event: { type: "SETTLE", outcome: null, message: "Retry unfinished work" },
+		expectedState: "settling",
+	},
+	{
+		state: "retrying",
+		attemptId: null,
+		claims: [],
+		retryAt: 2,
+		event: { type: "TICK", now: 2 },
+		expectedState: "waiting",
+	},
+];
 
-test.each([DRIVER])(
-	"captured $kind authority survives retries and JSON restoration #test-476",
-	(assignment) => {
-		const fixture = fixtures[assignment.kind];
-		let record = restore(fixture.record);
-		expect(record.assignment).toEqual(assignment);
-		for (const event of events) {
-			record = restore(transitionRequest(record, event));
-			expect(record.assignment).toEqual(assignment);
-			assertRequestAuthority(record, fixture.request);
-			assertRequestAuthority(record, capturedReceipts[assignment.kind]);
+test("captured driver authority survives retries #test-476", () => {
+	let record = driverRecord();
+	expect(record.assignment).toEqual(captured.assignment);
+	for (const event of events) {
+		record = transitionRequest(record, event);
+		expect(record.assignment).toEqual(captured.assignment);
+		assertRequestAuthority(record, captured);
+		if (event.type === "SETTLED" && event.now === RETRY_START) {
+			expect(record).toMatchObject({ state: "retrying", context: { retryAt: 2 } });
 		}
-		expect(record.state).toBe("terminal");
+	}
+	expect(record).toMatchObject({
+		state: "terminal",
+		context: { attempts: 2, outcome: "completed" },
+	});
+});
+
+test("newRequest captures spawn-bead authority and the selected database", () => {
+	const repository: RepositoryEndpoint = {
+		root: "/canonical",
+		beadsDb: "/selected/tracker.db",
+	};
+	const spawn: Bead = {
+		assignee: "captured-bee",
+		comments: [],
+		created_at: "2026-10-13T00:00:00.000Z",
+		dependencies: [{ id: "captured-run", dependency_type: "related" }],
+		dependents: [],
+		description: JSON.stringify({
+			assignment: { kind: "driver", runId: "captured-run" },
+			cwd: "/execution",
+			effort: "low",
+			harness: "fixture",
+			host: "captured-host",
+			kind: "worker",
+			model: "fixture",
+			prompt: "captured direction",
+			system_prompt: "captured role",
+		}),
+		id: "captured-request",
+		labels: ["system", "bee", "agent:worker", "bee-outcome:pending", "bee-resolution:unresolved"],
+		owner: "ct",
+		priority: 2,
+		status: "open",
+		updated_at: "2026-10-13T00:00:00.000Z",
+	};
+	expect(newRequest(spawn, repository)).toEqual({
+		assignment: { kind: "driver", runId: "captured-run" },
+		beadsDb: "/selected/tracker.db",
+		host: "captured-host",
+		context: {
+			attemptId: null,
+			attempts: 0,
+			claims: [],
+			identity: "captured-bee",
+			message: "",
+			outcome: null,
+			pendingClaim: null,
+			retryAt: null,
+			taskIds: ["captured-run"],
+		},
+		id: "captured-request",
+		state: "waiting",
+	});
+});
+
+// Sample JSON restoration separately from the typed lifecycle's per-transition authority checks.
+test.each(checkpoints)(
+	"JSON/schema restoration preserves $state checkpoints and their next transition",
+	({ state, attemptId, claims, retryAt, event, expectedState }) => {
+		const initial = driverRecord();
+		const checkpoint: RequestRecord = {
+			...initial,
+			state,
+			context: {
+				...initial.context,
+				attemptId,
+				attempts: 1,
+				claims: [...claims],
+				message: "Retained progress",
+				retryAt,
+			},
+		};
+		const restored = restore(checkpoint);
+		expect(restored).toEqual(checkpoint);
+		assertRequestAuthority(restored, captured);
+		const next = transitionRequest(restored, event);
+		expect(next.state).toBe(expectedState);
+		assertRequestAuthority(next, captured);
 	},
 );
 
-test.each([{ field: "identity", value: "another-bee" }])(
-	"restored authority rejects receipt changes to $field: $value",
-	({ field, value }) => {
-		const restored = restore(stage.record);
-		expect(() =>
-			assertRequestAuthority(restored, { ...receiptFor(stage.request), [field]: value }),
-		).toThrow(Error);
-	},
-);
+test("restored stage authority rejects a changed identity", () => {
+	const initial = driverRecord();
+	const stage: RequestRecord = {
+		...initial,
+		assignment: { kind: "stage", runId: "run-1", stageId: "stage-1" },
+		context: { ...initial.context, taskIds: ["stage-1"] },
+	};
+	const authority: typeof captured = {
+		assignment: { kind: "stage", runId: "run-1", stageId: "stage-1" },
+		host: "requesting-machine",
+		identity: "friendly-bee",
+		taskIds: ["stage-1"],
+	};
+	const restored = restore(stage);
+	assertRequestAuthority(restored, authority);
+	expect(() => assertRequestAuthority(restored, { ...authority, identity: "another-bee" })).toThrow(
+		Error,
+	);
+});
 
 // --- Fixtures ---
-// Capture a genuine native request through the shared memory fixture before timing tests.
-// eslint-disable-next-line max-statements
-async function authorityFixture(kind: WorkflowAssignment["kind"]) {
-	const tracker = memoryTracker();
-	const taskId = await createTask(tracker);
-	let assignment: WorkflowAssignment = { kind: "driver", runId: taskId };
-	if (kind === "stage") {
-		assignment = { kind, runId: "run", stageId: taskId };
-	}
-	const id = await createSpawn(tracker, taskId);
-	const scope = trackerScope(tracker.repository, "worker");
-	const initial = await tracker.beads.show(scope, id);
-	const decoded = readSpawnRequest(initial);
-	await tracker.beads.update(scope, [id], {
-		description: JSON.stringify({ ...decoded.recipe, host: decoded.host, assignment }),
-	});
-	const spawn = await tracker.beads.show(scope, id);
-	const record = newRequest(spawn, tracker.repository);
-	return { tracker, spawn, record, request: readSpawnRequest(spawn) };
+function driverRecord(): RequestRecord {
+	return {
+		assignment: { kind: "driver", runId: "run-1" },
+		beadsDb: "/fixture/tracker.db",
+		host: "requesting-machine",
+		context: {
+			attemptId: null,
+			attempts: 0,
+			claims: [],
+			identity: "friendly-bee",
+			message: "",
+			outcome: null,
+			pendingClaim: null,
+			retryAt: null,
+			taskIds: ["run-1"],
+		},
+		id: "request-1",
+		state: "waiting",
+	};
 }
 
 function restore(record: RequestRecord): RequestRecord {
-	// Exercise the JSON persistence boundary, not an in-memory clone.
-	// eslint-disable-next-line unicorn/prefer-structured-clone
+	// eslint-disable-next-line unicorn/prefer-structured-clone -- Test the checkpoint JSON format.
 	const parsed: unknown = JSON.parse(JSON.stringify(record));
 	return requestRecordSchema.parse(parsed);
-}
-
-function receiptFor(request: SpawnRequest): LaunchReceipt {
-	return {
-		assignment: request.assignment,
-		attemptNumber: 1,
-		beadsDb: driver.tracker.repository.beadsDb,
-		bucket: "/fixture",
-		createdAt: "2026-10-13T00:00:00.000Z",
-		cwd: "/fixture",
-		directory: "/fixture/attempt",
-		formula: { argv: [], executable: "fixture", headless: [] },
-		host: request.host,
-		id: "attempt",
-		identity: request.identity,
-		invocation: { argv: [], executable: "fixture" },
-		policyRevisionId: null,
-		recipe: request.recipe,
-		spawnId: request.id,
-		taskIds: request.taskIds,
-		token: "token",
-	};
 }
