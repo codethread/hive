@@ -7,6 +7,7 @@
  */
 import type { AttemptInventory, Store } from "./store.ts";
 import type { BeesConfig, RepositoryEndpoint, SpawnRequest } from "@hive/shared";
+import type { RunningObservationContext, RunningObservationInput } from "./observations.ts";
 import {
 	RunningStdoutPublicationError,
 	publishObservation,
@@ -27,7 +28,6 @@ import {
 import type { Bead } from "@hive/beads";
 import type { LaunchReceipt } from "./launch.ts";
 import type { OperationEvidence } from "./history.ts";
-import type { RunningObservationInput } from "./observations.ts";
 import type { TrackerContext } from "./tracker.ts";
 import type { WorkflowCompletion } from "./workflow-anchor.ts";
 /* eslint-disable-next-line import/no-nodejs-modules --
@@ -332,8 +332,10 @@ export function runningPublicationStillCurrent(
  * Establish request-attributed history before the batch gate, then drain every history outcome.
  */
 export async function publishRunningCohortWithHistory(
-	runtime: RequestRuntime,
-	inputs: readonly RunningPublication[],
+	runtime: RunningObservationContext & {
+		store: Pick<Store, "history" | "request">;
+	},
+	inputs: readonly (RunningObservationInput & { record: Pick<RequestRecord, "id"> })[],
 	publish: typeof publishRunningStdoutActivities = publishRunningStdoutActivities,
 ): Promise<void> {
 	const { repository, store } = runtime;

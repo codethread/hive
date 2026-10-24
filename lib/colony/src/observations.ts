@@ -1,4 +1,5 @@
 /* eslint-disable unicorn/no-null -- Unknown stdout activity is explicit in the public observation. */
+import type { Bead, BeadsService } from "@hive/beads";
 import {
 	COLONY_OBSERVATION_PREFIX,
 	COLONY_STDOUT_PREFIX,
@@ -6,7 +7,6 @@ import {
 	latestStdoutActivity,
 	readSpawnRequest,
 } from "@hive/shared";
-import type { Bead } from "@hive/beads";
 import type { LaunchReceipt } from "./launch.ts";
 import type { StdoutActivity } from "@hive/shared";
 import type { TrackerContext } from "./tracker.ts";
@@ -24,6 +24,14 @@ import { trackerScope } from "./tracker.ts";
 
 const STDOUT_PUBLICATION_INTERVAL_MS = 30_000;
 const EMPTY = 0;
+
+export interface RunningObservationContext extends Pick<TrackerContext, "repository"> {
+	/** Existing tracker operations consumed by batch stdout publication. */
+	beads: Pick<BeadsService, "showMany"> & {
+		/** Append native comments with caller attribution. */
+		comments: Pick<BeadsService["comments"], "add">;
+	};
+}
 
 export interface RunningObservationInput {
 	/** Current owned attempt; lifecycle eligibility remains the caller's responsibility. */
@@ -68,7 +76,7 @@ export function runningObservationCurrent({ receipt, snapshot }: RunningObservat
  */
 /* eslint-disable-next-line max-statements -- Keep cohort validation, immediate admission and full drain together. */
 export async function publishRunningStdoutActivities(
-	{ beads, repository }: TrackerContext,
+	{ beads, repository }: RunningObservationContext,
 	inputs: readonly RunningObservationInput[],
 	readActivity: typeof readStdoutActivity = readStdoutActivity,
 ): Promise<void> {

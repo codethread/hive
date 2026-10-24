@@ -1,81 +1,40 @@
 /* eslint-disable max-statements -- Verify admission, drain and request-attributed history as one operation. */
-/* eslint-disable import/max-dependencies -- Compose the existing memory tracker, store and publication boundaries. */
-/* eslint-disable unicorn/no-null -- Receipt and checkpoint fields explicitly preserve absence. */
-import {
-	RunningStdoutPublicationError,
-	publishObservation,
-	publishRunningStdoutActivities,
-} from "./observations.ts";
-import { afterAll, expect, test } from "bun:test";
-import { beesConfigSchema, readSpawnRequest } from "@hive/shared";
-import { createSpawn, createTask, memoryTracker } from "./tracker.test-support.ts";
-// eslint-disable-next-line import/no-nodejs-modules -- Create and clean up the disposable store outside test timing.
-import { mkdtemp, rm } from "node:fs/promises";
-import { newRequest, publishRunningCohortWithHistory, transitionRequest } from "./request.ts";
-import type { LaunchReceipt } from "./launch.ts";
+/* eslint-disable import/max-dependencies -- Compose publication and history coordination with typed local fakes. */
+/* eslint-disable unicorn/no-null -- Recipe, stdout and history values explicitly preserve absence. */
+import { COLONY_OBSERVATION_PREFIX, spawnRequestLabels } from "@hive/shared";
+import { RunningStdoutPublicationError, publishRunningStdoutActivities } from "./observations.ts";
+import { expect, test } from "bun:test";
+import type { BeadRecord } from "@hive/beads";
 import type { OperationEvidence } from "./history.ts";
+import type { Recipe } from "@hive/shared";
+import type { RunningObservationInput } from "./observations.ts";
 import type { Store } from "./store.ts";
-// eslint-disable-next-line import/no-nodejs-modules -- Locate disposable fixture artifacts.
-import { join } from "node:path";
+// eslint-disable-next-line import/no-nodejs-modules -- Bind fixture authority to the native publication host.
+import { hostname } from "node:os";
 /* eslint-disable-next-line import/no-nodejs-modules --
  * Let continuations run before asserting that a sibling still blocks completion.
  */
 import { setImmediate as nextTurn } from "node:timers/promises";
-import { openStore } from "./store.ts";
-// eslint-disable-next-line import/no-nodejs-modules -- Never write real attempt directories.
-import { tmpdir } from "node:os";
-import { trackerScope } from "./tracker.ts";
+import { publishRunningCohortWithHistory } from "./request.ts";
 
 const ZERO = 0;
 const ONE = 1;
-const state = await mkdtemp(join(tmpdir(), "colony-publication-history-"));
-const store = openStore(state);
-const config = beesConfigSchema.parse({ formulas: {}, humans: ["ct"], owner: "ct" });
+const state = "/fixture/publication-history";
+const recipe: Recipe = {
+	cwd: null,
+	effort: "low",
+	harness: "fixture",
+	kind: "worker",
+	model: "fixture",
+	prompt: "Complete assigned tasks",
+	system_prompt: "Worker role",
+};
 const publishMemoryStdout: typeof publishRunningStdoutActivities = (context, inputs) =>
 	publishRunningStdoutActivities(context, inputs, () => Promise.resolve(null));
-const drain = await historyFixture();
-const draining = drainingFixture(drain);
-const setupFailure = await historyFixture();
-const secondaryFailure = await historyFixture();
-const warm = await historyFixture();
-await publishRunningCohortWithHistory(warm.runtime, warm.inputs, publishMemoryStdout);
-const warmFailure = await historyFixture();
-await captureFailure(
-	publishRunningCohortWithHistory(
-		{
-			...warmFailure.runtime,
-			beads: {
-				...warmFailure.runtime.beads,
-				comments: {
-					...warmFailure.runtime.beads.comments,
-					add: () => Promise.reject(new Error("Warmup failure")),
-				},
-			},
-		},
-		warmFailure.inputs,
-		publishMemoryStdout,
-	),
-);
-const warmDrainFixture = await historyFixture();
-const warmDraining = drainingFixture(warmDrainFixture);
-const warmDrainOperation = captureFailure(
-	publishRunningCohortWithHistory(
-		warmDraining.runtime,
-		warmDrainFixture.inputs,
-		publishMemoryStdout,
-	),
-);
-await warmDraining.allStarted.promise;
-warmDraining.controls[ZERO]!.reject(warmDraining.failure);
-await nextTurn();
-warmDraining.controls[ONE]!.resolve();
-await warmDrainOperation;
-afterAll(async () => {
-	store.close();
-	await rm(state, { force: true, recursive: true });
-});
 
 test("request history and reconciliation stay pending until every admitted native comment settles", async () => {
+	const drain = historyFixture();
+	const draining = drainingFixture(drain);
 	const { controls, allStarted, started, failure, runtime } = draining;
 	let finished = false;
 	const operation = (async () => {
@@ -118,6 +77,7 @@ test("request history and reconciliation stay pending until every admitted nativ
 });
 
 test("a history setup failure prevents the native gate and drains already-started histories", async () => {
+	const setupFailure = historyFixture();
 	const failure = new Error("Cannot record attempted publication");
 	const original = setupFailure.runtime.store.history.run;
 	let index = ZERO;
@@ -148,6 +108,7 @@ test("a history setup failure prevents the native gate and drains already-starte
 });
 
 test("history failure after native failure retains both causes and the secondary request identity", async () => {
+	const secondaryFailure = historyFixture();
 	const nativeFailure = new Error("Native comment failed");
 	const historyFailure = new Error("Cannot persist failed history");
 	const original = secondaryFailure.runtime.store.history.run;
@@ -191,42 +152,60 @@ test("history failure after native failure retains both causes and the secondary
 });
 
 // --- Fixtures ---
-async function historyFixture() {
-	const tracker = memoryTracker();
-	const inputs = await Promise.all(
-		[ZERO, ONE].map(async (index) => {
-			const taskId = await createTask(tracker);
-			const id = await createSpawn(tracker, taskId);
-			const scope = trackerScope(tracker.repository, "worker");
-			await publishObservation(tracker, id, "running: attempt 1");
-			const snapshot = await tracker.beads.show(scope, id);
-			const request = readSpawnRequest(snapshot);
-			const record = transitionRequest(
-				transitionRequest(newRequest(snapshot, tracker.repository), { type: "READY" }),
-				{ type: "START", id: `attempt-${index}` },
-			);
-			const receipt: LaunchReceipt = {
+function historyFixture() {
+	const repository = { root: "/fixture", beadsDb: "/fixture/tracker.db" };
+	const timestamp = "2026-10-21T00:00:00.000Z";
+	const inputs = [ZERO, ONE].map((index) => {
+		const taskId = `task-${index}`;
+		const request = {
+			assignment: { kind: "driver" as const, runId: taskId },
+			host: hostname(),
+			identity: "worker",
+		};
+		const id = `request-${index}`;
+		const snapshot: BeadRecord = {
+			title: "Running request",
+			issue_type: "task",
+			notes: "",
+			design: "",
+			acceptance_criteria: "",
+			id,
+			assignee: request.identity,
+			owner: "ct",
+			status: "open",
+			priority: ONE,
+			description: JSON.stringify({
+				...recipe,
 				assignment: request.assignment,
-				attemptNumber: ONE,
-				beadsDb: tracker.repository.beadsDb,
-				bucket: tracker.repository.root,
-				createdAt: "2026-10-21T00:00:00.000Z",
-				cwd: tracker.repository.root,
-				directory: state,
-				formula: { argv: [], executable: "fixture", headless: [] },
 				host: request.host,
-				id: record.context.attemptId!,
-				identity: request.identity,
-				invocation: { argv: [], executable: "fixture" },
-				policyRevisionId: null,
-				recipe: request.recipe,
-				spawnId: id,
-				taskIds: request.taskIds,
-				token: "fixture",
-			};
-			return { receipt, record, snapshot };
-		}),
-	);
+			}),
+			labels: spawnRequestLabels("worker"),
+			created_at: timestamp,
+			updated_at: timestamp,
+			dependencies: [
+				{ dependency_type: "related", id: taskId, title: "Work", status: "open", priority: ONE },
+			],
+			dependents: [],
+			comments: [
+				{
+					id: ONE,
+					issue_id: id,
+					author: "sys-colony",
+					created_at: timestamp,
+					text: `${COLONY_OBSERVATION_PREFIX} running: attempt 1`,
+				},
+			],
+		};
+		const record = { id };
+		const receipt: RunningObservationInput["receipt"] = {
+			attemptNumber: ONE,
+			directory: state,
+			id: `attempt-${index}`,
+			spawnId: id,
+		};
+		return { receipt, record, snapshot };
+	});
+	const snapshots = new Map(inputs.map(({ snapshot }) => [snapshot.id, structuredClone(snapshot)]));
 	const events: {
 		id: string | null;
 		step: string;
@@ -268,21 +247,33 @@ async function historyFixture() {
 			}
 		},
 	};
-	const runtime = {
-		...tracker,
-		config,
-		store: { ...store, history },
+	const runtime: Parameters<typeof publishRunningCohortWithHistory>[typeof ZERO] = {
+		repository,
+		store: {
+			history,
+			// The history fake exercises coordination without sampling durable checkpoints.
+			request: () => {
+				throw new Error("Publication fixture unexpectedly read a durable checkpoint");
+			},
+		},
 		beads: {
-			...tracker.beads,
-			showMany: (...args: Parameters<typeof tracker.beads.showMany>) => {
+			showMany: (_scope, ids) => {
 				trace.push("gate");
-				return tracker.beads.showMany(...args);
+				return Promise.resolve(ids.map((id) => structuredClone(snapshots.get(id)!)));
 			},
 			comments: {
-				...tracker.beads.comments,
-				add: (...args: Parameters<typeof tracker.beads.comments.add>) => {
-					trace.push(`add:${args[ONE]}`);
-					return tracker.beads.comments.add(...args);
+				add: (scope, id, text) => {
+					trace.push(`add:${id}`);
+					const snapshot = snapshots.get(id)!;
+					const comment = {
+						id: snapshot.comments.length + ONE,
+						issue_id: id,
+						author: scope.actor!,
+						created_at: timestamp,
+						text,
+					};
+					snapshot.comments.push(comment);
+					return Promise.resolve({ ...comment });
 				},
 			},
 		},
