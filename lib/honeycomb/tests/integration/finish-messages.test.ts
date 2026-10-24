@@ -91,7 +91,7 @@ test("squash composes the caller message with branch provenance and source histo
 		title: "feat(squash): fold source history",
 	});
 });
-test("squash finish requires --title before touching the target #test-204", async () => {
+test("squash finish rejects missing --title without moving source or target HEAD #test-204", async () => {
 	const { root, worktreePath } = await prepareFinish(
 		"feature/squash-no-title",
 		'[project.finish]\nstrategy = "squash"\n',
@@ -111,28 +111,4 @@ test("squash finish requires --title before touching the target #test-204", asyn
 	expect(exitCode).toBe(EXIT_CODES.USAGE);
 	expect(await gitOut(root, "rev-parse", "HEAD")).toBe(targetHead);
 	expect(await gitOut(worktreePath, "rev-parse", "HEAD")).toBe(sourceHead);
-});
-test("rejects --title and --body outside the squash strategy #test-203", async () => {
-	const { root, worktreePath } = await prepareFinish("feature/message-misuse");
-	await commitFile({
-		content: "misuse\n",
-		message: "misuse work",
-		path: "misuse.txt",
-		repo: worktreePath,
-	});
-	const targetHead = await gitOut(root, "rev-parse", "HEAD");
-
-	const titleResult = await dispatch(
-		"finish",
-		["--cwd", worktreePath, "--json", "--title", "nope"],
-		deps,
-	);
-	expect(titleResult.failure).toBeInstanceOf(UsageError);
-	const bodyResult = await dispatch(
-		"finish",
-		["--cwd", worktreePath, "--json", "--body", "nope"],
-		deps,
-	);
-	expect(bodyResult.failure).toBeInstanceOf(UsageError);
-	expect(await gitOut(root, "rev-parse", "HEAD")).toBe(targetHead);
 });

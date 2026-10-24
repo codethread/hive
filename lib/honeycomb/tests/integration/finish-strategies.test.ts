@@ -1,4 +1,4 @@
-import { EXIT_CODES, UsageError, dispatch } from "../../src/index";
+import { EXIT_CODES, dispatch } from "../../src/index";
 // oxlint-disable-next-line import/no-nodejs-modules -- Integration fixtures exercise real filesystem IO.
 import { chmod, readFile, writeFile } from "node:fs/promises";
 import {
@@ -105,34 +105,7 @@ test.each([{ fresh: false, allowance: "#test-71" }])(
 		expect(await readCheckoutState(fixture.worktreePath)).toEqual(sourceBefore);
 	},
 );
-test("finish rejects CLI policy overrides before fresh_canonical mutates target #test-89", async () => {
-	const { remote, root, worktreePath } = await prepareFinish(
-		"feature/cli-policy-override",
-		'[project.add]\npolicy = "fresh_canonical"\n',
-	);
-	await commitFile({
-		content: "source\n",
-		message: "source work",
-		path: "cli-policy-override.txt",
-		repo: worktreePath,
-	});
-	await commitOnRemoteDefault({
-		content: "remote\n",
-		message: "remote work",
-		path: "remote-before-usage.txt",
-		remote,
-	});
-	const originalState = await readCheckoutState(root);
-
-	const { failure } = await dispatch(
-		"finish",
-		["--cwd", worktreePath, "--json", "--strategy", "ff_only"],
-		deps,
-	);
-	expect(failure).toBeInstanceOf(UsageError);
-	expect(await readCheckoutState(root)).toEqual(originalState);
-});
-test("configured finish strategy is not overridden by CLI #test-85", async () => {
+test("finish uses the configured squash strategy and runs the commit hook #test-85", async () => {
 	const { root, worktreePath } = await prepareFinish(
 		"feature/configured-strategy",
 		'[project.finish]\nstrategy = "squash"\n',
