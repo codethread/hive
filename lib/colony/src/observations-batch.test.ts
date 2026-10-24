@@ -1,20 +1,22 @@
 /* eslint-disable max-statements -- Keep gate, admission, partial effects and re-entry assertions together. */
-/* eslint-disable no-await-in-loop -- Fixtures mutate one memory tracker in native order. */
 /* eslint-disable unicorn/no-null -- Unknown stdout is explicit activity evidence. */
-import type { BeadsScope, BeadsService } from "@hive/beads";
+import type { BeadRecord, BeadsScope, BeadsService } from "@hive/beads";
 import {
 	COLONY_OBSERVATION_PREFIX,
 	COLONY_STDOUT_PREFIX,
 	latestStdoutActivity,
+	spawnRequestLabels,
 } from "@hive/shared";
+import type { Recipe, WorkflowAssignment } from "@hive/shared";
+import type { RunningObservationContext, RunningObservationInput } from "./observations.ts";
 import {
 	RunningStdoutPublicationError,
 	publishRunningStdoutActivities,
 	runningObservationCurrent,
 } from "./observations.ts";
-import { createSpawn, createTask, memoryTracker } from "./tracker.test-support.ts";
 import { expect, test } from "bun:test";
-import type { RunningObservationInput } from "./observations.ts";
+// eslint-disable-next-line import/no-nodejs-modules -- Bind fixture authority to the publication host.
+import { hostname } from "node:os";
 import { trackerScope } from "./tracker.ts";
 
 const ZERO = 0;
@@ -25,6 +27,15 @@ const FOUR = 4;
 const stdoutTimestamp = "2026-10-04T10:00:00.000Z";
 const oldTimestamp = "2026-10-03T10:00:00.000Z";
 const directory = "/fixture/owned-stdout";
+const recipe: Recipe = {
+	cwd: null,
+	effort: "low",
+	harness: "fixture",
+	kind: "worker",
+	model: "fixture",
+	prompt: "Complete assigned tasks",
+	system_prompt: "Worker role",
+};
 
 type Seed = "due" | "unchanged" | "throttled";
 type Change = "host" | "unbound" | "identity" | "kind" | "run" | "stage" | "tasks";
@@ -39,7 +50,6 @@ const countCases = [
 		due: [ZERO, THREE],
 	},
 ] satisfies { name: string; seeds: Seed[]; due: number[] }[];
-const countFixtures = await Promise.all(countCases.map(({ seeds }) => batchFixture(seeds)));
 const authorityCases: { change: Change }[] = [
 	{ change: "host" },
 	{ change: "unbound" },
@@ -49,50 +59,16 @@ const authorityCases: { change: Change }[] = [
 	{ change: "stage" },
 	{ change: "tasks" },
 ];
-const authorityFixtures = await Promise.all(authorityCases.map(() => batchFixture()));
 const mappingCases = [
 	{ kind: "missing" },
 	{ kind: "duplicate" },
 	{ kind: "foreign" },
 	{ kind: "decode" },
 ] as const;
-const mappingFixtures = await Promise.all(mappingCases.map(() => batchFixture()));
-const laterCohorts = await batchFixture(["due", "due", "due", "due", "due", "due"]);
-const eligibility = await batchFixture();
-const attemptEvidence = await batchFixture(["due"]);
-const readFailure = await batchFixture();
-const samplingFailure = await batchFixture();
-const noOpOnly = await batchFixture(["unchanged"]);
-const currentFact = await batchFixture(["due"]);
-const pending = await batchFixture();
 const failureCases = [{ kind: "before" }, { kind: "after" }, { kind: "sync" }] as const;
-const failureFixtures = await Promise.all(failureCases.map(() => batchFixture()));
-const failureContexts = failureFixtures.map((fixture, index) =>
-	failureContext(fixture, failureCases[index]!.kind),
-);
-const samplingDirectory = "/fixture/sampling-order";
-const sampling = await batchFixture(["due", "due"], samplingDirectory);
-const warming = await batchFixture();
-const warmingSingleton = await batchFixture(["due"]);
-await publishRunningStdoutActivities(warming.context, warming.inputs, warming.readActivity);
-await publishRunningStdoutActivities(
-	warmingSingleton.context,
-	warmingSingleton.inputs,
-	warmingSingleton.readActivity,
-);
-for (const { kind } of failureCases) {
-	const fixture = await batchFixture();
-	const { context } = failureContext(fixture, kind);
-	const error = await publicationFailure(
-		publishRunningStdoutActivities(context, fixture.inputs, fixture.readActivity),
-	);
-	if (!(error instanceof RunningStdoutPublicationError)) {
-		throw new Error("Independent native-failure warmup did not exercise the publication error");
-	}
-}
 
 test.each(countCases)("batch gates only due IDs for $name", async (scenario) => {
-	const fixture = countFixtures[countCases.indexOf(scenario)]!;
+	const fixture = batchFixture(scenario.seeds);
 	await publishRunningStdoutActivities(fixture.context, fixture.inputs, fixture.readActivity);
 	const ids = scenario.due.map((index) => fixture.inputs[index]!.receipt.spawnId);
 	const expectedTrace: string[] = [];
@@ -107,9 +83,10 @@ test.each(countCases)("batch gates only due IDs for $name", async (scenario) => 
 	expect(fixture.reads).toEqual(expectedReads);
 	expect(fixture.writes).toEqual(ids);
 	for (const [index, input] of fixture.inputs.entries()) {
-		const current = await fixture.tracker.beads.show(fixture.scope, input.receipt.spawnId);
+		const current = fixture.records.get(input.receipt.spawnId)!;
 		if (scenario.due.includes(index)) {
-			const activity = latestStdoutActivity(current);
+			const comment = current.comments.find(({ text }) => text.startsWith(COLONY_STDOUT_PREFIX));
+			const activity = comment && JSON.parse(comment.text.slice(COLONY_STDOUT_PREFIX.length));
 			expect(activity?.attemptId).toBe(input.receipt.id);
 			expect(activity?.lastOutputAt).toBe(stdoutTimestamp);
 		}
@@ -118,6 +95,7 @@ test.each(countCases)("batch gates only due IDs for $name", async (scenario) => 
 });
 
 test("running fact predicate keeps attempt-specific fact interpretation in observations", () => {
+	const currentFact = batchFixture(["due"]);
 	const input = currentFact.inputs[ZERO]!;
 	expect(runningObservationCurrent(input)).toBe(true);
 	expect(
@@ -134,18 +112,18 @@ test("running fact predicate keeps attempt-specific fact interpretation in obser
 test.each(authorityCases)(
 	"$change drift in the last row admits no cohort comments #test-674",
 	async (scenario) => {
-		const fixture = authorityFixtures[authorityCases.indexOf(scenario)]!;
+		const fixture = batchFixture();
 		const input = fixture.inputs[THREE]!;
-		const context = withGate(fixture, async (scope, ids) => {
-			await mutateAuthority(fixture, input, scenario.change);
-			return fixture.tracker.beads.showMany(scope, ids);
+		const context = withGate(fixture, (scope, ids) => {
+			mutateAuthority(fixture, input, scenario.change);
+			return fixture.beads.showMany(scope, ids);
 		});
 		await expect(
 			publishRunningStdoutActivities(context, fixture.inputs, fixture.readActivity),
 		).rejects.toBeInstanceOf(Error);
 		expect(fixture.writes).toEqual([]);
 		for (const candidate of fixture.inputs) {
-			const current = await fixture.tracker.beads.show(fixture.scope, candidate.receipt.spawnId);
+			const current = fixture.records.get(candidate.receipt.spawnId)!;
 			expect(latestStdoutActivity(current)).toBeUndefined();
 		}
 	},
@@ -154,9 +132,9 @@ test.each(authorityCases)(
 test.each([...mappingCases])(
 	"$kind native ID mapping fails before any comments",
 	async (scenario) => {
-		const fixture = mappingFixtures[mappingCases.indexOf(scenario)]!;
+		const fixture = batchFixture();
 		const context = withGate(fixture, async (scope, ids) => {
-			const rows = await fixture.tracker.beads.showMany(scope, ids);
+			const rows = await fixture.beads.showMany(scope, ids);
 			if (scenario.kind === "missing") {
 				return rows.slice(ONE);
 			}
@@ -179,10 +157,11 @@ test.each([...mappingCases])(
 );
 
 test("later cohorts have a separate fresh gate and cannot erase earlier committed effects", async () => {
+	const laterCohorts = batchFixture(["due", "due", "due", "due", "due", "due"]);
 	const first = laterCohorts.inputs.slice(ZERO, FOUR);
 	const later = laterCohorts.inputs.slice(FOUR);
 	await publishRunningStdoutActivities(laterCohorts.context, first, laterCohorts.readActivity);
-	await mutateAuthority(laterCohorts, later[ONE]!, "identity");
+	mutateAuthority(laterCohorts, later[ONE]!, "identity");
 	await expect(
 		publishRunningStdoutActivities(laterCohorts.context, later, laterCohorts.readActivity),
 	).rejects.toBeInstanceOf(Error);
@@ -191,7 +170,7 @@ test("later cohorts have a separate fresh gate and cannot erase earlier committe
 		later.map(({ receipt }) => receipt.spawnId),
 	]);
 	expect(laterCohorts.writes).toEqual(first.map(({ receipt }) => receipt.spawnId));
-	const current = await laterCohorts.tracker.beads.showMany(
+	const current = await laterCohorts.beads.showMany(
 		laterCohorts.scope,
 		laterCohorts.inputs.map(({ receipt }) => receipt.spawnId),
 	);
@@ -206,8 +185,9 @@ test("later cohorts have a separate fresh gate and cannot erase earlier committe
 });
 
 test("reversed final detail maps fresh closure, duplicate and throttle to their own requests", async () => {
+	const eligibility = batchFixture();
 	const context = withGate(eligibility, async (scope, ids) => {
-		await eligibility.tracker.beads.close(scope, ids[ZERO]!);
+		eligibility.records.get(ids[ZERO]!)!.status = "closed";
 		await seedActivity(eligibility, eligibility.inputs[ONE]!, stdoutTimestamp);
 		await seedActivity(
 			eligibility,
@@ -215,7 +195,7 @@ test("reversed final detail maps fresh closure, duplicate and throttle to their 
 			oldTimestamp,
 			new Date().toISOString(),
 		);
-		const rows = await eligibility.tracker.beads.showMany(scope, ids);
+		const rows = await eligibility.beads.showMany(scope, ids);
 		return rows.toReversed();
 	});
 	await publishRunningStdoutActivities(context, eligibility.inputs, eligibility.readActivity);
@@ -223,6 +203,7 @@ test("reversed final detail maps fresh closure, duplicate and throttle to their 
 });
 
 test("fresh different-attempt evidence cannot suppress the owned current attempt", async () => {
+	const attemptEvidence = batchFixture(["due"]);
 	const input = attemptEvidence.inputs[ZERO]!;
 	const context = withGate(attemptEvidence, async (scope, ids) => {
 		await seedActivity(
@@ -233,7 +214,7 @@ test("fresh different-attempt evidence cannot suppress the owned current attempt
 			},
 			stdoutTimestamp,
 		);
-		return attemptEvidence.tracker.beads.showMany(scope, ids);
+		return attemptEvidence.beads.showMany(scope, ids);
 	});
 	await publishRunningStdoutActivities(
 		context,
@@ -241,38 +222,38 @@ test("fresh different-attempt evidence cannot suppress the owned current attempt
 		attemptEvidence.readActivity,
 	);
 	expect(attemptEvidence.writes).toEqual([input.receipt.spawnId]);
-	const current = await attemptEvidence.tracker.beads.show(
-		attemptEvidence.scope,
-		input.receipt.spawnId,
-	);
+	const current = attemptEvidence.records.get(input.receipt.spawnId)!;
 	expect(latestStdoutActivity(current)?.attemptId).toBe(input.receipt.id);
 });
 
 test("snapshot reuse authorizes only a no-op even if native detail has since changed", async () => {
-	await mutateAuthority(noOpOnly, noOpOnly.inputs[ZERO]!, "host");
+	const noOpOnly = batchFixture(["unchanged"]);
+	mutateAuthority(noOpOnly, noOpOnly.inputs[ZERO]!, "host");
 	await publishRunningStdoutActivities(noOpOnly.context, noOpOnly.inputs, noOpOnly.readActivity);
 	expect(noOpOnly.trace).toEqual([]);
 });
 
 test("all stdout sampling precedes the final gate and comments retain the sampled source time", async () => {
+	const sampling = batchFixture(["due", "due"], "/fixture/sampling-order");
 	let gated = false;
 	const context = withGate(sampling, (scope, ids) => {
 		expect(sampling.samples).toEqual(sampling.inputs.map(({ receipt }) => receipt.directory));
 		gated = true;
 		sampling.sourceTime.value = oldTimestamp;
-		return sampling.tracker.beads.showMany(scope, ids);
+		return sampling.beads.showMany(scope, ids);
 	});
 	await publishRunningStdoutActivities(context, sampling.inputs, (path) => {
 		expect(gated).toBe(false);
 		return sampling.readActivity(path);
 	});
 	for (const input of sampling.inputs) {
-		const current = await sampling.tracker.beads.show(sampling.scope, input.receipt.spawnId);
+		const current = sampling.records.get(input.receipt.spawnId)!;
 		expect(latestStdoutActivity(current)?.lastOutputAt).toBe(stdoutTimestamp);
 	}
 });
 
 test("stdout sampling failure preserves its cause before any native gate or comment", async () => {
+	const samplingFailure = batchFixture();
 	const error = new Error("Owned stdout metadata is unreadable");
 	await expect(
 		publishRunningStdoutActivities(samplingFailure.context, samplingFailure.inputs, () =>
@@ -283,6 +264,7 @@ test("stdout sampling failure preserves its cause before any native gate or comm
 });
 
 test("native gate failure retains its cause and starts no comments", async () => {
+	const readFailure = batchFixture();
 	const error = new Error("Native read failed");
 	const context = withGate(readFailure, () => Promise.reject(error));
 	await expect(
@@ -292,6 +274,7 @@ test("native gate failure retains its cause and starts no comments", async () =>
 });
 
 test("all distinct comments start immediately and retain every sibling effect", async () => {
+	const pending = batchFixture();
 	const controls = pending.inputs.map(() => Promise.withResolvers<void>());
 	const started: string[] = [];
 	let admissionYielded = false;
@@ -345,7 +328,7 @@ test("all distinct comments start immediately and retain every sibling effect", 
 	expect(failures[ZERO]!.requestId).toBe(started[ZERO]!);
 	expect(failures[ZERO]!.error).toBe(error);
 	expect(finished).toBe(true);
-	const current = await pending.tracker.beads.showMany(pending.scope, started);
+	const current = await pending.beads.showMany(pending.scope, started);
 	expect(current.map((snapshot) => latestStdoutActivity(snapshot) !== undefined)).toEqual([
 		false,
 		true,
@@ -357,8 +340,8 @@ test("all distinct comments start immediately and retain every sibling effect", 
 test.each([...failureCases])(
 	"$kind failure preserves all causes, siblings and re-entry deduplication #test-661",
 	async (scenario) => {
-		const fixture = failureFixtures[failureCases.indexOf(scenario)]!;
-		const { errors, started, context } = failureContexts[failureCases.indexOf(scenario)]!;
+		const fixture = batchFixture();
+		const { errors, started, context } = failureContext(fixture, scenario.kind);
 		const failure = await publicationFailure(
 			publishRunningStdoutActivities(context, fixture.inputs, fixture.readActivity),
 		);
@@ -372,7 +355,7 @@ test.each([...failureCases])(
 			expect(publicationError.failures[index]!.requestId).toBe(started[index]!);
 			expect(publicationError.failures[index]!.error).toBe(error);
 		}
-		const snapshots = await fixture.tracker.beads.showMany(fixture.scope, started);
+		const snapshots = await fixture.beads.showMany(fixture.scope, started);
 		let expectedCommitted = [false, false, true, true];
 		let expectedRetry = started.slice(ZERO, TWO);
 		if (scenario.kind === "after") {
@@ -390,7 +373,7 @@ test.each([...failureCases])(
 			fixture.readActivity,
 		);
 		expect(fixture.writes).toEqual(expectedRetry);
-		const current = await fixture.tracker.beads.showMany(fixture.scope, started);
+		const current = await fixture.beads.showMany(fixture.scope, started);
 		expect(
 			current.map(
 				(snapshot) =>
@@ -401,51 +384,36 @@ test.each([...failureCases])(
 );
 
 // --- Fixtures ---
-async function batchFixture(
+function batchFixture(
 	seeds: readonly Seed[] = ["due", "due", "due", "due"],
 	stdoutDirectory = directory,
 ) {
-	const tracker = memoryTracker();
-	const scope = trackerScope(tracker.repository, "sys-colony");
-	const inputs: RunningObservationInput[] = [];
-	for (const [index, seed] of seeds.entries()) {
-		const stageId = await createTask(tracker);
-		const runId = await createTask(tracker);
-		const id = await createSpawn(tracker, stageId, { assignee: `worker-${index}` });
-		const original = await tracker.beads.show(scope, id);
-		await tracker.beads.update(scope, [id], {
-			description: JSON.stringify({
-				...JSON.parse(original.description),
-				assignment: { kind: "stage", runId, stageId },
-			}),
-		});
-		await tracker.beads.comments.add(scope, id, `${COLONY_OBSERVATION_PREFIX} running: attempt 1`);
-		const receipt = {
-			id: `attempt-${index}`,
-			attemptNumber: ONE,
-			spawnId: id,
-			directory: `${stdoutDirectory}/${index}`,
-		};
-		if (seed !== "due") {
-			let lastOutputAt = stdoutTimestamp;
-			let recordedAt = oldTimestamp;
-			if (seed === "throttled") {
-				lastOutputAt = oldTimestamp;
-				recordedAt = new Date().toISOString();
-			}
-			await tracker.beads.comments.add(
-				scope,
-				id,
-				`${COLONY_STDOUT_PREFIX} ${JSON.stringify({
-					attemptId: receipt.id,
-					attemptNumber: receipt.attemptNumber,
-					lastOutputAt,
-					recordedAt,
-				})}`,
-			);
-		}
-		inputs.push({ receipt, snapshot: await tracker.beads.show(scope, id) });
-	}
+	const repository = { beadsDb: "/fixture/tracker.db", root: "/fixture" };
+	const scope = trackerScope(repository, "sys-colony");
+	const prepared = seeds.map((seed, index) => runningInput(index, seed, stdoutDirectory));
+	const inputs = prepared.map(({ input }) => input);
+	const requests = new Map(prepared.map(({ input, request }) => [input.receipt.spawnId, request]));
+	// Detach backing records so gate-time drift leaves captured authority unchanged.
+	const records = new Map(inputs.map(({ snapshot }) => [snapshot.id, structuredClone(snapshot)]));
+	const beads: Pick<BeadsService, "showMany"> & {
+		comments: Pick<BeadsService["comments"], "add">;
+	} = {
+		showMany: (_scope, ids) => Promise.resolve(ids.map((id) => structuredClone(records.get(id)!))),
+		comments: {
+			add: (writeScope, id, text) => {
+				const snapshot = records.get(id)!;
+				const comment = {
+					id: snapshot.comments.length + ONE,
+					issue_id: id,
+					author: writeScope.actor!,
+					created_at: oldTimestamp,
+					text,
+				};
+				snapshot.comments.push(comment);
+				return Promise.resolve({ ...comment });
+			},
+		},
+	};
 	const sourceTime: { value: string | null } = { value: stdoutTimestamp };
 	const directories = new Set(inputs.map(({ receipt }) => receipt.directory));
 	const samples: string[] = [];
@@ -459,32 +427,29 @@ async function batchFixture(
 	const trace: string[] = [];
 	const reads: string[][] = [];
 	const writes: string[] = [];
-	const context = {
-		...tracker,
+	const context: RunningObservationContext = {
+		repository,
 		beads: {
-			...tracker.beads,
-			show: () => {
-				throw new Error("Batch must not use individual show");
-			},
 			showMany: (readScope: BeadsScope, ids: readonly string[]) => {
 				expect(readScope).toEqual(scope);
 				reads.push([...ids]);
 				trace.push(`showMany:${ids.join(",")}`);
-				return tracker.beads.showMany(readScope, ids);
+				return beads.showMany(readScope, ids);
 			},
 			comments: {
-				...tracker.beads.comments,
 				add: (...args: Parameters<BeadsService["comments"]["add"]>) => {
 					expect(args[ZERO]).toEqual(scope);
 					writes.push(args[ONE]);
 					trace.push(`add:${args[ONE]}`);
-					return tracker.beads.comments.add(...args);
+					return beads.comments.add(...args);
 				},
 			},
 		},
 	};
 	return {
-		tracker,
+		beads,
+		records,
+		requests,
 		scope,
 		inputs,
 		trace,
@@ -497,52 +462,115 @@ async function batchFixture(
 	};
 }
 
-function withGate(
-	fixture: Awaited<ReturnType<typeof batchFixture>>,
-	showMany: BeadsService["showMany"],
-) {
+function runningInput(index: number, seed: Seed, stdoutDirectory: string) {
+	const id = `request-${index}`;
+	const stageId = `stage-${index}`;
+	const request = {
+		...recipe,
+		host: hostname(),
+		assignment: { kind: "stage" as const, runId: `run-${index}`, stageId },
+	};
+	const receipt: RunningObservationInput["receipt"] = {
+		id: `attempt-${index}`,
+		attemptNumber: ONE,
+		spawnId: id,
+		directory: `${stdoutDirectory}/${index}`,
+	};
+	const snapshot: BeadRecord = {
+		id,
+		title: "Running request",
+		issue_type: "task",
+		notes: "",
+		design: "",
+		acceptance_criteria: "",
+		assignee: `worker-${index}`,
+		owner: "ct",
+		status: "open",
+		priority: ONE,
+		description: JSON.stringify(request),
+		labels: spawnRequestLabels("worker"),
+		created_at: oldTimestamp,
+		updated_at: oldTimestamp,
+		dependencies: [
+			{ dependency_type: "related", id: stageId, title: "Work", status: "open", priority: ONE },
+		],
+		dependents: [],
+		comments: [
+			{
+				id: ONE,
+				issue_id: id,
+				author: "sys-colony",
+				created_at: oldTimestamp,
+				text: `${COLONY_OBSERVATION_PREFIX} running: attempt 1`,
+			},
+		],
+	};
+	if (seed !== "due") {
+		let lastOutputAt = stdoutTimestamp;
+		let recordedAt = oldTimestamp;
+		if (seed === "throttled") {
+			lastOutputAt = oldTimestamp;
+			recordedAt = new Date().toISOString();
+		}
+		snapshot.comments.push({
+			id: TWO,
+			issue_id: id,
+			author: "sys-colony",
+			created_at: oldTimestamp,
+			text: `${COLONY_STDOUT_PREFIX} ${JSON.stringify({
+				attemptId: receipt.id,
+				attemptNumber: receipt.attemptNumber,
+				lastOutputAt,
+				recordedAt,
+			})}`,
+		});
+	}
+	return { input: { receipt, snapshot }, request };
+}
+
+function withGate(fixture: ReturnType<typeof batchFixture>, showMany: BeadsService["showMany"]) {
 	return { ...fixture.context, beads: { ...fixture.context.beads, showMany } };
 }
 
-async function mutateAuthority(
-	fixture: Awaited<ReturnType<typeof batchFixture>>,
+function mutateAuthority(
+	fixture: ReturnType<typeof batchFixture>,
 	input: RunningObservationInput,
 	change: Change,
 ) {
-	const { tracker, scope } = fixture;
 	const id = input.receipt.spawnId;
+	const snapshot = fixture.records.get(id)!;
 	if (change === "identity") {
-		await tracker.beads.update(scope, [id], { assignee: "other-worker" });
+		snapshot.assignee = "other-worker";
 		return;
 	}
-	const description = JSON.parse(input.snapshot.description);
+	const original = fixture.requests.get(id)!;
+	let host: string | undefined = original.host;
+	let assignment: WorkflowAssignment = original.assignment;
 	if (change === "host") {
-		description.host = "foreign-host";
+		host = "foreign-host";
 	} else if (change === "unbound") {
-		delete description.host;
+		host = undefined;
 	} else if (change === "kind") {
-		description.assignment = { kind: "driver", runId: description.assignment.stageId };
+		assignment = { kind: "driver", runId: original.assignment.stageId };
 	} else if (change === "run") {
-		description.assignment.runId = await createTask(tracker);
+		assignment = { ...original.assignment, runId: "other-run" };
 	} else if (change === "stage") {
-		const stageId = await createTask(tracker);
-		await tracker.beads.dep.remove(scope, id, description.assignment.stageId);
-		await tracker.beads.dep.add(scope, id, stageId, "related");
-		description.assignment.stageId = stageId;
+		assignment = { ...original.assignment, stageId: "other-stage" };
+		snapshot.dependencies = [{ ...snapshot.dependencies[ZERO]!, id: "other-stage" }];
 	} else {
-		await tracker.beads.dep.add(scope, id, await createTask(tracker), "related");
+		snapshot.dependencies.push({ ...snapshot.dependencies[ZERO]!, id: "other-task" });
 	}
-	await tracker.beads.update(scope, [id], { description: JSON.stringify(description) });
+	snapshot.description = JSON.stringify({ ...original, host, assignment });
 }
 
-/* eslint-disable-next-line max-params -- Seed native activity with independent source and publication times. */
+/* eslint-disable-next-line max-params -- Seed stdout evidence with independent source and publication times. */
 function seedActivity(
-	fixture: Awaited<ReturnType<typeof batchFixture>>,
+	fixture: ReturnType<typeof batchFixture>,
 	input: RunningObservationInput,
 	lastOutputAt: string,
 	recordedAt = oldTimestamp,
 ) {
-	return fixture.tracker.beads.comments.add(
+	return fixture.beads.comments.add(
 		fixture.scope,
 		input.receipt.spawnId,
 		`${COLONY_STDOUT_PREFIX} ${JSON.stringify({
@@ -564,7 +592,7 @@ async function publicationFailure(operation: Promise<void>): Promise<unknown> {
 }
 
 function failureContext(
-	fixture: Awaited<ReturnType<typeof batchFixture>>,
+	fixture: ReturnType<typeof batchFixture>,
 	kind: "before" | "after" | "sync",
 ) {
 	const errors = [new Error("First native failure"), new Error("Second native failure")];
