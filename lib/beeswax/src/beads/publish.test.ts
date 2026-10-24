@@ -26,7 +26,7 @@ test.each([
 	{ kind: "fetch error", nativeCode: "IO_ERROR", alerts: 0, gitConflict: false },
 ] as const)(
 	"publication stops and alerts only a verified conflict: $kind #test-494",
-	// Verify notification policy and tracker attribution across each typed sync failure.
+	// Keep policy permutations in-process; publish.smoke.test.ts covers subprocess wiring.
 	// eslint-disable-next-line max-statements
 	async (fixture) => {
 		const { services, original, calls, scopes } = publicationFixture(fixture);
@@ -39,12 +39,29 @@ test.each([
 			report: () => {},
 		});
 		const failure = await result.catch((error: unknown) => error);
+		let diagnostic = original.message;
 		if (fixture.gitConflict) {
 			expect(failure).toBeInstanceOf(BeadsGitConflictError);
+			expect(failure).toMatchInlineSnapshot(
+				`[BeadsGitConflictError: BEADS CONFLICT: unresolved tracker merge: .beads/issues.jsonl]`,
+			);
+			expect(scopes).toEqual([]);
+			expect(calls).not.toContain("sync");
+			diagnostic = "BEADS CONFLICT: unresolved tracker merge: .beads/issues.jsonl";
 		} else {
 			expect(failure).toBe(original);
 		}
 		expect(bodies).toHaveLength(fixture.alerts);
+		for (const body of bodies) {
+			expect(body).toContain("Beads conflict stopped beeswax beads sync.");
+			expect(body).toContain(`Repository: ${process.cwd()}\n`);
+			expect(body).toContain(`Tracker: ${environment.BEADS_DB}\n`);
+			expect(body).toMatch(/^Host: .+$/mu);
+			expect(body).toContain(
+				"Action: stop tracker work, resolve the tracker conflict, then run beeswax beads sync before resuming.",
+			);
+			expect(body).toContain(diagnostic);
+		}
 		expect(calls.some((call) => call.startsWith("git push"))).toBe(false);
 		for (const scope of scopes) {
 			expect(scope).toEqual({ cwd: "/repo/.worktrees/tracker--state", db: environment.BEADS_DB });
@@ -68,6 +85,7 @@ test("failed notification does not mask publication failure #test-495", async ()
 			},
 		}),
 	).rejects.toBe(original);
+	expect(reports).toHaveLength(ONE);
 	expect(reports[FIRST]).toContain("delivery unavailable");
 	expect(reports[FIRST]).toContain(original.message);
 });

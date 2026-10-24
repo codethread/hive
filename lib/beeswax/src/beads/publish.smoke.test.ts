@@ -13,15 +13,14 @@ const environmentModule = new URL("environment.ts", import.meta.url).pathname;
 const nativeModule = import.meta.resolve("@hive/beads");
 
 test.each([
-	{ conflict: "git", notifyExit: 0, unmerged: ".beads/issues.jsonl" },
-	{ conflict: "native", notifyExit: 0, unmerged: "" },
-	{ conflict: "native", notifyExit: 1, unmerged: "" },
-	{ conflict: "native merge", notifyExit: 0, unmerged: "" },
+	{ conflict: "native", notifyExit: 1 },
+	{ conflict: "native merge", notifyExit: 0 },
 ])(
-	"publisher delivers $conflict conflict via stdin and retains failure with notifier exit $notifyExit #test-205",
-	// Exercise the real CLI and notifier subprocess contract in one private fixture.
+	"publisher sends $conflict conflict to notifier stdin and retains failure with notifier exit $notifyExit #test-205",
+	// Exercise a Bun publisher child with fake Git/br executables and the default notifier adapter.
+	// Fake cc-notify captures stdin; this bypasses the Beeswax CLI and actual notification service.
 	// eslint-disable-next-line max-statements
-	async ({ conflict, notifyExit, unmerged }) => {
+	async ({ conflict, notifyExit }) => {
 		const temporary = await mkdtemp(join(tmpdir(), "beads-notify-"));
 		const root = await realpath(temporary);
 		const bin = join(root, "bin");
@@ -44,13 +43,11 @@ test.each([
 				"fixture",
 				`
 case "$0" in
- */mise) printf '%s\\n' ${shellLiteral(JSON.stringify({ BEADS_DB: database }))} ;;
  */git)
   case "$*" in
    "branch --show-current") printf '%s\\n' 'tracker/state' ;;
    "config --get branch.tracker/state.remote") printf '%s\\n' 'origin' ;;
    "config --get branch.tracker/state.merge") printf '%s\\n' 'refs/heads/tracker/state' ;;
-   "diff --name-only --diff-filter=U") printf '%s\\n' ${shellLiteral(unmerged)} ;;
   esac ;;
  */br)
   case " $* " in
@@ -67,7 +64,7 @@ esac`,
 			);
 			// Share one executable's first-launch cost while retaining each command's real process boundary.
 			await Promise.all(
-				["mise", "git", "br", "cc-notify"].map((name) => symlink("fixture", join(bin, name))),
+				["git", "br", "cc-notify"].map((name) => symlink("fixture", join(bin, name))),
 			);
 			const publisher = join(root, "publish.ts");
 			await Bun.write(
@@ -97,18 +94,16 @@ await withTrackerLock(environment, () => syncBeads(environment, {
 			expect(alert).toContain(`Tracker: ${database}`);
 			expect(alert).toContain("Host:");
 			expect(alert).toContain("Action:");
-			if (conflict === "git") {
-				expect(stderr).toContain("BEADS CONFLICT: unresolved tracker merge: .beads/issues.jsonl");
+			if (conflict === "native merge") {
+				expect(alert).toContain("Merge conflicts detected:");
+				expect(stderr).toContain("CONFIG_ERROR: Configuration error: Merge conflicts detected:");
 			} else {
-				if (conflict === "native merge") {
-					expect(alert).toContain("Merge conflicts detected:");
-					expect(stderr).toContain("CONFIG_ERROR: Configuration error: Merge conflicts detected:");
-				} else {
-					expect(stderr).toContain("SYNC_CONFLICT: original native sync conflict");
-				}
-				expect(stderr).toContain("original native stderr");
+				expect(stderr).toContain("SYNC_CONFLICT: original native sync conflict");
 			}
-			if (notifyExit !== SUCCESS) {
+			expect(stderr).toContain("original native stderr");
+			if (notifyExit === SUCCESS) {
+				expect(stderr).not.toContain("Beads conflict notification failed:");
+			} else {
 				expect(stderr).toContain(
 					"Beads conflict notification failed: Error: cc-notify failed with exit 1",
 				);
