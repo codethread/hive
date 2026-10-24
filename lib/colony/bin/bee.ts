@@ -44,6 +44,10 @@ const submission = {
 	},
 };
 process.exitCode = await runBeeCli(Bun.argv.slice(USER_ARGUMENTS_START), {
+	loadSkills: async () => {
+		const { createBundledSkills } = await import("../src/bundled-skills.ts");
+		return createBundledSkills("bee");
+	},
 	setup: (options) => setupBee(options, tracker),
 	ack: (id, options) => acknowledgeRequest(id, options, tracker),
 	attachWorkflow: (kind, runId, options) => attachWorkflow({ kind, runId, options }, submission),

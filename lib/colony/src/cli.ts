@@ -28,6 +28,7 @@ import type { LaunchedResult } from "./output.ts";
 import { RequestPublicationError } from "./requests.ts";
 import { ResponseError } from "./response-store.ts";
 import type { RestartedDaemon } from "./daemon-lifecycle.ts";
+import type { SkillProvider } from "skills-handler";
 import { WorkflowCommandError } from "./workflows.ts";
 import { WorkflowSubmissionError } from "./workflow-submission.ts";
 import changelog from "../changelog.json";
@@ -82,6 +83,8 @@ export type ConfigOptions = RepositoryOptions &
 		| { operation: "update"; actor: string; file: string }
 	);
 export interface ColonyDependencies {
+	/** Construct Colony's offline skills provider on demand. */
+	loadSkills: () => Promise<SkillProvider>;
 	/** Fresh scoped execution proof serialized with the owning daemon's admissions. */
 	executionClearance: (
 		scope: ExecutionClearanceSelection,
@@ -222,7 +225,7 @@ export async function runCli(argv: string[], deps: ColonyDependencies): Promise<
 			}
 			deps.stdout(output);
 		});
-	registerSkills(program, "colony", deps.stdout);
+	registerSkills(program, "colony", deps);
 	program
 		.command("events")
 		.description("Read retained operation evidence without waking or reconciling")

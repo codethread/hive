@@ -1,15 +1,22 @@
 import type { Skill, SkillProvider } from "skills-handler";
 import type { Command } from "commander";
 import { CommanderError } from "commander";
-import { createBundledSkills } from "./bundled-skills.ts";
 
 const USAGE_ERROR = 2;
+
+/** Services used by the shared offline skills command. */
+interface SkillsDependencies {
+	/** Write rendered skill results. */
+	stdout: (text: string) => void;
+	/** Create the selected executable's provider when a skills action runs. */
+	loadSkills: () => Promise<SkillProvider>;
+}
 
 /** Register offline discovery without touching repository or runtime services. */
 export function registerSkills(
 	program: Command,
 	command: "bee" | "colony",
-	stdout: (text: string) => void,
+	{ stdout, loadSkills }: SkillsDependencies,
 ): void {
 	program
 		.command("skills [action] [name] [path]")
@@ -31,7 +38,7 @@ Examples:
 `,
 		)
 		.action(async (action = "list", name?: string, path?: string) => {
-			const result = await readSkill(createBundledSkills(command), [action, name, path]);
+			const result = await readSkill(await loadSkills(), [action, name, path]);
 			if (program.opts()["json"]) {
 				stdout(`${JSON.stringify({ ok: true, ...result })}\n`);
 			} else if (result.kind === "skills_list") {

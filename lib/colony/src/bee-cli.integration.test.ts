@@ -229,6 +229,7 @@ async function execute(args: readonly string[], overrides: Partial<BeeDependenci
 	const stderr: string[] = [];
 	const submissions: { kind: string; options: WorkflowSpawnOptions }[] = [];
 	const deps: BeeDependencies = {
+		loadSkills: unexpected,
 		setup: unexpected,
 		responsePublish: unusedResponseCommand,
 		responseGet: unusedResponseCommand,

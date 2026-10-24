@@ -51,6 +51,10 @@ const lifecycle: DaemonLifecycle = {
 	pause: () => Bun.sleep(POLL_INTERVAL_MS),
 };
 process.exitCode = await runCli(Bun.argv.slice(USER_ARGUMENTS_START), {
+	loadSkills: async () => {
+		const { createBundledSkills } = await import("../src/bundled-skills.ts");
+		return createBundledSkills("colony");
+	},
 	executionClearance: async (scope, options) => {
 		const result = await requestServer(target(options), {
 			kind: "execution-clearance",

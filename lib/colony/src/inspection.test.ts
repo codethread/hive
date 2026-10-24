@@ -369,6 +369,7 @@ async function invokeExplanation() {
 	let stdout = "";
 	let stderr = "";
 	const code = await runCli(["explain", target, "--json"], {
+		loadSkills: unexpectedRead,
 		executionClearance: () => {
 			throw new Error("Unexpected clearance");
 		},

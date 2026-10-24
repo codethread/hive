@@ -475,6 +475,7 @@ async function fixture() {
 		const stderr: string[] = [];
 		const deps = { ...tracker, beads };
 		const handlers: BeeDependencies = {
+			loadSkills: unused,
 			setup: unused,
 			ack: unused,
 			attachWorkflow: unused,

@@ -28,6 +28,7 @@ import { Command } from "commander";
 import type { FinishResult } from "./launch.ts";
 import { HELP } from "./bee-help.ts";
 import type { RunOptions } from "./run.ts";
+import type { SkillProvider } from "skills-handler";
 import type { SpawnResult } from "./producer.ts";
 import changelog from "../bee-changelog.json";
 import { kindsJsonSchema } from "./kinds.ts";
@@ -91,6 +92,8 @@ export interface AckOptions extends InspectionOptions {
 	reason: string;
 }
 export interface BeeDependencies {
+	/** Construct Bee's offline skills provider on demand. */
+	loadSkills: () => Promise<SkillProvider>;
 	/** Refresh Bee's attention query in the selected database. */
 	setup: (options: BeeSetupOptions) => Promise<BeeSetupResult>;
 	/** File one authored response against its task and optional exact request. */
@@ -182,7 +185,7 @@ export async function runBeeCli(argv: string[], deps: BeeDependencies): Promise<
 			}
 			deps.stdout(output);
 		});
-	registerSkills(program, "bee", deps.stdout);
+	registerSkills(program, "bee", deps);
 	inspectionOptions(
 		program.command("setup").description("Install Bee's attention preset in the selected database"),
 	)
