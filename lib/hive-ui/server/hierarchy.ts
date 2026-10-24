@@ -4,6 +4,7 @@ import type { Topology } from "./topology.ts";
 export const SUMMARY_FIELDS = [
 	"id",
 	"title",
+	"issue_type",
 	"status",
 	"priority",
 	"assignee",

@@ -942,6 +942,7 @@ function card(
 			)
 			.map(({ id, kind, stdout }) => ({ id, kind, stdout })),
 		id: bead.id,
+		issueType: bead.issue_type,
 		isWorkflowGenerated,
 		merges: [],
 		labels: bead.labels,

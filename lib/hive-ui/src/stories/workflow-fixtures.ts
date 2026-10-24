@@ -149,6 +149,7 @@ function node(
 	return {
 		id,
 		isWorkflowGenerated,
+		issueType: "task",
 		title,
 		status,
 		parentIds: parent === null ? [] : [parent],

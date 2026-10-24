@@ -73,6 +73,7 @@ function ownedCard(
 		assignee,
 		beeAssignments: [],
 		merges: [],
+		issueType: "task",
 		isWorkflowGenerated: false,
 		priority: 2,
 		labels: ["ui"],

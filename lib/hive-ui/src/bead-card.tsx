@@ -1,10 +1,22 @@
 import { BeeActivity, BeeAssignment, Label, OutlineLink, WorkStatus, time } from "./ui.tsx";
+import { Bug, CircleHelp, FileText, Layers, ListTodo, Sparkles, Wrench } from "lucide-react";
 import { Link, useSearch } from "@tanstack/react-router";
 import type { Card } from "../contracts.ts";
 import { FilterableLabel } from "./filter-controls.tsx";
+import type { LucideIcon } from "lucide-react";
 import { MergeLinks } from "./merge-links.tsx";
 import { Card as SurfaceCard } from "./primitives.tsx";
 import { WorkflowIndicator } from "./workflow-preview.tsx";
+
+const TYPE_ICONS: Record<string, LucideIcon> = {
+	bug: Bug,
+	chore: Wrench,
+	docs: FileText,
+	epic: Layers,
+	feature: Sparkles,
+	question: CircleHelp,
+	task: ListTodo,
+};
 
 export function BeadCard({
 	card,
@@ -19,6 +31,9 @@ export function BeadCard({
 	outlineId?: string | undefined;
 	subcards?: { count: number; expanded: boolean; handleToggle: () => void } | undefined;
 }) {
+	const TypeIcon = Object.hasOwn(TYPE_ICONS, card.issueType)
+		? TYPE_ICONS[card.issueType]!
+		: CircleHelp;
 	const search = useSearch({ from: "/colonies/$colonyId" });
 	const [latest] = card.beeAssignments.toSorted((left, right) =>
 		(right.stdout?.lastOutputAt ?? "").localeCompare(left.stdout?.lastOutputAt ?? ""),
@@ -31,7 +46,12 @@ export function BeadCard({
 		>
 			<div className="bead-card-content">
 				<div className="flex items-center justify-between gap-2">
-					<span className="font-mono text-[11px] text-muted">{card.id}</span>
+					<span className="flex min-w-0 items-center gap-1.5 text-muted">
+						<TypeIcon className="size-3.5 shrink-0" aria-label={card.issueType} aria-hidden={false}>
+							<title>{card.issueType}</title>
+						</TypeIcon>
+						<span className="truncate font-mono text-[11px]">{card.id}</span>
+					</span>
 					<div className="flex items-center gap-1">
 						{subcards && (
 							<button

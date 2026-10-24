@@ -25,6 +25,7 @@ function makeNode(id: string, status = "open", parentIds: string[] = []): Hierar
 		owner: "ct",
 		beeAssignments: [],
 		merges: [],
+		issueType: "task",
 		isWorkflowGenerated: false,
 		labels: [],
 		updatedAt: "2026-10-12T00:00:00Z",

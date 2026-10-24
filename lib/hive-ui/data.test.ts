@@ -688,6 +688,7 @@ function node(id: string, parentIds: string[] = []): HierarchyNode {
 		owner: "ct",
 		beeAssignments: [],
 		merges: [],
+		issueType: "task",
 		isWorkflowGenerated: false,
 		labels: [],
 		updatedAt: OLD,
