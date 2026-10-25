@@ -33,7 +33,7 @@ test("local Git ref fixture matches native default, exact-ref and commit observa
 });
 
 async function createRefRepository(root: string): Promise<RefState> {
-	await run(["git", "init", "--initial-branch=develop", root]);
+	await run(["git", "init", "--template=", "--initial-branch=develop", root]);
 	await run([
 		"git",
 		"-C",
@@ -62,8 +62,6 @@ async function createRefRepository(root: string): Promise<RefState> {
 }
 
 async function createRefs(root: string, oid: string): Promise<void> {
-	await run(["git", "-C", root, "update-ref", cached, oid]);
-	await run(["git", "-C", root, "update-ref", `${missing}/child`, oid]);
 	await run([
 		"git",
 		"-C",
@@ -78,7 +76,10 @@ async function createRefs(root: string, oid: string): Promise<void> {
 		"start",
 	]);
 	const treeOid = await gitOut(root, "rev-parse", "HEAD^{tree}");
-	await run(["git", "-C", root, "update-ref", tree, treeOid]);
+	await run(
+		["git", "-C", root, "update-ref", "--stdin"],
+		`update ${cached} ${oid}\nupdate ${missing}/child ${oid}\nupdate ${tree} ${treeOid}\n`,
+	);
 }
 
 async function assertRefObservations(refs: LocalGitRefs, state: RefState): Promise<void> {

@@ -2,10 +2,10 @@ import { EXIT_CODES, HookError } from "../../src/errors.ts";
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 // Integration fixtures exercise real filesystem and process boundaries.
 // oxlint-disable-next-line import/no-nodejs-modules
-import { chmod, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { closeSync, openSync, writeSync } from "node:fs";
 // Integration fixtures exercise real filesystem and process boundaries.
 // oxlint-disable-next-line import/no-nodejs-modules
-import { closeSync, openSync, writeSync } from "node:fs";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { createLiveGitRunner } from "../../src/git/executor.ts";
 import { createLiveHookRunner } from "../../src/hooks.ts";
 // Integration fixtures exercise real filesystem and process boundaries.
@@ -70,8 +70,7 @@ describe("LiveHookRunner", () => {
 
 	test("throws HookError with exit code and slot path on failure #test-306", async () => {
 		const script = join(tmp, "hook.sh");
-		await writeFile(script, "echo bad >&2\nexit 7\n");
-		await chmod(script, EXECUTABLE_MODE);
+		await writeFile(script, "echo bad >&2\nexit 7\n", { mode: EXECUTABLE_MODE });
 		const runner = createLiveHookRunner();
 
 		try {

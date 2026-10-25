@@ -1,11 +1,11 @@
-// Integration suites create real git worktrees and fixture files on disk
+// Integration suites create real Git worktrees and fixture files on disk.
 // oxlint-disable-next-line import/no-nodejs-modules
-import { access, appendFile, cp, mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
+import { access, appendFile, mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
+// Fixture copies and inline config writes use the synchronous filesystem API.
+// oxlint-disable-next-line import/no-nodejs-modules
+import { cpSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 /* oxlint-disable-next-line import/no-nodejs-modules -- fixtures build paths inside their temporary roots */
 import { join, resolve } from "node:path";
-// The writeConfig helper stays synchronous, so it needs the sync fs entrypoint
-// oxlint-disable-next-line import/no-nodejs-modules
-import { mkdirSync, writeFileSync } from "node:fs";
 import type { Deps } from "../../src/index";
 import { EXIT_CODES } from "../../src/errors.ts";
 import { afterAll } from "bun:test";
@@ -82,6 +82,7 @@ export function testDeps(overrides: Partial<Deps> = {}): Deps {
 	};
 }
 
+/** Write configuration synchronously so integration suites can call this helper inline. */
 export function writeConfig(options: {
 	tmp: string;
 	root: string;
@@ -91,14 +92,12 @@ export function writeConfig(options: {
 }): void {
 	const { tmp, root, command, poolSize, copyToml } = options;
 	const configHome = join(tmp, "config");
-	// The writeConfig helper stays synchronous so every integration suite can call it inline
 	// oxlint-disable-next-line node/no-sync
 	mkdirSync(join(configHome, "hive"), { recursive: true });
 	let poolLine = "";
 	if (poolSize) {
 		poolLine = `pool_size = ${poolSize}\n`;
 	}
-	// The writeConfig helper stays synchronous so every integration suite can call it inline
 	// oxlint-disable-next-line node/no-sync
 	writeFileSync(
 		join(configHome, "hive", "honeycomb.toml"),
@@ -125,13 +124,17 @@ export function useOriginFixture() {
 		const fixture = await ensureBaseOriginFixture();
 		const root = join(tmp, "repo");
 		const remote = join(tmp, "origin.git");
-		await Promise.all([
-			cp(fixture.root, root, { recursive: true }),
-			cp(fixture.remote, remote, { recursive: true }),
-		]);
-		const resolvedRoot = await realpath(root);
-		await run(["git", "-C", resolvedRoot, "remote", "set-url", "origin", remote]);
-		return { remote, root: resolvedRoot };
+		// oxlint-disable-next-line node/no-sync
+		cpSync(fixture.root, root, { recursive: true });
+		// oxlint-disable-next-line node/no-sync
+		cpSync(fixture.remote, remote, { recursive: true });
+		// Retarget the single origin URL from buildBaseOriginFixture in this test's copied config.
+		const configPath = join(root, ".git", "config");
+		// oxlint-disable-next-line node/no-sync
+		const config = readFileSync(configPath, "utf8");
+		// oxlint-disable-next-line node/no-sync
+		writeFileSync(configPath, config.replace(fixture.remote, remote));
+		return { remote, root: await realpath(root) };
 	};
 
 	return { initRepoWithOrigin };

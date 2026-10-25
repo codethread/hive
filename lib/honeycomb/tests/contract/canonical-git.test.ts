@@ -93,13 +93,15 @@ async function createHistory(root: string): Promise<History> {
 	const head = await createCommit(root, tree, { parent: base, message: "head" });
 	const descendant = await createCommit(root, tree, { parent: head, message: "descendant" });
 	const diverged = await createCommit(root, tree, { parent: base, message: "diverged" });
-	await run(["git", "-C", root, "update-ref", "refs/heads/develop", head]);
-	await run(["git", "-C", root, "update-ref", cached, descendant]);
+	await run(
+		["git", "-C", root, "update-ref", "--stdin"],
+		`update refs/heads/develop ${head}\nupdate ${cached} ${descendant}\n`,
+	);
 	return { root, base, head, descendant, diverged };
 }
 
 async function createRepository(root: string): Promise<void> {
-	await run(["git", "init", "--initial-branch=develop", root]);
+	await run(["git", "init", "--template=", "--initial-branch=develop", root]);
 	await commitFile({ repo: root, path: "tracked.txt", content: "original\n", message: "base" });
 }
 

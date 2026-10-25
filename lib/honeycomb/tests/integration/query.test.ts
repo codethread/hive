@@ -217,8 +217,7 @@ test("JSON list reads one Git inventory and leaves missing pool slots absent #te
 async function initLockedPool() {
 	const configRoot = join(tmp, "repo");
 	const { root } = await initRepoWithOrigin(tmp);
-	await run(["git", "-C", root, "branch", "wk-pool/feat1"]);
-	await run(["git", "-C", root, "worktree", "add", `${root}__feat1`, "wk-pool/feat1"]);
+	await run(["git", "-C", root, "worktree", "add", "-b", "wk-pool/feat1", `${root}__feat1`]);
 	await run(["git", "-C", root, "worktree", "lock", "--reason", "keep slot", `${root}__feat1`]);
 	const configHome = join(tmp, "config");
 	await writeRawConfig(

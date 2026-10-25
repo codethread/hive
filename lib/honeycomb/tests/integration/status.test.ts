@@ -141,8 +141,7 @@ test("blocks when sibling and legacy nested worktrees claim the same pool slot #
 	writeConfig({ command: "echo ready", poolSize: SINGLE_SLOT, root, tmp });
 	await createPoolSlot({ branch: "wk-pool/feat1", index: SLOT.first, initialized: true, root });
 	const nestedSlot = join(root, ".wktree", "feat1");
-	await run(["git", "-C", root, "branch", "feature/colliding-slot"]);
-	await run(["git", "-C", root, "worktree", "add", nestedSlot, "feature/colliding-slot"]);
+	await run(["git", "-C", root, "worktree", "add", "-b", "feature/colliding-slot", nestedSlot]);
 
 	const result = await dispatch("status", ["--cwd", root], deps);
 
@@ -158,9 +157,8 @@ async function initIgnoredSlot() {
 	const { root } = await initRepoWithOrigin(tmp);
 	writeConfig({ command: "echo ready", poolSize: SINGLE_SLOT, root, tmp });
 	await createPoolSlot({ branch: "wk-pool/feat1", index: SLOT.first, initialized: true, root });
-	await writeFile(join(`${root}__feat1`, ".gitignore"), "node_modules/\n");
-	await run(["git", "-C", `${root}__feat1`, "add", ".gitignore"]);
-	await run(["git", "-C", `${root}__feat1`, "commit", "-m", "ignore node_modules"]);
+	const exclude = await run(["git", "-C", root, "rev-parse", "--git-path", "info/exclude"]);
+	await writeFile(join(root, exclude.stdout.trim()), "node_modules/\n");
 	await mkdir(join(`${root}__feat1`, "node_modules"));
 	await writeFile(join(`${root}__feat1`, "node_modules", "ignored.txt"), "ignored\n");
 	return root;
