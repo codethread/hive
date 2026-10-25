@@ -11,6 +11,7 @@ import { createLiveHookRunner } from "../../src/hooks.ts";
 // Integration fixtures exercise real filesystem and process boundaries.
 // oxlint-disable-next-line import/no-nodejs-modules
 import { join } from "node:path";
+import { testDeps } from "./support.ts";
 // Integration fixtures exercise real filesystem and process boundaries.
 // oxlint-disable-next-line import/no-nodejs-modules
 import { tmpdir } from "node:os";
@@ -83,6 +84,25 @@ describe("LiveHookRunner", () => {
 			expect((error as HookError).slotPath).toBe(tmp);
 		}
 	});
+});
+
+test("dependency helper pairs an overridden Git runner with its inventory", async () => {
+	const calls: string[][] = [];
+	const run = (args: string[]) => {
+		calls.push(args);
+		return Promise.resolve({
+			exitCode: EXIT_CODES.SUCCESS,
+			stdout: "worktree /fixture\nbare\n",
+			stderr: "",
+		});
+	};
+	const git = { run, runRaw: run };
+	const deps = testDeps({ git });
+	expect(deps.git).toBe(git);
+	expect(await deps.worktrees.list("/fixture")).toMatchObject([
+		{ path: "/fixture", canonical: true, bare: true },
+	]);
+	expect(calls).toEqual([["-C", "/fixture", "worktree", "list", "--porcelain"]]);
 });
 
 describe("createLiveGitRunner", () => {

@@ -28,6 +28,10 @@ test.each([
 	{ path: "lib/tooling/src/test-runner.ts", expected: [beads, bv, honeycomb] },
 	{ path: "lib/honeycomb/src/application/branches.ts", expected: [honeycomb] },
 	{ path: "lib/honeycomb/src/services.ts", expected: [honeycomb] },
+	{ path: "lib/honeycomb/src/domain/worktree.ts", expected: [honeycomb] },
+	{ path: "lib/honeycomb/src/live-deps.ts", expected: [honeycomb] },
+	{ path: "lib/honeycomb/tests/contract/worktree-inventory.test.ts", expected: [honeycomb] },
+	{ path: "lib/honeycomb/tests/contract/worktree-inventory-fixture.ts", expected: [honeycomb] },
 	{ path: "lib/honeycomb/src/errors.ts", expected: [honeycomb] },
 	{ path: "lib/honeycomb/src/git/error.ts", expected: [honeycomb] },
 	{ path: "lib/honeycomb/src/git/executor.ts", expected: [honeycomb] },
@@ -51,6 +55,7 @@ test.each([
 
 test.each([
 	{ paths: [] },
+	{ paths: ["lib/honeycomb/src/commands/pick.ts", "lib/honeycomb/src/commands/query.ts"] },
 	{ paths: ["lib/honeycomb/src/commands/add-worktree.ts"] },
 	{ paths: ["lib/colony/src/ranking.ts", "lib/busybee/src/runtime.ts"] },
 	{ paths: ["lib/beeswax/src/beads/setup.ts", "lib/hive-ui/server/index.ts"] },

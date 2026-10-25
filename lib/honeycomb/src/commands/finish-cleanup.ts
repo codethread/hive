@@ -4,7 +4,7 @@ import type { PolicyExplanation, ProjectConfig, WorktreeLocation } from "../doma
 import { buildPoolState, ensurePlaceholderBranch } from "../application/pool.ts";
 import type { Worktree } from "../domain/worktree.ts";
 import { assertCleanSource } from "./finish-integration.ts";
-import { listWorktrees } from "../application/repository.ts";
+import { listWorktrees } from "../git/worktrees.ts";
 import { planLeaveWorktree } from "../application/interactive.ts";
 
 type FinishPolicyPlan = PolicyExplanation["finishPolicy"];

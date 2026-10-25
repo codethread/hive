@@ -26,7 +26,7 @@ import {
 } from "./add-pool-picker.ts";
 import type { Deps } from "../services.ts";
 import { explicitSlotAction } from "../domain/worktree.ts";
-import { listWorktrees } from "../application/repository.ts";
+import { listWorktrees } from "../git/worktrees.ts";
 import { projectNameFor } from "../domain/config.ts";
 import { setupPooledCheckout } from "../application/pooled-setup.ts";
 import { toAddPayload } from "../protocol.ts";

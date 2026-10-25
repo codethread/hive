@@ -1,3 +1,6 @@
+/* eslint-disable import/max-dependencies --
+ * Integration dependencies pair the inventory adapter with the selected GitRunner.
+ */
 // Integration suites create real git worktrees and fixture files on disk
 // oxlint-disable-next-line import/no-nodejs-modules
 import { access, appendFile, cp, mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
@@ -9,6 +12,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import type { Deps } from "../../src/index";
 import { EXIT_CODES } from "../../src/errors.ts";
 import { afterAll } from "bun:test";
+import { createGitWorktreeInventory } from "../../src/git/worktrees.ts";
 import { createLiveDeps } from "../../src/live-deps.ts";
 import { createTestCdDirective } from "./fakes/test-cd-directive.ts";
 import { createTestMultiplexer } from "./fakes/test-multiplexer.ts";
@@ -72,8 +76,12 @@ export async function pathExists(path: string): Promise<boolean> {
 }
 
 export function testDeps(overrides: Partial<Deps> = {}): Deps {
+	const live = createLiveDeps();
+	const git = overrides.git ?? live.git;
 	return {
-		...createLiveDeps(),
+		...live,
+		git,
+		worktrees: createGitWorktreeInventory(git),
 		cdDirective: createTestCdDirective(),
 		multiplexer: createTestMultiplexer(),
 		picker: deps.picker,

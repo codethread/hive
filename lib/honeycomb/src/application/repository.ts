@@ -9,7 +9,7 @@ import type { GitRunner, WorkspaceFiles } from "../services.ts";
 import type { TreeComparison, Worktree, WorktreeTree } from "../domain/worktree.ts";
 import { buildWorktreeTree, worktreeCommit } from "../domain/worktree.ts";
 import { GitError } from "../git/error.ts";
-import { parseWorktreeList } from "../git/worktrees.ts";
+import { listWorktrees } from "../git/worktrees.ts";
 // oxlint-disable-next-line import/no-nodejs-modules -- resolve cwd at the filesystem boundary
 import { resolve } from "node:path";
 import { resolveTreeDefaultBranch } from "./branches.ts";
@@ -17,11 +17,6 @@ import { withoutLazyFetch } from "../git/executor.ts";
 
 const GIT_NOT_ANCESTOR = 1;
 const NO_HEADS = 0;
-
-export async function listWorktrees(git: GitRunner, cwd: string): Promise<Worktree[]> {
-	const result = await git.run(["-C", cwd, "worktree", "list", "--porcelain"]);
-	return parseWorktreeList(result.stdout);
-}
 
 /** Snapshot inventory and default tip once; all history queries use local immutable OIDs. */
 export async function readWorktreeTree(runner: GitRunner, cwd: string): Promise<WorktreeTree> {

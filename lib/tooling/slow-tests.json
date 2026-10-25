@@ -2380,6 +2380,18 @@
 		"#test-678": {
 			"threshold": "SLOW",
 			"justification": "User approved retaining measured timing-only blockers during the BV landing on 2026-10-23. lib/shared/src/spawn-request.test.ts: malformed assignment %j fails at the native boundary. Observed integrated full-check runtime: 2.784ms."
+		},
+		"#test-679": {
+			"threshold": "XSLOW",
+			"justification": "User approved this allowance on 2026-10-25 (hv-qur5kc, comment 45988). lib/honeycomb/tests/contract/worktree-inventory.test.ts: worktree inventory shares ordered paths, flags, aliases and fresh observations with native Git. After setup reduction, fresh focused, strict changed and full runs measured 247.240–420.298ms, including native setup and cleanup. Live/memory parity validates the inventory fixture used by policy tests."
+		},
+		"#test-680": {
+			"threshold": "XSLOW",
+			"justification": "User approved this allowance on 2026-10-25 (hv-qur5kc, comment 45988). lib/honeycomb/tests/contract/worktree-inventory.test.ts: worktree inventory preserves bare and unborn HEAD representations. After setup reduction, fresh focused, strict changed and full runs measured 35.886–89.915ms, including native setup and cleanup. Live/memory parity validates the inventory fixture used by policy tests."
+		},
+		"#test-681": {
+			"threshold": "SLOW",
+			"justification": "User approved this allowance on 2026-10-25 (hv-qur5kc, comment 45988). lib/honeycomb/tests/contract/worktree-inventory.test.ts: worktree inventory rejects an actual non-repository and an unknown memory cwd. After setup reduction, fresh focused, strict changed and full runs measured 7.616–11.048ms, including temporary-directory setup, the failed native Git read and cleanup. Live/memory parity validates the inventory fixture used by policy tests."
 		}
 	}
 }
