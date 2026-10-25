@@ -97,3 +97,93 @@ test.each([
 	const issue = await memory.create(scope, { title: "calendar", due: input });
 	expect(Date.parse(issue.due_at!)).toBe(new Date(expected).getTime());
 });
+
+// eslint-disable-next-line max-statements -- A guarded close/reopen trace retains observations across mutations.
+test("memory guarded closure and reopening preserve current work and reject stale revisions", async () => {
+	const memory = createMemoryBeads();
+	const created = await memory.create(scope, {
+		title: "Visit",
+		owner: "ct",
+		assignee: "worker",
+		acceptanceCriteria: "- [x] Verified",
+	});
+	await memory.update(scope, [created.id], { notes: "Authored notes" });
+	const before = await memory.show(scope, created.id);
+	const stale = await memory
+		.close(scope, created.id, { ifUnchanged: created.updated_at })
+		.catch((error: unknown) => error);
+	expect(stale).toBeInstanceOf(CommandError);
+	expect(stale).toMatchObject({ code: 6, nativeError: { code: "UPDATE_PRECONDITION_FAILED" } });
+	expect(await memory.show(scope, created.id)).toEqual(before);
+	await memory.close(scope, created.id, {
+		ifUnchanged: before.updated_at,
+		reason: "Readable closure",
+	});
+	const closed = await memory.show(scope, created.id);
+	await expect(
+		memory.close(scope, created.id, { ifUnchanged: before.updated_at }),
+	).rejects.toMatchObject({ code: 6 });
+	await expect(
+		memory.update(scope, [created.id], { status: "open", ifUnchanged: before.updated_at }),
+	).rejects.toBeInstanceOf(CommandError);
+	await memory.update(scope, [created.id], { status: "open", ifUnchanged: closed.updated_at });
+	const reopened = await memory.show(scope, created.id);
+	expect(reopened).toMatchObject({
+		status: "open",
+		owner: "ct",
+		assignee: "worker",
+		notes: before.notes,
+		acceptance_criteria: before.acceptance_criteria,
+		acceptance_items: [{ index: 1, text: "Verified", checked: true }],
+	});
+	expect(reopened).not.toHaveProperty("closed_at");
+	expect(reopened).not.toHaveProperty("close_reason");
+});
+
+test("memory hydrated checklist follows native bullets, markers and code-fence grammar", async () => {
+	const memory = createMemoryBeads();
+	const body = [
+		"Plain prose",
+		"- [ ] Required",
+		" *[X]done  ",
+		"+\t[\t] Tab marker",
+		"-[/] Not a box",
+		"````ts",
+		"- [ ] Example",
+		"```",
+		"- [ ] Still an example",
+		"```` trailing",
+		"- [ ] Still fenced",
+		"````",
+		"- [x]After fence",
+		"~~~",
+		"- [x] Tilde example",
+		"~~~\t",
+		"- [ ]",
+		"- [ ] Line\u2028separator",
+	].join("\n");
+	const issue = await memory.create(scope, { title: "Criteria", acceptanceCriteria: body });
+	expect(issue).not.toHaveProperty("acceptance_items");
+	const record = await memory.show(scope, issue.id);
+	expect(record.acceptance_items).toEqual([
+		{ index: 1, text: "Required", checked: false },
+		{ index: 2, text: "done", checked: true },
+		{ index: 3, text: "Tab marker", checked: false },
+		{ index: 4, text: "After fence", checked: true },
+		{ index: 5, text: "", checked: false },
+		{ index: 6, text: "Line\u2028separator", checked: false },
+	]);
+	const many = await memory.showMany(scope, [issue.id]);
+	const page = await memory.list(scope);
+	expect(many[ZERO]!.acceptance_items).toEqual(record.acceptance_items);
+	expect(page.issues[ZERO]).not.toHaveProperty("acceptance_items");
+});
+
+test("memory absent optional acceptance stays absent rather than inventing criteria", async () => {
+	const memory = createMemoryBeads();
+	const issue = await memory.create(scope, {
+		title: "No checklist",
+		acceptanceCriteria: "Free form criteria",
+	});
+	expect(await memory.show(scope, issue.id)).not.toHaveProperty("acceptance_items");
+});

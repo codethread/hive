@@ -1,7 +1,12 @@
 /* eslint-disable import/max-dependencies -- Compose the real SQLite, transport, native memory and CLI boundaries. */
 /* eslint-disable unicorn/no-null -- Retained fixtures preserve absent checkpoint and policy fields. */
 import { afterAll, expect, test } from "bun:test";
-import { createSpawn, createTask, memoryTracker } from "./tracker.test-support.ts";
+import {
+	createSpawn,
+	createTask,
+	createWorkflowControl,
+	memoryTracker,
+} from "./tracker.test-support.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Use disposable state without process artifacts.
 import { hostname, tmpdir } from "node:os";
 import { inspectRepository, inspectRequest } from "./inspection.ts";
@@ -28,6 +33,7 @@ const workspace = await mkdtemp(join(tmpdir(), "colony-explain-"));
 const repository = { beadsDb: "/fixture/beads.db", root: workspace };
 const tracker = { ...memoryTracker(), repository };
 const taskId = await createTask(tracker);
+await createWorkflowControl(tracker, taskId);
 const target = await createSpawn(tracker, taskId);
 const fixtures = await Promise.all([EMPTY, LARGE_HISTORY].map((size) => createFixture(size)));
 for (const { store } of fixtures) {

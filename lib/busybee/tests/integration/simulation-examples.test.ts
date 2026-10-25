@@ -410,7 +410,12 @@ async function exampleFixture(
 		});
 	}
 	const saved: Run = {
-		formatVersion: 1,
+		formatVersion: 2,
+		lock: null,
+		managedExecution: "unmanaged",
+		results: {},
+		completions: {},
+		settlement: null,
 		id: parent.id,
 		hash: "saved-example-hash",
 		definition: { kind: "named", name: "example", version: "1.0.0" },

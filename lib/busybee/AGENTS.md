@@ -4,9 +4,7 @@ Read [SPEC](./SPEC.md) before changing projection, completion, native outcomes, 
 
 ## Implementation seams
 
-Keep process execution and endpoint selection in injected [services](./src/native.ts), frontier projection in [runtime.ts](./src/runtime.ts), and dynamic XState typing in [definition.ts](./src/definition.ts). `Services.beads` injects named typed `@hive/beads` operations; `createServices` composes the native implementation. Busy Bee parses checkpoint and captured workflow documents.
-
-`beforeWrite` marks publication immediately before a native mutation. Lock acquisition and release use the original services outside that tracking scope.
+Keep process execution and endpoint selection in injected [services](./src/native.ts), frontier projection in [runtime.ts](./src/runtime.ts), original-result persistence and native completion projection in [completion.ts](./src/completion.ts), and dynamic XState typing in [definition.ts](./src/definition.ts). `Services.beads` injects named typed `@hive/beads` operations; `createServices` composes the native implementation. Busy Bee owns checkpoint/actor state; Shared owns the consumed control schema and definition-free system/native outcome join. [SPEC](./SPEC.md#work-and-progression) defines field ownership.
 
 ## Verification
 
@@ -21,6 +19,8 @@ bun run check
 Use [repository fixtures](./tests/integration/support.ts) for real authoring and Git discovery; they inject memory Beads and remove files after each test. Workflow behavior tests inject memory Beads and author modules directly. Exercise `runCli` in process for command scenarios, retaining the executable test for child-process output. Import tested examples and repository definitions directly alongside dynamic file loading so their changes select the dependent tests. The executable's guarded import provides the same dependency for its subprocess case.
 
 The native discovery fixture selects live SQLite storage with automatic JSONL export/import disabled: it has no published tracker endpoint. Retained native checks cover repository tracker selection, schema discovery without a database and executable JSON errors; the memory failure check covers initial actor failure before task creation.
+
+[Current completion coverage](../../docs/test-cases/busybee.md#system-owned-completion-coverage) maps the format-2 tests separately from the historical archives.
 
 Coordinate native races with promise barriers at the I/O boundary. Inject `Services.now` and `Services.sleep` for deadline behavior. Check land branching paths and briefs through the actual chart. Default tracker configuration, postwrite failed-owner quarantine and native continuation after checkout removal are parked checks in the [coverage record](../../docs/test-cases/busybee.md). Consult its historical scenarios when changing those boundaries; the later [rejected lifecycle cohort](../../docs/test-cases/lifecycle-slow-test-removal.md) remains removed, not a restoration backlog. Scripted Bee results launch no model, and land tests perform no real landing.
 

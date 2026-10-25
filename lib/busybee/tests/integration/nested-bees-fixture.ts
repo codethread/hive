@@ -4,7 +4,7 @@ import {
 	machine,
 	runBrief,
 } from "../../examples/nested-bees/workflow.ts";
-import { navigate, recordResult, start } from "../../src/runtime.ts";
+import { complete, navigate, start } from "../../src/runtime.ts";
 import {
 	spawnRequestLabels,
 	workflowInspectionSchema,
@@ -78,19 +78,14 @@ export async function captureNestedBees() {
 	const started = workflowInspectionSchema.parse(await inspect(run.id, options, services));
 	const afterInspection = await records();
 	const originalVisits = run.created;
-	const complete = async (path: string[], node: string) => {
+	const finishVisit = async (path: string[], node: string) => {
 		const visit = run.created.findLast(
 			(entry) => JSON.stringify(entry.path) === JSON.stringify(path) && entry.node === node,
 		)!;
-		await recordResult(
-			{ id: run.id, bead: visit.bead, choice: "next", data: {} },
-			options,
-			services,
-		);
-		await beads.close(scope, visit.bead);
+		await complete({ id: run.id, bead: visit.bead, choice: "next", data: {} }, options, services);
 		run = await navigate({ id: run.id, operation: "collect" }, options, services);
 	};
-	await complete(["api"], "nested-worker.implement");
+	await finishVisit(["api"], "nested-worker.implement");
 	const mixed = workflowInspectionSchema.parse(await inspect(run.id, options, services));
 
 	const beforeSimulation = await records();
@@ -132,11 +127,11 @@ export async function captureNestedBees() {
 	});
 	const childSimulation = workflowSimulationSchema.parse(JSON.parse(child.stdout));
 	const afterSimulation = await records();
-	await complete(["api"], "nested-worker.verify");
-	await complete(["interface"], "nested-worker.implement");
-	await complete(["interface"], "nested-worker.verify");
+	await finishVisit(["api"], "nested-worker.verify");
+	await finishVisit(["interface"], "nested-worker.implement");
+	await finishVisit(["interface"], "nested-worker.verify");
 	const handoff = workflowInspectionSchema.parse(await inspect(run.id, options, services));
-	await complete([], "nested-bees.handoff");
+	await finishVisit([], "nested-bees.handoff");
 	return {
 		captured: {
 			started,

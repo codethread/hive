@@ -1,6 +1,6 @@
 import { assign, createMachine } from "xstate";
+import { complete, navigate, startNamed } from "../../src/runtime.ts";
 import { expect, test } from "bun:test";
-import { navigate, startNamed } from "../../src/runtime.ts";
 import type { Services } from "../../src/native.ts";
 import { assessRun } from "../../src/preflight.ts";
 import { createMemoryBeads } from "@hive/beads";
@@ -125,11 +125,9 @@ test.each([
 		const parent = await beads.create(scope, { title: "Original work", owner: "ct" });
 		let view = await startNamed("example", { owner: "ct", parent: parent.id }, io);
 		if (position === "review") {
-			await beads.close(scope, view.active[FIRST]!.bead);
-			view = await navigate(
+			await complete(
 				{
 					id: view.id,
-					operation: "submit",
 					bead: view.active[FIRST]!.bead,
 					choice: "next",
 					data: {},
@@ -137,15 +135,14 @@ test.each([
 				{},
 				io,
 			);
+			view = await navigate({ id: view.id, operation: "collect" }, {}, io);
 		}
 		machine = proposedChart;
 		version = "1.1.0";
 		contents = new TextEncoder().encode("edited").buffer;
-		await beads.close(scope, view.active[FIRST]!.bead);
-		const result = await navigate(
+		await complete(
 			{
 				id: view.id,
-				operation: "submit",
 				bead: view.active[FIRST]!.bead,
 				choice: "next",
 				data: {},
@@ -153,6 +150,7 @@ test.each([
 			{},
 			io,
 		);
+		const result = await navigate({ id: view.id, operation: "collect" }, {}, io);
 		if (position === "prepare") {
 			expect(result.active).toMatchObject([{ title: "Extra" }]);
 		} else {
@@ -215,13 +213,9 @@ test(
 		const parent = await beads.create(scope, { title: "Original work", owner: "ct" });
 		const view = await startNamed("example", { owner: "ct", parent: parent.id }, io);
 		const left = view.active.find((entry) => entry.title === "Left")!;
-		await beads.close(scope, left.bead);
 		concurrentSave = true;
-		await navigate(
-			{ id: view.id, operation: "submit", bead: left.bead, choice: "left", data: {} },
-			{},
-			io,
-		);
+		await complete({ id: view.id, bead: left.bead, choice: "left", data: {} }, {}, io);
+		await navigate({ id: view.id, operation: "collect" }, {}, io);
 		const listing = await beads.list(scope, {
 			labels: ["busybee-checkpoint"],
 			all: true,

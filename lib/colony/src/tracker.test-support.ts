@@ -1,6 +1,7 @@
 /* eslint-disable unicorn/no-null -- Captured recipes explicitly select the canonical cwd with null. */
 import type { BeadsService, CreateBead } from "@hive/beads";
 import type { TrackerCommands, TrackerContext } from "./tracker.ts";
+import type { WorkflowControl } from "@hive/shared";
 import { createMemoryBeads } from "@hive/beads";
 /* eslint-disable-next-line import/no-nodejs-modules --
  * Fixtures bind requests to the same host as production authority checks.
@@ -53,6 +54,36 @@ export function createSpawn(
 		deps: [{ id: runId, type: "related" }],
 		...input,
 	});
+}
+
+/** Create the definition-free system authority consumed by Colony readers. */
+export async function createWorkflowControl(
+	context: TrackerContext,
+	runId: string,
+	input: Partial<WorkflowControl> = {},
+): Promise<string> {
+	const control: WorkflowControl = {
+		formatVersion: 2,
+		id: runId,
+		lock: null,
+		managedExecution: "managed",
+		results: {},
+		completions: {},
+		settlement: null,
+		created: [],
+		...input,
+	};
+	const checkpoint = await createTask(context, {
+		labels: ["system", "busybee-checkpoint"],
+		description: JSON.stringify(control),
+	});
+	await context.beads.dep.add(
+		trackerScope(context.repository, "fixture"),
+		runId,
+		checkpoint,
+		"related",
+	);
+	return checkpoint;
 }
 
 /** Run an actual memory mutation immediately before a consumer's conditional update. */

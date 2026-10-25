@@ -24,7 +24,6 @@ import {
 	assertWorkflowAdmission,
 	readWorkflowCompletion,
 	readWorkflowPublication,
-	workflowCompletion,
 } from "./workflow-anchor.ts";
 import { colonyEntry, entryCommand } from "./executables.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Supply the host home at the native invocation boundary.
@@ -207,7 +206,7 @@ export async function prepareLaunch(
 		return { ...completion, kind: "finished" };
 	}
 	const ready = await beads.ready(trackerScope(request, identity), { limit: 0 });
-	const eligible = eligibility(tasks, ready, identity, assignment);
+	const eligible = eligibility(tasks, ready, identity, completion);
 	if (eligible.kind !== "eligible") {
 		return eligible;
 	}
@@ -486,12 +485,11 @@ export function eligibility(
 	tasks: Bead[],
 	ready: Pick<Bead, "id">[],
 	identity: string,
-	assignment: WorkflowAssignment,
+	completion: WorkflowCompletion,
 ): Eligibility {
 	if (tasks.length === EMPTY) {
 		return { kind: "waiting", reason: "Spawn request has no related tasks" };
 	}
-	const completion = workflowCompletion(tasks[EMPTY]!, assignment);
 	if (completion.kind === "terminal") {
 		return { ...completion, kind: "finished" };
 	}
@@ -507,11 +505,20 @@ export function eligibility(
 	return { kind: "eligible", tasks };
 }
 
+// eslint-disable-next-line max-statements -- Recheck the request anchor and current publication before launch.
 export async function launchFence(
 	request: Pick<LaunchRequest, "beads" | "root" | "beadsDb">,
 	assignment: WorkflowAssignment,
 	identity: string,
 ): Promise<string | undefined> {
+	const completion = await readWorkflowCompletion(
+		{ beads: request.beads, repository: request },
+		assignment,
+		identity,
+	);
+	if (completion.kind === "terminal") {
+		return completion.message;
+	}
 	const run = await request.beads.show(trackerScope(request, identity), assignment.runId);
 	const publication = await readWorkflowPublication(
 		{ beads: request.beads, repository: request },
@@ -524,9 +531,7 @@ export async function launchFence(
 	if (publication.locked) {
 		return `Workflow ${assignment.runId} publication is fenced`;
 	}
-	assertWorkflowAdmission(
-		await request.beads.show(trackerScope(request, identity), assignment.runId),
-	);
+	assertWorkflowAdmission(run, publication.control);
 	return undefined;
 }
 

@@ -1,3 +1,4 @@
+/* eslint-disable import/max-dependencies -- Join author compatibility with native and Shared completion facts. */
 import type { ActiveEntry, Run } from "./checkpoint.ts";
 import type { Definition, ResolvedTask, WorkflowActor } from "./definition.ts";
 import type { Endpoint, Options, Services } from "./native.ts";
@@ -18,6 +19,7 @@ import { frontier } from "./runtime.ts";
 // eslint-disable-next-line import/no-nodejs-modules
 import { isDeepStrictEqual } from "node:util";
 import { namedDefinition } from "./catalogue.ts";
+import { nativeWorkflowState } from "@hive/shared";
 import { readCheckpoint } from "./checkpoint.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Resolve the optional proposed entry at the CLI boundary.
 import { resolve } from "node:path";
@@ -265,7 +267,7 @@ async function candidateSource(
 	return { candidate: selected, version: selected.metadata.version };
 }
 
-// Filter identity and native completion before decoding or assessing candidate state.
+// Filter identity and confirmed system/native completion before assessing candidate state.
 // eslint-disable-next-line max-statements
 async function inspectCheckpoint(
 	record: BeadRow,
@@ -288,17 +290,19 @@ async function inspectCheckpoint(
 		return undefined;
 	}
 	const parent = await readBead(candidate.endpoint, identity.id, services);
-	if (parent.status === "closed") {
-		return undefined;
-	}
 	let result: RunAssessment = {
 		checkpoint: id,
 		findings: [],
 		id: identity.id,
 		status: "unchecked",
 	};
+	let retainedLock: Run["lock"] | undefined = undefined;
 	try {
 		const run = readCheckpoint(record);
+		if (nativeWorkflowState(parent, { runId: run.id, scope: "run" }, run).kind === "terminal") {
+			return undefined;
+		}
+		retainedLock = run.lock;
 		result = assessRun({
 			run,
 			checkpoint: id,
@@ -320,11 +324,11 @@ async function inspectCheckpoint(
 			);
 		}
 	});
-	if (record.notes.trim()) {
+	if (retainedLock) {
 		result.findings.push({
 			check: "checkpoint_lock",
 			message:
-				`Checkpoint ownership is retained: ${record.notes}` +
+				`Checkpoint ownership is retained: ${JSON.stringify(retainedLock)}` +
 				". Inspect its owner and any uncertain effects before execution.",
 			status: "unchecked",
 		});

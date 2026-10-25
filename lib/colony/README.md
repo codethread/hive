@@ -6,6 +6,8 @@ Bee opens configured agent roles with `bee run` or delegates them with `bee spaw
 
 Follow [CLI artifacts](../tooling/README.md#cli-artifacts) for building and installing the companion executables. Runtime requirements are Git, `br`, `honeycomb`, `busybee`, and a native harness with working model access. Default ranking also requires `bv`; [FIFO](#scheduling) does not. Installation supplies no service.
 
+Deploy version-matched Busy Bee, Bee, Colony and Hive UI/Shared consumers together only after approval. Format-1 workflow anchors cannot be resumed by format-2 tools; follow [Busy Bee adoption](../busybee/README.md#breaking-adoption) before upgrading active work. Installing a binary does not authorize daemon restart, migration or retirement.
+
 Read `colony init --help` to create canonical configuration for Codex, Claude or both, preserving an existing `.hive/bees.toml`. Use `colony config schema` for the complete configuration fields and defaults. Prepare the selected workflow in the execution checkout through [Busy Bee](../busybee/README.md#prepare-a-checkout). Use `bee setup --help` to install the [attention preset](../../docs/agents/spawn-requests.md#saved-presets) in the selected database. [Beeswax](../beeswax/README.md#bv-viewer-recipes) manages Hive's BV views independently.
 
 Read `bee --help` for submission and result discovery, then `colony wake --help` to enable execution. For experiments, select a disposable repository, initialized tracker and private Colony state explicitly. Before deleting them, cancel the request while awake and inspect until execution has stopped and settlement completed. Sleep and daemon stop leave detached workers alive. The [native probe](#verification) automates isolated setup and bounded cleanup.
@@ -92,7 +94,7 @@ Attempt paths locate private invocation receipts, stdout, stderr and supervisor 
 
 ## Workflow execution clearance
 
-Busy Bee's [bounded settlement](../busybee/SPEC.md#bounded-unsuccessful-settlement) uses `colony system execution-clearance` when managed execution could exist. Read its `--help` for exact inventory, endpoint and ownership requirements; `colony system execution-clearance-schema --json` supplies offline schemas. The running owning-host daemon must retain the relevant history and have the repository/database registered. Clearance neither starts the daemon nor stops workers; a successful read can still report `refused` with blockers.
+Busy Bee's [bounded settlement](../busybee/SPEC.md#bounded-unsuccessful-settlement) uses `colony system execution-clearance` when managed execution could exist. Read its `--help` for exact inventory, endpoint and ownership requirements; `colony system execution-clearance-schema --json` supplies offline schemas. The running owning-host daemon must retain the relevant history and have the repository/database registered. Clearance neither starts the daemon nor stops workers; a successful read can still report `refused` with blockers. The system record's lock and settlement intent fence admission. Every settlement retry needs fresh clearance, including reclosure after previously completed settlement; a retained clearance is not a lease.
 
 ## Inspect operation and failure evidence
 
@@ -128,7 +130,7 @@ Hive's [configured formulas](../../.hive/bees.toml) show Codex and Pi role deliv
 
 ## Scheduling
 
-Unfinished assigned work must be ready and available to the request identity. Colony reads the request's own [workflow anchor](../../docs/agents/spawn-requests.md#workflow-anchors): successful closure permits completion without launch; failed or cancelled closure retains that disposition, and unclassified closure fails visibly. Requests use their highest task urgency, P0 before P1.
+Unfinished assigned work must be ready and available to the request identity. Colony reads the request's own [workflow anchor](../../docs/agents/spawn-requests.md#workflow-anchors) through Shared's definition-free system/native join. Confirmed success with matching native closure permits completion without launch; confirmed failure/cancellation retains that disposition. Requested intent, reopened/stale projections and unsupported formats fail visibly rather than becoming success or launchable work. Neither labels, close-reason prose nor a done chart supplies completion authority. Requests use their highest task urgency, P0 before P1.
 
 Within a priority tier, default `bv-pagerank` uses the best linked task's score from the complete visible graph, including closed/ephemeral tasks and unflushed edits. The [BV boundary](../../docs/integrations.md#bee-and-colony-runtime) owns database authority and completeness. Its native multi-query read is not atomic across concurrent commits. `ranking = "fifo"` orders ties by creation time, then ID, without BV.
 

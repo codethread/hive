@@ -21,6 +21,9 @@ The parent IDs name existing nonclosed ordinary work in the selected tracker. Ea
 	"kind": "run",
 	"id": "busy-2rm",
 	"status": "active",
+	"chartStatus": "active",
+	"completion": "pending",
+	"nativeStatus": "in_progress",
 	"active": [
 		{
 			"bead": "busy-2rm.1",
@@ -49,7 +52,7 @@ No fields follow `next`, so it needs no payload. Use `discover --json` for compl
 
 ## Complete the task, then collect
 
-After identifying the change and completing any subtasks:
+After identifying the change, verifying and ticking native acceptance, finishing child work and delivering any required response:
 
 ```sh
 busybee complete busy-2rm busy-2rm.1 next --json
@@ -68,7 +71,7 @@ The returned `active` work now contains these groups and workers:
 
 API and documentation work can proceed concurrently. Each worker uses `complete` for its own task; the driver collects results. Busy Bee closes the groups once their work finishes. These tasks belong to open groups, not the closed preparation task. Read `busybee complete --help` for payload options, closure refusal and retries.
 
-Driver-handled visits also support direct `next` and `choice` submission after closure; see `busybee choice --help`. Bee-dispatched visits require saved results and collection.
+Both driver-handled and Bee-dispatched visits use this path. `next` above is an authored outcome name, not a separate CLI command. The original result and completion intent are saved in the workflow system bead; task notes stay available for authored findings.
 
 ## Submit a structured outcome
 
@@ -96,7 +99,7 @@ busybee complete busy-8fp busy-8fp.1 busy --data '{"meals":4}' --json
 busybee collect busy-8fp --json
 ```
 
-The next task is “Choose quick recipes.” Read each new visit's full native brief, then repeat the work, complete and collect cycle until `status` is `done`.
+The next task is “Choose quick recipes.” Read each new visit's full native brief, then repeat the work, complete and collect cycle until `status` is `done`. A chart can reach `chartStatus: done` while native gates still refuse run closure; that reports `status: completion_pending` and `completion: projection_pending`, not success. Follow [completion repair](./README.md#native-outcomes-and-retirement) without resubmitting accepted transitions.
 
 ## Run Hive's landing workflow
 

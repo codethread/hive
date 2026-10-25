@@ -9,7 +9,7 @@ Use the consuming repository's instructions for work policy, human ownership, ac
 
 ## Engine-managed work
 
-Before applying ordinary field or completion rules to Busy Bee work, preserve its stage result notes (`record-result`/`complete`), temporary run-note settlement intent and structured close reasons. Put narrative evidence in comments and, when authorized, the ordinary source task's current notes. Follow the active brief, `busybee skills get workflow-execution` and `busybee complete --help`; never directly close managed work or replace engine payloads with prose. Busy Bee alone closes groups and the run. These defaults do not establish producer compliance or native enforcement.
+For Busy Bee work, follow the active brief and `busybee skills get workflow-execution`. Format-2 results, completion and settlement live in the workflow system record; ordinary notes retain the current account under repository policy. Use `complete` then driver `collect`, not direct native closure. Busy Bee preserves current native gates and reservations. Before using new tools on an older saved run, follow their explicit format-adoption guidance; this skill grants no migration or retirement authority.
 
 For a supplied run, continue the saved run on retry; additional workflow work belongs beneath it.
 

@@ -3,6 +3,7 @@
 /* eslint-disable max-statements -- Atomic mutations validate their prerequisites before writing. */
 /* eslint-disable unicorn/no-null -- Native update receipts report null for cleared assignment and ownership. */
 import type {
+	AcceptanceItem,
 	BeadCloseReceipt,
 	BeadPage,
 	BeadProjection,
@@ -13,6 +14,7 @@ import type {
 	BeadUpdateReceipt,
 	BeadsScope,
 	BeadsService,
+	CloseBead,
 	CreateBead,
 	CreatedBead,
 	DependencyReceipt,
@@ -458,15 +460,25 @@ function updateIssues(
 		};
 	});
 }
-function closeIssue(
-	op: Operation,
-	id: string,
-	input: { reason?: string | undefined; force?: boolean | undefined },
-): BeadCloseReceipt[] {
+function closeIssue(op: Operation, id: string, input: CloseBead): BeadCloseReceipt[] {
 	const { store, tick } = op;
+	if (input.ifUnchanged !== undefined && timestampInstant(input.ifUnchanged) === undefined) {
+		validation("close", "if-unchanged", "requires an RFC3339 timestamp");
+	}
 	const issue = store.issues.get(id);
 	if (!issue) {
 		fail("close", NOT_FOUND, "ISSUE_NOT_FOUND", `Issue not found: ${id}`);
+	}
+	if (
+		input.ifUnchanged !== undefined &&
+		timestampInstant(issue.updated_at) !== timestampInstant(input.ifUnchanged)
+	) {
+		fail(
+			"close",
+			CONFLICT,
+			"UPDATE_PRECONDITION_FAILED",
+			`${id} changed since you read it. Nothing was written.`,
+		);
 	}
 	if (issue.status === "closed") {
 		closeSkipped(id, "already closed");
@@ -827,8 +839,14 @@ function hydrate(store: Store, issue: Issue): BeadRecord {
 			dependency_type: edge.type,
 		};
 	};
+	const acceptance: Pick<BeadRecord, "acceptance_items"> = {};
+	const items = parseAcceptanceItems(issue.acceptance_criteria);
+	if (items.length > ZERO) {
+		acceptance.acceptance_items = items;
+	}
 	return structuredClone({
 		...issue,
+		...acceptance,
 		dependencies: store.edges
 			.filter((edge) => edge.source === issue.id)
 			.map((edge) => related(edge, edge.target)),
@@ -1136,4 +1154,41 @@ function closeSkipped(id: string, reason: string): never {
 		stderr: "",
 		stdout: `${JSON.stringify(receipt)}\n${JSON.stringify(diagnostic)}`,
 	});
+}
+
+/** Mirror native AcceptanceChecklist's permissive bullets and fenced-code rules. */
+function parseAcceptanceItems(body: string): AcceptanceItem[] {
+	const items: AcceptanceItem[] = [];
+	let fence: { marker: string; width: number } | undefined = undefined;
+	for (const raw of body.split("\n")) {
+		const line = raw.replace(/\r+$/u, "").replace(/^\p{White_Space}+/u, "");
+		const run = /^(?<markers>`{3,}|~{3,})(?<suffix>.*)$/su.exec(line)?.groups;
+		if (run) {
+			const markers = run.markers!;
+			const suffix = run.suffix!;
+			if (fence) {
+				if (
+					markers[ZERO] === fence.marker &&
+					markers.length >= fence.width &&
+					/^[ \t]*$/u.test(suffix)
+				) {
+					fence = undefined;
+				}
+			} else if (markers[ZERO] !== "`" || !suffix.includes("`")) {
+				fence = { marker: markers[ZERO]!, width: markers.length };
+			}
+		} else if (!fence) {
+			const match = /^[-*+]\p{White_Space}*\[(?<marker>[xX\p{White_Space}])\](?<text>.*)$/su.exec(
+				line,
+			)?.groups;
+			if (match) {
+				items.push({
+					index: items.length + ONE,
+					text: match.text!.replaceAll(/^\p{White_Space}+|\p{White_Space}+$/gu, ""),
+					checked: match.marker === "x" || match.marker === "X",
+				});
+			}
+		}
+	}
+	return items;
 }

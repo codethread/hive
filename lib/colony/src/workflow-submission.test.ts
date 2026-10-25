@@ -5,7 +5,7 @@ import {
 	submitWorkflow,
 } from "./workflow-submission.ts";
 import { beesConfigSchema, readSpawnRequest } from "@hive/shared";
-import { createTask, memoryTracker } from "./tracker.test-support.ts";
+import { createTask, createWorkflowControl, memoryTracker } from "./tracker.test-support.ts";
 import { expect, test } from "bun:test";
 import type { BeadsScope } from "@hive/beads";
 import type { WorkflowSubmissionCommands } from "./workflow-submission.ts";
@@ -14,6 +14,7 @@ import { trackerScope } from "./tracker.ts";
 import { validateRequestedTasks } from "./producer.ts";
 
 const ONE = 1;
+const projection = { chartStatus: "active", completion: "pending", nativeStatus: "open" } as const;
 const config = beesConfigSchema.parse({
 	owner: "ct",
 	humans: ["ct"],
@@ -49,24 +50,25 @@ async function fixture() {
 				selected.push(input);
 				runId = await createTask(tracker, { title: "Author workflow", parent: input.parent });
 				const stage = await createTask(tracker, { title: "Actual assignment", parent: runId });
-				const checkpoint = await createTask(tracker, {
-					labels: ["system", "busybee-checkpoint"],
-					description: JSON.stringify({ formatVersion: 1, id: runId, managedExecution: "managed" }),
-				});
-				await tracker.beads.dep.add(
-					trackerScope(tracker.repository, "fixture"),
-					runId,
-					checkpoint,
-					"related",
-				);
+				await createWorkflowControl(tracker, runId, { created: [{ bead: stage, scope: "visit" }] });
 				// Unpublished Bee dispatch request identity is explicitly absent in Busybee output.
-				// eslint-disable-next-line unicorn/no-null
-				return { id: runId, status: "active", active: [{ bead: stage, request: null }] };
+				return {
+					...projection,
+					id: runId,
+					status: "active",
+					// eslint-disable-next-line unicorn/no-null -- Unpublished dispatch has an explicit absent request identity.
+					active: [{ bead: stage, request: null }],
+				};
 			},
-			show: (id) => Promise.resolve({ id, status: "active", active: [] }),
+			show: (id) => Promise.resolve({ ...projection, id, status: "active", active: [] }),
 			prepareDriver: (id) => {
 				handoffs += ONE;
-				return Promise.resolve({ runId: id, status: "active", checkpoint: "checkpoint-1" });
+				return Promise.resolve({
+					...projection,
+					runId: id,
+					status: "active",
+					checkpoint: "checkpoint-1",
+				});
 			},
 		},
 	};
@@ -80,16 +82,6 @@ async function fixture() {
 		runId: () => runId,
 	};
 }
-
-// Warm request/config boundary schemas outside the measured tests.
-const warmed = await fixture();
-const warmedResult = await submitWorkflow("worker", warmed.submission, warmed.commands);
-readSpawnRequest(
-	await warmed.tracker.beads.show(
-		trackerScope(warmed.tracker.repository, "inspect"),
-		warmedResult.request.id,
-	),
-);
 
 test.each([
 	{ selector: { workflow: "land" }, selection: { kind: "named", name: "land" } },
@@ -173,20 +165,17 @@ test("driver publication failure reports the existing run and uncertain request 
 
 const dispatched = await fixture();
 const dispatchedRun = await createTask(dispatched.tracker, { parent: dispatched.parent });
-const checkpoint = await createTask(dispatched.tracker, {
-	labels: ["system", "busybee-checkpoint"],
-	description: JSON.stringify({ formatVersion: 1, id: dispatchedRun, managedExecution: "managed" }),
-});
-await dispatched.tracker.beads.dep.add(
-	trackerScope(dispatched.tracker.repository, "fixture"),
-	dispatchedRun,
-	checkpoint,
-	"related",
-);
 const group = await createTask(dispatched.tracker, { parent: dispatchedRun });
 const stage = await createTask(dispatched.tracker, { parent: group });
+await createWorkflowControl(dispatched.tracker, dispatchedRun, {
+	lock: { owner: "busybee-publisher", pid: 123 },
+	created: [
+		{ bead: group, scope: "group" },
+		{ bead: stage, scope: "visit" },
+	],
+});
 
-test("stage dispatch uses native ancestry during initial frontier publication #test-562", async () => {
+test("stage dispatch checks system membership and native ancestry under the writer lock #test-562", async () => {
 	const beads = {
 		...dispatched.commands.beads,
 		show: (scope: BeadsScope, id: string) => {
@@ -215,6 +204,50 @@ test("stage dispatch uses native ancestry during initial frontier publication #t
 	expect(request.assignment).toEqual({ kind: "stage", runId: dispatchedRun, stageId: stage });
 	expect(request.taskIds).toEqual([stage]);
 });
+
+test.each(["start", "handoff"] as const)(
+	"%s projection pending does not become driver admission or completion",
+	async (phase) => {
+		const current = await fixture();
+		const { workflows } = current.commands;
+		const pending = {
+			chartStatus: "done",
+			status: "completion_pending",
+			completion: "projection_pending",
+			nativeStatus: "open",
+		} as const;
+		const commands = {
+			...current.commands,
+			workflows: {
+				...workflows,
+				start: async (...args: Parameters<typeof workflows.start>) => {
+					const run = await workflows.start(...args);
+					if (phase === "start") {
+						return { ...run, ...pending };
+					}
+					return run;
+				},
+				prepareDriver: async (...args: Parameters<typeof workflows.prepareDriver>) => ({
+					...(await workflows.prepareDriver(...args)),
+					...pending,
+				}),
+			},
+		};
+		const failure: unknown = await submitWorkflow("worker", current.submission, commands).catch(
+			(error: unknown) => error,
+		);
+		expect(failure).toBeInstanceOf(WorkflowSubmissionError);
+		expect(failure).toMatchObject({
+			reason: "workflow_projection_pending",
+			context: {
+				completion: "projection_pending",
+				chartStatus: "done",
+				nativeStatus: "open",
+				driverPublication: "not_attempted",
+			},
+		});
+	},
+);
 
 test("unknown kind preserves the CLI failure envelope and creates no workflow #test-383", async () => {
 	const { commands, selected, submission } = await fixture();

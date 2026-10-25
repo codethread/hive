@@ -1,3 +1,8 @@
+import {
+	assertWorkflowAdmission,
+	readWorkflowCompletion,
+	readWorkflowPublication,
+} from "./workflow-anchor.ts";
 import { CommandError } from "@hive/beads";
 import type { OperationEvidence } from "./history.ts";
 import type { RequestRecord } from "./request.ts";
@@ -5,7 +10,6 @@ import type { TrackerContext } from "./tracker.ts";
 import type { WorkflowAssignment } from "@hive/shared";
 import type { WorkflowCompletion } from "./workflow-anchor.ts";
 import { trackerScope } from "./tracker.ts";
-import { workflowCompletion } from "./workflow-anchor.ts";
 
 /** Claim only the task versions inspected by the daemon, preserving their human owner. */
 /* eslint-disable-next-line max-statements, max-params --
@@ -19,9 +23,16 @@ export async function acquireClaim(
 ): Promise<"claimed" | "conflict" | Extract<WorkflowCompletion, { kind: "terminal" }>> {
 	evidence.step("tracker.show", id);
 	const task = await beads.show(trackerScope(repository, identity), id);
-	const completion = workflowCompletion(task, assignment);
+	const context = { beads, repository };
+	const completion = await readWorkflowCompletion(context, assignment, identity, task);
 	if (completion.kind === "terminal") {
 		return completion;
+	}
+	const run = await beads.show(trackerScope(repository, identity), assignment.runId);
+	const publication = await readWorkflowPublication(context, run, identity);
+	assertWorkflowAdmission(run, publication.control);
+	if (publication.exposure !== "managed") {
+		throw new Error(`Request claim contradicts unmanaged workflow ${run.id}`);
 	}
 	if ((task.assignee && task.assignee !== identity) || task.labels.includes("hitl")) {
 		return "conflict";

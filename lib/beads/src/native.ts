@@ -24,7 +24,13 @@ const relationSchema = z.object({
 	priority: z.number(),
 	issue_type: z.string().optional(),
 });
+const acceptanceItemSchema = z.object({
+	index: z.number().int().positive(),
+	text: z.string(),
+	checked: z.boolean(),
+});
 const recordSchema = beadSchema.extend({
+	acceptance_items: z.array(acceptanceItemSchema).optional(),
 	dependencies: z.array(relationSchema).default([]),
 	dependents: z.array(relationSchema).default([]),
 	title: z.string(),
@@ -36,7 +42,12 @@ const recordSchema = beadSchema.extend({
 	defer_until: z.string().optional(),
 	due_at: z.string().optional(),
 });
-const createdSchema = recordSchema.omit({ dependencies: true, dependents: true, comments: true });
+const createdSchema = recordSchema.omit({
+	dependencies: true,
+	dependents: true,
+	comments: true,
+	acceptance_items: true,
+});
 const readySchema = createdSchema.pick({
 	id: true,
 	title: true,
@@ -228,6 +239,7 @@ export function createNativeBeads(options: NativeBeadsOptions = {}): BeadsServic
 					"close",
 					id,
 					...optionalValue("--reason", input.reason),
+					...optionalValue("--if-unchanged", input.ifUnchanged),
 					...booleanFlag("--force", input.force),
 				],
 				closeSchema,

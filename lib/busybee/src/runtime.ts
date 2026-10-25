@@ -1,11 +1,10 @@
+/* eslint-disable unicorn/no-null -- Format-2 wire control and absent dispatch requests use explicit null. */
 /* eslint-disable import/max-dependencies --
  * Workflow projection composes native persistence, author definitions and original-result comparison.
  */
-import type { ActiveEntry, Locator, Run } from "./checkpoint.ts";
-import type { BeadRecord, UpdateBead } from "@hive/beads";
+import type { ActiveEntry, Locator, Ownership, Run } from "./checkpoint.ts";
 import {
 	BusyBeeError,
-	closeTask,
 	conditionalUpdate,
 	createServices,
 	createTask,
@@ -15,6 +14,13 @@ import {
 } from "./native.ts";
 import type { CreateTask, Endpoint, MutationEndpoint, Options, Services } from "./native.ts";
 import type { Definition, Metadata, WorkflowActor, WorkflowNode } from "./definition.ts";
+import {
+	acquire,
+	checkpointBead,
+	patchOwned,
+	readCheckpoint,
+	withCheckpointOwner,
+} from "./checkpoint.ts";
 import {
 	actorContext,
 	briefSchema,
@@ -30,34 +36,39 @@ import {
 	targetActor,
 } from "./definition.ts";
 import {
+	assertReservation,
+	completionStatus,
+	generatedInventory,
+	projectCompletions,
+	saveOriginal,
+	successfulCompletion,
+} from "./completion.ts";
+import {
 	nativeWorkflowState,
-	parseWorkflowSettlement,
 	readSpawnRequest,
 	renderResponseInstructions,
 	requestOutcome,
 	requestResolution,
-	workflowOutcomeLabelsCurrent,
 } from "@hive/shared";
+import type { BeadRecord } from "@hive/beads";
 import type { Snapshot } from "xstate";
 import type { Source } from "./catalogue.ts";
 import { compatibleWorkflowVersion } from "./compatibility.ts";
-// eslint-disable-next-line import/no-nodejs-modules -- Compare original JSON results at the persistence boundary.
-import { isDeepStrictEqual } from "node:util";
 import { namedDefinition } from "./catalogue.ts";
-import { readCheckpoint } from "./checkpoint.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Resolve author-selected files at the application boundary.
 import { resolve } from "node:path";
 import { z } from "zod";
 
+export { checkpointBead } from "./checkpoint.ts";
+
 const FIRST = 0;
 const ONE = 1;
-const LOCK_TIMEOUT = 10_000;
-const LOCK_POLL = 25;
 const text = z.string().min(ONE);
 const contextSchema = z.compile(z.record(z.string(), z.unknown()));
 const visitSchema = z.compile(
 	z.object({
 		bead: text,
+		scope: z.enum(["visit", "group"]),
 		node: text,
 		parent: text,
 		path: z.array(text),
@@ -65,11 +76,9 @@ const visitSchema = z.compile(
 		visit: z.number().int().positive(),
 	}),
 );
-const lockSchema = z.compile(z.object({ owner: text, pid: z.number().int() }));
 const beeResponseSchema = z.compile(
 	z.object({ ok: z.literal(true), request: z.object({ id: text }) }),
 );
-const savedResultSchema = z.compile(z.object({ choice: text, data: z.unknown() }).required());
 const viewEntrySchema = z.object({
 	bead: text,
 	commands: z.array(text),
@@ -85,6 +94,9 @@ export const runViewSchema = z.compile(
 		created: z.array(visitSchema),
 		id: text,
 		status: text,
+		chartStatus: text,
+		completion: z.enum(["pending", "projection_pending", "succeeded", "failed", "cancelled"]),
+		nativeStatus: text,
 	}),
 );
 export type RunView = z.infer<typeof runViewSchema>;
@@ -102,13 +114,7 @@ interface Entry {
 	/** Authoring metadata before its visit renderer runs. */
 	meta: Metadata;
 }
-interface Lock {
-	/** Related system record containing state and ownership. */
-	checkpoint: string;
-	/** This invocation's unique ownership token. */
-	owner: string;
-}
-interface LockedRun extends Lock {
+interface LockedRun extends Ownership {
 	/** Persisted application state. */
 	state: Run;
 }
@@ -121,21 +127,11 @@ interface InspectRun extends RunTarget {
 	operation: "show";
 }
 interface CollectRun extends RunTarget {
-	/** Collect durable results from closed worker visits. */
+	/** Collect durable results from confirmed successful worker visits. */
 	operation: "collect";
 }
-interface SubmitTask extends RunTarget {
-	/** Submit an author-defined outcome independently of runner operations. */
-	operation: "submit";
-	/** Active native worker visit. */
-	bead: string;
-	/** Author-defined command name; no runner names are reserved. */
-	choice: string;
-	/** External payload, parsed through the author schema. */
-	data?: unknown;
-}
-export type Navigation = InspectRun | CollectRun | SubmitTask;
-type WorkRequest = CollectRun | SubmitTask;
+export type Navigation = InspectRun | CollectRun;
+type WorkRequest = CollectRun;
 interface InitializeRun extends RunTarget {
 	/** Publish the initial frontier using the definition loaded for creation. */
 	operation: "initialize";
@@ -143,11 +139,11 @@ interface InitializeRun extends RunTarget {
 	checkpoint: string;
 	/** Validated creation definition, retained only for this invocation. */
 	definition: Definition;
-	/** Validated ordinary parent, known before initialization publishes anything. */
+	/** Ordinary parent validated before any publication. */
 	parentId: string;
 }
 type Mutation = WorkRequest | InitializeRun;
-/** Attempted initialization write and identities confirmed by prior native responses. */
+/** Attempted initialization and identities confirmed by prior native responses. */
 type InitializationAttempt = { parentId: string } & (
 	| { uncertainOperation: "create_run" }
 	| { uncertainOperation: "create_checkpoint"; runId: string }
@@ -164,17 +160,23 @@ interface Submission {
 export interface DriverHandoff {
 	/** Existing run used as the driver's completion anchor. */
 	runId: string;
-	/** Restored workflow state; done runs need no driver. */
+	/** Done only when saved chart and native completion agree. */
 	status: string;
-	/** Locked checkpoint validated for this handoff. */
+	/** System record validated under ownership. */
 	checkpoint: string;
+	/** Saved chart progress, independent of native projection. */
+	chartStatus: string;
+	/** Current system/native completion join. */
+	completion: RunView["completion"];
+	/** Current native run status. */
+	nativeStatus: string;
 }
-export interface RecordResult extends RunTarget {
-	/** Worker visit whose original result is saved or matched on a completion retry. */
+export interface CompleteVisit extends RunTarget {
+	/** Worker visit whose original result is retained on retries. */
 	bead: string;
 	/** Author-defined outcome. */
 	choice: string;
-	/** Original external JSON payload, preserved before schema transforms. */
+	/** Original external JSON, preserved before schema transforms. */
 	data: unknown;
 }
 
@@ -209,12 +211,19 @@ export async function navigate(
 		const endpoint = await resolveEndpoint(options, services);
 		const run = await readRun(endpoint, request.id, services);
 		const { actor } = await restore(run, endpoint, services);
-		const result = view(run, actor);
-		actor.stop();
-		return result;
+		try {
+			return await view(run, endpoint, services);
+		} finally {
+			actor.stop();
+		}
 	}
-	const endpoint = await resolveMutation(options, services);
-	return mutate(request, endpoint, services);
+	if (request.operation !== "collect") {
+		throw new BusyBeeError(
+			"invalid_operation",
+			"Use complete followed by collect; direct outcome submission is not supported.",
+		);
+	}
+	return mutate(request, await resolveMutation(options, services), services);
 }
 
 export async function prepareDriver(
@@ -223,119 +232,99 @@ export async function prepareDriver(
 	services: Services = createServices(),
 ): Promise<DriverHandoff> {
 	const endpoint = await resolveMutation(options, services);
-	const checkpoint = await checkpointBead(endpoint, id, services);
-	const lock = await acquire(endpoint, checkpoint, services);
-	return withCheckpointOwner(
-		{ endpoint, lock, runId: id },
-		services,
-		// eslint-disable-next-line max-statements -- Handoff and managed provenance share checkpoint ownership.
-		async (writes) => {
-			const run = readCheckpoint(await readBead(endpoint, lock.checkpoint, services));
-			await assertOrdinaryPublication(endpoint, run.id, services);
-			const { actor } = await restore(run, endpoint, services);
-			try {
-				const status = currentStatus(actor);
-				if (status !== "done") {
-					await handoffActiveRun({ endpoint, run, locked: lock }, writes);
-					await updateOwned(
-						{ endpoint, input: { description: JSON.stringify(run) }, locked: lock },
-						writes,
-					);
-				}
-				return { checkpoint: lock.checkpoint, runId: id, status };
-			} finally {
-				actor.stop();
+	const lock = await acquire(endpoint, await checkpointBead(endpoint, id, services), services);
+	return withCheckpointOwner({ endpoint, lock, runId: id }, services, async () => {
+		const run = readCheckpoint(await readBead(endpoint, lock.checkpoint, services));
+		assertOrdinaryPublication(run);
+		const { actor } = await restore(run, endpoint, services);
+		try {
+			if (currentStatus(actor) !== "done") {
+				await handoffActiveRun({ endpoint, run, locked: lock }, services);
 			}
-		},
-	);
+			return {
+				checkpoint: lock.checkpoint,
+				runId: id,
+				...completionStatus(run, await readBead(endpoint, run.id, services)),
+			};
+		} finally {
+			actor.stop();
+		}
+	});
 }
 
-export async function recordResult(
-	request: RecordResult,
-	options: Options = {},
-	services: Services = createServices(),
-) {
-	const endpoint = await resolveMutation(options, services);
-	return persistResult(request, { endpoint, services }, "record");
-}
-
-/** Publish native lifecycle effects under the existing checkpoint ownership contract. */
+/** A definition-free ownership window for completion projection and explicit settlement. */
 export async function withRunPublication<Result>(
 	input: { id: string; options: Options; services: Services },
 	operation: (
-		publication: { run: Run; endpoint: MutationEndpoint; owner: string },
+		publication: { run: Run; endpoint: MutationEndpoint; owner: string; locked: Ownership },
 		writes: Services,
 	) => Promise<Result>,
 ): Promise<Result> {
 	const { id, options, services } = input;
 	const endpoint = await resolveMutation(options, services);
 	const lock = await acquire(endpoint, await checkpointBead(endpoint, id, services), services);
-	return withCheckpointOwner({ endpoint, lock, runId: id }, services, async (writes) => {
+	return withCheckpointOwner({ endpoint, lock, runId: id }, services, async () => {
 		const run = readCheckpoint(await readBead(endpoint, lock.checkpoint, services));
-		if (run.id !== id) {
-			throw new BusyBeeError("invalid_checkpoint", `Checkpoint does not belong to ${id}.`);
-		}
-		return operation({ run, endpoint, owner: lock.owner }, writes);
+		return operation({ run, endpoint, owner: lock.owner, locked: lock }, services);
 	});
 }
 
-export async function complete(
-	request: RecordResult,
+/** One successful completion path: save original and intent, then project native closure. */
+export function complete(
+	request: CompleteVisit,
 	options: Options = {},
 	services: Services = createServices(),
 ) {
-	const endpoint = await resolveMutation(options, services);
-	const result = await persistResult(request, { endpoint, services }, "complete");
-	try {
-		await closeCompletedVisit(request, endpoint, services);
-	} catch (error) {
-		throw new BusyBeeError(
-			"stage_close_failed",
-			`Result saved for task ${request.bead}, but native closure did not confirm success. ` +
-				"Inspect the task and run disposition. Resolve any closure refusal; if the scope " +
-				"remains eligible, retry complete with the same original choice and data.",
-			{
-				cause: error,
-				context: { ...result, resultSaved: true },
-			},
-		);
-	}
-	return result;
+	return withRunPublication(
+		{ id: request.id, options, services },
+		// eslint-disable-next-line max-statements -- Keep original result and closure failure evidence together.
+		async (publication) => {
+			const { run, endpoint, locked } = publication;
+			assertOrdinaryPublication(run);
+			await generatedInventory(publication, services);
+			await validateOriginalCommand({ run, endpoint, request }, services);
+			try {
+				await saveOriginal({ run, endpoint, locked, ...request }, services);
+				await projectCompletions(publication, services);
+			} catch (error) {
+				const fresh = readCheckpoint(await readBead(endpoint, locked.checkpoint, services));
+				let reason = "completion_pending";
+				let context: Record<string, unknown> = {};
+				if (error instanceof BusyBeeError) {
+					({ reason, context } = error);
+				}
+				throw new BusyBeeError(
+					reason,
+					`Completion for task ${request.bead} is not fully projected. Inspect its native gates ` +
+						`and retry complete with the same original choice and data, or reconcile ${run.id}.`,
+					{
+						cause: error,
+						context: {
+							...context,
+							runId: run.id,
+							stageId: request.bead,
+							checkpoint: locked.checkpoint,
+							resultSaved: Boolean(fresh.results[request.bead]),
+							completion: fresh.completions[request.bead]?.state,
+						},
+					},
+				);
+			}
+			return { runId: request.id, stageId: request.bead, choice: request.choice };
+		},
+	);
 }
 
-/** A separate short phase fences retirement after result persistence released its lock. */
-async function closeCompletedVisit(
-	request: RecordResult,
-	endpoint: MutationEndpoint,
-	services: Services,
-): Promise<void> {
-	const lock = await acquire(
-		endpoint,
-		await checkpointBead(endpoint, request.id, services),
-		services,
-	);
-	try {
-		await assertOrdinaryPublication(endpoint, request.id, services);
-		assertSuccessfulVisit(await readBead(endpoint, request.bead, services), request.id);
-		await closeTask(
-			endpoint,
-			{
-				id: request.bead,
-				fact: {
-					kind: "busybee-lifecycle",
-					formatVersion: 1,
-					scope: "visit",
-					runId: request.id,
-					outcome: "succeeded",
-					reason: "Original worker result saved; visit completed.",
-				},
-			},
-			services,
-		);
-		assertSuccessfulVisit(await readBead(endpoint, request.bead, services), request.id);
-	} finally {
-		await updateOwned({ endpoint, locked: lock, input: { notes: "" } }, services);
-	}
+/** Explicit native completion repair without loading a workflow definition. */
+export function reconcile(
+	id: string,
+	options: Options = {},
+	services: Services = createServices(),
+) {
+	return withRunPublication({ id, options, services }, async (publication) => ({
+		runId: id,
+		...(await projectCompletions(publication, services)),
+	}));
 }
 
 export async function discover(
@@ -352,7 +341,6 @@ export async function discover(
 		constraints:
 			"Use complete to save the original outcome and close the task; " +
 			"the driver then collects saved results. Read busybee complete --help. " +
-			"Direct next/choice submissions require an already-closed driver-handled visit. " +
 			"Discovery is a snapshot, not a reservation.",
 		id,
 	};
@@ -397,34 +385,50 @@ export function frontier(
 
 // --- Private functions ---
 
-async function persistResult(
-	request: RecordResult,
-	environment: { endpoint: MutationEndpoint; services: Services },
-	operation: "record" | "complete",
-) {
-	const { endpoint, services } = environment;
-	const checkpoint = await checkpointBead(endpoint, request.id, services);
-	const lock = await acquire(endpoint, checkpoint, services);
-	return withCheckpointOwner({ endpoint, lock, runId: request.id }, services, async (writes) => {
-		const run = readCheckpoint(await readBead(endpoint, lock.checkpoint, services));
-		await assertOrdinaryPublication(endpoint, run.id, services);
-		const { actor, definition } = await restore(run, endpoint, services);
-		try {
-			const saved = await saveResult(
-				{ actor, definition, endpoint, request, run, operation },
-				writes,
-			);
-			if (saved) {
-				await updateOwned(
-					{ endpoint, input: { description: JSON.stringify(run) }, locked: lock },
-					writes,
-				);
-			}
-			return { runId: request.id, stageId: request.bead, choice: request.choice };
-		} finally {
-			actor.stop();
-		}
-	});
+// eslint-disable-next-line max-statements -- Validate active and consumed retries without replaying author transitions.
+async function validateOriginalCommand(
+	input: { run: Run; endpoint: MutationEndpoint; request: CompleteVisit },
+	services: Services,
+): Promise<void> {
+	const { run, endpoint, request } = input;
+	const entry = run.active.find((item) => item.bead === request.bead);
+	const consumed = run.history.some((item) => item.bead === request.bead);
+	if (
+		(!entry?.meta.commands && !consumed) ||
+		run.created.find((item) => item.bead === request.bead)?.scope !== "visit"
+	) {
+		throw new BusyBeeError(
+			"inactive_task",
+			`Task ${request.bead} is not a worker visit of run ${run.id}.`,
+			{ context: { runId: run.id, bead: request.bead } },
+		);
+	}
+	if (
+		consumed &&
+		(!run.results[request.bead] || run.completions[request.bead]?.outcome !== "succeeded")
+	) {
+		throw new BusyBeeError(
+			"invalid_stage_result",
+			`Consumed visit ${request.bead} has no retained original and successful completion.`,
+			{ context: { runId: run.id, bead: request.bead } },
+		);
+	}
+	assertReservation(await readBead(endpoint, request.bead, services), endpoint, services);
+	if (consumed) {
+		return;
+	}
+	const { actor, definition } = await restore(run, endpoint, services);
+	try {
+		const data = validatePayload({
+			definition,
+			entry: entry!,
+			payload: request,
+			collecting: false,
+		});
+		submissionTarget(actor, { choice: request.choice, data, entry: entry! });
+	} finally {
+		actor.stop();
+	}
 }
 
 async function initialize(
@@ -527,7 +531,11 @@ async function createRun(
 		attempt = { parentId, runId: id, uncertainOperation: "create_checkpoint" };
 		const state: Run = {
 			managedExecution: "unmanaged",
-			formatVersion: 1,
+			formatVersion: 2,
+			lock: null,
+			results: {},
+			completions: {},
+			settlement: null,
 			active: [],
 			created: [],
 			definition: locator,
@@ -586,29 +594,6 @@ async function readRun(
 ): Promise<Run> {
 	const record = await checkpointBead(endpoint, id, services);
 	return readCheckpoint(record);
-}
-
-export async function checkpointBead(
-	endpoint: { repo: string; db: string },
-	id: string,
-	services: Services,
-): Promise<BeadRecord> {
-	const parent = await readBead(endpoint, id, services);
-	const related = await Promise.all(
-		parent.dependencies
-			.filter((edge) => edge.dependency_type === "related")
-			.map((edge) => readBead(endpoint, edge.id, services)),
-	);
-	const checkpoints = related.filter(
-		(record) => record.labels.includes("system") && record.labels.includes("busybee-checkpoint"),
-	);
-	if (checkpoints.length !== ONE) {
-		throw new BusyBeeError(
-			"invalid_checkpoint",
-			`Expected one related workflow checkpoint for ${id}`,
-		);
-	}
-	return checkpoints[FIRST]!;
 }
 
 async function restore(
@@ -719,79 +704,6 @@ async function loadRetainedDefinition(run: Run, endpoint: Endpoint, services: Se
 	return loaded;
 }
 
-async function acquire(
-	endpoint: MutationEndpoint,
-	checkpoint: string | BeadRecord,
-	services: Services,
-): Promise<Lock> {
-	const owner = services.uuid();
-	const deadline = services.now() + LOCK_TIMEOUT;
-	let bead = await lockCandidate(checkpoint, endpoint, services);
-	for (;;) {
-		if (
-			!bead.notes &&
-			// eslint-disable-next-line no-await-in-loop -- Native CAS decides ownership before retrying.
-			(await conditionalUpdate(
-				{ input: { notes: JSON.stringify({ owner, pid: services.pid }) }, bead, endpoint },
-				services,
-			))
-		) {
-			return { checkpoint: bead.id, owner };
-		}
-		if (services.now() >= deadline) {
-			throw new BusyBeeError(
-				"checkpoint_locked",
-				`Checkpoint ${bead.id} is locked: ` +
-					`${bead.notes}. No automatic expiry; inspect the owner and partial effects before ` +
-					"explicit recovery.",
-				{ context: { checkpoint: bead.id } },
-			);
-		}
-		// eslint-disable-next-line no-await-in-loop -- Contention uses bounded sequential polling.
-		await services.sleep(LOCK_POLL);
-		// Refresh a rejected or occupied candidate before another ownership attempt.
-		// eslint-disable-next-line no-await-in-loop
-		bead = await readBead(endpoint, bead.id, services);
-	}
-}
-
-function lockCandidate(
-	checkpoint: string | BeadRecord,
-	endpoint: MutationEndpoint,
-	services: Services,
-): BeadRecord | Promise<BeadRecord> {
-	if (typeof checkpoint === "string") {
-		return readBead(endpoint, checkpoint, services);
-	}
-	return checkpoint;
-}
-
-async function owned(
-	locked: Lock,
-	endpoint: MutationEndpoint,
-	services: Services,
-): Promise<BeadRecord> {
-	const bead = await readBead(endpoint, locked.checkpoint, services);
-	if (lockSchema.parse(JSON.parse(bead.notes) as unknown).owner !== locked.owner) {
-		throw new BusyBeeError("ownership_lost", `Lost workflow lock ${locked.checkpoint}`);
-	}
-	return bead;
-}
-
-async function updateOwned(
-	request: { locked: Lock; endpoint: MutationEndpoint; input: UpdateBead },
-	services: Services,
-): Promise<void> {
-	const { locked, endpoint, input } = request;
-	const bead = await owned(locked, endpoint, services);
-	if (!(await conditionalUpdate({ input, bead, endpoint }, services))) {
-		throw new BusyBeeError(
-			"checkpoint_changed",
-			`Checkpoint ${locked.checkpoint} changed while owned by ${locked.owner}`,
-		);
-	}
-}
-
 async function mutate(
 	request: Mutation,
 	endpoint: MutationEndpoint,
@@ -814,7 +726,7 @@ function mutationCheckpoint(
 }
 
 function mutateOwned(
-	input: { lock: Lock; request: Mutation; endpoint: MutationEndpoint },
+	input: { lock: Ownership; request: Mutation; endpoint: MutationEndpoint },
 	services: Services,
 ): Promise<RunView> {
 	const { lock, request, endpoint } = input;
@@ -822,70 +734,20 @@ function mutateOwned(
 	if (request.operation === "initialize") {
 		identity.parentId = request.parentId;
 	}
-	return withCheckpointOwner({ endpoint, lock, ...identity }, services, async (writes) => {
+	return withCheckpointOwner({ endpoint, lock, ...identity }, services, async () => {
 		const prepared = await prepareMutation({ endpoint, lock, request }, services);
 		try {
-			await publish({ actor: prepared.actor, endpoint, locked: prepared.locked }, writes);
-			return view(prepared.locked.state, prepared.actor);
+			await publish({ actor: prepared.actor, endpoint, locked: prepared.locked }, services);
+			return await view(prepared.locked.state, endpoint, services);
 		} finally {
 			prepared.actor.stop();
 		}
 	});
 }
 
-/* eslint-disable-next-line max-statements --
- * Retain actual partial-effect context without changing lock recovery semantics.
- */
-async function withCheckpointOwner<Result>(
-	input: { lock: Lock; endpoint: MutationEndpoint; runId: string; parentId?: string },
-	services: Services,
-	operation: (writes: Services) => Promise<Result>,
-): Promise<Result> {
-	const { lock, endpoint, runId, parentId } = input;
-	let effects = false;
-	try {
-		const result = await operation({
-			...services,
-			beforeWrite: () => {
-				effects = true;
-				services.beforeWrite();
-			},
-		});
-		await updateOwned({ input: { notes: "" }, endpoint, locked: lock }, services);
-		return result;
-	} catch (error) {
-		if (effects) {
-			let context: Record<string, unknown> = {};
-			if (error instanceof BusyBeeError) {
-				({ context } = error);
-			}
-			throw new BusyBeeError(
-				"partial_effects",
-				"Mutation failed; checkpoint " +
-					`${lock.checkpoint}` +
-					" remains locked by " +
-					`${lock.owner}` +
-					". Inspect partial effects before recovery.",
-				{
-					cause: error,
-					context: {
-						...context,
-						checkpoint: lock.checkpoint,
-						owner: lock.owner,
-						runId,
-						parentId,
-						nextAction: `br show ${runId} ${lock.checkpoint} --json`,
-					},
-				},
-			);
-		}
-		await updateOwned({ input: { notes: "" }, endpoint, locked: lock }, services);
-		throw error;
-	}
-}
-
+// eslint-disable-next-line max-statements -- Keep reservation checks and uncertain handoff quarantine ordered.
 async function handoffActiveRun(
-	input: { endpoint: MutationEndpoint; run: Run; locked: Lock },
+	input: { endpoint: MutationEndpoint; run: Run; locked: Ownership },
 	services: Services,
 ): Promise<void> {
 	const { endpoint, run, locked } = input;
@@ -896,12 +758,13 @@ async function handoffActiveRun(
 		assertAgentReservation(await readBead(endpoint, entry.bead, services));
 	}
 	await markManagedExecution({ endpoint, run, locked }, services);
-	if (
-		!(await conditionalUpdate(
-			{ bead: identity, endpoint, input: { assignee: "", status: "open" } },
-			services,
-		))
-	) {
+	locked.uncertainOperation = "prepare_driver";
+	const updated = await conditionalUpdate(
+		{ bead: identity, endpoint, input: { assignee: "", status: "open" } },
+		services,
+	);
+	delete locked.uncertainOperation;
+	if (!updated) {
 		throw new BusyBeeError("run_changed", `Run ${run.id} changed during driver preparation.`, {
 			context: { runId: run.id },
 		});
@@ -941,123 +804,20 @@ function assertAgentReservation(bead: BeadRecord): void {
 	}
 }
 
-// Validate active outcomes; match collected completion retries against original saved notes.
-// eslint-disable-next-line max-statements
-async function saveResult(
-	input: {
-		actor: WorkflowActor;
-		definition: Definition;
-		endpoint: MutationEndpoint;
-		request: RecordResult;
-		run: Run;
-		operation: "record" | "complete";
-	},
-	services: Services,
-): Promise<boolean> {
-	const { actor, definition, endpoint, request, run, operation } = input;
-	const entry = run.active.find((item) => item.bead === request.bead);
-	let matching = false;
-	if (operation === "complete") {
-		const known = entry?.meta.commands || run.history.some((item) => item.bead === request.bead);
-		if (!known) {
-			throw new BusyBeeError(
-				"inactive_task",
-				`Task ${request.bead} is not a worker visit of run ${run.id}.`,
-				{
-					context: { runId: run.id, bead: request.bead },
-				},
-			);
-		}
-		const task = await readBead(endpoint, request.bead, services);
-		assertAgentReservation(task);
-		assertSuccessfulVisit(task, run.id);
-		if (task.notes || task.status === "closed") {
-			const saved = savedSubmission(task, { bead: task.id });
-			if (!isDeepStrictEqual(saved, { choice: request.choice, data: request.data })) {
-				throw new BusyBeeError(
-					"stage_result_conflict",
-					`Task ${task.id} has a different saved original result.`,
-					{
-						context: { runId: run.id, bead: task.id },
-					},
-				);
-			}
-			if (task.status === "closed" && !entry) {
-				return false;
-			}
-			matching = true;
-		}
-	}
-	if (!entry?.meta.commands?.[request.choice]) {
-		throw new BusyBeeError(
-			"unavailable_command",
-			`Task ${request.bead} is not an active worker with choice ${request.choice}.`,
-			{ context: { bead: request.bead, choice: request.choice } },
-		);
-	}
-	const data = validatePayload({
-		definition,
-		entry,
-		payload: request,
-		request: { ...request, operation: "submit" },
-	});
-	submissionTarget(actor, { choice: request.choice, data, entry });
-	if (matching) {
-		return false;
-	}
-	const task = await readBead(endpoint, request.bead, services);
-	assertAgentReservation(task);
-	if (task.status === "closed") {
-		throw new BusyBeeError("task_closed", `Record the result before closing task ${task.id}.`, {
-			context: { bead: task.id },
-		});
-	}
-	await saveResultNotes(
-		{ endpoint, task, notes: JSON.stringify({ choice: request.choice, data: request.data }) },
-		services,
-	);
-	return true;
-}
-
-async function saveResultNotes(
-	input: { endpoint: MutationEndpoint; task: BeadRecord; notes: string },
-	services: Services,
-): Promise<void> {
-	const { endpoint, task, notes } = input;
-	if (task.notes === notes) {
-		return;
-	}
-	if (task.notes) {
-		throw new BusyBeeError(
-			"stage_result_conflict",
-			"Task " +
-				`${task.id}` +
-				" already has different result notes; inspect the existing result instead of " +
-				"overwriting it.",
-			{ context: { bead: task.id } },
-		);
-	}
-	if (!(await conditionalUpdate({ bead: task, endpoint, input: { notes } }, services))) {
-		throw new BusyBeeError("stage_changed", `Task ${task.id} changed while saving its result.`, {
-			context: { bead: task.id },
-		});
-	}
-}
-
 /* eslint-disable-next-line max-statements -- Validate retirement before restoring the authored transition. */
 async function prepareMutation(
-	input: { lock: Lock; request: Mutation; endpoint: MutationEndpoint },
+	input: { lock: Ownership; request: Mutation; endpoint: MutationEndpoint },
 	services: Services,
 ) {
 	const { lock, request, endpoint } = input;
-	const locked = {
-		...lock,
+	const locked = Object.assign(lock, {
 		state: readCheckpoint(await readBead(endpoint, lock.checkpoint, services)),
-	};
+	});
 	if (request.operation === "initialize") {
 		return { actor: restoredActor(request.definition, locked.state.snapshot), locked };
 	}
-	await assertOrdinaryPublication(endpoint, locked.state.id, services);
+	assertOrdinaryPublication(locked.state);
+	await projectCompletions({ endpoint, run: locked.state, locked: lock }, services);
 	const { actor, definition } = await restore(locked.state, endpoint, services);
 	try {
 		await prepare({ actor, definition, endpoint, request, run: locked.state }, services);
@@ -1101,19 +861,16 @@ async function prepare(input: Preparation, services: Services): Promise<void> {
 // Validate the complete closed result batch before diagnosing terminal requests.
 // eslint-disable-next-line max-statements
 async function collectSubmissions(input: Preparation, services: Services): Promise<Submission[]> {
-	const selected = input.run.active.filter((entry) => selectedTask(entry, input.request));
-	if (input.request.operation !== "collect" && selected.length === FIRST) {
-		throw new BusyBeeError("inactive_task", `Task ${input.request.bead} is no longer active`);
-	}
+	const selected = input.run.active.filter((entry) => Boolean(entry.meta.commands));
 	const submissions: Submission[] = [];
 	for (const entry of selected) {
-		// eslint-disable-next-line no-await-in-loop -- Read and validate selected tasks in their stable publication order.
+		// eslint-disable-next-line no-await-in-loop -- Validate the stable frontier batch before sending any event.
 		const task = await readBead(input.endpoint, entry.bead, services);
-		if (input.request.operation !== "collect" || task.status === "closed") {
+		if (task.status === "closed") {
 			submissions.push(validateSubmission(entry, task, input));
 		}
 	}
-	if (input.request.operation === "collect" && submissions.length === FIRST) {
+	if (submissions.length === FIRST) {
 		await assertBeeRequests({ entries: selected, runId: input.run.id }, input.endpoint, services);
 	}
 	return submissions;
@@ -1198,109 +955,38 @@ function assertStageRequest(
 	}
 }
 
-function selectedTask(entry: ActiveEntry, request: WorkRequest): boolean {
-	if (request.operation === "collect") {
-		return Boolean(entry.meta.commands);
-	}
-	return entry.bead === request.bead;
-}
-
-function submissionPayload(
-	request: WorkRequest,
-	task: BeadRecord,
-	entry: ActiveEntry,
-): { choice: string; data: unknown } {
-	if (request.operation === "collect") {
-		return savedSubmission(task, entry);
-	}
-	let { data } = request;
-	if (data === undefined) {
-		data = {};
-	}
-	return { choice: request.choice, data };
-}
-
-function savedSubmission(
-	task: BeadRecord,
-	entry: Pick<ActiveEntry, "bead">,
-): { choice: string; data: unknown } {
-	try {
-		const saved: unknown = JSON.parse(task.notes);
-		return savedResultSchema.parse(saved);
-	} catch (error) {
+function validateSubmission(entry: ActiveEntry, task: BeadRecord, input: Preparation): Submission {
+	const payload = input.run.results[entry.bead];
+	if (!payload) {
 		throw new BusyBeeError(
 			"invalid_stage_result",
-			"Task " +
-				`${entry.bead}` +
-				" has missing or malformed saved JSON result notes. Inspect its completed work " +
-				"and save the required result before collecting.",
-			{ cause: error, context: { bead: entry.bead } },
+			`Task ${entry.bead} has no original result in the workflow system record.`,
+			{ context: { bead: entry.bead, runId: input.run.id } },
 		);
 	}
-}
-
-// eslint-disable-next-line max-statements -- Validate native outcome and original payload before consuming either.
-function validateSubmission(entry: ActiveEntry, task: BeadRecord, input: Preparation): Submission {
-	const { request, definition, endpoint } = input;
-	if (entry.request && request.operation !== "collect") {
-		throw new BusyBeeError("bee_dispatched_task", "Use collect for Bee-dispatched tasks");
-	}
-	const payload = submissionPayload(request, task, entry);
-	if (!entry.meta.commands?.[payload.choice]) {
+	const state = nativeWorkflowState(task, { runId: input.run.id, scope: "visit" }, input.run);
+	if (state.kind !== "terminal" || state.fact.outcome !== "succeeded") {
 		throw new BusyBeeError(
-			"unavailable_command",
-			`Command ${payload.choice} unavailable for ${entry.bead}`,
-			{ context: { bead: entry.bead, choice: payload.choice } },
+			"retired_visit",
+			`Task ${task.id} has no confirmed successful native projection.`,
+			{ context: { bead: task.id, runId: input.run.id } },
 		);
 	}
-	assertCompleted(task, entry.bead, endpoint);
-	assertSuccessfulVisit(task, input.run.id);
-	if (
-		!workflowOutcomeLabelsCurrent(
-			task.labels,
-			nativeWorkflowState(task, { runId: input.run.id, scope: "visit" }),
-		)
-	) {
-		throw new BusyBeeError(
-			"workflow_labels_pending",
-			`Task ${task.id} has stale outcome query labels.`,
-		);
-	}
-	const data = validatePayload({ entry, definition, payload, request });
+	const data = validatePayload({ entry, definition: input.definition, payload, collecting: true });
 	return { choice: payload.choice, data, entry };
 }
 
-function assertSuccessfulVisit(task: BeadRecord, runId: string): void {
-	const lifecycle = nativeWorkflowState(task, { runId, scope: "visit" });
-	if (lifecycle.kind === "terminal" && lifecycle.fact.outcome !== "succeeded") {
+function assertOrdinaryPublication(run: Run): void {
+	if (run.settlement) {
 		throw new BusyBeeError(
-			"retired_visit",
-			`Task ${task.id} was retired without successful completion.`,
-			{
-				context: { runId, bead: task.id, outcome: lifecycle.fact.outcome },
-			},
+			"settlement_pending",
+			`Workflow ${run.id} is fenced by ${run.settlement.operation} settlement; resume that operation.`,
+			{ context: { runId: run.id } },
 		);
 	}
-}
-
-async function assertOrdinaryPublication(
-	endpoint: Endpoint,
-	id: string,
-	services: Services,
-): Promise<void> {
-	const record = await readBead(endpoint, id, services);
-	if (parseWorkflowSettlement(record.notes)) {
-		throw new BusyBeeError("settlement_pending", `Workflow ${id} has an unfinished settlement.`, {
-			context: { runId: id },
-		});
-	}
-	const lifecycle = nativeWorkflowState(record, { runId: id, scope: "run" });
-	if (!workflowOutcomeLabelsCurrent(record.labels, lifecycle)) {
-		throw new BusyBeeError("workflow_labels_pending", `Run ${id} has stale outcome query labels.`);
-	}
-	if (lifecycle.kind === "terminal" && lifecycle.fact.outcome !== "succeeded") {
-		throw new BusyBeeError("workflow_retired", `Workflow ${id} was ${lifecycle.fact.outcome}.`, {
-			context: { runId: id, outcome: lifecycle.fact.outcome },
+	if (run.completions[run.id] && run.completions[run.id]!.outcome !== "succeeded") {
+		throw new BusyBeeError("workflow_retired", `Workflow ${run.id} has been retired.`, {
+			context: { runId: run.id },
 		});
 	}
 }
@@ -1309,15 +995,15 @@ function validatePayload(input: {
 	entry: ActiveEntry;
 	definition: Definition;
 	payload: { choice: string; data: unknown };
-	request: WorkRequest;
+	collecting: boolean;
 }): unknown {
-	const { entry, definition, payload, request } = input;
+	const { entry, definition, payload, collecting } = input;
 	try {
 		const data = commandSchema(definition, entry, payload.choice).parse(payload.data);
 		definition.validateCommand?.(entry, payload.choice, data);
 		return data;
 	} catch (error) {
-		if (request.operation !== "collect") {
+		if (!collecting) {
 			throw error;
 		}
 		throw new BusyBeeError(
@@ -1338,17 +1024,6 @@ function commandSchema(definition: Definition, entry: ActiveEntry, choice: strin
 		);
 	}
 	return schema;
-}
-
-function assertCompleted(task: BeadRecord, bead: string, endpoint: MutationEndpoint): void {
-	if (task.status !== "closed") {
-		throw new BusyBeeError(
-			"task_not_closed",
-			`Task ${bead} must be closed before direct next/choice submission. Finish its work and ` +
-				"child tasks; see busybee complete --help for ordered completion using " +
-				`--db ${JSON.stringify(endpoint.db)}.`,
-		);
-	}
 }
 
 async function assertOpenParents(
@@ -1451,63 +1126,62 @@ function submissionTarget(root: WorkflowActor, submission: Submission) {
 	return { actor, type };
 }
 
+// eslint-disable-next-line max-statements -- Commit advancement before closing or creating native work.
 async function publish(
 	input: { locked: LockedRun; actor: WorkflowActor; endpoint: MutationEndpoint },
 	services: Services,
 ): Promise<void> {
 	const { locked, actor, endpoint } = input;
 	const run = locked.state;
-	const identity = await readBead(endpoint, run.id, services);
 	const current = frontier(actor);
-	await closeDepartedGroups({ current, endpoint, run }, services);
-	run.active = await publishEntries({ current, endpoint, identity, run, locked }, services);
+	const keys = new Set(current.map((entry) => entry.key));
+	const departed = run.active.filter((entry) => !keys.has(entry.key) && !entry.meta.commands);
+	run.active = run.active.filter((entry) => keys.has(entry.key));
 	run.snapshot = snapshotFor(actor);
-	await updateOwned({ input: { description: JSON.stringify(run) }, endpoint, locked }, services);
-	if (currentStatus(actor) === "done") {
-		await closeTask(
-			endpoint,
-			{
-				id: run.id,
-				fact: {
-					kind: "busybee-lifecycle",
-					formatVersion: 1,
-					scope: "run",
-					runId: run.id,
-					outcome: "succeeded",
-					reason: "Authored workflow completed and checkpoint published.",
-				},
-			},
-			services,
-		);
-	}
+	// Accepted history, snapshot, retired frontier and container intents commit before native closure.
+	await savePublication({ endpoint, locked, run }, services, (fresh) => {
+		for (const entry of departed) {
+			fresh.completions[entry.bead] ??= successfulCompletion("group");
+		}
+		if (currentStatus(actor) === "done") {
+			fresh.completions[run.id] ??= successfulCompletion("run");
+		}
+	});
+	await projectCompletions({ endpoint, run, locked }, services);
+	const identity = await readBead(endpoint, run.id, services);
+	run.active = await publishEntries({ current, endpoint, identity, run, locked }, services);
+	await savePublication({ endpoint, locked, run }, services);
 }
 
-async function closeDepartedGroups(
-	input: { run: Run; current: Entry[]; endpoint: MutationEndpoint },
+async function savePublication(
+	input: { endpoint: MutationEndpoint; locked: Ownership; run: Run },
 	services: Services,
+	controlPatch?: (run: Run) => void,
 ): Promise<void> {
-	const { run, current, endpoint } = input;
-	const keys = new Set(current.map((entry) => entry.key));
-	for (const old of run.active.toReversed()) {
-		if (!keys.has(old.key) && !old.meta.commands) {
-			// eslint-disable-next-line no-await-in-loop -- Close nested groups before their native parents.
-			await closeTask(
-				endpoint,
-				{
-					id: old.bead,
-					fact: {
-						kind: "busybee-lifecycle",
-						formatVersion: 1,
-						scope: "group",
-						runId: run.id,
-						outcome: "succeeded",
-						reason: "Authored group finished.",
-					},
-				},
-				services,
-			);
-		}
-	}
+	const { run, endpoint, locked } = input;
+	const fresh = await patchOwned(
+		{
+			endpoint,
+			locked,
+			patch: (saved) => {
+				Object.assign(saved, {
+					active: run.active,
+					created: run.created,
+					definition: run.definition,
+					hash: run.hash,
+					history: run.history,
+					snapshot: run.snapshot,
+					visits: run.visits,
+				});
+				if (run.managedExecution === "managed") {
+					saved.managedExecution = "managed";
+				}
+				controlPatch?.(saved);
+			},
+		},
+		services,
+	);
+	Object.assign(run, fresh);
 }
 
 async function publishEntries(
@@ -1516,7 +1190,7 @@ async function publishEntries(
 		endpoint: MutationEndpoint;
 		identity: BeadRecord;
 		run: Run;
-		locked: Lock;
+		locked: Ownership;
 	},
 	services: Services,
 ): Promise<ActiveEntry[]> {
@@ -1544,7 +1218,7 @@ async function publishEntries(
 
 interface EntryInput {
 	/** Existing checkpoint ownership, retained through managed exposure stamping. */
-	locked: Lock;
+	locked: Ownership;
 	/** Author state entering this published frontier. */
 	entry: Entry;
 	/** Earlier entries, including structural parents. */
@@ -1557,17 +1231,39 @@ interface EntryInput {
 	endpoint: MutationEndpoint;
 }
 
+// eslint-disable-next-line max-statements -- Save membership before dispatch and retain unknown-effect quarantine.
 async function enter(input: EntryInput, services: Services): Promise<ActiveEntry> {
-	const { entry, run, endpoint } = input;
+	const { entry, run, endpoint, locked } = input;
 	const prepared = entryCreation(input);
 	if (prepared.meta.bee) {
-		await markManagedExecution({ endpoint, run, locked: input.locked }, services);
+		await markManagedExecution({ endpoint, run, locked }, services);
 	}
+	locked.uncertainOperation = "create_generated_task";
+	delete locked.knownBead;
+	delete locked.knownRequest;
 	const bead = await createTask(endpoint, prepared.creation, services);
-	// eslint-disable-next-line unicorn/no-null -- Checkpoint and view JSON represent absent requests explicitly.
-	let request: string | null = null;
+	locked.knownBead = bead;
+	const published: ActiveEntry = { ...entry, bead, meta: prepared.meta, request: null };
+	let scope: "visit" | "group" = "group";
+	if (prepared.meta.commands) {
+		scope = "visit";
+	}
+	const visit = {
+		bead,
+		scope,
+		node: entry.node,
+		parent: prepared.creation.parent,
+		path: entry.path,
+		request: null as string | null,
+		visit: prepared.visit,
+	};
+	run.created.push(visit);
+	run.active = [...input.active, published];
+	await savePublication({ endpoint, locked, run }, services);
+	delete locked.uncertainOperation;
 	if (prepared.meta.bee) {
-		request = await spawnBee(
+		locked.uncertainOperation = "dispatch_stage";
+		published.request = await spawnBee(
 			{
 				bead,
 				description: taskDescription(prepared.meta, { run, endpoint, bead }),
@@ -1577,16 +1273,13 @@ async function enter(input: EntryInput, services: Services): Promise<ActiveEntry
 			},
 			services,
 		);
+		locked.knownRequest = published.request;
+		run.created.find((item) => item.bead === bead)!.request = published.request;
+		run.active.find((item) => item.bead === bead)!.request = published.request;
+		await savePublication({ endpoint, locked, run }, services);
+		delete locked.uncertainOperation;
 	}
-	run.created.push({
-		bead,
-		node: entry.node,
-		parent: prepared.creation.parent,
-		path: entry.path,
-		request,
-		visit: prepared.visit,
-	});
-	return { ...entry, bead, meta: prepared.meta, request };
+	return published;
 }
 
 function entryCreation(input: EntryInput) {
@@ -1670,6 +1363,7 @@ async function spawnBee(
 		`Workflow task ${bead}.\n\n${description}\n\n` +
 		`Read br show ${bead} --json and follow its completion instructions. ` +
 		"Leave workflow navigation to the driver.";
+	services.beforeWrite();
 	const output = await services.execute(
 		[
 			"bee",
@@ -1696,7 +1390,8 @@ async function spawnBee(
 	return beeResponseSchema.parse(JSON.parse(output) as unknown).request.id;
 }
 
-function view(run: Run, actor: WorkflowActor): RunView {
+async function view(run: Run, endpoint: Endpoint, services: Services): Promise<RunView> {
+	const native = await readBead(endpoint, run.id, services);
 	return {
 		active: run.active.map((entry) => ({
 			bead: entry.bead,
@@ -1709,21 +1404,28 @@ function view(run: Run, actor: WorkflowActor): RunView {
 		})),
 		created: run.created,
 		id: run.id,
-		status: currentStatus(actor),
+		...completionStatus(run, native),
 	};
 }
 
 /** Stamp the coherent prior checkpoint before any managed handoff, then carry it into publication. */
 async function markManagedExecution(
-	input: { endpoint: MutationEndpoint; run: Run; locked: Lock },
+	input: { endpoint: MutationEndpoint; run: Run; locked: Ownership },
 	services: Services,
 ): Promise<void> {
 	const { endpoint, run, locked } = input;
 	if (run.managedExecution === "managed") {
 		return;
 	}
-	const prior = readCheckpoint(await owned(locked, endpoint, services));
-	prior.managedExecution = "managed";
-	await updateOwned({ endpoint, locked, input: { description: JSON.stringify(prior) } }, services);
+	await patchOwned(
+		{
+			endpoint,
+			locked,
+			patch: (saved) => {
+				saved.managedExecution = "managed";
+			},
+		},
+		services,
+	);
 	run.managedExecution = "managed";
 }

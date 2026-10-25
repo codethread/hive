@@ -3,7 +3,7 @@
 		"runId": "mem-1.2",
 		"title": "Nested Bee work",
 		"checkpoint": "mem-3",
-		"savedAt": "2026-01-01T00:00:00.016Z",
+		"savedAt": "2026-01-01T00:00:00.024Z",
 		"definition": {
 			"label": "Explicit workflow",
 			"savedHash": "ba7efae86965d9f54a6d8fb4f449c77456a87cac2a393386642f58235f53ed51",
@@ -299,7 +299,7 @@
 		"runId": "mem-1.2",
 		"title": "Nested Bee work",
 		"checkpoint": "mem-3",
-		"savedAt": "2026-01-01T00:00:00.027Z",
+		"savedAt": "2026-01-01T00:00:00.039Z",
 		"definition": {
 			"label": "Explicit workflow",
 			"savedHash": "ba7efae86965d9f54a6d8fb4f449c77456a87cac2a393386642f58235f53ed51",
@@ -595,7 +595,7 @@
 		"runId": "mem-1.2",
 		"title": "Nested Bee work",
 		"checkpoint": "mem-3",
-		"savedAt": "2026-01-01T00:00:00.061Z",
+		"savedAt": "2026-01-01T00:00:00.085Z",
 		"definition": {
 			"label": "Explicit workflow",
 			"savedHash": "ba7efae86965d9f54a6d8fb4f449c77456a87cac2a393386642f58235f53ed51",

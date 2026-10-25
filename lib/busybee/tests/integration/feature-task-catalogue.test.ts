@@ -6,9 +6,9 @@ import {
 	resumeSchema,
 	runBrief,
 } from "../../../../.workflows/do-feature-task/workflow.ts";
+import { complete, navigate, startNamed } from "../../src/runtime.ts";
 import { createMachine, initialTransition } from "xstate";
 import { expect, test } from "bun:test";
-import { navigate, recordResult, startNamed } from "../../src/runtime.ts";
 import type { Services } from "../../src/native.ts";
 import { createMemoryBeads } from "@hive/beads";
 
@@ -120,12 +120,11 @@ test.each(["prepare", "deliver"] as const)(
 			await beads.close(scope, prerequisite.id);
 		}
 
-		await recordResult(
+		await complete(
 			{ id: run.id, bead: stage, choice: "next", data: { evidence } },
 			{ db, repo: canonicalRoot },
 			io,
 		);
-		await beads.close(scope, stage);
 		const next = await navigate(
 			{ id: run.id, operation: "collect" },
 			{ db, repo: canonicalRoot },

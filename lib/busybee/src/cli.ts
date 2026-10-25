@@ -17,7 +17,7 @@ import {
 	discover,
 	navigate,
 	prepareDriver,
-	recordResult,
+	reconcile,
 	runViewSchema,
 	start,
 	startNamed,
@@ -72,13 +72,15 @@ const navigationHelp = {
 	show: {
 		description: "Read compact run status, active tasks and generated visit references",
 		details:
-			"\nRun views from run/start/show/collect/next/choice omit actor context and instruction bodies. " +
+			"\nRun views from run/start/show/collect omit actor context and instruction bodies. " +
 			"They retain run status, active task IDs, titles, commands, request IDs, actor paths and visit references. " +
 			"Use show RUN --instructions --json to include each active visit's exact saved instruction text. " +
 			"Read br show RUN --json for caller completion instructions and br show TASK --json for the full " +
 			"native brief, acceptance, assignment, children, blockers and delivery/closure instructions. " +
 			"Use discover --json for outcome payload schemas. " +
-			"Status is saved chart state; native close_reason records workflow outcome. " +
+			"chartStatus is saved chart state; nativeStatus is the current native run status. " +
+			"completion is pending, projection_pending, succeeded, failed or cancelled. " +
+			"status is completion_pending when the chart is done without confirmed native success. " +
 			"Performs no native writes, but restores, starts and stops a workflow actor. " +
 			"For saved diagrams/state without creating actors, use preview --help.",
 	},
@@ -88,8 +90,11 @@ const navigationHelp = {
 		details:
 			"\nWorkers use complete to save their outcomes and close their tasks; the driver collects them. " +
 			"Collection can advance both driver-handled and Bee-dispatched visits and publish new work. " +
-			"Failed/cancelled visits and stale outcome query labels fail explicitly. " +
-			"Busy Bee closes completed groups and reports status done when it closes the run. " +
+			"Only saved originals with confirmed successful native closure are consumed. " +
+			"Stale completion projections are reconciled through current native gates; " +
+			"failed/cancelled visits cannot advance. Accepted history and chart state are saved " +
+			"before group/run closure, so a refused container close retries without replaying results. " +
+			"Busy Bee reports status done only after successful native run completion. " +
 			"Requires --actor or BD_ACTOR; see busybee --help for global options.",
 	},
 };
@@ -549,78 +554,40 @@ function registerNavigation(invocation: Invocation): void {
 		.description("Save the original outcome, then close the worker visit; does not advance")
 		.addHelpText(
 			"after",
-			"\nSatisfy acceptance and child work, and deliver any required answer before completion. " +
-				"Read discover RUN --json for CHOICE and its schema. Pass the original payload with " +
-				"--data JSON or --data-file FILE; omission supplies {}. Notes hold only {choice,data}; " +
-				"put narrative evidence in comments.\n" +
-				"Complete saves the original JSON and releases its result-write lock. A separate short " +
-				"close phase reacquires ownership, checks retirement, then closes with a succeeded fact " +
-				"through Beads acceptance and child gates. It releases that lock after the close attempt. " +
-				"Closure refusal preserves the saved result. Inspect the task and run; while both remain " +
-				"eligible, retry with the same original choice and data. A matching retry can finish " +
-				"closure or acknowledge a matching successful closure, even after collection. " +
-				"Outcome-label publication is separate from native closure; inspect reported effects " +
-				"before retrying a failure. Different or malformed saved results fail; " +
-				"a closed stage without saved evidence also fails.\n" +
-				"Supports driver-handled and Bee-dispatched visits. The driver separately runs collect RUN " +
-				"to advance. Use record-result --help when saving without closure. " +
-				"Requires --actor or BD_ACTOR; see busybee --help for global options.",
+			"\nSatisfy native acceptance and child work, and deliver any required answer before completion. " +
+				"Read discover RUN --json for CHOICE and its schema. Supply original JSON through " +
+				"--data or --data-file; omission supplies {}. " +
+				"Under the workflow system record's lock, complete saves the immutable original and " +
+				"requested successful completion together before guarded native closure. " +
+				"Current native checklist items, children, blockers and reservations remain gates; " +
+				"the engine never ticks acceptance. Notes remain untouched. A gate refusal retains result and intent and " +
+				"releases ownership. Retry with the same original choice/data, or reconcile RUN. " +
+				"A conflicting original fails. Matching retries after collection never replay the transition. " +
+				"Complete does not advance; the driver runs collect RUN. Requires --actor or BD_ACTOR.",
 		)
 		.action(async (id: string, bead: string, choice: string) => {
 			const data = await payload(options(), services);
 			writeResult(await complete({ id, bead, choice, data }, options(), services), invocation);
 		});
-	cli
-		.command("record-result <run> <task> <choice>")
-		.description("Validate and save original {choice,data} notes without closure or advancement")
-		.addHelpText(
-			"after",
-			"\nTASK must be an active, unclosed worker visit. Read discover RUN --json for " +
-				"CHOICE and its schema. Pass the original payload with --data JSON or --data-file FILE; " +
-				"omission supplies {}. Notes are reserved for this result; put narrative evidence in comments.\n" +
-				"This save-only primitive supports driver-handled and Bee-dispatched visits. " +
-				"For ordinary stage completion, use complete --help; it saves before attempting native closure. " +
-				"Mutations require --actor or BD_ACTOR; see busybee --help for global options.",
-		)
-		.action(async (id: string, bead: string, choice: string) => {
-			const data = await payload(options(), services);
-			writeResult(await recordResult({ id, bead, choice, data }, options(), services), invocation);
-		});
 	registerRunViews(invocation);
 	registerSettlement(invocation);
 	cli
-		.command("next <run> <task>")
-		.description("Submit outcome next for a closed driver-handled task; see choice --help")
-		.action(async (id: string, bead: string) => {
-			const data = await payload(options(), services);
-			writeRunView(
-				await navigate(
-					{ bead, choice: "next", data, id, operation: "submit" },
-					options(),
-					services,
-				),
-				invocation,
-			);
-		});
-	cli
-		.command("choice <run> <task> <choice>")
-		.description("Submit a named outcome for a closed driver-handled task")
+		.command("reconcile <run>")
+		.description(
+			"Repair known native completion projections without loading a definition or advancing",
+		)
 		.addHelpText(
 			"after",
-			"\nDirect submission requires a still-active driver-handled visit already natively closed. " +
-				"Failed/cancelled visits and stale outcome query labels fail explicitly. " +
-				"Read discover RUN --json for its choices and schemas; next is shorthand for choice next " +
-				"and may also require a payload. Use --data JSON or --data-file FILE; omission supplies {}.\n" +
-				"For ordinary completion, use complete, then let the driver collect. " +
-				"Bee-dispatched visits require saved results and collection. " +
-				"Requires --actor or BD_ACTOR; see busybee --help for global options.",
+			"\nRepairs only generated completion fields and outcome labels through current native " +
+				"gates and reservations. A direct close without a saved directive is reopened to open; " +
+				"stale confirmed closure or close prose may require guarded reopen/reclose and a new closed_at. " +
+				"Briefs, acceptance, notes and assignments are preserved. It never creates work, advances " +
+				"the chart or authorizes settlement. Failed/cancelled reclosure requires the same settle " +
+				"operation and reason with fresh clearance, even after a previously complete settlement. " +
+				"Requires --actor or BD_ACTOR.",
 		)
-		.action(async (id: string, bead: string, choice: string) => {
-			const data = await payload(options(), services);
-			writeRunView(
-				await navigate({ bead, choice, data, id, operation: "submit" }, options(), services),
-				invocation,
-			);
+		.action(async (id: string) => {
+			writeResult(await reconcile(id, options(), services), invocation);
 		});
 }
 
@@ -637,19 +604,23 @@ function registerSettlement(invocation: Invocation): void {
 				"Read input and success schemas offline with settle --schema --json. " +
 				"Success reports runId, operation and closedIds.\n\n" +
 				"Retires only pending generated scope, closing visits/groups bottom-up and the run last. " +
-				"Preserves completed work, original results and closure facts. Refuses unfinished manual " +
+				"Preserves original results and successful directives, including requested success: " +
+				"after clearance these may be gated-confirmed, never converted to failure/cancellation. " +
+				"An existing successful run directive requires collect/reconcile instead. Refuses unfinished manual " +
 				"descendants, human/HITL or other-agent reservations and unsupported inventory; native " +
 				"acceptance and child gates still apply. It does not close source work or ancestors, " +
 				"stop processes, change the saved chart state or recover a held checkpoint lock.\n\n" +
-				"Explicit unmanaged checkpoint provenance plus complete native inventory agreement " +
-				"permits daemon-free settlement. Missing history or no open request alone is not proof. " +
-				"Managed/unknown exposure requires fresh clearance from the running owning-host Colony " +
+				"Explicit unmanaged checkpoint provenance, complete native inventory agreement and no " +
+				"contradictory requests permit daemon-free settlement. Missing/invalid provenance fails. " +
+				"Managed exposure requires fresh clearance from the running owning-host Colony " +
 				"daemon registered for this repository/database. Use matching Busy Bee/Bee/Colony versions " +
 				"on one live database; concurrent tracker exchange is not fenced.\n\n" +
-				"Checkpoint ownership and run-note intent fence publication/admission. Partial effects " +
-				"retain those fences and confirmed/uncertain IDs; inspect the reported native records " +
-				"before explicit recovery. There is no automatic replay or unlock. Native close_reason " +
-				"is authoritative; outcome query-label publication can fail after closure.",
+				"The system record's lock and durable settlement intent fence publication/admission. " +
+				"Known partial completion retains intent and releases its own lock when possible. " +
+				"Every same-operation/reason retry obtains fresh clearance, even after a previously " +
+				"complete settlement. " +
+				"Unchecked acceptance can leave settlement pending. Notes are untouched; native close " +
+				"prose is not machine authority. There is no automatic held-owner recovery.",
 		)
 		.action(
 			async (

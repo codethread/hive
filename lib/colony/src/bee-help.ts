@@ -13,7 +13,8 @@ For ordinary delegation use bee spawn; assigned workers complete with bee finish
 	response: `
 Delivery: file the complete answer or blocker, verify the returned ID with
 bee response get, then cite it with concise progress/verification in task comments.
-Workflow notes hold only Busy Bee's original {choice,data} outcome.
+Busy Bee stores original outcomes and completion in its workflow system record,
+not ordinary notes or response bodies.
 Publication does not complete work or advance a workflow; follow bee finish --help.
 
 The target is the driver's run or the dispatched worker's stage, supplied by the
@@ -55,7 +56,8 @@ Historical evidence retains its original provenance; it is not a filed response.
 Comment history bounds output but fetches ALL task comments (see nativeRead).
 localCommentId is local only; cite taskId plus author/createdAt/text across clones.
 Notes returns one full snapshot at offset 0; snapshotUpdatedAt is revision time,
-and authorship is unknown. Workflow notes contain machine outcomes.
+and authorship is unknown. Historical notes may include legacy workflow payloads;
+current Busy Bee results live in the workflow system record.
 `,
 	result: `
 Use request.id from submission. Returns its driver's run or dispatched stage

@@ -5,8 +5,8 @@ Keep authored answers, task progress and machine outcomes separate:
 | Content | Home |
 | --- | --- |
 | Complete answer or blocker report | Immutable response linked to its producing run/stage |
-| Progress, verification and response IDs | Task comments |
-| Workflow outcome | Stage notes: Busy Bee's original `{choice,data}` outcome |
+| Progress, verification and response IDs | Task comments; consolidate the current account under the [work policy](../beads-meta.md#authoring-and-handing-off-work) |
+| Workflow result and completion | Busy Bee's workflow system description, separate from ordinary notes and readable close reasons |
 | Specialist decisions and curation history | [Filed evidence](../beads-meta.md#filed-specialist-evidence), citing responses where useful |
 
 ## Retrieve a bee's answer

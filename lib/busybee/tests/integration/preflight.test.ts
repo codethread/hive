@@ -9,6 +9,7 @@ import type { Services } from "../../src/native.ts";
 import { captureCli } from "./support.ts";
 import { createMemoryBeads } from "@hive/beads";
 import { createServices } from "../../src/native.ts";
+import { readCheckpoint } from "../../src/checkpoint.ts";
 import { z } from "zod";
 
 const FIRST = 0;
@@ -51,8 +52,15 @@ test(
 		invalid.snapshot = { ...invalid.snapshot, context: { revision: FAILURE } };
 		const other = savedRun("other");
 		other.definition = { kind: "named", name: "another", version: "1.0.0" };
-		const fixture = await memoryTracker(candidate, [invalid, run, savedRun("closed"), other]);
-		await fixture.beads.close(fixture.scope, fixture.ids.get("closed")!);
+		const fixture = await memoryTracker(candidate, [
+			invalid,
+			run,
+			savedRun("closed"),
+			other,
+			savedRun("direct"),
+		]);
+		await fixture.seedCompletedRun("closed");
+		await fixture.beads.close(fixture.scope, fixture.ids.get("direct")!);
 		const before = await fixture.records();
 		const result = await captureCli(
 			["--repo", repo, "--db", db, "preflight", "example", "--json"],
@@ -71,19 +79,20 @@ test(
 			version: "1.1.0",
 			status: "incompatible",
 			runs: [
+				{ id: fixture.ids.get("direct"), status: "unchecked" },
 				{ id: fixture.ids.get("run"), status: "unchecked" },
 				{ id: fixture.ids.get("invalid"), status: "incompatible" },
 			],
 		});
 		expect(started).toBe(FIRST);
-		expect(rendered).toBe(TARGET);
+		expect(rendered).toBe(TARGET + FAILURE);
 		expect(await fixture.records()).toEqual(before);
 		expect(fixture.calls).toContainEqual({
 			scope: { cwd: repo, db },
 			selection: { labels: ["system", "busybee-checkpoint"], all: true, limit: FIRST },
 		});
 		expect(fixture.reads.toSorted()).toEqual(
-			["closed", "invalid", "run"].map((name) => fixture.ids.get(name)!).toSorted(),
+			["closed", "direct", "invalid", "run"].map((name) => fixture.ids.get(name)!).toSorted(),
 		);
 	},
 );
@@ -202,8 +211,8 @@ test("task renderer exceptions remain findings alongside other incompatibilities
 // Assess malformed matching, unrelated and completed checkpoint records in one query.
 // eslint-disable-next-line max-statements
 test(
-	"unsupported matching checkpoints preserve other runs and exclude " +
-		"malformed closed/other-name records #test-43",
+	"unsupported matching control remains visible even on closed work, " +
+		"while other-name records stay excluded #test-43",
 	async () => {
 		const other = savedRun("other");
 		other.definition = { kind: "named", name: "another", version: "1.0.0" };
@@ -214,11 +223,18 @@ test(
 			other,
 		]);
 		await fixture.corruptFormat("legacy");
-		await fixture.beads.close(fixture.scope, fixture.ids.get("closed")!);
+		await fixture.seedCompletedRun("closed");
 		await fixture.corruptFormat("closed");
 		await fixture.corruptFormat("other");
 		const report = await preflight("example", {}, fixture.services);
 		expect(report.runs).toMatchObject([
+			{
+				id: fixture.ids.get("closed"),
+				status: "incompatible",
+				findings: expect.arrayContaining([
+					expect.objectContaining({ check: "checkpoint_header", status: "failed" }),
+				]),
+			},
 			{ id: fixture.ids.get("run"), status: "unchecked" },
 			{ checkpoint: fixture.checkpoints.get("legacy"), status: "incompatible" },
 		]);
@@ -233,8 +249,12 @@ test("malformed identity, orphan checkpoint relations and retained locks stay vi
 		description: "invalid JSON",
 		force: true,
 	});
-	await fixture.beads.update(fixture.scope, [fixture.checkpoints.get("run")!], {
-		notes: '{"owner":"uncertain-writer","pid":123}',
+	const checkpoint = fixture.checkpoints.get("run")!;
+	const control = readCheckpoint(await fixture.beads.show(fixture.scope, checkpoint));
+	control.lock = { owner: "uncertain-writer", pid: 123 };
+	await fixture.beads.update(fixture.scope, [checkpoint], {
+		description: JSON.stringify(control),
+		notes: "Human observation, not engine ownership",
 	});
 	await fixture.beads.dep.remove(
 		fixture.scope,
@@ -252,9 +272,9 @@ test("malformed identity, orphan checkpoint relations and retained locks stay vi
 	expect(
 		report.runs[FIRST]!.findings.find((finding) => finding.check === "checkpoint_lock"),
 	).toMatchObject({ status: "unchecked" });
-	await fixture.beads.update(fixture.scope, [fixture.checkpoints.get("run")!], {
-		notes: "",
-		force: true,
+	control.lock = null;
+	await fixture.beads.update(fixture.scope, [checkpoint], {
+		description: JSON.stringify(control),
 	});
 	await fixture.beads.dep.add(
 		fixture.scope,
@@ -437,7 +457,12 @@ function savedRun(id: string): Run & {
 	};
 } {
 	return {
-		formatVersion: FAILURE,
+		formatVersion: 2,
+		lock: null,
+		managedExecution: "unmanaged",
+		results: {},
+		completions: {},
+		settlement: null,
 		id,
 		hash: "original-provenance",
 		definition: { kind: "named", name: "example", version: "1.0.0" },
@@ -529,6 +554,22 @@ async function memoryTracker(candidate: Definition, runs: Run[]) {
 		reads,
 		imports,
 		services,
+		seedCompletedRun: async (name: string) => {
+			const id = ids.get(name)!;
+			const checkpoint = checkpoints.get(name)!;
+			const reason = "Completed fixture workflow";
+			await beads.close(scope, id, { reason });
+			const native = await beads.show(scope, id);
+			const saved = readCheckpoint(await beads.show(scope, checkpoint));
+			saved.completions[id] = {
+				scope: "run",
+				outcome: "succeeded",
+				state: "confirmed",
+				closedAt: native.closed_at!,
+				reason,
+			};
+			await beads.update(scope, [checkpoint], { description: JSON.stringify(saved) });
+		},
 		records: () => beads.showMany(scope, [...ids.values(), ...checkpoints.values()]),
 		corruptFormat: async (name: string) => {
 			const id = checkpoints.get(name)!;

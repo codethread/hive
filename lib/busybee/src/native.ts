@@ -1,17 +1,7 @@
 import type { BeadRecord, BeadsScope, BeadsService, UpdateBead } from "@hive/beads";
 import { CommandError, createNativeBeads } from "@hive/beads";
-import type {
-	ExecutionClearance,
-	ExecutionClearanceSelection,
-	WorkflowClosure,
-} from "@hive/shared";
-import {
-	execute as executeProcess,
-	executionClearanceSchema,
-	nativeWorkflowState,
-	workflowOutcomeLabels,
-	workflowOutcomeLabelsCurrent,
-} from "@hive/shared";
+import type { ExecutionClearance, ExecutionClearanceSelection } from "@hive/shared";
+import { execute as executeProcess, executionClearanceSchema } from "@hive/shared";
 // eslint-disable-next-line import/no-nodejs-modules -- Filesystem access is injected at this native adapter.
 import { mkdir, readdir, stat, writeFile } from "node:fs/promises";
 import defaultManifest from "../../../.workflows/do-work/busybee.toml" with { type: "text" };
@@ -249,91 +239,6 @@ export async function createTask(
 	return created.id;
 }
 
-export async function closeTask(
-	endpoint: MutationEndpoint,
-	closure: { id: string; fact: WorkflowClosure },
-	services: Services,
-): Promise<void> {
-	const { id, fact } = closure;
-	const task = await readBead(endpoint, id, services);
-	if (task.status === "closed") {
-		const state = nativeWorkflowState(task, fact);
-		if (state.kind !== "terminal" || state.fact.outcome !== fact.outcome) {
-			throw new BusyBeeError("closure_conflict", `Task ${id} has no matching native closure.`, {
-				context: { bead: id },
-			});
-		}
-		await publishOutcomeLabels({ endpoint, task, fact }, services);
-	} else {
-		await closeObservedTask({ endpoint, task, fact }, services);
-	}
-}
-
-/** Close a freshly inspected task through ordinary native policy; native close has no revision condition. */
-export async function closeObservedTask(
-	input: { endpoint: MutationEndpoint; task: BeadRecord; fact: WorkflowClosure },
-	services: Services,
-): Promise<void> {
-	const { endpoint, task, fact } = input;
-	services.beforeWrite();
-	await services.beads.close(
-		{ actor: endpoint.actor, cwd: endpoint.repo, db: endpoint.db },
-		task.id,
-		{
-			reason: JSON.stringify(fact),
-		},
-	);
-	await publishOutcomeLabels(
-		{ endpoint, task: await readBead(endpoint, task.id, services), fact },
-		services,
-	);
-}
-
-/** Publish the minimal query index without replacing unrelated labels. */
-/* eslint-disable-next-line max-statements -- Keep projection publication and native authority verification together. */
-async function publishOutcomeLabels(
-	input: { endpoint: MutationEndpoint; task: BeadRecord; fact: WorkflowClosure },
-	services: Services,
-): Promise<void> {
-	const { endpoint, task, fact } = input;
-	const state = nativeWorkflowState(task, fact);
-	if (workflowOutcomeLabelsCurrent(task.labels, state)) {
-		return;
-	}
-	try {
-		if (
-			!(await conditionalUpdate(
-				{ endpoint, bead: task, input: { setLabels: workflowOutcomeLabels(task.labels, state) } },
-				services,
-			))
-		) {
-			throw new Error(`Task ${task.id} changed during outcome publication.`);
-		}
-		const fresh = await readBead(endpoint, task.id, services);
-		if (
-			fresh.close_reason !== task.close_reason ||
-			fresh.closed_at !== task.closed_at ||
-			!workflowOutcomeLabelsCurrent(fresh.labels, nativeWorkflowState(fresh, fact))
-		) {
-			throw new Error(`Task ${task.id} outcome projection changed during publication.`);
-		}
-	} catch (error) {
-		throw new BusyBeeError(
-			"workflow_labels_pending",
-			`Native closure recorded for ${task.id}; outcome labels are not confirmed.`,
-			{
-				cause: error,
-				context: {
-					bead: task.id,
-					runId: fact.runId,
-					nativeClosed: task.status === "closed",
-					closedAt: task.closed_at,
-				},
-			},
-		);
-	}
-}
-
 export async function conditionalUpdate(
 	request: {
 		endpoint: MutationEndpoint;
@@ -348,7 +253,7 @@ export async function conditionalUpdate(
 		await services.beads.update(
 			{ actor: endpoint.actor, cwd: endpoint.repo, db: endpoint.db },
 			[bead.id],
-			{ ...input, force: true, ifUnchanged: bead.updated_at },
+			{ ...input, ifUnchanged: bead.updated_at },
 		);
 		return true;
 	} catch (error) {

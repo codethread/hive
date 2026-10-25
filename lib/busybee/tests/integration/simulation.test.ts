@@ -450,7 +450,12 @@ async function simulationFixture(
 	const visit = await beads.create(scope, { title: "Published", owner: "ct", parent: parent.id });
 	const snapshot = savedSnapshot ?? fixtureSnapshot(definition);
 	const saved: Run = {
-		formatVersion: 1,
+		formatVersion: 2,
+		lock: null,
+		managedExecution: "unmanaged",
+		results: {},
+		completions: {},
+		settlement: null,
 		id: parent.id,
 		hash: "saved-hash",
 		definition: { kind: "named", name: "example", version: "1.0.0" },
