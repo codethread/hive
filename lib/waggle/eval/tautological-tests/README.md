@@ -34,6 +34,58 @@ jq .input lib/waggle/eval/tautological-tests/fixtures/setup-produces-result.json
 
 These commands transmit evidence to Typesafe. Follow Waggle's [credential and disclosure guidance](../../README.md#supply-evidence); exclude secrets and code you are not authorized to send. Waggle neither harvests repository files nor executes the snippets. See [score semantics](../../README.md#review-tests-for-implementation-restatement) before interpreting a result: missing context is not evidence of safety, and provider errors are not `needs_context` answers.
 
+## Extract a local case (offline spike)
+
+The optional [extractor](extract.ts) reads local files without executing tests or contacting a provider. It uses [Oxc's parser](https://oxc.rs/docs/guide/usage/parser) ([Node bindings](https://github.com/oxc-project/oxc/tree/main/napi/parser)) as an eval-only development dependency; the standalone Waggle runtime is unchanged. From the repository root after `bun install`:
+
+```sh
+bun run lib/waggle/eval/tautological-tests/extract.ts \
+  lib/waggle/tests/unit/extraction.test.ts > /tmp/waggle-candidates.json
+jq '.candidates[] | {start, line, title, suites}' /tmp/waggle-candidates.json
+```
+
+Inventory returns `kind: "test_candidates"`, the path, a SHA-256 `source_hash` and candidates with `start`, `end`, `line`, `title`, `suites`, `code` and `reducedScopeSupported`. Offsets are UTF-16, `end` is exclusive and lines are one-based. Identify a candidate by **path + source_hash + start**, not its title. Rerun inventory after edits: selection checks the current offset, not the saved hash.
+
+For example, select the first candidate and supply its implementation:
+
+```sh
+offset=$(jq -r '.candidates[0].start' /tmp/waggle-candidates.json)
+bun run lib/waggle/eval/tautological-tests/extract.ts \
+  lib/waggle/tests/unit/extraction.test.ts --case "$offset" --scope=1 \
+  --source lib/waggle/eval/tautological-tests/extraction.ts \
+  > /tmp/waggle-extracted.json
+jq .input /tmp/waggle-extracted.json > /tmp/waggle-evidence.json
+```
+
+Selected output has `kind: "test_evidence"`, provenance, the candidate, `scope`, a `manifest` and `input` with exactly `source`, `test`, `context` and `contract`. Review that input before using the [provider commands above](#prepare-evidence); send `.input`, not the extraction envelope. Use `--help` for options.
+
+### Cumulative scopes
+
+`--scope=1|2|3` selects test-file context; the default is `1`. Every scope retains the selected declaration in `input.test`, including inline tables, plus lexical suite titles, suite registration prefixes and all test-file imports. **All explicitly supplied evidence is retained at every scope:** `--source` and `--context` accept file lists; `--contract` reads one requirement file with provenance. Missing implementation or contract evidence remains unknown.
+
+| Scope | Test-file context |
+| --- | --- |
+| `1` — case + lifecycle | Imports, enclosing suite registration prefixes and complete recognized direct hooks at file level and in enclosing suite callbacks. |
+| `2` — suite + local support | Scope 1 plus the complete outermost enclosing suite and top-level statements other than separately recognized test/suite registrations. For a top-level case, adds the same non-registration statements. |
+| `3` — full file | Complete original test file. Required when a candidate has `reducedScopeSupported: false`. |
+
+Ranges coalesce as context expands; small files can yield equal scopes. `manifest.ranges` describes retained test-file **context** ranges; the selected declaration has its own candidate range. `manifest.omitted` lists direct statements at file level and in enclosing suite callbacks that are not fully retained, with path/line and declaration or call labels, plus unresolved import references. The same omission summary appears inside `input.context`; it is not an exhaustive dependency inventory, and import references are not resolved against explicitly supplied files. Omitted evidence is unknown, not evidence that no context applies. Surrounding tests remain context, not additional selected cases.
+
+### Offline stopping policy
+
+[decideScope](scopes.ts) evaluates one supplied result using an explicit `probability` or `confidence` metric. At **>= 0.90**, a substantive choice (`tautological`, `behavioral` or `mixed`) returns `accepted`. Otherwise it returns `expand` with the next scope, or `unresolved` at scope 3. `needs_context` always expands when possible, regardless of score, and remains unresolved at scope 3.
+
+The provisional recommendation is the **chosen label's probability**, not always `probabilities.tautological` and not the separate provider `confidence` statistic. The user's intended meaning of “90% confidence” still needs clarification; both metric choices have offline tests. This is a pure policy helper, not an automatic extraction/classification loop. It retains no best-scoring answer: later evidence may lower the score or change the label. Meeting the threshold is an experimental stopping heuristic, not calibrated correctness or permission to delete a test.
+
+### Extraction limits and local observations
+
+- Recognizes direct named imports (including aliases) and namespaces from `bun:test`: `test`/`it` candidates, enclosing `describe` titles and `beforeAll`/`beforeEach`/`afterEach`/`afterAll` hooks. Supports `only`, `skip`, `todo`, `concurrent`, `serial`, `failing` and `each`/`skipIf`/`todoIf` call chains, including tagged-template `each`.
+- Rejects parse errors and detected rebinding of tracked import names conservatively; this is not complete lexical or symbol resolution. Computed access, indirect aliases, wrapper APIs and globals are not recognized as declarations. Candidates found inside dynamic or indirect registration wrappers require `--scope=3` to preserve those wrappers.
+- Keeps `each` as one registration rather than expanding rows; dynamic titles remain unevaluated expressions. Skips, conditions and runtime registration are not evaluated. The inventory is syntactic, not an exhaustive list of runtime tests.
+- Imports are not followed at any scope. Supply relevant imported bodies, snapshots and configuration explicitly. Hook applicability, shared-observation attribution and independent requirements still need caller evidence.
+
+A recorded local run over the fixed `08d6bb17` tracked test-path set found 1,059 candidates across 207 files, with none empty or rejected: about 134 ms over 1.23 MB after file reads, including context-manifest construction. These richer manifests do more work than the initial candidate-only scan. A Busy Bee completion case with the same full source and helper files at all scopes produced 49,961 / 52,110 / 53,072 serialized `.input` bytes for scopes 1 / 2 / 3. Explicit support dominated size. These are local observations, not optimization, accuracy or completeness claims; schema validity does not establish evidence sufficiency. Selecting relevant source declarations is a separate research direction, not an implemented feature.
+
 ## Review the fixtures
 
 Each JSON file under [fixtures](fixtures/) contains:

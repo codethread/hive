@@ -17,5 +17,9 @@
 		"@typesafe-ai/sdk": "0.6.0",
 		"commander": "^14.0.3",
 		"zod": "^4.6.5"
+	},
+	"devDependencies": {
+		"oxc-parser": "0.155.0",
+		"oxc-resolver": "11.24.2"
 	}
 }
