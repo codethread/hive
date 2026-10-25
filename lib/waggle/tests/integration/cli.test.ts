@@ -1,15 +1,26 @@
+import type { ClassificationRequest, Classifier } from "../../src/classifiers.ts";
 import { expect, test } from "bun:test";
-import type { ClassificationRequest } from "../../src/classifiers.ts";
 import type { WaggleDependencies } from "../../src/cli.ts";
-import { parseClassifier } from "../../src/classifiers.ts";
 import { runCli } from "../../src/cli.ts";
 
 const EXIT = { failure: 1, success: 0, usage: 2 };
 
-const classifier = parseClassifier(
-	"example",
-	await Bun.file(new URL("../fixtures/example.toml", import.meta.url)).text(),
-);
+const classifier: Classifier = {
+	id: "example",
+	definition: {
+		version: 1,
+		description: "Assess evidence against a stated contract.",
+		inputs: { evidence: "Source and caller contract" },
+		questions: {
+			review: {
+				type: "choice",
+				instructions: "Does the evidence show a mismatch?",
+				criteria: { concern: "Visible mismatch", no_concern: "Supported design" },
+			},
+		},
+	},
+};
+
 const response = {
 	answers: {
 		review: {

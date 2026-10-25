@@ -1,12 +1,22 @@
 import { classifyWithJev, createLiveDependencies } from "../../src/live-deps.ts";
 import { expect, test } from "bun:test";
-import { parseClassifier, prepareRequest } from "../../src/classifiers.ts";
 import { APIError } from "@typesafe-ai/sdk";
+import type { ClassificationRequest } from "../../src/classifiers.ts";
 // eslint-disable-next-line import/no-nodejs-modules
 import { resolve } from "node:path";
 
-const source = await Bun.file(new URL("../fixtures/example.toml", import.meta.url)).text();
-const request = prepareRequest(parseClassifier("example", source), '{"evidence":"source"}');
+const request: ClassificationRequest = {
+	model: "jev-latest",
+	state: { evidence: "source" },
+	questions: {
+		review: {
+			type: "choice",
+			instructions: "Assess supplied evidence",
+			criteria: { concern: "Visible mismatch", no_concern: "Supported design" },
+		},
+	},
+};
+
 test("shipped classifiers expose their own evidence and answer contracts #test-425", async () => {
 	const catalogue = await createLiveDependencies().list(
 		resolve(import.meta.dir, "../../../..", "classifiers"),
