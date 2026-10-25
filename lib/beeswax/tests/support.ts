@@ -2,16 +2,17 @@
 import type { AlertStorage } from "../src/beads/alerts.ts";
 import type { Dependencies } from "../src/cli.ts";
 import type { SetupOptions } from "../src/setup.ts";
+import { bvRecipeFiles } from "../src/bv-recipe-source.ts";
 import { createAlertStore } from "../src/beads/alerts.ts";
 import { createBundledSkills } from "../src/skills.ts";
 import { createMemoryBeads } from "@hive/beads";
 import { version } from "../package.json";
 
-/** Small in-memory workspace seam; unexpected effects fail instead of silently passing. */
 const FIRST = 0;
 const SECOND = 1;
 const skills = createBundledSkills();
 
+/** In-memory CLI dependencies; recipe reads use the real YAML adapter by default. */
 export function fixture() {
 	const files = new Map<string, string>();
 	const commands: string[][] = [];
@@ -23,6 +24,10 @@ export function fixture() {
 	};
 	const deps: Dependencies = {
 		nativeBeads: createMemoryBeads(),
+		bvRecipeFiles: bvRecipeFiles({
+			read: (path) => deps.read(path),
+			write: (path, contents) => deps.write(path, contents),
+		}),
 		alertReceiptPath: (database, session) => `/state/${database}/${session.harness}-${session.id}`,
 		commandAvailable: () => false,
 		context: {

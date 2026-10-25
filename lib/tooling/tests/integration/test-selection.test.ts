@@ -44,31 +44,63 @@ test(
 // eslint-disable-next-line max-statements -- Keep the bounded branch/index/worktree fixture together.
 async function prepare(root: string): Promise<void> {
 	await git(root, ["init", "--initial-branch=main", "--template="]);
-	await git(root, ["config", "core.excludesFile", "/dev/null"]);
-	await Bun.write(join(root, staged), "initial\n");
-	await Bun.write(join(root, unstaged), "initial\n");
-	await git(root, ["add", "."]);
-	await git(root, ["commit", "-m", "initial"]);
-	await git(root, ["branch", "alternate"]);
-	await Bun.write(join(root, alternateInput), "# dependency input\n");
-	await git(root, ["add", "."]);
-	await git(root, ["commit", "-m", "main dependency input"]);
-	await git(root, ["checkout", "-b", "feature"]);
-	await Bun.write(join(root, committed), "branch input\n");
-	await git(root, ["add", "."]);
-	await git(root, ["commit", "-m", "branch adapter input"]);
-	await git(root, ["checkout", "main"]);
-	await Bun.write(join(root, "main-only.md"), "not part of feature changes\n");
-	await git(root, ["add", "."]);
-	await git(root, ["commit", "-m", "divergent main"]);
-	await git(root, ["checkout", "feature"]);
+	const config = join(root, ".git/config");
+	await Bun.write(config, `${await Bun.file(config).text()}\n[core]\n\texcludesFile = /dev/null\n`);
+	await git(
+		root,
+		["fast-import", "--quiet"],
+		[
+			"commit refs/heads/alternate",
+			"mark :1",
+			"committer Test <test@example.test> 1700000000 +0000",
+			"data 7",
+			"initial",
+			`M 100644 inline ${staged}`,
+			"data 8",
+			"initial\n",
+			`M 100644 inline ${unstaged}`,
+			"data 8",
+			"initial\n",
+			"",
+			"commit refs/heads/main",
+			"mark :2",
+			"committer Test <test@example.test> 1700000001 +0000",
+			"data 21",
+			"main dependency input",
+			"from :1",
+			`M 100644 inline ${alternateInput}`,
+			"data 19",
+			"# dependency input\n",
+			"",
+			"commit refs/heads/feature",
+			"committer Test <test@example.test> 1700000002 +0000",
+			"data 20",
+			"branch adapter input",
+			"from :2",
+			`M 100644 inline ${committed}`,
+			"data 13",
+			"branch input\n",
+			"",
+			"commit refs/heads/main",
+			"committer Test <test@example.test> 1700000003 +0000",
+			"data 14",
+			"divergent main",
+			"from :2",
+			"M 100644 inline main-only.md",
+			"data 28",
+			"not part of feature changes\n",
+			"",
+			"done\n",
+		].join("\n"),
+	);
+	await git(root, ["checkout", "--force", "feature"]);
 	await Bun.write(join(root, staged), "staged input\n");
 	await git(root, ["add", staged]);
 	await Bun.write(join(root, unstaged), "unstaged input\n");
 	await Bun.write(join(root, untracked), "untracked input\n");
 }
 
-async function git(root: string, args: string[]): Promise<void> {
+async function git(root: string, args: string[], input = ""): Promise<void> {
 	const child = Bun.spawn(
 		["git", "-c", "commit.gpgsign=false", "-c", "core.hooksPath=/dev/null", ...args],
 		{
@@ -82,6 +114,7 @@ async function git(root: string, args: string[]): Promise<void> {
 				GIT_CONFIG_GLOBAL: "/dev/null",
 				GIT_CONFIG_NOSYSTEM: "1",
 			},
+			stdin: new Blob([input]),
 			stdout: "pipe",
 			stderr: "pipe",
 		},

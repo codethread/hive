@@ -2,16 +2,16 @@
 
 ## Native contract tests
 
-Run `bun run test:contracts` for Beads, BV and Honeycomb local Git ref contracts, including after changing installed `br`, `bv` or `git` outside Git and before adopting a new native dependency pin.
+Run `bun run test:contracts` for Beads, BV and Honeycomb's local Git ref and worktree inventory contracts, including after changing installed `br`, `bv` or `git` outside the repository diff and before adopting a new native dependency pin.
 
 `test:all` and `test:changed` select native contracts independently of ordinary Bun discovery:
 
 - Beads source or manifest changes select Beads contracts and BV's Beads-dependent fixture.
 - BV implementation/tests, its execution helper or Shared manifest/runtime configuration select BV contracts.
-- Honeycomb contracts are selected by these paths under `lib/honeycomb/`: `src/application/branches.ts`, `src/services.ts`, `src/errors.ts`, `src/git/{error,executor,worktrees}.ts`, `tests/integration/{lifecycle-helpers,support}.ts`, `package.json` and `tsconfig.json`.
+- Honeycomb's ref/inventory boundaries, consumed worktree model, live dependency composition, integration support and package/runtime inputs select Honeycomb contracts.
 - Contract-directory changes select their own suite; root dependency/runtime and test-runner/selection changes select all three.
 
-Consumer-only changes do not select native contracts. Selected suites run in full regardless of ordinary-suite file/name filters. [`test-selection.ts`](src/test-selection.ts) owns the exact inputs; [`test-runner.ts`](src/test-runner.ts) owns comparison references and argument handling. Selection does not grant a [timing allowance](#allowed-slow-tests).
+Consumer-only changes, including Honeycomb's `pick` and `query` commands, do not select native contracts. Selected suites run in full regardless of ordinary-suite file/name filters. [`test-selection.ts`](src/test-selection.ts) owns the exact inputs; [`test-runner.ts`](src/test-runner.ts) owns comparison references and argument handling. Selection does not grant a [timing allowance](#allowed-slow-tests).
 
 ### Beads contract tests
 
@@ -24,6 +24,10 @@ The [BV native contract](../shared/tests/contract/bv.test.ts) covers selected SQ
 ### Honeycomb contract tests
 
 The [local Git ref contract](../honeycomb/tests/contract/local-git-refs.test.ts) checks live/fixture parity for default designation, exact ref presence and commit resolution, including annotated tags and missing/non-commit refs. It also checks invalid default namespaces and Git read errors. Offline policy tests use the [typed fixture](../honeycomb/tests/contract/local-git-refs-fixture.ts); [native add tests](../honeycomb/tests/integration/add-offline.test.ts) retain checkout, canonical safety and missing-object boundaries.
+
+The [worktree inventory contract](../honeycomb/tests/contract/worktree-inventory.test.ts) compares live Git and the [memory adapter](../honeycomb/tests/contract/worktree-inventory-fixture.ts) against the package-local [`WorktreeInventory`](../honeycomb/src/git/worktrees.ts) contract. The fixture accepts explicit repository/cwd aliases, copies seed and returned records, and provides replacement and named-failure controls; it does not emulate Git or filesystem path resolution.
+
+[Picker](../honeycomb/tests/unit/pick.test.ts) and [root/list policy tests](../honeycomb/tests/unit/query-inventory.test.ts) use that adapter with [no-I/O defaults](../honeycomb/tests/unit/policy-fixture.ts). Native [picker](../honeycomb/tests/integration/pick.test.ts) and [query](../honeycomb/tests/integration/query.test.ts) tests retain wiring and malformed-config coverage; [parser tests](../honeycomb/tests/unit/worktrees.test.ts) retain porcelain translation coverage.
 
 ## Test timing report and landing gate
 

@@ -1,7 +1,14 @@
 import { EXIT_CODES, dispatch } from "../../src/index";
 // oxlint-disable-next-line import/no-nodejs-modules -- Integration fixtures exercise real filesystem IO.
 import { chmod, readFile, writeFile } from "node:fs/promises";
-import { commitFile, deps, pathExists, useOriginFixture, writeConfig } from "./support.ts";
+import {
+	commitFile,
+	createWorktree,
+	deps,
+	pathExists,
+	useOriginFixture,
+	writeConfig,
+} from "./support.ts";
 import { expect, test } from "bun:test";
 import { finishArgs, finishPolicy, readCheckoutState, readFinishState } from "./finish-helpers.ts";
 import { gitOut, gitSucceeds, useTmpHome } from "./lifecycle-helpers.ts";
@@ -101,12 +108,7 @@ async function addSource(root: string, strategy: string, fresh = false): Promise
 		tmp: tmp.dir,
 		copyToml: finishPolicy(strategy, fresh, true),
 	});
-	const added = await dispatch(
-		"add",
-		["--cwd", root, "--branch", "feature/preview", "--json"],
-		deps,
-	);
-	expect(added.exitCode).toBe(EXIT_CODES.SUCCESS);
+	await createWorktree({ root, branch: "feature/preview", path: `${root}__feature--preview` });
 	return `${root}__feature--preview`;
 }
 

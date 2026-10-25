@@ -27,12 +27,12 @@ import {
 	writeProjectLock,
 } from "./project.ts";
 import type { BeadsService } from "@hive/beads";
+import type { BvRecipeFiles } from "./bv-recipes.ts";
 import type { OnboardingConfig } from "./onboarding.ts";
 import type { WorkspaceIO } from "./services.ts";
 import { applyOnboarding } from "./onboarding.ts";
 import { bindCheckout } from "./binding.ts";
 import { bootstrapHooks } from "./husky.ts";
-import { bvRecipeFiles } from "./bv-recipe-source.ts";
 import { installBvRecipes } from "./bv-recipes.ts";
 import { setupReadiness } from "./readiness.ts";
 import { trackerRoot } from "./beads/environment.ts";
@@ -110,6 +110,8 @@ export interface SetupOperations {
 }
 
 export interface SetupDependencies extends WorkspaceIO {
+	/** Recipe file adapter composed at the application boundary. */
+	bvRecipeFiles: BvRecipeFiles;
 	/** Native tracker configuration used only during explicit setup/update/sync. */
 	nativeBeads: Pick<BeadsService, "config">;
 	/** Native context read once by the application entry point. */
@@ -244,7 +246,7 @@ export async function setupRepository(options: SetupOptions, deps: SetupDependen
 		if (database !== "") {
 			checkouts.push(trackerRoot(database));
 		}
-		bvRecipes.push(...(await installBvRecipes(checkouts, bvRecipeFiles(deps))));
+		bvRecipes.push(...(await installBvRecipes(checkouts, deps.bvRecipeFiles)));
 		completed.push("bv_recipes");
 		await bootstrapHooks(options.repo, options.config.bootstrap.hooks, deps);
 		completed.push("hooks");

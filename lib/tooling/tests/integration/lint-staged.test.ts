@@ -64,7 +64,7 @@ done
 `,
 	);
 	await chmod(formatter, executableMode);
-	await git(["init", "--initial-branch=tracker/state"], root, env);
+	await git(["init", "--initial-branch=tracker/state", "--template="], root, env);
 	await Bun.write(join(root, trackerFile), '{"generation":0}\n');
 	await git(["add", "--", trackerFile], root, env);
 	await git(["commit", "-m", "fixture"], root, env);

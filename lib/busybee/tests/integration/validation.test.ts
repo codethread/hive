@@ -1,8 +1,8 @@
-// Integration tests create isolated author modules with independent dependency copies.
+// The import contract uses independent on-disk dependency copies.
 /* eslint-disable import/no-nodejs-modules */
-import { assign, createMachine } from "xstate";
+import { assign, createMachine, setup } from "xstate";
+import { basename, dirname, join } from "node:path";
 import { cp, mkdtemp, rm } from "node:fs/promises";
-import { dirname, join } from "node:path";
 import { expect, test } from "bun:test";
 import type { Services } from "../../src/native.ts";
 import { createMemoryBeads } from "@hive/beads";
@@ -123,8 +123,13 @@ test("validate supplied-input without a tracker or live actor #test-61", async (
 			Promise.resolve({
 				...commonDefinition,
 				inputSchema: schemas.request,
-				machine: createMachine({
-					context: ({ input }) => schemas.request.parse(input),
+				machine: setup({
+					types: {} as {
+						input: z.infer<typeof schemas.request>;
+						context: z.infer<typeof schemas.request>;
+					},
+				}).createMachine({
+					context: ({ input }) => input,
 					initial: "work",
 					states: {
 						work: {
@@ -155,7 +160,7 @@ test("validate supplied-input without a tracker or live actor #test-61", async (
 	await assertNoEffects(fixture);
 });
 
-test("global CLI loads repository machines and schemas from independent dependency copies #test-56", async () => {
+test("CLI validation loads machines and schemas from independent dependency copies #test-56", async () => {
 	const root = await mkdtemp(join(tmpdir(), "busybee-validation-"));
 	try {
 		const source = await writeIndependentDefinition(join(root, "independent"));
@@ -182,7 +187,13 @@ async function writeIndependentDefinition(directory: string): Promise<string> {
 			cp(
 				dirname(import.meta.resolve(`${name}/package.json`).replace("file://", "")),
 				join(directory, "node_modules", name),
-				{ recursive: true },
+				{
+					recursive: true,
+					filter: (source) =>
+						!source.includes("/src/") &&
+						!source.endsWith("/src") &&
+						(!basename(source).includes(".") || /\.(?:js|mjs|json)$/u.test(source)),
+				},
 			),
 		),
 	);

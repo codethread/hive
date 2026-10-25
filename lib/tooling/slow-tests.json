@@ -2380,6 +2380,26 @@
 		"#test-678": {
 			"threshold": "SLOW",
 			"justification": "User approved retaining measured timing-only blockers during the BV landing on 2026-10-23. lib/shared/src/spawn-request.test.ts: malformed assignment %j fails at the native boundary. Observed integrated full-check runtime: 2.784ms."
+		},
+		"#test-679": {
+			"threshold": "XSLOW",
+			"justification": "User approved this allowance on 2026-10-25 (hv-qur5kc, comment 45988). lib/honeycomb/tests/contract/worktree-inventory.test.ts: worktree inventory shares ordered paths, flags, aliases and fresh observations with native Git. After setup reduction, fresh focused, strict changed and full runs measured 247.240–420.298ms, including native setup and cleanup. Live/memory parity validates the inventory fixture used by policy tests."
+		},
+		"#test-680": {
+			"threshold": "XSLOW",
+			"justification": "User approved this allowance on 2026-10-25 (hv-qur5kc, comment 45988). lib/honeycomb/tests/contract/worktree-inventory.test.ts: worktree inventory preserves bare and unborn HEAD representations. After setup reduction, fresh focused, strict changed and full runs measured 35.886–89.915ms, including native setup and cleanup. Live/memory parity validates the inventory fixture used by policy tests."
+		},
+		"#test-681": {
+			"threshold": "SLOW",
+			"justification": "User approved this allowance on 2026-10-25 (hv-qur5kc, comment 45988). lib/honeycomb/tests/contract/worktree-inventory.test.ts: worktree inventory rejects an actual non-repository and an unknown memory cwd. After setup reduction, fresh focused, strict changed and full runs measured 7.616–11.048ms, including temporary-directory setup, the failed native Git read and cleanup. Live/memory parity validates the inventory fixture used by policy tests."
+		},
+		"#test-682": {
+			"threshold": "XSLOW",
+			"justification": "User approved this XSLOW exception on 2026-10-25: 'Approve these two exceptions' (question call_18d5df72ddda44a286d2ed378654d1f4; receipt /tmp/test-buffer-colony-native-allowance-approval.txt). lib/colony/src/inspection.test.ts retains full repository inspection and selected-request explain JSON across independent 0/1000-history SQLite stores, with real Unix socket/CLI composition and a memory tracker. Cold store creation, history seeding, calls and cleanup remain inside the measured test. Approval cited 49–56ms; /tmp/test-buffer-colony-native-root-changed.log and /tmp/test-buffer-colony-native-root-check.log measured 54.195ms and 55.962ms; fresh-process samples measured 48.77–52.78ms. Later /tmp/test-buffer-combined-check-4.log measured 66.453ms, still XSLOW; this does not revise the original approval range. The allowance changes the gate, not the cost or assertions."
+		},
+		"#test-683": {
+			"threshold": "SLOW",
+			"justification": "User approved this SLOW exception on 2026-10-25: 'Approve these two exceptions' (question call_18d5df72ddda44a286d2ed378654d1f4; receipt /tmp/test-buffer-colony-native-allowance-approval.txt). lib/colony/src/inspection.test.ts preserves native tracker evidence from a memory tracker when the selected runtime returns an error or its socket is unavailable, without falling back. Cold directory/tracker setup, real Unix socket/CLI calls and cleanup remain inside the measured test. Approval cited 2.3–5.2ms; /tmp/test-buffer-colony-native-root-changed.log and /tmp/test-buffer-colony-native-root-check.log measured 2.325ms and 5.170ms; fresh-process samples measured 2.32–2.41ms. The allowance changes the gate, not the cost or assertions."
 		}
 	}
 }

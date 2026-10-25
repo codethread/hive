@@ -1,5 +1,12 @@
 import { EXIT_CODES, UsageError, dispatch } from "../../src/index";
-import { commitFile, deps, pathExists, useOriginFixture, writeConfig } from "./support.ts";
+import {
+	commitFile,
+	createWorktree,
+	deps,
+	pathExists,
+	useOriginFixture,
+	writeConfig,
+} from "./support.ts";
 import { expect, test } from "bun:test";
 import { gitSucceeds, useTmpHome } from "./lifecycle-helpers.ts";
 // oxlint-disable-next-line import/no-nodejs-modules -- Integration fixtures exercise real filesystem IO.
@@ -13,7 +20,7 @@ const { initRepoWithOrigin } = useOriginFixture();
 async function setupUnmergedWorktree(home: string, branch: string) {
 	const { root } = await initRepoWithOrigin(home);
 	writeConfig({ command: "echo ready", root, tmp: home });
-	await dispatch("add", ["--cwd", root, "--branch", branch, "--json"], deps);
+	await createWorktree({ root, branch, path: `${root}__${branch.replaceAll("/", "--")}` });
 	const path = `${root}__${branch.replaceAll("/", "--")}`;
 	await commitFile({ content: "work\n", message: "unmerged", path: "unmerged.txt", repo: path });
 	return { path, root };
@@ -22,7 +29,7 @@ async function setupUnmergedWorktree(home: string, branch: string) {
 test("removes a non-pool worktree and branch #test-228", async () => {
 	const { root } = await initRepoWithOrigin(tmp.dir);
 	writeConfig({ command: "echo ready", root, tmp: tmp.dir });
-	await dispatch("add", ["--cwd", root, "--branch", "feature/remove", "--json"], deps);
+	await createWorktree({ root, branch: "feature/remove", path: `${root}__feature--remove` });
 
 	const result = await dispatch(
 		"remove",
@@ -48,7 +55,7 @@ test("removes a non-pool worktree and branch #test-228", async () => {
 test("removes the worktree containing --cwd with boolean --self #test-230", async () => {
 	const { root } = await initRepoWithOrigin(tmp.dir);
 	writeConfig({ command: "echo ready", root, tmp: tmp.dir });
-	await dispatch("add", ["--cwd", root, "--branch", "feature/self", "--json"], deps);
+	await createWorktree({ root, branch: "feature/self", path: `${root}__feature--self` });
 	const worktreePath = `${root}__feature--self`;
 	const nested = join(worktreePath, "nested");
 	await mkdir(nested, { recursive: true });
@@ -66,7 +73,11 @@ test("removes the worktree containing --cwd with boolean --self #test-230", asyn
 test("non-json remove prints a one-line summary to stderr #test-229", async () => {
 	const { root } = await initRepoWithOrigin(tmp.dir);
 	writeConfig({ command: "echo ready", root, tmp: tmp.dir });
-	await dispatch("add", ["--cwd", root, "--branch", "feature/human-remove", "--json"], deps);
+	await createWorktree({
+		root,
+		branch: "feature/human-remove",
+		path: `${root}__feature--human-remove`,
+	});
 
 	const result = await dispatch(
 		"remove",
@@ -82,7 +93,7 @@ test("non-json remove prints a one-line summary to stderr #test-229", async () =
 test("removes non-pool branches whose encoded paths resemble pool slots #test-231", async () => {
 	const { root } = await initRepoWithOrigin(tmp.dir);
 	writeConfig({ command: "echo ready", root, tmp: tmp.dir });
-	await dispatch("add", ["--cwd", root, "--branch", "feat1", "--json"], deps);
+	await createWorktree({ root, branch: "feat1", path: `${root}__feat1` });
 
 	await dispatch("remove", ["--cwd", root, "--branch", "feat1", "--json"], deps);
 

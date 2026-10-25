@@ -1,5 +1,6 @@
-// :module: Pure parsers for git worktree and branch command output
+// :module: Worktree inventory boundary and Git worktree/branch output parsers
 
+import type { GitRunner } from "../services.ts";
 import type { Worktree } from "../domain/worktree.ts";
 
 const REF_HEADS_PREFIX = "refs/heads/";
@@ -16,6 +17,28 @@ interface RecordFields {
 	attributes: Map<string, string>;
 	/** Standalone markers such as detached, bare, or locked. */
 	flags: Set<string>;
+}
+
+/** Package-local read boundary for Git's registered worktrees. */
+export interface WorktreeInventory {
+	/**
+	 * Return fresh, independently mutable records for the repository containing cwd, in Git's order.
+	 * Preserve parsed Worktree metadata, including bare/unborn entries, flags, nulls and pool identity.
+	 * Read only: no config loading, filtering, sorting, slot synthesis or repair.
+	 * Failures reject; separate reads need not observe the same repository state.
+	 */
+	list: (cwd: string) => Promise<Worktree[]>;
+}
+
+/** Bind inventory reads to the supplied runner's Git policy. */
+export function createGitWorktreeInventory(git: GitRunner): WorktreeInventory {
+	return { list: (cwd) => listWorktrees(git, cwd) };
+}
+
+/** Native entry point for operations using their own runner rather than Deps.worktrees. */
+export async function listWorktrees(git: GitRunner, cwd: string): Promise<Worktree[]> {
+	const result = await git.run(["-C", cwd, "worktree", "list", "--porcelain"]);
+	return parseWorktreeList(result.stdout);
 }
 
 export function parseWorktreeList(porcelainOutput: string): Worktree[] {

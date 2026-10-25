@@ -4,6 +4,7 @@ import {
 	commitFile,
 	createTestCdDirective,
 	createTestMultiplexer,
+	createWorktree,
 	pathExists,
 	restoreTestEnv,
 	setTestEnv,
@@ -115,7 +116,7 @@ describe("honeycomb --interactive add", () => {
 describe("honeycomb --interactive remove", () => {
 	test("remove from inside the worktree writes the canonical root, then closes sessions last #test-222", async () => {
 		const { deps, log } = interactiveDeps();
-		await dispatch("add", ["--cwd", root, "--branch", "feature/leave", "--json"], deps);
+		await createWorktree({ root, branch: "feature/leave", path: `${root}__feature--leave` });
 		const worktreePath = `${root}__feature--leave`;
 
 		const result = await dispatch(
@@ -134,7 +135,7 @@ describe("honeycomb --interactive remove", () => {
 
 	test("remove from outside the worktree closes sessions without a cd directive #test-220", async () => {
 		const { deps, log } = interactiveDeps();
-		await dispatch("add", ["--cwd", root, "--branch", "feature/other", "--json"], deps);
+		await createWorktree({ root, branch: "feature/other", path: `${root}__feature--other` });
 
 		await run(
 			"remove",
@@ -169,7 +170,7 @@ describe("honeycomb --interactive sessions", () => {
 
 	test("session failures warn without undoing the removal #test-219", async () => {
 		const { deps, warnings } = interactiveDeps();
-		await dispatch("add", ["--cwd", root, "--branch", "feature/warn", "--json"], deps);
+		await createWorktree({ root, branch: "feature/warn", path: `${root}__feature--warn` });
 		warnings.length = 0;
 		deps.multiplexer.closeUnder = () => Promise.reject(new Error("tmux exploded"));
 
@@ -194,7 +195,7 @@ describe("honeycomb --interactive finish", () => {
 			tmp,
 		});
 		const { deps, log } = interactiveDeps();
-		await dispatch("add", ["--cwd", root, "--branch", "feature/finish", "--json"], deps);
+		await createWorktree({ root, branch: "feature/finish", path: `${root}__feature--finish` });
 		const worktreePath = `${root}__feature--finish`;
 		await commitFile({ content: "a\n", message: "work", path: "a.txt", repo: worktreePath });
 
@@ -212,7 +213,7 @@ describe("honeycomb --interactive finish", () => {
 
 	test("finish without cleanup leaves sessions alone #test-216", async () => {
 		const { deps, log } = interactiveDeps();
-		await dispatch("add", ["--cwd", root, "--branch", "feature/keep", "--json"], deps);
+		await createWorktree({ root, branch: "feature/keep", path: `${root}__feature--keep` });
 		const worktreePath = `${root}__feature--keep`;
 		await commitFile({ content: "b\n", message: "work", path: "b.txt", repo: worktreePath });
 

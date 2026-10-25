@@ -4,6 +4,7 @@ import { afterEach, beforeEach, expect, test } from "bun:test";
 // oxlint-disable-next-line import/no-nodejs-modules
 import { basename, join } from "node:path";
 import {
+	createWorktree,
 	deps,
 	pathExists,
 	restoreTestEnv,
@@ -51,7 +52,11 @@ test("symlink source files fail as config errors in copy mode #test-189", async 
 	await writeFile(join(root, ".env.real"), "real\n");
 	await symlink(".env.real", join(root, ".env.link"));
 	writeConfig({ command: "echo ready", root, tmp });
-	await dispatch("add", ["--cwd", root, "--branch", "feature/symlink-source", "--json"], deps);
+	await createWorktree({
+		root,
+		branch: "feature/symlink-source",
+		path: `${root}__feature--symlink-source`,
+	});
 	writeConfig({ command: "echo ready", copyToml: 'copy = [".env.link"]\n', root, tmp });
 
 	const result = await dispatch(
@@ -73,7 +78,11 @@ async function initSymlinkSource() {
 		root,
 		tmp,
 	});
-	await dispatch("add", ["--cwd", root, "--branch", "feature/symlink-mode", "--json"], deps);
+	await createWorktree({
+		root,
+		branch: "feature/symlink-mode",
+		path: `${root}__feature--symlink-mode`,
+	});
 	const worktreePath = `${root}__feature--symlink-mode`;
 	return { externalTarget, root, worktreePath };
 }
@@ -98,7 +107,7 @@ test("copy preflights all entries before replacing destinations #test-192", asyn
 	const { root } = await initRepoWithOrigin(tmp);
 	await writeFile(join(root, ".env"), "source\n");
 	writeConfig({ command: "echo ready", root, tmp });
-	await dispatch("add", ["--cwd", root, "--branch", "feature/preflight", "--json"], deps);
+	await createWorktree({ root, branch: "feature/preflight", path: `${root}__feature--preflight` });
 	writeConfig({ command: "echo ready", copyToml: 'copy = [".env", ".env.missing"]\n', root, tmp });
 	const worktreePath = `${root}__feature--preflight`;
 	await writeFile(join(worktreePath, ".env"), "do not replace\n");
@@ -170,7 +179,11 @@ test(
 				root,
 				tmp,
 			});
-			await dispatch("add", ["--cwd", root, "--branch", "feature/object-files", "--json"], deps);
+			await createWorktree({
+				root,
+				branch: "feature/object-files",
+				path: `${root}__feature--object-files`,
+			});
 			const worktreePath = `${root}__feature--object-files`;
 
 			const result = await dispatch("copy", ["--cwd", worktreePath, "--json"], deps);
@@ -195,7 +208,7 @@ async function initDirectorySource() {
 		root,
 		tmp,
 	});
-	await dispatch("add", ["--cwd", root, "--branch", "feature/dir-copy", "--json"], deps);
+	await createWorktree({ root, branch: "feature/dir-copy", path: `${root}__feature--dir-copy` });
 	const worktreePath = `${root}__feature--dir-copy`;
 	return { root, worktreePath };
 }
@@ -232,7 +245,7 @@ test("env-var and glob-looking object sources are treated literally #test-191", 
 		root,
 		tmp,
 	});
-	await dispatch("add", ["--cwd", root, "--branch", "feature/literal", "--json"], deps);
+	await createWorktree({ root, branch: "feature/literal", path: `${root}__feature--literal` });
 
 	await dispatch("copy", ["--cwd", `${root}__feature--literal`], deps);
 
