@@ -20,7 +20,7 @@ For harness onboarding, follow setup/update help for selection and trust require
 
 Selected adapters deliver the offline primer and observe tracker alerts at harness callbacks. Verify both delivery paths in the execution checkout; generated files alone do not establish runtime delivery or writer quiescence.
 
-For the optional customizable `hive` workflow, use setup's `--install-workflow-skill` only when requested. Follow `beeswax setup --help` for prerequisites, destinations and preservation rules. Review and commit the installed files and links; verify skill discovery separately from primer delivery. Use deliberate manual review for later workflow updates.
+For the optional customizable `hive` workflow, use setup's `--install-workflow-skill` only when requested. Follow `beeswax setup --help` for prerequisites, destinations and preservation rules. Review and commit the installed files and links; verify workflow discovery in the execution checkout. Use deliberate manual review for later workflow updates.
 
 ## Complete the handoff
 
