@@ -45,7 +45,13 @@ const nestedDefinition = {
 		initial: "group",
 		states: {
 			group: {
-				meta: { title: "Group", task: () => ({ instructions: "Complete nested work" }) },
+				meta: {
+					title: "Group",
+					task: () => ({
+						acceptanceCriteria: "- [ ] Nested work verified",
+						instructions: "Complete nested work",
+					}),
+				},
 				invoke: { id: "child", src: "child", onDone: "done" },
 			},
 			done: { type: "final" },
@@ -187,6 +193,8 @@ test(
 		const worker = nestedRun.active.find((entry) => entry.title === "Work")!;
 		expect(worker.path).toEqual(["child"]);
 		const groupRecord = await beads.show(scope, group.bead);
+		expect(groupRecord.acceptance_criteria).toBe("- [ ] Nested work verified");
+		expect(groupRecord.description).not.toContain("Nested work verified");
 		expect(groupRecord.dependencies).toEqual([
 			expect.objectContaining({ id: nestedRun.id, dependency_type: "parent-child" }),
 		]);
@@ -206,6 +214,9 @@ test(
 			[parent.id, nestedRun.id, checkpoint.id, group.bead, worker.bead].toSorted(),
 		);
 		await beads.close(scope, worker.bead);
+		await beads.update(scope, [group.bead], {
+			acceptanceCriteria: "- [x] Nested work verified",
+		});
 		const done = await navigate(
 			{ id: nestedRun.id, operation: "submit", bead: worker.bead, choice: "next", data: {} },
 			{},

@@ -13,9 +13,12 @@ const beeKindSchema = z.object({ kind: text }).nullable().optional();
 const commandsSchema = z.record(z.string(), text);
 const commandSchemasSchema = z.record(z.string(), z.instanceof(z.ZodType));
 const contextSchema = z.compile(z.record(z.string(), z.unknown()));
-export const briefSchema = z.compile(z.object({ description: z.string(), title: text }));
+export const briefSchema = z.compile(
+	z.object({ acceptanceCriteria: z.string().optional(), description: z.string(), title: text }),
+);
 export const resolvedTaskSchema = z.compile(
 	z.object({
+		acceptanceCriteria: z.string().optional(),
 		bee: beeKindSchema,
 		commands: commandsSchema.optional(),
 		instructions: z.string(),
@@ -44,7 +47,7 @@ export interface Metadata {
 	task: (input: TaskContext) => unknown;
 }
 export const metadataSchema = z.compile(
-	resolvedTaskSchema.omit({ instructions: true }).extend({
+	resolvedTaskSchema.omit({ acceptanceCriteria: true, instructions: true }).extend({
 		task: z.custom<Metadata["task"]>(callable),
 	}),
 );

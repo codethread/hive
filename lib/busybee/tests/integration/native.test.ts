@@ -27,6 +27,7 @@ describe("native tracker routing", () => {
 		const id = await createTask(
 			endpoint,
 			{
+				acceptanceCriteria: "- [ ] Native acceptance is stored separately",
 				description: "Check native repository selection",
 				labels: [],
 				owner: fixture.options.owner,
@@ -36,6 +37,7 @@ describe("native tracker routing", () => {
 			fixture.services,
 		);
 		await expect(readBead(fixture.options, id, fixture.services)).resolves.toMatchObject({
+			acceptance_criteria: "- [ ] Native acceptance is stored separately",
 			created_by: fixture.options.actor,
 			description: "Check native repository selection",
 			id,

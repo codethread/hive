@@ -51,6 +51,8 @@ test("start publishes an initial worker and one JSON success document through th
 	const writes: string[] = [];
 	const frozenInstructions = "Complete work\n".repeat(LONG_BRIEF_REPETITIONS);
 	let instructions = frozenInstructions;
+	const frozenAcceptance = "- [ ] Worker outcome verified";
+	let acceptanceCriteria = frozenAcceptance;
 	const definition = {
 		commandSchemas: { next: z.object({}) },
 		inputSchema: z.object({}),
@@ -61,7 +63,7 @@ test("start publishes an initial worker and one JSON success document through th
 				work: {
 					meta: {
 						title: "Worker",
-						task: () => ({ instructions }),
+						task: () => ({ acceptanceCriteria, instructions }),
 						commands: { next: "NEXT" },
 					},
 					on: { NEXT: "done" },
@@ -69,7 +71,11 @@ test("start publishes an initial worker and one JSON success document through th
 				done: { type: "final" },
 			},
 		}),
-		runBrief: () => ({ title: "Example", description: "Example workflow" }),
+		runBrief: () => ({
+			title: "Example",
+			description: "Example workflow",
+			acceptanceCriteria: "- [ ] Workflow outcome verified",
+		}),
 	};
 	const startServices: Services = {
 		...createServices(),
@@ -138,6 +144,7 @@ test("start publishes an initial worker and one JSON success document through th
 	const endpoint = { db: startDb, repo: root };
 	const run = await readBead(endpoint, started.id, startServices);
 	expect(run).toMatchObject({
+		acceptance_criteria: "- [ ] Workflow outcome verified",
 		assignee: "starting-agent",
 		created_by: "starting-agent",
 		owner: "responsible-human",
@@ -149,6 +156,7 @@ test("start publishes an initial worker and one JSON success document through th
 	await expect(
 		readBead(endpoint, started.active[FIRST]!.bead, startServices),
 	).resolves.toMatchObject({
+		acceptance_criteria: frozenAcceptance,
 		assignee: "starting-agent",
 		created_by: "starting-agent",
 		dependencies: [{ dependency_type: "parent-child", id: started.id }],
@@ -179,6 +187,7 @@ test("start publishes an initial worker and one JSON success document through th
 			.flatMap(({ operation }) => ["beforeWrite", operation]),
 	);
 	instructions = "Changed renderer after publication";
+	acceptanceCriteria = "- [ ] Changed acceptance after publication";
 	const shown = await invoke(["show", started.id], startServices);
 	expect(shown.code).toBe(SUCCESS);
 	expect(shown.document).toMatchObject({ kind: "show", ok: true, ...started });
@@ -192,8 +201,18 @@ test("start publishes an initial worker and one JSON success document through th
 		active: [{ ...started.active[FIRST], instructions: frozenInstructions }],
 	});
 	expect(expanded.stdout).not.toContain("raw-actor-context");
+	expect(readCheckpoint(saved).active[FIRST]!.meta.acceptanceCriteria).toBe(frozenAcceptance);
+	const shownStage = await readBead(endpoint, started.active[FIRST]!.bead, startServices);
+	expect(shownStage.acceptance_criteria).toBe(frozenAcceptance);
 	expect(Buffer.byteLength(shown.stdout)).toBeLessThan(
 		Buffer.byteLength(expanded.stdout) / SIZE_REDUCTION_FACTOR,
+	);
+	await beads.update(
+		{ actor: "starting-agent", cwd: root, db: startDb },
+		[started.active[FIRST]!.bead],
+		{
+			acceptanceCriteria: "- [x] Worker outcome verified",
+		},
 	);
 	const collected = await invoke(
 		["--actor", "starting-agent", "collect", started.id],
@@ -203,6 +222,12 @@ test("start publishes an initial worker and one JSON success document through th
 	expect(collected.document).toMatchObject({ kind: "collect", ok: true, ...started });
 	expect(collected.stdout).not.toContain("Complete work");
 	expect(collected.stdout).not.toContain("raw-actor-context");
+	const collectedStage = await readBead(endpoint, started.active[FIRST]!.bead, startServices);
+	expect(collectedStage.acceptance_criteria).toBe("- [x] Worker outcome verified");
+	expect(
+		readCheckpoint(await beads.show({ cwd: root, db: startDb }, checkpoint.id)).active[FIRST]!.meta
+			.acceptanceCriteria,
+	).toBe(frozenAcceptance);
 });
 // Inspect the complete recovery diagnostic and preservation proof together.
 // eslint-disable-next-line max-statements

@@ -11,7 +11,7 @@ Export the following from a JavaScript or TypeScript module:
 | `machine` | XState v5 machine with pure workflow actions; Busy Bee publishes native effects after advancement |
 | `inputSchema` | Zod schema for creation input only; not used to validate persisted context on resume |
 | `resumeSchema` (optional) | Zod schema for persisted root actor context, checked by preflight |
-| `runBrief(input)` | Returns `{title, description}` for the run bead |
+| `runBrief(input)` | Returns `{title, description, acceptanceCriteria?}` for the run bead; `acceptanceCriteria` is an optional string |
 | `commandSchemas` | Maps outcome names to Zod payload schemas; use `z.object({})` for no payload |
 | `validateCommand(entry, command, data)` (optional) | Checks context-dependent constraints after schema parsing; throws to reject |
 | `inputConstraints` (optional) | Readable initial-input constraints |
@@ -20,6 +20,10 @@ Export the following from a JavaScript or TypeScript module:
 [definition.ts](../lib/busybee/src/definition.ts) defines the types and boundary schemas. For library callers, `@hive/busybee` exports the operations in [runtime.ts](../lib/busybee/src/runtime.ts); these return plain result objects, and the CLI adds the terminal envelope. Root creation through `start` or `startNamed` requires `options.parent` naming existing nonclosed ordinary work in the selected tracker, separately from definition input. Nested actors use their containing group; they do not initialize another root run. Bee transports the parent separately from initial input. Definitions own run titles through `runBrief`; the default `do-work` author uses `Do work: <title>` for the run and the caller title for its work stage. Other definitions keep their own title and assignment rendering.
 
 A non-final state with `meta.title` creates a bead. Every such state supplies `meta.task({context})`, returning instructions and optional metadata overrides such as title or `bee: {kind}`. Worker states map outcome names to events in `meta.commands`; containers omit commands. Final states create no worker beads, even when titled. Runner command names such as `show` and `collect` are valid author outcomes too.
+
+Return optional `acceptanceCriteria: string` from `runBrief` for the run or from `meta.task` for a worker or group. Task callbacks own this field; static `meta.acceptanceCriteria` is not a default. Busy Bee passes it unchanged to that bead's native `acceptance_criteria`, separate from its description. Keep criteria out of `description` and `instructions`; omission remains valid, and the engine neither extracts criteria from prose nor backfills existing beads.
+
+Native Beads remains the [closure authority](../lib/busybee/SPEC.md#work-and-progression). Busy Bee never ticks criteria. For run or group criteria, assign verification and native checklist updates to a reachable task before engine-owned closure; use criteria that express real coordination acceptance.
 
 Creation provenance and dispatch are separate. Generated worker visits are workflow auto beads whether driver-handled (no `bee`) or Bee-dispatched (`bee: {kind}`). Agent-created supporting work is manual even when nested beneath the run; parent-child links alone do not establish workflow generation. The related workflow system bead stores the run's checkpoint. See the [shared vocabulary](../GLOSSARY.md#workflows).
 
@@ -58,7 +62,7 @@ Within a compatible release, preserve the contracts already stored by a run:
 
 - Keep state node IDs and child actor routes restorable. Renaming or removing states referenced by saved snapshots can break restoration.
 - Keep persisted context understandable by guards, actions and render callbacks. Initial input parsing does not recreate or upgrade context on resume.
-- Preserve active visits' frozen command names, their event mappings and accepted payload meaning. Published briefs stay fixed even if the renderer changes for future visits.
+- Preserve active visits' frozen command names, their event mappings and accepted payload meaning. Published briefs, including authored acceptance criteria, retain their creation-time rendering even if the renderer changes for future visits. Native `acceptance_criteria` remains authoritative and editable; restore and rendering preserve later native edits, including checklist ticks.
 - Preserve completed work's meaning. A new mandatory prerequisite inserted before work already completed cannot be enforced by restoring that snapshot; it breaks compatibility.
 
 For versions at or above `1.0.0`, use a major bump when these contracts break. Before `1.0.0`, cross the caret boundary (`0.2.x` to `0.3.0`, or `0.0.3` to `0.0.4`). A patch can fix instructions or computation while preserving these contracts; a minor can add compatible future work or choices without changing frozen active commands. The version is an author's promise, not an engine proof.
@@ -127,7 +131,8 @@ Use the same callback form for context-dependent briefs:
 
 ```ts
 task: ({ context }: { context: ReviewContext }) => ({
-	instructions: `Review revision ${context.revision}. Record evidence for each finding.`,
+	instructions: `Review revision ${context.revision}.`,
+	acceptanceCriteria: "- [ ] Findings or a no-findings conclusion are recorded with evidence.",
 }),
 ```
 
