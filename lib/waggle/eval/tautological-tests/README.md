@@ -105,3 +105,22 @@ The first live run, recorded at `2026-10-25T11:53:15.011Z` using `jev-1.14.0`, c
 The rubric was refined to give independently required values and formulas precedence over textual similarity, and to treat supplied applicable hooks as part of the selected execution without demanding standalone lexical wrappers. It also clarifies that a named requirement must actually be exercised, justified relations between separate executions are not self-equality, and a missing relevant helper can prevent a whole-case judgment despite a known behavioral assertion. No fixture inputs, expected labels or ranges changed. The card remains version 1 during pre-delivery development; retain a new full-run report for the refined card before presenting a final baseline.
 
 The initial report used the earlier envelope (`ok: true`, top-level `passed: false` for a completed mismatch run). Its row results support the counts above; the current runner uses the mismatch contract documented in this section.
+
+### Retained Codex comparison (2026-10-25)
+
+The [comparison artifact](codex-comparison-2026-10-25.json) records 61 completed `codex exec` calls: Luna 28, Sol 5 and Astra 28, all with low reasoning effort. They received the same questions and evidence state as JEV, with fixture expectations withheld. Calls used an ephemeral session in an isolated empty directory, without tools, user configuration, plugins, hooks or host skills. Codex still added roughly 9,000 model-specific harness tokens per call. JEV results come from the earlier saved [baseline](baseline.json), not a concurrent rerun.
+
+Label matches were **JEV 28/28, Luna 26/28, Sol 5/5 and Astra 28/28**. Luna missed `mixed-assertions` and `setup-assigns-result`. Label agreement is separate from meeting every expected probability range: JEV met those ranges on 23/28 cases. Sol's coverage is incomplete: its first `independent-formula` attempt timed out after 180 seconds without saved usage; the retry received HTTP 429 with a 281-second backoff and was stopped.
+
+Costs below compare only the **same five completed fixtures** across all four models, not their unequal full-run totals:
+
+| Model                 | Estimated USD for the common five |
+| --------------------- | --------------------------------: |
+| JEV (`jev-1.14.0`)    |                        0.00028266 |
+| Luna (`gpt-6-luna`)   |                         0.0051972 |
+| Sol (`gpt-6.1-sol`)   |                         0.0906052 |
+| Astra (`gpt-6-astra`) |                           0.55157 |
+
+These are standard API-equivalent estimates from reported token usage, including observed caching and Codex harness overhead, not Codex subscription charges. The artifact retains fixture IDs, pricing sources and rates. Unknown usage from Sol's interrupted attempts and agent evidence-preparation/orchestration costs are excluded.
+
+This small development-fixture comparison supports JEV as a low-cost review aid for supplied evidence, not a universal deletion gate or mandatory agent workflow. LLM probabilities are generated estimates; label matches and range checks establish neither calibration nor generalization to held-out tests.
