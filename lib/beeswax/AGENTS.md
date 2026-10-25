@@ -2,6 +2,8 @@
 
 Read the [project contract](README.md#commit-the-project-contract) before changing generation or hook ownership.
 
+Injected startup instructions are already context: skills must neither refer to their source nor reload or repeat them. Maintain `skills/hive/` as the portable workflow; `.agents/skills/hive/` is a separate customizable copy.
+
 Keep the CLI and Clack wizard on one setup path, resolving options before effects.
 
 Automate recognizable version changes and replacements of clearly owned marker sections, preserving surrounding content. Fail on unfamiliar or ambiguous state with the observed state, intended result, affected paths and bundled guidance so an agent can resolve it with the user.

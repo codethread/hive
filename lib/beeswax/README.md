@@ -35,7 +35,7 @@ Use the filtered command in that instruction if needed. Filters affect tool rows
 
 For installed release provenance and source retrieval, use `beeswax info --help`. Binary installations do not include a source tree.
 
-For Hive-owned CLI improvements, breaking changes and adoption actions, follow prime's `<tool> changelog` pointer. External `br` and `bv` are outside that release-history contract. See [tool changelogs](../../docs/releases.md#read-tool-changelogs) for offline histories, version selection and how `beeswax update` selects Hive history pointers from `PATH`.
+For Hive-owned CLI improvements, breaking changes and adoption actions, run `<tool> changelog`. External `br` and `bv` are outside that release-history contract. See [tool changelogs](../../docs/releases.md#read-tool-changelogs) for offline histories, version selection and how `beeswax update` selects Hive history pointers from `PATH`.
 
 ## Configure a repository
 
@@ -45,7 +45,7 @@ Setup's readiness receipt separates configured artifacts from pending execution 
 
 ## Install a customizable workflow
 
-The optional `hive` skill supplies work conventions for routing requests, planning Beads tasks and coordinating completion. It is separate from prime's safety baseline and the installed tools' command manuals. Add `--install-workflow-skill` to an intended setup invocation, or choose the default-off wizard option. Read `beeswax setup --help` for prerequisites, harness selection, existing-content protection and failure handling.
+The optional `hive` skill supplies work conventions for routing requests, planning Beads tasks and coordinating completion. Add `--install-workflow-skill` to an intended setup invocation, or choose the default-off wizard option. Read `beeswax setup --help` for prerequisites, harness selection, existing-content protection and failure handling.
 
 For skill-only installation, run upstream directly from the consuming checkout, selecting the harnesses you use:
 
@@ -80,7 +80,7 @@ The adapters require `beeswax` and `scent` on the harness's `PATH`. Setup, sync 
 
 Read `beeswax update --help` for selection and filtering options. Unspecified headless options retain saved choices. Include/exclude filters affect primer guidance only, including the optional Scent help pointer; they do not enable or disable identity.
 
-Harness-discovered skill descriptions advertise when to load a skill; bodies and references enter context on demand. The primer's bundled-tool pointers work independently of harness skill discovery.
+Harness-discovered skill descriptions advertise when to load a skill; bodies and references enter context on demand.
 
 Alert callbacks read independent state for the selected tracker and deliver hold or clearance guidance. They are advisory: they neither prevent arbitrary native writes nor stop workers, and an idle session receives no immediate push. Existing sessions need the current adapter loaded; verify delivery in each supported harness before relying on it. A missing receipt or failed check cannot clear a hold already observed by a session.
 

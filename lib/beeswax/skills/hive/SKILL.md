@@ -1,11 +1,17 @@
 ---
 name: hive
-description: Plan, carry out and hand off Beads-tracked work in repositories using Hive. Use when recording work, choosing a task, implementing an assigned bead or coordinating a workflow run.
+description: Plan and coordinate Beads-tracked work with Hive. Use when creating or revising tasks, choosing or implementing work, delegating, recording decisions or progress, handing off or completing work, or coordinating a workflow run.
 ---
 
 # Work with Hive
 
-Use the consuming repository's instructions for human ownership, actor fallback, worktree policy, validation and publication checkpoints. This is a customizable workflow; installed CLI help and bundled instructions own command procedures. Load `beeswax prime` only if its shared safety and tool pointers are absent from context.
+Use the consuming repository's instructions for work policy, human ownership, actor fallback, worktrees, validation, review and publication checkpoints. This skill supplies customizable defaults for executable work; responses and reference records retain their own contracts. Installed CLI help and bundled instructions own command procedures.
+
+## Engine-managed work
+
+Before applying ordinary field or completion rules to Busy Bee work, preserve its stage result notes (`record-result`/`complete`), temporary run-note settlement intent and structured close reasons. Put narrative evidence in comments and, when authorized, the ordinary source task's current notes. Follow the active brief, `busybee skills get workflow-execution` and `busybee complete --help`; never directly close managed work or replace engine payloads with prose. Busy Bee alone closes groups and the run. These defaults do not establish producer compliance or native enforcement.
+
+For a supplied run, continue the saved run on retry; additional workflow work belongs beneath it.
 
 ## Route the request
 
@@ -18,14 +24,12 @@ Request
   +-- Choose work ----------------------> select a candidate; inspect it
 ```
 
-Start with `br show ID --json` for a supplied task. Questions need no bookkeeping task. Reuse existing scope when recording or implementing work; search only when the request leaves the task unidentified. When choosing work, use native readiness and, if useful, BV's advice through the tool pointers in prime.
+Start with `br show ID --json` for a supplied task. Questions need no bookkeeping task. Reuse existing scope when recording or implementing work; search only when the request leaves the task unidentified. When choosing work, use native readiness and, if useful, BV's advice.
 
-Before creating tasks or changing scope or dependencies, read [planning](references/planning.md). The result should name the authorized work and how completion will be verified.
+Before creating a task or changing its brief, acceptance, scope or dependencies, read [planning](references/planning.md) for field placement and creation gates.
 
 ## Carry the work through
 
-Before claiming, delegating, updating progress or closing a task, read [coordination](references/coordination.md). Record enough context for another session to resume the same scope.
-
-For a supplied Busy Bee run, follow `busybee skills get workflow-execution` and its active briefs. Continue the saved run on retry. The run's stages and outcome contracts govern execution; additional workflow work belongs beneath that run.
+Before claiming, delegating, recording decisions or progress, handing off or closing a task, read [coordination](references/coordination.md) for current notes, evidence and completion gates.
 
 Use the repository's verification and review gates. Report changed behavior, evidence, unresolved work and retained task/result IDs.
