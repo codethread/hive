@@ -1,6 +1,6 @@
 # Plan Beads work
 
-For engine-managed work, read the [runtime boundary](../SKILL.md#engine-managed-work) before applying these defaults. Use focused `br COMMAND --help` for fields and operations. Request only the fields needed for the next decision; apply prime's ordinary-work query filters when searching or selecting work.
+For engine-managed work, read the [runtime boundary](../SKILL.md#engine-managed-work) before applying these defaults. Use focused `br COMMAND --help` for fields and operations. Request only the fields needed for the next decision.
 
 Before editing, read the task and applicable ancestor instructions. Preserve useful historical content, including existing design/prerequisites, and governing instructions; these defaults do not authorize record migration or deletion.
 

@@ -26,7 +26,7 @@ For the optional customizable `hive` workflow, use setup's `--install-workflow-s
 
 Use the setup receipt's `readiness` handoff before declaring onboarding complete. It reports configured artifacts and effective Honeycomb policy; execution remains unverified. Review the consuming repository's remaining needs:
 
-- **Beads:** verify selected storage with `beeswax beads env --json`. Load `beeswax prime` if its shared task safety is absent from context; use repository policy for owner attribution, work conventions and publication checkpoints. Setup does not choose that policy.
+- **Beads:** verify selected storage with `beeswax beads env --json`. Use repository policy for owner attribution, work conventions and publication checkpoints. Setup does not choose that policy.
 - **Honeycomb:** review the receipt's effective policy, or refresh it with `honeycomb config explain --json`. Report reused policy separately from newly generated files. Preserve valid configuration; resolve worktree location, bootstrap and finish choices through `honeycomb --help` and `honeycomb skills get git-workflow`.
 - **BV:** Beeswax manages the required `_hive_` recipes; use `beeswax setup --help` for ownership and filters. BV shares `BEADS_DB`, but project recipes come from each checkout. Verify discovery with `bv --robot-recipes` in the application and permanent tracker checkouts; Hive prompts use the namespaced recipes, leaving personal views alone.
 - **Bee:** follow `bee setup --help` for the attention query in the selected database.

@@ -5,7 +5,7 @@ description: Plan and coordinate Beads-tracked work with Hive. Use when creating
 
 # Work with Hive
 
-Use the consuming repository's instructions for human ownership, actor fallback, worktree policy, validation and publication checkpoints. When creating, updating or completing executable work in this repository, follow the [work policy](../../../docs/beads-meta.md#authoring-and-handing-off-work). This is a customizable workflow; installed CLI help and bundled instructions own command procedures. Load `beeswax prime` only if its shared safety and tool pointers are absent from context.
+Use the consuming repository's instructions for human ownership, actor fallback, worktree policy, validation and publication checkpoints. When creating, updating or completing executable work in this repository, follow the [work policy](../../../docs/beads-meta.md#authoring-and-handing-off-work). This is a customizable workflow; installed CLI help and bundled instructions own command procedures.
 
 ## Route the request
 
@@ -18,7 +18,7 @@ Request
   +-- Choose work ----------------------> select a candidate; inspect it
 ```
 
-Start with `br show ID --json` for a supplied task. Questions need no bookkeeping task. Reuse existing scope when recording or implementing work; search only when the request leaves the task unidentified. When choosing work, use native readiness and, if useful, BV's advice through the tool pointers in prime.
+Start with `br show ID --json` for a supplied task. Questions need no bookkeeping task. Reuse existing scope when recording or implementing work; search only when the request leaves the task unidentified. When choosing work, use native readiness and, if useful, BV's advice.
 
 Before creating a task or changing its brief, acceptance, scope or dependencies, read [planning](references/planning.md) for field placement and creation gates.
 

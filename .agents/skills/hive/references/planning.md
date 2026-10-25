@@ -1,6 +1,6 @@
 # Plan Beads work
 
-Use focused `br COMMAND --help` for fields and operations. Request only the fields needed for the next decision; apply prime's ordinary-work query filters when searching or selecting work.
+Use focused `br COMMAND --help` for fields and operations. Request only the fields needed for the next decision.
 
 ## Define completion
 

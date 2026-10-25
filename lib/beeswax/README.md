@@ -35,7 +35,7 @@ Use the filtered command in that instruction if needed. Filters affect tool rows
 
 For installed release provenance and source retrieval, use `beeswax info --help`. Binary installations do not include a source tree.
 
-For Hive-owned CLI improvements, breaking changes and adoption actions, follow prime's `<tool> changelog` pointer. External `br` and `bv` are outside that release-history contract. See [tool changelogs](../../docs/releases.md#read-tool-changelogs) for offline histories, version selection and how `beeswax update` selects Hive history pointers from `PATH`.
+For Hive-owned CLI improvements, breaking changes and adoption actions, run `<tool> changelog`. External `br` and `bv` are outside that release-history contract. See [tool changelogs](../../docs/releases.md#read-tool-changelogs) for offline histories, version selection and how `beeswax update` selects Hive history pointers from `PATH`.
 
 ## Configure a repository
 

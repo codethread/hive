@@ -10,7 +10,7 @@ Workflows enforce non-obvious process and leave an audit trail. Trust agents to 
 - Write each step in one sentence, occasionally two; separate steps where ordering matters.
 - Keep review visits, recorded outcomes and repair/review loops where handoffs need evidence.
 - Delete narration of default agent behavior instead of relocating it into helpers or other guidance.
-- Read `beeswax prime` for baseline context and shared policy; supply the stage's task-specific scope, constraints and evidence.
+- Supply the stage's task-specific scope, constraints and evidence.
 - Bee roles define remit, judgement and authority; workflows define the task's sequence. Read `bee skills get delegation` when selecting a role.
 
 Busy Bee appends result discovery, delivery and closure instructions to generated briefs. Author only the application's work in task callbacks.
@@ -69,7 +69,7 @@ Optional exports: `validateCommand(entry, command, data)` rejects context-depend
 
 Use `busybee validate --help` for initialization checks. Before changing a named definition with unfinished runs, follow `busybee preflight --help`.
 
-Exercise outcomes, branches, joins and loops in a disposable tracker. Inspect the visualizer, `busybee show RUN --instructions --json`, `busybee discover RUN --json` and native briefs alongside Prime and the Bee role; remove repeated guidance from composed instructions.
+Exercise outcomes, branches, joins and loops in a disposable tracker. Inspect the visualizer, `busybee show RUN --instructions --json`, `busybee discover RUN --json` and native briefs alongside the Bee role; remove repeated guidance from composed instructions.
 
 ## Evolve existing runs
 

@@ -2,7 +2,7 @@
 
 Read the [project contract](README.md#commit-the-project-contract) before changing generation or hook ownership.
 
-When editing or reviewing guidance, trace source to consumer: `src/prime.ts` owns executable safety/tool pointers delivered by hooks; `skills/hive/` owns the optional workflow installed independently as a customizable `.agents/skills/hive/` copy. Editing that copy does not change the portable source.
+Injected startup instructions are already context: skills must neither refer to their source nor reload or repeat them. Maintain `skills/hive/` as the portable workflow; `.agents/skills/hive/` is a separate customizable copy.
 
 Keep the CLI and Clack wizard on one setup path, resolving options before effects.
 
