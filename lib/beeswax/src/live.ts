@@ -32,6 +32,7 @@ import {
 import { syncBeads, withTrackerLock } from "./beads/publish.ts";
 import type { BootstrapServices } from "./beads/bootstrap.ts";
 import type { Dependencies } from "./cli.ts";
+import { bvRecipeFiles } from "./bv-recipe-source.ts";
 import { createBundledSkills } from "./skills.ts";
 import { createNativeBeads } from "@hive/beads";
 import { installArtifacts } from "./artifact-native.ts";
@@ -105,6 +106,7 @@ export function createLiveDependencies(): Dependencies {
 	return {
 		...io,
 		nativeBeads: beads,
+		bvRecipeFiles: bvRecipeFiles(io),
 		alertReceiptPath: (database, session) => alertSessionReceiptPath(stateHome, database, session),
 		commandAvailable: (name, cwd) =>
 			Bun.which(name, { PATH: environment.PATH ?? "", cwd }) !== null,
