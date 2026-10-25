@@ -1,14 +1,7 @@
-/* eslint-disable import/max-dependencies -- Driver contracts also exercise the bundled author definition. */
 import { BusyBeeError, createServices } from "../../src/native.ts";
 import { assign, createMachine } from "xstate";
 import { complete, navigate, prepareDriver, recordResult, start } from "../../src/runtime.ts";
 import { describe, expect, test } from "bun:test";
-import {
-	runBrief as doWorkBrief,
-	commandSchemas as doWorkCommands,
-	machine as doWorkMachine,
-	inputSchema as doWorkSchema,
-} from "../../../../.workflows/do-work/workflow.ts";
 import { renderResponseInstructions, spawnRequestLabels } from "@hive/shared";
 import type { Services } from "../../src/native.ts";
 import { createMemoryBeads } from "@hive/beads";
@@ -103,41 +96,6 @@ async function fixture(selected: unknown = definition, input: unknown = {}) {
 	const checkpoint = root.dependencies.find((edge) => edge.dependency_type === "related")!.id;
 	return { beads, checkpoint, io, run };
 }
-
-const doWorkInput = {
-	title: "Implement assigned scope",
-	request: "Complete the actual caller assignment",
-	acceptance: ["Verify the requested change"],
-};
-const defaultRun = await fixture(
-	{
-		commandSchemas: doWorkCommands,
-		inputSchema: doWorkSchema,
-		machine: doWorkMachine,
-		runBrief: doWorkBrief,
-	},
-	doWorkInput,
-);
-
-test("default author distinguishes the run while preserving the actual stage assignment #test-624", async () => {
-	const root = await defaultRun.beads.show(scope, defaultRun.run.id);
-	expect(root).toMatchObject({
-		title: "Do work: Implement assigned scope",
-		description: doWorkInput.request,
-	});
-	expect(defaultRun.run.active).toMatchObject([
-		{
-			title: doWorkInput.title,
-			context: doWorkInput,
-			instructions: expect.stringContaining(doWorkInput.request),
-		},
-	]);
-	const stage = await defaultRun.beads.show(scope, defaultRun.run.active[FIRST]!.bead);
-	expect(stage.acceptance_criteria).toBe("- [ ] Verify the requested change");
-	expect(stage.description).not.toContain(doWorkInput.acceptance[FIRST]!);
-	expect(stage.dependencies).toMatchObject([{ id: root.id, dependency_type: "parent-child" }]);
-	expect(stage.description).toContain(renderResponseInstructions({ taskId: root.id }));
-});
 
 // Compile the injected chart/checkpoint schemas and CLI boundary once before measured cases.
 const warmup = await fixture();

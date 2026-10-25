@@ -1,6 +1,6 @@
 /* eslint-disable unicorn/no-null -- Persisted workflow contracts use null request IDs. */
 import type { ActiveEntry, Run } from "../../src/checkpoint.ts";
-import { assign, createMachine, raise, setup } from "xstate";
+import { assign, createMachine, raise, sendParent, setup } from "xstate";
 import { expect, test } from "bun:test";
 import { workflowInspectionSchema, workflowSimulationSchema } from "@hive/shared";
 import type { Definition } from "../../src/definition.ts";
@@ -324,6 +324,121 @@ test("retained child replay uses its own context and never sends completion to i
 	expect(JSON.parse(initial.stdout)).toMatchObject({ reason: "simulation_unsupported" });
 });
 
+test.each([
+	{ origin: "saved", command: "advance", expectedStep: ONE },
+	{ origin: "initial", command: "choose", expectedStep: FIRST },
+])(
+	"simulation author validation requires a published visit ($origin start) #test-302",
+	// eslint-disable-next-line max-statements -- Verify published validation and virtual-visit rejection in one replay.
+	async ({ origin, command, expectedStep }) => {
+		const definition = exampleDefinition();
+		definition.validateCommand = (entry, _command, data) => {
+			expect(entry.context).toEqual(input);
+			return data;
+		};
+		const fixture = await simulationFixture(definition);
+		const before = await fixture.records();
+		const events: WorkflowSimulationRequest["events"] = [{ ...step, command }];
+		let start: WorkflowSimulationRequest["start"] = { kind: "initial", input };
+		if (origin === "saved") {
+			start = { kind: "saved" };
+			const next = await fixture.simulate(events);
+			expect(next.actor.snapshot.value).toBe("review");
+			events.push({ node: "flow.review", command: "finish", data: {} });
+		}
+		const result = await fixture.raw({
+			...fixture.request,
+			start,
+			events,
+		});
+		expect(result.code).toBe(FAILURE);
+		expect(JSON.parse(result.stdout)).toMatchObject({
+			reason: "simulation_unsupported",
+			step: expectedStep,
+		});
+		expect(await fixture.records()).toEqual(before);
+	},
+);
+
+// eslint-disable-next-line max-statements -- Keep child validation, forbidden messaging and preservation together.
+test("retained child validation precedes rejected parent messaging without saved changes #test-301", async () => {
+	const definition = exampleDefinition();
+	definition.commandSchemas = { next: payload };
+	const child = createMachine({
+		id: "child",
+		initial: "work",
+		states: {
+			work: {
+				meta: taskMeta({ next: "NEXT" }),
+				on: { NEXT: { target: "done", actions: sendParent({ type: "CHILD_DONE" }) } },
+			},
+			done: { type: "final" },
+		},
+	});
+	definition.machine = createMachine({
+		id: "parent",
+		initial: "work",
+		states: {
+			work: { invoke: { id: "worker", src: child }, on: { CHILD_DONE: "done" } },
+			done: { type: "final" },
+		},
+	});
+	definition.validateCommand = (entry, _command, data) => {
+		if (payload.parse(data).amount !== entry.context["count"]) {
+			throw new Error("Payload must match published child context");
+		}
+		return data;
+	};
+	const childContext = { count: RESULT_COUNT };
+	const snapshot = {
+		...fixtureSnapshot(definition),
+		children: {
+			worker: {
+				src: "xstate.invoke.0.parent.work",
+				snapshot: child.getPersistedSnapshot(
+					child.resolveState({ value: "work", context: childContext }),
+				),
+			},
+		},
+	};
+	const fixture = await simulationFixture(definition, {
+		snapshot,
+		published: {
+			node: "child.work",
+			path: ["worker"],
+			context: childContext,
+			commands: { next: "NEXT" },
+		},
+	});
+	const before = await fixture.records();
+	const request = { ...fixture.request, actorId: 'actor:["worker"]' };
+	const initial = await fixture.raw(request);
+	expect(initial.code).toBe(SUCCESS);
+	expect(
+		workflowSimulationSchema.parse(JSON.parse(initial.stdout)).actor.instructions["child.work"],
+	).toMatchObject({ kind: "frozen" });
+	for (const { amount, reason } of [
+		{ amount: INCREMENT, reason: "simulation_invalid_event" },
+		{ amount: RESULT_COUNT, reason: "simulation_unsupported" },
+	]) {
+		// eslint-disable-next-line no-await-in-loop -- Verify author rejection before the messaging boundary.
+		const result = await fixture.raw({
+			...request,
+			events: [{ node: "child.work", command: "next", data: { amount } }],
+		});
+		expect(result.code).toBe(FAILURE);
+		expect(JSON.parse(result.stdout)).toMatchObject({
+			reason,
+			step: FIRST,
+			node: "child.work",
+			command: "next",
+		});
+		expect(JSON.parse(result.stdout)).not.toHaveProperty("actor");
+	}
+	expect(await fixture.raw(request)).toEqual(initial);
+	expect(await fixture.records()).toEqual(before);
+});
+
 test.each(["custom", "nested timer", "invocation", "assign spawn"])(
 	"simulation rejects %s without executing effects #test-322",
 	async (kind) => {
@@ -440,7 +555,12 @@ async function simulationFixture(
 	definition = exampleDefinition(),
 	options: {
 		snapshot?: Run["snapshot"];
-		published?: { node: string; commands: Record<string, string> };
+		published?: {
+			node: string;
+			path: string[];
+			context: Record<string, unknown>;
+			commands: Record<string, string>;
+		};
 	} = {},
 ) {
 	const { snapshot: savedSnapshot, published } = options;
@@ -460,7 +580,12 @@ async function simulationFixture(
 		visits: {},
 		active: fixtureEntries(definition, visit.id).map((entry) => {
 			if (published !== undefined) {
-				Object.assign(entry, { node: published.node, key: `:${published.node}` });
+				Object.assign(entry, {
+					node: published.node,
+					key: `${published.path.join(":")}:${published.node}`,
+					path: published.path,
+					context: published.context,
+				});
 				entry.meta.commands = published.commands;
 			}
 			return entry;
