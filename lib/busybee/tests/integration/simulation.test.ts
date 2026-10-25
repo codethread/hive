@@ -1,13 +1,16 @@
 /* eslint-disable unicorn/no-null -- Persisted workflow contracts use null request IDs. */
+/* eslint-disable import/max-dependencies */
 import type { ActiveEntry, Run } from "../../src/checkpoint.ts";
 import { assign, createMachine, raise, setup } from "xstate";
 import { expect, test } from "bun:test";
-import { workflowInspectionSchema, workflowSimulationSchema } from "@hive/shared";
 import type { Definition } from "../../src/definition.ts";
 import type { WorkflowSimulationRequest } from "@hive/shared";
 import { captureCli } from "./support.ts";
 import { createMemoryBeads } from "@hive/beads";
 import { createServices } from "../../src/native.ts";
+import { inspect } from "../../src/preview.ts";
+import { simulate } from "../../src/simulation.ts";
+import { workflowSimulationSchema } from "@hive/shared";
 import { z } from "zod";
 
 const SUCCESS = 0;
@@ -33,7 +36,9 @@ test("simulation replays guards and assigns with rendered instructions and no sa
 		kind: "frozen",
 		instructions: "Frozen published instructions",
 	});
-	const next = await fixture.simulate([step]);
+	const response = await fixture.raw({ ...fixture.request, events: [step] });
+	expect(response).toMatchObject({ code: SUCCESS, stderr: "" });
+	const next = workflowSimulationSchema.parse(JSON.parse(response.stdout));
 	expect(next.actor.snapshot).toEqual({ status: "active", value: "review" });
 	expect(next.actor.instructions["flow.review"]).toMatchObject({
 		kind: "rendered",
@@ -189,7 +194,7 @@ test("simulation enforces explicit JSON fields and input schema at the public CL
 	});
 });
 
-// eslint-disable-next-line max-statements -- Exercise the complete parallel replay path at the CLI boundary.
+// eslint-disable-next-line max-statements
 test("parallel commands with the same name remain identified by their state node #test-320", async () => {
 	const definition = exampleDefinition();
 	definition.commandSchemas = { next: z.object({}) };
@@ -485,12 +490,8 @@ async function simulationFixture(
 		isFile: () => Promise.resolve(true),
 		importModule: () => Promise.resolve(definition),
 	};
-	const inspect = async () => {
-		const result = await captureCli([...args, "system", "preview", parent.id, "--json"], services);
-		expect(result.code, result.stdout).toBe(SUCCESS);
-		return workflowInspectionSchema.parse(JSON.parse(result.stdout));
-	};
-	const baseline = await inspect();
+	const inspection = () => inspect(parent.id, { repo, db }, services);
+	const baseline = await inspection();
 	const request: WorkflowSimulationRequest = {
 		checkpoint: baseline.checkpoint,
 		savedAt: baseline.savedAt,
@@ -506,16 +507,12 @@ async function simulationFixture(
 		);
 	return {
 		request,
-		inspect,
+		inspect: inspection,
 		raw,
 		visit: visit.id,
 		records: async () => await beads.showMany(scope, [parent.id, visit.id, checkpoint.id]),
-		simulate: async (events: WorkflowSimulationRequest["events"], start = request.start) => {
-			const result = await raw({ ...request, start, events });
-			expect(result.code, result.stdout).toBe(SUCCESS);
-			expect(result.stderr).toBe("");
-			return workflowSimulationSchema.parse(JSON.parse(result.stdout));
-		},
+		simulate: (events: WorkflowSimulationRequest["events"], start = request.start) =>
+			simulate({ id: parent.id, request: { ...request, start, events } }, { repo, db }, services),
 	};
 }
 
