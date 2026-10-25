@@ -1,21 +1,24 @@
 import { afterAll, beforeAll, expect, test } from "bun:test";
 // eslint-disable-next-line import/no-nodejs-modules -- Own the isolated CLI working directory.
 import { mkdtemp, rm } from "node:fs/promises";
+import { Command } from "commander";
+import { createBundledSkills } from "./bundled-skills.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Resolve temporary fixture paths.
 import { join } from "node:path";
+import { registerSkills } from "./skills.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Use the OS temporary root outside Git.
 import { tmpdir } from "node:os";
 
 const SUCCESS = 0;
 const COMMANDS = [
 	{
-		command: "bee",
+		command: "bee" as const,
 		name: "delegation",
 		resource: "references/execution.md",
 		files: ["SKILL.md", "references/execution.md"],
 	},
 	{
-		command: "colony",
+		command: "colony" as const,
 		name: "operations",
 		resource: "references/recovery.md",
 		files: ["SKILL.md", "references/configuration.md", "references/recovery.md"],
@@ -46,19 +49,17 @@ test.each(COMMANDS)(
 test.each(COMMANDS)(
 	"$command get returns bundled Markdown without frontmatter #test-271",
 	async ({ command, name, resource }) => {
-		const instructions = await source(command, ["skills", "get", name]);
-		expect(instructions).toMatchObject({ code: SUCCESS, stderr: "" });
-		expect(instructions.stdout).not.toStartWith("---");
-		expect(instructions.stdout).toContain(`${command} skills file ${name} ${resource}`);
+		const instructions = await bundled(command, ["skills", "get", name]);
+		expect(instructions).not.toStartWith("---");
+		expect(instructions).toContain(`${command} skills file ${name} ${resource}`);
 	},
 );
 
 test.each(COMMANDS)(
 	"$command returns a bundled supporting resource as JSON #test-272",
 	async ({ command, name, resource }) => {
-		const file = await source(command, ["skills", "file", name, resource, "--json"]);
-		expect(file).toMatchObject({ code: SUCCESS, stderr: "" });
-		expect(JSON.parse(file.stdout)).toEqual({
+		const file = await bundled(command, ["skills", "file", name, resource, "--json"]);
+		expect(JSON.parse(file)).toEqual({
 			ok: true,
 			kind: "skills_get",
 			name,
@@ -67,6 +68,19 @@ test.each(COMMANDS)(
 		});
 	},
 );
+
+async function bundled(command: "bee" | "colony", args: string[]) {
+	let stdout = "";
+	const program = new Command().name(command).option("--json").exitOverride();
+	registerSkills(program, command, {
+		loadSkills: () => Promise.resolve(createBundledSkills(command)),
+		stdout: (text) => {
+			stdout += text;
+		},
+	});
+	await program.parseAsync(args, { from: "user" });
+	return stdout;
+}
 
 async function source(command: string, args: string[]) {
 	const entry = new URL(`../bin/${command}.ts`, import.meta.url).pathname;

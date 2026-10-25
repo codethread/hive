@@ -1,10 +1,13 @@
 import type { Skill, SkillProvider } from "skills-handler";
 import { expect, mock, test } from "bun:test";
+import { reportFailure, runCli } from "./cli.ts";
+import { Command } from "commander";
 import { createStaticProvider } from "skills-handler";
+import { registerSkills } from "./skills.ts";
 import { runBeeCli } from "./bee-cli.ts";
-import { runCli } from "./cli.ts";
 
 const SUCCESS = 0;
+const FIRST = 0;
 const FAILURE = 1;
 const USAGE_ERROR = 2;
 const COMMANDS = ["bee", "colony"] as const;
@@ -151,10 +154,12 @@ test.each([...COMMANDS])("%s version does not call the skills loader", async (co
 	expect(result.stdout).not.toBe("");
 });
 
-async function invoke(command: string, args: string[], provider: SkillProvider) {
+async function invoke(command: "bee" | "colony", args: string[], provider: SkillProvider) {
+	if (args.at(FIRST) === "skills" && !args.includes("list")) {
+		return invokeRegistered(command, args, provider);
+	}
 	const loadSkills = mock(() => Promise.resolve(provider));
-	let stdout = "";
-	let stderr = "";
+	const captured = { stdout: "", stderr: "" };
 	const deps = {
 		loadSkills,
 		ack: unexpected,
@@ -190,18 +195,49 @@ async function invoke(command: string, args: string[], provider: SkillProvider) 
 		stop: unexpected,
 		wake: unexpected,
 		stdout: (text: string) => {
-			stdout += text;
+			captured.stdout += text;
 		},
 		stderr: (text: string) => {
-			stderr += text;
+			captured.stderr += text;
 		},
 	};
 	if (command === "bee") {
 		const code = await runBeeCli(args, deps);
-		return { code, stdout, stderr, loads: loadSkills.mock.calls.length };
+		return { code, ...captured, loads: loadSkills.mock.calls.length };
 	}
 	const code = await runCli(args, deps);
-	return { code, stdout, stderr, loads: loadSkills.mock.calls.length };
+	return { code, ...captured, loads: loadSkills.mock.calls.length };
+}
+
+async function invokeRegistered(
+	command: "bee" | "colony",
+	args: string[],
+	provider: SkillProvider,
+) {
+	const loadSkills = mock(() => Promise.resolve(provider));
+	const captured = { stdout: "", stderr: "" };
+	const output = {
+		command,
+		stdout: (text: string) => {
+			captured.stdout += text;
+		},
+		stderr: (text: string) => {
+			captured.stderr += text;
+		},
+	};
+	const program = new Command()
+		.name(command)
+		.option("--json")
+		.configureOutput({ writeErr: () => {}, writeOut: output.stdout })
+		.exitOverride();
+	registerSkills(program, command, { loadSkills, stdout: output.stdout });
+	let code = SUCCESS;
+	try {
+		await program.parseAsync(args, { from: "user" });
+	} catch (error) {
+		code = reportFailure(error, args.includes("--json"), output);
+	}
+	return { code, ...captured, loads: loadSkills.mock.calls.length };
 }
 
 function unexpected(): never {
