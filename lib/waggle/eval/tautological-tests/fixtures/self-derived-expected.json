@@ -1,0 +1,16 @@
+{
+	"id": "self-derived-expected",
+	"input": {
+		"source": "// sort.ts\nexport function sorted(xs) { return [...xs].sort((a,b) => a-b); }",
+		"test": "test('sorted', () => { const actual = sorted([3, 1, 2]); const expected = [...actual]; expect(actual).toEqual(expected); });",
+		"context": "No hooks, helpers, mocks, imports or additional assertions are omitted.",
+		"contract": "The expected value is constructed from the actual output. There is no separate ordering assertion."
+	},
+	"expected": {
+		"choice": "tautological",
+		"probabilities": {
+			"tautological": [0.75, 1]
+		}
+	},
+	"rationale": "Any returned array is copied into its own oracle."
+}

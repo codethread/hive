@@ -1,0 +1,16 @@
+{
+	"id": "setup-assigns-result",
+	"input": {
+		"source": "// normalize.ts\nexport function normalize(s) { return s.trim().toLowerCase(); }",
+		"test": "test('normalized value', () => expect(actual).toBe('foo'));",
+		"context": "let actual; beforeEach(() => { actual = 'foo'; }); No other hooks or helpers.",
+		"contract": "Identifier normalization is intended to strip surrounding spaces and lowercase names."
+	},
+	"expected": {
+		"choice": "tautological",
+		"probabilities": {
+			"tautological": [0.75, 1]
+		}
+	},
+	"rationale": "The assertion restates a setup assignment."
+}

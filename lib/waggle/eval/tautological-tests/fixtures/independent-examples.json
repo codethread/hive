@@ -1,0 +1,17 @@
+{
+	"id": "independent-examples",
+	"input": {
+		"source": "// price.ts\nexport function total(price, qty) { return Math.round(price * qty * 1.2); }",
+		"test": "test.each([[10, 2, 24], [23, 3, 83]])('invoice %s %s', (price, qty, expected) => expect(total(price, qty)).toBe(expected));",
+		"context": "No hooks, helpers, mocks, imports or additional assertions are omitted.",
+		"contract": "Approved invoice examples independently require 10 x 2 => 24 and 23 x 3 => 83 under 20% tax rounded to nearest integer."
+	},
+	"expected": {
+		"choice": "behavioral",
+		"probabilities": {
+			"tautological": [0, 0.2],
+			"behavioral": [0.75, 1]
+		}
+	},
+	"rationale": "Expected values come from independent examples and exercise arithmetic."
+}

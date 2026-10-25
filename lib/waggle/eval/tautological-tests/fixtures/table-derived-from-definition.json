@@ -1,0 +1,16 @@
+{
+	"id": "table-derived-from-definition",
+	"input": {
+		"source": "// workflow.ts\nexport const routes = { CHECK: 'review', APPROVE: 'ship' };",
+		"test": "test.each(Object.entries(routes))('route %s', (event, target) => expect(routes[event]).toBe(target));",
+		"context": "No hooks, helpers, mocks, imports or additional assertions are omitted.",
+		"contract": "routes is internal graph data; test rows are built by enumerating this same object."
+	},
+	"expected": {
+		"choice": "tautological",
+		"probabilities": {
+			"tautological": [0.75, 1]
+		}
+	},
+	"rationale": "Each parameterized expected value is read from the same entry that it checks."
+}

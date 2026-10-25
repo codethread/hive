@@ -1,0 +1,16 @@
+{
+	"id": "literal-self-equality",
+	"input": {
+		"source": "// constants.ts\nexport const KIND = 'foo';",
+		"test": "test('foo', () => expect('foo').toBe('foo'));",
+		"context": "No hooks, helpers, mocks, imports or additional assertions are omitted.",
+		"contract": "KIND is private metadata with no external consumer contract."
+	},
+	"expected": {
+		"choice": "tautological",
+		"probabilities": {
+			"tautological": [0.75, 1]
+		}
+	},
+	"rationale": "The selected assertion cannot detect an implementation defect."
+}

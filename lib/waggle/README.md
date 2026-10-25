@@ -28,7 +28,7 @@ Definitions are the direct `*.toml` files in `./classifiers`, relative to the cu
 $env.TYPESAFE_API_KEY = (input --suppress-output "Typesafe API key: ")
 ```
 
-Build a JSON object with exactly the inputs declared by `describe`. The three concern-assessment cards require `purpose`, `contract`, `callers` and `code`, all nonblank strings. The `review-attention` card has a different evidence contract, described below. Include source references. Say when context is unknown rather than inventing a contract.
+Build a JSON object with exactly the inputs declared by `describe`. The three concern-assessment cards require `purpose`, `contract`, `callers` and `code`, all nonblank strings. The `review-attention` and `tautological-tests` cards have different evidence contracts, described below. Include source references. Say when context is unknown rather than inventing a contract.
 
 ```nu
 {
@@ -87,6 +87,21 @@ The `attention` answer returns:
 
 The card includes CLI flags/arguments, config sources, file side effects and database patterns, including indirect effects from helpers or types. Unchanged I/O in a file does not by itself make an unrelated edit interesting. The full routing policy lives in [the classifier](../../classifiers/review-attention.toml). This is an advisory signal, not an automatic file-hiding filter.
 
+## Review tests for implementation restatement
+
+Use `tautological-tests` with agent-supplied implementation and a selected test, including relevant setup, teardown, helpers and contract provenance:
+
+```nu
+bun run --silent waggle describe tautological-tests --json
+bun run --silent waggle run tautological-tests --input evidence.json --json
+```
+
+Supply the four nonblank strings declared by the card: `source`, `test`, `context` and `contract`. The [classifier](../../classifiers/tautological-tests.toml) owns the whole-case rubric and its `tautological`, `behavioral`, `mixed` and `needs_context` labels. It distinguishes private workflow-definition restatement from independently checked engine behavior.
+
+Read the score at `answers.review.probabilities.tautological`, alongside all four probabilities and the chosen label. It is the probability of the whole-case category, not a percentage of redundant assertions or provider `confidence`. A `mixed` case can have a low tautological score while containing a redundant assertion. Use the result for review, not automatic test deletion.
+
+The [evaluation guide](eval/tautological-tests/README.md) covers evidence preparation, contrasting fixtures, offline validation, explicit live runs and interpretation of saved results.
+
 ## Write a classifier
 
 Add a TOML file directly under `classifiers/`. A minimal definition:
@@ -118,7 +133,7 @@ Rules for the POC:
 - Unknown definition fields and unsupported question types are errors. There is no template language or implicit prompt concatenation: questions see the supplied input object directly as state.
 - Keep a principle, concern criteria and legitimate exceptions together. Test useful designs and repairs as well as obvious problems. Do not replace deterministic lint rules with a model call.
 
-The cards cover state coherence, abstraction payoff, failure transparency and human review attention. They remain experimental review aids, especially for reasoning across failure paths.
+The cards cover state coherence, abstraction payoff, failure transparency, human review attention and tautological tests. They remain experimental review aids, especially for reasoning across failure paths.
 
 ## Development checks
 

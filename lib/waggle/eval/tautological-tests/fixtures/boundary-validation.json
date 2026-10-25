@@ -1,0 +1,17 @@
+{
+	"id": "boundary-validation",
+	"input": {
+		"source": "// port.ts\nexport function port(s) { const n=Number(s); if (!Number.isInteger(n)||n<1||n>65535) throw new RangeError(); return n; }",
+		"test": "test.each(['0', '65536', 'NaN'])('reject port %s', s => expect(() => port(s)).toThrow(RangeError));",
+		"context": "No hooks, helpers, mocks, imports or additional assertions are omitted.",
+		"contract": "TCP port input contract accepts integers 1 through 65535 and rejects other values."
+	},
+	"expected": {
+		"choice": "behavioral",
+		"probabilities": {
+			"tautological": [0, 0.2],
+			"behavioral": [0.75, 1]
+		}
+	},
+	"rationale": "Exercises runtime boundary rejection; literal endpoints are meaningful contract examples."
+}

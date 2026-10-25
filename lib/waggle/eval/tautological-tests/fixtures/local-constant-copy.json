@@ -1,0 +1,16 @@
+{
+	"id": "local-constant-copy",
+	"input": {
+		"source": "// mode.ts\nexport const mode = 'fast';",
+		"test": "test('mode', () => expect(mode).toBe('fast'));",
+		"context": "No hooks, helpers, mocks, imports or additional assertions are omitted.",
+		"contract": "mode is a private implementation choice. There are no external consumers pinning the value."
+	},
+	"expected": {
+		"choice": "tautological",
+		"probabilities": {
+			"tautological": [0.75, 1]
+		}
+	},
+	"rationale": "The test repeats the private declaration without an independent requirement."
+}

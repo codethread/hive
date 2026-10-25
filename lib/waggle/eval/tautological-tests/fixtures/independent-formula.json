@@ -1,0 +1,17 @@
+{
+	"id": "independent-formula",
+	"input": {
+		"source": "// geometry.ts\nexport function rectangleArea(width, height) { return width * height; }",
+		"test": "test.each([[3, 4], [9, 2]])('rectangle area', (w,h) => expect(rectangleArea(w,h)).toBe(w*h));",
+		"context": "No hooks, helpers, mocks, imports or additional assertions are omitted.",
+		"contract": "Mathematical rectangle area contract independently specifies width times height. The test oracle is that formula, not a value extracted from production code."
+	},
+	"expected": {
+		"choice": "behavioral",
+		"probabilities": {
+			"tautological": [0, 0.2],
+			"behavioral": [0.75, 1]
+		}
+	},
+	"rationale": "Textual similarity to a small implementation does not invalidate an independent mathematical specification."
+}

@@ -1,0 +1,17 @@
+{
+	"id": "snapshot-contract",
+	"input": {
+		"source": "// serialize.ts\nexport function serialize(user) { return JSON.stringify({ id: user.id, name: user.name }); }",
+		"test": "test('public wire payload', () => expect(serialize({ id: 7, name: 'Ada' })).toMatchInlineSnapshot('\"{\\\"id\\\":7,\\\"name\\\":\\\"Ada\\\"}\"'));",
+		"context": "No hooks, helpers, mocks, imports or additional assertions are omitted.",
+		"contract": "Published wire payload requires exactly id and name in this order. This snapshot was reviewed against that external specification."
+	},
+	"expected": {
+		"choice": "behavioral",
+		"probabilities": {
+			"tautological": [0, 0.2],
+			"behavioral": [0.75, 1]
+		}
+	},
+	"rationale": "Snapshots are not inherently tautological when they encode an independent external contract."
+}

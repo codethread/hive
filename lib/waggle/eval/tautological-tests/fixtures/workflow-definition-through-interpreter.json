@@ -1,0 +1,16 @@
+{
+	"id": "workflow-definition-through-interpreter",
+	"input": {
+		"source": "// workflow.ts\nexport const machine = createMachine({ initial: 'check', states: { check: { on: { PASSED: 'review' } }, review: {} } });",
+		"test": "test('graph transition', () => { const actor = createActor(machine).start(); actor.send({ type: 'PASSED' }); expect(actor.getSnapshot().value).toBe('review'); actor.stop(); });",
+		"context": "createMachine/createActor are unmodified third-party XState APIs. No hooks or additional assertions.",
+		"contract": "The graph author chose the names check and review and the PASSED edge. These are private configuration; no separately specified transition policy is provided."
+	},
+	"expected": {
+		"choice": "tautological",
+		"probabilities": {
+			"tautological": [0.75, 1]
+		}
+	},
+	"rationale": "Running an unchanged interpreter does not make a declaration-copy test an engine logic test."
+}

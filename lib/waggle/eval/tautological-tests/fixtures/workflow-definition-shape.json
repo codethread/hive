@@ -1,0 +1,16 @@
+{
+	"id": "workflow-definition-shape",
+	"input": {
+		"source": "// workflow.ts\nexport const workflow = { initial: 'check', states: { check: { on: { PASSED: 'review' } }, review: {} } };",
+		"test": "test('declared graph', () => { expect(workflow.initial).toBe('check'); expect(workflow.states.check.on.PASSED).toBe('review'); });",
+		"context": "No hooks, helpers, mocks, imports or additional assertions are omitted.",
+		"contract": "Workflow state names and edges are private authoring choices. There is no separately specified policy for this graph."
+	},
+	"expected": {
+		"choice": "tautological",
+		"probabilities": {
+			"tautological": [0.75, 1]
+		}
+	},
+	"rationale": "The test spells back the declared workflow graph."
+}

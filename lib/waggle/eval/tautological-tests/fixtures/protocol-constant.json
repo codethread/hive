@@ -1,0 +1,17 @@
+{
+	"id": "protocol-constant",
+	"input": {
+		"source": "// protocol.ts\nexport const VERSION = 2;",
+		"test": "test('wire version', () => expect(VERSION).toBe(2));",
+		"context": "No hooks, helpers, mocks, imports or additional assertions are omitted.",
+		"contract": "Wire protocol specification section 3 requires the version byte to be exactly 2; external clients reject other values."
+	},
+	"expected": {
+		"choice": "behavioral",
+		"probabilities": {
+			"tautological": [0, 0.2],
+			"behavioral": [0.75, 1]
+		}
+	},
+	"rationale": "The same assertion form protects a fixed external compatibility contract."
+}

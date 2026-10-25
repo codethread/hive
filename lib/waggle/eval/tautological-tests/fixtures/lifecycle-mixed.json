@@ -1,0 +1,17 @@
+{
+	"id": "lifecycle-mixed",
+	"input": {
+		"source": "// cache.ts\nexport function release(cache, key) { cache.delete(key); }",
+		"test": "test('release', () => { expect('cache').toBe('cache'); release(cache, 'a'); });",
+		"context": "let cache; beforeEach(() => { cache = new Map([['a', 1]]); }); afterEach(() => { expect(cache.has('a')).toBe(false); }); No other hooks.",
+		"contract": "Releasing a key must remove the cached entry."
+	},
+	"expected": {
+		"choice": "mixed",
+		"probabilities": {
+			"tautological": [0, 0.2],
+			"mixed": [0.6, 1]
+		}
+	},
+	"rationale": "The body contains a self-comparison, while teardown observes the required removal; aggregation includes both kinds across the effective lifecycle."
+}
