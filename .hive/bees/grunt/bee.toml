@@ -1,0 +1,5 @@
+name = "grunt"
+description = "mutation-scope: mutating; Carry out one small, clear, bounded task with explicit acceptance criteria."
+harness = "pi"
+model = "openai-codex/gpt-6-luna"
+effort = "high"
