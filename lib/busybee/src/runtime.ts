@@ -13,8 +13,8 @@ import {
 	resolveEndpoint,
 	resolveMutation,
 } from "./native.ts";
+import type { CreateTask, Endpoint, MutationEndpoint, Options, Services } from "./native.ts";
 import type { Definition, Metadata, WorkflowActor, WorkflowNode } from "./definition.ts";
-import type { Endpoint, MutationEndpoint, Options, Services } from "./native.ts";
 import {
 	actorContext,
 	briefSchema,
@@ -1610,17 +1610,10 @@ function nativeTaskOptions(
 	meta: ActiveEntry["meta"],
 	identity: BeadRecord,
 	brief: { description: string; parent: string; title: string },
-) {
-	const creation: {
-		description: string;
-		labels: string[];
-		owner: string;
-		parent: string;
-		status: "open" | "in_progress";
-		title: string;
-		assignee?: string;
-	} = {
+): CreateTask & { parent: string } {
+	const creation: CreateTask & { parent: string } = {
 		...brief,
+		acceptanceCriteria: meta.acceptanceCriteria,
 		labels: ["busybee-workflow"],
 		owner: text.parse(identity.owner),
 		status: "in_progress",
@@ -1648,7 +1641,7 @@ function taskDescription(
 		}
 		completion =
 			`${delivery} ${renderResponseInstructions({ taskId })}\n\n` +
-			"Satisfy acceptance and child work, then use " +
+			"Verify acceptance, tick all native acceptance checklist items, and finish child work before using " +
 			`busybee --db ${JSON.stringify(endpoint.db)} complete ${run.id} ` +
 			"TASK_ID CHOICE to save the original outcome and close this stage. " +
 			"Read busybee complete --help for payload options and retries. " +

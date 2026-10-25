@@ -37,10 +37,10 @@ export const machine = setup({ types: {} as { context: Work; input: Work } }).cr
 				commands: { next: "COMPLETED" },
 				task: ({ context }: { context: Work }) => ({
 					title: context.title,
-					instructions:
-						`${context.request}` +
-						"\n\nAcceptance criteria:\n" +
-						`${context.acceptance.map((criterion) => `- [ ] ${criterion}`).join("\n")}`,
+					instructions: context.request,
+					acceptanceCriteria: context.acceptance
+						.map((criterion) => `- [ ] ${criterion}`)
+						.join("\n"),
 				}),
 			},
 			on: { COMPLETED: "done" },

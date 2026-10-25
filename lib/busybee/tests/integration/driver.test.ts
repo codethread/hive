@@ -133,6 +133,8 @@ test("default author distinguishes the run while preserving the actual stage ass
 		},
 	]);
 	const stage = await defaultRun.beads.show(scope, defaultRun.run.active[FIRST]!.bead);
+	expect(stage.acceptance_criteria).toBe("- [ ] Verify the requested change");
+	expect(stage.description).not.toContain(doWorkInput.acceptance[FIRST]!);
 	expect(stage.dependencies).toMatchObject([{ id: root.id, dependency_type: "parent-child" }]);
 	expect(stage.description).toContain(renderResponseInstructions({ taskId: root.id }));
 });
@@ -641,7 +643,7 @@ describe("default catalogue installation", () => {
 			name: "do-work",
 			repo: "/another-checkout",
 			source: "/another-checkout/.workflows/do-work/workflow.ts",
-			version: "1.0.1",
+			version: "1.0.2",
 		});
 		expect(roots).toEqual([
 			{ argv: ["git", "rev-parse", "--show-toplevel"], cwd: "/another-checkout/nested" },
@@ -649,7 +651,7 @@ describe("default catalogue installation", () => {
 		expect(requests).toEqual([
 			{
 				directory: "/another-checkout/.workflows/do-work",
-				manifest: expect.stringContaining('version = "1.0.1"'),
+				manifest: expect.stringContaining('version = "1.0.2"'),
 				packageManifest: expect.stringContaining('"xstate": "^5.33.2"'),
 				source: expect.stringContaining('id: "do-work"'),
 			},
