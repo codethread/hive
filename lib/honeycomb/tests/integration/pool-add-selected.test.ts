@@ -8,7 +8,6 @@ import {
 } from "../../src/index";
 import {
 	createPoolSlot,
-	createRemoteBranch,
 	pathExists,
 	run,
 	testDeps,
@@ -22,6 +21,7 @@ import { join, resolve } from "node:path";
 // oxlint-disable-next-line import/no-nodejs-modules -- Integration fixtures exercise real filesystem IO.
 import { readFile, rm, writeFile } from "node:fs/promises";
 import type { Slot } from "../../src/domain/worktree.ts";
+import { createRemoteBranch } from "./remote-history.ts";
 import { worktreePathForName } from "../../src/domain/worktree.ts";
 
 const tmp = useTmpHome("honeycomb-pool-add-selected-test-");
