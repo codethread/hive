@@ -16,9 +16,6 @@ const skillFixture: Skill = {
 };
 const resourceFixture = "# Merge queues\n";
 
-// Initialize Commander help before timing individual policy tests.
-await runCli(["--help"], cliFixture().deps);
-
 test("discovery defaults to metadata only #test-90", async () => {
 	const listed = await run(["list", "--json"]);
 	expect(listed).toMatchObject({ code: EXIT.success, stderr: "" });

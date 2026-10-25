@@ -8,10 +8,6 @@ import { cliFixture as fixture } from "./cli-fixture.ts";
 import { runCli } from "../src/cli.ts";
 import { runRequest } from "../src/run.ts";
 
-// Initialize Commander parsing and help before timing individual contracts.
-await runCli(["status", "--json", "--lock", "/lock"], fixture().deps);
-await runCli(["--help"], fixture().deps);
-
 test("status emits one JSON envelope without allocating a ticket #test-634", async () => {
 	const harness = fixture(occupiedQueue());
 	expect(await runCli(["status", "--json", "--lock", "/lock"], harness.deps)).toBe(0);
@@ -193,6 +189,10 @@ test.each(
 		["run", "-w", "0", "/lock", "child"],
 		["take", "/lock"],
 		["await", "-w", "0", "--ticket", "1", "/lock"],
+		[],
+		["exec", "-w", "0", "--ticket", "bad", "--lock", "/lock", "--", "true"],
+		["exec", "-w", "bad", "--lock", "/lock", "--", "true"],
+		["status", "--merge-target", "refs/tags/main"],
 		["-w", "0", "/lock", "child"],
 		["exec", "-w", "0", "/lock", "child"],
 		["exec", "--lock", "/lock", "--", "child"],

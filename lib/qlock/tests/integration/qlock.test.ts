@@ -1,5 +1,5 @@
 import { advanceQueue, enqueue } from "../../src/queue.ts";
-import { afterAll, afterEach, beforeAll, beforeEach, expect, test } from "bun:test";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from "bun:test";
 import { createLiveDependencies, openQueue } from "../../src/live.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Isolated filesystem fixtures exercise a compiled CLI.
 import { mkdir, mkdtemp, realpath, rm } from "node:fs/promises";
@@ -12,6 +12,8 @@ import { runCli } from "../../src/cli.ts";
 import { tmpdir } from "node:os";
 
 const entrypoint = resolve(import.meta.dirname, "../../bin/qlock.ts");
+const skillName = "command-queues";
+const skillReference = "references/merge-queues.md";
 const queued = 75;
 const usage = 2;
 const childFailure = 19;
@@ -77,7 +79,7 @@ test(
 	async () => {
 		const first = await seedTicket();
 		const normal = await seedTicket();
-		const joined = await qlock([
+		const joined = await liveQlock([
 			"exec",
 			"-w",
 			"0",
@@ -146,7 +148,7 @@ test(
 		try {
 			const started = await reader.read();
 			expect(new TextDecoder().decode(started.value)).toBe("ready");
-			const status = await qlock(["status", "--lock", lock]);
+			const status = await liveQlock(["status", "--lock", lock]);
 			expect(status.stdout).toContain(`running pid ${runner.pid}`);
 			const waiting = await qlock([
 				"exec",
@@ -172,21 +174,15 @@ test(
 			await runner.exited;
 		}
 		await expect(
-			qlock(["exec", "-w", "0", "--ticket", "2", "--lock", lock, "--", "true"]),
+			liveQlock(["exec", "-w", "0", "--ticket", "2", "--lock", lock, "--", "true"]),
 		).resolves.toMatchObject({
 			code: 0,
 		});
 	},
 );
 
-test.each([
-	{ args: [] },
-	{ args: ["exec", "-w", "0", "--lock", "LOCK", "--"] },
-	{ args: ["exec", "-w", "0", "--ticket", "bad", "--lock", "LOCK", "--", "true"] },
-	{ args: ["exec", "-w", "bad", "--lock", "LOCK", "--", "true"] },
-	{ args: ["status", "--merge-target", "refs/tags/main"] },
-])("invalid invocation $args reports usage #test-82", async ({ args }) => {
-	const result = await qlock(args);
+test("invalid invocation reports usage #test-82", async () => {
+	const result = await qlock([]);
 	expect(result.code).toBe(usage);
 	expect(result.stderr).toContain("qlock:");
 });
@@ -202,7 +198,7 @@ test("parallel initial exec attempts retain unique tickets behind a held slot #t
 	expect(results.every(({ code, stdout }) => code === queued && stdout === "")).toBe(true);
 	const ids = results.map(({ stderr }) => Number(timeoutTicket(stderr)));
 	expect(new Set(ids).size).toBe(count);
-	const status = await qlock(["status", "--json", "--lock", lock]);
+	const status = await liveQlock(["status", "--json", "--lock", lock]);
 	expect(JSON.parse(status.stdout).tickets.map((ticket: { id: number }) => ticket.id)).toEqual([
 		Number(first),
 		...ids.toSorted((left, right) => left - right),
@@ -252,7 +248,9 @@ test(
 			await Promise.all(competitors.map((child) => child.exited));
 		}
 		expect(competitors.map((child) => child.exitCode).toSorted()).toEqual([success, queued]);
-		await expect(qlock(["status", "--lock", lock])).resolves.toMatchObject({ stdout: "free\n" });
+		await expect(liveQlock(["status", "--lock", lock])).resolves.toMatchObject({
+			stdout: "free\n",
+		});
 	},
 );
 
@@ -284,15 +282,15 @@ test(
 			runner.kill("SIGTERM");
 			const signalled = await reader.read();
 			expect(new TextDecoder().decode(signalled.value).trim()).toBe("terminating");
-			const status = await qlock(["status", "--json", "--lock", lock]);
+			const status = await liveQlock(["status", "--json", "--lock", lock]);
 			expect(JSON.parse(status.stdout).tickets).toMatchObject([
 				{ state: "running", pid: runner.pid },
 			]);
-			await expect(qlock(["exec", "-w", "0", "--lock", lock, "--", "true"])).resolves.toMatchObject(
-				{
-					code: queued,
-				},
-			);
+			await expect(
+				liveQlock(["exec", "-w", "0", "--lock", lock, "--", "true"]),
+			).resolves.toMatchObject({
+				code: queued,
+			});
 		} finally {
 			runner.stdin.end();
 			reader.releaseLock();
@@ -300,7 +298,7 @@ test(
 		}
 		expect(runner.exitCode).toBe(childStatus);
 		await expect(
-			qlock(["exec", "-w", "0", "--ticket", "2", "--lock", lock, "--", "true"]),
+			liveQlock(["exec", "-w", "0", "--ticket", "2", "--lock", lock, "--", "true"]),
 		).resolves.toMatchObject({
 			code: 0,
 		});
@@ -320,7 +318,7 @@ test("spawn failures release the reservation and child flags remain opaque #test
 	]);
 	expect(failed.code).toBe(failure);
 	expect(failed.stdout).toBe("");
-	await expect(qlock(["status", "--lock", lock])).resolves.toMatchObject({ stdout: "free\n" });
+	await expect(liveQlock(["status", "--lock", lock])).resolves.toMatchObject({ stdout: "free\n" });
 	await expect(
 		qlock([
 			"exec",
@@ -347,7 +345,7 @@ test("corrupt queue storage fails as one JSON error without resetting it #test-8
 	await mkdir(`${lock}.d`);
 	const database = resolve(`${lock}.d`, "queue.sqlite");
 	await Bun.write(database, "not a SQLite database");
-	const result = await qlock(["status", "--json", "--lock", lock]);
+	const result = await liveQlock(["status", "--json", "--lock", lock]);
 	expect(result.code).toBe(failure);
 	expect(result.stderr).toBe("");
 	expect(JSON.parse(result.stdout)).toMatchObject({
@@ -377,7 +375,7 @@ test.each([
 	const database = new Database(resolve(`${lock}.d`, "queue.sqlite"));
 	try {
 		database.query("UPDATE queue SET snapshot = ? WHERE id = 1").run(snapshot);
-		const result = await qlock(["status", "--json", "--lock", lock]);
+		const result = await liveQlock(["status", "--json", "--lock", lock]);
 		expect(result.code).toBe(failure);
 		expect(result.stderr).toBe("");
 		expect(JSON.parse(result.stdout)).toMatchObject({
@@ -390,6 +388,41 @@ test.each([
 		database.close();
 	}
 });
+
+describe.each(["source", "standalone"])("%s bundled skills", (mode) => {
+	test("bundles discovery metadata outside a repository #test-90", async () => {
+		const listed = await captureSkills(mode, ["list", "--json"]);
+		expect(listed).toMatchObject({ code: success, stderr: "" });
+		expect(JSON.parse(listed.stdout)).toEqual({
+			ok: true,
+			kind: "skills_list",
+			skills: [
+				{ name: skillName, description: expect.any(String), files: ["SKILL.md", skillReference] },
+			],
+		});
+	});
+
+	test("bundles instructions without frontmatter #test-91", async () => {
+		const body = await captureSkills(mode, ["get", skillName]);
+		expect(body).toMatchObject({ code: success, stderr: "" });
+		expect(body.stdout).not.toStartWith("---");
+		expect(body.stdout).toContain(`qlock skills file ${skillName} ${skillReference}`);
+	});
+
+	test("bundles advertised supporting resources #test-92", async () => {
+		const resource = await captureSkills(mode, ["file", skillName, skillReference]);
+		expect(resource).toMatchObject({ code: success, stderr: "" });
+		expect(resource.stdout).toContain("# Merge queues");
+	});
+});
+
+function captureSkills(mode: string, args: string[]) {
+	const env = { HOME: directory, PATH: "", TMPDIR: directory };
+	if (mode === "source") {
+		return command([process.execPath, entrypoint, "skills", ...args], env);
+	}
+	return command([executable, "skills", ...args], env);
+}
 
 async function seedTicket(target = lock): Promise<string> {
 	const store = await openQueue(target);
