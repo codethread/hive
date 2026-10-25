@@ -131,3 +131,45 @@ test("unexpected source failure aborts preparation instead of becoming an empty 
 	const file = source("test", [reference("a")]);
 	await expect(collectSupport(file, limits, capture.deps)).rejects.toBeInstanceOf(Error);
 });
+
+test.each([
+	{ maxFiles: 1, maxBytes: 100 },
+	{ maxFiles: 32, maxBytes: 1 },
+])("supplied modules do not consume or stop automatic budgets: %j", async (bounds) => {
+	const explicitSource = source("explicit-source", [reference("helper")], limits.maxBytes + ONE);
+	const explicitContext = source("explicit-context", [reference("helper")], limits.maxBytes + ONE);
+	const file = source("test", [
+		reference("explicit-source"),
+		reference("helper"),
+		reference("explicit-context"),
+	]);
+	const capture = memory([source("helper", [reference("test")])], {
+		"explicit-source": { kind: "supplied", path: explicitSource.path, module: explicitSource },
+		"explicit-context": { kind: "supplied", path: explicitContext.path, module: explicitContext },
+	});
+	const support = await collectSupport(file, { ...limits, ...bounds }, capture.deps);
+	expect(support.files.map(({ module }) => module.path)).toEqual(["helper"]);
+	expect(support.bytes).toBe(ONE);
+	expect(capture.reads).toEqual(["helper"]);
+	expect(
+		support.references
+			.filter(({ outcome }) => outcome.kind === "supplied")
+			.map(({ outcome }) => outcome),
+	).toEqual([
+		{
+			kind: "supplied",
+			path: "explicit-source",
+			depth: ONE,
+			hash: explicitSource.hash,
+			bytes: explicitSource.bytes,
+		},
+		{
+			kind: "supplied",
+			path: "explicit-context",
+			depth: ONE,
+			hash: explicitContext.hash,
+			bytes: explicitContext.bytes,
+		},
+	]);
+	expect(support.references.every(({ outcome }) => outcome.kind !== "omitted")).toBe(true);
+});

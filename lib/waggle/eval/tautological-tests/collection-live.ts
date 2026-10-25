@@ -46,7 +46,8 @@ export async function createCollectionDependencies(
 ): Promise<LiveCollection> {
 	const canonicalRoot = await realpath(root);
 	const resolver = new ResolverFactory(RESOLVER_OPTIONS);
-	const cache = new Map(supplied.map((file) => [file.path, file]));
+	const explicit = new Map(supplied.map((file) => [file.path, file]));
+	const cache = new Map<string, EvidenceModule>();
 	return {
 		root: canonicalRoot,
 		deps: {
@@ -77,10 +78,23 @@ export async function createCollectionDependencies(
 					return { kind: "unresolved", detail: result.error ?? "Resolver returned no path." };
 				}
 				const path = await realpath(result.path);
-				return eligiblePath(canonicalRoot, path);
+				return suppliedResolution(eligiblePath(canonicalRoot, path), explicit);
 			},
 		},
 	};
+}
+
+function suppliedResolution(
+	resolution: ImportResolution,
+	explicit: ReadonlyMap<string, SourceFile>,
+): ImportResolution {
+	if (resolution.kind === "local") {
+		const file = explicit.get(resolution.path);
+		if (file) {
+			return { kind: "supplied", path: file.path, module: analyzeModule(file) };
+		}
+	}
+	return resolution;
 }
 
 /** Analyze source text without evaluating imports, registrations or expressions. */

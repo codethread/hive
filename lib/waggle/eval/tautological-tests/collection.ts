@@ -38,6 +38,7 @@ export interface EvidenceModule extends SourceFile {
 
 export type ImportResolution =
 	| { kind: "local"; path: string }
+	| { kind: "supplied"; path: string; module: EvidenceModule }
 	| {
 			kind: "excluded";
 			reason: "builtin" | "third_party" | "outside_root" | "declaration_only" | "unsupported";
@@ -66,6 +67,7 @@ export interface CollectedModule {
 
 export type ReferenceOutcome =
 	| { kind: "included"; path: string; depth: number }
+	| { kind: "supplied"; path: string; depth: number; hash: string; bytes: number }
 	| {
 			kind: "omitted";
 			reason: string;
@@ -107,7 +109,9 @@ export async function collectSupport(
 	deps: CollectionDependencies,
 ): Promise<SupportSnapshot> {
 	const snapshot: SupportSnapshot = { files: [], references: [], bytes: ZERO, limits };
-	const included = new Map([[test.path, ZERO]]);
+	const included = new Map<string, Exclude<ReferenceOutcome, { kind: "omitted" }>>([
+		[test.path, { kind: "included", path: test.path, depth: ZERO }],
+	]);
 	const resolved = new Map<string, ImportResolution>();
 	const queue = pending(test, NEXT_DEPTH);
 	let stopped: "file_budget" | "byte_budget" | undefined = undefined;
@@ -127,14 +131,30 @@ export async function collectSupport(
 			resolution = await deps.resolveImport(importer, reference.specifier);
 			resolved.set(key, resolution);
 		}
-		if (resolution.kind !== "local") {
+		if (resolution.kind !== "local" && resolution.kind !== "supplied") {
 			record(resolutionOmission(resolution));
 			return;
 		}
 		const { path } = resolution;
-		const previousDepth = included.get(path);
-		if (previousDepth !== undefined) {
-			record({ kind: "included", path, depth: previousDepth });
+		const previous = included.get(path);
+		if (previous) {
+			record(previous);
+			return;
+		}
+		if (resolution.kind === "supplied") {
+			const { module } = resolution;
+			const outcome = {
+				kind: "supplied",
+				path,
+				depth,
+				hash: module.hash,
+				bytes: module.bytes,
+			} as const;
+			included.set(path, outcome);
+			record(outcome);
+			if (depth <= limits.maxDepth) {
+				queue.push(...pending(module, depth + NEXT_DEPTH));
+			}
 			return;
 		}
 		if (depth > limits.maxDepth) {
@@ -156,7 +176,7 @@ export async function collectSupport(
 			);
 			return;
 		}
-		included.set(path, depth);
+		included.set(path, { kind: "included", path, depth });
 		snapshot.files.push({ module: read.module, depth });
 		snapshot.bytes += read.module.bytes;
 		record({ kind: "included", path, depth });
@@ -194,6 +214,9 @@ export function supportManifest(snapshot: SupportSnapshot) {
 export function supportContext(snapshot: SupportSnapshot): string {
 	const entries = snapshot.references.map(({ importer, line, specifier, kind, outcome }) => {
 		const reference = `${importer}:${line} ${kind} ${specifier}`;
+		if (outcome.kind === "supplied") {
+			return `${reference}: explicitly supplied ${outcome.path} (depth ${outcome.depth}); outside automatic budgets.`;
+		}
 		if (outcome.kind === "included") {
 			return `${reference}: included ${outcome.path} (depth ${outcome.depth}).`;
 		}
@@ -222,7 +245,7 @@ function omission(reason: string, path: string | undefined, detail: string): Ref
 	return { kind: "omitted", reason, path, detail };
 }
 
-function resolutionOmission(resolution: Exclude<ImportResolution, { kind: "local" }>) {
+function resolutionOmission(resolution: Exclude<ImportResolution, { kind: "local" | "supplied" }>) {
 	if (resolution.kind === "unresolved") {
 		return omission("unresolved", undefined, resolution.detail);
 	}

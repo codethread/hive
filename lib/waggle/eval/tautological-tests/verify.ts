@@ -36,6 +36,7 @@ const directory = await mkdtemp(join(tmpdir(), "waggle-extraction-"));
 try {
 	const root = await createFixture(directory);
 	await verifyNative(root);
+	await verifyExplicitBudget(root);
 	await verifyProgression();
 	process.stdout.write(
 		`${JSON.stringify({
@@ -182,7 +183,7 @@ async function verifyNative(root: string): Promise<void> {
 	);
 	assert.equal(new Set(plan.map(({ request }) => request.state.source)).size, FIRST_SCOPE);
 	assert.ok(plan.every(({ request }) => request.state.context!.includes("depth_limit")));
-	await verifyOfflineCli(file.path, root, selected.start);
+	await verifyOfflineCli(file.path, root, { offset: selected.start, extra: [] });
 	const dynamic = {
 		path: "dynamic.test.ts",
 		text: 'import {test} from "bun:test"; for (const row of [1]) test("row", () => row);',
@@ -216,16 +217,79 @@ async function verifyNative(root: string): Promise<void> {
 	);
 }
 
-async function verifyOfflineCli(file: string, root: string, offset: number): Promise<void> {
+// eslint-disable-next-line max-statements -- Verify native explicit overlap, budgets and CLI assembly together.
+async function verifyExplicitBudget(root: string): Promise<void> {
+	const boundary = await createCollectionDependencies(root);
+	const canonical = boundary.root;
+	const supplied = {
+		path: join(canonical, "explicit.ts"),
+		text: `import "./src/source.ts";\n//${"x".repeat(COLLECTION_LIMITS.maxBytes)}`,
+	};
+	const file = {
+		path: join(canonical, "explicit.test.ts"),
+		text: [
+			'import {test} from "bun:test"; import "./explicit.ts";',
+			'import "./src/source.ts"; test("explicit", () => {});',
+		].join(" "),
+	};
+	await writeFile(supplied.path, supplied.text);
+	await writeFile(file.path, file.text);
+	const live = await createCollectionDependencies(root, [file, supplied]);
+	const support = await collectSupport(
+		analyzeModule(file),
+		{ ...COLLECTION_LIMITS, maxFiles: FIRST_SCOPE },
+		live.deps,
+	);
+	assert.deepEqual(
+		support.files.map(({ module }) => module.path),
+		[join(canonical, "src/source.ts")],
+	);
+	assert.ok(support.bytes < COLLECTION_LIMITS.maxBytes);
+	assert.equal(
+		support.references.find(({ specifier }) => specifier === "./explicit.ts")?.outcome.kind,
+		"supplied",
+	);
+	const candidate = extractCandidates(file)[ZERO]!;
+	await Promise.all(
+		(
+			[
+				{ field: "sources", flag: "--source" },
+				{ field: "context", flag: "--context" },
+			] as const
+		).map(async ({ field, flag }) => {
+			const evidence = assembleEvidence(file, candidate, {
+				scope: FIRST_SCOPE,
+				sources: [],
+				context: [],
+				[field]: [supplied],
+				contract: undefined,
+				automatic: support,
+			});
+			assert.equal(Object.values(evidence).join("\n").split(supplied.text).length, SMALL_BUDGET);
+			assert.ok(evidence.source.includes("export function run"));
+			await verifyOfflineCli(file.path, root, {
+				offset: candidate.start,
+				extra: [flag, supplied.path],
+			});
+		}),
+	);
+}
+
+async function verifyOfflineCli(
+	file: string,
+	root: string,
+	selection: { offset: number; extra: string[] },
+): Promise<void> {
 	const child = Bun.spawn(
 		[
 			"bun",
 			new URL("extract.ts", import.meta.url).pathname,
 			file,
 			"--case",
-			String(offset),
+			String(selection.offset),
 			"--root",
 			root,
+			...selection.extra,
 		],
 		{
 			env: { ...process.env, TYPESAFE_API_KEY: "offline-verifier-not-a-real-key" },
