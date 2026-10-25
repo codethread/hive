@@ -24,7 +24,9 @@ The [Storybook examples](../../../hive-ui/src/stories/workflow-nested-bees.tsx) 
 
 The [capture helper](../../tests/integration/nested-bees-fixture.ts) runs this workflow with memory Beads and mocked Bee dispatch. It launches no workers and writes no real tracker records.
 
-Focused engine tests use local definitions: [driver tests](../../tests/integration/driver.test.ts) cover dispatch and result collection, [parent tests](../../tests/integration/parents.test.ts) cover hierarchy and group closure, and [simulation tests](../../tests/integration/simulation.test.ts) cover read-only replay and child isolation. The two aggregate nested-bees scenarios were retired for runtime cost, not replaced assertion-for-assertion; the combined two-child, four-dispatch, all-group-closure run is no longer tested as one scenario.
+Focused engine tests use local definitions: [driver tests](../../tests/integration/driver.test.ts) cover dispatch and result collection, [parent tests](../../tests/integration/parents.test.ts) cover hierarchy and group closure, and [simulation tests](../../tests/integration/simulation.test.ts) cover read-only replay and child isolation.
+
+The two aggregate nested-bees scenarios were retired for runtime cost, not replaced assertion-for-assertion; the combined two-child, four-dispatch, all-group-closure run is no longer tested as one scenario. Equality between regenerated captures and the shipped JSON is also no longer checked automatically.
 
 Saved instruction metadata identifies the original published request; see the [dispatch provenance contract](../../SPEC.md#saved-state-preview) for retry and preview semantics. The root simulation rejects child coordination. A retained child can be simulated independently, but its completion leaves the parent unchanged; see [simulation limits](../../SPEC.md#simulation).
 

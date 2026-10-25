@@ -46,7 +46,10 @@ describe("checkout catalogue discovery", () => {
 			await expect(
 				invoke(["--repo", nested, "list"], { ...services, cwd: fixture.root }),
 			).resolves.toMatchObject({ document: listed.document });
-			const readable = await captureCli(["list"], services);
+			const readable = await captureCli(["list"], {
+				...services,
+				execute: () => Promise.resolve(repo),
+			});
 			expect(readable.stdout).toContain("example (1.0.0): A two-step workflow");
 			expect(await Bun.file(marker).exists()).toBe(false);
 		},
@@ -60,6 +63,7 @@ describe("checkout catalogue discovery", () => {
 			const services = {
 				...fixture.services,
 				cwd: repo,
+				execute: () => Promise.resolve(repo),
 				readBytes: mock(() =>
 					Promise.reject(new Error("Schema discovery must not fingerprint files")),
 				),
