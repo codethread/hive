@@ -66,7 +66,11 @@ esac
 	await Bun.write(join(root, ".husky/pre-commit"), applicationHook);
 	await Bun.write(env.HOOK_LOG, "");
 
-	const initialized = await run(["git", "init", `--initial-branch=${branch}`], root, env);
+	const initialized = await run(
+		["git", "init", "--template=", `--initial-branch=${branch}`],
+		root,
+		env,
+	);
 	expect(initialized.exitCode).toBe(success);
 	await Bun.write(join(root, "notes.md"), "First line  \nSecond line\n");
 	const staged = await run(["git", "add", "notes.md"], root, env);
