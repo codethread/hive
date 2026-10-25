@@ -1,4 +1,3 @@
-/* eslint-disable unicorn/no-null -- Persisted workflow contracts use null request IDs. */
 import type { ActiveEntry, Run } from "../../src/checkpoint.ts";
 import { assign, createMachine, raise, sendParent, setup } from "xstate";
 import { expect, test } from "bun:test";
@@ -31,14 +30,19 @@ test("simulation replays guards and assigns with rendered instructions and no sa
 	const initial = await fixture.simulate([]);
 	expect(initial.actor.instructions["flow.work"]).toMatchObject({
 		kind: "frozen",
+		bead: fixture.visit,
+		bee: { kind: "worker", request: "published-request" },
 		instructions: "Frozen published instructions",
 	});
 	const next = await fixture.simulate([step]);
 	expect(next.actor.snapshot).toEqual({ status: "active", value: "review" });
 	expect(next.actor.instructions["flow.review"]).toMatchObject({
 		kind: "rendered",
+		bee: { kind: "worker" },
 		instructions: `Count ${String(RESULT_COUNT)}`,
 	});
+	expect(next.actor.instructions["flow.review"]).not.toHaveProperty("bead");
+	expect(next.actor.instructions["flow.review"]).not.toHaveProperty("bee.request");
 	expect(next.choices).toMatchObject([{ node: "flow.review", command: "finish", event: "DONE" }]);
 	expect(JSON.stringify(next)).not.toContain("private-secret");
 	expect(JSON.stringify(next)).not.toContain("context");
@@ -58,8 +62,11 @@ test("simulation replays guards and assigns with rendered instructions and no sa
 	const inspection = await fixture.inspect();
 	expect(inspection.actors[FIRST]!.instructions["flow.work"]).toMatchObject({
 		kind: "frozen",
+		bead: fixture.visit,
+		bee: { kind: "worker", request: "published-request" },
 		instructions: "Frozen published instructions",
 	});
+	expect(await fixture.records()).toEqual(before);
 });
 
 // eslint-disable-next-line max-statements -- Verify supported routing and rejected effects together.
@@ -515,6 +522,7 @@ function taskMeta(commands: Record<string, string>) {
 		commands,
 		task: ({ context }: { context: Record<string, unknown> }) => ({
 			instructions: `Count ${String(context["count"])}`,
+			bee: { kind: "worker" },
 		}),
 	};
 }
@@ -663,9 +671,14 @@ function fixtureEntries(definition: Definition, bead: string): ActiveEntry[] {
 			key: `:${node}`,
 			path: [],
 			node,
-			request: null,
+			request: "published-request",
 			context: input,
-			meta: { title: "Published", instructions: "Frozen published instructions", commands },
+			meta: {
+				title: "Published",
+				instructions: "Frozen published instructions",
+				commands,
+				bee: { kind: "worker" },
+			},
 		},
 	];
 }

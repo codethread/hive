@@ -4,7 +4,6 @@ import {
 	workflowInspectionSchema,
 	workflowSimulationSchema,
 } from "@hive/shared";
-import type { Definition } from "../../src/definition.ts";
 import type { Services } from "../../src/native.ts";
 import type { WorkflowSimulationRequest } from "@hive/shared";
 import { captureCli } from "./support.ts";
@@ -38,20 +37,12 @@ export async function captureNestedBees() {
 	};
 }
 
-/**
- * Prepare the mixed child frontier with memory Beads and mocked dispatch.
- * An omitted fixture uses the shipped example and real source-file reads.
- * Call simulate() before finish() when both continuations are needed.
- */
+/** Use memory Beads and mocked dispatch while reading the shipped example from disk. */
 // eslint-disable-next-line max-statements -- Keep run setup and its simulation/completion continuations together.
-export async function startNestedBees(fixture?: {
-	definition: Definition;
-	source: string;
-	files: Pick<Services, "readBytes" | "isFile">;
-}) {
+async function startNestedBees() {
 	const scope = { actor: "example-driver", cwd: repo, db };
 	const options = { actor: scope.actor, repo, db };
-	const { definition, source } = fixture ?? {
+	const { definition, source } = {
 		definition: await import("../../examples/nested-bees/workflow.ts"),
 		source: import.meta.resolve("../../examples/nested-bees/workflow.ts").replace("file://", ""),
 	};
@@ -59,7 +50,6 @@ export async function startNestedBees(fixture?: {
 	const calls: string[][] = [];
 	const services: Services = {
 		...createServices(),
-		...fixture?.files,
 		actor: scope.actor,
 		beads,
 		cwd: repo,
@@ -116,7 +106,7 @@ export async function startNestedBees(fixture?: {
 	await complete(["api"], "nested-worker.implement");
 	return { started, calls, originalVisits, beforeInspection, afterInspection, simulate, finish };
 
-	// eslint-disable-next-line max-statements -- Compare saved and replayed child frontiers without publication.
+	// eslint-disable-next-line max-statements -- Capture saved and replayed child frontiers without publication.
 	async function simulate() {
 		const mixed = await inspect(run.id, options, services);
 		const beforeSimulation = await records();
