@@ -1,3 +1,3 @@
 description = "Perform one caller assignment and verify its acceptance criteria"
-version = "1.0.1"
+version = "1.0.2"
 run = "./workflow.ts"

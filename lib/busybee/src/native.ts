@@ -118,6 +118,8 @@ export interface CreateTask {
 	title: string;
 	/** Instructions or checkpoint JSON. */
 	description: string;
+	/** Optional authored criteria passed unchanged to native acceptance_criteria. */
+	acceptanceCriteria?: string | undefined;
 	/** Accountable human. */
 	owner: string;
 	/** Native structural parent. */

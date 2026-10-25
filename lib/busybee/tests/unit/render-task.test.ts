@@ -12,11 +12,17 @@ test.each([
 		name: "author overrides",
 		result: {
 			title: "Override",
+			acceptanceCriteria: "- [ ] Other work verified",
 			instructions: "Other work",
 			commands: { done: "DONE" },
 			bee: { kind: "worker" },
 		},
-		expected: { title: "Override", commands: { done: "DONE" }, bee: { kind: "worker" } },
+		expected: {
+			title: "Override",
+			acceptanceCriteria: "- [ ] Other work verified",
+			commands: { done: "DONE" },
+			bee: { kind: "worker" },
+		},
 	},
 ])("task rendering resolves $name #test-520", ({ result, expected }) => {
 	const context = { result };
