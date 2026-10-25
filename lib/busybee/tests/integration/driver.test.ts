@@ -643,7 +643,7 @@ describe("default catalogue installation", () => {
 			name: "do-work",
 			repo: "/another-checkout",
 			source: "/another-checkout/.workflows/do-work/workflow.ts",
-			version: "1.0.2",
+			version: "1.0.3",
 		});
 		expect(roots).toEqual([
 			{ argv: ["git", "rev-parse", "--show-toplevel"], cwd: "/another-checkout/nested" },
@@ -651,7 +651,7 @@ describe("default catalogue installation", () => {
 		expect(requests).toEqual([
 			{
 				directory: "/another-checkout/.workflows/do-work",
-				manifest: expect.stringContaining('version = "1.0.2"'),
+				manifest: expect.stringContaining('version = "1.0.3"'),
 				packageManifest: expect.stringContaining('"xstate": "^5.33.2"'),
 				source: expect.stringContaining('id: "do-work"'),
 			},

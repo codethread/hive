@@ -13,7 +13,7 @@ Before building library code, investigate existing tools online. Favour focused,
 Use Bee for repository subagents and follow the [specialist protocol](docs/agents/specialists.md):
 
 - Delegate repository prose writing and review to `bookworm`.
-- Use `architect` for new or revised architectural decisions. Consult `librarian` optionally for existing guidance; obtain its final-diff review before commit or handoff. Follow the protocol for decision escalation and evidence.
+- Use `architect` for new or revised architectural decisions and `librarian` for established guidance and conformity review. Follow the protocol for review, decision escalation and evidence.
 - Use `reviewer` for code style, test quality and general standards review.
 
 ## Required references
@@ -28,7 +28,7 @@ Use Bee for repository subagents and follow the [specialist protocol](docs/agent
 
 During iteration, use focused files or package checks and `bun run test:changed` at subtask boundaries; see [testing commands](docs/README.md#development-and-automation).
 
-The [Land workflow](.workflows/land/workflow.ts) owns its comprehensive completion checks. For implementation changes outside Land, get `bun run check` passing for the complete change before agent review, commit or handoff. Explain skipped verification.
+Deliver authorized implementation through [Land](.workflows/land/workflow.ts) by default; bounded [do-work](.workflows/do-work/workflow.ts) and [do-feature-task](.workflows/do-feature-task/workflow.ts) assignments retain their scope. These workflows own full checks, review and disposition. Report failed or skipped verification.
 
 Use Conventional Commits. [Development toolchain](docs/integrations.md#development-toolchain) covers runtime and integrations.
 

@@ -30,7 +30,7 @@ const input = inputSchema.parse({
 	target: { kind: "worktree", branch: "simulated-work" },
 });
 const evidence = "SIMULATED review evidence";
-const data = { evidence };
+const data = { evidence, revision: "1111111111111111111111111111111111111111" };
 const [check] = initialTransition(machine, input);
 const pendingLibrarian = advance(check, "passed");
 const integratedLibrarian = advance(check, "integrated");
