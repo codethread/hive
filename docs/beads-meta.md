@@ -72,20 +72,35 @@ Match the JSON `url` for an existing merge request; use `branch` to locate its s
 
 ## Authoring and handing off work
 
-Separate the task brief from its implementation history. Read the existing bead before editing; preserve relevant context rather than replacing it with the latest progress report.
+This is the field and lifecycle policy for executable work, whether agent-created or workflow-generated. Auto/manual describes creation provenance, not who performs the work. Responses, specialist evidence and merge references retain their own artifact contracts; they are not executable tasks.
+
+Read the existing bead and applicable ancestor instructions before editing. Preserve useful historical content, including existing design/prerequisites, and governing instructions; this policy does not authorize record migration or deletion. For engine-managed work, observe the current runtime boundary below before changing fields or completing work.
 
 | Field | What to put here |
 | --- | --- |
-| `description` | Problem, intended outcome, scope/non-goals, and relevant code or documentation pointers. Include enough context to start without the original conversation. |
-| `design` | Current approach, constraints, and rationale for important decisions. Set with `update --design`; `create` has no design flag. |
-| `acceptance_criteria` | Observable delivery outcomes, preferably `- [ ]` Markdown items that can be verified independently. Avoid vague items such as "works correctly". |
-| `prerequisites` | Preparation needed before implementation, such as confirming a fixture or obtaining a decision. Other tracked work that must finish first belongs in a dependency edge, not only this text. |
-| `notes` | Progress, discoveries, blockers, verification evidence, and the next handoff action. Use `update --append-notes` to retain earlier entries. |
+| `description` | Current problem, intended outcome, scope/non-goals and context, including relevant code or documentation pointers. Keep the brief meaningful without the original conversation, including after completion. |
+| `acceptance_criteria` | The dedicated acceptance checklist: concrete, independently verifiable outcomes, normally `- [ ]` Markdown items. Do not duplicate the checklist in the description. |
+| `notes` | One consolidated current account: what was done and why, decisions, verification, limitations, unresolved work and next action. Keep it useful without reconstructing a transcript. |
+| `design`, `prerequisites` | Leave unused for new work. Put current intent in the brief and approach/rationale in notes. Represent prerequisite work as separate tasks with blocking links. |
 | `agent_context` | JSON governing instructions specific to a parent/subtree, such as constraints shared by its children. Keep repository-wide rules in `AGENTS.md`; do not use this as a progress log or searchable routing metadata. |
+| `close_reason` | A readable, proof-bearing explanation of why the work can close, not a replacement for the current account in notes. |
 
-For a small task, a description and concrete acceptance criteria are enough. Add design, prerequisites, or shared context only when they convey information the next agent needs. Child beads need their own scope and completion criteria; a parent link does not copy its narrative fields.
+**Current runtime boundary:** until workflow producers adopt this policy, preserve Busy Bee's stage result notes (`record-result`/`complete`), temporary run-note settlement intent and structured close reasons. Use narrative comments on managed work and, within your scope, the ordinary source task's current notes for evidence. Follow the active brief and `busybee complete --help`, then collect saved results as driver; Busy Bee alone closes groups and the run. Never directly close engine-managed work or replace its payload with prose. The [workflow specification](../lib/busybee/SPEC.md) owns that contract. This guidance changes no native YAML and does not establish producer compliance or class-scoped enforcement.
 
-Use `br create --help` and `br update --help` for file-backed descriptions and incremental acceptance edits. Verify an outcome before checking it off, with supporting evidence in comments. Ordinary task notes may hold handoff history; workflow notes are reserved for saved outcomes. Checklists do not create graph dependencies: tracked prerequisites need explicit edges.
+### Work lifecycle
+
+1. Create agent-authored executable work explicitly with `--status draft`. Supply meaningful native acceptance criteria before **any** departure from draft, including a claim.
+2. Claim only available authorized scope under the root runbook's actor, owner, assignment and reservation rules. Each child needs its own narrower scope and acceptance; parent links group work and blocking links order prerequisites. A parent link does not copy narrative fields.
+3. Update notes at meaningful decisions, interruptions, handoffs and completion. Consolidate the current account rather than appending competing summaries; preserve useful findings and rationale when revising it. Keep verification specific about what passed, what was not checked and what remains to do.
+4. Verify outcomes before ticking criteria. Close only when acceptance and required child work are complete, with the proof-bearing reason above. Leave unfinished work open with its blocker or next action. Landing acceptance waits for integration; a report completes only its own scope, not the work it examines.
+
+Use `br create --help` and `br update --help` for field operations, including file-backed descriptions and incremental acceptance edits. Native presence/checklist checks cannot establish that criteria are meaningful or true; verification remains the agent's responsibility. Owner, assignee, actor and label stewardship remain governed by the root runbook and [label taxonomy](./beads-labels.md).
+
+### Conversation and optional working history
+
+Capture useful conversation selectively in task comments, distinguishing quotations, paraphrases and accepted decisions. Comments can carry short progress/delivery evidence; promote consequential conclusions into the task's current brief or notes. No automatic transcript is required.
+
+A separate working diary is optional history, not unfinished child work. Attach an existing diary with a nonblocking `related` link and keep experiments and intermediate history in its authored comments. Promote useful conclusions to the task at handoff or completion. This policy defines no diary type, label or creation/closure procedure; without an established artifact contract, use selective task comments instead.
 
 ### Filed responses
 
@@ -175,7 +190,7 @@ Use `--fields id,title,status,priority,assignee,owner` for topic-search summarie
 
 #### Caller-side jq recipes
 
-Use `jq` for transformations native flags cannot express, not to discard a full list after fetching it. Filtering before the shell tool returns reduces agent context, but does not reduce `br`'s own hydration/serialization. Neither projection nor these recipes changes where evidence is recorded: follow the root runbook's notes/handoff policy.
+Use `jq` for transformations native flags cannot express, not to discard a full list after fetching it. Filtering before the shell tool returns reduces agent context, but does not reduce `br`'s own hydration/serialization. Neither projection nor these recipes changes where evidence is recorded: follow the [work policy](#authoring-and-handing-off-work).
 
 A plain `br ... | jq ...` pipeline can hide `br`'s exit status, and projecting only success fields can erase structured errors or partial effects. This Nushell helper checks the producer first, preserves diagnostics, and exposes raw failure output before failing. Keep identifiers, assignment/status, warnings and confirmation fields in successful receipts:
 
@@ -193,7 +208,7 @@ def br-output [args: list<string>] {
 # Recent comments with explicit history coverage; fetch all when older evidence matters.
 br-output [comments list $id --json] | jq '{total: length, omitted: ([length - 3, 0] | max), comments: .[-3:]}'
 
-# After an authorized notes append, omit only the repeated complete notes body.
+# For an archive whose contract calls for appending evidence, omit the repeated notes body.
 br-output [update $id --actor pi --append-notes "Verified: focused checks passed" --json] | jq 'walk(if type == "object" and (.notes | type) == "object" then del(.notes.text) else . end)'
 ```
 

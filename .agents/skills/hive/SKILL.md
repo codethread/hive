@@ -5,7 +5,7 @@ description: Plan, carry out and hand off Beads-tracked work in repositories usi
 
 # Work with Hive
 
-Use the consuming repository's instructions for human ownership, actor fallback, worktree policy, validation and publication checkpoints. This is a customizable workflow; installed CLI help and bundled instructions own command procedures. Load `beeswax prime` only if its shared safety and tool pointers are absent from context.
+Use the consuming repository's instructions for human ownership, actor fallback, worktree policy, validation and publication checkpoints. When creating, updating or completing executable work in this repository, follow the [work policy](../../../docs/beads-meta.md#authoring-and-handing-off-work). This is a customizable workflow; installed CLI help and bundled instructions own command procedures. Load `beeswax prime` only if its shared safety and tool pointers are absent from context.
 
 ## Route the request
 

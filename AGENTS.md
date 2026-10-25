@@ -49,10 +49,10 @@ Request only fields needed for the next decision; use native `--fields`/`--brief
 
 ### Task lifecycle
 
-1. Inspect the supplied bead or reuse existing scope. Create missing work with the problem, scope, pointers and verifiable acceptance criteria.
+1. Inspect the supplied bead or reuse existing scope. Before creating, updating or completing executable work, follow the [work policy](docs/beads-meta.md#authoring-and-handing-off-work).
 2. Claim only your available scope with `br update <id> --claim --owner ct --json`, respecting assignments and blockers. Record scope and worktree context because same-harness sessions can share an actor.
-3. Split substantial work into scoped children and claim/delegate each explicitly. Parent links group work; blocking dependencies order execution. Keep the approach in `--design` and progress/handoff evidence in `--append-notes`. For workflow stages, use comments for narrative evidence and reserve notes for `busybee record-result`.
-4. Verify acceptance and record evidence before closing with a proof-bearing reason. Keep unfinished work open with a next step; parents require completed children, and landing-scoped work stays open until integration. Reports complete only their own scope, not examined implementation or landing work.
+3. Split substantial work into scoped children and claim/delegate each explicitly. Parent links group work; blocking dependencies order execution.
+4. Follow the work policy's evidence and completion gates. For engine-managed work, preserve tool-owned fields and use the active workflow's completion protocol.
 
 Use `in_review` only for completed work awaiting user-requested review; agent-to-agent review stays `in_progress`. Use `blocked` for an active blocker.
 

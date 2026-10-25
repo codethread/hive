@@ -21,7 +21,7 @@ Librarian consultation is optional. Use it to locate or explain established guid
 | A final diff departs from an established decision. | Librarian cites the rule and required repair; a proposed rule change goes to Architect. |
 | Agents repeatedly cannot find or interpret the guidance. | Librarian catalogs the questions and evidence; Architect resolves any new design decision and Bookworm encodes accepted guidance. |
 
-Forward the original request, corrections and rationale, relevant revisions, prior advice and known evidence ID. Keep accepted decisions in the implementation task's design and return decisions/outcomes to the same [Librarian evidence thread](../../.hive/bees/librarian/system_prompt.md#architectural-evidence-records). Recurring confusion is evidence of a guidance gap, not authority to invent a rule. Give Bookworm settled intent and explicit files for prose changes. Reviewer retains code-style and test-quality review.
+Forward the original request, corrections and rationale, relevant revisions, prior advice and known evidence ID. Keep accepted decisions in the implementation task's current notes under the [work policy](../beads-meta.md#authoring-and-handing-off-work), and return decisions/outcomes to the same [Librarian evidence thread](../../.hive/bees/librarian/system_prompt.md#architectural-evidence-records). Recurring confusion is evidence of a guidance gap, not authority to invent a rule. Give Bookworm settled intent and explicit files for prose changes. Reviewer retains code-style and test-quality review.
 
 ## Operational architecture
 
