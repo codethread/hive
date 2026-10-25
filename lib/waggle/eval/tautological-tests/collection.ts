@@ -14,7 +14,7 @@ export interface CollectionLimits {
 	maxDepth: number;
 	/** Maximum distinct automatically included support modules. */
 	maxFiles: number;
-	/** Maximum UTF-8 bytes of automatic support, excluding the test and explicit files. */
+	/** UTF-8 byte budget for automatic modules; the test and explicit evidence are retained separately. */
 	maxBytes: number;
 }
 
@@ -58,7 +58,7 @@ export interface CollectionDependencies {
 }
 
 export interface CollectedModule {
-	/** Complete immutable source evidence. */
+	/** Complete module text retained for every scope. */
 	module: EvidenceModule;
 	/** First breadth-first discovery distance from the test. */
 	depth: number;
@@ -200,8 +200,8 @@ export function supportContext(snapshot: SupportSnapshot): string {
 		return `${reference}: ${outcome.reason}; ${outcome.detail}`;
 	});
 	return [
-		"Automatically collected whole modules are supporting evidence, not proof of production role, " +
-			"hook applicability or independent requirements. Omitted evidence remains unknown.",
+		"Automatically collected whole modules appear in source as support; " +
+			"collection does not establish their production role or independent requirements.",
 		`Automatic collection limits: depth ${snapshot.limits.maxDepth}, ` +
 			`${snapshot.limits.maxFiles} files, ${snapshot.limits.maxBytes} UTF-8 bytes.`,
 		...entries,

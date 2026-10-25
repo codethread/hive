@@ -57,25 +57,25 @@ export interface SourceRange {
 export interface ContextSelection {
 	/** Coalesced test-file context ranges; the selected declaration has its own range. */
 	ranges: SourceRange[];
-	/** Direct file-level and enclosing-suite callback statements not fully retained, plus unresolved imports. */
+	/** Direct file-level and enclosing-suite callback statements not fully retained. */
 	omitted: string[];
 	/** Referenced source slices. */
 	text: string;
 }
 
 export interface Evidence {
-	/** Actual caller-selected implementation files, or explicit unavailability. */
+	/** Explicit source and automatically collected support modules, or explicit unavailability. */
 	source: string;
 	/** Selected syntactic declaration, not a runtime-expanded test row. */
 	test: string;
-	/** Scoped test-file context, omission summary and all caller-supplied context files. */
+	/** Scoped test-file context, collection provenance, omissions and explicit context files. */
 	context: string;
 	/** Caller-supplied independent requirement with provenance, or unknown. */
 	contract: string;
 }
 
 export interface SupportingEvidence {
-	/** Cumulative test-file context level; explicit support is retained at every level. */
+	/** Cumulative test-file context level; automatic and explicit support stay fixed. */
 	scope: Scope;
 	/** Explicit implementation files. */
 	sources: SourceFile[];
@@ -143,7 +143,8 @@ export function assembleEvidence(
 	if (scope !== FULL_SCOPE && !candidate.reducedScopeSupported) {
 		throw new Error("Dynamic or indirect registration requires --scope=3 to retain its wrapper.");
 	}
-	let sourceText = "Implementation unavailable: caller must supply relevant source files.";
+	let sourceText =
+		"No supporting source collected or supplied; relevant implementation is unknown.";
 	const allSources = [...sources, ...(automatic?.files.map(({ module }) => module) ?? [])];
 	if (allSources.length > ZERO) {
 		sourceText = [...new Map(allSources.map((source) => [source.path, source])).values()]
@@ -158,8 +159,8 @@ export function assembleEvidence(
 	const localContext = candidate.contexts[scope];
 	const extraContext = context.map((entry) => referenced(entry));
 	let importsContext =
-		"Imports are not followed. Imported bodies, external snapshots and runtime configuration " +
-		"are unavailable unless explicitly supplied.";
+		"Automatic import collection is disabled. Imported bodies, external snapshots and runtime " +
+		"configuration are unavailable unless explicitly supplied.";
 	if (automatic) {
 		importsContext = supportContext(automatic);
 	}

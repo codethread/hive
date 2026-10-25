@@ -151,27 +151,30 @@ function parseOptions(argv: string[]) {
 	const command = new Command()
 		.name("extract.ts")
 		.description(
-			"Inventory bun:test cases offline. Select --case to assemble bounded local support; " +
-				"--live explicitly sends prepared evidence to Typesafe and progressively expands test context.",
+			"Inventory bun:test cases or use --case to prepare evidence with bounded local imports. " +
+				"Offline by default, even with credentials. --live sends the prepared evidence to Typesafe.",
 		)
 		.argument("<file>", "TypeScript or JavaScript test file")
 		.option("--case <offset>", "Exact UTF-16 offset from the current inventory")
 		.addOption(
-			new Option("--scope <level>", "Starting test context: 1 case/hooks, 2 suite, 3 full file")
+			new Option(
+				"--scope <level>",
+				"Starting scope through 3: 1 case/hooks/imports, 2 suite/local support, 3 full file",
+			)
 				.choices(["1", "2", "3"])
 				.default("1"),
 		)
 		.addOption(
 			new Option(
 				"--metric <score>",
-				"Stopping statistic at 0.90 (probability default is provisional)",
+				"Substantive-answer threshold >=0.90: chosen-label probability (provisional) or provider confidence",
 			)
 				.choices(["probability", "confidence"])
 				.default("probability"),
 		)
 		.option(
 			"--root <directory>",
-			"Automatic source root; depth 2, 32 files, 256 KiB",
+			"Automatic support root; depth 2, 32 whole files, 256 KiB UTF-8 source",
 			process.cwd(),
 		)
 		.option("--source <files...>", "Additional explicit implementation evidence", [])
@@ -181,7 +184,11 @@ function parseOptions(argv: string[]) {
 			[],
 		)
 		.option("--contract <file>", "Independent requirement evidence with provenance")
-		.option("--live", "Send selected case and automatic/explicit support to Typesafe", false)
+		.option(
+			"--live",
+			"Classify --case progressively; sends automatic and explicit evidence to Typesafe",
+			false,
+		)
 		.exitOverride()
 		.configureOutput({ writeErr() {} })
 		.parse(argv);

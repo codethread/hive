@@ -34,57 +34,88 @@ jq .input lib/waggle/eval/tautological-tests/fixtures/setup-produces-result.json
 
 These commands transmit evidence to Typesafe. Follow Waggle's [credential and disclosure guidance](../../README.md#supply-evidence); exclude secrets and code you are not authorized to send. Waggle neither harvests repository files nor executes the snippets. See [score semantics](../../README.md#review-tests-for-implementation-restatement) before interpreting a result: missing context is not evidence of safety, and provider errors are not `needs_context` answers.
 
-## Extract a local case (offline spike)
+## Extract a local case
 
-The optional [extractor](extract.ts) reads local files without executing tests or contacting a provider. It uses [Oxc's parser](https://oxc.rs/docs/guide/usage/parser) ([Node bindings](https://github.com/oxc-project/oxc/tree/main/napi/parser)) as an eval-only development dependency; the standalone Waggle runtime is unchanged. From the repository root after `bun install`:
+The optional [extractor](extract.ts) inventories `bun:test` declarations and assembles local evidence without executing tests. It is **offline by default**, even with credentials; `--live` explicitly enables progressive classification. [Oxc's parser](https://oxc.rs/docs/guide/usage/parser) and [resolver](https://github.com/oxc-project/oxc-resolver) are pinned eval-only development dependencies. The standalone Waggle runtime is unchanged.
+
+From the repository root after `bun install`, inventory a file and select a case:
 
 ```sh
 bun run lib/waggle/eval/tautological-tests/extract.ts \
   lib/waggle/tests/unit/extraction.test.ts > /tmp/waggle-candidates.json
 jq '.candidates[] | {start, line, title, suites}' /tmp/waggle-candidates.json
-```
 
-Inventory returns `kind: "test_candidates"`, the path, a SHA-256 `source_hash` and candidates with `start`, `end`, `line`, `title`, `suites`, `code` and `reducedScopeSupported`. Offsets are UTF-16, `end` is exclusive and lines are one-based. Identify a candidate by **path + source_hash + start**, not its title. Rerun inventory after edits: selection checks the current offset, not the saved hash.
-
-For example, select the first candidate and supply its implementation:
-
-```sh
 offset=$(jq -r '.candidates[0].start' /tmp/waggle-candidates.json)
 bun run lib/waggle/eval/tautological-tests/extract.ts \
   lib/waggle/tests/unit/extraction.test.ts --case "$offset" --scope=1 \
-  --source lib/waggle/eval/tautological-tests/extraction.ts \
   > /tmp/waggle-extracted.json
 jq .input /tmp/waggle-extracted.json > /tmp/waggle-evidence.json
 ```
 
-Selected output has `kind: "test_evidence"`, provenance, the candidate, `scope`, a `manifest` and `input` with exactly `source`, `test`, `context` and `contract`. Review that input before using the [provider commands above](#prepare-evidence); send `.input`, not the extraction envelope. Use `--help` for options.
+Inventory returns `kind: "test_candidates"`, a canonical path, SHA-256 `source_hash` and candidates with `start`, `end`, `line`, `title`, `suites`, `code` and `reducedScopeSupported`. Offsets are UTF-16, `end` is exclusive and lines are one-based. Identify a candidate by **path + source_hash + start**, not its title. Rerun inventory after edits: selection checks the current offset, not a saved hash.
+
+Selected-case mode automatically collects supporting modules. It prepares the requested scope through scope 3 before any classification, validates each four-string input, and prints `kind: "test_evidence"` with the requested scope's `.input`. The envelope also contains source/classifier provenance, automatic collection details and `planned_scopes` with request/input hashes, serialized input byte counts and context manifests. Review `.input` before using the [provider commands above](#prepare-evidence); send that object, not the envelope. Use `--help` for options.
+
+### Automatic support and its bounds
+
+Collection starts from the test file's static value imports, including side-effect imports, and follows imports and re-exports in included modules. It retains **whole modules**, not selected declarations, in deterministic breadth-first/source order. A helper's complete body is retained even when it registers hooks indirectly; obtaining that body does not establish its applicability to the selected case.
+
+- `--root` defaults to the invocation directory. Only canonical TS/JS source paths inside that root are eligible. Third-party `node_modules` contents are excluded; workspace symlinks resolving to source inside the root are eligible. This bounds included evidence, not the resolver's metadata reads.
+- Fixed automatic limits are **depth 2, 32 distinct support files and 256 KiB of raw UTF-8 source**. The test is depth 0; a barrel consumes a hop. Modules are included whole or omitted. Once the file/byte budget stops collection, later new files are omitted rather than packed around the limit. These are support-source limits, not limits on serialized `.input` size.
+- Type-only references, declaration-only files, builtins, unsupported assets, dynamic imports and CommonJS `require` are not traversed. Resolver failures retain their native diagnostics as unresolved evidence. Unexpected read/parse errors abort preparation rather than yielding a partial success.
+- Canonical paths deduplicate modules and successful reads are cached within an invocation, including files also supplied explicitly. The `automatic` manifest records bounds, paths, hashes, full-file ranges, depths and incoming references. Each observed edge has an inclusion or omission disposition, also summarized in `input.context`; cycles and shared targets are not missing evidence. The reported `resolution_profile` is explicit, not a claim of exact Bun runtime resolution.
+
+Automatic modules are supporting `source`, not inferred production roles or independent requirements. Use additive `--source` and `--context` file lists for missing implementation, helpers, snapshots or configuration; `--contract` reads one independently justified requirement file with provenance. Explicit evidence is retained outside automatic-budget dropping. **The same automatic and explicit support is retained at every scope.** Unknown contracts remain unknown; collection does not infer them from filenames or code.
 
 ### Cumulative scopes
 
-`--scope=1|2|3` selects test-file context; the default is `1`. Every scope retains the selected declaration in `input.test`, including inline tables, plus lexical suite titles, suite registration prefixes and all test-file imports. **All explicitly supplied evidence is retained at every scope:** `--source` and `--context` accept file lists; `--contract` reads one requirement file with provenance. Missing implementation or contract evidence remains unknown.
+`--scope=1|2|3` is the **starting scope**, default `1`. Every scope retains the selected declaration in `input.test`, including inline tables and lexical suite titles. Test-file context expands as follows:
 
 | Scope | Test-file context |
 | --- | --- |
 | `1` — case + lifecycle | Imports, enclosing suite registration prefixes and complete recognized direct hooks at file level and in enclosing suite callbacks. |
 | `2` — suite + local support | Scope 1 plus the complete outermost enclosing suite and top-level statements other than separately recognized test/suite registrations. For a top-level case, adds the same non-registration statements. |
-| `3` — full file | Complete original test file. Required when a candidate has `reducedScopeSupported: false`. |
+| `3` — full file | Complete original test file. Required when a candidate has `reducedScopeSupported: false`; scopes 1/2 fail rather than silently switching to 3. |
 
-Ranges coalesce as context expands; small files can yield equal scopes. `manifest.ranges` describes retained test-file **context** ranges; the selected declaration has its own candidate range. `manifest.omitted` lists direct statements at file level and in enclosing suite callbacks that are not fully retained, with path/line and declaration or call labels, plus unresolved import references. The same omission summary appears inside `input.context`; it is not an exhaustive dependency inventory, and import references are not resolved against explicitly supplied files. Omitted evidence is unknown, not evidence that no context applies. Surrounding tests remain context, not additional selected cases.
+Ranges coalesce without losing earlier source coverage; small files can yield equal scopes. Each `planned_scopes[].manifest` lists retained test-file context `ranges` and `omitted` direct statements at file level and in enclosing suite callbacks, with path/line and declaration or call labels. The selected declaration has its own candidate range. Omission summaries also appear inside `input.context`, separately from collection dispositions. These inventories are bounded, not an exhaustive behavior closure. Omitted evidence is unknown, not evidence that no context applies; surrounding tests are context, not additional selected cases. Even scope 3 may lack relevant runtime configuration, snapshots or transitive behavior.
 
-### Offline stopping policy
+### Progressive classification
 
-[decideScope](scopes.ts) evaluates one supplied result using an explicit `probability` or `confidence` metric. At **>= 0.90**, a substantive choice (`tautological`, `behavioral` or `mixed`) returns `accepted`. Otherwise it returns `expand` with the next scope, or `unresolved` at scope 3. `needs_context` always expands when possible, regardless of score, and remains unresolved at scope 3.
+After reviewing the evidence and [external-transmission guidance](../../README.md#supply-evidence), opt in explicitly with `TYPESAFE_API_KEY` set:
 
-The provisional recommendation is the **chosen label's probability**, not always `probabilities.tautological` and not the separate provider `confidence` statistic. The user's intended meaning of “90% confidence” still needs clarification; both metric choices have offline tests. This is a pure policy helper, not an automatic extraction/classification loop. It retains no best-scoring answer: later evidence may lower the score or change the label. Meeting the threshold is an experimental stopping heuristic, not calibrated correctness or permission to delete a test.
+```sh
+bun run lib/waggle/eval/tautological-tests/extract.ts \
+  lib/waggle/tests/unit/extraction.test.ts --case "$offset" --scope=1 \
+  --metric probability --live
+```
 
-### Extraction limits and local observations
+Each invocation prepares a fresh local snapshot. The [runner](progressive.ts) then evaluates scopes sequentially, using [decideScope](scopes.ts): a substantive choice (`tautological`, `behavioral` or `mixed`) at **>= 0.90** returns `accepted`; otherwise it expands or ends `unresolved` at scope 3. `needs_context` always expands when possible, regardless of score. The latest result governs the outcome, never the highest earlier score; later evidence may lower the score or change the label.
+
+`--metric probability` provisionally defaults to the **chosen label's probability**, not always `probabilities.tautological`. `--metric confidence` instead uses the separate provider statistic. The intended meaning of the original “90% confidence” request remains unsettled. Neither metric is calibrated correctness or permission to delete a test.
+
+Live mode sends only the four evidence fields with the classifier questions, using Waggle's existing no-retry provider client. Identical request hashes reuse a prior answer rather than calling again. `attempts` distinguishes `evaluated` from `reused` and retains hashes, validated probabilities/confidence, actual model, usage and stopping decisions. Count token usage only for `evaluated` attempts; reused entries repeat the earlier result.
+
+Both `accepted` and `unresolved` return `kind: "progressive_classification"`, `ok: true` and exit 0: they are completed executions, not fixture pass/fail verdicts. Usage errors exit 2; preparation, provider and response-schema failures exit 1 with an `ok: false` error document. Provider/schema failures stop immediately and retain completed attempts and the failing scope/request hash. No retry, invented `needs_context` result or further scope expansion follows a failure. The extractor does not persist inputs or replace the fixture baseline; redirect output when a local record is needed.
+
+### Extraction limits and verification
 
 - Recognizes direct named imports (including aliases) and namespaces from `bun:test`: `test`/`it` candidates, enclosing `describe` titles and `beforeAll`/`beforeEach`/`afterEach`/`afterAll` hooks. Supports `only`, `skip`, `todo`, `concurrent`, `serial`, `failing` and `each`/`skipIf`/`todoIf` call chains, including tagged-template `each`.
-- Rejects parse errors and detected rebinding of tracked import names conservatively; this is not complete lexical or symbol resolution. Computed access, indirect aliases, wrapper APIs and globals are not recognized as declarations. Candidates found inside dynamic or indirect registration wrappers require `--scope=3` to preserve those wrappers.
-- Keeps `each` as one registration rather than expanding rows; dynamic titles remain unevaluated expressions. Skips, conditions and runtime registration are not evaluated. The inventory is syntactic, not an exhaustive list of runtime tests.
-- Imports are not followed at any scope. Supply relevant imported bodies, snapshots and configuration explicitly. Hook applicability, shared-observation attribution and independent requirements still need caller evidence.
+- Rejects parse errors and detected rebinding of tracked import names conservatively; this is not complete lexical or symbol resolution. Computed access, indirect aliases, wrapper APIs and globals are not recognized as declarations. Candidates found inside dynamic or indirect registration wrappers require explicit `--scope=3` to preserve those wrappers.
+- Keeps `each` as one registration rather than expanding rows; dynamic titles remain unevaluated expressions. Skips, conditions and runtime registration are not evaluated. The inventory is syntactic, not an exhaustive list of runtime tests. Hook applicability and shared-observation attribution still need caller evidence.
 
-A recorded local run over the fixed `08d6bb17` tracked test-path set found 1,059 candidates across 207 files, with none empty or rejected: about 134 ms over 1.23 MB after file reads, including context-manifest construction. These richer manifests do more work than the initial candidate-only scan. A Busy Bee completion case with the same full source and helper files at all scopes produced 49,961 / 52,110 / 53,072 serialized `.input` bytes for scopes 1 / 2 / 3. Explicit support dominated size. These are local observations, not optimization, accuracy or completeness claims; schema validity does not establish evidence sufficiency. Selecting relevant source declarations is a separate research direction, not an implemented feature.
+Run the explicitly invoked offline [contract verifier](verify.ts):
+
+```sh
+bun run lib/waggle/eval/tautological-tests/verify.ts
+```
+
+It exercises the real pinned parser/resolver, local aliases and workspace exports, side effects, collection bounds/omissions, cumulative evidence, an offline CLI with a fake credential, and injected progressive responses/failures. It reports `kind: "extraction_verification"` with zero provider calls. This script is **not automatically selected by CI**, and it is not live classifier evaluation; fast policy tests remain separate.
+
+### Local observations
+
+A recorded local run over the fixed `08d6bb17` tracked test-path set found 1,059 candidates across 207 files, with none empty or rejected: about 134 ms over 1.23 MB after file reads, including context-manifest construction. The original **manually supplied** Busy Bee completion example produced 49,961 / 52,110 / 53,072 serialized `.input` bytes at scopes 1 / 2 / 3.
+
+The broader **automatic** example selects `lib/busybee/tests/integration/completion.test.ts --case 2560` without `--source` or `--context`. It collects 15 support files (191,814 raw UTF-8 bytes), including `useRepositoryFixture` and its `beforeEach`/`afterEach` bodies, and produces approximately 240 KB of serialized `.input` per scope. Support dominates size; this is an automation experiment, not a smaller-input claim. Scope 3 can serialize smaller than scope 2 because omission labels disappear even as source coverage grows. These local measurements are not accuracy or completeness evidence. Declaration slicing remains unimplemented.
 
 ## Review the fixtures
 

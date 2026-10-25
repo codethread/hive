@@ -25,7 +25,7 @@ export type ScopeDecision =
 	| { kind: "unresolved" };
 
 /**
- * Offline stopping decision for one validated result and an explicit score metric.
+ * Pure stopping decision for one validated result and an explicit score metric.
  * `accepted` means the 0.90 threshold was met, not correctness or deletion authority.
  * `needs_context` expands when possible; scope 3 otherwise remains unresolved.
  */

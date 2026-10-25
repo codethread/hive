@@ -1,3 +1,4 @@
+/** Explicit offline contract verification; not automatically selected by CI or a live classifier evaluation. */
 import { COLLECTION_LIMITS, collectSupport } from "./collection.ts";
 import { ProgressiveError, prepareProgressive, runProgressive } from "./progressive.ts";
 import { analyzeModule, createCollectionDependencies } from "./collection-live.ts";
@@ -115,7 +116,7 @@ async function createFixture(parent: string): Promise<string> {
 	return root;
 }
 
-// eslint-disable-next-line max-statements -- Exercise the consumed native boundaries in one cold verification.
+// eslint-disable-next-line max-statements -- Exercise the consumed native boundaries in one explicit verification.
 async function verifyNative(root: string): Promise<void> {
 	const live = await createCollectionDependencies(root);
 	const file = {

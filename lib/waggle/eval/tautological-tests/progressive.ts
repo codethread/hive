@@ -27,7 +27,7 @@ export interface ProgressiveAttempt {
 	scope: Scope;
 	/** SHA-256 fingerprint of the exact serialized provider request. */
 	request_hash: string;
-	/** Validated answers, actual model and token usage, without invented results. */
+	/** Validated answers, model and usage; count usage only when disposition is evaluated. */
 	result: Classification;
 	/** Stopping policy decision for this attempt, not a correctness guarantee. */
 	decision: ScopeDecision;
@@ -40,7 +40,7 @@ export interface ProgressiveResult {
 	attempts: ProgressiveAttempt[];
 }
 
-/** Prepare all evidence before any provider call. Callers must keep requests frozen during execution. */
+/** Prepare the requested scope through 3 before classification; keep these requests fixed during execution. */
 export function prepareProgressive(
 	classifier: Classifier,
 	inputForScope: (scope: Scope) => Evidence,
@@ -62,7 +62,7 @@ export function prepareProgressive(
 	}));
 }
 
-/** Execute once per scope, stopping immediately on acceptance, exhaustion or a ProgressiveError. */
+/** Classify each distinct request once; reuse matching hashes and stop on acceptance, exhaustion or error. */
 // eslint-disable-next-line max-statements -- Keep sequential stopping and contextual failure handling together.
 export async function runProgressive(
 	prepared: PreparedProgressive,
