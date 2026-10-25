@@ -41,7 +41,6 @@ const malformedAcknowledgmentFixture = {
 		},
 	],
 };
-warmMalformedAcknowledgment();
 
 test("stdout and lifecycle evidence are selected independently of comment order and IDs #test-353", () => {
 	const activity = {
@@ -368,15 +367,3 @@ test("read-only attribution retains task links independently of workflow executi
 	expect(() => readSpawnRequestAttribution({ ...bead, labels: [] })).toThrow(Error);
 	expect(() => readSpawnRequestAttribution({ ...bead, assignee: "" })).toThrow(Error);
 });
-
-function warmMalformedAcknowledgment() {
-	try {
-		requestResolution(malformedAcknowledgmentFixture);
-	} catch (error) {
-		if (error instanceof Error) {
-			return;
-		}
-		throw error;
-	}
-	throw new Error("Malformed acknowledgment fixture was not rejected");
-}

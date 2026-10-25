@@ -110,3 +110,50 @@ test.each(["interactive", "headless"] as const)(
 		expect(rendered).toEqual({ executable: `${HOME}/.pi/agent/bin/pi`, argv: ["~/literal"] });
 	},
 );
+
+test("interactive rendering preserves nonempty literals and skips headless templates", () => {
+	const literals = ["{", "}}", "\\", "\t\r\n", "<🐝>", "a\u0001b"];
+	expect(
+		renderFormula(
+			{ executable: "tool", argv: [...literals, ""], headless: ["{{missing}}"] },
+			recipe,
+			"interactive",
+			HOME,
+		),
+	).toEqual({ executable: "tool", argv: literals });
+});
+
+test.each(["\u0000", "a\u0000b", "{{unclosed"])(
+	"rendering rejects invalid formula token %j",
+	(token) => {
+		expect(() =>
+			renderFormula(
+				{ executable: "tool", argv: [token], headless: [] },
+				recipe,
+				"interactive",
+				HOME,
+			),
+		).toThrow(Error);
+	},
+);
+
+test("formula validation accepts empty and populated optional recipe fields", () => {
+	expect(() =>
+		validateFormula({
+			executable: "tool",
+			headless: [],
+			argv: ["{{prompt}}{{system_prompt}}{{#if cwd}}{{cwd}}{{/if}}"],
+		}),
+	).not.toThrow();
+});
+
+test.each([
+	"{{#if prompt}}{{missing}}{{/if}}",
+	"{{#unless prompt}}{{missing}}{{/unless}}",
+	"{{#if system_prompt}}{{missing}}{{/if}}",
+	"{{#unless system_prompt}}{{missing}}{{/unless}}",
+	"{{#if cwd}}{{missing}}{{/if}}",
+	"{{#unless cwd}}{{missing}}{{/unless}}",
+])("formula validation rejects missing fields exposed by %s", (token) => {
+	expect(() => validateFormula({ executable: "tool", headless: [token], argv: [] })).toThrow(Error);
+});
