@@ -37,6 +37,47 @@ const moved: Hierarchy = { stale: false, nodes: [right, node("child", ["right"])
 const SMALL_FAMILY = 2;
 const CACHE_LIFETIME = 10_000;
 
+test.each(["open", "completed"] as const)(
+	"%s request boards omit hierarchy reads",
+	// eslint-disable-next-line max-statements
+	async (view) => {
+		const filter: BoardFilter = {
+			view,
+			request: "request & one",
+			requestPage: SMALL_FAMILY + 1,
+			page: 1,
+			query: "",
+			all: [],
+			any: [],
+			exclude: [],
+			statuses: [],
+			priorities: [],
+			closed: false,
+		};
+		const colonyId = `client-board-${view}`;
+		const value = { ...board, cards: [{ ...board.cards[0]! }] };
+		const reads: string[] = [];
+		const boards = createBoardResource((path) => {
+			reads.push(path);
+			return Promise.resolve(value);
+		});
+		const annotations = createCardAnnotationsResource((path) => {
+			reads.push(path);
+			return Promise.resolve({ cards: [], fetchedAt: value.fetchedAt });
+		});
+		const hierarchies = createHierarchyResource((path) => {
+			reads.push(path);
+			return Promise.resolve(original);
+		});
+		const { loadBoard } = createBoardLoader({ boards, annotations, hierarchies });
+		await loadBoard(colonyId, filter);
+		expect(reads).toEqual([
+			`/api/colonies/${colonyId}/board?${new URLSearchParams({ filter: JSON.stringify(filter), refreshAfter: "0" })}`,
+			`/api/colonies/${colonyId}/annotations?ids=%5B%22${value.cards[0]!.id}%22%5D&refreshAfter=0`,
+		]);
+	},
+);
+
 // eslint-disable-next-line max-statements -- Keep initial family publication and board-only refreshes together.
 test("board-only membership refreshes retain known families and leave uncovered cards separate", async () => {
 	const {
@@ -99,23 +140,53 @@ test("board loaders isolate resources, colonies, filters and pages", async () =>
 	const fixture = await membershipFixture();
 	const retained = snapshot(fixture.hierarchies.store.getState().entries[fixture.familyKey]!);
 	const independent = createBoardResource(() => Promise.resolve({ ...board, cards: [] }));
-	const outsider = node("outsider");
+	const ancestor = node("ancestor+two");
+	const outsider = node("outsider & one", [ancestor.id]);
 	fixture.state.cards = [outsider];
-	fixture.state.family = { nodes: [outsider], stale: false, fetchedAt: NEW };
-	for (const [colonyId, filter] of [
-		["another-colony", fixture.filter],
-		[fixture.colonyId, { ...fixture.filter, query: "another filter" }],
-		[fixture.colonyId, { ...fixture.filter, page: fixture.filter.page + 1 }],
+	fixture.state.family = { nodes: [ancestor, outsider], stale: false, fetchedAt: NEW };
+	for (const [colonyId, filter, cached] of [
+		["another-colony", fixture.filter, false],
+		[fixture.colonyId, { ...fixture.filter, query: "another filter" }, false],
+		[fixture.colonyId, { ...fixture.filter, page: fixture.filter.page + 1 }, true],
 	] as const) {
+		fixture.reads.length = 0;
+		fixture.paths.length = 0;
 		// eslint-disable-next-line no-await-in-loop -- Observe separate query keys using the same resource owner.
-		await fixture.loadBoard(colonyId, filter);
+		await fixture.loadBoard(colonyId, filter, { refreshAfter: 1 });
+		if (cached) {
+			// eslint-disable-next-line no-await-in-loop
+			await fixture.loadHierarchy(colonyId, [outsider.id]);
+			// eslint-disable-next-line no-await-in-loop
+			await fixture.loadAnnotations(colonyId, [outsider.id, ancestor.id]);
+		}
 		expect(
 			snapshot(fixture.boards.store.getState().entries[boardKey(colonyId, filter)]!)?.cards,
 		).toEqual([outsider]);
 		expect(
 			snapshot(fixture.hierarchies.store.getState().entries[boardHierarchyKey(colonyId, filter)]!)
 				?.nodes,
-		).toEqual([outsider]);
+		).toEqual([ancestor, outsider]);
+		let expectedReads = ["board", "annotations", "hierarchy", "annotations"];
+		let expectedDemands = [[outsider.id], [outsider.id], [ancestor.id]];
+		if (cached) {
+			expectedReads = ["board", "hierarchy"];
+			expectedDemands = [[outsider.id]];
+		}
+		expect(fixture.reads).toEqual(expectedReads);
+		expect(
+			fixture.paths
+				.filter((path) => !path.includes("/board?"))
+				.map((path) => new URL(path, "http://hive").searchParams.get("ids")),
+		).toEqual(expectedDemands.map((ids) => JSON.stringify(ids)));
+		expect(
+			fixture.paths.every(
+				(path) => new URL(path, "http://hive").searchParams.get("refreshAfter") === "1",
+			),
+		).toBe(true);
+		expect(
+			snapshot(fixture.hierarchies.store.getState().entries[hierarchyKey(colonyId, [outsider.id])]!)
+				?.nodes,
+		).toEqual([ancestor, outsider]);
 	}
 	expect(snapshot(fixture.hierarchies.store.getState().entries[fixture.familyKey]!)).toBe(retained);
 	expect(
@@ -183,6 +254,8 @@ test("board loading retains primary data on background failure and skips backgro
 	const value = { ...board, cards: [{ ...board.cards[0]! }] };
 	let fail = false;
 	let optionalReads = 0;
+	const background = Promise.withResolvers<never>();
+	const entered = Promise.withResolvers<void>();
 	const boards = createBoardResource(() => {
 		if (fail) {
 			return Promise.reject(new Error("Board unavailable"));
@@ -191,16 +264,20 @@ test("board loading retains primary data on background failure and skips backgro
 	});
 	const annotations = createCardAnnotationsResource(() => {
 		optionalReads++;
-		return Promise.reject(new Error("Icons unavailable"));
+		entered.resolve();
+		return background.promise;
 	});
 	const hierarchies = createHierarchyResource(() => {
 		optionalReads++;
-		return Promise.reject(new Error("Family unavailable"));
+		return background.promise;
 	});
 	const loader = createBoardLoader({ boards, annotations, hierarchies });
-	await loader.loadBoard("colony", filter);
+	const pending = loader.loadBoard("colony", filter);
+	await entered.promise;
 	expect(boards.store.getState().entries[boardKey("colony", filter)]?.kind).toBe("ready");
 	expect(snapshot(boards.store.getState().entries[boardKey("colony", filter)]!)).toBe(value);
+	background.reject(new Error("Background unavailable"));
+	await pending;
 	expect(hierarchies.store.getState().entries[boardHierarchyKey("colony", filter)]?.kind).toBe(
 		"failed",
 	);
@@ -697,19 +774,27 @@ async function membershipFixture() {
 		family: { nodes: [root, child, sibling], stale: true, fetchedAt: OLD },
 	};
 	const reads: string[] = [];
-	const boards = createBoardResource(() => {
+	const paths: string[] = [];
+	const boards = createBoardResource((path) => {
 		reads.push("board");
+		paths.push(path);
 		return Promise.resolve({ ...board, cards: state.cards, fetchedAt: NEW });
 	});
-	const annotations = createCardAnnotationsResource(() => {
+	const annotations = createCardAnnotationsResource((path) => {
 		reads.push("annotations");
+		paths.push(path);
 		return Promise.resolve({ cards: [], fetchedAt: NEW });
 	});
-	const hierarchies = createHierarchyResource(() => {
+	const hierarchies = createHierarchyResource((path) => {
 		reads.push("hierarchy");
+		paths.push(path);
 		return Promise.resolve(state.family);
 	});
-	const { loadBoard } = createBoardLoader({ boards, annotations, hierarchies });
+	const { loadBoard, loadHierarchy, loadAnnotations } = createBoardLoader({
+		boards,
+		annotations,
+		hierarchies,
+	});
 	await Promise.all([
 		boards.load(boardKey(colonyId, filter), "/fixture/board"),
 		hierarchies.load(familyKey, "/fixture/hierarchy"),
@@ -724,9 +809,12 @@ async function membershipFixture() {
 		uncovered,
 		state,
 		reads,
+		paths,
 		boards,
 		hierarchies,
 		loadBoard,
+		loadHierarchy,
+		loadAnnotations,
 	};
 }
 
