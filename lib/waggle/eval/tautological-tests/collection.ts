@@ -30,7 +30,7 @@ export interface ModuleReference {
 export interface EvidenceModule extends SourceFile {
 	/** SHA-256 of the exact retained UTF-8 text. */
 	hash: string;
-	/** UTF-8 text size used for the automatic budget. */
+	/** UTF-8 text size; charged only for automatically collected modules. */
 	bytes: number;
 	/** Source-ordered import and re-export references. */
 	references: ModuleReference[];
@@ -38,6 +38,7 @@ export interface EvidenceModule extends SourceFile {
 
 export type ImportResolution =
 	| { kind: "local"; path: string }
+	/** Canonical module already retained in caller evidence; no budgeted read is needed. */
 	| { kind: "supplied"; path: string; module: EvidenceModule }
 	| {
 			kind: "excluded";
@@ -67,6 +68,7 @@ export interface CollectedModule {
 
 export type ReferenceOutcome =
 	| { kind: "included"; path: string; depth: number }
+	/** Reached explicit evidence, with provenance but no automatic budget charge. */
 	| { kind: "supplied"; path: string; depth: number; hash: string; bytes: number }
 	| {
 			kind: "omitted";
@@ -83,7 +85,7 @@ export interface CollectedReference extends ModuleReference {
 }
 
 export interface SupportSnapshot {
-	/** Whole modules in deterministic breadth-first inclusion order. */
+	/** Automatically collected whole modules in deterministic breadth-first inclusion order. */
 	files: CollectedModule[];
 	/** Every observed edge, including shared targets, cycles and omissions. */
 	references: CollectedReference[];
@@ -115,7 +117,7 @@ export async function collectSupport(
 	const resolved = new Map<string, ImportResolution>();
 	const queue = pending(test, NEXT_DEPTH);
 	let stopped: "file_budget" | "byte_budget" | undefined = undefined;
-	// eslint-disable-next-line max-statements -- One edge resolves to exactly one inclusion or omission.
+	// eslint-disable-next-line max-statements -- Keep one edge's resolution and budget decision together.
 	const collect = async (edge: PendingReference) => {
 		const { reference, importer, depth } = edge;
 		const record = (outcome: ReferenceOutcome) => {
@@ -215,7 +217,10 @@ export function supportContext(snapshot: SupportSnapshot): string {
 	const entries = snapshot.references.map(({ importer, line, specifier, kind, outcome }) => {
 		const reference = `${importer}:${line} ${kind} ${specifier}`;
 		if (outcome.kind === "supplied") {
-			return `${reference}: explicitly supplied ${outcome.path} (depth ${outcome.depth}); outside automatic budgets.`;
+			return (
+				`${reference}: explicitly supplied ${outcome.path} (depth ${outcome.depth}); ` +
+				"body retained in caller evidence, outside automatic file/byte budgets."
+			);
 		}
 		if (outcome.kind === "included") {
 			return `${reference}: included ${outcome.path} (depth ${outcome.depth}).`;
