@@ -2484,6 +2484,14 @@
 		"#test-707": {
 			"threshold": "SLOW",
 			"justification": "ct approved this measured allowance on 2026-10-26 (hv-4t52nj). Full check: omitted-adjacency row 2.254ms. The shared table title retains BV adapter parsing of empty native graph encodings, with either omitted adjacency or empty nodes and null edges, into empty node/edge arrays and a non-stale result. The executor supplies JSON in memory; no native process is launched."
+		},
+		"#test-708": {
+			"threshold": "SLOW",
+			"justification": "ct approved this measured allowance on 2026-10-26 (hv-4t52nj). Integrated full check: version 1.2 row 2.685ms. The shared table title retains rejection of incomplete versions, a v prefix, leading-zero core/prerelease identifiers and latest by the schema used for named workflow manifest versions. Real schema/SemVer validation stays measured; this unit test performs no manifest I/O or workflow execution."
+		},
+		"#test-709": {
+			"threshold": "SLOW",
+			"justification": "ct approved this measured allowance on 2026-10-26 (hv-4t52nj). Full check: nested-value row 1.981ms. The shared table title retains rejection of numeric and nested project configuration values with ZodError at the native adapter boundary. The injected executor supplies JSON in memory; parsing stays measured without a br process or filesystem access."
 		}
 	}
 }
