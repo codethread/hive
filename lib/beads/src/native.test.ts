@@ -162,7 +162,7 @@ test.each([
 	{ name: "invalid id", row: { id: 42, description: "captured" } },
 	{ name: "missing description", row: { id: "request" } },
 	{ name: "invalid description", row: { id: "request", description: {} } },
-])("native routing projection rejects $name", async ({ row }) => {
+])("native routing projection rejects $name #test-720", async ({ row }) => {
 	const service = createNativeBeads({
 		execute: () =>
 			Promise.resolve(

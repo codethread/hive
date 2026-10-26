@@ -67,7 +67,7 @@ const mappingCases = [
 ] as const;
 const failureCases = [{ kind: "before" }, { kind: "after" }, { kind: "sync" }] as const;
 
-test.each(countCases)("batch gates only due IDs for $name", async (scenario) => {
+test.each(countCases)("batch gates only due IDs for $name #test-719", async (scenario) => {
 	const fixture = batchFixture(scenario.seeds);
 	await publishRunningStdoutActivities(fixture.context, fixture.inputs, fixture.readActivity);
 	const ids = scenario.due.map((index) => fixture.inputs[index]!.receipt.spawnId);
@@ -252,7 +252,7 @@ test("all stdout sampling precedes the final gate and comments retain the sample
 	}
 });
 
-test("stdout sampling failure preserves its cause before any native gate or comment", async () => {
+test("stdout sampling failure preserves its cause before any native gate or comment #test-730", async () => {
 	const samplingFailure = batchFixture();
 	const error = new Error("Owned stdout metadata is unreadable");
 	await expect(

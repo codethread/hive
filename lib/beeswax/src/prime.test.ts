@@ -50,7 +50,7 @@ test("default onboarding contains only everyday tools", () => {
 	`);
 });
 
-test("includes add optional tools once in canonical order", () => {
+test("includes add optional tools once in canonical order #test-728", () => {
 	const result = renderPrime({
 		include: ["hive-ui", "waggle", "beeswax", "colony", "colony", "bee"],
 		exclude: [],

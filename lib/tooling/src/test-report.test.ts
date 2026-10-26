@@ -64,17 +64,21 @@ test.each([
 	).toBe(shown);
 });
 
-test("reports nested suites slowest first with decoded, single-line descriptions and source locations", () => {
-	const xml = `<testsuites><testsuite name="file"><testsuite name="suite">
+test(
+	"reports nested suites slowest first with decoded, single-line descriptions " +
+		"and source locations #test-723",
+	() => {
+		const xml = `<testsuites><testsuite name="file"><testsuite name="suite">
 		<testcase name="less slow" classname="suite" file="a.test.ts" line="7" time="0.002" />
 		<testcase name="parse &amp; escape&#10;input" classname="suite" file="b.test.ts" line="9" time="0.006" />
 		<testcase name="inherited allowance" classname="suite #test-2" file="moved.test.ts" line="3" time="0.1" />
 	</testsuite></testsuite><testsuite name="empty" /></testsuites>`;
-	expect(reportSlowTests(xml, allowances)).toEqual([
-		"b.test.ts:9 XSLOW 6.000ms suite > parse & escape input",
-		"a.test.ts:7 SLOW 2.000ms suite > less slow",
-	]);
-});
+		expect(reportSlowTests(xml, allowances)).toEqual([
+			"b.test.ts:9 XSLOW 6.000ms suite > parse & escape input",
+			"a.test.ts:7 SLOW 2.000ms suite > less slow",
+		]);
+	},
+);
 
 test.each(["failure", "error", "skipped"])(
 	"leaves %s cases to Bun rather than timing warnings",

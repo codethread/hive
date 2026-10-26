@@ -111,7 +111,7 @@ const result = await restartServer(target, lifecycle);
 await requestServer(target, { kind: "stop", expectedId: before.id });
 afterAll(() => rm(state, { force: true, recursive: true }));
 
-test("recovery leaves the command queue available while both scheduling passes finish", () => {
+test("recovery leaves the command queue available while both scheduling passes finish #test-722", () => {
 	expect(progress.slice(NONE, FIRST_PROBE_ENTRIES)).toEqual([
 		"recovering",
 		"progress:status",
