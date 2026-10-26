@@ -2608,6 +2608,46 @@
 		"#test-738": {
 			"threshold": "SLOW",
 			"justification": "ct approved measured incidental timing allowances on 2026-10-26 (hv-4t52nj). PR20 follow-up strict changed check on base 1e23e047 (pr20-postintegration2-rebased-finish-4-changed.log): foreign-host row 2.153ms. The shared table title retains the host-only routing projection returning an explicit foreign host or null for an omitted host, without requiring workflow execution fields. Only the foreign-host row has this measurement. Fixture JSON construction, real host parsing and the exact result assertion stay measured in memory without tracker, filesystem or process I/O; only the title ID changes."
+		},
+		"#test-739": {
+			"threshold": "SLOW",
+			"justification": "Existing 2026-10-26 slow-test approval applied in hv-qhbhkr. PR35 full check: 2.810ms; four fresh-process samples: 0.07–0.09ms. Retains polling/manual refresh promise coalescing and displayed-resource identity until the new inspection resolves, using injected in-memory readers."
+		},
+		"#test-740": {
+			"threshold": "SLOW",
+			"justification": "Existing 2026-10-26 slow-test approval applied in hv-qhbhkr. PR35 full check: 2.274ms; four fresh-process samples: 0.18–0.19ms. Retains the native child callback contract: no environment append, unchanged parent actor and explicit actor instructions, through injected CLI dependencies."
+		},
+		"#test-741": {
+			"threshold": "SLOW",
+			"justification": "Existing 2026-10-26 slow-test approval applied in hv-qhbhkr. PR35 full check: cancelled row 2.235ms; four fresh-process samples: 0.04–0.05ms. The shared table title retains owned-namespace-only outcome replacement, current-projection checks and duplicate rejection on typed in-memory state."
+		},
+		"#test-742": {
+			"threshold": "SLOW",
+			"justification": "Existing 2026-10-26 slow-test approval applied in hv-jjrmr6. PR35 strict changed run (changed-2.log): 1.887ms; three fresh-process focused samples: 1.39–1.41ms. Retains all stdout samples preceding the final native gate and comments preserving the sampled source time despite a gate-time source change. In-memory fixture construction, sampling, gate and assertions stay measured without real I/O; only the title ID changes."
+		},
+		"#test-743": {
+			"threshold": "SLOW",
+			"justification": "Existing 2026-10-26 slow-test approval applied in hv-jcy46i; ID reserved on hv-4t52nj. PR35 full check (check-2.log): host-drift row 2.018ms; three fresh-process focused samples: 0.59/0.57/0.58ms (tasks row 0.17ms each). Only the host row has the full-check measurement. The shared table title retains rejection of host/task authority drift after listing without replacing the captured record, assigning the task or admitting updates. Typed in-memory fixture construction and all assertions stay measured without native processes or real I/O; only the title ID changes."
+		},
+		"#test-744": {
+			"threshold": "SLOW",
+			"justification": "Existing 2026-10-26 slow-test approval applied in hv-ofxc5s. PR35 full check (check-3.log): system_prompt if row 2.026ms; three fresh-process focused samples: 0.25/0.25/0.25ms (first prompt if row 2.84/2.88/2.83ms, including cold initialization). Only the system_prompt if row has the full-check measurement. The shared six-row title retains Error rejection for missing headless-template fields exposed by if/unless branches over prompt, system_prompt and cwd. Real formula compilation, recipe-shape validation and assertions stay measured in memory without filesystem or process I/O; bodies and fixtures are unchanged. This allowance is not a speedup."
+		},
+		"#test-745": {
+			"threshold": "SLOW",
+			"justification": "Existing 2026-10-26 slow-test approval applied in hv-ofxc5s. PR35 strict changed run (changed-5.log): 1.595ms; three fresh-process focused samples: 1.55/1.56/1.56ms. Retains a separate fresh authority gate for the later two-request cohort, rejecting identity drift while preserving the earlier four committed comments. Six-request typed in-memory fixture construction, both publication calls and reads/writes/prior-effect assertions stay measured without native processes or real filesystem I/O. Only the title ID changes; bodies and fixtures are unchanged. This allowance is not a speedup."
+		},
+		"#test-746": {
+			"threshold": "SLOW",
+			"justification": "Existing 2026-10-26 slow-test approval applied in hv-ofxc5s. PR35 strict changed run (changed-5.log): 1.585ms; three fresh-process focused samples: 0.45/0.44/0.44ms. Retains immediate admission of all four comments before yielding, rejection without completion while siblings remain pending, and exact final failed/successful sibling effects. The real event-loop checkpoint after rejection remains measured alongside typed in-memory fixture construction and all assertions; no guessed microtask flush replaces sibling draining. No native processes or real filesystem I/O. Only the title ID changes; bodies and fixtures are unchanged. This allowance is not a speedup."
+		},
+		"#test-747": {
+			"threshold": "SLOW",
+			"justification": "Existing 2026-10-26 slow-test approval applied in hv-ofxc5s. PR35 full check (check-5.log): 0.001-second fixture row 3.048ms; three fresh-process focused samples for that row: 0.13/0.12/0.13ms. Fixture seconds are classification inputs, not measured test runtime. The shared five-row title retains silent exact SLOW cutoff and strict SLOW/XSLOW/DANGER classification at exact or just-over boundaries through reportTestTimings. Unlike the independent #test-736 XML/buffer table, this table constructs typed timing records and checks timing lines without XML parsing or real I/O. All fixture construction and assertions stay measured; only the title ID and necessary formatting change. This allowance is not a speedup."
+		},
+		"#test-748": {
+			"threshold": "SLOW",
+			"justification": "Existing 2026-10-26 slow-test approval applied in hv-wujwxn. PR35 full check (check-7.log): 4.504ms; three fresh-process focused samples: 0.39/0.39/0.39ms. Retains consumed finish CLI policy: unsupported --strategy yields UsageError, the usage exit code and structured JSON failure with empty diagnostics/setup output before any injected dependency is called. Real dispatch, fixture construction, JSON parsing and all four assertions stay measured; injected dependencies perform no Git, filesystem or process I/O. Only the title ID changes; bodies and fixtures are unchanged. This allowance is not a speedup."
 		}
 	}
 }

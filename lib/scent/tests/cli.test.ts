@@ -31,7 +31,7 @@ test.each(["claude", "codex"] as const)(
 	},
 );
 
-test("native child callback never appends to the invoking environment", async () => {
+test("native child callback never appends to the invoking environment #test-740", async () => {
 	const fx = fixture({ hook_event_name: "SubagentStart", session_id: "parent", agent_id: "child" });
 	fx.deps.env.BD_ACTOR = "parent";
 	expect(await runCli(["system", "hook", "--harness", "claude"], fx.deps)).toBe(SUCCESS);

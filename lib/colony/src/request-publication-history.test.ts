@@ -28,7 +28,7 @@ const recipe: Recipe = {
 const publishMemoryStdout: typeof publishRunningStdoutActivities = (context, inputs) =>
 	publishRunningStdoutActivities(context, inputs, () => Promise.resolve(null));
 
-test("request histories await publisher settlement and retain each request's outcome #test-697", async () => {
+test("request histories await publisher settlement and attribute publication failures #test-697", async () => {
 	const drain = historyFixture();
 	const publication = Promise.withResolvers<void>();
 	const entered = Promise.withResolvers<void>();
