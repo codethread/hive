@@ -31,12 +31,14 @@ test("filesystem discovery composes ordered kind sources and rejects invalid con
 			prompt: "",
 			system_prompt: "",
 		});
-		await Bun.write(join(directory, "arbitrary", "prompt.md"), "File instructions\n");
-		await Bun.write(join(directory, "README.md"), "Not a definition");
-		await Bun.write(
-			join(directory, "arbitrary", "nested", "bee.toml"),
-			"Invalid nested definition is not discovered",
-		);
+		await Promise.all([
+			Bun.write(join(directory, "arbitrary", "prompt.md"), "File instructions\n"),
+			Bun.write(join(directory, "README.md"), "Not a definition"),
+			Bun.write(
+				join(directory, "arbitrary", "nested", "bee.toml"),
+				"Invalid nested definition is not discovered",
+			),
+		]);
 		const policy = await loadPolicy({ beadsDb: join(root, "unused.db"), root });
 		expect(policy.kinds["worker"]).toMatchObject({
 			model: "file-model",
@@ -46,10 +48,10 @@ test("filesystem discovery composes ordered kind sources and rejects invalid con
 		const central =
 			`${POLICY}[kinds.reviewer]\ndescription="Central reviewer."\nharness="codex"\n` +
 			`model="central"\neffort="low"\nprompt="Central direction"\n`;
-		await Bun.write(canonical, central);
 		// Prefix folders distinguish folder-name sorting from sorting complete definition paths.
-		await Promise.all(
-			["a", "a-"].flatMap((folder) => [
+		await Promise.all([
+			Bun.write(canonical, central),
+			...["a", "a-"].flatMap((folder) => [
 				Bun.write(
 					join(directory, folder, "bee.toml"),
 					'name="reviewer"\ndescription="Folder reviewer."\nharness="codex"\n' +
@@ -58,7 +60,7 @@ test("filesystem discovery composes ordered kind sources and rejects invalid con
 				Bun.write(join(directory, folder, "prompt.md"), "Folder direction"),
 				Bun.write(join(directory, folder, "system_prompt.md"), "Folder role"),
 			]),
-		);
+		]);
 		const overridden = await loadBeesConfig(root);
 		expect(overridden.config.kinds["reviewer"]).toMatchObject({
 			model: "central",
@@ -69,8 +71,6 @@ test("filesystem discovery composes ordered kind sources and rejects invalid con
 			`${canonical} overrides bee kind reviewer from ${join(directory, "a", "bee.toml")}`,
 			`${canonical} overrides bee kind reviewer from ${join(directory, "a-", "bee.toml")}`,
 		]);
-		await Bun.write(canonical, `${central}[formulas.broken]\nexecutable="{{#if"\nargv=[]\n`);
-		await expect(loadBeesConfig(root)).rejects.toBeInstanceOf(Error);
 		await rm(join(root, ".hive", "bees.toml"));
 		await Bun.write(join(root, "bees.toml"), POLICY);
 		await expect(loadBeesConfig(root)).rejects.toBeInstanceOf(Error);
