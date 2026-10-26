@@ -12,6 +12,7 @@ import {
 	writeProjectLock,
 } from "./project.ts";
 import { readProjectConfig, selectOnboardingConfig, writeProjectConfig } from "./config.ts";
+import type { BvRecipeFiles } from "./bv-recipes.ts";
 import type { Dependencies } from "./cli.ts";
 import type { OnboardingFlags } from "./config.ts";
 import type { WorkspaceIO } from "./services.ts";
@@ -19,7 +20,6 @@ import { applyOnboarding } from "./onboarding.ts";
 import { applyTrackerPolicy } from "./beads/setup.ts";
 import { bindCheckout } from "./binding.ts";
 import { bootstrapHooks } from "./husky.ts";
-import { bvRecipeFiles } from "./bv-recipe-source.ts";
 import { installBvRecipes } from "./bv-recipes.ts";
 import { installTrackerHooks } from "./tracker-hooks.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Resolve this clone's conventional tracker.
@@ -37,6 +37,7 @@ export async function synchronizeProject(
 	io: WorkspaceIO &
 		Pick<Dependencies, "commandAvailable" | "nativeBeads"> & {
 			context: { beadsDb: string; actor: string };
+			bvRecipeFiles: BvRecipeFiles;
 		},
 ) {
 	const { root, executable, update } = options;
@@ -91,7 +92,7 @@ export async function synchronizeProject(
 			}
 			checkouts.push(trackerRoot(database));
 		}
-		bvRecipes.push(...(await installBvRecipes(checkouts, bvRecipeFiles(io))));
+		bvRecipes.push(...(await installBvRecipes(checkouts, io.bvRecipeFiles)));
 		completed.push("bv_recipes");
 		await bootstrapHooks(root, config.bootstrap.hooks, io);
 		completed.push("hook_bootstrap");

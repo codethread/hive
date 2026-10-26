@@ -4,6 +4,7 @@ import { hookSection, previousHookSection } from "../../src/templates.ts";
 import { lockSchema, writeProjectLock } from "../../src/project.ts";
 import type { ProjectLock } from "../../src/project.ts";
 import { fixture } from "../support.ts";
+import { managedRecipes } from "../bv-recipe-fixture.ts";
 import { runCli } from "../../src/cli.ts";
 import { synchronizeProject } from "../../src/synchronize.ts";
 import { version } from "../../package.json";
@@ -11,15 +12,12 @@ import { version } from "../../package.json";
 const root = "/repo";
 const success = 0;
 const failure = 1;
-const template = fixture();
-await writeProjectConfig(root, defaultProjectConfig("husky"), template.deps);
-await writeProjectLock(root, template.deps);
 
-function configured() {
+// Keep configuration and lock creation inside each test's measured work.
+async function configured() {
 	const fx = fixture();
-	for (const [path, contents] of template.files) {
-		fx.files.set(path, contents);
-	}
+	await writeProjectConfig(root, defaultProjectConfig("husky"), fx.deps);
+	await writeProjectLock(root, fx.deps);
 	return fx;
 }
 
@@ -27,7 +25,7 @@ test(
 	"sync materializes committed intent without publishing tracker state or rewriting " +
 		"the lock #test-365",
 	async () => {
-		const fx = configured();
+		const fx = await configured();
 		const lock = fx.files.get("/repo/.hive/beeswax/meta/lock.json");
 		expect(await runCli(["sync", "--json"], fx.deps)).toBe(success);
 		expect(JSON.parse(fx.output.join(""))).toMatchObject({
@@ -43,7 +41,9 @@ test(
 );
 
 test("same-version update accepts BV recipes and reports available changelog commands #test-389", async () => {
-	const fx = withoutBvContract();
+	const fx = await configured();
+	const original = fx.files.get("/repo/.hive/beeswax/meta/lock.json");
+	withoutBvContract(fx);
 	fx.deps.commandAvailable = (name, cwd) => name === "beeswax" && cwd === root;
 	expect(await runCli(["update", "--json"], fx.deps)).toBe(success);
 	expect(JSON.parse(fx.output.join(""))).toMatchObject({
@@ -53,15 +53,14 @@ test("same-version update accepts BV recipes and reports available changelog com
 			commands: ["beeswax changelog"],
 		},
 	});
-	expect(fx.files.get("/repo/.hive/beeswax/meta/lock.json")).toBe(
-		template.files.get("/repo/.hive/beeswax/meta/lock.json"),
-	);
+	expect(fx.files.get("/repo/.hive/beeswax/meta/lock.json")).toBe(original);
 });
 
 // eslint-disable-next-line max-statements -- Verify section replacement and recorded intent through one public update.
 test("update replaces the previous owned hook generation and records the new hashes #test-613", async () => {
-	const fx = configured();
+	const fx = await configured();
 	const path = "/repo/.hive/beeswax/meta/lock.json";
+	const original = fx.files.get(path);
 	const lock = lockSchema.parse(JSON.parse(fx.files.get(path) ?? ""));
 	for (const target of Object.keys(lock.hooks)) {
 		lock.hooks[target] = new Bun.CryptoHasher("sha256").update(previousHookSection).digest("hex");
@@ -77,7 +76,7 @@ test("update replaces the previous owned hook generation and records the new has
 			`# application header\n${hookSection}\necho application\n`,
 		);
 	}
-	expect(fx.files.get(path)).toBe(template.files.get(path));
+	expect(fx.files.get(path)).toBe(original);
 	expect(fx.errors).toEqual([]);
 });
 
@@ -85,7 +84,7 @@ test(
 	"sync refuses configuration drift before writes and explicit update accepts " +
 		"supported changes #test-388",
 	async () => {
-		const fx = configured();
+		const fx = await configured();
 		const config = { ...defaultProjectConfig("husky"), bootstrap: { hooks: "none" as const } };
 		await writeProjectConfig(root, config, fx.deps);
 		const before = new Map(fx.files);
@@ -103,7 +102,7 @@ test(
 );
 
 test("moving configured hook files requires an agent to account for the old sections #test-619", async () => {
-	const fx = configured();
+	const fx = await configured();
 	await writeProjectConfig(root, defaultProjectConfig("git"), fx.deps);
 	const before = new Map(fx.files);
 	expect(await runCli(["update", "--json"], fx.deps)).toBe(failure);
@@ -117,7 +116,7 @@ test("moving configured hook files requires an agent to account for the old sect
 });
 
 test("partial synchronization identifies completed effects when the local launcher was edited #test-505", async () => {
-	const fx = configured();
+	const fx = await configured();
 	fx.files.set("/repo/.git/beeswax/cli", "echo custom\n");
 	expect(await runCli(["sync", "--json"], fx.deps)).toBe(failure);
 	expect(JSON.parse(fx.output.join(""))).toMatchObject({
@@ -130,14 +129,15 @@ test("partial synchronization identifies completed effects when the local launch
 });
 
 test("release pin refresh changes portable metadata without installing machine integration #test-504", async () => {
-	const fx = configured();
+	const fx = await configured();
 	const path = "/repo/.hive/beeswax/meta/lock.json";
 	const lock = lockSchema.parse(JSON.parse(fx.files.get(path) ?? ""));
+	const paths = [...fx.files.keys()];
 	fx.files.set(path, JSON.stringify({ ...lock, beeswaxVersion: "0.0.1" }));
 	expect(await runCli(["lock", "--json"], fx.deps)).toBe(success);
 	expect(JSON.parse(fx.output.join(""))).toMatchObject({ ok: true, kind: "project_locked" });
 	expect(JSON.parse(fx.files.get(path) ?? "").beeswaxVersion).toBe(version);
-	expect([...fx.files.keys()]).toEqual([...template.files.keys()]);
+	expect([...fx.files.keys()]).toEqual(paths);
 	expect(fx.commands).toEqual([["git", "rev-parse", "--show-toplevel"]]);
 });
 
@@ -149,7 +149,7 @@ test.each([
 ])(
 	"$command refuses an unknown $identity identity before writes #test-457",
 	async ({ command, identity }) => {
-		const fx = withUnknownIdentity(identity);
+		const fx = await withUnknownIdentity(identity);
 		const before = new Map(fx.files);
 		expect(await runCli([command, "--json"], fx.deps)).toBe(failure);
 		expect(JSON.parse(fx.output.join(""))).toMatchObject({
@@ -161,8 +161,8 @@ test.each([
 	},
 );
 
-function withUnknownIdentity(identity: string) {
-	const fx = configured();
+async function withUnknownIdentity(identity: string) {
+	const fx = await configured();
 	const path = "/repo/.hive/beeswax/meta/lock.json";
 	const lock = lockSchema.parse(JSON.parse(fx.files.get(path) ?? ""));
 	if (identity === "skills") {
@@ -174,8 +174,7 @@ function withUnknownIdentity(identity: string) {
 	return fx;
 }
 
-function withoutBvContract() {
-	const fx = configured();
+function withoutBvContract(fx: Awaited<ReturnType<typeof configured>>) {
 	const path = "/repo/.hive/beeswax/meta/lock.json";
 	const lock: ProjectLock = JSON.parse(fx.files.get(path) ?? "");
 	delete lock.components.bvRecipes;
@@ -184,7 +183,7 @@ function withoutBvContract() {
 }
 
 test("sync requires explicit acceptance of the BV component even at the same version", async () => {
-	const fx = withoutBvContract();
+	const fx = withoutBvContract(await configured());
 	const before = new Map(fx.files);
 
 	await expect(
@@ -222,7 +221,7 @@ test("sync installs recipes when the selected tracker predates Beeswax configura
 });
 
 test("an invalid selected tracker cannot receive BV recipes", async () => {
-	const fx = configured();
+	const fx = await configured();
 	fx.deps.context.beadsDb = "/selected/.beads/beads.db";
 	fx.files.set("/selected/.beads/beads.db", "database");
 	const { command } = fx.deps;
@@ -239,7 +238,7 @@ test("an invalid selected tracker cannot receive BV recipes", async () => {
 });
 
 test("later synchronization failures retain confirmed BV output in the receipt", async () => {
-	const fx = configured();
+	const fx = await configured();
 	fx.files.set("/repo/.pi/extensions/beeswax.js", "// beeswax:begin onboarding v2\n");
 
 	expect(await runCli(["sync", "--json"], fx.deps)).toBe(failure);
@@ -254,18 +253,34 @@ test("later synchronization failures retain confirmed BV output in the receipt",
 test("native policy requires config acceptance, then update adopts only the selected tracker #test-652", async () => {
 	const fx = await selectedPolicyFixture();
 	const database = "/selected/.beads/beads.db";
+	const recipes = managedRecipes();
+	const recipePaths = ["/repo/.bv/recipes.yaml", "/selected/.bv/recipes.yaml"];
+	for (const path of recipePaths) {
+		fx.files.set(path, recipes.contents);
+	}
+	fx.deps.bvRecipeFiles = {
+		read: (path) => {
+			if (!recipePaths.includes(path)) {
+				throw new Error("Unexpected recipe path");
+			}
+			return Promise.resolve(recipes);
+		},
+		write: () => Promise.reject(new Error("Current recipes must not be rewritten")),
+	};
 	const native = new Map<string, string>([
 		["lock_timeout", "1000"],
 		["issue_prefix", "keep"],
 	]);
 	const writes: string[] = [];
+	const reads: string[] = [];
 	fx.deps.nativeBeads.config = {
 		project: (scope) => {
+			reads.push(scope.db!);
 			expect(scope).toEqual({ cwd: "/selected", db: database, actor: "codex" });
 			return Promise.resolve(Object.fromEntries(native));
 		},
 		set: (scope, key, value) => {
-			expect(scope.db).toBe(database);
+			expect(scope).toEqual({ cwd: "/selected", db: database, actor: "codex" });
 			writes.push(key);
 			native.set(key, value);
 			return Promise.resolve();
@@ -279,6 +294,7 @@ test("native policy requires config acceptance, then update adopts only the sele
 	});
 	expect(fx.files).toEqual(before);
 	expect(writes).toEqual([]);
+	expect(reads).toEqual([]);
 	fx.output.length = success;
 	expect(await runCli(["update", "--json"], fx.deps)).toBe(success);
 	expect(native).toEqual(
@@ -291,6 +307,7 @@ test("native policy requires config acceptance, then update adopts only the sele
 	fx.output.length = success;
 	expect(await runCli(["sync", "--json"], fx.deps)).toBe(success);
 	expect(writes).toEqual(["lock_timeout"]);
+	expect(reads).toEqual([database, database]);
 	expect(fx.files.has("/repo/.beads/config.yaml")).toBe(false);
 	expect(fx.files.has("/repo/.worktrees/tracker--state/.beads/config.yaml")).toBe(false);
 });
@@ -324,7 +341,7 @@ test("accepted sync refuses a conflicting native value but installs a missing va
 });
 
 async function selectedPolicyFixture() {
-	const fx = configured();
+	const fx = await configured();
 	await writeProjectConfig(
 		root,
 		{ ...defaultProjectConfig("husky"), beads: { lock_timeout: 300_000 } },
