@@ -185,7 +185,7 @@ test("setup reports saved-query failures as a silent-stderr JSON error #test-625
 });
 
 test.each([{ args: ["run", "librarian", "--json"] }, { args: ["--json", "run", "librarian"] }])(
-	"run rejects --json without calling the launcher: $args",
+	"run rejects --json without calling the launcher: $args #test-725",
 	async ({ args }) => {
 		const run = mock<BeeDependencies["run"]>(() => Promise.resolve());
 		const result = await invoke(args, FAILURE, { run });
