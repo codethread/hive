@@ -82,7 +82,7 @@ describe("checkout catalogue discovery", () => {
 });
 
 test.each(["yarn.lock"])(
-	"named provenance includes shared %s and excludes generated dependency trees",
+	"named provenance includes shared %s and excludes generated dependency trees #test-684",
 	async (filename) => {
 		const directory = "/catalogue-validation/.workflows/example";
 		let content = new TextEncoder().encode("original").buffer;

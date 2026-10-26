@@ -6,7 +6,7 @@ import { pageRanks } from "./ranking.ts";
 const repository = { root: "/repository", beadsDb: "/selected/tracker.db" };
 const state = "/daemon/state";
 
-test("linked task coverage uses the selected live database and retains complete graph scores", async () => {
+test("linked task coverage uses the selected live database and retains complete graph scores #test-696", async () => {
 	const fake = createFakeBv({ taskIds: ["z-linked", "a-unrelated", "m-linked"] });
 	const calls: Parameters<BvService["readPageRanks"]>[number][] = [];
 	const bv = {

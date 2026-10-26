@@ -137,7 +137,7 @@ test.each(["\u0000", "a\u0000b", "{{unclosed"])(
 	},
 );
 
-test("formula validation accepts empty and populated optional recipe fields", () => {
+test("formula validation accepts empty and populated optional recipe fields #test-690", () => {
 	expect(() =>
 		validateFormula({
 			executable: "tool",

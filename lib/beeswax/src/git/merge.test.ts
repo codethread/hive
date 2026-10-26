@@ -70,7 +70,7 @@ test("keeps incompatible same-issue changes as a Git conflict", () => {
 	);
 });
 
-test("keeps delete-versus-edit changes as a Git conflict", () => {
+test("keeps delete-versus-edit changes as a Git conflict #test-688", () => {
 	const ancestor = jsonl(issue("hv-a", "old"));
 	const other = jsonl(issue("hv-a", "new"));
 	expect(mergeIssueJsonl(ancestor, "", other).kind).toBe("conflicted");
