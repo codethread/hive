@@ -201,7 +201,7 @@ test("sync requires explicit acceptance of the BV component even at the same ver
 });
 
 // eslint-disable-next-line max-statements -- Verify selected checkout effects without tracker-side project metadata.
-test("sync installs recipes when the selected tracker predates Beeswax configuration", async () => {
+test("sync installs recipes when the selected tracker predates Beeswax configuration #test-698", async () => {
 	const fx = fixture();
 	await writeProjectConfig(root, defaultProjectConfig("none"), fx.deps);
 	await writeProjectLock(root, fx.deps);

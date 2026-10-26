@@ -118,7 +118,7 @@ test.each(["list", "search"] as const)(
 	},
 );
 
-test("native routing projection preserves status, AND labels and unlimited selection", async () => {
+test("native routing projection preserves status, AND labels and unlimited selection #test-702", async () => {
 	const service = createNativeBeads({
 		execute: (argv) => {
 			expect(argv).toEqual([

@@ -32,7 +32,7 @@ const recipe: Recipe = {
 const publishMemoryStdout: typeof publishRunningStdoutActivities = (context, inputs) =>
 	publishRunningStdoutActivities(context, inputs, () => Promise.resolve(null));
 
-test("request history and reconciliation stay pending until every admitted native comment settles", async () => {
+test("request history and reconciliation wait for every admitted native comment to settle #test-697", async () => {
 	const drain = historyFixture();
 	const draining = drainingFixture(drain);
 	const { controls, allStarted, started, failure, runtime } = draining;
