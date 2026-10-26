@@ -1,6 +1,8 @@
-# Tautological-test evaluation
+# Tautological-test evidence and evaluation
 
-Use this suite to review and tune Waggle's `tautological-tests` card. It contrasts implementation restatement with independently checked behavior, including workflow-definition and engine cases. The [card](../../../../classifiers/tautological-tests.toml) owns the judgment rubric; [research rationale](RESEARCH.md) explains the oracle-independence distinction and the limits of this approach.
+Use this suite to prepare evidence for Waggle's `tautological-tests` card and evaluate its judgments. Start with [supplied evidence](#prepare-evidence), [automatic local extraction](#extract-a-local-case) or [the fixed fixture suite](#review-the-fixtures). All three use the same four-field evidence contract and whole-case rubric.
+
+The [card](../../../../classifiers/tautological-tests.toml) distinguishes implementation restatement from independently checked behavior, including workflow-definition and engine cases. It owns the judgment rubric; [research rationale](RESEARCH.md) explains the oracle-independence distinction and the limits of this approach.
 
 ## Prepare evidence
 
@@ -32,7 +34,7 @@ jq .input lib/waggle/eval/tautological-tests/fixtures/setup-produces-result.json
   | bun run --silent waggle run tautological-tests --input - --json
 ```
 
-These commands transmit evidence to Typesafe. Follow Waggle's [credential and disclosure guidance](../../README.md#supply-evidence); exclude secrets and code you are not authorized to send. Waggle neither harvests repository files nor executes the snippets. See [score semantics](../../README.md#review-tests-for-implementation-restatement) before interpreting a result: missing context is not evidence of safety, and provider errors are not `needs_context` answers.
+These commands transmit evidence to Typesafe. Follow Waggle's [credential and disclosure guidance](../../README.md#supply-evidence); exclude secrets and code you are not authorized to send. The production `waggle run` command neither harvests repository files nor executes the snippets; the optional extractor below prepares evidence separately. See [score semantics](../../README.md#review-tests-for-implementation-restatement) before interpreting a result: missing context is not evidence of safety, and provider errors are not `needs_context` answers.
 
 ## Extract a local case
 
@@ -173,9 +175,13 @@ Usage, invalid-input and execution failures have `kind: "error"`, `ok: false` an
 
 Treat `baseline.json`, when saved, as a record of that run rather than an accuracy claim. Review outliers and report any card, fixture or expectation changes with their rationale. These fixtures are available for tuning; held-out evaluation is still needed before claiming generalization or calibration. Neither the ranges nor the observed scores are merge gates or permission to delete tests.
 
+### Retained JEV baseline
+
+The checked-in [baseline](baseline.json), recorded at `2026-10-25T12:08:23.257Z` using `jev-1.14.0`, is the final retained run for the refined version-1 card: **28/28 labels matched; 23/28 cases met every specified probability range**. The five range mismatches are `behavioral-with-missing-helper`, `independent-formula`, `mock-collaboration`, `setup-assigns-result` and `setup-produces-result`. Accordingly, the report has `ok: false`, `reason: "expectation_mismatch"` and `failed: 5`; correct labels do not make it a fully passing evaluation. This is development-fixture evidence, not held-out accuracy or calibration.
+
 ### Preliminary first-run evidence
 
-The first live run, recorded at `2026-10-25T11:53:15.011Z` using `jev-1.14.0`, completed all 28 cases: 26 matched the expected label and 23 met every specified probability range. The same 23 passed both checks. These are pre-refinement observations, not the final baseline or evidence that the revised card succeeds.
+The first live run, recorded at `2026-10-25T11:53:15.011Z` using `jev-1.14.0`, completed all 28 cases: 26 matched the expected label and 23 met every specified probability range. The same 23 passed both checks. These pre-refinement observations explain the changes below; they are not the [retained refined baseline](#retained-jev-baseline).
 
 | Case | First-run disagreement |
 | --- | --- |
@@ -185,6 +191,25 @@ The first live run, recorded at `2026-10-25T11:53:15.011Z` using `jev-1.14.0`, c
 | `metamorphic-sort` | Correct label; `behavioral` 0.68 missed its range. |
 | `behavioral-with-missing-helper` | Correct label; `needs_context` 0.58 missed its range. |
 
-The rubric was refined to give independently required values and formulas precedence over textual similarity, and to treat supplied applicable hooks as part of the selected execution without demanding standalone lexical wrappers. It also clarifies that a named requirement must actually be exercised, justified relations between separate executions are not self-equality, and a missing relevant helper can prevent a whole-case judgment despite a known behavioral assertion. No fixture inputs, expected labels or ranges changed. The card remains version 1 during pre-delivery development; retain a new full-run report for the refined card before presenting a final baseline.
+The rubric was refined to give independently required values and formulas precedence over textual similarity, and to treat supplied applicable hooks as part of the selected execution without demanding standalone lexical wrappers. It also clarifies that a named requirement must actually be exercised, justified relations between separate executions are not self-equality, and a missing relevant helper can prevent a whole-case judgment despite a known behavioral assertion. No fixture inputs, expected labels or ranges changed. The card remained version 1 during pre-delivery refinement; the later full-run report is the retained baseline above.
 
 The initial report used the earlier envelope (`ok: true`, top-level `passed: false` for a completed mismatch run). Its row results support the counts above; the current runner uses the mismatch contract documented in this section.
+
+### Retained Codex comparison (2026-10-25)
+
+The [comparison artifact](codex-comparison-2026-10-25.json) records 61 completed `codex exec` calls: Luna 28, Sol 5 and Astra 28, all with low reasoning effort. They received the same questions and evidence state as JEV, with fixture expectations withheld. Calls used an ephemeral session in an isolated empty directory, without tools, user configuration, plugins, hooks or host skills. Codex still added roughly 9,000 model-specific harness tokens per call. JEV results come from the saved [refined baseline](#retained-jev-baseline), recorded before the comparison, not a concurrent rerun.
+
+Label matches were **JEV 28/28, Luna 26/28, Sol 5/5 and Astra 28/28**. Luna missed `mixed-assertions` and `setup-assigns-result`. Label agreement is separate from meeting every expected probability range: JEV met those ranges on 23/28 cases. Sol's coverage is incomplete: its first `independent-formula` attempt timed out after 180 seconds without saved usage; the retry received HTTP 429 with a 281-second backoff and was stopped.
+
+Costs below compare only the **same five completed fixtures** across all four models, not their unequal full-run totals:
+
+| Model                 | Estimated USD for the common five |
+| --------------------- | --------------------------------: |
+| JEV (`jev-1.14.0`)    |                        0.00028266 |
+| Luna (`gpt-6-luna`)   |                         0.0051972 |
+| Sol (`gpt-6.1-sol`)   |                         0.0906052 |
+| Astra (`gpt-6-astra`) |                           0.55157 |
+
+These are standard API-equivalent estimates from reported token usage, including observed caching and Codex harness overhead, not Codex subscription charges. The artifact retains fixture IDs, pricing sources and rates. Unknown usage from Sol's interrupted attempts and agent evidence-preparation/orchestration costs are excluded.
+
+This small development-fixture comparison supports JEV as a low-cost review aid for supplied evidence, not a universal deletion gate or mandatory agent workflow. LLM probabilities are generated estimates; label matches and range checks establish neither calibration nor generalization to held-out tests.

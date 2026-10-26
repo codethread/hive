@@ -15,7 +15,7 @@ These sources supply examples and distinctions, not validation of this classifie
 
 ## Design inference and reuse decision
 
-Reuse Waggle's existing choice runner with a repository-owned semantic card; add no parser or mutation-testing dependency. The surveyed approaches informed the criteria, but this research did not identify a drop-in scorer for the requested context-sensitive judgment. That is a bounded search result, not a claim that no such tool exists.
+The initial classifier reused Waggle's existing choice runner with a repository-owned semantic card, without parser or mutation-testing dependencies. The later [optional Oxc extractor](README.md#extract-a-local-case) adds eval-only evidence assembly; the production runner still classifies supplied evidence. The surveyed approaches informed the criteria, but this research did not identify a drop-in scorer for the requested context-sensitive judgment. That is a bounded search result, not a claim that no such tool exists.
 
 Our inference: mutation score alone cannot establish independent behavioral value. A test copying a workflow's local constant can kill a mutant that changes that constant without explaining why the original value was correct. Conversely, a literal expected value or a formula can encode an independent protocol or domain contract. Similarity is evidence to investigate, not sufficient proof of redundancy.
 

@@ -47,7 +47,7 @@ Or supply JSON through standard input:
 open --raw context.json | bun run --silent waggle run abstraction-payoff --input - --json
 ```
 
-**External transmission:** `run` sends the supplied input object and the definition's questions to `https://api.typesafe.ai/v1/systemone`. Do not include secrets or code you are not authorized to send. Waggle does not gather repository files, interpret paths inside the input, or execute TOML content. A string containing a filename is sent as that string, not loaded as evidence.
+**External transmission:** `run` sends the supplied input object and the definition's questions to `https://api.typesafe.ai/v1/systemone`. Do not include secrets or code you are not authorized to send. The production `waggle run` command does not gather repository files, interpret paths inside the input, or execute TOML content. A string containing a filename is sent as that string, not loaded as evidence.
 
 The POC requests `jev-latest` using the official Typesafe SDK. It makes one attempt with a 10-second timeout, no automatic retries, no fallback provider, and SDK logging disabled. It does not read Pi credentials. SDK environment overrides for endpoint, logging and default model do not change this contract.
 
@@ -89,7 +89,15 @@ The card includes CLI flags/arguments, config sources, file side effects and dat
 
 ## Review tests for implementation restatement
 
-Use `tautological-tests` with agent-supplied implementation and a selected test, including relevant setup, teardown, helpers and contract provenance:
+Use `tautological-tests` to review a selected test with its implementation, relevant setup, teardown, helpers and contract provenance. Three entry points share the same card and evidence contract:
+
+| Entry point | Use it to |
+| --- | --- |
+| Supplied evidence (`waggle run`, below) | Classify one caller-prepared evidence object. |
+| [Fixture evaluation](eval/tautological-tests/README.md#review-the-fixtures) | Validate and tune the card against 28 contrasting fixtures. |
+| [Automatic evidence assembly](eval/tautological-tests/README.md#extract-a-local-case) | Use the optional eval-only Oxc extractor to select a local `bun:test` case, collect bounded supporting modules and prepare cumulative scopes. |
+
+The two evaluation tools are offline by default; `--live` opts into fixture classification or progressive scope expansion. They do not add automatic extraction to the production command. To classify supplied evidence:
 
 ```nu
 bun run --silent waggle describe tautological-tests --json
@@ -100,7 +108,7 @@ Supply the four nonblank strings declared by the card: `source`, `test`, `contex
 
 Read the score at `answers.review.probabilities.tautological`, alongside all four probabilities and the chosen label. It is the probability of the whole-case category, not a percentage of redundant assertions or provider `confidence`. A `mixed` case can have a low tautological score while containing a redundant assertion. Use the result for review, not automatic test deletion.
 
-The [evaluation guide](eval/tautological-tests/README.md) covers evidence preparation, contrasting fixtures, offline validation, explicit live runs and interpretation of saved results.
+See the [evaluation guide](eval/tautological-tests/README.md) for evidence preparation, extraction bounds, progressive stopping and interpretation of the retained JEV/Codex results.
 
 ## Write a classifier
 
