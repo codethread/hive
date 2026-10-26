@@ -12,7 +12,7 @@ const packages: PackageHistory[] = [
 	{ directory: "lib/beads", name: "@hive/beads", version: "0.5.0", commits: [] },
 ];
 test.each(["0.4.0", "0.5.0", "0.6.0"])(
-	"rejects version %s below packages or previous tag",
+	"rejects version %s below packages or previous tag #test-710",
 	(version) => {
 		expect(() => checkNextVersion(version, packages, "v0.6.0")).toThrow(Error);
 	},

@@ -45,7 +45,7 @@ Bun failures retain native diagnostics and exit status, including errors JUnit o
 
 Each registry entry pairs a stable `#test-N` ID with a justification and maximum permitted severity. Put the ID in the test or enclosing suite title; retain it across moves. Matching uses the complete numeric ID. Allocate the next unused ID.
 
-An allowance suppresses timing output and timing gate failure through its permitted severity. It never suppresses assertion failures or changes timeouts. Every registry edit requires explicit user approval of the exact change and its measured-cost justification.
+An allowance suppresses timing output and timing gate failure through its permitted severity. It never suppresses assertion failures or changes timeouts. [Land](../../.workflows/land/workflow.ts) and [feature-task delivery](../../.workflows/do-feature-task/workflow.ts) own exception assessment and disposition.
 
 ## CLI artifacts
 

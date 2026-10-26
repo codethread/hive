@@ -141,26 +141,29 @@ test.each([
 			[["hv-other", 0]],
 		],
 	},
-])("explicit parents override conflicting dotted ancestry: $name", ({ loaded, expected }) => {
-	let nodes = [
-		makeNode("hv-scope", "in_progress"),
-		makeNode("hv-work", "in_progress", ["hv-scope"]),
-		makeNode("hv-other.1", "in_progress", ["hv-work"]),
-		makeNode("hv-visit", "in_progress", ["hv-other.1"]),
-		makeNode("hv-other", "open"),
-	];
-	if (!loaded) {
-		nodes = nodes.filter((node) => node.id !== "hv-scope" && node.id !== "hv-work");
-	}
-	const hierarchy = { nodes, stale: false, fetchedAt: nodes[0]!.updatedAt };
-	const families = boardFamilies(board(nodes), hierarchy);
-	expect(families.map((family) => family.rows.map(({ node, depth }) => [node.id, depth]))).toEqual(
-		expected.map((family) => family.map((row) => [...row])),
-	);
-	expect(families.flatMap((family) => family.rows.map(({ node }) => node.parentIds))).toEqual(
-		nodes.map((node) => node.parentIds),
-	);
-});
+])(
+	"explicit parents override conflicting dotted ancestry: $name #test-729",
+	({ loaded, expected }) => {
+		let nodes = [
+			makeNode("hv-scope", "in_progress"),
+			makeNode("hv-work", "in_progress", ["hv-scope"]),
+			makeNode("hv-other.1", "in_progress", ["hv-work"]),
+			makeNode("hv-visit", "in_progress", ["hv-other.1"]),
+			makeNode("hv-other", "open"),
+		];
+		if (!loaded) {
+			nodes = nodes.filter((node) => node.id !== "hv-scope" && node.id !== "hv-work");
+		}
+		const hierarchy = { nodes, stale: false, fetchedAt: nodes[0]!.updatedAt };
+		const families = boardFamilies(board(nodes), hierarchy);
+		expect(
+			families.map((family) => family.rows.map(({ node, depth }) => [node.id, depth])),
+		).toEqual(expected.map((family) => family.map((row) => [...row])));
+		expect(families.flatMap((family) => family.rows.map(({ node }) => node.parentIds))).toEqual(
+			nodes.map((node) => node.parentIds),
+		);
+	},
+);
 
 test("outline closed visibility preserves selected beads and native paths to active descendants", () => {
 	const nodes = [
@@ -229,7 +232,7 @@ test.each([
 		],
 	},
 	{ expanded: ["child"], expected: [["root", RAIL_SUBCARD_COUNT]] },
-])("inline board branches expand independently: $expanded", ({ expanded, expected }) => {
+])("inline board branches expand independently: $expanded #test-724", ({ expanded, expected }) => {
 	const visible = new Set(foldedRows.map(({ node }) => node.id));
 	expect(
 		railRows(foldedRows, visible, new Set(expanded)).map(({ node, descendantCount }) => [

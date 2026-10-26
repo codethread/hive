@@ -137,7 +137,7 @@ test.each(["\u0000", "a\u0000b", "{{unclosed"])(
 	},
 );
 
-test("formula validation accepts empty and populated optional recipe fields", () => {
+test("formula validation accepts empty and populated optional recipe fields #test-690", () => {
 	expect(() =>
 		validateFormula({
 			executable: "tool",
@@ -154,6 +154,6 @@ test.each([
 	"{{#unless system_prompt}}{{missing}}{{/unless}}",
 	"{{#if cwd}}{{missing}}{{/if}}",
 	"{{#unless cwd}}{{missing}}{{/unless}}",
-])("formula validation rejects missing fields exposed by %s", (token) => {
+])("formula validation rejects missing fields exposed by %s #test-744", (token) => {
 	expect(() => validateFormula({ executable: "tool", headless: [token], argv: [] })).toThrow(Error);
 });

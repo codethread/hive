@@ -380,7 +380,7 @@ test("a failed native summary refresh invalidates prior rows for annotation retr
 });
 
 // eslint-disable-next-line max-statements -- Verify that late completion cannot regress annotation rows.
-test("an older native summary read cannot replace a newer refresh", async () => {
+test("an older native summary read cannot replace a newer refresh #test-713", async () => {
 	const beads = createMemoryBeads();
 	const task = await beads.create(scope, { title: "Concurrent task" });
 	const started = Promise.withResolvers<void>();
@@ -416,7 +416,7 @@ test("an older native summary read cannot replace a newer refresh", async () => 
 });
 
 // eslint-disable-next-line max-statements -- Verify that late completion cannot regress annotation rows.
-test("a failed read fences older pending summaries from same-cutoff retries", async () => {
+test("a failed read fences older pending summaries from same-cutoff retries #test-715", async () => {
 	const beads = createMemoryBeads();
 	const task = await beads.create(scope, { title: "Concurrent task" });
 	const started = Promise.withResolvers<void>();
