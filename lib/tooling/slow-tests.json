@@ -1282,8 +1282,8 @@
 			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 4.676ms (lib/qlock/tests/cli.test.ts)."
 		},
 		"#test-343": {
-			"threshold": "SLOW",
-			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 4.503ms (lib/busybee/tests/integration/parents.test.ts)."
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 4.503ms (lib/busybee/tests/integration/parents.test.ts). ct authorized the measured severity increase on 2026-10-26 (hv-4t52nj): strict changed run, run/feature row 10.832ms. The existing shared table title retains active run creation with exactly one native parent edge, the workflow label and an unchanged ordinary parent; cold fixture creation stays measured."
 		},
 		"#test-345": {
 			"threshold": "SLOW",
@@ -1482,8 +1482,8 @@
 			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 1.606ms (lib/honeycomb/tests/unit/config-policy.test.ts)."
 		},
 		"#test-419": {
-			"threshold": "SLOW",
-			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 1.599ms (lib/busybee/tests/integration/parents.test.ts)."
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20; prior full/changed baseline: 1.599ms. ct authorized the measured severity increase on 2026-10-26 (hv-4t52nj): full check 15.365ms. Retains nested visit/group parentage and acceptance placement, a related system checkpoint outside the parent-child hierarchy, group/run closure and the unchanged ordinary parent's assignment and status."
 		},
 		"#test-420": {
 			"threshold": "XSLOW",
@@ -1578,8 +1578,8 @@
 			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 5.093ms (lib/busybee/tests/integration/driver.test.ts)."
 		},
 		"#test-456": {
-			"threshold": "SLOW",
-			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 5.830ms (lib/busybee/tests/integration/driver.test.ts)."
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 5.830ms (lib/busybee/tests/integration/driver.test.ts). ct authorized the measured severity increase on 2026-10-26 (hv-4t52nj): strict changed run 14.307ms. Retains prepare-driver's done response with run/checkpoint identity and an unchanged closed run; initially final workflow creation stays inside the measured test."
 		},
 		"#test-457": {
 			"threshold": "SLOW",
@@ -2342,8 +2342,8 @@
 			"justification": "User approved retaining measured timing-only blockers during the BV landing on 2026-10-23. lib/scent/tests/cli.test.ts: Pi installation exports its embedded module without reading the application. Worst observed full-check runtime: 6.944ms."
 		},
 		"#test-669": {
-			"threshold": "SLOW",
-			"justification": "User approved retaining measured timing-only blockers during the BV landing on 2026-10-23. lib/colony/src/dispatch-projection.test.ts: discovery waits for closed repair and sees a misprojected request created during repair. Worst observed full-check runtime: 6.696ms."
+			"threshold": "XSLOW",
+			"justification": "User approved retaining measured timing-only blockers during the BV landing on 2026-10-23. lib/colony/src/dispatch-projection.test.ts: discovery waits for closed repair and sees a misprojected request created during repair. Prior worst full-check runtime: 6.696ms. ct authorized the measured severity increase on 2026-10-26 (hv-4t52nj): full check 14.177ms. Retains closed-repair completion before open discovery, concurrent request discovery and label repair, projected reads without full-list fallback, and unchanged HITL work."
 		},
 		"#test-670": {
 			"threshold": "SLOW",
@@ -2380,6 +2380,82 @@
 		"#test-678": {
 			"threshold": "SLOW",
 			"justification": "User approved retaining measured timing-only blockers during the BV landing on 2026-10-23. lib/shared/src/spawn-request.test.ts: malformed assignment %j fails at the native boundary. Observed integrated full-check runtime: 2.784ms."
+		},
+		"#test-684": {
+			"threshold": "SLOW",
+			"justification": "ct approved this measured allowance on 2026-10-26 (hv-4t52nj). Full check: 5.353ms; focused: 0.32-0.33ms. Retains shared-lockfile fingerprint changes and generated-dependency exclusion."
+		},
+		"#test-685": {
+			"threshold": "SLOW",
+			"justification": "ct approved this measured allowance on 2026-10-26 (hv-4t52nj). Full check: 4.392ms; focused: 0.10ms. Retains staged-tracker branch/artifact selection checks."
+		},
+		"#test-686": {
+			"threshold": "SLOW",
+			"justification": "ct approved this measured allowance on 2026-10-26 (hv-4t52nj). Full check: 4.236ms; focused: 2.15-2.20ms. Retains serialized checkpoint authority and the next transition after JSON/schema restoration."
+		},
+		"#test-687": {
+			"threshold": "SLOW",
+			"justification": "ct approved this measured allowance on 2026-10-26 (hv-4t52nj). Full check: 3.920ms; focused: 0.55-0.56ms. Retains unsupported CLI input rejection without launching a bee."
+		},
+		"#test-688": {
+			"threshold": "SLOW",
+			"justification": "ct approved this measured allowance on 2026-10-26 (hv-4t52nj). Prior full check: 4.100ms. Retains delete-versus-edit conflict detection."
+		},
+		"#test-689": {
+			"threshold": "SLOW",
+			"justification": "ct approved this measured allowance on 2026-10-26 (hv-4t52nj). Prior full check: 3.592ms. Retains endpoint and session keys in alert paths beneath the Beeswax namespace."
+		},
+		"#test-690": {
+			"threshold": "SLOW",
+			"justification": "ct approved this measured allowance on 2026-10-26 (hv-4t52nj). Prior full check: 2.545ms. Retains formula validation with empty and populated optional recipe fields."
+		},
+		"#test-691": {
+			"threshold": "SLOW",
+			"justification": "ct approved this measured allowance on 2026-10-26 (hv-4t52nj). Strict changed run: 5.194ms. Retains spawn-bead assignment, host, identity and task links in the new request, with the selected database."
+		},
+		"#test-692": {
+			"threshold": "SLOW",
+			"justification": "ct approved this measured allowance on 2026-10-26 (hv-4t52nj). Full check: 3.757ms. Retains JSON/schema restoration of stage authority and rejection of a changed identity."
+		},
+		"#test-693": {
+			"threshold": "SLOW",
+			"justification": "ct approved this measured allowance on 2026-10-26 (hv-4t52nj). Full check: symlink row 1.927ms. The shared typed-policy title retains inherited and local copy defaults, explicit entry modes and path normalization. Cold execution stays measured; no schema warmup is added."
+		},
+		"#test-694": {
+			"threshold": "SLOW",
+			"justification": "ct approved this measured allowance on 2026-10-26 (hv-4t52nj). Full check: 7.396ms. Retains the formatted tree snapshot: free pool slots stay flat, while an active worktree sharing a slot's HEAD can parent a feature stack, with default-relative ahead/behind counts."
+		},
+		"#test-695": {
+			"threshold": "SLOW",
+			"justification": "ct approved this measured allowance on 2026-10-26 (hv-4t52nj). Full check: empty hook body row 3.438ms. The existing shared table title retains refusal of unsupported hooks with migration guidance, unchanged files and no local Git configuration writes."
+		},
+		"#test-696": {
+			"threshold": "SLOW",
+			"justification": "ct approved this measured allowance on 2026-10-26 (hv-4t52nj). Full check: 2.896ms. Retains selected SQLite database and daemon-state cwd forwarding to the BV fake, complete graph scores including an unrelated task, and linked-task score ordering."
+		},
+		"#test-697": {
+			"threshold": "SLOW",
+			"justification": "ct approved this measured allowance on 2026-10-26 (hv-4t52nj). Full check: 1.997ms. Retains publication/history coordination with controlled comments: a rejected comment cannot finish the operation or histories before its admitted sibling settles; request-attributed failure and history-before-gate ordering remain asserted."
+		},
+		"#test-698": {
+			"threshold": "SLOW",
+			"justification": "ct approved this measured allowance on 2026-10-26 (hv-4t52nj). Full check: 3.011ms. Retains recipe installation in the repository and selected tracker when that tracker predates Beeswax configuration, without tracker-side config/lock creation, hook changes or recipe writes to the unselected default tracker. Fixture setup stays measured."
+		},
+		"#test-699": {
+			"threshold": "SLOW",
+			"justification": "ct approved this measured allowance on 2026-10-26 (hv-4t52nj). Full check: merge row 2.708ms. The existing shared table title retains conflict recognition from native diagnostic code and message prefix, including a wrapped cause, while rejecting unrelated configuration errors and matching text with the wrong code."
+		},
+		"#test-700": {
+			"threshold": "SLOW",
+			"justification": "ct approved this measured allowance on 2026-10-26 (hv-4t52nj). Strict changed run: root row 1.987ms. The existing shared table title retains repository-schema rejection of global-only keys, blank commands, invalid location/pool/copy settings and malformed finish fields. Cold schema validation remains in the test."
+		},
+		"#test-701": {
+			"threshold": "SLOW",
+			"justification": "ct approved this measured allowance on 2026-10-26 (hv-4t52nj). Integrated full check: 2.556ms. Retains hints for the selected database/WAL, shallow finish/worker/ownership artifacts and notifications without filenames, while rejecting noisy, foreign and nested paths."
+		},
+		"#test-702": {
+			"threshold": "SLOW",
+			"justification": "ct approved this measured allowance on 2026-10-26 (hv-4t52nj). Full check: 2.167ms. Retains native routing query arguments for closed status, AND labels and an unlimited result set, with only the requested ID/description fields returned."
 		}
 	}
 }

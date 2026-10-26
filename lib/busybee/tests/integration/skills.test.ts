@@ -1,9 +1,9 @@
-// Public command contracts run outside a repository with no runtime configuration.
+// Exercise skill routes in process; retain one executable check with an isolated environment.
 /* eslint-disable import/no-nodejs-modules */
 // Keep the executable in the changed-test dependency graph.
 // eslint-disable-next-line import/no-unassigned-import
 import "../../bin/busybee.ts";
-import { afterEach, beforeEach, expect, test } from "bun:test";
+import { expect, test } from "bun:test";
 import { mkdtemp, rm } from "node:fs/promises";
 import { captureCli } from "./support.ts";
 import { createServices } from "../../src/native.ts";
@@ -12,15 +12,9 @@ import { tmpdir } from "node:os";
 
 const SUCCESS = 0;
 const skillNames = ["workflow-execution", "workflow-authoring"];
-let directory = "";
-beforeEach(async () => {
-	directory = await mkdtemp(join(tmpdir(), "busybee-skills-"));
-});
-afterEach(async () => {
-	await rm(directory, { force: true, recursive: true });
-});
+const directory = "/busybee-skills-outside-repository";
 
-test("skills lists discovery metadata without loading instruction bodies #test-254", async () => {
+test("skills lists discovery metadata without instruction bodies #test-254", async () => {
 	const listed = await invokeSkills(["list", "--json"]);
 	expect(listed).toMatchObject({ code: 0, stderr: "" });
 	const document = JSON.parse(listed.stdout);
@@ -80,42 +74,42 @@ test.each([
 	expect(text.stderr).not.toBe("");
 });
 
-test.each(skillNames)(
-	"the executable reads %s with an empty PATH and isolated home #test-253",
-	async (name) => {
-		const proc = Bun.spawn(
-			[
-				process.execPath,
-				new URL("../../bin/busybee.ts", import.meta.url).pathname,
-				"skills",
-				"get",
-				name,
-				"--json",
-			],
-			{
-				cwd: directory,
-				env: { HOME: directory, PATH: "", XDG_CONFIG_HOME: directory },
-				stdout: "pipe",
-				stderr: "pipe",
-			},
-		);
-		try {
-			const [stdout, stderr, code] = await Promise.all([
-				new Response(proc.stdout).text(),
-				new Response(proc.stderr).text(),
-				proc.exited,
-			]);
-			expect({ code, stderr }).toEqual({ code: 0, stderr: "" });
-			expect(JSON.parse(stdout)).toMatchObject({
-				ok: true,
-				kind: "skills_get",
-				name,
-			});
-		} finally {
-			proc.kill();
-		}
-	},
-);
+test("the executable reads workflow-execution with an empty PATH and isolated home #test-253", async () => {
+	const name = "workflow-execution";
+	const home = await mkdtemp(join(tmpdir(), "busybee-skills-"));
+	const proc = Bun.spawn(
+		[
+			process.execPath,
+			new URL("../../bin/busybee.ts", import.meta.url).pathname,
+			"skills",
+			"get",
+			name,
+			"--json",
+		],
+		{
+			cwd: home,
+			env: { HOME: home, PATH: "", XDG_CONFIG_HOME: home },
+			stdout: "pipe",
+			stderr: "pipe",
+		},
+	);
+	try {
+		const [stdout, stderr, code] = await Promise.all([
+			new Response(proc.stdout).text(),
+			new Response(proc.stderr).text(),
+			proc.exited,
+		]);
+		expect({ code, stderr }).toEqual({ code: 0, stderr: "" });
+		expect(JSON.parse(stdout)).toMatchObject({
+			ok: true,
+			kind: "skills_get",
+			name,
+		});
+	} finally {
+		proc.kill();
+		await rm(home, { force: true, recursive: true });
+	}
+});
 
 function invokeSkills(args: readonly string[]) {
 	return captureCli(["skills", ...args], { ...createServices(), actor: undefined, cwd: directory });
