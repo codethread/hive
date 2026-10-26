@@ -341,3 +341,62 @@ test("native discovery preserves unspecified environment and parses its typed lo
 		beads_dir: "/selected",
 	});
 });
+
+test("native close forwards its read revision without a force override", async () => {
+	const revision = "2026-10-25T12:00:00.123456Z";
+	const service = createNativeBeads({
+		execute: (argv) => {
+			expect(argv).toEqual([
+				"br",
+				"close",
+				"hv-visit",
+				"--reason",
+				"Readable completion",
+				"--if-unchanged",
+				revision,
+				"--json",
+			]);
+			return Promise.resolve("[]");
+		},
+	});
+	await service.close({ cwd: "/fixture" }, "hv-visit", {
+		reason: "Readable completion",
+		ifUnchanged: revision,
+	});
+});
+
+test.each(["show", "showMany"] as const)(
+	"native %s retains hydrated acceptance facts",
+	async (operation) => {
+		const acceptanceItems = [
+			{ index: 1, text: "Verified", checked: true },
+			{ index: 2, text: "Still needed", checked: false },
+		];
+		const service = createNativeBeads({
+			execute: () =>
+				Promise.resolve(
+					JSON.stringify([
+						{
+							id: "hv-visit",
+							title: "Visit",
+							status: "open",
+							priority: 2,
+							issue_type: "task",
+							created_at: "2026-10-25T12:00:00Z",
+							updated_at: "2026-10-25T12:00:00Z",
+							acceptance_criteria: "Native hydrated facts, not reparsed by the adapter.",
+							acceptance_items: acceptanceItems,
+						},
+					]),
+				),
+		});
+		let records: Awaited<ReturnType<typeof service.showMany>> = [];
+		// eslint-disable-next-line unicorn/prefer-ternary -- Repository policy prefers explicit branches.
+		if (operation === "show") {
+			records = [await service.show({ cwd: "/fixture" }, "hv-visit")];
+		} else {
+			records = await service.showMany({ cwd: "/fixture" }, ["hv-visit"]);
+		}
+		expect(records[ZERO]!.acceptance_items).toEqual(acceptanceItems);
+	},
+);

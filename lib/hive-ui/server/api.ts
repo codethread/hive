@@ -7,6 +7,7 @@ import {
 } from "../contracts.ts";
 import {
 	nativeWorkflowState,
+	readWorkflowControl,
 	workflowOutcomeLabelsCurrent,
 	workflowSimulationRequestSchema,
 } from "@hive/shared";
@@ -144,12 +145,17 @@ export async function api(
 			if (!simulation && url.searchParams.get("outcomeOnly") === "true") {
 				return respond(
 					await data.workflow(context, id, async (endpoint, runId) => {
-						const run = await beads.show({ cwd: endpoint.root, db: endpoint.beadsDb }, runId);
-						const outcome = nativeWorkflowState(run, { runId, scope: "run" });
+						const selectedScope = { cwd: endpoint.root, db: endpoint.beadsDb };
+						const run = await beads.show(selectedScope, runId);
+						const { checkpoint, control } = await readWorkflowControl(beads, selectedScope, run);
+						const outcome = nativeWorkflowState(run, { runId, scope: "run" }, control);
 						return {
 							runId,
 							nativeStatus: run.status,
 							updatedAt: run.updated_at,
+							checkpoint: checkpoint.id,
+							savedAt: checkpoint.updated_at,
+							completion: control.completions[runId] ?? null,
 							outcome,
 							labelsCurrent: workflowOutcomeLabelsCurrent(run.labels, outcome),
 						};

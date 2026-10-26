@@ -2,9 +2,15 @@ import {
 	beesConfigSchema,
 	readSpawnRequest,
 	readSpawnRequestSummary,
+	readWorkflowControl,
 	requestResolution,
 } from "@hive/shared";
-import { beforeTrackerWrite, createTask, memoryTracker } from "./tracker.test-support.ts";
+import {
+	beforeTrackerWrite,
+	createTask,
+	createWorkflowControl,
+	memoryTracker,
+} from "./tracker.test-support.ts";
 import { expect, test } from "bun:test";
 import { retryRequest, spawnWorkflowRequest } from "./producer.ts";
 import type { ProducerCommands } from "./producer.ts";
@@ -83,6 +89,25 @@ const workflowRetry = memoryTracker();
 const retryParent = await createTask(workflowRetry, { assignee: "ct", status: "in_progress" });
 const retryRun = await workflowRun(workflowRetry, { parent: retryParent });
 const retryStage = await createTask(workflowRetry, { parent: retryRun });
+const retryRoot = await workflowRetry.beads.show(
+	trackerScope(workflowRetry.repository, "fixture"),
+	retryRun,
+);
+const retrySystem = await readWorkflowControl(
+	workflowRetry.beads,
+	trackerScope(workflowRetry.repository, "fixture"),
+	retryRoot,
+);
+await workflowRetry.beads.update(
+	trackerScope(workflowRetry.repository, "fixture"),
+	[retrySystem.checkpoint.id],
+	{
+		description: JSON.stringify({
+			...retrySystem.control,
+			created: [{ bead: retryStage, scope: "visit" }],
+		}),
+	},
+);
 const retrySaved = await createTask(workflowRetry, {
 	parent: retryRun,
 	status: "closed",
@@ -231,15 +256,6 @@ async function workflowRun(
 	input: { parent?: string } = {},
 ) {
 	const id = await createTask(tracker, input);
-	const checkpoint = await createTask(tracker, {
-		labels: ["system", "busybee-checkpoint"],
-		description: JSON.stringify({ formatVersion: 1, id, managedExecution: "managed" }),
-	});
-	await tracker.beads.dep.add(
-		trackerScope(tracker.repository, "fixture"),
-		id,
-		checkpoint,
-		"related",
-	);
+	await createWorkflowControl(tracker, id);
 	return id;
 }

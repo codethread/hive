@@ -1,5 +1,9 @@
 import { HttpResponse, http } from "msw";
-import type { WorkflowSimulation, WorkflowSimulationRequest } from "../../contracts.ts";
+import type {
+	WorkflowOutcome,
+	WorkflowSimulation,
+	WorkflowSimulationRequest,
+} from "../../contracts.ts";
 import {
 	advance,
 	exampleVisit,
@@ -18,8 +22,11 @@ import { z } from "zod";
 
 export function workflowHandlers(samples: WorkflowSample[] = workflowSamples) {
 	return [
-		http.get("/api/colonies/:colony/workflow/:id", ({ params }) => {
+		http.get("/api/colonies/:colony/workflow/:id", ({ params, request }) => {
 			const selected = samples.find((entry) => entry.card.id === params["id"])!;
+			if (new URL(request.url).searchParams.get("outcomeOnly") === "true") {
+				return HttpResponse.json(sampleOutcome(selected));
+			}
 			return HttpResponse.json(samplePreview(selected));
 		}),
 		http.post("/api/colonies/:colony/workflow/:id/simulate", async ({ params, request }) => {
@@ -34,6 +41,41 @@ export function workflowHandlers(samples: WorkflowSample[] = workflowSamples) {
 			}
 		}),
 	];
+}
+
+/** Illustrative authority for Storybook, separate from the captured structural diagram. */
+export function sampleOutcome(selected: WorkflowSample): WorkflowOutcome {
+	const result: WorkflowOutcome = {
+		runId: selected.card.id,
+		checkpoint: selected.checkpoint,
+		savedAt: selected.savedAt,
+		updatedAt: selected.card.updatedAt,
+		nativeStatus: selected.card.status,
+		completion: null,
+		outcome: { kind: "pending" },
+		labelsCurrent: true,
+	};
+	if (selected.snapshotStatus === "done") {
+		const completion = {
+			scope: "run",
+			outcome: "succeeded",
+			reason: "Illustrative workflow completed.",
+			state: "confirmed",
+			closedAt: selected.card.updatedAt,
+		} as const;
+		result.completion = completion;
+		result.outcome = {
+			kind: "terminal",
+			closedAt: completion.closedAt,
+			fact: {
+				runId: selected.card.id,
+				scope: completion.scope,
+				outcome: completion.outcome,
+				reason: completion.reason,
+			},
+		};
+	}
+	return result;
 }
 
 export function sampleSimulation(selected: WorkflowSample, raw: unknown): WorkflowSimulation {

@@ -1,3 +1,4 @@
+/* eslint-disable unicorn/no-null -- Workflow control encodes absent ownership and settlement as null. */
 import { expect, test } from "bun:test";
 import type { BeadRecord } from "@hive/beads";
 import { BusyBeeError } from "../../src/native.ts";
@@ -5,7 +6,12 @@ import type { Run } from "../../src/checkpoint.ts";
 import { readCheckpoint } from "../../src/checkpoint.ts";
 
 const run: Run = {
-	formatVersion: 1,
+	formatVersion: 2,
+	lock: null,
+	managedExecution: "unmanaged",
+	results: {},
+	completions: {},
+	settlement: null,
 	active: [],
 	created: [],
 	definition: { kind: "named", name: "example", version: "1.2.3" },
@@ -16,11 +22,12 @@ const run: Run = {
 	visits: {},
 };
 
-const NEXT_FORMAT = 2;
+const NEXT_FORMAT = 3;
 
 test.each([
 	{ label: "missing #test-63", formatVersion: undefined },
 	{ label: "future #test-62", formatVersion: NEXT_FORMAT },
+	{ label: "old", formatVersion: 1 },
 ])("$label checkpoint format requires a fresh run", ({ formatVersion }) => {
 	try {
 		readCheckpoint(record(JSON.stringify({ ...run, formatVersion })));

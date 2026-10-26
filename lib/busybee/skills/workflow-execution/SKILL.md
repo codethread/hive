@@ -44,21 +44,23 @@ Classify each active visit by its dispatch request and task instructions:
 
 For a stage you own:
 
-1. Satisfy acceptance and child work using the application's verification commands.
+1. Verify and tick current native acceptance, finish child work and resolve blockers using the application's verification commands and authority.
 2. Follow the brief's delivery instructions; in Bee execution, `bee response --help` owns answer publication and verification. Dispatched workers deliver before stage closure.
-3. Follow `busybee complete --help` to save the original outcome and close the stage.
+3. Follow `busybee complete --help` to save the original outcome and successful completion intent in the workflow system bead, then close through current native gates. Ordinary notes remain authored work, not result transport.
 
-The driver runs `busybee collect RUN --json`, then inspects newly active visits. Read `collect --help` for progression and `choice --help` for direct submission of driver-handled outcomes. Busy Bee alone closes groups and the run.
+The driver runs `busybee collect RUN --json`, then inspects newly active visits. This is the only successful-completion path for both dispatch modes; an authored choice named `next` is still legal. Busy Bee alone closes groups and the run.
 
-Remain running while workers are pending; waiting drivers consume ordinary quota. If limits starve workers, ask the user to raise them. Read worker answers through `bee result --help` for the final synthesis. The driver is complete when the run reports `done`, its synthesis is delivered and the run brief's caller completion instructions are satisfied. The original parent requires its own acceptance and closure authority.
+Remain running while workers are pending; waiting drivers consume ordinary quota. If limits starve workers, ask the user to raise them. Read worker answers through `bee result --help` for the final synthesis. The driver is complete when the run reports `status: done`, its synthesis is delivered and the run brief's caller completion instructions are satisfied. `chartStatus: done` with `completion: projection_pending` and `status: completion_pending` still needs native completion; `nativeStatus` reports the current native run status. The original parent requires its own acceptance and closure authority.
 
 In Bee execution, follow `bee finish --help` after completing your assigned run or stage, or when reporting a blocker.
 
 ## Continue safely
 
-Inspect confirmed effects and retained IDs after any command failure; a failed response can follow partial publication. For closure refusal or interrupted completion, follow `complete --help` before retrying. If collection reports missing or invalid saved data, recover the original outcome from evidence before resubmission.
+Inspect confirmed effects and retained IDs after any command failure; a failed response can follow partial publication. For closure refusal or interrupted completion, follow `complete --help`: resolve current gates and retry the same original choice/data. A conflicting original is rejected; an identical consumed retry does not replay the transition. Never recover machine results by parsing native close prose or notes.
 
-For explicitly authorized failure or cancellation of pending generated work, read `busybee settle --help`. Settlement is separate from successful completion and source acceptance; a request to resume work does not authorize retirement.
+Use `busybee reconcile --help` for definition-free native projection repair, not progression or replacement work. Repair can reopen/reclose a stale completion and change its closure timestamp, but preserves current briefs, acceptance, notes and claims. Blocked/deferred work, unchecked criteria and human/other-agent reservations need their authorized owner's action, not forced repair.
+
+For explicitly authorized failure or cancellation of pending generated work, read `busybee settle --help`. It preserves successful directives, including requested success, which is not terminal until confirmed against native closure. Every same-operation/reason retry obtains fresh clearance, even after a completed settlement; generic reconcile cannot reclose unsuccessful scope. Unmet work gates may leave retirement pending indefinitely. A request to resume work does not authorize retirement.
 
 For definition restoration failures, read [saved-run compatibility](../workflow-authoring/SKILL.md#evolve-existing-runs) with `busybee skills get workflow-authoring`. Retain run/task/evidence references and follow the application's recovery authorization before creating a replacement run. A missing saved name needs the caller's workflow choice.
 

@@ -1015,3 +1015,16 @@ Scenario: Replace the watchdog checkpoint atomically
   Then the old handle still reads failure and the current file reads recovery under a new inode
   And the checkpoint directory contains only the one expected JSON file
 ```
+
+## System-owned workflow consumer coverage
+
+This current-source inventory is separate from the historical process scenarios above and the [rejected lifecycle cohort](./lifecycle-slow-test-removal.md). It records coverage of Busy Bee's [format-2 outcome contract](../../lib/busybee/SPEC.md#native-workflow-outcomes), not suite execution or restoration evidence.
+
+| Current source | Contract exercised |
+| --- | --- |
+| [workflow-anchor.test.ts](../../lib/colony/src/workflow-anchor.test.ts) | A confirmed stage retains its own outcome beneath a cancelled run; a pending stage cannot borrow its parent's result. Requested, reopened, reclosed, changed-reason and unauthorized closures cannot become success or executable work. |
+| [workflow-anchor.test.ts](../../lib/colony/src/workflow-anchor.test.ts) | Lock, settlement and managed-provenance admission checks; final launch rechecks; clearance rejects missing fences, incomplete generated inventory and changed checkpoint revisions. |
+| [Shared workflow-control tests](../../lib/shared/src/workflow-control.test.ts) | Definition-free system/native joins, requested intent remaining nonterminal, old-looking JSON prose not becoming authority, and explicit unsupported-format errors. |
+| [Hive UI API tests](../../lib/hive-ui/server/api.test.ts) | Outcome-only reads independent of failed structural preview, separate system/native freshness and unsupported-format adoption diagnostics. |
+
+These use injected tracker/control/runtime observations rather than live worker launches or daemon cutover. Producer-side native gates, preserved notes, settlement retries and requested-success preservation are mapped in [Busy Bee's current inventory](./busybee.md#system-owned-completion-coverage). Retain actual validation results and remaining native/process evidence in the implementation delivery.

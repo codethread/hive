@@ -1,28 +1,25 @@
 import type { Bead, BeadRecord } from "@hive/beads";
-import {
-	nativeWorkflowState,
-	parseWorkflowSettlement,
-	workflowManagedExposure,
-} from "@hive/shared";
+import type { WorkflowAssignment, WorkflowControl } from "@hive/shared";
+import { nativeWorkflowState, readWorkflowControl } from "@hive/shared";
 import type { TrackerContext } from "./tracker.ts";
-import type { WorkflowAssignment } from "@hive/shared";
 import { trackerScope } from "./tracker.ts";
-
-const ONE = 1;
-const FIRST = 0;
 
 export type WorkflowCompletion =
 	| { kind: "pending" }
 	| {
 			kind: "terminal";
-			/** Request disposition derived from its own native workflow anchor. */
+			/** Request disposition derived from its own confirmed system/native anchor. */
 			outcome: "completed" | "cancelled" | "blocked";
 			/** Original workflow disposition and explanation retained for diagnostics. */
 			message: string;
 	  };
 
-// eslint-disable-next-line max-statements -- Decode the captured scope and retain its native disposition together.
-export function workflowCompletion(task: Bead, assignment: WorkflowAssignment): WorkflowCompletion {
+// eslint-disable-next-line max-statements -- Decode the captured scope and retain its confirmed disposition together.
+export function workflowCompletion(
+	task: Bead,
+	assignment: WorkflowAssignment,
+	control: WorkflowControl,
+): WorkflowCompletion {
 	let id = assignment.runId;
 	let scope: "run" | "visit" = "run";
 	if (assignment.kind === "stage") {
@@ -32,9 +29,11 @@ export function workflowCompletion(task: Bead, assignment: WorkflowAssignment): 
 	if (task.id !== id) {
 		throw new Error(`Workflow anchor ${task.id} does not match captured assignment ${id}`);
 	}
-	const state = nativeWorkflowState(task, { runId: assignment.runId, scope });
-	if (state.kind === "unavailable") {
-		throw new Error(`Workflow anchor ${id} has an unclassified native closure`);
+	const state = nativeWorkflowState(task, { runId: assignment.runId, scope }, control);
+	if (state.kind === "mismatch") {
+		throw new Error(
+			`Workflow anchor ${id} projection mismatch: ${state.reason}; reconcile workflow ${assignment.runId}`,
+		);
 	}
 	if (state.kind === "pending") {
 		return state;
@@ -54,49 +53,51 @@ export async function readWorkflowCompletion(
 	identity: string,
 	anchor?: Bead,
 ): Promise<WorkflowCompletion> {
-	let id = assignment.runId;
-	if (assignment.kind === "stage") {
-		id = assignment.stageId;
-	}
 	const scope = trackerScope(repository, identity);
-	const completion = workflowCompletion(anchor ?? (await beads.show(scope, id)), assignment);
+	const run = await beads.show(scope, assignment.runId);
+	const { control } = await readWorkflowControl(beads, scope, run);
+	let task = anchor ?? run;
+	if (assignment.kind === "stage" && anchor === undefined) {
+		task = await beads.show(scope, assignment.stageId);
+	}
+	const completion = workflowCompletion(task, assignment, control);
 	if (completion.kind === "pending" && assignment.kind === "stage") {
-		const run = await beads.show(scope, assignment.runId);
-		const parent = workflowCompletion(run, { kind: "driver", runId: assignment.runId });
+		const parent = workflowCompletion(run, { kind: "driver", runId: assignment.runId }, control);
 		if (parent.kind === "terminal") {
-			throw new Error(`Open stage ${id} remains beneath terminal workflow ${run.id}`);
+			throw new Error(`Open stage ${task.id} remains beneath terminal workflow ${run.id}`);
 		}
 	}
 	return completion;
 }
 
-export function assertWorkflowAdmission(run: BeadRecord): void {
-	const completion = workflowCompletion(run, { kind: "driver", runId: run.id });
+/** Publication alone may cross ownership for a known generated stage, never launch/claim. */
+export function assertWorkflowAdmission(
+	run: BeadRecord,
+	control: WorkflowControl,
+	allowPublicationLock = false,
+): void {
+	const completion = workflowCompletion(run, { kind: "driver", runId: run.id }, control);
 	if (completion.kind === "terminal") {
 		throw new Error(completion.message);
 	}
-	const intent = parseWorkflowSettlement(run.notes);
-	if (intent !== undefined) {
-		throw new Error(`Workflow ${run.id} has unfinished settlement intent for ${intent.runId}`);
+	if (control.settlement !== null) {
+		throw new Error(`Workflow ${run.id} has durable ${control.settlement.state} settlement intent`);
+	}
+	if (control.lock !== null && !allowPublicationLock) {
+		throw new Error(`Workflow ${run.id} publication is fenced`);
 	}
 }
 
-/** Native checkpoint ownership fences admission without importing workflow definitions. */
+/** Read system ownership and inventory without importing workflow definitions. */
 export async function readWorkflowPublication(
 	{ beads, repository }: TrackerContext,
 	run: BeadRecord,
 	identity: string,
-): Promise<{ locked: boolean; exposure: "unmanaged" | "managed" | "unknown" }> {
-	const related = await beads.showMany(
-		trackerScope(repository, identity),
-		run.dependencies.filter((edge) => edge.dependency_type === "related").map((edge) => edge.id),
-	);
-	const checkpoints = related.filter(
-		(record) => record.labels.includes("system") && record.labels.includes("busybee-checkpoint"),
-	);
-	if (checkpoints.length !== ONE) {
-		throw new Error(`Workflow ${run.id} needs one native checkpoint`);
-	}
-	const checkpoint = checkpoints[FIRST]!;
-	return { locked: checkpoint.notes !== "", exposure: workflowManagedExposure(checkpoint, run.id) };
+) {
+	const observation = await readWorkflowControl(beads, trackerScope(repository, identity), run);
+	return {
+		...observation,
+		locked: observation.control.lock !== null,
+		exposure: observation.control.managedExecution,
+	};
 }

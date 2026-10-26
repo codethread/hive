@@ -500,3 +500,20 @@ Restoration mapping (original registration titles):
 | Total                |            45 |                 46 |
 
 The navigation and visits files were removed in full. Only listed cases and table rows were removed from the other files. Native storage, lock races and parent/child closure are external boundaries to reconsider; engine navigation may be exercised with an injected tracker after a focused native adapter contract is validated. Keep simulated outcomes distinct from actual checks or integration effects when restoring coverage.
+
+## System-owned completion coverage
+
+This current-source inventory is separate from the historical removals above. It documents the [format-2 completion contract](../../lib/busybee/SPEC.md), not restoration of the rejected lifecycle cohort or evidence that a full suite passed.
+
+| Current source | Contract exercised |
+| --- | --- |
+| [completion.test.ts](../../lib/busybee/tests/integration/completion.test.ts) | Original/transformed payload separation, identical and conflicting consumed retries, unchanged ordinary/system notes, readable close prose, and parallel original persistence. |
+| [completion.test.ts](../../lib/busybee/tests/integration/completion.test.ts) | Injected original-save, close, lost-close-response, confirmation and label failures; released ownership and convergent same-original retries. |
+| [completion.test.ts](../../lib/busybee/tests/integration/completion.test.ts) | Unchecked acceptance without native policy, child/blocker gates, reservations, close revision races, definition-free unauthorized-close repair, and stale confirmed closure/prose/timestamp repair without changing history. |
+| [completion.test.ts](../../lib/busybee/tests/integration/completion.test.ts) | Settlement admission fencing, fresh clearance for pending/previously complete settlement, and requested-success preservation at unchecked and resolved native-gate states. Settlement keeps originals and chart/history unchanged. |
+| [parents.test.ts](../../lib/busybee/tests/integration/parents.test.ts) and [start.test.ts](../../lib/busybee/tests/integration/start.test.ts) | Group/run acceptance refusal after chart advancement; saved progress survives retry. Compact status distinguishes chart completion from pending native projection. |
+| [driver.test.ts](../../lib/busybee/tests/integration/driver.test.ts) | Public CLI/runtime completion and collection, response separation, payload validation and driver/worker reservation boundaries. |
+| [checkpoint.test.ts](../../lib/busybee/tests/unit/checkpoint.test.ts) | Missing, old and unknown format rejection and malformed JSON diagnostics. |
+| [Beads native adapter tests](../../lib/beads/src/native.test.ts) | Guarded close argument forwarding without force and hydrated native checklist parsing. |
+
+These runtime cases use memory-backed Beads and injected failure/clearance seams. Adapter assertions are not a live native tracker or process-clearance test. The requested-success cases seed the unchecked and resolved frontiers separately; they do not claim a single end-to-end cancellation/retry execution. Consumer joins are covered separately in [Colony's current inventory](./colony.md#system-owned-workflow-consumer-coverage). Keep actual command results, timing and any disposable-native evidence in the implementation delivery.

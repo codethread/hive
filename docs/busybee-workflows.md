@@ -23,7 +23,9 @@ A non-final state with `meta.title` creates a bead. Every such state supplies `m
 
 Return optional `acceptanceCriteria: string` from `runBrief` for the run or from `meta.task` for a worker or group. Task callbacks own this field; static `meta.acceptanceCriteria` is not a default. Busy Bee passes it unchanged to that bead's native `acceptance_criteria`, separate from its description. Keep criteria out of `description` and `instructions`; omission remains valid, and the engine neither extracts criteria from prose nor backfills existing beads.
 
-Native Beads remains the [closure authority](../lib/busybee/SPEC.md#work-and-progression). Busy Bee never ticks criteria. For run or group criteria, assign verification and native checklist updates to a reachable task before engine-owned closure; use criteria that express real coordination acceptance.
+Busy Bee checks current native acceptance items, children, blockers and reservations before guarded closure; native Beads close policy may impose additional gates. It never ticks criteria. For run or group criteria, assign verification and native checklist updates to a reachable task before engine-owned closure; use criteria that express real coordination acceptance. See [work and progression](../lib/busybee/SPEC.md#work-and-progression).
+
+Both dispatch modes use `complete` → `collect`. Keep authored choices such as `next`; remove callers of the former direct `next`/`choice`, save-only `record-result` and runtime submit entry points. The workflow system bead owns originals and completion directives; ordinary notes and readable close prose are not machine transport. `reconcile` repairs known native completion projections without loading the definition or advancing the chart. The [checkpoint contract](../lib/busybee/SPEC.md#checkpoint-and-failure-boundary) defines the format-2 boundary.
 
 Creation provenance and dispatch are separate. Generated worker visits are workflow auto beads whether driver-handled (no `bee`) or Bee-dispatched (`bee: {kind}`). Agent-created supporting work is manual even when nested beneath the run; parent-child links alone do not establish workflow generation. The related workflow system bead stores the run's checkpoint. See the [shared vocabulary](../GLOSSARY.md#workflows).
 
@@ -104,7 +106,7 @@ Without `resumeSchema`, the report explicitly leaves context validation unchecke
 
 The engine performs no writes, acquires no mutation reservation, starts no actors and creates no Bee requests during preflight. Definition imports, schema checks and render callbacks still execute trusted author code. Keep them pure; preflight is not a sandbox and cannot prevent their own I/O. It reports a momentary inspection, not a reservation against concurrent mutations.
 
-Checkpoint storage has a separate engine `formatVersion: 1`; changing workflow SemVer does not change or upgrade that format. Busy Bee validates the small checkpoint header and trusts its own stored body. Missing, old or unknown formats reject with regenerate guidance and have no migration. For incompatible known names, preserve authorization and evidence and start a fresh same-scope run; for a missing name, stop and ask which workflow to use. See [resume and failures](../lib/busybee/README.md#resume-and-failures).
+Checkpoint storage has a separate engine `formatVersion: 2`; changing workflow SemVer does not upgrade that format. Unsupported formats fail before mutation, without migration. Follow [breaking adoption](../lib/busybee/README.md#breaking-adoption) for old-format work and coordinated tool deployment. Definition-version incompatibility has its own same-name recovery policy in [resume and failures](../lib/busybee/README.md#resume-and-failures); a missing saved name requires the caller's workflow choice.
 
 ## Keep the chart inspectable
 

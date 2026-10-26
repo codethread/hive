@@ -1,6 +1,6 @@
 import { BusyBeeError, createServices } from "../../src/native.ts";
+import { complete, navigate, startNamed } from "../../src/runtime.ts";
 import { expect, test } from "bun:test";
-import { navigate, recordResult, startNamed } from "../../src/runtime.ts";
 import type { Services } from "../../src/native.ts";
 import { createMachine } from "xstate";
 import { createMemoryBeads } from "@hive/beads";
@@ -92,12 +92,7 @@ test.each(["first", "second"] as const)(
 		let run = await startNamed("example", options, io);
 		if (position === "second") {
 			const first = run.active[FIRST]!.bead;
-			await recordResult(
-				{ id: run.id, bead: first, choice: "next", data: { evidence } },
-				{ db },
-				io,
-			);
-			await beads.close(scope, first);
+			await complete({ id: run.id, bead: first, choice: "next", data: { evidence } }, { db }, io);
 			run = await navigate({ id: run.id, operation: "collect" }, { db }, io);
 		}
 		const stage = run.active[FIRST]!.bead;
@@ -131,12 +126,11 @@ test.each(["first", "second"] as const)(
 			await beads.close(scope, prerequisite.id);
 		}
 
-		await recordResult(
+		await complete(
 			{ id: run.id, bead: stage, choice: "next", data: { evidence } },
 			{ db, repo: canonicalRoot },
 			io,
 		);
-		await beads.close(scope, stage);
 		const next = await navigate(
 			{ id: run.id, operation: "collect" },
 			{ db, repo: canonicalRoot },

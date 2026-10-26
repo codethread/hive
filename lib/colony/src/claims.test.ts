@@ -1,4 +1,9 @@
-import { beforeTrackerWrite, createTask, memoryTracker } from "./tracker.test-support.ts";
+import {
+	beforeTrackerWrite,
+	createTask,
+	createWorkflowControl,
+	memoryTracker,
+} from "./tracker.test-support.ts";
 import { expect, test } from "bun:test";
 import { CommandError } from "@hive/beads";
 import type { OperationEvidence } from "./history.ts";
@@ -33,6 +38,7 @@ test.each([
 	async ({ input, outcome }) => {
 		const tracker = memoryTracker();
 		const reserved = await createTask(tracker, input);
+		await createWorkflowControl(tracker, reserved);
 		const before = await tracker.beads.show(
 			trackerScope(tracker.repository, "inspector"),
 			reserved,
@@ -57,6 +63,7 @@ test.each([
 test("a reservation changed after inspection produces a claim conflict with retained evidence #test-560", async () => {
 	const tracker = memoryTracker();
 	const id = await createTask(tracker);
+	await createWorkflowControl(tracker, id);
 	const beads = beforeTrackerWrite(tracker.beads, async (scope) => {
 		expect(scope).toEqual({
 			cwd: tracker.repository.root,

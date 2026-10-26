@@ -9,9 +9,9 @@ import type {
 	WorkflowRun,
 	WorkflowSelection,
 } from "./workflows.ts";
+import { assertWorkflowAdmission, readWorkflowPublication } from "./workflow-anchor.ts";
 import type { SpawnOptions } from "./bee-cli.ts";
 import { WorkflowCommandError } from "./workflows.ts";
-import { assertWorkflowAdmission } from "./workflow-anchor.ts";
 import { resolve } from "node:path";
 import { spawnWorkflowRequest } from "./producer.ts";
 import { trackerScope } from "./tracker.ts";
@@ -87,12 +87,14 @@ export async function attachWorkflow(
 	commands: WorkflowSubmissionCommands,
 ): Promise<WorkflowSubmissionResult> {
 	const { endpoint } = await submissionContext(kind, options, commands);
-	assertWorkflowAdmission(
-		await commands.beads.show(
-			trackerScope({ root: endpoint.repo, beadsDb: endpoint.db }, endpoint.actor),
-			runId,
-		),
+	const repository = { root: endpoint.repo, beadsDb: endpoint.db };
+	const runRecord = await commands.beads.show(trackerScope(repository, endpoint.actor), runId);
+	const publication = await readWorkflowPublication(
+		{ beads: commands.beads, repository },
+		runRecord,
+		endpoint.actor,
 	);
+	assertWorkflowAdmission(runRecord, publication.control);
 	await assertOrphanRun(runId, endpoint, commands);
 	await commands.admit(runId, options);
 	const run = await commands.workflows.show(runId, endpoint);
@@ -226,8 +228,7 @@ async function assertStageParent(
 			stageId,
 		});
 	}
-	// Initial Bee dispatch occurs before Busybee saves the published frontier.
-	// Native parentage is available here; reading the checkpoint frontier would be stale.
+	// Native ancestry and persisted generated membership are independent admission facts.
 	while (task.id !== runId) {
 		const parent = task.dependencies.find((edge) => edge.dependency_type === "parent-child");
 		if (!parent) {
@@ -240,11 +241,20 @@ async function assertStageParent(
 		// eslint-disable-next-line no-await-in-loop -- Each ancestor read identifies the next native parent.
 		task = await commands.beads.show(scope, parent.id);
 	}
-	if (task.status === "closed") {
-		throw new WorkflowSubmissionError("closed_workflow", `Workflow ${runId} is already closed.`, {
-			runId,
-			stageId,
-		});
+	const publication = await readWorkflowPublication(
+		{ beads: commands.beads, repository: { root: endpoint.repo, beadsDb: endpoint.db } },
+		task,
+		endpoint.actor,
+	);
+	assertWorkflowAdmission(task, publication.control, true);
+	if (
+		!publication.control.created.some((entry) => entry.bead === stageId && entry.scope === "visit")
+	) {
+		throw new WorkflowSubmissionError(
+			"unpublished_stage",
+			`Stage ${stageId} is not published in workflow ${runId}.`,
+			{ runId, stageId },
+		);
 	}
 }
 
@@ -276,21 +286,9 @@ async function attachPrepared(
 			return [entry.request];
 		}),
 	};
-	if (run.status === "done") {
-		throw new WorkflowSubmissionError(
-			"workflow_already_done",
-			`Workflow ${run.id} completed during initialization; no driver was created.`,
-			{ ...context, driverPublication: "not_attempted" },
-		);
-	}
+	assertDriverProjection(run, context);
 	const handoff = await prepareDriver({ run, endpoint, context }, commands);
-	if (handoff.status !== "active") {
-		throw new WorkflowSubmissionError(
-			"workflow_already_done",
-			`Workflow ${run.id} is ${handoff.status}; no driver was created.`,
-			{ ...context, driverPublication: "not_attempted" },
-		);
-	}
+	assertDriverProjection({ ...handoff, id: run.id }, context);
 	try {
 		const { request } = await spawnWorkflowRequest(
 			{ kind, assignment: { kind: "driver", runId: run.id }, options },
@@ -316,6 +314,33 @@ async function attachPrepared(
 			error,
 		);
 	}
+}
+
+function assertDriverProjection(
+	run: Pick<WorkflowRun, "id" | "status" | "chartStatus" | "completion" | "nativeStatus">,
+	context: Record<string, unknown>,
+): void {
+	if (run.completion === "pending" && run.chartStatus === "active" && run.status === "active") {
+		return;
+	}
+	let reason = "workflow_inactive";
+	if (run.completion === "projection_pending") {
+		reason = "workflow_projection_pending";
+	} else if (run.completion !== "pending") {
+		reason = "workflow_already_done";
+	}
+	throw new WorkflowSubmissionError(
+		reason,
+		`Workflow ${run.id} cannot admit a driver: chart ${run.chartStatus}, ` +
+			`completion ${run.completion}, native ${run.nativeStatus}; inspect its system/native projection.`,
+		{
+			...context,
+			chartStatus: run.chartStatus,
+			completion: run.completion,
+			nativeStatus: run.nativeStatus,
+			driverPublication: "not_attempted",
+		},
+	);
 }
 
 async function prepareDriver(

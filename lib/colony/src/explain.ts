@@ -2,7 +2,7 @@
 import type { ColonyRequestInspection, RepositoryEndpoint, SpawnDisposition } from "@hive/shared";
 import { DaemonUnavailableError, requestServer } from "./client.ts";
 import { capacityConstraints, hasCapacity } from "./scheduler.ts";
-import { eligibility, launchBucket, launchReceiptSchema } from "./launch.ts";
+import { eligibility, launchBucket, launchFence, launchReceiptSchema } from "./launch.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Resolve the same execution bucket as launch preparation.
 import { join, resolve } from "node:path";
 import {
@@ -16,6 +16,7 @@ import type { Occupant } from "./scheduler.ts";
 import type { ServerTarget } from "./client.ts";
 import type { TrackerContext } from "./tracker.ts";
 import { observeExecution } from "./processes.ts";
+import { readWorkflowCompletion } from "./workflow-anchor.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Canonicalize execution cwd without creating it.
 import { realpath } from "node:fs/promises";
 import { trackerScope } from "./tracker.ts";
@@ -323,6 +324,7 @@ async function capture<Value>(
 		};
 	}
 }
+// eslint-disable-next-line max-statements -- Join native readiness with definition-free workflow admission evidence.
 async function trackerFacts(
 	id: string,
 	{ beads, repository }: TrackerContext,
@@ -335,7 +337,15 @@ async function trackerFacts(
 		),
 		beads.ready(trackerScope(repository, request.identity), { limit: 0 }),
 	]);
-	const decision = eligibility(tasks, ready, request.identity, request.assignment);
+	const context = { beads, repository };
+	const completion = await readWorkflowCompletion(context, request.assignment, request.identity);
+	let decision = eligibility(tasks, ready, request.identity, completion);
+	if (decision.kind === "eligible") {
+		const fence = await launchFence({ ...repository, beads }, request.assignment, request.identity);
+		if (fence !== undefined) {
+			decision = { kind: "waiting", reason: fence };
+		}
+	}
 	return {
 		closeReason: spawn.close_reason ?? null,
 		disposition: requestDisposition(spawn),

@@ -1,7 +1,12 @@
 /* eslint-disable node/no-sync -- Avoid async scheduling for disposable directories; keep setup and cleanup measured. */
 /* eslint-disable import/max-dependencies -- Compose real SQLite, Unix socket and CLI paths with a memory tracker. */
 /* eslint-disable unicorn/no-null -- Retained fixtures preserve absent checkpoint and policy fields. */
-import { createSpawn, createTask, memoryTracker } from "./tracker.test-support.ts";
+import {
+	createSpawn,
+	createTask,
+	createWorkflowControl,
+	memoryTracker,
+} from "./tracker.test-support.ts";
 import { expect, test } from "bun:test";
 // eslint-disable-next-line import/no-nodejs-modules -- Use disposable state without process artifacts.
 import { hostname, tmpdir } from "node:os";
@@ -86,7 +91,10 @@ test(
 						expect(
 							result.processes.map(({ attemptId }: { attemptId: string }) => attemptId),
 						).toEqual(["target-failed", "target-exited"]);
-						expect(result.tracker.result.kind).toBe("available");
+						expect(result.tracker.result).toMatchObject({
+							kind: "available",
+							value: { eligibility: "eligible" },
+						});
 						expect(result.runtime.freshness).toBe("checkpoint_age_unknown");
 						expect(commands).toEqual(
 							Array.from({ length: TWO }, () => ({
@@ -276,6 +284,7 @@ async function createContext(root: string) {
 	const repository = { beadsDb: "/fixture/beads.db", root };
 	const tracker = { ...memoryTracker(), repository };
 	const taskId = await createTask(tracker);
+	await createWorkflowControl(tracker, taskId);
 	const target = await createSpawn(tracker, taskId);
 	return { repository, tracker, taskId, target };
 }

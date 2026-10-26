@@ -211,29 +211,32 @@ function OpenWorkflowDialog({
 
 function WorkflowOutcomeBanner({ resource }: { resource: Resource<WorkflowOutcome> }) {
 	const native = snapshot(resource);
-	let outcome = "unclassified";
-	if (native?.outcome.kind === "terminal") {
-		({ outcome } = native.outcome.fact);
-	}
-	if (native?.outcome.kind === "pending") {
-		outcome = "pending";
-	}
 	return (
-		<div className="border-b border-stroke px-4 py-2 text-sm" aria-label="Native workflow outcome">
-			<ResourceNotice resource={resource} source="workflow-outcome" label="Native outcome" />
+		<div
+			className="border-b border-stroke px-4 py-2 text-sm"
+			aria-label="Workflow outcome and projection"
+		>
+			<ResourceNotice resource={resource} source="workflow-outcome" label="Workflow outcome" />
 			{native !== null && (
 				<>
-					<strong>Native outcome: {outcome}</strong> · {native.nativeStatus}
-					{native.outcome.kind === "terminal" && <p>{native.outcome.fact.reason}</p>}
+					<strong>Intended outcome: {native.completion?.outcome ?? "pending"}</strong>
+					{native.completion !== null && <> · {native.completion.state}</>}
+					<p>
+						Native status: {native.nativeStatus} · Projection: {native.outcome.kind}
+						{native.outcome.kind === "mismatch" && <> · {native.outcome.reason}</>}
+					</p>
+					{native.completion !== null && <p>{native.completion.reason}</p>}
 					{!native.labelsCurrent && (
-						<p>Outcome query labels are stale; native closure is authoritative.</p>
+						<p>Outcome query labels are stale; they do not decide completion.</p>
 					)}
+					<p className="text-xs text-muted">
+						Checkpoint {native.checkpoint} · {native.savedAt} · Native updated {native.updatedAt}
+					</p>
 				</>
 			)}
 		</div>
 	);
 }
-
 // --- Keep the last saved diagram mounted throughout refresh and recovery. ---
 function WorkflowContent({
 	source,

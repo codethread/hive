@@ -4,12 +4,23 @@ import { z } from "zod";
 const NONEMPTY = 1;
 const text = z.string().min(NONEMPTY);
 const visitSchema = z.object({ bead: text, request: text.nullable() });
+const projectionFields = {
+	chartStatus: text,
+	completion: z.enum(["pending", "projection_pending", "succeeded", "failed", "cancelled"]),
+	nativeStatus: text,
+};
 const runSchema = z.object({
+	...projectionFields,
 	id: text,
 	status: text,
 	active: z.array(visitSchema),
 });
-const handoffSchema = z.object({ runId: text, status: text, checkpoint: text });
+const handoffSchema = z.object({
+	...projectionFields,
+	runId: text,
+	status: text,
+	checkpoint: text,
+});
 const failureSchema = z
 	.object({
 		ok: z.literal(false),

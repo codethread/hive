@@ -181,9 +181,7 @@ async function createRequest(
 	) {
 		throw new Error(`Workflow ${assignment.runId} is not prepared for managed publication`);
 	}
-	assertWorkflowAdmission(
-		await beads.show(trackerScope(endpoint, options.actor), assignment.runId),
-	);
+	assertWorkflowAdmission(root, publication.control, assignment.kind === "stage");
 	const completion = await readWorkflowCompletion(
 		{ beads, repository: endpoint },
 		assignment,

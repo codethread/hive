@@ -2,7 +2,7 @@
 import type { BeadsScope, UpdateBead } from "@hive/beads";
 import { BusyBeeError, createServices, readBead } from "../../src/native.ts";
 import { captureCli, invoke } from "./support.ts";
-import { discover, navigate } from "../../src/runtime.ts";
+import { complete, discover, navigate } from "../../src/runtime.ts";
 import { expect, test } from "bun:test";
 import type { Services } from "../../src/native.ts";
 import { createMachine } from "xstate";
@@ -13,6 +13,7 @@ import { runSummarySchema } from "../../src/cli.ts";
 import { z } from "zod";
 
 const FIRST = 0;
+const LAST = -1;
 const SUCCESS = 0;
 const LONG_BRIEF_REPETITIONS = 1000;
 const SIZE_REDUCTION_FACTOR = 10;
@@ -228,6 +229,38 @@ test("start publishes an initial worker and one JSON success document through th
 		readCheckpoint(await beads.show({ cwd: root, db: startDb }, checkpoint.id)).active[FIRST]!.meta
 			.acceptanceCriteria,
 	).toBe(frozenAcceptance);
+	await complete(
+		{ id: started.id, bead: started.active[FIRST]!.bead, choice: "next", data: {} },
+		{ actor: "starting-agent" },
+		startServices,
+	);
+	await expect(
+		navigate({ id: started.id, operation: "collect" }, { actor: "starting-agent" }, startServices),
+	).rejects.toMatchObject({ reason: "acceptance_unchecked" });
+	const advanced = readCheckpoint(await beads.show({ cwd: root, db: startDb }, checkpoint.id));
+	expect(advanced).toMatchObject({
+		active: [],
+		history: [expect.objectContaining({ bead: started.active[FIRST]!.bead })],
+		snapshot: { status: "done" },
+	});
+	expect(await navigate({ id: started.id, operation: "show" }, {}, startServices)).toMatchObject({
+		status: "completion_pending",
+		chartStatus: "done",
+		completion: "projection_pending",
+		nativeStatus: "in_progress",
+	});
+	await beads.update({ actor: "starting-agent", cwd: root, db: startDb }, [started.id], {
+		acceptanceCriteria: "- [x] Workflow outcome verified",
+	});
+	const done = await navigate(
+		{ id: started.id, operation: "collect" },
+		{ actor: "starting-agent" },
+		startServices,
+	);
+	expect(done.status).toBe("done");
+	const retried = readCheckpoint(await beads.show({ cwd: root, db: startDb }, checkpoint.id));
+	expect(retried.history).toEqual(advanced.history);
+	expect(retried.created).toEqual(advanced.created);
 });
 test("missing required input prevents task publication #test-21", async () => {
 	const beads = createMemoryBeads({ db });
@@ -284,9 +317,9 @@ test("show rejects a changed named checkpoint before import with authorized same
 			name: "example",
 			repo,
 			runId: fixture.id,
-			stageIds: ["completed"],
+			stageIds: [fixture.visit.id],
 			stageRequestIds: ["completed-request"],
-			acceptedResults: [{ bead: "completed", command: "next", request: "completed-request" }],
+			acceptedResults: [{ bead: fixture.visit.id, command: "next", request: "completed-request" }],
 			nextAction: `br show ${fixture.id} --json`,
 		},
 		reason: "definition_changed",
@@ -304,7 +337,7 @@ test("show rejects a changed named checkpoint before import with authorized same
 		kind: "show",
 		reason: "definition_changed",
 		runId: fixture.id,
-		stageIds: ["completed"],
+		stageIds: [fixture.visit.id],
 		stageRequestIds: ["completed-request"],
 		nextAction: `br show ${fixture.id} --json`,
 	});
@@ -336,11 +369,11 @@ test("collect releases ownership after restoration refusal without publishing ta
 	expect(error).toBeInstanceOf(BusyBeeError);
 	expect(error).toMatchObject({ reason: "definition_changed" });
 	await fixture.assertPreserved();
-	expect(fixture.updates.map((input) => input.notes)).toEqual([expect.any(String), ""]);
-	expect(JSON.parse(fixture.updates[FIRST]!.notes!)).toMatchObject({
-		owner: expect.any(String),
-		pid: fixture.io.pid,
+	expect(fixture.updates.every((input) => input.notes === undefined)).toBe(true);
+	expect(JSON.parse(fixture.updates[FIRST]!.description!)).toMatchObject({
+		lock: { owner: expect.any(String), pid: fixture.io.pid },
 	});
+	expect(JSON.parse(fixture.updates.at(LAST)!.description!)).toMatchObject({ lock: null });
 });
 
 test.each([
@@ -413,16 +446,39 @@ async function retainedRun(
 	const beads = createMemoryBeads({ db });
 	const scope = { actor: "test-agent", cwd: repo, db };
 	const parent = await beads.create(scope, { title: "Run", owner: "ct" });
+	const created = await beads.create(scope, {
+		title: "Completed visit",
+		owner: "ct",
+		parent: parent.id,
+		labels: ["busybee-workflow", "workflow-outcome:succeeded"],
+	});
+	const reason = "Completed retained fixture visit.";
+	await beads.close(scope, created.id, { reason });
+	const visit = await beads.show(scope, created.id);
 	let retainedHash = hash;
 	if (definition.kind === "source") {
 		retainedHash = await fingerprint({ kind: "file", source: definition.source }, services);
 	}
 	const description = JSON.stringify({
-		formatVersion: 1,
+		formatVersion: 2,
+		lock: null,
+		managedExecution: "unmanaged",
+		results: { [visit.id]: { choice: "next", data: {} } },
+		completions: {
+			[visit.id]: {
+				scope: "visit",
+				outcome: "succeeded",
+				state: "confirmed",
+				closedAt: visit.closed_at,
+				reason,
+			},
+		},
+		settlement: null,
 		active: [],
 		created: [
 			{
-				bead: "completed",
+				bead: visit.id,
+				scope: "visit",
 				node: "first",
 				parent: parent.id,
 				path: [],
@@ -432,7 +488,7 @@ async function retainedRun(
 		],
 		definition,
 		hash: retainedHash,
-		history: [{ bead: "completed", command: "next", data: {}, request: "completed-request" }],
+		history: [{ bead: visit.id, command: "next", data: {}, request: "completed-request" }],
 		id: parent.id,
 		snapshot: {},
 		visits: { first: 1 },
@@ -466,6 +522,7 @@ async function retainedRun(
 	};
 	return {
 		id: parent.id,
+		visit,
 		io,
 		updates,
 		assertPreserved: async () => {

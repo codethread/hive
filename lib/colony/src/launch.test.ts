@@ -81,24 +81,18 @@ test.each(readinessCases)(
 	"Bee-dispatched stage under $type waits only for actual ancestor prerequisites (blocked: $blocked)",
 	// Exercise initial waiting, actionable support and admission after prerequisite completion.
 	// eslint-disable-next-line max-statements
-	async ({ context, scope, run, stage, blocker, blocked }) => {
+	async ({ context, scope, stage, blocker, blocked }) => {
 		const tasks = [await context.beads.show(scope, stage)];
 		let ready = await context.beads.ready(scope, { limit: 0 });
 		let expected: "eligible" | "waiting" = "eligible";
 		if (blocked) {
 			expected = "waiting";
 		}
-		expect(
-			eligibility(tasks, ready, "worker", { kind: "stage", runId: run, stageId: stage }).kind,
-		).toBe(expected);
+		expect(eligibility(tasks, ready, "worker", { kind: "pending" }).kind).toBe(expected);
 		const supporting = [await context.beads.show(scope, blocker)];
-		expect(eligibility(supporting, ready, "worker", { kind: "driver", runId: blocker }).kind).toBe(
-			"eligible",
-		);
+		expect(eligibility(supporting, ready, "worker", { kind: "pending" }).kind).toBe("eligible");
 		await context.beads.close(scope, blocker);
 		ready = await context.beads.ready(scope, { limit: 0 });
-		expect(
-			eligibility(tasks, ready, "worker", { kind: "stage", runId: run, stageId: stage }).kind,
-		).toBe("eligible");
+		expect(eligibility(tasks, ready, "worker", { kind: "pending" }).kind).toBe("eligible");
 	},
 );

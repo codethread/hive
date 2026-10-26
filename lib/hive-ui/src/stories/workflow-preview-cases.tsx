@@ -11,8 +11,12 @@ import {
 	nestedBeesStarting,
 	nestedBeesUnsupported,
 } from "./workflow-nested-bees.tsx";
+import {
+	sampleOutcome,
+	sampleSimulation,
+	workflowHandlers,
+} from "./workflow-simulation-fixture.ts";
 import { samplePreview, workflowSamples } from "./workflow-samples.ts";
-import { sampleSimulation, workflowHandlers } from "./workflow-simulation-fixture.ts";
 import type { ComponentProps } from "react";
 import type { ExampleWorkflow } from "./workflow-examples.ts";
 import { WorkflowExamples } from "./workflow-example-view.tsx";
@@ -165,15 +169,19 @@ export const Unavailable: Story = {
 			await canvas.findByRole("button", { name: `View workflow for ${args.id}` }),
 		);
 		await screen.findByText("Workflow unavailable");
+		await expect(screen.getByText("System outcome: pending")).toBeVisible();
 	},
 	parameters: {
 		msw: [
-			http.get("/api/colonies/:colony/workflow/:id", () =>
-				HttpResponse.json(
+			http.get("/api/colonies/:colony/workflow/:id", ({ request }) => {
+				if (new URL(request.url).searchParams.get("outcomeOnly") === "true") {
+					return HttpResponse.json(sampleOutcome(workflowSamples[0]!));
+				}
+				return HttpResponse.json(
 					{ message: "The workflow definition is unavailable in this repository." },
 					{ status: 503 },
-				),
-			),
+				);
+			}),
 		],
 	},
 };
@@ -274,7 +282,11 @@ function recoveryHandlers() {
 			reads = 0;
 		},
 		handlers: [
+			// eslint-disable-next-line max-statements -- Keep independent outcome reads outside the diagram failure counter.
 			http.get("/api/colonies/:colony/workflow/:id", ({ request }) => {
+				if (new URL(request.url).searchParams.get("outcomeOnly") === "true") {
+					return HttpResponse.json(sampleOutcome(workflowSamples[0]!));
+				}
 				const preview = samplePreview(workflowSamples[0]!);
 				if (new URL(request.url).searchParams.get("checkpointOnly") !== "true") {
 					reads += 1;
@@ -331,7 +343,10 @@ function retirementHandlers() {
 			reads = 0;
 		},
 		handlers: [
-			http.get("/api/colonies/:colony/workflow/:id", () => {
+			http.get("/api/colonies/:colony/workflow/:id", ({ request }) => {
+				if (new URL(request.url).searchParams.get("outcomeOnly") === "true") {
+					return HttpResponse.json(sampleOutcome(workflowSamples[0]!));
+				}
 				reads += 1;
 				const preview = samplePreview(workflowSamples[0]!);
 				if (reads === 1) {
@@ -361,6 +376,9 @@ function pollingHandlers() {
 		},
 		handlers: [
 			http.get("/api/colonies/:colony/workflow/:id", ({ request }) => {
+				if (new URL(request.url).searchParams.get("outcomeOnly") === "true") {
+					return HttpResponse.json(sampleOutcome(workflowSamples[0]!));
+				}
 				const original = samplePreview(workflowSamples[0]!);
 				if (new URL(request.url).searchParams.get("checkpointOnly") === "true") {
 					changed = true;

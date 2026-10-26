@@ -25,11 +25,7 @@ export interface BeadsService {
 		ids: readonly string[],
 		input: UpdateBead,
 	) => Promise<BeadUpdateReceipt[]>;
-	close: (
-		scope: BeadsScope,
-		id: string,
-		input?: { reason?: string | undefined; force?: boolean | undefined },
-	) => Promise<BeadCloseReceipt[]>;
+	close: (scope: BeadsScope, id: string, input?: CloseBead) => Promise<BeadCloseReceipt[]>;
 	where: (scope: BeadsScope) => Promise<BeadsLocation>;
 	comments: {
 		add: (scope: BeadsScope, id: string, text: string) => Promise<BeadComment>;
@@ -134,8 +130,18 @@ export interface BeadRow extends Omit<Bead, "dependencies" | "dependents" | "com
 	due_at?: string | undefined;
 }
 export type CreatedBead = BeadRow;
+export interface AcceptanceItem {
+	/** One-based checklist position in native document order. */
+	index: number;
+	/** Item text without its bullet and checkbox. */
+	text: string;
+	/** Native checklist tick, not a judgement of prose truth. */
+	checked: boolean;
+}
 /** Hydrated detail returned only by show/showMany. */
 export interface BeadRecord extends BeadRow {
+	/** Native-derived checklist facts; absent when there are no checklist items. */
+	acceptance_items?: AcceptanceItem[] | undefined;
 	dependencies: BeadRelation[];
 	dependents: BeadRelation[];
 	comments: BeadComment[];
@@ -163,6 +169,14 @@ export interface CreateBead {
 export interface BeadDependency {
 	id: string;
 	type: string;
+}
+export interface CloseBead {
+	/** Native-readable closure explanation. */
+	reason?: string | undefined;
+	/** Native dependency override; does not bypass configured policy. */
+	force?: boolean | undefined;
+	/** Revision from hydrated show; stale closure fails without writing. */
+	ifUnchanged?: string | undefined;
 }
 export interface UpdateBead extends Partial<Omit<CreateBead, "deps">> {
 	notes?: string | undefined;

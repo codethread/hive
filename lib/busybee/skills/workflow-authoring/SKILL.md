@@ -57,7 +57,9 @@ export const machine = createMachine({
 });
 ```
 
-Non-final states with `meta.title` create beads and supply `meta.task({context})`, rendered once per visit. Workers map outcomes to events in `meta.commands`; containers omit commands and final states create no work. Return `bee: {kind}` for Bee dispatch, requiring an available kind and awake Colony; omit it for driver-handled work.
+Non-final states with `meta.title` create beads and supply `meta.task({context})`, rendered once per visit. Workers map outcomes to events in `meta.commands`; containers omit commands and final states create no work. Return `bee: {kind}` for Bee dispatch, requiring an available kind and awake Colony; omit it for driver-handled work. Both modes complete through `complete` → `collect`; `next` in the example is an authored outcome, not a CLI entry point.
+
+Return optional `acceptanceCriteria` from `runBrief` or `meta.task` for native checklist gates. Assign run/group verification and ticks to a reachable visit before their engine-owned closure. Busy Bee never ticks criteria; later native edits, not frozen rendering, govern completion.
 
 Keep chart structure explicit and task callbacks inline for visualizer inspection. Actions, callbacks and imports leave stdout/stderr clear and avoid external effects; workers perform work, and Busy Bee publishes native changes after advancement.
 
@@ -77,4 +79,4 @@ Compatible versions preserve saved state IDs, actor routes, context, frozen outc
 
 Named versions must be equal or newer within the saved caret range: `1.2.3` permits newer `1.x`, `0.2.3` newer `0.2.x`, and `0.0.3` only itself; prereleases require exact SemVer equality. A successful mutation saves the current version. Cross the caret boundary when these contracts break.
 
-Explicit-file runs reject changed entry-file bytes. Named fingerprints record provenance, including the shared `.workflows` package manifest and lockfiles; `node_modules` is excluded. Neither verifies installed dependencies or external imports. Checkpoint formats are separate from workflow versions and have no automatic migration.
+Explicit-file runs reject changed entry-file bytes. Named fingerprints record provenance, including the shared `.workflows` package manifest and lockfiles; `node_modules` is excluded. Neither verifies installed dependencies or external imports. Checkpoint formats are separate from workflow versions and have no automatic migration. For the format-2 toolchain break, use matching old tools to finish old-format work or deliberately start a fresh same-name, same-scope run within existing authorization after inspecting effects and preserving evidence. A fresh run neither retires old obligations nor authorizes live cutover; a missing name requires the caller's workflow choice. Refresh custom workflow/guidance copies deliberately; replacing the executable does not update them or saved briefs.

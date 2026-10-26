@@ -4,7 +4,7 @@ Busy Bee runs XState workflows as native Beads tasks. Agents do the work and use
 
 ## Install
 
-Requires Bun for building and native `br` on `PATH`. From a Hive checkout:
+Requires Bun for building and native `br` on `PATH`. Before upgrading an existing installation, read [breaking adoption](#breaking-adoption). From a Hive checkout:
 
 ```sh
 bun install
@@ -58,7 +58,12 @@ busybee input-schema groceries
 busybee run groceries --parent EXISTING_WORK_ID --owner ct --json
 ```
 
-For workflows requiring initial values, add `--input-file FILE` with the JSON input described by `input-schema`; omitted input is `{}`. The response contains the run `id`, `active` tasks and their bead IDs, `created` visit records, and XState `status`.
+For workflows requiring initial values, add `--input-file FILE` with the JSON input described by `input-schema`; omitted input is `{}`. The response contains the run `id`, `active` tasks and their bead IDs, `created` records, and these separate status fields:
+
+- `chartStatus`: saved XState status.
+- `completion`: `pending`, `projection_pending`, `succeeded`, `failed` or `cancelled`, based on system completion and its current native projection.
+- `nativeStatus`: current native run status.
+- `status`: chart status, except `completion_pending` when the chart is done without confirmed native success.
 
 Use the returned IDs to inspect the work and its choices:
 
@@ -80,9 +85,9 @@ busybee complete "$RUN" "$TASK" busy --data '{"meals":4}' --json
 busybee collect "$RUN" --json
 ```
 
-Read `busybee complete --help` for payload options, closure refusal and retries. `record-result` remains available for saving without closure; `choice --help` covers direct submission of closed driver-handled work. A choice named `next` can require data; use its discovered schema.
+Read `busybee complete --help` for payload options, closure refusal and retries. Both driver-handled and Bee-dispatched visits use this `complete` → `collect` path. An authored choice named `next` remains legal and can require data; use its discovered schema.
 
-Repeat until `status` is `done`. A closed task stays active until Busy Bee accepts its result. Workers close their own tasks after satisfying native Beads acceptance and child-completion gates; Busy Bee closes grouping beads and the run. [The walkthrough](./POV.md) shows parallel tasks and example responses.
+Repeat until `status` is `done`. A completed visit stays active until Busy Bee collects its result. Before `complete`, verify and tick current native acceptance, finish child work and deliver any required response. Busy Bee checks acceptance, blockers and reservations, then performs guarded closure; it never ticks criteria or takes another actor's claim. Busy Bee alone closes grouping beads and the run, through the same gates. [The walkthrough](./POV.md) shows parallel tasks and example responses.
 
 ## Commands
 
@@ -95,6 +100,7 @@ Use `busybee --help` for the command flow and global options, then focused help 
 | Run status, active visits and optional frozen instructions | `busybee show --help`         |
 | Outcome choices and payload schemas                        | `busybee discover --help`     |
 | Saved diagrams and state for active or completed runs      | `busybee preview --help`      |
+| Definition-free native completion repair                   | `busybee reconcile --help`    |
 | Explicit failure or cancellation of pending generated work | `busybee settle --help`       |
 | Tooling inspection, simulation and Bee driver admission    | `busybee system --help`       |
 
@@ -162,9 +168,13 @@ The run brief retains the canonical checkout and tracker endpoint, and owns post
 
 ## Native outcomes and retirement
 
-Generated run, visit and group closures record `succeeded`, `failed` or `cancelled` in native `close_reason`. Read them with `br show ID --json`; nonclosed work is pending and old unmarked closures remain unclassified. The [outcome contract](./SPEC.md#native-workflow-outcomes) distinguishes these facts from saved worker choices, chart status and derived query labels. Failed or cancelled visits cannot be collected as successful work.
+The workflow system bead owns original results and completion directives. Native `close_reason` is readable generated prose, not a machine protocol; outcome labels are derived query aids. Terminal completion requires a confirmed directive matching the current native closure. A direct close, a requested directive or chart `done` alone does not prove success. The [outcome contract](./SPEC.md#native-workflow-outcomes) defines this boundary. Busy Bee leaves ordinary and system notes untouched. Failed or cancelled visits cannot be collected as successful work.
 
-For explicitly authorized retirement of pending generated work, read `busybee settle --help`. The reason-required `cancel` and `fail` operations preserve completed work and ordinary source acceptance. [Settlement](./SPEC.md#bounded-unsuccessful-settlement) requires supported inventory, reservations and execution clearance; it is neither a process-stop command nor recovery for a held checkpoint lock. A successful settlement does not turn the saved chart into `done`.
+Use `busybee reconcile RUN --json` to repair known completion projections, including when the definition is unavailable. It does not collect results, advance the chart or recreate work. A direct close without a directive is reopened to `open`; a saved completion with stale native closure or prose may require guarded reopen/reclose and a new `closed_at`. Current briefs, acceptance, claims, owner, notes and unrelated labels are preserved. Gates and reservations can prevent repair; resolve them through the owning actor rather than restoring old task fields.
+
+For explicitly authorized retirement of pending generated work, read `busybee settle --help`. The reason-required `cancel` and `fail` operations preserve successful directives, including requested success. After fresh execution clearance, a retained requested success may become confirmed through the same native gates; it is never converted to failure or cancellation. Unmet acceptance or unfinished manual descendants can leave settlement pending indefinitely. A successful run directive requires collect/reconcile instead of retirement.
+
+[Settlement](./SPEC.md#bounded-unsuccessful-settlement) leaves the saved chart and ordinary source acceptance unchanged. Retry with the same operation and reason for fresh clearance, including repair after a previously complete settlement. Generic reconciliation cannot reclose unsuccessful scope. Settlement is neither a process-stop command nor recovery for a held checkpoint lock.
 
 ## Resume and failures
 
@@ -172,15 +182,27 @@ Named runs resolve their saved name in the current checkout and can resume there
 
 Named fingerprints record provenance; manifest versions determine resume compatibility. Explicit-path runs retain their source path and require the entry-file hash to match before import. See the [provenance contract](./SPEC.md#contracts-and-authority) for included files and dependency limits.
 
-Engine checkpoints use `formatVersion: 1`, independently of workflow SemVer. The engine validates the checkpoint header and trusts its own stored snapshot and visit body. Old or unknown checkpoint formats are rejected with fresh-run guidance; there is no migration. See the [checkpoint contract](./SPEC.md#checkpoint-and-failure-boundary).
+Engine checkpoints use `formatVersion: 2`, independently of workflow SemVer. The system description holds control state; the engine validates the consumed control contract and trusts its own snapshot and visit body. Unsupported formats fail before mutation. See the [checkpoint contract](./SPEC.md#checkpoint-and-failure-boundary) and [breaking adoption](#breaking-adoption) before changing tools.
 
-For an incompatible named workflow that still exists, a bee may start a fresh run of the **same name for the same already-authorized scope without asking the user again**. Inspect `br show RUN --json` to recover its native parent and visit links, then `busybee input-schema NAME`. Prepare input for the current schema and use `busybee run NAME --parent ORIGINAL_PARENT --input-file FILE --owner HUMAN` with the retained repository, database and assignment options. Preserve the original request and authorization, source/target, scope, owner/assignment intent, tracker and old run/task/evidence references. Inspect completed and uncertain effects before execution; use the current workflow's triage and current evidence to continue remaining work without blindly replaying completed effects or bypassing checks and reviews. Retain the old run as history; starting fresh does not decide its closure.
+For an incompatible saved run whose named workflow still exists, a bee may start a fresh run of the **same name for the same already-authorized scope without asking the user again**. Inspect `br show RUN --json` to recover its native parent and visit links, then `busybee input-schema NAME`. Prepare input for the current schema and use `busybee run NAME --parent ORIGINAL_PARENT --input-file FILE --owner HUMAN` with the retained repository, database and assignment options. Preserve the original request and authorization, source/target, scope, owner/assignment intent, tracker and old run/task/evidence references. Inspect completed and uncertain effects before execution; use the current workflow's triage and current evidence to continue remaining work without blindly replaying completed effects or bypassing checks and reviews. Retain the old run as history; starting fresh does not decide its closure.
 
 For abandoned, incompatible or uncertain partial work, inspect the retained run, visits, request IDs and comments (`br show ID --json`, `br comments ID --json`, and `bee status REQUEST --json`). Record completed effects, saved results, remaining acceptance and the next operator action in comments on unfinished work. Leave unfinished work open for an explicit handoff unless its authorized [settlement](#native-outcomes-and-retirement) passes the required checks. A completed replacement neither retires an old sibling nor satisfies their shared parent's acceptance. Do not force-close unfinished work or detach history to make completion appear successful. Busy Bee reports retained visit/request IDs and accepted-result references for incompatible runs, and an inspection command for partial writes.
 
 If the saved workflow name no longer exists, **stop and ask the user which workflow to use**. Do not infer a replacement. A missing/malformed manifest in an existing workflow folder, invalid entry or unrelated I/O failure needs diagnosis of that failure. Busy Bee reports these separately from a missing name. It does not create a replacement run or migrate the saved snapshot. Explicit-file runs continue to identify their saved source file; the same-name recovery policy applies to named runs.
 
-Concurrent submissions require one live database; tracker synchronization is not a distributed lock. Invalid submissions fail before publishing task effects. After an uncertain write, Busy Bee retains the checkpoint lock with no automatic expiry, partial-write recovery or unlock command. Inspect the checkpoint, owner and native effects before explicit recovery within existing task authority; this does not itself require renewed human permission. Preserve live or uncertain locks; prefer a fresh run under the same-scope recovery policy above. The [specification](./SPEC.md#checkpoint-and-failure-boundary) explains this boundary.
+Concurrent submissions require one live database. Tracker synchronization does not provide a distributed lock. A known completion failure retains any saved original and directive, reports confirmed effects and releases its own lock when possible. After resolving the gate, retry `complete` with identical original choice/data, or use collect/reconcile for saved completion projection. Matching retries after collection do not replay the transition. Accepted history and the resulting snapshot are saved before group/run closure, so refused container closure can be retried without consuming the result twice.
+
+Unknown task-creation or request-dispatch effects retain ownership for inspection. Process death or database unavailability can also prevent release. There is no automatic lock expiry, takeover or unlock command. Inspect the checkpoint, owner and native effects before explicit recovery within existing task authority; this does not itself require renewed human permission. Preserve live or uncertain locks; prefer a fresh run under the same-scope recovery policy above rather than repeating uncertain publication. The [specification](./SPEC.md#checkpoint-and-failure-boundary) explains this boundary.
+
+## Breaking adoption
+
+Format-1 runs cannot resume under format-2 tools; no migration or automatic cutover is provided. Finish existing runs with matching old tools, or deliberately start a fresh run under the [same-name, same-scope recovery policy](#resume-and-failures). Existing authorization persists; inspect completed/uncertain effects and preserve old run/task/evidence references. A fresh run does not erase old obligations or authorize destructive disposition, expanded scope or live cutover. Ask for any missing workflow choice or reserved action rather than treating the format break as permission.
+
+**Land self-upgrade:** its [`local-update` stage](../../.workflows/land/workflow.ts) installs new binaries before the old run's final `complete` → `collect`. Before replacement, retain the exact matching old Busy Bee, Bee and Colony executables and the compatible workflow definitions. Explicitly select that old toolchain for all remaining format-1 obligations, including Land's completion/collection and the driver's `bee finish`; merely keeping old copies available is insufficient. Only after those obligations are settled may matching new consumers activate or restart at a separately authorized cutover.
+
+Update callers to `complete` → `collect`: `record-result`, direct `next`, direct `choice` and runtime submit are removed, not aliases. Authored outcome names such as `next` remain valid. Refresh customized workflow copies and generated guidance deliberately; executable replacement does not update checkout-owned definitions or saved briefs.
+
+At that cutover, deploy version-matched Busy Bee, Bee, Colony and Hive UI builds using the same Shared contract together. Implementation checks or a code merge alone do not authorize a live tool/daemon cutover.
 
 ## Delegate a workflow to Bee
 

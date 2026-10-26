@@ -1,4 +1,7 @@
-import { nativeWorkflowStateSchema } from "@hive/shared/workflow-lifecycle";
+import {
+	nativeWorkflowStateSchema,
+	workflowCompletionSchema,
+} from "@hive/shared/workflow-lifecycle";
 import { z } from "zod";
 /* eslint-disable unicorn/max-nested-calls -- Boundary schemas keep complete discriminated variants visible together. */
 
@@ -379,11 +382,20 @@ export function hierarchyKey(colony: string, ids: string[]): string {
 	return `${colony}/${JSON.stringify([...new Set(ids)].toSorted())}`;
 }
 
-export const workflowOutcomeSchema = z.object({
-	runId: z.string(),
-	nativeStatus: z.string(),
-	updatedAt: z.string(),
-	outcome: nativeWorkflowStateSchema,
-	labelsCurrent: z.boolean(),
-});
+export const workflowOutcomeSchema = z.compile(
+	z.object({
+		runId: z.string(),
+		nativeStatus: z.string(),
+		/** Native run revision; independent of system checkpoint freshness. */
+		updatedAt: z.string(),
+		/** Exact authority supplying the observed directive and projection witness. */
+		checkpoint: z.string(),
+		/** System record revision, independent of definition/diagram availability. */
+		savedAt: z.string(),
+		/** Intended system completion, including requested/unconfirmed state. */
+		completion: workflowCompletionSchema.nullable(),
+		outcome: nativeWorkflowStateSchema,
+		labelsCurrent: z.boolean(),
+	}),
+);
 export type WorkflowOutcome = z.infer<typeof workflowOutcomeSchema>;

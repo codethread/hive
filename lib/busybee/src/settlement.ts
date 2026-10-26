@@ -1,24 +1,16 @@
-import {
-	BusyBeeError,
-	closeObservedTask,
-	conditionalUpdate,
-	createServices,
-	readBead,
-} from "./native.ts";
+import { BusyBeeError, createServices, readBead } from "./native.ts";
 import type { MutationEndpoint, Options, Services } from "./native.ts";
+import type { Ownership, Run } from "./checkpoint.ts";
 import {
 	SPAWN_REQUEST_LABELS,
-	WORKFLOW_SETTLEMENT_PREFIX,
 	nativeWorkflowState,
-	parseWorkflowClosure,
-	parseWorkflowSettlement,
 	readSpawnRequest,
 	readSpawnRequestSummary,
-	workflowOutcomeLabelsCurrent,
 } from "@hive/shared";
-import type { WorkflowClosure, WorkflowSettlementIntent } from "@hive/shared";
+import type { WorkflowCompletion, WorkflowSettlementIntent } from "@hive/shared";
+import { assertReservation, projectCompletions } from "./completion.ts";
 import type { BeadRecord } from "@hive/beads";
-import type { Run } from "./checkpoint.ts";
+import { patchOwned } from "./checkpoint.ts";
 import { withRunPublication } from "./runtime.ts";
 import { z } from "zod";
 
@@ -36,13 +28,6 @@ export const settlementResultSchema = z.object({
 	operation: z.enum(["cancel", "fail"]),
 	closedIds: z.array(text),
 });
-const createdEntrySchema = z.object({ bead: text, parent: text, request: text.nullable() });
-const activeMetadataSchema = z.object({ commands: z.record(z.string(), text).optional() });
-const activeEntrySchema = z.object({ bead: text, meta: activeMetadataSchema });
-const inventorySchema = z.object({
-	created: z.array(createdEntrySchema),
-	active: z.array(activeEntrySchema),
-});
 interface PendingTask {
 	/** Inspected native revision, checked again before closure. */
 	record: BeadRecord;
@@ -50,7 +35,7 @@ interface PendingTask {
 	scope: "visit" | "group";
 }
 interface Inventory {
-	/** Unfinished generated work in bottom-up closure order. */
+	/** Retirement targets in bottom-up order; requested and confirmed successes are excluded. */
 	pending: PendingTask[];
 	/** Related requests, including predecessors and explicit replacements. */
 	requests: BeadRecord[];
@@ -58,7 +43,7 @@ interface Inventory {
 	versions: { id: string; updatedAt: string }[];
 }
 
-/** Retire pending generated scope; authored completion alone publishes success. */
+/** Retire eligible generated scope while preserving all saved successful directives. */
 export function settle(
 	request: SettlementRequest,
 	options: Options = {},
@@ -66,22 +51,71 @@ export function settle(
 ) {
 	return withRunPublication(
 		{ id: request.id, options, services },
-		// eslint-disable-next-line max-statements -- Keep disposition preflight and publication under one owner.
-		async (publication, writes) => {
-			const { endpoint, run, owner } = publication;
-			const root = await readBead(endpoint, request.id, writes);
-			assertNoIntent(root);
-			assertReservation(root, endpoint.actor);
-			const state = readLifecycle(root, { runId: run.id, scope: "run" });
-			if (state.kind !== "pending") {
-				throw new BusyBeeError("workflow_not_pending", `Workflow ${root.id} is already closed.`, {
-					context: { runId: root.id },
-				});
+		// eslint-disable-next-line max-statements -- Fence before clearance; refresh inventory before retirement.
+		async (publication) => {
+			const { endpoint, run, locked } = publication;
+			const root = await readBead(endpoint, request.id, services);
+			assertReservation(root, endpoint, services);
+			if (run.completions[run.id]?.outcome === "succeeded") {
+				throw new BusyBeeError(
+					"workflow_not_pending",
+					`Workflow ${run.id} already has successful completion intent; collect or reconcile it instead.`,
+				);
 			}
-			const inventory = await inspectInventory({ run, root, endpoint }, writes);
-			await assertExecutionClearance({ run, inventory, endpoint }, writes);
-			const freshRoot = await readBead(endpoint, run.id, writes);
-			const refreshed = await inspectInventory({ run, root: freshRoot, endpoint }, writes);
+			if (
+				run.settlement &&
+				(run.settlement.operation !== request.operation || run.settlement.reason !== request.reason)
+			) {
+				throw new BusyBeeError(
+					"settlement_conflict",
+					`Workflow ${run.id} has a different durable settlement; resume its original operation and reason.`,
+					{ context: { runId: run.id } },
+				);
+			}
+			const inventory = await inspectInventory({ run, root, endpoint }, services);
+			if (!run.settlement) {
+				const intent: WorkflowSettlementIntent = {
+					operation: request.operation,
+					reason: request.reason,
+					state: "pending",
+					inventory: [
+						...inventory.pending.map(({ record, scope }) => ({ id: record.id, scope })),
+						{ id: run.id, scope: "run" },
+					],
+				};
+				Object.assign(
+					run,
+					await patchOwned(
+						{
+							endpoint,
+							locked,
+							patch: (fresh) => {
+								fresh.settlement = intent;
+							},
+						},
+						services,
+					),
+				);
+			}
+			if (run.settlement!.state === "complete") {
+				Object.assign(
+					run,
+					await patchOwned(
+						{
+							endpoint,
+							locked,
+							patch: (fresh) => {
+								fresh.settlement!.state = "pending";
+							},
+						},
+						services,
+					),
+				);
+			}
+			// A retained intent is a fence, never permission to reuse an earlier process observation.
+			await assertExecutionClearance({ run, inventory, endpoint }, services);
+			const freshRoot = await readBead(endpoint, run.id, services);
+			const refreshed = await inspectInventory({ run, root: freshRoot, endpoint }, services);
 			if (
 				JSON.stringify(refreshed.versions) !== JSON.stringify(inventory.versions) ||
 				JSON.stringify(refreshed.requests.map(({ id, updated_at }) => ({ id, updated_at }))) !==
@@ -90,23 +124,10 @@ export function settle(
 				throw new BusyBeeError(
 					"inventory_changed",
 					`Workflow ${run.id} changed during execution clearance.`,
+					{ context: { runId: run.id } },
 				);
 			}
-			const intent: WorkflowSettlementIntent = {
-				owner,
-				runId: run.id,
-				operation: request.operation,
-				reason: request.reason,
-				inventory: inventory.pending.map(({ record, scope }) => ({
-					id: record.id,
-					updatedAt: record.updated_at,
-					scope,
-				})),
-			};
-			return {
-				runId: run.id,
-				...(await publishSettlement({ root, intent, inventory, endpoint }, writes)),
-			};
+			return publishSettlement({ run, endpoint, locked }, services);
 		},
 	);
 }
@@ -121,13 +142,28 @@ async function inspectInventory(
 	services: Services,
 ): Promise<Inventory> {
 	const { run, root, endpoint } = input;
-	const inventory = inventorySchema.parse(run);
+	const inventory = run;
 	const generated = new Map(inventory.created.map((entry) => [entry.bead, entry]));
 	if (generated.size !== inventory.created.length || generated.has(run.id)) {
 		throw new BusyBeeError(
 			"unsupported_inventory",
 			`Workflow ${run.id} has duplicate generated identities.`,
 		);
+	}
+	if (run.settlement) {
+		const items = run.settlement.inventory;
+		const ids = new Set(items.map(({ id }) => id));
+		if (
+			ids.size !== items.length ||
+			items.at(-ONE)?.id !== run.id ||
+			items.at(-ONE)?.scope !== "run" ||
+			items.some((item) => item.id !== run.id && generated.get(item.id)?.scope !== item.scope)
+		) {
+			throw new BusyBeeError(
+				"unsupported_inventory",
+				`Workflow ${run.id} has invalid saved settlement membership.`,
+			);
+		}
 	}
 	const active = new Map(inventory.active.map((entry) => [entry.bead, entry]));
 	if (active.size !== inventory.active.length) {
@@ -158,29 +194,7 @@ async function inspectInventory(
 					`Generated parentage changed for ${record.id}.`,
 				);
 			}
-			const fact = parseWorkflowClosure(record.close_reason);
-			if (fact) {
-				if (fact.scope === "run") {
-					throw new BusyBeeError(
-						"invalid_lifecycle",
-						`Generated task ${record.id} carries a run closure.`,
-					);
-				}
-				let expected: "visit" | "group" = "group";
-				if (
-					active.get(record.id)?.meta.commands ||
-					run.history.some(({ bead }) => bead === record.id)
-				) {
-					expected = "visit";
-				}
-				const state = readLifecycle(record, { runId: run.id, scope: expected });
-				if (!workflowOutcomeLabelsCurrent(record.labels, state)) {
-					throw new BusyBeeError(
-						"workflow_labels_pending",
-						`Generated task ${record.id} has stale outcome labels.`,
-					);
-				}
-			}
+			nativeWorkflowState(record, { runId: run.id, scope: entry.scope }, run);
 		}
 		if (record.status !== "closed" && record.id !== root.id && !entry) {
 			throw new BusyBeeError(
@@ -200,20 +214,9 @@ async function inspectInventory(
 		if (record.id === root.id || entry) {
 			await inventoryRequests({ record, requests, endpoint }, services);
 		}
-		if (entry && record.status !== "closed") {
-			const current = active.get(record.id);
-			if (!current) {
-				throw new BusyBeeError(
-					"unsupported_inventory",
-					`Unfinished generated task ${record.id} is absent from the frontier.`,
-				);
-			}
-			assertReservation(record, endpoint.actor);
-			let scope: PendingTask["scope"] = "group";
-			if (current.meta.commands) {
-				scope = "visit";
-			}
-			pending.push({ record, scope });
+		if (entry && run.completions[record.id]?.outcome !== "succeeded") {
+			assertReservation(record, endpoint, services);
+			pending.push({ record, scope: entry.scope });
 		}
 	};
 	await visit(root);
@@ -257,8 +260,8 @@ async function inspectInventory(
 	}
 	return {
 		pending,
-		requests: [...requests.values()].toSorted((left, right) => left.id.localeCompare(right.id)),
-		versions: versions.toSorted((left, right) => left.id.localeCompare(right.id)),
+		requests: [...requests.values()].toSorted(compareIdentity),
+		versions: versions.toSorted(compareIdentity),
 	};
 }
 
@@ -326,150 +329,107 @@ async function assertExecutionClearance(
 	}
 }
 
-/* eslint-disable-next-line max-statements --
- * Preserve ordered native effects and their exact partial-publication evidence together.
- */
+// eslint-disable-next-line max-statements -- Save retirement intent before gated projection and confirmation.
 async function publishSettlement(
-	input: {
-		root: BeadRecord;
-		intent: WorkflowSettlementIntent;
-		inventory: Inventory;
-		endpoint: MutationEndpoint;
-	},
+	input: { run: Run; endpoint: MutationEndpoint; locked: Ownership },
 	services: Services,
 ) {
-	const { root, intent, inventory, endpoint } = input;
-	let notes = `${WORKFLOW_SETTLEMENT_PREFIX}${JSON.stringify(intent)}`;
-	if (root.notes) {
-		notes = `${root.notes}\n${notes}`;
-	}
-	if (!(await conditionalUpdate({ endpoint, bead: root, input: { notes } }, services))) {
+	const { run, endpoint, locked } = input;
+	const intent = run.settlement!;
+	const pendingIds = new Set(intent.inventory.map(({ id }) => id));
+	const unknown = run.created.find(
+		(entry) => run.completions[entry.bead]?.outcome !== "succeeded" && !pendingIds.has(entry.bead),
+	);
+	if (unknown) {
 		throw new BusyBeeError(
-			"run_changed",
-			`Workflow ${root.id} changed before settlement publication.`,
+			"inventory_changed",
+			`Generated task ${unknown.bead} is outside the saved settlement inventory.`,
 		);
 	}
-	const closedIds: string[] = [];
-	let attemptedId = root.id;
-	let uncertainOperation = "close_generated_task";
+	Object.assign(
+		run,
+		await patchOwned(
+			{
+				endpoint,
+				locked,
+				patch: (fresh) => {
+					for (const { id, scope } of intent.inventory) {
+						const existing = fresh.completions[id];
+						if (existing?.outcome === "succeeded") {
+							throw new BusyBeeError(
+								"settlement_conflict",
+								`Settlement must not replace successful completion ${id}.`,
+							);
+						}
+						fresh.completions[id] ??= settlementCompletion(intent, scope);
+					}
+				},
+			},
+			services,
+		),
+	);
 	try {
-		for (const { record, scope } of inventory.pending) {
-			attemptedId = record.id;
-			// eslint-disable-next-line no-await-in-loop -- Closure order follows inspected native containment.
-			const current = await readBead(endpoint, record.id, services);
-			if (current.updated_at !== record.updated_at) {
-				throw new BusyBeeError(
-					"task_changed",
-					`Task ${record.id} changed after settlement inspection.`,
-				);
-			}
-			// eslint-disable-next-line no-await-in-loop -- Close bottom-up and retain every confirmed native effect.
-			await closeObservedTask({ endpoint, task: current, fact: closure(intent, scope) }, services);
-			closedIds.push(record.id);
-		}
-		attemptedId = root.id;
-		uncertainOperation = "close_run";
-		const finalRoot = await readBead(endpoint, root.id, services);
-		assertReservation(finalRoot, endpoint.actor);
-		if (finalRoot.notes !== notes || finalRoot.status === "closed") {
-			throw new BusyBeeError(
-				"run_changed",
-				`Workflow ${root.id} changed during settlement publication.`,
-			);
-		}
-		await closeObservedTask({ endpoint, task: finalRoot, fact: closure(intent, "run") }, services);
-		closedIds.push(root.id);
-		uncertainOperation = "clear_intent";
-		const current = await readBead(endpoint, root.id, services);
-		if (
-			current.notes !== notes ||
-			!(await conditionalUpdate(
-				{ endpoint, bead: current, input: { notes: root.notes } },
+		await projectCompletions({ run, endpoint, locked, settlementCleared: true }, services);
+		Object.assign(
+			run,
+			await patchOwned(
+				{
+					endpoint,
+					locked,
+					patch: (fresh) => {
+						fresh.settlement!.state = "complete";
+					},
+				},
 				services,
-			))
-		) {
-			throw new BusyBeeError(
-				"run_changed",
-				`Workflow ${root.id} settlement intent cleanup is uncertain.`,
-			);
-		}
-		return { operation: intent.operation, closedIds };
+			),
+		);
+		return {
+			runId: run.id,
+			operation: intent.operation,
+			closedIds: intent.inventory.map(({ id }) => id),
+		};
 	} catch (error) {
-		let context: Record<string, unknown> = {};
-		if (error instanceof BusyBeeError) {
-			({ context } = error);
-			if (context["nativeClosed"] === true && !closedIds.includes(attemptedId)) {
-				closedIds.push(attemptedId);
-			}
-		}
 		throw new BusyBeeError(
 			"settlement_partial",
-			`Settlement of ${root.id} has uncertain effects; inspect retained ownership and intent.`,
+			`Settlement of ${run.id} remains fenced. Resolve native gates, then resume the same ` +
+				`operation and reason for fresh execution clearance.`,
 			{
 				cause: error,
 				context: {
-					...context,
-					runId: root.id,
-					confirmedClosedIds: closedIds,
-					attemptedId,
-					uncertainOperation,
+					runId: run.id,
+					checkpoint: locked.checkpoint,
+					confirmedClosedIds: intent.inventory
+						.filter(({ id }) => run.completions[id]?.state === "confirmed")
+						.map(({ id }) => id),
+					nextAction: `busybee settle ${run.id} ${intent.operation} --reason ${JSON.stringify(intent.reason)}`,
 				},
 			},
 		);
 	}
 }
 
-function closure(
+function compareIdentity(left: { id: string }, right: { id: string }): number {
+	if (left.id === right.id) {
+		return FIRST;
+	}
+	if (left.id < right.id) {
+		return -ONE;
+	}
+	return ONE;
+}
+
+function settlementCompletion(
 	intent: WorkflowSettlementIntent,
-	scope: WorkflowClosure["scope"],
-): WorkflowClosure {
-	let outcome: WorkflowClosure["outcome"] = "cancelled";
+	scope: WorkflowCompletion["scope"],
+): WorkflowCompletion {
+	let outcome: "failed" | "cancelled" = "cancelled";
 	if (intent.operation === "fail") {
 		outcome = "failed";
 	}
 	return {
-		kind: "busybee-lifecycle",
-		formatVersion: 1,
-		runId: intent.runId,
+		state: "requested",
 		scope,
 		outcome,
-		reason: intent.reason,
+		reason: `Workflow ${scope} ${outcome}: ${intent.reason}`,
 	};
-}
-
-function assertReservation(record: BeadRecord, actor: string): void {
-	if (
-		record.labels.includes("system") ||
-		(record.status !== "closed" &&
-			(record.labels.includes("hitl") ||
-				(record.assignee && record.assignee !== actor) ||
-				(record.assignee && record.assignee === record.owner)))
-	) {
-		throw new BusyBeeError(
-			"reserved_work",
-			`Task ${record.id} is reserved; settlement preserves its identity.`,
-			{
-				context: { bead: record.id, assignee: record.assignee },
-			},
-		);
-	}
-}
-
-function assertNoIntent(record: BeadRecord): void {
-	if (parseWorkflowSettlement(record.notes)) {
-		throw new BusyBeeError(
-			"settlement_pending",
-			`Workflow ${record.id} retains an unfinished settlement; inspect effects before explicit recovery.`,
-		);
-	}
-}
-
-function readLifecycle(record: BeadRecord, expected: Pick<WorkflowClosure, "runId" | "scope">) {
-	try {
-		return nativeWorkflowState(record, expected);
-	} catch (error) {
-		throw new BusyBeeError("invalid_lifecycle", `Native lifecycle on ${record.id} is malformed.`, {
-			cause: error,
-		});
-	}
 }

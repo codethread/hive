@@ -1,4 +1,5 @@
 /* eslint-disable import/max-dependencies */
+/* eslint-disable unicorn/no-null -- Persisted workflow contracts use null request IDs. */
 import type { ActiveEntry, Run } from "../../src/checkpoint.ts";
 import { assign, createMachine, raise, sendParent, setup } from "xstate";
 import { expect, test } from "bun:test";
@@ -583,7 +584,12 @@ async function simulationFixture(
 	const visit = await beads.create(scope, { title: "Published", owner: "ct", parent: parent.id });
 	const snapshot = savedSnapshot ?? fixtureSnapshot(definition);
 	const saved: Run = {
-		formatVersion: 1,
+		formatVersion: 2,
+		lock: null,
+		managedExecution: "unmanaged",
+		results: {},
+		completions: {},
+		settlement: null,
 		id: parent.id,
 		hash: "saved-hash",
 		definition: { kind: "named", name: "example", version: "1.0.0" },

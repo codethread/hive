@@ -2,7 +2,12 @@
  * Keep dispatch's tracker, admission and store fixtures together.
  */
 import { SPAWN_REQUEST_LABELS, readSpawnRequest } from "@hive/shared";
-import { createSpawn, createTask, memoryTracker } from "./tracker.test-support.ts";
+import {
+	createSpawn,
+	createTask,
+	createWorkflowControl,
+	memoryTracker,
+} from "./tracker.test-support.ts";
 import { expect, mock, test } from "bun:test";
 import { newRequest, transitionRequest } from "./request.ts";
 import type { BeesConfig } from "@hive/shared";
@@ -89,6 +94,7 @@ test("discovery waits for closed repair and sees a misprojected request created 
 		"repair:pending",
 		"repair:written",
 		"list:open",
+		"retained",
 	]);
 	expect(list).not.toHaveBeenCalled();
 	expect(listProjected.mock.calls).toEqual([
@@ -183,6 +189,7 @@ async function projectionFixture() {
 	const tracker = memoryTracker();
 	const scope = trackerScope(tracker.repository, "sys-colony");
 	const task = await createTask(tracker, { labels: ["hitl"] });
+	await createWorkflowControl(tracker, task);
 	const records = new Map<string, RequestRecord>();
 	const store: DispatchInput["store"] = {
 		reserve: unexpectedLaunch,

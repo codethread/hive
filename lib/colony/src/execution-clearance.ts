@@ -73,8 +73,15 @@ async function inspectClearance(
 	}
 	const root = await beads.show(selected, scope.runId);
 	const publication = await readWorkflowPublication(runtime, root, "sys-colony");
-	if (!publication.locked) {
+	if (!publication.locked || publication.control.settlement?.state !== "pending") {
 		return refused("admission_not_fenced");
+	}
+	const inventory = new Set([
+		scope.runId,
+		...publication.control.created.map((entry) => entry.bead),
+	]);
+	if (inventory.size !== ids.size || scope.anchorIds.some((id) => !inventory.has(id))) {
+		return refused("invalid_system_inventory");
 	}
 	const anchors = await beads.showMany(selected, scope.anchorIds);
 	const byId = new Map(anchors.map((record) => [record.id, record]));
@@ -134,9 +141,16 @@ async function inspectClearance(
 			cleared.push(result);
 		}
 	}
-	const fresh = await beads.showMany(selected, [...scope.anchorIds, ...native.keys()]);
+	const fresh = await beads.showMany(selected, [
+		...scope.anchorIds,
+		...native.keys(),
+		publication.checkpoint.id,
+	]);
 	const versions = new Map(
-		[...anchors, ...native.values()].map((record) => [record.id, record.updated_at]),
+		[...anchors, ...native.values(), publication.checkpoint].map((record) => [
+			record.id,
+			record.updated_at,
+		]),
 	);
 	for (const record of fresh) {
 		if (record.updated_at !== versions.get(record.id)) {

@@ -1,13 +1,13 @@
 /* eslint-disable unicorn/no-null */
 import { BusyBeeError, createServices } from "../../src/native.ts";
 import { assign, createMachine } from "xstate";
-import { complete, navigate, prepareDriver, recordResult, start } from "../../src/runtime.ts";
+import { captureCli, invoke } from "./support.ts";
+import { complete, navigate, prepareDriver, start } from "../../src/runtime.ts";
 import { describe, expect, test } from "bun:test";
 import { renderResponseInstructions, spawnRequestLabels } from "@hive/shared";
 import type { Run } from "../../src/checkpoint.ts";
 import type { Services } from "../../src/native.ts";
 import { createMemoryBeads } from "@hive/beads";
-import { invoke } from "./support.ts";
 import { readCheckpoint } from "../../src/checkpoint.ts";
 import { z } from "zod";
 
@@ -130,7 +130,11 @@ async function handoffFixture() {
 	const node = "driver-test.work";
 	const key = `:${node}`;
 	const saved: Run = {
-		formatVersion: 1,
+		formatVersion: 2,
+		lock: null,
+		results: {},
+		completions: {},
+		settlement: null,
 		managedExecution: "unmanaged",
 		id: run.id,
 		hash: new Bun.CryptoHasher("sha256").digest("hex"),
@@ -149,7 +153,9 @@ async function handoffFixture() {
 				meta: { title: "Work", commands: meta.commands, instructions: "Perform work" },
 			},
 		],
-		created: [{ bead: stage.id, node, parent: run.id, path: [], request: null, visit: ONE }],
+		created: [
+			{ bead: stage.id, scope: "visit", node, parent: run.id, path: [], request: null, visit: ONE },
+		],
 		history: [],
 		visits: { [key]: ONE },
 	};
@@ -175,7 +181,7 @@ const reservationCases = [
 	{ target: "run", assignee: "operator", owner: "operator", labels: [] },
 	{ target: "stage", assignee: "operator", owner: "operator", labels: [] },
 ];
-const invalidNotes = [
+const ordinaryNotes = [
 	"",
 	"bad json",
 	'{"choice":"selected"}',
@@ -194,6 +200,9 @@ describe("driver coordination", () => {
 			checkpoint,
 			runId: run.id,
 			status: "active",
+			chartStatus: "active",
+			completion: "pending",
+			nativeStatus: "open",
 		});
 		const root = await beads.show(scope, run.id);
 		expect(root).toMatchObject({ status: "open", owner: "ct" });
@@ -247,6 +256,9 @@ describe("driver coordination", () => {
 			kind: "prepare-driver",
 			runId: run.id,
 			status: "done",
+			chartStatus: "done",
+			completion: "succeeded",
+			nativeStatus: "closed",
 			checkpoint,
 		});
 		expect(await beads.show(scope, run.id)).toEqual(before);
@@ -265,8 +277,9 @@ describe("driver coordination", () => {
 
 	test("handoff does not steal a retained checkpoint lock #test-438", async () => {
 		const { beads, checkpoint, io, run } = await handoffFixture();
-		const notes = JSON.stringify({ owner: "other-operation", pid: 22 });
-		await beads.update(scope, [checkpoint], { notes });
+		const control = readCheckpoint(await beads.show(scope, checkpoint));
+		control.lock = { owner: "other-operation", pid: 22 };
+		await beads.update(scope, [checkpoint], { description: JSON.stringify(control) });
 		let now = FIRST;
 		const failure: unknown = await prepareDriver(
 			run.id,
@@ -282,7 +295,7 @@ describe("driver coordination", () => {
 		).catch((error: unknown) => error);
 		expect(failure).toBeInstanceOf(BusyBeeError);
 		expect(failure).toMatchObject({ reason: "checkpoint_locked" });
-		expect(await beads.show(scope, checkpoint)).toMatchObject({ notes });
+		expect(readCheckpoint(await beads.show(scope, checkpoint)).lock).toEqual(control.lock);
 		expect(await beads.show(scope, run.id)).toMatchObject({
 			status: "in_progress",
 		});
@@ -311,8 +324,10 @@ describe("driver coordination", () => {
 			reason: "partial_effects",
 			context: { checkpoint, runId: run.id },
 		});
-		const { notes } = await beads.show(scope, checkpoint);
-		expect(notes).not.toBe("");
+		expect(readCheckpoint(await beads.show(scope, checkpoint)).lock).toMatchObject({
+			owner: expect.any(String),
+			pid: io.pid,
+		});
 	});
 
 	// eslint-disable-next-line max-statements
@@ -320,10 +335,11 @@ describe("driver coordination", () => {
 		const resumed = await fixture();
 		const { beads, checkpoint, io, run } = resumed;
 		const resumedResponse = await filedResponse(resumed, run.id);
-		await beads.update(scope, [run.active[FIRST]!.bead], {
-			notes: JSON.stringify({ choice: "selected", data: payload }),
-		});
-		await beads.close(scope, run.active[FIRST]!.bead);
+		await complete(
+			{ id: run.id, bead: run.active[FIRST]!.bead, choice: "selected", data: payload },
+			{},
+			io,
+		);
 		await prepareDriver(run.id, {}, io);
 		const next = await navigate({ id: run.id, operation: "collect" }, {}, io);
 		expect(next.active[FIRST]!.context["saved"]).toEqual(payload);
@@ -344,18 +360,21 @@ describe("driver coordination", () => {
 		});
 	});
 
-	test.each(invalidNotes)(
-		"closed driver-handled result fails visibly with stage identity: %s #test-501",
+	test.each(ordinaryNotes)(
+		"ordinary notes are preserved independently of completed driver results: %s #test-501",
 		async (notes) => {
 			const { beads, checkpoint, io, run } = await fixture();
 			const { bead } = run.active[FIRST]!;
-			await beads.update(scope, [bead], { notes });
-			await beads.close(scope, bead);
-			const result = await invoke(["collect", run.id], io);
-			expect(result.code).toBe(FAILURE);
-			expect(result.document).toMatchObject({ reason: "invalid_stage_result", bead });
-			expect(readCheckpoint(await beads.show(scope, checkpoint)).history).toEqual([]);
-			expect(await beads.show(scope, checkpoint)).toMatchObject({ notes: "" });
+			await beads.update(scope, [bead, run.id, checkpoint], { notes });
+			await complete({ id: run.id, bead, choice: "selected", data: payload }, {}, io);
+			const result = await navigate({ id: run.id, operation: "collect" }, {}, io);
+			expect(result.active[FIRST]!.context["saved"]).toEqual(payload);
+			expect(readCheckpoint(await beads.show(scope, checkpoint)).results[bead]).toEqual({
+				choice: "selected",
+				data: payload,
+			});
+			const records = await beads.showMany(scope, [bead, run.id, checkpoint]);
+			expect(records.map((record) => record.notes)).toEqual([notes, notes, notes]);
 		},
 	);
 
@@ -374,47 +393,47 @@ describe("driver coordination", () => {
 		});
 	});
 
-	test("record-result preserves conflicting results and rejects writes after closure #test-428", async () => {
-		const { beads, io, run } = await fixture();
+	test("complete preserves conflicting originals and permits identical closed retries #test-428", async () => {
+		const { beads, checkpoint, io, run } = await fixture();
 		const { bead } = run.active[FIRST]!;
 		const request = { id: run.id, bead, choice: "selected", data: payload };
-		await recordResult(request, {}, io);
-		await recordResult(request, {}, io);
+		await complete(request, {}, io);
 		const saved = await beads.show(scope, bead);
-		expect(
-			await recordResult({ ...request, data: { ...payload, answer: ["different"] } }, {}, io).catch(
-				(error: unknown) => error,
-			),
-		).toMatchObject({ reason: "stage_result_conflict", context: { bead } });
-		expect(await beads.show(scope, bead)).toEqual(saved);
-		await beads.close(scope, bead);
-		expect(await recordResult(request, {}, io).catch((error: unknown) => error)).toMatchObject({
-			reason: "task_closed",
+		const failure: unknown = await complete(
+			{ ...request, data: { ...payload, answer: ["different"] } },
+			{},
+			io,
+		).catch((error: unknown) => error);
+		expect(failure).toBeInstanceOf(BusyBeeError);
+		expect(readCheckpoint(await beads.show(scope, checkpoint)).results[bead]).toEqual({
+			choice: request.choice,
+			data: payload,
 		});
+		await complete(request, {}, io);
+		expect(await beads.show(scope, bead)).toEqual(saved);
 	});
-	test("record-result rejects invalid input before task closure or progression #test-517", async () => {
+	test("complete rejects invalid input before task closure or progression #test-517", async () => {
 		const invalidInput = await fixture();
 		const { beads, checkpoint, io, run } = invalidInput;
 		await filedResponse(invalidInput, run.id);
 		const { bead } = run.active[FIRST]!;
 		const result = await invoke(
-			["record-result", run.id, bead, "selected", "--data", '{"answer":7}'],
+			["complete", run.id, bead, "selected", "--data", '{"answer":7}'],
 			io,
 		);
-		expect(result.document).toMatchObject({ reason: "invalid_input", kind: "record-result" });
+		expect(result.document).toMatchObject({ reason: "invalid_input", kind: "complete" });
 		expect(await beads.show(scope, bead)).toMatchObject({ notes: "", status: "in_progress" });
 		expect(readCheckpoint(await beads.show(scope, checkpoint)).history).toEqual([]);
 	});
 
-	test("record-result supports an array payload through driver collection #test-467", async () => {
-		const { beads, io, run } = await fixture({
+	test("complete supports an array payload through driver collection #test-467", async () => {
+		const { io, run } = await fixture({
 			...definition,
 			commandSchemas: { selected: arrayPayloadSchema },
 		});
 		const { bead } = run.active[FIRST]!;
 		const data = ["standalone", "array"];
-		await recordResult({ id: run.id, bead, choice: "selected", data }, {}, io);
-		await beads.close(scope, bead);
+		await complete({ id: run.id, bead, choice: "selected", data }, {}, io);
 		const next = await navigate({ id: run.id, operation: "collect" }, {}, io);
 		expect(next.active[FIRST]!.context["saved"]).toEqual(data);
 	});
@@ -430,8 +449,23 @@ async function beeFixture() {
 		cwd: repo,
 		importModule: () => Promise.resolve(beeDefinition),
 		readBytes: () => Promise.resolve(new ArrayBuffer(FIRST)),
+		// eslint-disable-next-line max-statements -- Inspect saved membership before publishing the simulated request.
 		execute: async (argv) => {
 			calls.push(argv);
+			const root = await beads.show(scope, argv[RECIPE_RUN_ARG]!);
+			const related = root.dependencies.find((edge) => edge.dependency_type === "related")!;
+			const control = readCheckpoint(await beads.show(scope, related.id));
+			expect(control.lock).toMatchObject({ owner: expect.any(String), pid: io.pid });
+			expect(control.created).toContainEqual(
+				expect.objectContaining({
+					bead: argv[RECIPE_STAGE_ARG],
+					scope: "visit",
+					request: null,
+				}),
+			);
+			const entry = control.active.find((item) => item.bead === argv[RECIPE_STAGE_ARG])!;
+			const visit = control.created.find((item) => item.bead === entry.bead)!;
+			expect(control.visits[entry.key]).toBe(visit.visit);
 			const request = await beads.create(scope, {
 				title: "Bee dispatch request",
 				owner: "ct",
@@ -520,14 +554,24 @@ describe("Bee-dispatched stage coordination", () => {
 			status: "done",
 			active: [],
 		});
-		expect(await beads.show(scope, run.id)).toMatchObject({ status: "closed" });
-		expect(await beads.show(scope, closedStage.stage.bead)).toMatchObject({
-			notes: JSON.stringify({ choice: "selected", data: payload }),
-		});
-		expect(await beads.show(scope, stageResponse.id)).toMatchObject({
-			description: stageResponse.description,
-			status: "closed",
-			updated_at: stageResponse.updated_at,
+		const records = await beads.showMany(scope, [run.id, stage.bead, stageResponse.id]);
+		expect(records).toMatchObject([
+			{ status: "closed" },
+			{ notes: "" },
+			{
+				description: stageResponse.description,
+				status: "closed",
+				updated_at: stageResponse.updated_at,
+			},
+		]);
+		const checkpoint = records[FIRST]!.dependencies.find(
+			(edge) => edge.dependency_type === "related",
+		)!.id;
+		expect(
+			readCheckpoint(await beads.show(scope, checkpoint)).results[closedStage.stage.bead],
+		).toEqual({
+			choice: "selected",
+			data: payload,
 		});
 	});
 });
@@ -568,6 +612,7 @@ async function filedResponse(
 }
 
 describe("default catalogue installation", () => {
+	// eslint-disable-next-line max-statements -- Verify command adoption and exclusive installation together.
 	test("init installs at the catalogue root from a nested directory without tracker discovery #test-596", async () => {
 		const requests: Parameters<Services["installWorkflow"]>[typeof FIRST][] = [];
 		const roots: { argv: string[]; cwd: string }[] = [];
@@ -584,6 +629,17 @@ describe("default catalogue installation", () => {
 				return Promise.resolve();
 			},
 		};
+		const help = await captureCli(["--help"], io);
+		expect(help.stdout).toContain("reconcile");
+		expect(help.stdout).not.toMatch(/^\s+(?:record-result|next|choice)(?:\s|$)/mu);
+		const removed = await Promise.all(
+			["record-result", "next", "choice"].map((command) => invoke([command], io)),
+		);
+		expect(removed.map((result) => result.document)).toEqual([
+			expect.objectContaining({ reason: "commander.unknownCommand" }),
+			expect.objectContaining({ reason: "commander.unknownCommand" }),
+			expect.objectContaining({ reason: "commander.unknownCommand" }),
+		]);
 		const result = await invoke(["init", "--repo", "/another-checkout/nested"], io);
 		expect(result.document).toEqual({
 			ok: true,

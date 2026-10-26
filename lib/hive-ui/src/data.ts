@@ -95,7 +95,7 @@ export const preferences = createStore<Preferences>(() => ({
 	views: {},
 }));
 
-/** Read native outcome independently of checkpoint and diagram availability. */
+/** Read system outcome/native projection and both revisions independently of diagram availability. */
 export function loadWorkflowOutcome(colony: string, id: string): Promise<void> {
 	return workflowOutcomes.load(
 		`${colony}/${id}`,

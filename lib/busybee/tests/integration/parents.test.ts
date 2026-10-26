@@ -1,11 +1,12 @@
+import { complete, navigate, start, startNamed } from "../../src/runtime.ts";
 import { createMachine, setup } from "xstate";
 import { expect, test } from "bun:test";
-import { navigate, start, startNamed } from "../../src/runtime.ts";
 import type { CreateBead } from "@hive/beads";
 import type { Services } from "../../src/native.ts";
 import { createMemoryBeads } from "@hive/beads";
 import { createServices } from "../../src/native.ts";
 import { invoke } from "./support.ts";
+import { readCheckpoint } from "../../src/checkpoint.ts";
 import { z } from "zod";
 
 const FIRST = 0;
@@ -167,16 +168,26 @@ test(
 		expect(records.issues.map(({ id }) => id).toSorted()).toEqual(
 			[parent.id, nestedRun.id, checkpoint.id, group.bead, worker.bead].toSorted(),
 		);
-		await beads.close(scope, worker.bead);
+		await complete({ id: nestedRun.id, bead: worker.bead, choice: "next", data: {} }, {}, io);
+		await expect(
+			navigate({ id: nestedRun.id, operation: "collect" }, {}, io),
+		).rejects.toMatchObject({
+			reason: "acceptance_unchecked",
+		});
+		const advanced = readCheckpoint(await beads.show(scope, checkpoint.id));
+		expect(advanced).toMatchObject({
+			active: [],
+			history: [expect.objectContaining({ bead: worker.bead })],
+			snapshot: { status: "done" },
+		});
 		await beads.update(scope, [group.bead], {
 			acceptanceCriteria: "- [x] Nested work verified",
 		});
-		const done = await navigate(
-			{ id: nestedRun.id, operation: "submit", bead: worker.bead, choice: "next", data: {} },
-			{},
-			io,
-		);
+		const done = await navigate({ id: nestedRun.id, operation: "collect" }, {}, io);
 		expect(done.status).toBe("done");
+		const retried = readCheckpoint(await beads.show(scope, checkpoint.id));
+		expect(retried.history).toEqual(advanced.history);
+		expect(retried.created).toEqual(advanced.created);
 		expect(await beads.show(scope, nestedRun.id)).toMatchObject({ status: "closed" });
 		expect(await beads.show(scope, group.bead)).toMatchObject({ status: "closed" });
 		expect(await beads.show(scope, parent.id)).toMatchObject(parent);

@@ -64,9 +64,7 @@ test.each([
 		} else {
 			await expect(result).rejects.toBe(failure);
 		}
-		expect(updates).toEqual([
-			[scope, [bead.id], { force: true, ifUnchanged: bead.updated_at, notes: "owner" }],
-		]);
+		expect(updates).toEqual([[scope, [bead.id], { ifUnchanged: bead.updated_at, notes: "owner" }]]);
 		expect(calls).toEqual(["beforeWrite", "update"]);
 	},
 );

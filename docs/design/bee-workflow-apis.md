@@ -1,6 +1,6 @@
 # Bee and Busy Bee API proposal
 
-Status: historical paper design from the POC. Production follow-on hv-gw9ag implements the separate CLI composition; current commands and contracts live in the [Bee guide](../../lib/colony/README.md#create-requests) and [Busy Bee guide](../../lib/busybee/README.md). Alternative package/surface designs below remain proposals.
+Status: historical paper design from the POC. Production follow-on hv-gw9ag implements the separate CLI composition; current commands and contracts live in the [Bee guide](../../lib/colony/README.md#create-requests) and [Busy Bee guide](../../lib/busybee/README.md). The direct `next`/`choice`, native-close and JSON-notes procedures below are obsolete: the [current completion contract](../../lib/busybee/SPEC.md#work-and-progression) uses `complete` → `collect` with system-owned results. Preserve this paper as rationale, not an execution runbook. Alternative package/surface designs below remain proposals.
 
 Recommend **Bee composing Busy Bee at submission, with two focused CLIs during execution**. Keep one implementation of workflow progression. A single executable can offer both APIs, but it does not remove their distinct identities, lifecycles or authority. Add that façade only if observed agent use warrants it.
 
