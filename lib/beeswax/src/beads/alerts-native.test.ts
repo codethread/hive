@@ -13,7 +13,7 @@ test.each([
 	expect(alertStateHome(configured, "/home/fixture")).toBe(expected);
 });
 
-test("incident and session paths retain their keys beneath the Beeswax namespace", () => {
+test("incident and session paths retain their keys beneath the Beeswax namespace #test-689", () => {
 	const database = "/repo/.beads/beads.db";
 	const directory = "/selected/state/hive/beeswax/tracker-alerts";
 	expect(alertStatePath("/selected/state", database)).toBe(`${directory}/${endpointKey}.json`);
