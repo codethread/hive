@@ -24,6 +24,7 @@ import {
 	workflowSimulationSchema,
 } from "../contracts.ts";
 import type {
+	Board,
 	BoardFilter,
 	BoardScope,
 	Card,
@@ -73,8 +74,17 @@ interface Preferences {
 	views: Record<string, Navigation>;
 }
 
+interface BoardLoaderResources {
+	/** Primary board snapshots keyed by colony and filter. */
+	boards: ReturnType<typeof createBoardResource>;
+	/** Shared card metadata for board, detail and outline consumers. */
+	annotations: ReturnType<typeof createCardAnnotationsResource>;
+	/** Complete families and their member aliases. */
+	hierarchies: ReturnType<typeof createHierarchyResource>;
+}
+
 export const colonies = createResource(coloniesSchema);
-export const boards = createResource(boardSchema);
+export const boards = createBoardResource();
 export const inventories = createResource(requestInventorySchema);
 export const annotations = createCardAnnotationsResource();
 export const details = createResource(detailSchema);
@@ -94,6 +104,8 @@ export const preferences = createStore<Preferences>(() => ({
 	theme: "moss",
 	views: {},
 }));
+
+const boardLoader = createBoardLoader({ boards, annotations, hierarchies });
 
 /** Read native outcome independently of checkpoint and diagram availability. */
 export function loadWorkflowOutcome(colony: string, id: string): Promise<void> {
@@ -190,35 +202,12 @@ export function simulateWorkflow(colony: string, id: string, input: WorkflowSimu
 export function loadColonies(): Promise<void> {
 	return colonies.load("colonies", "/api/colonies");
 }
-export async function loadBoard(
+export function loadBoard(
 	colony: string,
 	filter: BoardFilter,
-	{ refreshAfter = 0, background = true } = {},
+	options: { refreshAfter?: number; background?: boolean } = {},
 ): Promise<void> {
-	const search = new URLSearchParams({
-		filter: JSON.stringify(filter),
-		refreshAfter: String(refreshAfter),
-	});
-	await boards.load(
-		boardKey(colony, filter),
-		`/api/colonies/${colony}/board?${search}`,
-		refreshAfter > 0,
-	);
-	const resource = boards.store.getState().entries[boardKey(colony, filter)];
-	if (background && resource?.kind === "ready") {
-		const ids = resource.data.cards.map((card) => card.id);
-		await Promise.all([
-			loadAnnotations(colony, ids, refreshAfter),
-			...(filter.view === "beads"
-				? [
-						loadHierarchySnapshot(colony, ids, {
-							refreshAfter,
-							key: boardHierarchyKey(colony, filter),
-						}),
-					]
-				: []),
-		]);
-	}
+	return boardLoader.loadBoard(colony, filter, options);
 }
 export function loadInventory(
 	colony: string,
@@ -264,18 +253,90 @@ export function boardHierarchyKey(colony: string, filter: BoardFilter): string {
 	return `${colony}/board/${boardKey(colony, filter)}`;
 }
 export function loadHierarchy(colony: string, ids: string[], refreshAfter = 0): Promise<void> {
-	return loadHierarchySnapshot(colony, ids, { refreshAfter, key: hierarchyKey(colony, ids) });
+	return boardLoader.loadHierarchy(colony, ids, refreshAfter);
 }
 
-export async function loadAnnotations(
-	colony: string,
-	ids: string[],
-	refreshAfter = 0,
-): Promise<void> {
-	for (const batch of annotationBatches(ids)) {
-		// eslint-disable-next-line no-await-in-loop -- Bound optional metadata reads independently of primary resources.
-		await annotations.loadBatch(colony, batch, refreshAfter);
+export function loadAnnotations(colony: string, ids: string[], refreshAfter = 0): Promise<void> {
+	return boardLoader.loadAnnotations(colony, ids, refreshAfter);
+}
+
+export function createBoardResource(
+	read: (path: string) => Promise<Board> = (path) => request(path, boardSchema),
+) {
+	return createResource(boardSchema, read);
+}
+
+/**
+ * Compose loading over supplied resources: production shares the exported stores;
+ * policy tests use isolated factory instances with typed readers.
+ */
+export function createBoardLoader(resources: BoardLoaderResources) {
+	async function readBoard(
+		colony: string,
+		filter: BoardFilter,
+		{ refreshAfter = 0, background = true } = {},
+	): Promise<void> {
+		const search = new URLSearchParams({
+			filter: JSON.stringify(filter),
+			refreshAfter: String(refreshAfter),
+		});
+		await resources.boards.load(
+			boardKey(colony, filter),
+			`/api/colonies/${colony}/board?${search}`,
+			refreshAfter > 0,
+		);
+		const resource = resources.boards.store.getState().entries[boardKey(colony, filter)];
+		if (background && resource?.kind === "ready") {
+			const ids = resource.data.cards.map((card) => card.id);
+			await Promise.all([
+				readAnnotations(colony, ids, refreshAfter),
+				...(filter.view === "beads"
+					? [
+							loadHierarchySnapshot(colony, ids, {
+								refreshAfter,
+								key: boardHierarchyKey(colony, filter),
+							}),
+						]
+					: []),
+			]);
+		}
 	}
+	function readHierarchy(colony: string, ids: string[], refreshAfter = 0): Promise<void> {
+		return loadHierarchySnapshot(colony, ids, { refreshAfter, key: hierarchyKey(colony, ids) });
+	}
+
+	async function readAnnotations(colony: string, ids: string[], refreshAfter = 0): Promise<void> {
+		for (const batch of annotationBatches(ids)) {
+			// eslint-disable-next-line no-await-in-loop -- Bound optional metadata reads independently of primary resources.
+			await resources.annotations.loadBatch(colony, batch, refreshAfter);
+		}
+	}
+
+	async function loadHierarchySnapshot(
+		colony: string,
+		ids: string[],
+		{ refreshAfter, key }: { refreshAfter: number; key: string },
+	): Promise<void> {
+		const search = new URLSearchParams({
+			ids: JSON.stringify(ids),
+			refreshAfter: String(refreshAfter),
+		});
+		await resources.hierarchies.load(
+			key,
+			`/api/colonies/${colony}/hierarchy?${search}`,
+			refreshAfter > 0,
+		);
+		const resource = resources.hierarchies.store.getState().entries[key];
+		if (resource?.kind === "ready") {
+			await readAnnotations(
+				colony,
+				resource.data.nodes.map((node) => node.id),
+				refreshAfter,
+			);
+		}
+	}
+
+	return { loadBoard: readBoard, loadAnnotations: readAnnotations, loadHierarchy: readHierarchy };
 }
 
 export function createCardAnnotationsResource(
@@ -535,26 +596,6 @@ export function snapshot<Value>(resource: Resource<Value>): Value | null {
 }
 
 // --- Resource and HTTP ownership ---
-async function loadHierarchySnapshot(
-	colony: string,
-	ids: string[],
-	{ refreshAfter, key }: { refreshAfter: number; key: string },
-): Promise<void> {
-	const search = new URLSearchParams({
-		ids: JSON.stringify(ids),
-		refreshAfter: String(refreshAfter),
-	});
-	await hierarchies.load(key, `/api/colonies/${colony}/hierarchy?${search}`, refreshAfter > 0);
-	const resource = hierarchies.store.getState().entries[key];
-	if (resource?.kind === "ready") {
-		await loadAnnotations(
-			colony,
-			resource.data.nodes.map((node) => node.id),
-			refreshAfter,
-		);
-	}
-}
-
 function annotationBatches(ids: string[]): string[][] {
 	const batches: string[][] = [];
 	for (let offset = 0; offset < ids.length; offset += ANNOTATION_BATCH) {

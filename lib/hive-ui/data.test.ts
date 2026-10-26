@@ -5,21 +5,20 @@ import {
 	boardKey,
 	hierarchyKey,
 } from "./contracts.ts";
-import type { CardAnnotations, Hierarchy, HierarchyNode } from "./contracts.ts";
+import type { BoardFilter, CardAnnotations, Hierarchy, HierarchyNode } from "./contracts.ts";
 import {
 	annotateCards,
 	annotationStatus,
 	boardHierarchyKey,
-	boards,
+	createBoardLoader,
+	createBoardResource,
 	createCardAnnotationsResource,
 	createHierarchyResource,
-	hierarchies,
-	loadBoard,
 	snapshot,
 } from "./src/data.ts";
 import { board, colony } from "./src/stories/fixtures.ts";
 import { boardFamilies, separateHumanWork } from "./hierarchy.ts";
-import { expect, spyOn, test } from "bun:test";
+import { expect, test } from "bun:test";
 import { createBoardData } from "./server/data.ts";
 import { createMemoryBeads } from "@hive/beads";
 import { z } from "zod";
@@ -37,52 +36,260 @@ const moved: Hierarchy = { stale: false, nodes: [right, node("child", ["right"])
 
 const SMALL_FAMILY = 2;
 const CACHE_LIFETIME = 10_000;
-const race = await annotationFixture();
-const assignmentRace = await assignmentFixture();
-const membership = await membershipFixture();
 
-// eslint-disable-next-line max-statements -- Exercise production reads and background replacement without timers.
-test("fast board membership changes retain known native families without claiming uncovered cards", async () => {
-	const { colonyId, filter, familyKey, root, child, sibling, uncovered, state, read, reads } =
-		membership;
-	const fetch = spyOn(globalThis, "fetch").mockImplementation(read);
-	try {
-		const retained = snapshot(hierarchies.store.getState().entries[familyKey]!);
-		expect(boardFamilies({ ...board, cards: state.cards }, retained)[0]?.layout).toBe("rails");
-		for (const cards of [
-			[child, sibling, uncovered],
-			[sibling, uncovered],
-		]) {
-			state.cards = cards;
-			reads.length = 0;
-			// eslint-disable-next-line no-await-in-loop -- Sequential fast polls change the same native page membership.
-			await loadBoard(colonyId, filter, { refreshAfter: Date.parse(NEW), background: false });
-			const current = snapshot(boards.store.getState().entries[boardKey(colonyId, filter)]!)!;
-			const hierarchy = snapshot(hierarchies.store.getState().entries[familyKey]!);
-			const families = boardFamilies(current, hierarchy);
-			expect(reads).toEqual(["board"]);
-			expect(hierarchy).toBe(retained);
-			expect(hierarchy?.fetchedAt).toBe(OLD);
-			expect(hierarchy?.stale).toBe(true);
-			expect(families[0]?.root.id).toBe(root.id);
-			expect(families[0]?.layout).toBe("rails");
-			expect(families[0]?.visible.map(({ node: entry }) => entry.id)).toEqual(
-				cards.filter((entry) => entry.id !== uncovered.id).map((entry) => entry.id),
-			);
-			expect(families[1]?.rows.map(({ node: entry }) => entry.id)).toEqual([uncovered.id]);
-			expect(
-				hierarchies.store.getState().entries[hierarchyKey(colonyId, [uncovered.id])],
-			).toBeUndefined();
-			const human = { ...current, cards: [{ ...sibling, assignee: sibling.owner }] };
-			expect(separateHumanWork(human, hierarchy, hierarchy).human[0]?.outlineId).toBe(root.id);
-		}
-		const nextPage = { ...filter, page: filter.page + 1 };
+test.each(["open", "completed"] as const)(
+	"%s request boards omit hierarchy reads",
+	// eslint-disable-next-line max-statements
+	async (view) => {
+		const filter: BoardFilter = {
+			view,
+			request: "request & one",
+			requestPage: SMALL_FAMILY + 1,
+			page: 1,
+			query: "",
+			all: [],
+			any: [],
+			exclude: [],
+			statuses: [],
+			priorities: [],
+			closed: false,
+		};
+		const colonyId = `client-board-${view}`;
+		const value = { ...board, cards: [{ ...board.cards[0]! }] };
+		const reads: string[] = [];
+		const boards = createBoardResource((path) => {
+			reads.push(path);
+			return Promise.resolve(value);
+		});
+		const annotations = createCardAnnotationsResource((path) => {
+			reads.push(path);
+			return Promise.resolve({ cards: [], fetchedAt: value.fetchedAt });
+		});
+		const hierarchies = createHierarchyResource((path) => {
+			reads.push(path);
+			return Promise.resolve(original);
+		});
+		const { loadBoard } = createBoardLoader({ boards, annotations, hierarchies });
+		await loadBoard(colonyId, filter);
+		expect(reads).toEqual([
+			`/api/colonies/${colonyId}/board?${new URLSearchParams({ filter: JSON.stringify(filter), refreshAfter: "0" })}`,
+			`/api/colonies/${colonyId}/annotations?ids=%5B%22${value.cards[0]!.id}%22%5D&refreshAfter=0`,
+		]);
+	},
+);
+
+// eslint-disable-next-line max-statements -- Keep initial family publication and board-only refreshes together.
+test("board-only membership refreshes retain known families and leave uncovered cards separate", async () => {
+	const {
+		colonyId,
+		filter,
+		familyKey,
+		root,
+		child,
+		sibling,
+		uncovered,
+		state,
+		reads,
+		boards,
+		hierarchies,
+		loadBoard,
+	} = await membershipFixture();
+	const retained = snapshot(hierarchies.store.getState().entries[familyKey]!);
+	expect(boardFamilies({ ...board, cards: state.cards }, retained)[0]?.layout).toBe("rails");
+	for (const cards of [
+		[child, sibling, uncovered],
+		[sibling, uncovered],
+	]) {
+		state.cards = cards;
+		reads.length = 0;
+		// eslint-disable-next-line no-await-in-loop -- Change membership on one page without refreshing its family.
+		await loadBoard(colonyId, filter, { refreshAfter: Date.parse(NEW), background: false });
+		const current = snapshot(boards.store.getState().entries[boardKey(colonyId, filter)]!)!;
+		const hierarchy = snapshot(hierarchies.store.getState().entries[familyKey]!);
+		const families = boardFamilies(current, hierarchy);
+		expect(reads).toEqual(["board"]);
+		expect(hierarchy).toBe(retained);
+		expect(hierarchy?.fetchedAt).toBe(OLD);
+		expect(hierarchy?.stale).toBe(true);
+		expect(families[0]?.root.id).toBe(root.id);
+		expect(families[0]?.layout).toBe("rails");
+		expect(families[0]?.visible.map(({ node: entry }) => entry.id)).toEqual(
+			cards.filter((entry) => entry.id !== uncovered.id).map((entry) => entry.id),
+		);
+		expect(families[1]?.rows.map(({ node: entry }) => entry.id)).toEqual([uncovered.id]);
 		expect(
-			hierarchies.store.getState().entries[boardHierarchyKey(colonyId, nextPage)],
+			hierarchies.store.getState().entries[hierarchyKey(colonyId, [uncovered.id])],
 		).toBeUndefined();
-	} finally {
-		fetch.mockRestore();
+		const human = { ...current, cards: [{ ...sibling, assignee: sibling.owner }] };
+		expect(separateHumanWork(human, hierarchy, hierarchy).human[0]?.outlineId).toBe(root.id);
 	}
+	const nextPage = { ...filter, page: filter.page + 1 };
+	expect(
+		hierarchies.store.getState().entries[boardHierarchyKey(colonyId, nextPage)],
+	).toBeUndefined();
+	expect(hierarchies.store.getState().entries[boardHierarchyKey("other", filter)]).toBeUndefined();
+	expect(
+		hierarchies.store.getState().entries[
+			boardHierarchyKey(colonyId, { ...filter, query: "other" })
+		],
+	).toBeUndefined();
+});
+
+// eslint-disable-next-line max-statements -- Exercise independent resource and query keys with actual publication.
+test("board loaders isolate resources, colonies, filters and pages", async () => {
+	const fixture = await membershipFixture();
+	const retained = snapshot(fixture.hierarchies.store.getState().entries[fixture.familyKey]!);
+	const independent = createBoardResource(() => Promise.resolve({ ...board, cards: [] }));
+	const ancestor = node("ancestor+two");
+	const outsider = node("outsider & one", [ancestor.id]);
+	fixture.state.cards = [outsider];
+	fixture.state.family = { nodes: [ancestor, outsider], stale: false, fetchedAt: NEW };
+	for (const [colonyId, filter, cached] of [
+		["another-colony", fixture.filter, false],
+		[fixture.colonyId, { ...fixture.filter, query: "another filter" }, false],
+		[fixture.colonyId, { ...fixture.filter, page: fixture.filter.page + 1 }, true],
+	] as const) {
+		fixture.reads.length = 0;
+		fixture.paths.length = 0;
+		// eslint-disable-next-line no-await-in-loop -- Observe separate query keys using the same resource owner.
+		await fixture.loadBoard(colonyId, filter, { refreshAfter: 1 });
+		if (cached) {
+			// eslint-disable-next-line no-await-in-loop
+			await fixture.loadHierarchy(colonyId, [outsider.id]);
+			// eslint-disable-next-line no-await-in-loop
+			await fixture.loadAnnotations(colonyId, [outsider.id, ancestor.id]);
+		}
+		expect(
+			snapshot(fixture.boards.store.getState().entries[boardKey(colonyId, filter)]!)?.cards,
+		).toEqual([outsider]);
+		expect(
+			snapshot(fixture.hierarchies.store.getState().entries[boardHierarchyKey(colonyId, filter)]!)
+				?.nodes,
+		).toEqual([ancestor, outsider]);
+		let expectedReads = ["board", "annotations", "hierarchy", "annotations"];
+		let expectedDemands = [[outsider.id], [outsider.id], [ancestor.id]];
+		if (cached) {
+			expectedReads = ["board", "hierarchy"];
+			expectedDemands = [[outsider.id]];
+		}
+		expect(fixture.reads).toEqual(expectedReads);
+		expect(
+			fixture.paths
+				.filter((path) => !path.includes("/board?"))
+				.map((path) => new URL(path, "http://hive").searchParams.get("ids")),
+		).toEqual(expectedDemands.map((ids) => JSON.stringify(ids)));
+		expect(
+			fixture.paths.every(
+				(path) => new URL(path, "http://hive").searchParams.get("refreshAfter") === "1",
+			),
+		).toBe(true);
+		expect(
+			snapshot(fixture.hierarchies.store.getState().entries[hierarchyKey(colonyId, [outsider.id])]!)
+				?.nodes,
+		).toEqual([ancestor, outsider]);
+	}
+	expect(snapshot(fixture.hierarchies.store.getState().entries[fixture.familyKey]!)).toBe(retained);
+	expect(
+		snapshot(fixture.boards.store.getState().entries[boardKey(fixture.colonyId, fixture.filter)]!)
+			?.cards,
+	).toEqual([fixture.child, fixture.sibling]);
+	expect(independent.store.getState().entries).toEqual({});
+});
+
+// eslint-disable-next-line max-statements -- Keep pending, cached and failed publication in one resource lifecycle.
+test("board resources coalesce pending reads, serialize fresh reads and retain previous data on failure", async () => {
+	const initial = Promise.withResolvers<typeof board>();
+	const entered = Promise.withResolvers<void>();
+	const refreshed = { ...board, cards: [node("refreshed")], fetchedAt: NEW };
+	let reads = 0;
+	let fail = false;
+	const resource = createBoardResource(() => {
+		reads++;
+		if (fail) {
+			return Promise.reject(new Error("Board unavailable"));
+		}
+		if (reads === 1) {
+			return initial.promise;
+		}
+		entered.resolve();
+		return Promise.resolve(refreshed);
+	});
+	const first = resource.load("board", "initial");
+	const duplicate = resource.load("board", "duplicate");
+	const fresh = resource.load("board", "fresh", true);
+	expect(reads).toBe(1);
+	expect(resource.store.getState().entries.board?.kind).toBe("loading");
+	initial.resolve({ ...board, cards: [node("initial")] });
+	await entered.promise;
+	await Promise.all([first, duplicate, fresh]);
+	expect(reads).toBe(SMALL_FAMILY);
+	expect(snapshot(resource.store.getState().entries.board!)).toBe(refreshed);
+	await resource.load("board", "cached");
+	expect(reads).toBe(SMALL_FAMILY);
+	resource.store.setState({
+		entries: { board: { kind: "ready", data: refreshed, receivedAt: 0 } },
+	});
+	await resource.load("board", "expired");
+	expect(reads).toBe(SMALL_FAMILY + 1);
+	fail = true;
+	await resource.load("board", "failure", true);
+	expect(resource.store.getState().entries.board?.kind).toBe("failed");
+	expect(snapshot(resource.store.getState().entries.board!)).toBe(refreshed);
+});
+
+// eslint-disable-next-line max-statements -- Keep primary and optional failures in one resource lifecycle.
+test("board loading retains primary data on background failure and skips background on primary failure", async () => {
+	const filter: BoardFilter = {
+		view: "beads",
+		query: "",
+		statuses: [],
+		priorities: [],
+		all: [],
+		any: [],
+		exclude: [],
+		closed: false,
+		requestPage: 0,
+		page: 0,
+	};
+	const value = { ...board, cards: [{ ...board.cards[0]! }] };
+	let fail = false;
+	let optionalReads = 0;
+	const background = Promise.withResolvers<never>();
+	const entered = Promise.withResolvers<void>();
+	const boards = createBoardResource(() => {
+		if (fail) {
+			return Promise.reject(new Error("Board unavailable"));
+		}
+		return Promise.resolve(value);
+	});
+	const annotations = createCardAnnotationsResource(() => {
+		optionalReads++;
+		entered.resolve();
+		return background.promise;
+	});
+	const hierarchies = createHierarchyResource(() => {
+		optionalReads++;
+		return background.promise;
+	});
+	const loader = createBoardLoader({ boards, annotations, hierarchies });
+	const pending = loader.loadBoard("colony", filter);
+	await entered.promise;
+	expect(boards.store.getState().entries[boardKey("colony", filter)]?.kind).toBe("ready");
+	expect(snapshot(boards.store.getState().entries[boardKey("colony", filter)]!)).toBe(value);
+	background.reject(new Error("Background unavailable"));
+	await pending;
+	expect(hierarchies.store.getState().entries[boardHierarchyKey("colony", filter)]?.kind).toBe(
+		"failed",
+	);
+	expect(
+		annotationStatus("colony", [[value.cards[0]!.id]], annotations.store.getState().entries).kind,
+	).toBe("failed");
+	const before = optionalReads;
+	fail = true;
+	await loader.loadBoard("colony", filter, { refreshAfter: 1 });
+	expect(optionalReads).toBe(before);
+	expect(boards.store.getState().entries[boardKey("colony", filter)]?.kind).toBe("failed");
+	expect(snapshot(boards.store.getState().entries[boardKey("colony", filter)]!)).toBe(value);
 });
 
 // eslint-disable-next-line max-statements -- Verify reuse and expiry with one deterministic resource clock.
@@ -350,7 +557,8 @@ test.each(["success", "failure"])(
 
 // eslint-disable-next-line max-statements -- Keep the gated server/browser regression in one scenario.
 test("a delayed mixed batch preserves refreshed icons with equal completion times #test-445", async () => {
-	const { beads, scope, merge, task, assigned, context, data, now, warm, entered, release } = race;
+	const { beads, scope, merge, task, assigned, context, data, now, warm, entered, release } =
+		await annotationFixture();
 	const resource = createCardAnnotationsResource((path) => {
 		if (path === "old") {
 			return data.annotations(context, [task.id, assigned.id], 0);
@@ -374,7 +582,7 @@ test("a delayed mixed batch preserves refreshed icons with equal completion time
 
 // eslint-disable-next-line max-statements -- Keep delayed delivery and request closure in one scenario.
 test("a delayed cached batch preserves refreshed assignments at the same task revision #test-644", async () => {
-	const { beads, scope, request, task, context, data, now } = assignmentRace;
+	const { beads, scope, request, task, context, data, now } = await assignmentFixture();
 	const old = await data.annotations(context, [task.id], 0);
 	const delivery = Promise.withResolvers<CardAnnotations>();
 	const resource = createCardAnnotationsResource((path) => {
@@ -541,10 +749,21 @@ test("annotation status distinguishes recovered batches from unread or absent ba
 	expect(annotationStatus("colony", [], entries).kind).toBe("empty");
 });
 
-// eslint-disable-next-line max-statements -- Set up an observed background pass through production stores.
+// eslint-disable-next-line max-statements -- Include initial publication in the measured membership scenario.
 async function membershipFixture() {
 	const colonyId = "membership-regression";
-	const filter = boardFilterSchema.parse({ view: "beads" });
+	const filter: BoardFilter = {
+		view: "beads",
+		query: "",
+		statuses: [],
+		priorities: [],
+		all: [],
+		any: [],
+		exclude: [],
+		closed: false,
+		requestPage: 0,
+		page: 0,
+	};
 	const familyKey = boardHierarchyKey(colonyId, filter);
 	const root = node("root");
 	const child = node("child", [root.id]);
@@ -555,29 +774,31 @@ async function membershipFixture() {
 		family: { nodes: [root, child, sibling], stale: true, fetchedAt: OLD },
 	};
 	const reads: string[] = [];
-	const read = (input: URL | RequestInfo) => {
-		if (typeof input !== "string") {
-			throw new TypeError("Expected a client API path");
-		}
-		const path = new URL(input, "http://hive");
-		const operation = path.pathname.split("/").pop()!;
-		reads.push(operation);
-		let data: unknown = state.family;
-		if (operation === "board") {
-			data = { ...board, cards: state.cards, fetchedAt: NEW };
-		} else if (operation === "annotations") {
-			data = annotationData(requestedIds(path.href));
-		}
-		return Promise.resolve(Response.json(data));
-	};
-	const fetch = spyOn(globalThis, "fetch").mockImplementation(
-		Object.assign(read, { preconnect: globalThis.fetch.preconnect }),
-	);
-	try {
-		await loadBoard(colonyId, filter, { refreshAfter: Date.parse(OLD) });
-	} finally {
-		fetch.mockRestore();
-	}
+	const paths: string[] = [];
+	const boards = createBoardResource((path) => {
+		reads.push("board");
+		paths.push(path);
+		return Promise.resolve({ ...board, cards: state.cards, fetchedAt: NEW });
+	});
+	const annotations = createCardAnnotationsResource((path) => {
+		reads.push("annotations");
+		paths.push(path);
+		return Promise.resolve({ cards: [], fetchedAt: NEW });
+	});
+	const hierarchies = createHierarchyResource((path) => {
+		reads.push("hierarchy");
+		paths.push(path);
+		return Promise.resolve(state.family);
+	});
+	const { loadBoard, loadHierarchy, loadAnnotations } = createBoardLoader({
+		boards,
+		annotations,
+		hierarchies,
+	});
+	await Promise.all([
+		boards.load(boardKey(colonyId, filter), "/fixture/board"),
+		hierarchies.load(familyKey, "/fixture/hierarchy"),
+	]);
 	return {
 		colonyId,
 		filter,
@@ -588,7 +809,12 @@ async function membershipFixture() {
 		uncovered,
 		state,
 		reads,
-		read: Object.assign(read, { preconnect: globalThis.fetch.preconnect }),
+		paths,
+		boards,
+		hierarchies,
+		loadBoard,
+		loadHierarchy,
+		loadAnnotations,
 	};
 }
 
