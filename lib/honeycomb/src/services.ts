@@ -7,6 +7,7 @@ import type {
 } from "./domain/config.ts";
 import type { Multiplexer } from "./integrations/multiplexer.ts";
 import type { SkillProvider } from "skills-handler";
+import type { WorktreeInventory } from "./git/worktrees.ts";
 
 export interface GitResult {
 	/** Captured standard output. */
@@ -132,6 +133,11 @@ export interface Deps {
 	skills: SkillProvider;
 	/** Git process boundary. */
 	git: GitRunner;
+	/**
+	 * Required registered-worktree reads for root, list and pick.
+	 * Custom live dependencies must bind this inventory to the same GitRunner instance as git.
+	 */
+	worktrees: WorktreeInventory;
 	/** Configuration loading and canonical path matching. */
 	config: ConfigService;
 	/** Worktree setup and filesystem observations. */

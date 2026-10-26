@@ -4,6 +4,8 @@ const bvContractDirectory = "lib/shared/tests/contract/";
 const honeycombContractDirectory = "lib/honeycomb/tests/contract/";
 const honeycombDependencyInputs = new Set([
 	"lib/honeycomb/src/services.ts",
+	"lib/honeycomb/src/domain/worktree.ts",
+	"lib/honeycomb/src/live-deps.ts",
 	"lib/honeycomb/src/errors.ts",
 	"lib/honeycomb/src/git/error.ts",
 	"lib/honeycomb/src/application/branches.ts",

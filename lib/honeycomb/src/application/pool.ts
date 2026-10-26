@@ -5,7 +5,7 @@ import type { ProjectConfig, TreesConfig, WorktreeLocation } from "../domain/con
 import { assertBranchHasMergedUpstream, assertBranchIntegratedInto } from "./branches.ts";
 import { buildPoolState, placeholderBranchFor } from "./pool-state.ts";
 import { initializeSlots } from "./pool-init.ts";
-import { listWorktrees } from "./repository.ts";
+import { listWorktrees } from "../git/worktrees.ts";
 
 /** A pool without configured slots reports zero size. */
 const NO_COUNT = 0;

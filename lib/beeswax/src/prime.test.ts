@@ -25,7 +25,7 @@ const developmentTools = [
 	"scent",
 ];
 
-test("default onboarding contains only everyday tools", () => {
+test("default onboarding contains only everyday tools #test-754", () => {
 	expect(renderPrime({ include: [], exclude: [] })).toMatchInlineSnapshot(`
 	  "This repository uses Hive. Follow these conventions:
 	  Read a tool's instructions when its task applies; use its --help for command options.
