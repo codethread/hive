@@ -147,8 +147,6 @@ export function renderPrime(options: PrimeOptions): string {
 			"Parent-child links carry scope; blocking dependencies carry prerequisites. " +
 			"Child descriptions add narrower scope rather than repeating parent prose.",
 		"Publish tracker changes at repository-defined checkpoints; code pushes require separate authorization.",
-		"On tracker alerts or sync failures other than pre-publication tracker_busy, pause Beads work and merges; " +
-			"read beeswax skills get tracker-recovery. Existing holds still apply.",
 		"",
 		"| Tool | When to use it | Instructions |",
 		"| --- | --- | --- |",
