@@ -205,7 +205,7 @@ test.each([
 	expect(run).not.toHaveBeenCalled();
 });
 
-test("run passes the bee kind and empty options to the launcher without CLI output", async () => {
+test("run passes the bee kind and empty options to the launcher without CLI output #test-753", async () => {
 	const run = mock<BeeDependencies["run"]>(() => Promise.resolve());
 	const result = await execute(["run", "librarian"], { run });
 	expect(result).toMatchObject({ code: SUCCESS, stdout: "", stderr: "" });

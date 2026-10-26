@@ -42,7 +42,7 @@ const assignmentRace = await assignmentFixture();
 const membership = await membershipFixture();
 
 // eslint-disable-next-line max-statements -- Exercise production reads and background replacement without timers.
-test("fast board membership changes retain known native families without claiming uncovered cards", async () => {
+test("board membership refreshes retain known native families without claiming uncovered cards #test-756", async () => {
 	const { colonyId, filter, familyKey, root, child, sibling, uncovered, state, read, reads } =
 		membership;
 	const fetch = spyOn(globalThis, "fetch").mockImplementation(read);

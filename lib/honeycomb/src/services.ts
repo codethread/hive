@@ -133,7 +133,10 @@ export interface Deps {
 	skills: SkillProvider;
 	/** Git process boundary. */
 	git: GitRunner;
-	/** Registered-worktree reads for root, list and pick. */
+	/**
+	 * Required registered-worktree reads for root, list and pick.
+	 * Custom live dependencies must bind this inventory to the same GitRunner instance as git.
+	 */
 	worktrees: WorktreeInventory;
 	/** Configuration loading and canonical path matching. */
 	config: ConfigService;

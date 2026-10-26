@@ -99,7 +99,9 @@ test("empty reports are silent", () => {
 test.each([
 	"<testsuites>",
 	"<other />",
-	'<testsuites><testsuite><testcase name="missing timing" /></testsuite></testsuites>',
+	// Keep other attributes valid so only missing time causes rejection.
+	'<testsuites><testsuite><testcase name="missing timing" ' +
+		'classname="" file="example.test.ts" line="12" /></testsuite></testsuites>',
 	report("NaN"),
 ])("rejects unusable JUnit rather than silently hiding results: %s", (xml) => {
 	expect(() => reportSlowTests(xml, allowances)).toThrow(Error);

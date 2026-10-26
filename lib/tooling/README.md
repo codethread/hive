@@ -27,7 +27,9 @@ The [local Git ref contract](../honeycomb/tests/contract/local-git-refs.test.ts)
 
 The [worktree inventory contract](../honeycomb/tests/contract/worktree-inventory.test.ts) compares live Git and the [memory adapter](../honeycomb/tests/contract/worktree-inventory-fixture.ts) against the package-local [`WorktreeInventory`](../honeycomb/src/git/worktrees.ts) contract. The fixture accepts explicit repository/cwd aliases, copies seed and returned records, and provides replacement and named-failure controls; it does not emulate Git or filesystem path resolution.
 
-[Picker](../honeycomb/tests/unit/pick.test.ts) and [root/list policy tests](../honeycomb/tests/unit/query-inventory.test.ts) use that adapter with [no-I/O defaults](../honeycomb/tests/unit/policy-fixture.ts). Native [picker](../honeycomb/tests/integration/pick.test.ts) and [query](../honeycomb/tests/integration/query.test.ts) tests retain wiring and malformed-config coverage; [parser tests](../honeycomb/tests/unit/worktrees.test.ts) retain porcelain translation coverage.
+[Picker](../honeycomb/tests/unit/pick.test.ts) and [root/list policy tests](../honeycomb/tests/unit/query-inventory.test.ts) use that adapter with [no-I/O defaults](../honeycomb/tests/unit/policy-fixture.ts). Those defaults reject unexpected dependency calls; they do not prove filesystem absence or native UI behavior. Native [picker](../honeycomb/tests/integration/pick.test.ts) and [query](../honeycomb/tests/integration/query.test.ts) tests retain wiring and malformed-config coverage; [parser tests](../honeycomb/tests/unit/worktrees.test.ts) retain porcelain translation coverage.
+
+The inventory contracts include native setup, reads and cleanup in each test body. Retained integration tests also use setup/cleanup hooks, so their per-case timings are not whole-fixture costs.
 
 ## Test timing report and landing gate
 
