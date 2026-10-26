@@ -2456,6 +2456,26 @@
 		"#test-702": {
 			"threshold": "SLOW",
 			"justification": "ct approved this measured allowance on 2026-10-26 (hv-4t52nj). Full check: 2.167ms. Retains native routing query arguments for closed status, AND labels and an unlimited result set, with only the requested ID/description fields returned."
+		},
+		"#test-703": {
+			"threshold": "SLOW",
+			"justification": "ct approved this measured allowance on 2026-10-26 (hv-4t52nj). Full check: 3.898ms. Retains CLI failure handling through the injected Git packing dependency: one JSON error document preserves the command failure reason and original Git diagnostics, with no separate stderr output. No real Git process is invoked by this case."
+		},
+		"#test-704": {
+			"threshold": "SLOW",
+			"justification": "ct approved this measured allowance on 2026-10-26 (hv-4t52nj). Full check: 2.043ms. Retains in-memory changelog pagination across 140 empty releases: the default page stays bounded, total and next offset remain visible, and an exhausted page has neither releases nor a next offset."
+		},
+		"#test-705": {
+			"threshold": "SLOW",
+			"justification": "ct approved this measured allowance on 2026-10-26 (hv-4t52nj). Full check: waiting row 1.995ms. The existing shared table title retains pure stdout-publication eligibility checks: a late waiting, claiming, settling, retrying or terminal checkpoint rejects the captured cohort. This tests supplied observations, not live process ownership."
+		},
+		"#test-706": {
+			"threshold": "SLOW",
+			"justification": "ct approved this measured allowance on 2026-10-26 (hv-4t52nj). Strict changed run: 1.835ms. Retains exact-release changelog selection, commit abbreviation, Markdown body preservation in human and JSON output, explicit breaking and optional adoption text, and rejection of an unavailable release."
+		},
+		"#test-707": {
+			"threshold": "SLOW",
+			"justification": "ct approved this measured allowance on 2026-10-26 (hv-4t52nj). Full check: omitted-adjacency row 2.254ms. The shared table title retains BV adapter parsing of empty native graph encodings, with either omitted adjacency or empty nodes and null edges, into empty node/edge arrays and a non-stale result. The executor supplies JSON in memory; no native process is launched."
 		}
 	}
 }

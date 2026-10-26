@@ -457,7 +457,7 @@ test("git packing selects --repo without tracker selection and emits one focused
 	expect(fx.files.size).toBe(EMPTY);
 });
 
-test("git packing failure preserves its native diagnostics in one JSON document", async () => {
+test("git packing failure preserves its native diagnostics in one JSON document #test-703", async () => {
 	const fx = fixture();
 	fx.deps.git.pack = async () => {
 		throw new BeeswaxError("command_failed", "Git repack failed", {
