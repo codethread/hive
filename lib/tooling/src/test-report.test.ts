@@ -188,20 +188,23 @@ test.each([
 	{ mode: "changed", seconds: "0.001001", name: "unapproved", severity: "SLOW" },
 	{ mode: "all", seconds: "0.00125", name: "unapproved", severity: "" },
 	{ mode: "all", seconds: "0.001251", name: "unapproved", severity: "SLOW" },
-] as const)("$mode timing boundary $seconds for $name", ({ mode, seconds, name, severity }) => {
-	const feedback = reportTestRun(
-		{ mode, xml: report(seconds, name), exitCode: 0, output: "" },
-		allowances,
-	);
-	if (severity) {
-		expect(feedback.exitCode).toBe(failureExitCode);
-		expect(feedback.lines).toEqual([expect.stringContaining(` ${severity} `)]);
-	} else {
-		expect(feedback.exitCode).toBe(successExitCode);
-		expect(feedback.lines).toEqual([]);
-	}
-	expect(Boolean(feedback.guidance)).toBe(Boolean(severity));
-});
+] as const)(
+	"$mode timing boundary $seconds for $name #test-736",
+	({ mode, seconds, name, severity }) => {
+		const feedback = reportTestRun(
+			{ mode, xml: report(seconds, name), exitCode: 0, output: "" },
+			allowances,
+		);
+		if (severity) {
+			expect(feedback.exitCode).toBe(failureExitCode);
+			expect(feedback.lines).toEqual([expect.stringContaining(` ${severity} `)]);
+		} else {
+			expect(feedback.exitCode).toBe(successExitCode);
+			expect(feedback.lines).toEqual([]);
+		}
+		expect(Boolean(feedback.guidance)).toBe(Boolean(severity));
+	},
+);
 
 test.each([
 	{ mode: "changed", seconds: 0.005, name: "allowed #test-1", severity: "" },

@@ -238,7 +238,7 @@ test("an invalid selected tracker cannot receive BV recipes", async () => {
 	expect(fx.files.has("/repo/.bv/recipes.yaml")).toBe(false);
 });
 
-test("later synchronization failures retain confirmed BV output in the receipt", async () => {
+test("later synchronization failures retain confirmed BV output in the receipt #test-737", async () => {
 	const fx = configured();
 	fx.files.set("/repo/.pi/extensions/beeswax.js", "// beeswax:begin onboarding v2\n");
 
