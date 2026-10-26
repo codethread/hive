@@ -37,8 +37,8 @@ Compare fresh-process samples, include cold initialization, and report ranges an
 
 1. Re-read this skill's writing and integration guidance. Ask: "What is the value of this test?" and "What isolated behaviour is under test here?"
 2. First reduce runtime by refactoring the test, its setup or the code's dependency seams while preserving meaningful coverage. Keep tests focused on coherent behaviours; do not split a slow test into artificial pieces merely to get each piece below the threshold.
-3. If tests still fail timeouts or timing thresholds after exhausting opportunities to refactor or improve them, delete those tests.
-4. Rerun `bun run test:changed` with strict cutoffs, then the full completion check required by the [validation policy](../../../AGENTS.md#validation), both at normal default parallelism.
+3. If tests still fail timeouts or timing thresholds after exhausting opportunities to refactor or improve them, delete those tests. Retain a rare high-value contract only for the delivery workflow's exception assessment; do not widen allowances or timeouts merely to pass.
+4. Rerun `bun run test:changed` with strict cutoffs, then the active [delivery workflow's](../../../AGENTS.md#validation) completion checks, both at normal default parallelism. Report remaining failures as failures; exception assessment is not a passing check.
 
 ## Integration testing
 

@@ -4,7 +4,7 @@ import type { Deps } from "../../src/services.ts";
 import { dispatch } from "../../src/main.ts";
 import { parseIntegrationPlan } from "../../src/commands/finish-integration.ts";
 
-test("finish rejects --strategy before calling dependencies", async () => {
+test("finish rejects --strategy before calling dependencies #test-748", async () => {
 	const unexpected = mock((): never => {
 		throw new Error("Unexpected dependency call");
 	});

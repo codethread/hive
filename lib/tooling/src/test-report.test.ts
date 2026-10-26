@@ -20,7 +20,7 @@ test.each([
 	{ seconds: 0.005001, severity: "XSLOW" },
 	{ seconds: 1, severity: "XSLOW" },
 	{ seconds: 1.000001, severity: "DANGER" },
-])("classifies strict timing boundary $seconds as $severity", ({ seconds, severity }) => {
+])("classifies strict timing boundary $seconds as $severity #test-747", ({ seconds, severity }) => {
 	const { lines } = reportTestTimings(
 		{ mode: "changed", exitCode: 0, testCases: [timing(seconds)] },
 		allowances,
