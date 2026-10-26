@@ -1482,8 +1482,8 @@
 			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 1.606ms (lib/honeycomb/tests/unit/config-policy.test.ts)."
 		},
 		"#test-419": {
-			"threshold": "SLOW",
-			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 1.599ms (lib/busybee/tests/integration/parents.test.ts)."
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20; prior full/changed baseline: 1.599ms. ct authorized the measured severity increase on 2026-10-26 (hv-4t52nj): full check 15.365ms. Retains nested visit/group parentage and acceptance placement, a related system checkpoint outside the parent-child hierarchy, group/run closure and the unchanged ordinary parent's assignment and status."
 		},
 		"#test-420": {
 			"threshold": "XSLOW",
@@ -2448,6 +2448,14 @@
 		"#test-700": {
 			"threshold": "SLOW",
 			"justification": "ct approved this measured allowance on 2026-10-26 (hv-4t52nj). Strict changed run: root row 1.987ms. The existing shared table title retains repository-schema rejection of global-only keys, blank commands, invalid location/pool/copy settings and malformed finish fields. Cold schema validation remains in the test."
+		},
+		"#test-701": {
+			"threshold": "SLOW",
+			"justification": "ct approved this measured allowance on 2026-10-26 (hv-4t52nj). Integrated full check: 2.556ms. Retains hints for the selected database/WAL, shallow finish/worker/ownership artifacts and notifications without filenames, while rejecting noisy, foreign and nested paths."
+		},
+		"#test-702": {
+			"threshold": "SLOW",
+			"justification": "ct approved this measured allowance on 2026-10-26 (hv-4t52nj). Full check: 2.167ms. Retains native routing query arguments for closed status, AND labels and an unlimited result set, with only the requested ID/description fields returned."
 		}
 	}
 }
