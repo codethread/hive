@@ -14,7 +14,7 @@ const labels = [
 ];
 
 test.each(["cancelled"] as const)(
-	"native outcome query index replaces only its owned namespace: %s",
+	"native outcome query index replaces only its owned namespace: %s #test-741",
 	(outcome) => {
 		const state: NativeWorkflowState = {
 			kind: "terminal",

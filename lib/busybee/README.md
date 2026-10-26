@@ -160,8 +160,6 @@ The definition owns checks, review and delivery disposition; a finished run does
 
 The run brief retains the canonical checkout and tracker endpoint, and owns post-done closure/publication instructions. Standalone Land publishes after authorized source closures; Land nested beneath Release leaves the final checkpoint to Release. [Delegation and result flow](#delegate-a-workflow-to-bee) covers worker delivery and collection.
 
-The [Land integration test](./tests/integration/land.test.ts) verifies that invalid retained input is rejected before tasks are published.
-
 ## Native outcomes and retirement
 
 Generated run, visit and group closures record `succeeded`, `failed` or `cancelled` in native `close_reason`. Read them with `br show ID --json`; nonclosed work is pending and old unmarked closures remain unclassified. The [outcome contract](./SPEC.md#native-workflow-outcomes) distinguishes these facts from saved worker choices, chart status and derived query labels. Failed or cancelled visits cannot be collected as successful work.

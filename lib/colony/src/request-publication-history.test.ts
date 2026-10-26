@@ -28,7 +28,7 @@ const recipe: Recipe = {
 const publishMemoryStdout: typeof publishRunningStdoutActivities = (context, inputs) =>
 	publishRunningStdoutActivities(context, inputs, () => Promise.resolve(null));
 
-test("request histories await publisher settlement and retain each request's outcome", async () => {
+test("request histories await publisher settlement and attribute publication failures #test-697", async () => {
 	const drain = historyFixture();
 	const publication = Promise.withResolvers<void>();
 	const entered = Promise.withResolvers<void>();
@@ -100,49 +100,53 @@ test("a history setup failure prevents the native gate and drains already-starte
 	]);
 });
 
-test("history failure after native failure retains both causes and the secondary request identity", async () => {
-	const secondaryFailure = historyFixture();
-	const nativeFailure = new Error("Native comment failed");
-	const historyFailure = new Error("Cannot persist failed history");
-	const original = secondaryFailure.runtime.store.history.run;
-	const runtime = {
-		...secondaryFailure.runtime,
-		beads: {
-			...secondaryFailure.runtime.beads,
-			comments: {
-				...secondaryFailure.runtime.beads.comments,
-				add: () => Promise.reject(nativeFailure),
+test(
+	"history failure after native failure retains both causes " +
+		"and the secondary request identity #test-727",
+	async () => {
+		const secondaryFailure = historyFixture();
+		const nativeFailure = new Error("Native comment failed");
+		const historyFailure = new Error("Cannot persist failed history");
+		const original = secondaryFailure.runtime.store.history.run;
+		const runtime = {
+			...secondaryFailure.runtime,
+			beads: {
+				...secondaryFailure.runtime.beads,
+				comments: {
+					...secondaryFailure.runtime.beads.comments,
+					add: () => Promise.reject(nativeFailure),
+				},
 			},
-		},
-		store: {
-			...secondaryFailure.runtime.store,
-			history: {
-				run: (async (input, action) => {
-					try {
-						return await original(input, action);
-					} catch {
-						throw historyFailure;
-					}
-				}) satisfies Store["history"]["run"],
+			store: {
+				...secondaryFailure.runtime.store,
+				history: {
+					run: (async (input, action) => {
+						try {
+							return await original(input, action);
+						} catch {
+							throw historyFailure;
+						}
+					}) satisfies Store["history"]["run"],
+				},
 			},
-		},
-	};
-	const error = await captureFailure(
-		publishRunningCohortWithHistory(runtime, secondaryFailure.inputs, publishMemoryStdout),
-	);
-	expect(error).toBeInstanceOf(AggregateError);
-	const errors = (error as AggregateError).errors as Error[];
-	expect(errors[ZERO]).toBeInstanceOf(RunningStdoutPublicationError);
-	expect((errors[ZERO] as RunningStdoutPublicationError).failures).toEqual(
-		secondaryFailure.inputs.map(({ record }) => ({ requestId: record.id, error: nativeFailure })),
-	);
-	expect(errors.slice(ONE).map(({ cause }) => cause)).toEqual([historyFailure, historyFailure]);
-	expect(errors.slice(ONE).map(({ message }) => message)).toEqual(
-		secondaryFailure.inputs.map(
-			({ record }) => `Request ${record.id} stdout publication history failed`,
-		),
-	);
-});
+		};
+		const error = await captureFailure(
+			publishRunningCohortWithHistory(runtime, secondaryFailure.inputs, publishMemoryStdout),
+		);
+		expect(error).toBeInstanceOf(AggregateError);
+		const errors = (error as AggregateError).errors as Error[];
+		expect(errors[ZERO]).toBeInstanceOf(RunningStdoutPublicationError);
+		expect((errors[ZERO] as RunningStdoutPublicationError).failures).toEqual(
+			secondaryFailure.inputs.map(({ record }) => ({ requestId: record.id, error: nativeFailure })),
+		);
+		expect(errors.slice(ONE).map(({ cause }) => cause)).toEqual([historyFailure, historyFailure]);
+		expect(errors.slice(ONE).map(({ message }) => message)).toEqual(
+			secondaryFailure.inputs.map(
+				({ record }) => `Request ${record.id} stdout publication history failed`,
+			),
+		);
+	},
+);
 
 // --- Fixtures ---
 function historyFixture() {

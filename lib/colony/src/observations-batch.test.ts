@@ -69,7 +69,7 @@ const mappingCases = [
 ] as const;
 const failureCases = [{ kind: "before" }, { kind: "after" }, { kind: "sync" }] as const;
 
-test.each(countCases)("batch gates only due IDs for $name", async (scenario) => {
+test.each(countCases)("batch gates only due IDs for $name #test-719", async (scenario) => {
 	const fixture = batchFixture(scenario.seeds);
 	await publishRunningStdoutActivities(fixture.context, fixture.inputs, fixture.readActivity);
 	const ids = scenario.due.map((index) => fixture.inputs[index]!.receipt.spawnId);
@@ -158,7 +158,7 @@ test.each([...mappingCases])(
 	},
 );
 
-test("later cohorts have a separate fresh gate and cannot erase earlier committed effects", async () => {
+test("later cohorts have a separate fresh gate and cannot erase earlier committed effects #test-745", async () => {
 	const laterCohorts = batchFixture(["due", "due", "due", "due", "due", "due"]);
 	const first = laterCohorts.inputs.slice(ZERO, FOUR);
 	const later = laterCohorts.inputs.slice(FOUR);
@@ -235,7 +235,7 @@ test("snapshot reuse authorizes only a no-op even if native detail has since cha
 	expect(noOpOnly.trace).toEqual([]);
 });
 
-test("all stdout sampling precedes the final gate and comments retain the sampled source time", async () => {
+test("all stdout sampling precedes the final gate and comments retain the sampled source time #test-742", async () => {
 	const sampling = batchFixture(["due", "due"], "/fixture/sampling-order");
 	let gated = false;
 	const context = withGate(sampling, (scope, ids) => {
@@ -254,7 +254,7 @@ test("all stdout sampling precedes the final gate and comments retain the sample
 	}
 });
 
-test("stdout sampling failure preserves its cause before any native gate or comment", async () => {
+test("stdout sampling failure preserves its cause before any native gate or comment #test-730", async () => {
 	const samplingFailure = batchFixture();
 	const error = new Error("Owned stdout metadata is unreadable");
 	await expect(
@@ -275,7 +275,7 @@ test("native gate failure retains its cause and starts no comments", async () =>
 	expect(readFailure.writes).toEqual([]);
 });
 
-test("all distinct comments start immediately and retain every sibling effect", async () => {
+test("all distinct comments start immediately and retain every sibling effect #test-746", async () => {
 	const pending = batchFixture();
 	const controls = pending.inputs.map(() => Promise.withResolvers<void>());
 	const started: string[] = [];

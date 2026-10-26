@@ -17,7 +17,7 @@ export default function (pi) {
 			if (typeof output.context !== "string") throw new Error("Invalid alert callback output");
 			context = output.context;
 		} catch (error) {
-			context = "Beeswax tracker alert check failed. Stop Beads workflows and ordinary tracker operations on the selected endpoint; do not merge. Unrelated non-Beads work and explicitly user-authorized native tracker inspection/recovery may continue. Recheck independent alert status. With no known hold, a healthy check of this endpoint with no active incident restores baseline; do not announce clearance. Clearance is unverified for any known hold, including a handoff or sync failure. A failed check or missing receipt cannot release it. Announce verified matching or newer clearance before resuming that work. Diagnostics: " + String(error);
+			context = "Beeswax tracker alert check failed; the selected endpoint's incident state is unverified. Pause Beads work and merges involving this endpoint; independent non-Beads work may continue. This failure does not establish a new incident or clear a known hold. Read beeswax skills get tracker-recovery to recheck status and decide when work can resume. Diagnostics: " + String(error);
 		}
 		const messages = event.messages.filter((message) => message.customType !== "beeswax-tracker-alert");
 		if (context) messages.push({ role: "custom", customType: "beeswax-tracker-alert", content: context, display: true, timestamp: Date.now() });

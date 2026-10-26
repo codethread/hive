@@ -278,7 +278,7 @@ test.each([
 test.each([
 	{ ...graph, nodes: 0, edges: 0, adjacency: undefined },
 	{ ...graph, nodes: 0, edges: 0, adjacency: { nodes: [], edges: JSON.parse("null") } },
-])("graph accepts native empty adjacency encodings: %j", async (output) => {
+])("graph accepts native empty adjacency encodings: %j #test-707", async (output) => {
 	expect(await nativeFixture(output).readGraph(graphInput)).toEqual({
 		nodes: [],
 		edges: [],
