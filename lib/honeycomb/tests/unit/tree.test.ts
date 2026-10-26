@@ -51,7 +51,7 @@ const worktrees: Worktree[] = [
 	}),
 );
 
-test("free members stay flat while an active member at the same HEAD can parent a stack", () => {
+test("free members stay flat while an active member at the same HEAD can parent a stack #test-694", () => {
 	expect(formatWorktreeTree(buildTree())).toMatchInlineSnapshot(`
 	  "Worktrees (default-branch groups; inferred feature stacks, not creation history)
 	  └── trunk [canonical] [default]

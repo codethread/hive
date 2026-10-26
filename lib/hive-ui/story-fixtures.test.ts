@@ -44,7 +44,7 @@ test("multiple workflow fixtures retain both completed work and an unfinished ol
 	]);
 });
 
-test("workflow fixtures mark generated work while preserving agent-created supporting tasks", () => {
+test("workflow fixtures mark generated work while preserving agent-created supporting tasks #test-714", () => {
 	expect(
 		workflowHierarchy.nodes.filter((node) => node.isWorkflowGenerated).map((node) => node.id),
 	).toEqual([

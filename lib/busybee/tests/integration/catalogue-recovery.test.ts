@@ -1,16 +1,10 @@
 import { BusyBeeError, createServices } from "../../src/native.ts";
-import {
-	commandSchemas,
-	inputSchema,
-	machine,
-	resumeSchema,
-	runBrief,
-} from "../../../../.workflows/do-feature-task/workflow.ts";
 import { complete, navigate, startNamed } from "../../src/runtime.ts";
-import { createMachine, initialTransition } from "xstate";
 import { expect, test } from "bun:test";
 import type { Services } from "../../src/native.ts";
+import { createMachine } from "xstate";
 import { createMemoryBeads } from "@hive/beads";
+import { z } from "zod";
 
 const FIRST = 0;
 const ONE_ACTIVE_VISIT = 1;
@@ -19,15 +13,34 @@ const basePath = "/feature";
 const isolationPath = "/task";
 const db = "/selected/beads.db";
 const actor = "simulated-driver";
-const evidence = "SIMULATED catalogue recovery, not real reviews, integration or cleanup.";
+const evidence = "Saved outcome";
 const bytes = new TextEncoder().encode("unchanged canonical definition").buffer;
-const manifest = 'description="Feature delivery"\nversion="0.3.0"\nrun="./workflow.ts"';
+const manifest = 'description="Recovery fixture"\nversion="0.3.0"\nrun="./workflow.ts"';
+const inputSchema = z.object({});
+const commandSchemas = { next: z.object({ evidence: z.string() }) };
+const task = {
+	title: "Work",
+	commands: { next: "NEXT" },
+	task: () => ({ instructions: "Complete work" }),
+};
+const definition = {
+	inputSchema,
+	commandSchemas,
+	runBrief: () => ({ title: "Recovery", description: "Resume from the surviving catalogue" }),
+	machine: createMachine({
+		id: "recovery",
+		initial: "first",
+		states: {
+			first: { meta: task, on: { NEXT: "second" } },
+			second: { meta: task, on: { NEXT: "done" } },
+			done: { type: "final" },
+		},
+	}),
+};
 
-// Mirror the injected authoring/catalogue harness in compatibility.test.ts.
-// The rendered-brief test separately checks the definition selects this caller checkout.
-test.each(["prepare", "deliver"] as const)(
-	"canonical catalogue resumes %s after the feature definition breaks and the task checkout disappears #test-333",
-	// eslint-disable-next-line max-statements -- Keep one named-run recovery and native closure boundary together.
+test.each(["first", "second"] as const)(
+	"canonical catalogue resumes %s after version mismatch and checkout loss #test-333",
+	// eslint-disable-next-line max-statements -- Keep catalogue recovery and source-closure assertions together.
 	async (position) => {
 		const beads = createMemoryBeads({ db });
 		const scope = { actor, cwd: canonicalRoot, db };
@@ -42,15 +55,9 @@ test.each(["prepare", "deliver"] as const)(
 		const dependent = await beads.create(scope, { title: "Dependent", owner: "ct" });
 		await beads.dep.add(scope, dependent.id, source.id, "blocks");
 		await beads.dep.add(scope, source.id, prerequisite.id, "blocks");
-		if (position === "deliver") {
+		if (position === "second") {
 			await beads.close(scope, prerequisite.id);
 		}
-		const input = inputSchema.parse({
-			canonicalRoot,
-			base: { path: basePath, branch: "feat/example" },
-			isolation: { path: isolationPath, branch: "task/example" },
-		});
-		const selected = reportingMachine(position, input);
 		let featureChanged = false;
 		const imports: string[] = [];
 		const io: Services = {
@@ -69,7 +76,7 @@ test.each(["prepare", "deliver"] as const)(
 					);
 				}
 				if (path === "input.json") {
-					return Promise.resolve(JSON.stringify(input));
+					return Promise.resolve("{}");
 				}
 				if (featureChanged && path.startsWith(`${basePath}/`)) {
 					return Promise.resolve(manifest.replace("0.3.0", "0.4.0"));
@@ -78,17 +85,16 @@ test.each(["prepare", "deliver"] as const)(
 			},
 			importModule: (path) => {
 				imports.push(path);
-				return Promise.resolve({
-					commandSchemas,
-					inputSchema,
-					machine: selected,
-					resumeSchema,
-					runBrief,
-				});
+				return Promise.resolve(definition);
 			},
 		};
 		const options = { db, owner: "ct", parent: source.id, inputFile: "input.json" };
-		const run = await startNamed("do-feature-task", options, io);
+		let run = await startNamed("example", options, io);
+		if (position === "second") {
+			const first = run.active[FIRST]!.bead;
+			await complete({ id: run.id, bead: first, choice: "next", data: { evidence } }, { db }, io);
+			run = await navigate({ id: run.id, operation: "collect" }, { db }, io);
+		}
 		const stage = run.active[FIRST]!.bead;
 		const beforeStage = await beads.show(scope, stage);
 		featureChanged = true;
@@ -116,7 +122,7 @@ test.each(["prepare", "deliver"] as const)(
 			io,
 		);
 		expect(restored.active).toMatchObject([{ bead: stage }]);
-		if (position === "prepare") {
+		if (position === "first") {
 			await beads.close(scope, prerequisite.id);
 		}
 
@@ -135,9 +141,9 @@ test.each(["prepare", "deliver"] as const)(
 		expect(await beads.ready(scope)).not.toContainEqual(
 			expect.objectContaining({ id: dependent.id }),
 		);
-		if (position === "deliver") {
+		if (position === "second") {
 			expect(next).toMatchObject({ status: "done", active: [] });
-			// Only the distinct authorized caller tail releases the source's dependent.
+			// Source closure is a separate caller action, not an effect of workflow completion.
 			await beads.close(scope, source.id, { reason: evidence });
 			expect(await beads.ready(scope)).toContainEqual(
 				expect.objectContaining({ id: dependent.id }),
@@ -149,17 +155,3 @@ test.each(["prepare", "deliver"] as const)(
 		}
 	},
 );
-
-function reportingMachine(
-	position: "prepare" | "deliver",
-	input: Parameters<typeof runBrief>[typeof FIRST],
-) {
-	if (position === "prepare") {
-		return machine;
-	}
-	const [initial] = initialTransition(machine, input);
-	return createMachine(
-		{ ...machine.config, initial: "deliver", context: { ...initial.context, evidence } },
-		{ actions: machine.implementations.actions },
-	);
-}

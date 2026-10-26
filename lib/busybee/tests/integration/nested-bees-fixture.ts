@@ -1,9 +1,3 @@
-import {
-	commandSchemas,
-	inputSchema,
-	machine,
-	runBrief,
-} from "../../examples/nested-bees/workflow.ts";
 import { complete, navigate, start } from "../../src/runtime.ts";
 import {
 	spawnRequestLabels,
@@ -11,24 +5,47 @@ import {
 	workflowSimulationSchema,
 } from "@hive/shared";
 import type { Services } from "../../src/native.ts";
+import type { WorkflowSimulationRequest } from "@hive/shared";
 import { captureCli } from "./support.ts";
 import { createMemoryBeads } from "@hive/beads";
 import { createServices } from "../../src/native.ts";
 import { inspect } from "../../src/preview.ts";
+import { simulate as simulateWorkflow } from "../../src/simulation.ts";
 
-const definition = { machine, commandSchemas, inputSchema, runBrief };
 const FIRST = 0;
 const KIND_ARGUMENT = 3;
 const STAGE_ARGUMENT = 4;
 const RUN_ARGUMENT = 6;
 const db = "/nested-bees-fixture/beads.db";
 const repo = "/nested-bees-fixture";
-const scope = { actor: "example-driver", cwd: repo, db };
-const options = { actor: scope.actor, repo, db };
 
-/** Capture public inspection and simulation from an in-memory run with mocked Bee dispatch. */
-// eslint-disable-next-line max-statements -- Capture consecutive frontiers from one isolated authored run.
+/** Capture shipped-example responses, validating successful outputs for serialization. */
 export async function captureNestedBees() {
+	const fixture = await startNestedBees();
+	const simulation = await fixture.simulate();
+	const completion = await fixture.finish();
+	return {
+		captured: {
+			started: workflowInspectionSchema.parse(fixture.started),
+			mixed: workflowInspectionSchema.parse(simulation.captured.mixed),
+			handoff: workflowInspectionSchema.parse(completion.handoff),
+			unsupported: simulation.captured.unsupported,
+			childSaved: workflowSimulationSchema.parse(simulation.captured.childSaved),
+			childSimulation: workflowSimulationSchema.parse(simulation.captured.childSimulation),
+			interfaceSimulation: workflowSimulationSchema.parse(simulation.captured.interfaceSimulation),
+		},
+	};
+}
+
+/** Use memory Beads and mocked dispatch while reading the shipped example from disk. */
+// eslint-disable-next-line max-statements -- Keep run setup and its simulation/completion continuations together.
+async function startNestedBees() {
+	const scope = { actor: "example-driver", cwd: repo, db };
+	const options = { actor: scope.actor, repo, db };
+	const { definition, source } = {
+		definition: await import("../../examples/nested-bees/workflow.ts"),
+		source: import.meta.resolve("../../examples/nested-bees/workflow.ts").replace("file://", ""),
+	};
 	const beads = createMemoryBeads({ db });
 	const calls: string[][] = [];
 	const services: Services = {
@@ -62,11 +79,7 @@ export async function captureNestedBees() {
 		},
 	};
 	const parent = await beads.create(scope, { title: "Deliver a small change", owner: "ct" });
-	let run = await start(
-		import.meta.resolve("../../examples/nested-bees/workflow.ts").replace("file://", ""),
-		{ ...options, owner: "ct", parent: parent.id },
-		services,
-	);
+	let run = await start(source, { ...options, owner: "ct", parent: parent.id }, services);
 	const records = async () => {
 		const { issues } = await beads.list(scope, { all: true, limit: FIRST });
 		return beads.showMany(
@@ -75,7 +88,7 @@ export async function captureNestedBees() {
 		);
 	};
 	const beforeInspection = await records();
-	const started = workflowInspectionSchema.parse(await inspect(run.id, options, services));
+	const started = await inspect(run.id, options, services);
 	const afterInspection = await records();
 	const originalVisits = run.created;
 	const finishVisit = async (path: string[], node: string) => {
@@ -86,19 +99,28 @@ export async function captureNestedBees() {
 		run = await navigate({ id: run.id, operation: "collect" }, options, services);
 	};
 	await finishVisit(["api"], "nested-worker.implement");
-	const mixed = workflowInspectionSchema.parse(await inspect(run.id, options, services));
+	return { started, calls, originalVisits, beforeInspection, afterInspection, simulate, finish };
 
-	const beforeSimulation = await records();
-	const request = {
-		checkpoint: mixed.checkpoint,
-		savedAt: mixed.savedAt,
-		definitionHash: mixed.definition.currentHash,
-		actorId: mixed.actors[FIRST]!.id,
-		start: { kind: "saved" },
-		events: [],
-	};
-	const simulate = (body: unknown) =>
-		captureCli(
+	// eslint-disable-next-line max-statements -- Capture saved and replayed child frontiers without publication.
+	async function simulate() {
+		const mixed = await inspect(run.id, options, services);
+		const beforeSimulation = await records();
+		const request: WorkflowSimulationRequest = {
+			checkpoint: mixed.checkpoint,
+			savedAt: mixed.savedAt,
+			definitionHash: mixed.definition.currentHash,
+			actorId: mixed.actors[FIRST]!.id,
+			start: { kind: "saved" },
+			events: [],
+		};
+		// Keep child replays typed; only root rejection needs the CLI failure envelope.
+		const replay = (body: WorkflowSimulationRequest) =>
+			simulateWorkflow({ id: run.id, request: body }, options, {
+				...services,
+				beforeWrite: forbidden,
+				execute: forbidden,
+			});
+		const unsupported = await captureCli(
 			[
 				"--repo",
 				repo,
@@ -108,51 +130,49 @@ export async function captureNestedBees() {
 				"simulate",
 				run.id,
 				"--request",
-				JSON.stringify(body),
+				JSON.stringify(request),
 				"--json",
 			],
 			{ ...services, beforeWrite: forbidden, execute: forbidden },
 		);
-	const unsupported = await simulate(request);
-	const childSaved = await simulate({ ...request, actorId: 'actor:["api"]' });
-	const child = await simulate({
-		...request,
-		actorId: 'actor:["api"]',
-		events: [{ node: "nested-worker.verify", command: "next", data: {} }],
-	});
-	const interfaceReplay = await simulate({
-		...request,
-		actorId: 'actor:["interface"]',
-		events: [{ node: "nested-worker.implement", command: "next", data: {} }],
-	});
-	const childSimulation = workflowSimulationSchema.parse(JSON.parse(child.stdout));
-	const afterSimulation = await records();
-	await finishVisit(["api"], "nested-worker.verify");
-	await finishVisit(["interface"], "nested-worker.implement");
-	await finishVisit(["interface"], "nested-worker.verify");
-	const handoff = workflowInspectionSchema.parse(await inspect(run.id, options, services));
-	await finishVisit([], "nested-bees.handoff");
-	return {
-		captured: {
-			started,
-			mixed,
+		const childSaved = await replay({ ...request, actorId: 'actor:["api"]' });
+		const child = await replay({
+			...request,
+			actorId: 'actor:["api"]',
+			events: [{ node: "nested-worker.verify", command: "next", data: {} }],
+		});
+		const interfaceReplay = await replay({
+			...request,
+			actorId: 'actor:["interface"]',
+			events: [{ node: "nested-worker.implement", command: "next", data: {} }],
+		});
+		return {
+			captured: {
+				mixed,
+				unsupported: JSON.parse(unsupported.stdout),
+				childSaved,
+				childSimulation: child,
+				interfaceSimulation: interfaceReplay,
+			},
+			unsupportedCode: unsupported.code,
+			beforeSimulation,
+			afterSimulation: await records(),
+		};
+	}
+
+	async function finish() {
+		await finishVisit(["api"], "nested-worker.verify");
+		await finishVisit(["interface"], "nested-worker.implement");
+		await finishVisit(["interface"], "nested-worker.verify");
+		const handoff = await inspect(run.id, options, services);
+		await finishVisit([], "nested-bees.handoff");
+		return {
 			handoff,
-			unsupported: JSON.parse(unsupported.stdout),
-			childSaved: workflowSimulationSchema.parse(JSON.parse(childSaved.stdout)),
-			childSimulation,
-			interfaceSimulation: workflowSimulationSchema.parse(JSON.parse(interfaceReplay.stdout)),
-		},
-		unsupportedCode: unsupported.code,
-		calls,
-		originalVisits,
-		beforeInspection,
-		afterInspection,
-		beforeSimulation,
-		afterSimulation,
-		finalRun: run,
-		parent: await beads.show(scope, parent.id),
-		records: await records(),
-	};
+			finalRun: run,
+			parent: await beads.show(scope, parent.id),
+			records: await records(),
+		};
+	}
 }
 
 function forbidden(): never {

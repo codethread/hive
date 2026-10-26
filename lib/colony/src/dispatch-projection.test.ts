@@ -148,7 +148,7 @@ test.each(failureCases)(
 );
 
 test.each(driftCases)(
-	"waiting discovery rejects %s drift without replacing captured authority",
+	"waiting discovery rejects %s drift without replacing captured authority #test-743",
 	async (field) => {
 		const fixture = await waitingFixture();
 		const { beads, scope, id, record } = fixture;

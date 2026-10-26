@@ -262,6 +262,47 @@ test("start publishes an initial worker and one JSON success document through th
 	expect(retried.history).toEqual(advanced.history);
 	expect(retried.created).toEqual(advanced.created);
 });
+test("missing required input prevents task publication #test-21", async () => {
+	const beads = createMemoryBeads({ db });
+	const scope = { actor: "test-agent", cwd: repo, db };
+	const parent = await beads.create(scope, { title: "Original work", owner: "ct" });
+	const io: Services = {
+		...services,
+		actor: "test-agent",
+		beads,
+		beforeWrite: () => {
+			throw new Error("Invalid input must fail before publication");
+		},
+		execute: () => Promise.resolve(repo),
+		importModule: () =>
+			Promise.resolve({
+				inputSchema: z.object({ request: z.string() }),
+				commandSchemas: { next: z.object({}) },
+				runBrief: () => ({ title: "Run", description: "Required input" }),
+				machine: createMachine({
+					initial: "work",
+					states: {
+						work: {
+							meta: {
+								title: "Work",
+								commands: { next: "NEXT" },
+								task: () => ({ instructions: "Complete work" }),
+							},
+							on: { NEXT: "done" },
+						},
+						done: { type: "final" },
+					},
+				}),
+			}),
+	};
+	const selection = { all: true, limit: FIRST };
+	const before = await beads.list(scope, selection);
+	await expect(
+		invoke(["--owner", "ct", "--parent", parent.id, "run", "example"], io),
+	).resolves.toMatchObject({ document: { ok: false, reason: "invalid_input" } });
+	expect(await beads.list(scope, selection)).toEqual(before);
+});
+
 // Inspect the complete recovery diagnostic and preservation proof together.
 // eslint-disable-next-line max-statements
 test("show rejects a changed named checkpoint before import with authorized same-scope recovery #test-54", async () => {

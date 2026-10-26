@@ -560,8 +560,9 @@ function registerNavigation(invocation: Invocation): void {
 				"Under the workflow system record's lock, complete saves the immutable original and " +
 				"requested successful completion together before guarded native closure. " +
 				"Current native checklist items, children, blockers and reservations remain gates; " +
-				"the engine never ticks acceptance. Notes remain untouched. A gate refusal retains result and intent and " +
-				"releases ownership. Retry with the same original choice/data, or reconcile RUN. " +
+				"the engine never ticks acceptance. Notes remain untouched. If closure is refused after saving, " +
+				"result and intent remain; ownership releases when possible. Inspect reported effects, then " +
+				"retry with the same original choice/data, or reconcile RUN. " +
 				"A conflicting original fails. Matching retries after collection never replay the transition. " +
 				"Complete does not advance; the driver runs collect RUN. Requires --actor or BD_ACTOR.",
 		)

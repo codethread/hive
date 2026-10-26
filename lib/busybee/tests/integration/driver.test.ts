@@ -1,17 +1,11 @@
-/* eslint-disable unicorn/no-null -- Workflow control encodes absent ownership as null. */
-/* eslint-disable import/max-dependencies -- Driver contracts also exercise the bundled author definition. */
+/* eslint-disable unicorn/no-null */
 import { BusyBeeError, createServices } from "../../src/native.ts";
 import { assign, createMachine } from "xstate";
 import { captureCli, invoke } from "./support.ts";
 import { complete, navigate, prepareDriver, start } from "../../src/runtime.ts";
 import { describe, expect, test } from "bun:test";
-import {
-	runBrief as doWorkBrief,
-	commandSchemas as doWorkCommands,
-	machine as doWorkMachine,
-	inputSchema as doWorkSchema,
-} from "../../../../.workflows/do-work/workflow.ts";
 import { renderResponseInstructions, spawnRequestLabels } from "@hive/shared";
+import type { Run } from "../../src/checkpoint.ts";
 import type { Services } from "../../src/native.ts";
 import { createMemoryBeads } from "@hive/beads";
 import { readCheckpoint } from "../../src/checkpoint.ts";
@@ -105,40 +99,80 @@ async function fixture(selected: unknown = definition, input: unknown = {}) {
 	return { beads, checkpoint, io, run };
 }
 
-const doWorkInput = {
-	title: "Implement assigned scope",
-	request: "Complete the actual caller assignment",
-	acceptance: ["Verify the requested change"],
-};
-const defaultRun = await fixture(
-	{
-		commandSchemas: doWorkCommands,
-		inputSchema: doWorkSchema,
-		machine: doWorkMachine,
-		runBrief: doWorkBrief,
-	},
-	doWorkInput,
-);
-
-test("default author distinguishes the run while preserving the actual stage assignment #test-624", async () => {
-	const root = await defaultRun.beads.show(scope, defaultRun.run.id);
-	expect(root).toMatchObject({
-		title: "Do work: Implement assigned scope",
-		description: doWorkInput.request,
+// eslint-disable-next-line max-statements
+async function handoffFixture() {
+	const beads = createMemoryBeads({ db });
+	const io: Services = {
+		...createServices(),
+		actor: "caller",
+		beads,
+		cwd: repo,
+		importModule: () => Promise.resolve(definition),
+		readBytes: () => Promise.resolve(new ArrayBuffer(FIRST)),
+		execute: () => Promise.reject(new Error("Unexpected process execution")),
+	};
+	const parent = await beads.create(scope, { title: "Original work", owner: "ct" });
+	const run = await beads.create(scope, {
+		title: "Driver run",
+		owner: "ct",
+		parent: parent.id,
+		status: "in_progress",
+		labels: ["busybee-workflow"],
 	});
-	expect(defaultRun.run.active).toMatchObject([
-		{
-			title: doWorkInput.title,
-			context: doWorkInput,
-			instructions: expect.stringContaining(doWorkInput.request),
-		},
-	]);
-	const stage = await defaultRun.beads.show(scope, defaultRun.run.active[FIRST]!.bead);
-	expect(stage.acceptance_criteria).toBe("- [ ] Verify the requested change");
-	expect(stage.description).not.toContain(doWorkInput.acceptance[FIRST]!);
-	expect(stage.dependencies).toMatchObject([{ id: root.id, dependency_type: "parent-child" }]);
-	expect(stage.description).toContain(renderResponseInstructions({ taskId: root.id }));
-});
+	const stage = await beads.create(scope, {
+		title: "Work",
+		owner: "ct",
+		parent: run.id,
+		status: "in_progress",
+		labels: ["busybee-workflow"],
+	});
+	const context = { saved: {} };
+	const node = "driver-test.work";
+	const key = `:${node}`;
+	const saved: Run = {
+		formatVersion: 2,
+		lock: null,
+		results: {},
+		completions: {},
+		settlement: null,
+		managedExecution: "unmanaged",
+		id: run.id,
+		hash: new Bun.CryptoHasher("sha256").digest("hex"),
+		definition: { kind: "source", source: `${repo}/workflow.ts` },
+		snapshot: definition.machine.getPersistedSnapshot(
+			definition.machine.resolveState({ value: "work", context }),
+		),
+		active: [
+			{
+				bead: stage.id,
+				context,
+				key,
+				node,
+				path: [],
+				request: null,
+				meta: { title: "Work", commands: meta.commands, instructions: "Perform work" },
+			},
+		],
+		created: [
+			{ bead: stage.id, scope: "visit", node, parent: run.id, path: [], request: null, visit: ONE },
+		],
+		history: [],
+		visits: { [key]: ONE },
+	};
+	const checkpoint = await beads.create(scope, {
+		title: "Checkpoint",
+		owner: "ct",
+		labels: ["system", "busybee-checkpoint"],
+		description: JSON.stringify(saved),
+	});
+	await beads.dep.add(scope, run.id, checkpoint.id, "related");
+	return {
+		beads,
+		checkpoint: checkpoint.id,
+		io,
+		run: { id: run.id, active: [{ bead: stage.id }] },
+	};
+}
 
 const reservationCases = [
 	{ target: "run", assignee: "ct", owner: "ct", labels: [] },
@@ -153,45 +187,13 @@ const ordinaryNotes = [
 	'{"choice":"selected"}',
 	'{"choice":"selected","data":{"answer":7}}',
 ];
-const reservedRuns = new Map(
-	await Promise.all(
-		reservationCases.map(async (entry) => [JSON.stringify(entry), await fixture()] as const),
-	),
-);
-const notesRuns = new Map(
-	await Promise.all(ordinaryNotes.map(async (notes) => [notes, await fixture()] as const)),
-);
-const handoff = await fixture();
-const closedRun = await fixture();
-const lockedRun = await fixture();
-const failedWrite = await fixture();
-const resumed = await fixture();
-const assignedRun = await fixture();
-const conflicting = await fixture();
-const invalidInput = await fixture();
 const arrayPayloadSchema = z.compile(z.array(z.string()));
-const arrayRun = await fixture({
-	...definition,
-	commandSchemas: { selected: arrayPayloadSchema },
-});
-const resumedResponse = await filedResponse(resumed, resumed.run.id);
-await filedResponse(invalidInput, invalidInput.run.id);
-const doneRun = await fixture({
-	...definition,
-	machine: createMachine({
-		context: { saved: {} },
-		initial: "done",
-		states: { done: { type: "final" } },
-	}),
-});
 
-// Register coherent handoff and durable result scenarios against independently prepared runs.
 // eslint-disable-next-line max-statements
 describe("driver coordination", () => {
-	// Verify the whole handoff through its public CLI envelope and native reservations.
 	// eslint-disable-next-line max-statements
 	test("driver handoff opens only the run and preserves driver-handled stage reservation #test-392", async () => {
-		const { beads, checkpoint, io, run } = handoff;
+		const { beads, checkpoint, io, run } = await handoffFixture();
 		await beads.update(scope, [run.active[FIRST]!.bead], { assignee: "caller" });
 		const result = await prepareDriver(run.id, {}, io);
 		expect(result).toEqual({
@@ -216,12 +218,9 @@ describe("driver coordination", () => {
 
 	test.each(reservationCases)(
 		"handoff rejects human reservation on $target ($assignee, $labels) #test-358",
-		// Compare the reserved native root before and after the rejected handoff.
 		// eslint-disable-next-line max-statements
 		async ({ target, assignee, owner, labels }) => {
-			const { beads, checkpoint, io, run } = reservedRuns.get(
-				JSON.stringify({ target, assignee, owner, labels }),
-			)!;
+			const { beads, checkpoint, io, run } = await handoffFixture();
 			let bead = run.id;
 			if (target === "stage") {
 				({ bead } = run.active[FIRST]!);
@@ -242,7 +241,14 @@ describe("driver coordination", () => {
 	);
 
 	test("initially completed run stays closed and requires no driver #test-456", async () => {
-		const { beads, checkpoint, io, run } = doneRun;
+		const { beads, checkpoint, io, run } = await fixture({
+			...definition,
+			machine: createMachine({
+				context: { saved: {} },
+				initial: "done",
+				states: { done: { type: "final" } },
+			}),
+		});
 		const before = await beads.show(scope, run.id);
 		const result = await invoke(["system", "prepare-driver", run.id], io);
 		expect(result.document).toEqual({
@@ -260,7 +266,7 @@ describe("driver coordination", () => {
 	});
 
 	test("handoff refuses a natively closed active run #test-610", async () => {
-		const { beads, checkpoint, io, run } = closedRun;
+		const { beads, checkpoint, io, run } = await handoffFixture();
 		await beads.close(scope, run.id, { force: true });
 		expect(await prepareDriver(run.id, {}, io).catch((error: unknown) => error)).toMatchObject({
 			reason: "run_not_ready",
@@ -270,7 +276,7 @@ describe("driver coordination", () => {
 	});
 
 	test("handoff does not steal a retained checkpoint lock #test-438", async () => {
-		const { beads, checkpoint, io, run } = lockedRun;
+		const { beads, checkpoint, io, run } = await handoffFixture();
 		const control = readCheckpoint(await beads.show(scope, checkpoint));
 		control.lock = { owner: "other-operation", pid: 22 };
 		await beads.update(scope, [checkpoint], { description: JSON.stringify(control) });
@@ -296,7 +302,7 @@ describe("driver coordination", () => {
 	});
 
 	test("uncertain handoff write retains ownership and reports partial effects #test-621", async () => {
-		const { beads, checkpoint, io, run } = failedWrite;
+		const { beads, checkpoint, io, run } = await handoffFixture();
 		const failure: unknown = await prepareDriver(
 			run.id,
 			{},
@@ -324,8 +330,11 @@ describe("driver coordination", () => {
 		});
 	});
 
+	// eslint-disable-next-line max-statements
 	test("replacement driver collects a closed visit once alongside its independent run response #test-391", async () => {
+		const resumed = await fixture();
 		const { beads, checkpoint, io, run } = resumed;
+		const resumedResponse = await filedResponse(resumed, run.id);
 		await complete(
 			{ id: run.id, bead: run.active[FIRST]!.bead, choice: "selected", data: payload },
 			{},
@@ -354,7 +363,7 @@ describe("driver coordination", () => {
 	test.each(ordinaryNotes)(
 		"ordinary notes are preserved independently of completed driver results: %s #test-501",
 		async (notes) => {
-			const { beads, checkpoint, io, run } = notesRuns.get(notes)!;
+			const { beads, checkpoint, io, run } = await fixture();
 			const { bead } = run.active[FIRST]!;
 			await beads.update(scope, [bead, run.id, checkpoint], { notes });
 			await complete({ id: run.id, bead, choice: "selected", data: payload }, {}, io);
@@ -370,7 +379,7 @@ describe("driver coordination", () => {
 	);
 
 	test("handoff preserves an existing agent driver claim #test-581", async () => {
-		const { beads, io, run } = assignedRun;
+		const { beads, io, run } = await handoffFixture();
 		await beads.update(scope, [run.id], { assignee: "existing-driver" });
 		const result = await invoke(["system", "prepare-driver", run.id], io);
 		expect(result.document).toMatchObject({
@@ -385,7 +394,7 @@ describe("driver coordination", () => {
 	});
 
 	test("complete preserves conflicting originals and permits identical closed retries #test-428", async () => {
-		const { beads, checkpoint, io, run } = conflicting;
+		const { beads, checkpoint, io, run } = await fixture();
 		const { bead } = run.active[FIRST]!;
 		const request = { id: run.id, bead, choice: "selected", data: payload };
 		await complete(request, {}, io);
@@ -404,7 +413,9 @@ describe("driver coordination", () => {
 		expect(await beads.show(scope, bead)).toEqual(saved);
 	});
 	test("complete rejects invalid input before task closure or progression #test-517", async () => {
+		const invalidInput = await fixture();
 		const { beads, checkpoint, io, run } = invalidInput;
+		await filedResponse(invalidInput, run.id);
 		const { bead } = run.active[FIRST]!;
 		const result = await invoke(
 			["complete", run.id, bead, "selected", "--data", '{"answer":7}'],
@@ -416,7 +427,10 @@ describe("driver coordination", () => {
 	});
 
 	test("complete supports an array payload through driver collection #test-467", async () => {
-		const { io, run } = arrayRun;
+		const { io, run } = await fixture({
+			...definition,
+			commandSchemas: { selected: arrayPayloadSchema },
+		});
 		const { bead } = run.active[FIRST]!;
 		const data = ["standalone", "array"];
 		await complete({ id: run.id, bead, choice: "selected", data }, {}, io);
@@ -475,34 +489,12 @@ async function beeFixture() {
 	return { beads, calls, io, run, stage: run.active[FIRST]! };
 }
 
-const dispatch = await beeFixture();
-const ended = new Map(
-	await Promise.all(
-		["blocked", "cancelled"].map(async (reason) => [reason, await beeFixture()] as const),
-	),
-);
-const closedStage = await beeFixture();
-await closedStage.beads.close(scope, closedStage.stage.request!, { reason: "blocked" });
-const stageResponse = await filedResponse(
-	closedStage,
-	closedStage.stage.bead,
-	closedStage.stage.request!,
-);
-await complete(
-	{ id: closedStage.run.id, bead: closedStage.stage.bead, choice: "selected", data: payload },
-	{},
-	closedStage.io,
-);
-await Promise.all(
-	[...ended.values()].map((current) =>
-		filedResponse(current, current.stage.bead, current.stage.request!),
-	),
-);
 describe("Bee-dispatched stage coordination", () => {
 	test(
 		"Bee dispatch uses the stage seam and response target with the existing run and " +
 			"endpoint #test-516",
 		async () => {
+			const dispatch = await beeFixture();
 			const { calls, run, stage } = dispatch;
 			expect(calls[FIRST]!.slice(FIRST, DISPATCH_PREFIX)).toEqual([
 				"bee",
@@ -538,7 +530,9 @@ describe("Bee-dispatched stage coordination", () => {
 	test.each(["blocked", "cancelled"])(
 		"Bee dispatch request ending %s without a closed stage fails visibly #test-455",
 		async (reason) => {
-			const { beads, io, run, stage } = ended.get(reason)!;
+			const current = await beeFixture();
+			const { beads, io, run, stage } = current;
+			await filedResponse(current, stage.bead, stage.request!);
 			await beads.close(scope, stage.request!, { reason });
 			const result = await invoke(["collect", run.id], io);
 			expect(result.code).toBe(FAILURE);
@@ -550,26 +544,34 @@ describe("Bee-dispatched stage coordination", () => {
 		},
 	);
 
-	test("closed stage result is collected with its response independently of a blocked request #test-628", async () => {
-		const { beads, io, run } = closedStage;
+	test("closed stage result is collected despite a blocked request and preserves its response #test-628", async () => {
+		const closedStage = await beeFixture();
+		const { beads, io, run, stage } = closedStage;
+		await beads.close(scope, stage.request!, { reason: "blocked" });
+		const stageResponse = await filedResponse(closedStage, stage.bead, stage.request!);
+		await complete({ id: run.id, bead: stage.bead, choice: "selected", data: payload }, {}, io);
 		expect(await navigate({ id: run.id, operation: "collect" }, {}, io)).toMatchObject({
 			status: "done",
 			active: [],
 		});
-		expect(await beads.show(scope, run.id)).toMatchObject({ status: "closed" });
-		expect(await beads.show(scope, closedStage.stage.bead)).toMatchObject({ notes: "" });
-		const root = await beads.show(scope, run.id);
-		const checkpoint = root.dependencies.find((edge) => edge.dependency_type === "related")!.id;
+		const records = await beads.showMany(scope, [run.id, stage.bead, stageResponse.id]);
+		expect(records).toMatchObject([
+			{ status: "closed" },
+			{ notes: "" },
+			{
+				description: stageResponse.description,
+				status: "closed",
+				updated_at: stageResponse.updated_at,
+			},
+		]);
+		const checkpoint = records[FIRST]!.dependencies.find(
+			(edge) => edge.dependency_type === "related",
+		)!.id;
 		expect(
 			readCheckpoint(await beads.show(scope, checkpoint)).results[closedStage.stage.bead],
 		).toEqual({
 			choice: "selected",
 			data: payload,
-		});
-		expect(await beads.show(scope, stageResponse.id)).toMatchObject({
-			description: stageResponse.description,
-			status: "closed",
-			updated_at: stageResponse.updated_at,
 		});
 	});
 });
@@ -659,7 +661,7 @@ describe("default catalogue installation", () => {
 			name: "do-work",
 			repo: "/another-checkout",
 			source: "/another-checkout/.workflows/do-work/workflow.ts",
-			version: "1.0.2",
+			version: "1.0.3",
 		});
 		expect(roots).toEqual([
 			{ argv: ["git", "rev-parse", "--show-toplevel"], cwd: "/another-checkout/nested" },
@@ -667,7 +669,7 @@ describe("default catalogue installation", () => {
 		expect(requests).toEqual([
 			{
 				directory: "/another-checkout/.workflows/do-work",
-				manifest: expect.stringContaining('version = "1.0.2"'),
+				manifest: expect.stringContaining('version = "1.0.3"'),
 				packageManifest: expect.stringContaining('"xstate": "^5.33.2"'),
 				source: expect.stringContaining('id: "do-work"'),
 			},

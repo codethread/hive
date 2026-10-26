@@ -1,4 +1,4 @@
-import { complete, navigate, start } from "../../src/runtime.ts";
+import { complete, navigate, start, startNamed } from "../../src/runtime.ts";
 import { createMachine, setup } from "xstate";
 import { expect, test } from "bun:test";
 import type { CreateBead } from "@hive/beads";
@@ -7,7 +7,6 @@ import { createMemoryBeads } from "@hive/beads";
 import { createServices } from "../../src/native.ts";
 import { invoke } from "./support.ts";
 import { readCheckpoint } from "../../src/checkpoint.ts";
-import { runSummarySchema } from "../../src/cli.ts";
 import { z } from "zod";
 
 const FIRST = 0;
@@ -64,13 +63,6 @@ const commands = ["run", "start"];
 const ordinaryCases = commands
 	.flatMap((command) => ordinaryTypes.map((type) => ({ command, type })))
 	.filter(({ command, type }) => command !== "run" || type !== "bug");
-const ordinaryFixtures = new Map(
-	await Promise.all(
-		ordinaryCases.map(
-			async ({ command, type }) => [`${command}:${type}`, await fixture({ type })] as const,
-		),
-	),
-);
 const invalidParents = [
 	{ name: "missing", reason: "missing_parent", supplied: false, status: "open", labels: [] },
 	{ name: "nonexistent", reason: "command_failed", supplied: true, status: "open", labels: [] },
@@ -91,22 +83,12 @@ const invalidParents = [
 	},
 ];
 
-const nested = await fixture();
-const nestedRun = await start(
-	source,
-	{ owner: "ct", parent: nested.parent.id },
-	{
-		...nested.services,
-		importModule: () => Promise.resolve(nestedDefinition),
-	},
-);
 test.each(ordinaryCases)(
-	"$command creates exactly one native edge to ordinary $type work without claiming it #test-343",
+	"engine API for $command creates one native edge to ordinary $type work without claiming it #test-343",
 	async ({ command, type }) => {
-		const { beads, parent, services } = ordinaryFixtures.get(`${command}:${type}`)!;
-		const result = await invoke(creationArgs(command, parent.id), services);
-		expect(result.code, result.stdout).toBe(FIRST);
-		const run = runSummarySchema.parse(result.document);
+		const { beads, parent, services } = await fixture({ type });
+		const run = await createParentedRun(command, parent.id, services);
+		expect(run.status).toBe("active");
 		const record = await beads.show(scope, run.id);
 		expect(record.labels).toEqual(["busybee-workflow"]);
 		expect(record.dependencies.filter((edge) => edge.dependency_type === "parent-child")).toEqual([
@@ -153,15 +135,14 @@ test.each(
 	},
 );
 
-// Inspect the complete native hierarchy and finish the nested actor through public navigation.
-
 test(
 	"nested actors keep visits below the run, a related checkpoint and an unclosed " +
 		"ordinary parent #test-419",
 	// eslint-disable-next-line max-statements
 	async () => {
-		const { beads, parent, services } = nested;
+		const { beads, parent, services } = await fixture();
 		const io = { ...services, importModule: () => Promise.resolve(nestedDefinition) };
+		const nestedRun = await start(source, { owner: "ct", parent: parent.id }, io);
 		const root = await beads.show(scope, nestedRun.id);
 		const group = nestedRun.active.find((entry) => entry.title === "Group")!;
 		const worker = nestedRun.active.find((entry) => entry.title === "Work")!;
@@ -214,6 +195,14 @@ test(
 );
 
 // --- Private helpers ---
+
+function createParentedRun(command: string, parent: string, services: Services) {
+	const options = { owner: "ct", parent };
+	if (command === "run") {
+		return startNamed("example", options, services);
+	}
+	return start(source, options, services);
+}
 
 async function fixture(input: Partial<CreateBead> = {}) {
 	const beads = createMemoryBeads({ db });

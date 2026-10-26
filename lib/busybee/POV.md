@@ -103,7 +103,7 @@ The next task is “Choose quick recipes.” Read each new visit's full native b
 
 ## Run Hive's landing workflow
 
-The [land definition](../../.workflows/land/workflow.ts) records an existing user request to land; starting it does not authorize landing. Inspect its input with `busybee input-schema land`. For authorized work, `/tmp/land-input.json` might contain:
+The [land definition](../../.workflows/land/workflow.ts) records authorized implementation scope; starting it grants no additional authority. Inspect its input with `busybee input-schema land`. For authorized work, `/tmp/land-input.json` might contain:
 
 ```json
 {
@@ -119,7 +119,7 @@ The [land definition](../../.workflows/land/workflow.ts) records an existing use
 busybee run land --parent hv-widget --owner ct --input-file /tmp/land-input.json --json
 ```
 
-The run is “Land worktree feature/widget” and the first task is “Finish and check: worktree feature/widget.” Choose `passed` after completing the agreed work and checks, or `integrated` with proof the change already landed. The normal path continues through Bee-dispatched review, commit/integration, verification and local tool update; findings or changed content return to check.
+The run is “Land worktree feature/widget” and the first task is “Finish and check: worktree feature/widget.” Choose `passed` after completing the agreed work and checks. Use `discover --json` and the active brief for timing exceptions, blockers or proven prior integration; the chart routes these separately rather than treating them as passing checks.
 
 Every outcome requires an `evidence` string. For example, after the first visit passes:
 

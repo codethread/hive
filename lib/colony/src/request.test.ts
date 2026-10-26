@@ -75,7 +75,7 @@ test("captured driver authority survives retries #test-476", () => {
 	});
 });
 
-test("newRequest captures spawn-bead authority and the selected database", () => {
+test("newRequest captures spawn-bead authority and the selected database #test-691", () => {
 	const repository: RepositoryEndpoint = {
 		root: "/canonical",
 		beadsDb: "/selected/tracker.db",
@@ -126,7 +126,7 @@ test("newRequest captures spawn-bead authority and the selected database", () =>
 
 // Sample JSON restoration separately from the typed lifecycle's per-transition authority checks.
 test.each(checkpoints)(
-	"JSON/schema restoration preserves $state checkpoints and their next transition",
+	"JSON/schema restoration preserves $state checkpoints and their next transition #test-686",
 	({ state, attemptId, claims, retryAt, event, expectedState }) => {
 		const initial = driverRecord();
 		const checkpoint: RequestRecord = {
@@ -150,7 +150,7 @@ test.each(checkpoints)(
 	},
 );
 
-test("restored stage authority rejects a changed identity", () => {
+test("restored stage authority rejects a changed identity #test-692", () => {
 	const initial = driverRecord();
 	const stage: RequestRecord = {
 		...initial,
