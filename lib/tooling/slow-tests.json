@@ -2381,6 +2381,14 @@
 			"threshold": "SLOW",
 			"justification": "User approved retaining measured timing-only blockers during the BV landing on 2026-10-23. lib/shared/src/spawn-request.test.ts: malformed assignment %j fails at the native boundary. Observed integrated full-check runtime: 2.784ms."
 		},
+		"#test-682": {
+			"threshold": "XSLOW",
+			"justification": "User approved this XSLOW exception on 2026-10-25: 'Approve these two exceptions' (question call_18d5df72ddda44a286d2ed378654d1f4; receipt /tmp/test-buffer-colony-native-allowance-approval.txt). lib/colony/src/inspection.test.ts retains full repository inspection and selected-request explain JSON across independent 0/1000-history SQLite stores, with real Unix socket/CLI composition and a memory tracker. Cold store creation, history seeding, calls and cleanup remain inside the measured test. Approval cited 49–56ms; /tmp/test-buffer-colony-native-root-changed.log and /tmp/test-buffer-colony-native-root-check.log measured 54.195ms and 55.962ms; fresh-process samples measured 48.77–52.78ms. Later /tmp/test-buffer-combined-check-4.log measured 66.453ms, still XSLOW; this does not revise the original approval range. The allowance changes the gate, not the cost or assertions."
+		},
+		"#test-683": {
+			"threshold": "SLOW",
+			"justification": "User approved this SLOW exception on 2026-10-25: 'Approve these two exceptions' (question call_18d5df72ddda44a286d2ed378654d1f4; receipt /tmp/test-buffer-colony-native-allowance-approval.txt). lib/colony/src/inspection.test.ts preserves native tracker evidence from a memory tracker when the selected runtime returns an error or its socket is unavailable, without falling back. Cold directory/tracker setup, real Unix socket/CLI calls and cleanup remain inside the measured test. Approval cited 2.3–5.2ms; /tmp/test-buffer-colony-native-root-changed.log and /tmp/test-buffer-colony-native-root-check.log measured 2.325ms and 5.170ms; fresh-process samples measured 2.32–2.41ms. The allowance changes the gate, not the cost or assertions."
+		},
 		"#test-684": {
 			"threshold": "SLOW",
 			"justification": "ct approved this measured allowance on 2026-10-26 (hv-4t52nj). Full check: 5.353ms; focused: 0.32-0.33ms. Retains shared-lockfile fingerprint changes and generated-dependency exclusion."
