@@ -346,8 +346,8 @@
 			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 397.157ms (lib/honeycomb/tests/integration/finish-preview.test.ts)."
 		},
 		"#test-99": {
-			"threshold": "XSLOW",
-			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 651.084ms (lib/honeycomb/tests/integration/finish-hooks.test.ts)."
+			"threshold": "DANGER",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 651.084ms (lib/honeycomb/tests/integration/finish-hooks.test.ts). ct approved measured severity increases on 2026-10-26 (hv-4t52nj). PR20 follow-up full check (pr20-postintegration2-continuation-2-check.log): squash/pre-commit rejection 1253.317ms, exceeding the buffered 1250ms DANGER cutoff. Retains real Git hook rejection as GitError, failure output with no integration or cleanup, unchanged source checkout and finish state, no unmerged paths and the expected staged files. The shared ID also retains merge-commit and rebase hook cases; this new measurement covers only squash/pre-commit. Only the allowance changes; the existing timeout and all test mechanics remain unchanged."
 		},
 		"#test-100": {
 			"threshold": "XSLOW",
@@ -1282,8 +1282,8 @@
 			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 4.676ms (lib/qlock/tests/cli.test.ts)."
 		},
 		"#test-343": {
-			"threshold": "SLOW",
-			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 4.503ms (lib/busybee/tests/integration/parents.test.ts)."
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 4.503ms (lib/busybee/tests/integration/parents.test.ts). ct authorized the measured severity increase on 2026-10-26 (hv-4t52nj): strict changed run, run/feature row 10.832ms. The existing shared table title retains active run creation with exactly one native parent edge, the workflow label and an unchanged ordinary parent; cold fixture creation stays measured."
 		},
 		"#test-345": {
 			"threshold": "SLOW",
@@ -1482,8 +1482,8 @@
 			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 1.606ms (lib/honeycomb/tests/unit/config-policy.test.ts)."
 		},
 		"#test-419": {
-			"threshold": "SLOW",
-			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 1.599ms (lib/busybee/tests/integration/parents.test.ts)."
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20; prior full/changed baseline: 1.599ms. ct authorized the measured severity increase on 2026-10-26 (hv-4t52nj): full check 15.365ms. Retains nested visit/group parentage and acceptance placement, a related system checkpoint outside the parent-child hierarchy, group/run closure and the unchanged ordinary parent's assignment and status."
 		},
 		"#test-420": {
 			"threshold": "XSLOW",
@@ -1578,8 +1578,8 @@
 			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 5.093ms (lib/busybee/tests/integration/driver.test.ts)."
 		},
 		"#test-456": {
-			"threshold": "SLOW",
-			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 5.830ms (lib/busybee/tests/integration/driver.test.ts)."
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 5.830ms (lib/busybee/tests/integration/driver.test.ts). ct authorized the measured severity increase on 2026-10-26 (hv-4t52nj): strict changed run 14.307ms. Retains prepare-driver's done response with run/checkpoint identity and an unchanged closed run; initially final workflow creation stays inside the measured test."
 		},
 		"#test-457": {
 			"threshold": "SLOW",
@@ -1654,8 +1654,8 @@
 			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.091ms (lib/colony/src/request.test.ts)."
 		},
 		"#test-477": {
-			"threshold": "SLOW",
-			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 6.624ms (lib/colony/src/run.test.ts)."
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 6.624ms (lib/colony/src/run.test.ts). ct approved measured severity increases on 2026-10-26 (hv-4t52nj). PR20 follow-up full check (pr20-postintegration2-finish-3-check.log): interactive attribution case 37.713ms. Retains one rendered interactive invocation, inherited directory/shell/tracker selection, fresh identity matching the actor, cleared request authority and an unchanged input environment. Recipe validation, prompt composition and identity creation stay measured with injected configuration and launch capture; no harness process is launched. Only the allowance changes."
 		},
 		"#test-478": {
 			"threshold": "SLOW",
@@ -1862,16 +1862,16 @@
 			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 6.866ms (lib/busybee/tests/unit/compatibility.test.ts)."
 		},
 		"#test-538": {
-			"threshold": "SLOW",
-			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 5.854ms (lib/colony/src/inspection.test.ts)."
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 5.854ms (lib/colony/src/inspection.test.ts). ct authorized this measured XSLOW increase on 2026-10-26 (hv-4t52nj). PR20 follow-up full check (pr20-postintegration2-prose-1-check.log): 24.293ms. Retains duplicate local reservations while excluding foreign-host, unbound and orphan requests through the real SQLite query. Cold store creation, fixture inserts, filtering and cleanup remain inside the measured case; no assertion, warmup or timeout change. This allowance changes the gate, not runtime."
 		},
 		"#test-539": {
-			"threshold": "SLOW",
-			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.774ms (lib/colony/src/inspection.test.ts)."
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.774ms (lib/colony/src/inspection.test.ts). ct authorized this measured XSLOW increase on 2026-10-26 (hv-4t52nj). PR20 follow-up full check (pr20-postintegration2-prose-1-check.log): 16.493ms. Retains fresh checkpoint point reads after replacement writes and undefined for a missing request through real SQLite and record parsing. Cold store creation, writes, reads and cleanup remain inside the measured case; no assertion, warmup or timeout change. This allowance changes the gate, not runtime."
 		},
 		"#test-540": {
-			"threshold": "SLOW",
-			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.110ms (lib/colony/src/inspection.test.ts)."
+			"threshold": "XSLOW",
+			"justification": "User approved this timing allowance on 2026-10-20 to retain existing coverage under strict timing gates. Maximum observed runtime in the full/changed baseline logs: 2.110ms (lib/colony/src/inspection.test.ts). ct authorized this measured XSLOW increase on 2026-10-26 (hv-4t52nj). PR20 follow-up full check (pr20-postintegration2-prose-1-check.log): registration /a.db row 26.133ms; checkpoint /a.db row 19.228ms. The shared table ID retains registration conflicts and lower/higher tracker conflicts in checkpoints or attempts after membership removal; only the named rows carry these measurements. Cold SQLite creation, retained evidence, authority checks and cleanup remain inside each measured case; no assertion, warmup or timeout change. This allowance changes the gate, not runtime."
 		},
 		"#test-541": {
 			"threshold": "XSLOW",
@@ -2342,8 +2342,8 @@
 			"justification": "User approved retaining measured timing-only blockers during the BV landing on 2026-10-23. lib/scent/tests/cli.test.ts: Pi installation exports its embedded module without reading the application. Worst observed full-check runtime: 6.944ms."
 		},
 		"#test-669": {
-			"threshold": "SLOW",
-			"justification": "User approved retaining measured timing-only blockers during the BV landing on 2026-10-23. lib/colony/src/dispatch-projection.test.ts: discovery waits for closed repair and sees a misprojected request created during repair. Worst observed full-check runtime: 6.696ms."
+			"threshold": "XSLOW",
+			"justification": "User approved retaining measured timing-only blockers during the BV landing on 2026-10-23. lib/colony/src/dispatch-projection.test.ts: discovery waits for closed repair and sees a misprojected request created during repair. Prior worst full-check runtime: 6.696ms. ct authorized the measured severity increase on 2026-10-26 (hv-4t52nj): full check 14.177ms. Retains closed-repair completion before open discovery, concurrent request discovery and label repair, projected reads without full-list fallback, and unchanged HITL work."
 		},
 		"#test-670": {
 			"threshold": "SLOW",
@@ -2380,6 +2380,234 @@
 		"#test-678": {
 			"threshold": "SLOW",
 			"justification": "User approved retaining measured timing-only blockers during the BV landing on 2026-10-23. lib/shared/src/spawn-request.test.ts: malformed assignment %j fails at the native boundary. Observed integrated full-check runtime: 2.784ms."
+		},
+		"#test-682": {
+			"threshold": "XSLOW",
+			"justification": "User approved this XSLOW exception on 2026-10-25: 'Approve these two exceptions' (question call_18d5df72ddda44a286d2ed378654d1f4; receipt /tmp/test-buffer-colony-native-allowance-approval.txt). lib/colony/src/inspection.test.ts retains full repository inspection and selected-request explain JSON across independent 0/1000-history SQLite stores, with real Unix socket/CLI composition and a memory tracker. Cold store creation, history seeding, calls and cleanup remain inside the measured test. Approval cited 49–56ms; /tmp/test-buffer-colony-native-root-changed.log and /tmp/test-buffer-colony-native-root-check.log measured 54.195ms and 55.962ms; fresh-process samples measured 48.77–52.78ms. Later /tmp/test-buffer-combined-check-4.log measured 66.453ms, still XSLOW; this does not revise the original approval range. The allowance changes the gate, not the cost or assertions."
+		},
+		"#test-683": {
+			"threshold": "SLOW",
+			"justification": "User approved this SLOW exception on 2026-10-25: 'Approve these two exceptions' (question call_18d5df72ddda44a286d2ed378654d1f4; receipt /tmp/test-buffer-colony-native-allowance-approval.txt). lib/colony/src/inspection.test.ts preserves native tracker evidence from a memory tracker when the selected runtime returns an error or its socket is unavailable, without falling back. Cold directory/tracker setup, real Unix socket/CLI calls and cleanup remain inside the measured test. Approval cited 2.3–5.2ms; /tmp/test-buffer-colony-native-root-changed.log and /tmp/test-buffer-colony-native-root-check.log measured 2.325ms and 5.170ms; fresh-process samples measured 2.32–2.41ms. The allowance changes the gate, not the cost or assertions."
+		},
+		"#test-684": {
+			"threshold": "SLOW",
+			"justification": "ct approved this measured allowance on 2026-10-26 (hv-4t52nj). Full check: 5.353ms; focused: 0.32-0.33ms. Retains shared-lockfile fingerprint changes and generated-dependency exclusion."
+		},
+		"#test-685": {
+			"threshold": "SLOW",
+			"justification": "ct approved this measured allowance on 2026-10-26 (hv-4t52nj). Full check: 4.392ms; focused: 0.10ms. Retains staged-tracker branch/artifact selection checks."
+		},
+		"#test-686": {
+			"threshold": "SLOW",
+			"justification": "ct approved this measured allowance on 2026-10-26 (hv-4t52nj). Full check: 4.236ms; focused: 2.15-2.20ms. Retains serialized checkpoint authority and the next transition after JSON/schema restoration."
+		},
+		"#test-687": {
+			"threshold": "SLOW",
+			"justification": "ct approved this measured allowance on 2026-10-26 (hv-4t52nj). Full check: 3.920ms; focused: 0.55-0.56ms. Retains unsupported CLI input rejection without launching a bee."
+		},
+		"#test-688": {
+			"threshold": "SLOW",
+			"justification": "ct approved this measured allowance on 2026-10-26 (hv-4t52nj). Prior full check: 4.100ms. Retains delete-versus-edit conflict detection."
+		},
+		"#test-689": {
+			"threshold": "SLOW",
+			"justification": "ct approved this measured allowance on 2026-10-26 (hv-4t52nj). Prior full check: 3.592ms. Retains endpoint and session keys in alert paths beneath the Beeswax namespace."
+		},
+		"#test-690": {
+			"threshold": "SLOW",
+			"justification": "ct approved this measured allowance on 2026-10-26 (hv-4t52nj). Prior full check: 2.545ms. Retains formula validation with empty and populated optional recipe fields."
+		},
+		"#test-691": {
+			"threshold": "SLOW",
+			"justification": "ct approved this measured allowance on 2026-10-26 (hv-4t52nj). Strict changed run: 5.194ms. Retains spawn-bead assignment, host, identity and task links in the new request, with the selected database."
+		},
+		"#test-692": {
+			"threshold": "SLOW",
+			"justification": "ct approved this measured allowance on 2026-10-26 (hv-4t52nj). Full check: 3.757ms. Retains JSON/schema restoration of stage authority and rejection of a changed identity."
+		},
+		"#test-693": {
+			"threshold": "SLOW",
+			"justification": "ct approved this measured allowance on 2026-10-26 (hv-4t52nj). Full check: symlink row 1.927ms. The shared typed-policy title retains inherited and local copy defaults, explicit entry modes and path normalization. Cold execution stays measured; no schema warmup is added."
+		},
+		"#test-694": {
+			"threshold": "SLOW",
+			"justification": "ct approved this measured allowance on 2026-10-26 (hv-4t52nj). Full check: 7.396ms. Retains the formatted tree snapshot: free pool slots stay flat, while an active worktree sharing a slot's HEAD can parent a feature stack, with default-relative ahead/behind counts."
+		},
+		"#test-695": {
+			"threshold": "SLOW",
+			"justification": "ct approved this measured allowance on 2026-10-26 (hv-4t52nj). Full check: empty hook body row 3.438ms. The existing shared table title retains refusal of unsupported hooks with migration guidance, unchanged files and no local Git configuration writes."
+		},
+		"#test-696": {
+			"threshold": "SLOW",
+			"justification": "ct approved this measured allowance on 2026-10-26 (hv-4t52nj). Full check: 2.896ms. Retains selected SQLite database and daemon-state cwd forwarding to the BV fake, complete graph scores including an unrelated task, and linked-task score ordering."
+		},
+		"#test-697": {
+			"threshold": "SLOW",
+			"justification": "ct approved this measured allowance on 2026-10-26 (hv-4t52nj). Full check: 1.997ms. Retains publication/history coordination with controlled comments: a rejected comment cannot finish the operation or histories before its admitted sibling settles; request-attributed failure and history-before-gate ordering remain asserted. PR21 clarification: the preceding measurement and coverage description refer to the earlier composite test. Stable ID 697 now covers history policy with the existing injected publisher: histories remain pending until settlement, failures retain request attribution, and histories start before publication. The post-rejection sibling-drain checkpoint is retained in observations-batch.test.ts, in 'all distinct comments start immediately and retain every sibling effect'. This preserves the historical allowance, not a new allowance or a native-cost measurement of the isolated policy test."
+		},
+		"#test-698": {
+			"threshold": "SLOW",
+			"justification": "ct approved this measured allowance on 2026-10-26 (hv-4t52nj). Full check: 3.011ms. Retains recipe installation in the repository and selected tracker when that tracker predates Beeswax configuration, without tracker-side config/lock creation, hook changes or recipe writes to the unselected default tracker. Fixture setup stays measured."
+		},
+		"#test-699": {
+			"threshold": "SLOW",
+			"justification": "ct approved this measured allowance on 2026-10-26 (hv-4t52nj). Full check: merge row 2.708ms. The existing shared table title retains conflict recognition from native diagnostic code and message prefix, including a wrapped cause, while rejecting unrelated configuration errors and matching text with the wrong code."
+		},
+		"#test-700": {
+			"threshold": "SLOW",
+			"justification": "ct approved this measured allowance on 2026-10-26 (hv-4t52nj). Strict changed run: root row 1.987ms. The existing shared table title retains repository-schema rejection of global-only keys, blank commands, invalid location/pool/copy settings and malformed finish fields. Cold schema validation remains in the test."
+		},
+		"#test-701": {
+			"threshold": "SLOW",
+			"justification": "ct approved this measured allowance on 2026-10-26 (hv-4t52nj). Integrated full check: 2.556ms. Retains hints for the selected database/WAL, shallow finish/worker/ownership artifacts and notifications without filenames, while rejecting noisy, foreign and nested paths."
+		},
+		"#test-702": {
+			"threshold": "SLOW",
+			"justification": "ct approved this measured allowance on 2026-10-26 (hv-4t52nj). Full check: 2.167ms. Retains native routing query arguments for closed status, AND labels and an unlimited result set, with only the requested ID/description fields returned."
+		},
+		"#test-703": {
+			"threshold": "SLOW",
+			"justification": "ct approved this measured allowance on 2026-10-26 (hv-4t52nj). Full check: 3.898ms. Retains CLI failure handling through the injected Git packing dependency: one JSON error document preserves the command failure reason and original Git diagnostics, with no separate stderr output. No real Git process is invoked by this case."
+		},
+		"#test-704": {
+			"threshold": "SLOW",
+			"justification": "ct approved this measured allowance on 2026-10-26 (hv-4t52nj). Full check: 2.043ms. Retains in-memory changelog pagination across 140 empty releases: the default page stays bounded, total and next offset remain visible, and an exhausted page has neither releases nor a next offset."
+		},
+		"#test-705": {
+			"threshold": "SLOW",
+			"justification": "ct approved this measured allowance on 2026-10-26 (hv-4t52nj). Full check: waiting row 1.995ms. The existing shared table title retains pure stdout-publication eligibility checks: a late waiting, claiming, settling, retrying or terminal checkpoint rejects the captured cohort. This tests supplied observations, not live process ownership."
+		},
+		"#test-706": {
+			"threshold": "SLOW",
+			"justification": "ct approved this measured allowance on 2026-10-26 (hv-4t52nj). Strict changed run: 1.835ms. Retains exact-release changelog selection, commit abbreviation, Markdown body preservation in human and JSON output, explicit breaking and optional adoption text, and rejection of an unavailable release."
+		},
+		"#test-707": {
+			"threshold": "SLOW",
+			"justification": "ct approved this measured allowance on 2026-10-26 (hv-4t52nj). Full check: omitted-adjacency row 2.254ms. The shared table title retains BV adapter parsing of empty native graph encodings, with either omitted adjacency or empty nodes and null edges, into empty node/edge arrays and a non-stale result. The executor supplies JSON in memory; no native process is launched."
+		},
+		"#test-708": {
+			"threshold": "SLOW",
+			"justification": "ct approved this measured allowance on 2026-10-26 (hv-4t52nj). Integrated full check: version 1.2 row 2.685ms. The shared table title retains rejection of incomplete versions, a v prefix, leading-zero core/prerelease identifiers and latest by the schema used for named workflow manifest versions. Real schema/SemVer validation stays measured; this unit test performs no manifest I/O or workflow execution."
+		},
+		"#test-709": {
+			"threshold": "SLOW",
+			"justification": "ct approved this measured allowance on 2026-10-26 (hv-4t52nj). Full check: nested-value row 1.981ms. The shared table title retains rejection of numeric and nested project configuration values with ZodError at the native adapter boundary. The injected executor supplies JSON in memory; parsing stays measured without a br process or filesystem access."
+		},
+		"#test-710": {
+			"threshold": "SLOW",
+			"justification": "ct approved this measured allowance on 2026-10-26 (hv-4t52nj). Integrated full check at 45d6aba8: version 0.4.0 row 2.358ms. The shared table title retains rejection of versions 0.4.0, 0.5.0 and 0.6.0 against packages at 0.5.0 and previous tag v0.6.0. Version validation stays measured; this case performs no release I/O. The allowance changes the gate, not runtime."
+		},
+		"#test-711": {
+			"threshold": "SLOW",
+			"justification": "ct approved this measured allowance on 2026-10-26 (hv-4t52nj). Prior full check at 9b459ed1, retained in response hv-gzfwas: running ticket 1 row 5.458ms. Source was byte-identical before this title-only edit. The shared table title retains refusal of running and gone tickets with their respective exit codes, no child execution and unchanged queue state through injected CLI dependencies; no native queue is opened."
+		},
+		"#test-712": {
+			"threshold": "SLOW",
+			"justification": "ct approved this measured allowance on 2026-10-26 (hv-4t52nj). Prior full check at 9b459ed1, retained in response hv-gzfwas: 2.323ms. Source was byte-identical before this title-only edit. Retains urgent-ticket insertion ahead of queued work but behind the running command, its queued state and reason, timeout exit status and no child execution through injected CLI dependencies."
+		},
+		"#test-713": {
+			"threshold": "SLOW",
+			"justification": "ct approved this measured allowance on 2026-10-26 (hv-4t52nj). Prior full check at 9b459ed1, retained in response hv-gzfwas: 4.392ms. Source was byte-identical before this title-only edit. Retains deferred-read ordering through memory Beads: an older summary completing after a newer refresh cannot replace the task's blocked annotation status. Setup and both reads remain measured."
+		},
+		"#test-714": {
+			"threshold": "SLOW",
+			"justification": "ct approved this measured allowance on 2026-10-26 (hv-4t52nj). Prior full check at 9b459ed1, retained in response hv-gzfwas: 2.417ms. Source was byte-identical before this title-only edit. Retains the exact generated-node ID list in the workflow story fixture, excluding agent-created supporting tasks. This assertion reads fixture data without workflow execution."
+		},
+		"#test-715": {
+			"threshold": "SLOW",
+			"justification": "ct approved this measured allowance on 2026-10-26 (hv-4t52nj). Prior full check at 9b459ed1, retained in response hv-gzfwas: 1.885ms. Source was byte-identical before this title-only edit. Retains failed-refresh fencing through memory Beads: after the failed refresh and older pending read complete, an annotation retry at the same cutoff returns the updated blocked status. Failure and recovery assertions remain measured."
+		},
+		"#test-716": {
+			"threshold": "SLOW",
+			"justification": "ct approved this measured allowance on 2026-10-26 (hv-4t52nj). Prior Colony full check at 9b459ed1, retained in hv-17kjc8 comment 47071: empty-string row 3.005ms. Source was byte-identical before this title-only edit. The shared table title retains copy-field schema rejection of empty, absolute, home-relative and escaping entries, missing source/destination fields and invalid destination paths. Real schema validation stays measured without filesystem access."
+		},
+		"#test-717": {
+			"threshold": "SLOW",
+			"justification": "ct approved this measured allowance on 2026-10-26 (hv-4t52nj). Prior Colony full check at 9b459ed1, retained in hv-17kjc8 comment 47071: explicit-selection row 2.055ms. Source was byte-identical before this title-only edit. The shared table title retains explicit database precedence over an inherited endpoint and inherited selection when no explicit endpoint is supplied, with no discovery commands from a non-repository cwd. Dependencies are injected; no database or subprocess is accessed."
+		},
+		"#test-718": {
+			"threshold": "SLOW",
+			"justification": "ct approved measured incidental timing allowances on 2026-10-26 (hv-4t52nj). PR20 follow-up full check (pr20-postintegration2-continuation-1-check.log): permission-failure row 4.209ms. Retains rejection of a launchctl permission failure as Error rather than misclassifying the service as absent or idle. The injected command returns code 1 in memory; asynchronous rejection stays measured without a subprocess, filesystem access or warmup. Only the title ID changes; the allowance changes the gate, not runtime."
+		},
+		"#test-719": {
+			"threshold": "SLOW",
+			"justification": "ct approved measured incidental timing allowances on 2026-10-26 (hv-4t52nj). PR20 follow-up full check (pr20-postintegration2-continuation-2-check.log): one-due-request row 2.107ms. The shared table title retains empty, single, multiple, unchanged and mixed-eligibility batches: only due IDs reach the final read and writes, with read-before-write order, attempt/source-time evidence and sys-colony attribution. The measurement covers only the single-request row. Injected Beads and activity reads stay in memory; fixture setup and assertions remain measured. Only the title ID changes; this is a gate allowance, not a speedup."
+		},
+		"#test-720": {
+			"threshold": "SLOW",
+			"justification": "ct approved measured incidental timing allowances on 2026-10-26 (hv-4t52nj). PR20 follow-up full check (pr20-postintegration2-continuation-2-check.log): missing-id row 1.961ms. The shared table title retains ZodError rejection of missing or invalid id and description in native routing projections; only the missing-id row has this measurement. The native adapter parses JSON from an injected executor without a br subprocess or database. Real boundary validation and asynchronous rejection remain measured; only the title ID changes."
+		},
+		"#test-721": {
+			"threshold": "SLOW",
+			"justification": "ct approved measured incidental timing allowances on 2026-10-26 (hv-4t52nj). PR20 follow-up full check (pr20-postintegration2-finish-1-check.log): plain br update claim row 4.464ms. The shared table title retains successful-claim recognition with plain commands, an actor flag, environment/database selection and a preceding cd. Only the plain-command row has this measurement. Command recognition, JSON parsing and claim-schema validation run in memory; no br process or tracker is used. Test mechanics remain unchanged."
+		},
+		"#test-722": {
+			"threshold": "SLOW",
+			"justification": "ct approved measured incidental timing allowances on 2026-10-26 (hv-4t52nj). PR20 follow-up full check (pr20-postintegration2-finish-1-check.log): recovery assertion body 2.511ms. Retains status-command progress while two scheduling passes are gated, elapsed simulated time, daemon identity, both registrations and the exact confirmed recovery effects. The existing module-level socket/restart setup is outside this measured body; this cost does not measure the entire integration scenario. Only the title ID changes; setup, assertions, cleanup and timeout stay where they were."
+		},
+		"#test-723": {
+			"threshold": "SLOW",
+			"justification": "ct approved measured incidental timing allowances on 2026-10-26 (hv-4t52nj). PR20 follow-up full check (pr20-postintegration2-finish-1-check.log): nested JUnit report case 1.922ms. Retains real XML parsing, slowest-first ordering, entity/newline normalization, source locations and inherited allowance suppression in the exact two-line report assertion. The XML is built and parsed inside the measured body without report-file I/O; only the title ID changes."
+		},
+		"#test-724": {
+			"threshold": "SLOW",
+			"justification": "ct approved measured incidental timing allowances on 2026-10-26 (hv-4t52nj). PR20 follow-up full check (pr20-postintegration2-finish-3-check.log): empty-expansion row 2.521ms. The shared table title retains collapsed, root-expanded, root-and-child-expanded and hidden-child-expanded board branches, asserting exact visible IDs and descendant counts. Only the empty-expansion row has this measurement. The hierarchy policy runs on typed in-memory rows without a browser, tracker or filesystem; only the title ID changes."
+		},
+		"#test-725": {
+			"threshold": "SLOW",
+			"justification": "ct approved measured incidental timing allowances on 2026-10-26 (hv-4t52nj). PR20 follow-up full check (pr20-postintegration2-finish-4-check.log): run librarian --json row 5.791ms. The shared table title retains JSON rejection before interactive launch for both trailing and leading --json. Only the trailing-flag row has this measurement. Retains exit code 1, one error document, silent stderr and no launcher call through injected CLI dependencies. No process or tracker is used; only the title ID changes."
+		},
+		"#test-726": {
+			"threshold": "SLOW",
+			"justification": "ct approved measured incidental timing allowances on 2026-10-26 (hv-4t52nj). PR20 follow-up full check (pr20-postintegration2-finish-4-check.log): pack policy case 3.670ms. Retains exact repository/common-directory and before/after object-count and KiB observations, plus ordered Git arguments preserving unreachable objects, disabling lazy fetch/automatic maintenance/cruft/filtering and bounding threads/memory. The injected executor returns fixture text without invoking Git or changing storage; parsing and policy assertions remain measured. Only the title ID changes."
+		},
+		"#test-727": {
+			"threshold": "SLOW",
+			"justification": "ct approved measured incidental timing allowances on 2026-10-26 (hv-4t52nj). PR20 follow-up full check (pr20-postintegration2-finish-5-check.log): secondary history-failure case 4.041ms. Retains AggregateError containing the native publication failure with both request IDs, followed by both history-failure causes and request-specific messages. The in-memory Beads/history fixture and injected stdout sampling preserve asynchronous failure coordination without native comments, durable history writes or checkpoint reads. Setup and all assertions stay measured; only the title ID and necessary formatting change."
+		},
+		"#test-728": {
+			"threshold": "SLOW",
+			"justification": "ct approved measured incidental timing allowances on 2026-10-26 (hv-4t52nj). PR20 follow-up full check (pr20-postintegration2-finish-6-check.log): optional-tool inclusion 5.150ms. Retains the exact canonical tool order, deduplication of repeated includes and preservation of the default primer as a prefix. Both renders and row extraction stay measured in memory; no CLI subprocess is invoked. Only the title ID changes; primer text and its snapshot remain untouched."
+		},
+		"#test-729": {
+			"threshold": "SLOW",
+			"justification": "ct approved measured incidental timing allowances on 2026-10-26 (hv-4t52nj). PR20 follow-up full check (pr20-postintegration2-finish-6-check.log): loaded-native-parent row 3.211ms. The shared table title retains explicit native parent precedence over conflicting dotted IDs with loaded and unloaded parents, exact family membership/depth and unchanged parent IDs. Only the loaded-parent row has this measurement. Typed fixture construction and hierarchy policy stay measured without browser, tracker or filesystem I/O; only the title ID changes."
+		},
+		"#test-730": {
+			"threshold": "SLOW",
+			"justification": "ct approved measured incidental timing allowances on 2026-10-26 (hv-4t52nj). PR20 follow-up strict changed check (pr20-postintegration2-finish-7-changed.log): stdout sampling failure 2.665ms. Retains the exact injected sampling error and an empty native gate/comment trace. In-memory fixture construction, sampling rejection and assertions stay measured without artifact reads or tracker writes; only the title ID changes."
+		},
+		"#test-731": {
+			"threshold": "SLOW",
+			"justification": "ct approved measured incidental timing allowances on 2026-10-26 (hv-4t52nj). PR20 follow-up full check (pr20-postintegration2-finish-7-check.log): latest-pointer row 2.921ms. The shared table title retains current local nonterminal attempt selection through latest and historical pointers, excluding foreign request hosts, foreign receipt hosts and terminal requests. Only the latest-pointer row has this measurement. The measured body reads the preseeded real SQLite store; existing module-level setup and prior reads remain unchanged, so this is not a cold end-to-end cost. Only the title ID and necessary formatting change."
+		},
+		"#test-732": {
+			"threshold": "SLOW",
+			"justification": "ct approved measured incidental timing allowances on 2026-10-26 (hv-4t52nj). PR20 follow-up full check (pr20-postintegration2-finish-7-check.log): failed native-pass case 2.549ms. Retains failed actor state/message, one diagnostic, disposed hints and no further scan after a hint and simulated 60-second advance. The measured body awaits and asserts on an already-started fixture actor with an injected failing scan; existing module-level setup remains outside this cost. Only the title ID changes; actor, clock and cleanup mechanics remain intact."
+		},
+		"#test-733": {
+			"threshold": "SLOW",
+			"justification": "ct approved measured incidental timing allowances on 2026-10-26 (hv-4t52nj). PR20 follow-up full check on base 1e23e047 (pr20-postintegration2-rebased-check.log): jsonl_exists=false row 2.107ms. The shared table title retains Error rejection before graph consumption for a missing export, absent content hash and unhealthy workspace, with no BV graph call. Only the missing-export row has this measurement. In-memory Beads and BV dependencies supply native-status observations without a tracker, export file or subprocess; fixture construction and rejection assertions remain measured. Only the title ID changes; this allowance is not a speedup."
+		},
+		"#test-734": {
+			"threshold": "SLOW",
+			"justification": "ct approved measured incidental timing allowances on 2026-10-26 (hv-4t52nj). PR20 follow-up full check on base 1e23e047 (pr20-postintegration2-rebased-check.log): /selected/state row 2.020ms. The shared table title retains default state-root selection for unset, empty and relative values, explicit absolute selection, and the exact Hive qlock namespace and canonical-root/ref hash in the lock path. Only the explicit-selection row has this measurement. An injected capture returns the canonical root without Git or Honeycomb processes; lock resolution and the path assertion stay measured. Only the title ID and necessary formatting change."
+		},
+		"#test-735": {
+			"threshold": "SLOW",
+			"justification": "ct approved measured incidental timing allowances on 2026-10-26 (hv-4t52nj). PR20 follow-up full check on base 1e23e047 (pr20-postintegration2-rebased-finish-1-check.log): lifecycle observation ordering 2.938ms. Retains selection of the newer observation despite input order and reassigned local comment IDs, plus equal selection for forward and reversed timestamp ties. The decoder consumes in-memory comment fixtures without tracker or process I/O; comment construction, all four reads and assertions stay measured. The shared original bead fixture remains module-level. Only the title ID changes; this allowance is not a speedup."
+		},
+		"#test-736": {
+			"threshold": "SLOW",
+			"justification": "ct approved measured incidental timing allowances on 2026-10-26 (hv-4t52nj). PR20 follow-up strict changed check on base 1e23e047 (pr20-postintegration2-rebased-finish-2-changed.log): changed-mode 0.001-second unapproved fixture row 6.429ms. The shared table title retains exact and just-over-boundary classification for strict changed and buffered full modes, including exit status, timing lines and remediation-guidance presence. Only the changed-mode exact-boundary row has this runtime measurement; fixture durations are classification inputs, not observed test costs. Real XML construction and parsing remain measured in memory without report-file I/O. Only the title ID and necessary formatting change."
+		},
+		"#test-737": {
+			"threshold": "SLOW",
+			"justification": "ct approved measured incidental timing allowances on 2026-10-26 (hv-4t52nj). PR20 follow-up full check on base 1e23e047 (pr20-postintegration2-rebased-finish-3-check.log): later synchronization failure 9.505ms. Retains CLI failure status and onboarding_ambiguous receipt after BV recipe generation, including the confirmed recipe path and bv_recipes completed effect. The in-memory workspace supplies file contents and command results without filesystem writes or subprocesses; fixture cloning, synchronization and receipt assertions stay measured. Existing module-level configuration/lock template setup stays outside this cost, so this is not cold end-to-end setup timing. Only the title ID changes."
+		},
+		"#test-738": {
+			"threshold": "SLOW",
+			"justification": "ct approved measured incidental timing allowances on 2026-10-26 (hv-4t52nj). PR20 follow-up strict changed check on base 1e23e047 (pr20-postintegration2-rebased-finish-4-changed.log): foreign-host row 2.153ms. The shared table title retains the host-only routing projection returning an explicit foreign host or null for an omitted host, without requiring workflow execution fields. Only the foreign-host row has this measurement. Fixture JSON construction, real host parsing and the exact result assertion stay measured in memory without tracker, filesystem or process I/O; only the title ID changes."
 		}
 	}
 }

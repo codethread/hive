@@ -338,7 +338,7 @@ test("generated Pi callback delivers holds after failed invocation or invalid ou
 	expect(invalid.messages[FIRST]?.content).toContain("known hold");
 	fx.fail();
 	const failed = await fx.context({ messages: [] });
-	expect(failed.messages[FIRST]?.content).toContain("do not merge");
+	expect(failed.messages[FIRST]?.content).toContain("Pause Beads work and merges");
 });
 
 test("generated Pi fallback puts immediate guidance before long diagnostics", async () => {
@@ -348,9 +348,9 @@ test("generated Pi fallback puts immediate guidance before long diagnostics", as
 	const failed = await fx.context({ messages: [] });
 	const content = failed.messages[FIRST]?.content;
 	const preview = content?.slice(FIRST, CONTEXT_PREVIEW_CHARACTERS);
-	expect(preview).toContain("do not merge");
-	expect(preview).toContain("Unrelated non-Beads work");
-	expect(preview).toContain("authorized");
+	expect(preview).toContain("Pause Beads work and merges");
+	expect(preview).toContain("independent non-Beads work");
+	expect(preview).toContain("beeswax skills get tracker-recovery");
 	expect(content).toContain(reason);
 });
 

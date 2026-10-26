@@ -17,6 +17,8 @@ import {
 import { expect, test } from "bun:test";
 // eslint-disable-next-line import/no-nodejs-modules -- Bind fixture authority to the publication host.
 import { hostname } from "node:os";
+// eslint-disable-next-line import/no-nodejs-modules -- Observe completed rejection handling before releasing siblings.
+import { setImmediate as nextTurn } from "node:timers/promises";
 import { trackerScope } from "./tracker.ts";
 
 const ZERO = 0;
@@ -67,7 +69,7 @@ const mappingCases = [
 ] as const;
 const failureCases = [{ kind: "before" }, { kind: "after" }, { kind: "sync" }] as const;
 
-test.each(countCases)("batch gates only due IDs for $name", async (scenario) => {
+test.each(countCases)("batch gates only due IDs for $name #test-719", async (scenario) => {
 	const fixture = batchFixture(scenario.seeds);
 	await publishRunningStdoutActivities(fixture.context, fixture.inputs, fixture.readActivity);
 	const ids = scenario.due.map((index) => fixture.inputs[index]!.receipt.spawnId);
@@ -252,7 +254,7 @@ test("all stdout sampling precedes the final gate and comments retain the sample
 	}
 });
 
-test("stdout sampling failure preserves its cause before any native gate or comment", async () => {
+test("stdout sampling failure preserves its cause before any native gate or comment #test-730", async () => {
 	const samplingFailure = batchFixture();
 	const error = new Error("Owned stdout metadata is unreadable");
 	await expect(
@@ -318,6 +320,8 @@ test("all distinct comments start immediately and retain every sibling effect", 
 	const firstFailed = publicationFailure(controls[ZERO]!.promise);
 	controls[ZERO]!.reject(error);
 	await firstFailed;
+	await nextTurn();
+	expect(finished).toBe(false);
 	controls[ONE]!.resolve();
 	controls[TWO]!.resolve();
 	controls[THREE]!.resolve();
