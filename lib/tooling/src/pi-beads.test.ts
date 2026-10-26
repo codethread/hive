@@ -20,7 +20,7 @@ test.each([
 	"br --actor pi update hv-9d9 --claim --owner ct --json",
 	"BD_ACTOR=pi br --db /repo/beads.db update hv-9d9 --owner ct --claim --json",
 	"cd /repo && br update hv-9d9 --claim --json",
-])("recognizes a successful claim: %s", (command) => {
+])("recognizes a successful claim: %s #test-721", (command) => {
 	expect(claimedBead(claimResult(command, output))).toBe("hv-9d9");
 });
 

@@ -10,17 +10,20 @@ test.each([
 	{ stateHome: "", expected: "/home/agent/.local/state" },
 	{ stateHome: "relative/state", expected: "/home/agent/.local/state" },
 	{ stateHome: "/selected/state", expected: "/selected/state" },
-])("merge queue uses the Hive qlock namespace under $expected", async ({ stateHome, expected }) => {
-	const lock = await resolveLock(
-		{ kind: "merge", ref },
-		{
-			home: "/home/agent",
-			stateHome,
-			capture: () => Promise.resolve({ code: 0, stdout: `${canonical}\n`, stderr: "" }),
-		},
-	);
-	expect(lock).toBe(`${expected}/hive/qlock/agent-merge-${key}.lock`);
-});
+])(
+	"merge queue uses the Hive qlock namespace under $expected #test-734",
+	async ({ stateHome, expected }) => {
+		const lock = await resolveLock(
+			{ kind: "merge", ref },
+			{
+				home: "/home/agent",
+				stateHome,
+				capture: () => Promise.resolve({ code: 0, stdout: `${canonical}\n`, stderr: "" }),
+			},
+		);
+		expect(lock).toBe(`${expected}/hive/qlock/agent-merge-${key}.lock`);
+	},
+);
 
 test("an explicit lock stays outside the default namespace without repository lookup", async () => {
 	const lock = await resolveLock(

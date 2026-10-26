@@ -22,7 +22,7 @@ test("repeated generation preserves application bytes outside the owned section 
 
 test.each([
 	{ description: "edited section", body: hookSection.replace("hooks validate", "hooks custom") },
-	{ description: "duplicate section", body: `${hookSection}\n${hookSection}` },
+	{ description: "duplicate section #test-751", body: `${hookSection}\n${hookSection}` },
 	{ description: "broken section", body: "# beeswax:begin tracker-validation v1\n" },
 ])(
 	"$description gives an agent migration goal and preserves all configured files",
@@ -57,7 +57,7 @@ test.each([
 	{ branch: "main", staged: ".beads/issues.jsonl", validates: false },
 	{ branch: "tracker/state", staged: ".beads/issues.jsonl\napp.rb", validates: false },
 ])(
-	"validation selects only the staged tracker artifact: $branch $staged",
+	"validation selects only the staged tracker artifact: $branch $staged #test-685",
 	async ({ branch, staged, validates }) => {
 		let validated = false;
 		await validateTrackerHook(

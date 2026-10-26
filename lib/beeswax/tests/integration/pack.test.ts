@@ -34,7 +34,7 @@ test(
 		const run = (argv: string[], cwd = root) => runCommand(argv, cwd, environment);
 		const git = (...args: string[]) => run(["git", ...args]);
 		try {
-			await git("init", "--initial-branch=main");
+			await git("init", "--template=", "--initial-branch=main");
 			await Bun.write(join(root, "document"), "retained snapshot\n".repeat(snapshotLines));
 			await git("add", "document");
 			await git("commit", "-m", "initial");
@@ -102,8 +102,8 @@ test("packing retains a local object even when it is also available from an alte
 	};
 	const git = (...args: string[]) => runCommand(["git", ...args], root, environment);
 	try {
-		await git("init", "--initial-branch=main");
-		await git("init", "--bare", borrowed);
+		await git("init", "--template=", "--initial-branch=main");
+		await git("init", "--template=", "--bare", borrowed);
 		const contents = "independently retained local recovery evidence";
 		await Bun.write(join(root, "evidence"), contents);
 		const id = await git("hash-object", "-w", "evidence");

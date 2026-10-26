@@ -34,7 +34,7 @@ test.each([
 		name: "permission failure",
 		result: { ...success, code: 1, stderr: "Operation not permitted" },
 	},
-])("does not treat $name as an absent or idle service", async ({ result }) => {
+])("does not treat $name as an absent or idle service #test-718", async ({ result }) => {
 	await expect(launchdServiceStatus(service, () => Promise.resolve(result))).rejects.toBeInstanceOf(
 		Error,
 	);
