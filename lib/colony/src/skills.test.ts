@@ -7,7 +7,6 @@ import { registerSkills } from "./skills.ts";
 import { runBeeCli } from "./bee-cli.ts";
 
 const SUCCESS = 0;
-const FIRST = 0;
 const FAILURE = 1;
 const USAGE_ERROR = 2;
 const COMMANDS = ["bee", "colony"] as const;
@@ -25,15 +24,15 @@ test.each([...COMMANDS])(
 	"%s lists metadata and defaults to text discovery #test-270",
 	async (command) => {
 		const provider = createStaticProvider([skill]);
-		const listed = await invoke(command, ["skills", "list", "--json"], provider);
+		const listed = await invokeEntry(command, ["skills", "list", "--json"], provider);
 		expect(listed).toMatchObject({ code: SUCCESS, stderr: "", loads: 1 });
 		expect(JSON.parse(listed.stdout)).toEqual({
 			ok: true,
 			kind: "skills_list",
 			skills: [{ name, description: skill.description, files: skill.files }],
 		});
-		expect(await invoke(command, ["skills", "--json"], provider)).toEqual(listed);
-		expect(await invoke(command, ["skills"], provider)).toEqual({
+		expect(await invokeRegistered(command, ["skills", "--json"], provider)).toEqual(listed);
+		expect(await invokeRegistered(command, ["skills"], provider)).toEqual({
 			code: SUCCESS,
 			stdout: `${name}\t${skill.description}\n`,
 			stderr: "",
@@ -48,7 +47,7 @@ test.each([...COMMANDS])(
 		const provider = createStaticProvider([skill]);
 		const getSkillFile = mock(provider.getSkillFile);
 		const observed = { ...provider, getSkillFile };
-		const json = await invoke(command, ["skills", "get", name, "--json"], observed);
+		const json = await invokeRegistered(command, ["skills", "get", name, "--json"], observed);
 		expect(json).toMatchObject({ code: SUCCESS, stderr: "", loads: 1 });
 		expect(JSON.parse(json.stdout)).toEqual({
 			ok: true,
@@ -57,10 +56,10 @@ test.each([...COMMANDS])(
 			path: "SKILL.md",
 			content: skill.body,
 		});
-		expect(await invoke(command, ["skills", "file", name, "SKILL.md", "--json"], observed)).toEqual(
-			json,
-		);
-		expect(await invoke(command, ["skills", "get", name], observed)).toEqual({
+		expect(
+			await invokeRegistered(command, ["skills", "file", name, "SKILL.md", "--json"], observed),
+		).toEqual(json);
+		expect(await invokeRegistered(command, ["skills", "get", name], observed)).toEqual({
 			code: SUCCESS,
 			stdout: `${skill.body.trimEnd()}\n`,
 			stderr: "",
@@ -76,7 +75,11 @@ test.each([...COMMANDS])(
 		const provider = createStaticProvider([skill], { [name]: { [reference]: resource } });
 		const getSkillFile = mock(provider.getSkillFile);
 		const observed = { ...provider, getSkillFile };
-		const json = await invoke(command, ["skills", "file", name, reference, "--json"], observed);
+		const json = await invokeRegistered(
+			command,
+			["skills", "file", name, reference, "--json"],
+			observed,
+		);
 		expect(json).toMatchObject({ code: SUCCESS, stderr: "", loads: 1 });
 		expect(JSON.parse(json.stdout)).toEqual({
 			ok: true,
@@ -85,7 +88,7 @@ test.each([...COMMANDS])(
 			path: reference,
 			content: resource,
 		});
-		expect(await invoke(command, ["skills", "file", name, reference], observed)).toEqual({
+		expect(await invokeRegistered(command, ["skills", "file", name, reference], observed)).toEqual({
 			code: SUCCESS,
 			stdout: `${resource.trimEnd()}\n`,
 			stderr: "",
@@ -113,7 +116,7 @@ test.each(
 	async ({ command, args }) => {
 		const provider = createStaticProvider([skill]);
 		const getSkillFile = mock(provider.getSkillFile);
-		const result = await invoke(command, ["skills", ...args, "--json"], {
+		const result = await invokeRegistered(command, ["skills", ...args, "--json"], {
 			...provider,
 			getSkillFile,
 		});
@@ -129,13 +132,17 @@ test.each(
 );
 
 test.each([...COMMANDS])("%s sends text skill errors to stderr #test-273", async (command) => {
-	const result = await invoke(command, ["skills", "get", "missing"], createStaticProvider([skill]));
+	const result = await invokeRegistered(
+		command,
+		["skills", "get", "missing"],
+		createStaticProvider([skill]),
+	);
 	expect(result).toMatchObject({ code: USAGE_ERROR, stdout: "", loads: 1 });
 	expect(result.stderr).toStartWith(`${command}: `);
 });
 
 test.each([...COMMANDS])("%s fails when an advertised resource is unavailable", async (command) => {
-	const result = await invoke(
+	const result = await invokeRegistered(
 		command,
 		["skills", "file", name, reference, "--json"],
 		createStaticProvider([skill]),
@@ -149,15 +156,13 @@ test.each([...COMMANDS])("%s fails when an advertised resource is unavailable", 
 });
 
 test.each([...COMMANDS])("%s version does not call the skills loader", async (command) => {
-	const result = await invoke(command, ["--version"], createStaticProvider([skill]));
+	const result = await invokeEntry(command, ["--version"], createStaticProvider([skill]));
 	expect(result).toMatchObject({ code: SUCCESS, stderr: "", loads: 0 });
 	expect(result.stdout).not.toBe("");
 });
 
-async function invoke(command: "bee" | "colony", args: string[], provider: SkillProvider) {
-	if (args.at(FIRST) === "skills" && !args.includes("list")) {
-		return invokeRegistered(command, args, provider);
-	}
+// Explicit list and version checks retain full CLI composition and lazy-loader wiring.
+async function invokeEntry(command: "bee" | "colony", args: string[], provider: SkillProvider) {
 	const loadSkills = mock(() => Promise.resolve(provider));
 	const captured = { stdout: "", stderr: "" };
 	const deps = {
@@ -209,6 +214,7 @@ async function invoke(command: "bee" | "colony", args: string[], provider: Skill
 	return { code, ...captured, loads: loadSkills.mock.calls.length };
 }
 
+// Policy cases use a static provider with production command registration and error rendering.
 async function invokeRegistered(
 	command: "bee" | "colony",
 	args: string[],

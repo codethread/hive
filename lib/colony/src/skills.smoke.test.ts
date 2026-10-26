@@ -34,7 +34,7 @@ afterAll(async () => {
 });
 
 test.each(COMMANDS)(
-	"$command discovers only its bundled metadata without repository services #test-270",
+	"$command Bun source entry lists bundled metadata without repository services #test-270",
 	async ({ command, name, files }) => {
 		const listed = await source(command, ["skills", "list", "--json"]);
 		expect(listed).toMatchObject({ code: SUCCESS, stderr: "" });
@@ -47,7 +47,7 @@ test.each(COMMANDS)(
 );
 
 test.each(COMMANDS)(
-	"$command get returns bundled Markdown without frontmatter #test-271",
+	"$command registered get returns bundled Markdown without frontmatter in-process #test-271",
 	async ({ command, name, resource }) => {
 		const instructions = await bundled(command, ["skills", "get", name]);
 		expect(instructions).not.toStartWith("---");
@@ -56,7 +56,7 @@ test.each(COMMANDS)(
 );
 
 test.each(COMMANDS)(
-	"$command returns a bundled supporting resource as JSON #test-272",
+	"$command registered file returns a bundled supporting resource as JSON in-process #test-272",
 	async ({ command, name, resource }) => {
 		const file = await bundled(command, ["skills", "file", name, resource, "--json"]);
 		expect(JSON.parse(file)).toEqual({
