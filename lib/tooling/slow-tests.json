@@ -2443,7 +2443,7 @@
 		},
 		"#test-697": {
 			"threshold": "SLOW",
-			"justification": "ct approved this measured allowance on 2026-10-26 (hv-4t52nj). Full check: 1.997ms. Retains publication/history coordination with controlled comments: a rejected comment cannot finish the operation or histories before its admitted sibling settles; request-attributed failure and history-before-gate ordering remain asserted."
+			"justification": "ct approved this measured allowance on 2026-10-26 (hv-4t52nj). Full check: 1.997ms. Retains publication/history coordination with controlled comments: a rejected comment cannot finish the operation or histories before its admitted sibling settles; request-attributed failure and history-before-gate ordering remain asserted. PR21 clarification: the preceding measurement and coverage description refer to the earlier composite test. Stable ID 697 now covers history policy with the existing injected publisher: histories remain pending until settlement, failures retain request attribution, and histories start before publication. The post-rejection sibling-drain checkpoint is retained in observations-batch.test.ts, in 'all distinct comments start immediately and retain every sibling effect'. This preserves the historical allowance, not a new allowance or a native-cost measurement of the isolated policy test."
 		},
 		"#test-698": {
 			"threshold": "SLOW",

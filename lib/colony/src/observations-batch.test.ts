@@ -17,6 +17,8 @@ import {
 import { expect, test } from "bun:test";
 // eslint-disable-next-line import/no-nodejs-modules -- Bind fixture authority to the publication host.
 import { hostname } from "node:os";
+// eslint-disable-next-line import/no-nodejs-modules -- Observe completed rejection handling before releasing siblings.
+import { setImmediate as nextTurn } from "node:timers/promises";
 import { trackerScope } from "./tracker.ts";
 
 const ZERO = 0;
@@ -318,6 +320,8 @@ test("all distinct comments start immediately and retain every sibling effect", 
 	const firstFailed = publicationFailure(controls[ZERO]!.promise);
 	controls[ZERO]!.reject(error);
 	await firstFailed;
+	await nextTurn();
+	expect(finished).toBe(false);
 	controls[ONE]!.resolve();
 	controls[TWO]!.resolve();
 	controls[THREE]!.resolve();
