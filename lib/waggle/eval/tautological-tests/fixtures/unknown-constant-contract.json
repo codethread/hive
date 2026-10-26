@@ -1,0 +1,17 @@
+{
+	"id": "unknown-constant-contract",
+	"input": {
+		"source": "// protocol.ts\nexport const VERSION = 2;",
+		"test": "test('version', () => expect(VERSION).toBe(2));",
+		"context": "No hooks, helpers, mocks, imports or additional assertions are omitted.",
+		"contract": "Unknown: no callers or specification were supplied, so it is not known whether VERSION is internal metadata or an externally required wire value."
+	},
+	"expected": {
+		"choice": "needs_context",
+		"probabilities": {
+			"tautological": [0, 0.2],
+			"needs_context": [0.6, 1]
+		}
+	},
+	"rationale": "The declaration and assertion alone cannot establish whether the fixed value protects an independent contract."
+}

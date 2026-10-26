@@ -1,0 +1,17 @@
+{
+	"id": "workflow-engine-guard",
+	"input": {
+		"source": "// engine.ts\nexport function step(state, event, table) { const edge = table[state]?.[event.type]; if (!edge || !edge.guard(event)) return state; return edge.target; }",
+		"test": "test('denied guard keeps current state', () => { const table = { ready: { RUN: { target: 'running', guard: e => e.allowed } } }; expect(step('ready', { type: 'RUN', allowed: false }, table)).toBe('ready'); expect(step('ready', { type: 'RUN', allowed: true }, table)).toBe('running'); });",
+		"context": "No hooks, helpers, mocks, imports or additional assertions are omitted.",
+		"contract": "Engine contract: reject an event whose guard fails; advance only if it succeeds. The table is supplied input, not the production graph being restated."
+	},
+	"expected": {
+		"choice": "behavioral",
+		"probabilities": {
+			"tautological": [0, 0.2],
+			"behavioral": [0.75, 1]
+		}
+	},
+	"rationale": "Exercises engine evaluation of events and guards under contrasting inputs."
+}

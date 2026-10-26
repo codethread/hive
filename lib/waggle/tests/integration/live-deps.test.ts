@@ -35,6 +35,11 @@ test("shipped classifiers expose their own evidence and answer contracts #test-4
 			questions: { attention: ["needs_context", "show", "skip"] },
 		},
 		{ id: "state-coherence", ...concernContract },
+		{
+			id: "tautological-tests",
+			inputs: ["context", "contract", "source", "test"],
+			questions: { review: ["behavioral", "mixed", "needs_context", "tautological"] },
+		},
 	]);
 });
 

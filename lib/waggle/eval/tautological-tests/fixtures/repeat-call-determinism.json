@@ -1,0 +1,17 @@
+{
+	"id": "repeat-call-determinism",
+	"input": {
+		"source": "// token.ts\nexport function token(id, clock) { return id + ':' + clock(); }",
+		"test": "test('stable token for same id', () => { let n = 0; const clock = () => ++n; expect(token('a', clock)).toBe(token('a', clock)); });",
+		"context": "No hooks, helpers, mocks, imports or additional assertions are omitted.",
+		"contract": "Required idempotency contract: token for a given id must be stable across calls. The shown implementation violates this and the test fails."
+	},
+	"expected": {
+		"choice": "behavioral",
+		"probabilities": {
+			"tautological": [0, 0.2],
+			"behavioral": [0.75, 1]
+		}
+	},
+	"rationale": "Two calls can differ; the equality detects a determinism bug rather than comparing a value with itself."
+}

@@ -1,0 +1,17 @@
+{
+	"id": "setup-produces-result",
+	"input": {
+		"source": "// normalize.ts\nexport function normalize(s) { return s.trim().toLowerCase(); }",
+		"test": "test('normalized value', () => expect(actual).toBe('foo'));",
+		"context": "let actual; beforeEach(() => { actual = normalize(' FOO '); }); No other hooks or helpers.",
+		"contract": "User identifiers must be stripped of surrounding spaces and folded to lowercase."
+	},
+	"expected": {
+		"choice": "behavioral",
+		"probabilities": {
+			"tautological": [0, 0.2],
+			"behavioral": [0.75, 1]
+		}
+	},
+	"rationale": "The visible literal assertion checks production behavior invoked in setup."
+}

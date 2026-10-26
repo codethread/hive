@@ -1,0 +1,17 @@
+{
+	"id": "mixed-assertions",
+	"input": {
+		"source": "// normalize.ts\nexport const label = 'normalize';\nexport function normalize(s) { return s.trim().toLowerCase(); }",
+		"test": "test('normalize', () => { expect(label).toBe('normalize'); expect(normalize(' FOO ')).toBe('foo'); });",
+		"context": "No hooks, helpers, mocks, imports or additional assertions are omitted.",
+		"contract": "label is internal uncontracted metadata. Independently, user identifiers must be trimmed and lowercased."
+	},
+	"expected": {
+		"choice": "mixed",
+		"probabilities": {
+			"tautological": [0, 0.2],
+			"mixed": [0.6, 1]
+		}
+	},
+	"rationale": "One assertion restates private metadata; another detects a normalization regression."
+}

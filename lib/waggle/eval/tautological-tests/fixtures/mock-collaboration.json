@@ -1,0 +1,17 @@
+{
+	"id": "mock-collaboration",
+	"input": {
+		"source": "// notify.ts\nexport function notify(order, send) { if (order.paid) send({ to: order.email, body: 'receipt' }); }",
+		"test": "test('paid order receives receipt', () => { const send = mock(); notify({ paid: true, email: 'a@example.test' }, send); expect(send).toHaveBeenCalledWith({ to: 'a@example.test', body: 'receipt' }); });",
+		"context": "No hooks, helpers, mocks, imports or additional assertions are omitted.",
+		"contract": "Order notification requirement: send a receipt to the purchaser after payment. The mock observes the boundary effect."
+	},
+	"expected": {
+		"choice": "behavioral",
+		"probabilities": {
+			"tautological": [0, 0.2],
+			"behavioral": [0.75, 1]
+		}
+	},
+	"rationale": "A mock can observe real production collaboration rather than echo its own setup."
+}

@@ -1,0 +1,17 @@
+{
+	"id": "teardown-assertion",
+	"input": {
+		"source": "// cache.ts\nexport function release(cache, key) { cache.delete(key); }",
+		"test": "test('release', () => release(cache, 'a'));",
+		"context": "let cache; beforeEach(() => { cache = new Map([['a', 1]]); }); afterEach(() => { expect(cache.has('a')).toBe(false); }); No other hooks.",
+		"contract": "Releasing a key must remove the cached entry."
+	},
+	"expected": {
+		"choice": "behavioral",
+		"probabilities": {
+			"tautological": [0, 0.2],
+			"behavioral": [0.75, 1]
+		}
+	},
+	"rationale": "A teardown assertion observes production state; the test body alone is not the observation boundary."
+}

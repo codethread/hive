@@ -1,0 +1,17 @@
+{
+	"id": "missing-setup",
+	"input": {
+		"source": "// normalize.ts\nexport function normalize(s) { return s.trim().toLowerCase(); }",
+		"test": "test('normalized value', () => expect(actual).toBe('foo'));",
+		"context": "The enclosing suite initializes actual in a beforeEach, but that hook is unavailable.",
+		"contract": "Identifier normalization is intended, but the origin of actual cannot be established."
+	},
+	"expected": {
+		"choice": "needs_context",
+		"probabilities": {
+			"tautological": [0, 0.2],
+			"needs_context": [0.6, 1]
+		}
+	},
+	"rationale": "The omitted hook could be either production execution or a literal assignment."
+}

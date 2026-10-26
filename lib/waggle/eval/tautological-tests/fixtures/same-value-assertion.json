@@ -1,0 +1,16 @@
+{
+	"id": "same-value-assertion",
+	"input": {
+		"source": "// total.ts\nexport function total(xs) { return xs.reduce((sum,x) => sum+x, 0); }",
+		"test": "test('total', () => { const value=total([1,2]); expect(value).toBe(value); });",
+		"context": "No hooks, helpers, mocks, imports or additional assertions are omitted.",
+		"contract": "No independent assertion beyond identity equality."
+	},
+	"expected": {
+		"choice": "tautological",
+		"probabilities": {
+			"tautological": [0.75, 1]
+		}
+	},
+	"rationale": "Calling production code does not give a self-equality assertion an independent oracle."
+}

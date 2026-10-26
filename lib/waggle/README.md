@@ -28,7 +28,7 @@ Definitions are the direct `*.toml` files in `./classifiers`, relative to the cu
 $env.TYPESAFE_API_KEY = (input --suppress-output "Typesafe API key: ")
 ```
 
-Build a JSON object with exactly the inputs declared by `describe`. The three concern-assessment cards require `purpose`, `contract`, `callers` and `code`, all nonblank strings. The `review-attention` card has a different evidence contract, described below. Include source references. Say when context is unknown rather than inventing a contract.
+Build a JSON object with exactly the inputs declared by `describe`. The three concern-assessment cards require `purpose`, `contract`, `callers` and `code`, all nonblank strings. The `review-attention` and `tautological-tests` cards have different evidence contracts, described below. Include source references. Say when context is unknown rather than inventing a contract.
 
 ```nu
 {
@@ -47,7 +47,7 @@ Or supply JSON through standard input:
 open --raw context.json | bun run --silent waggle run abstraction-payoff --input - --json
 ```
 
-**External transmission:** `run` sends the supplied input object and the definition's questions to `https://api.typesafe.ai/v1/systemone`. Do not include secrets or code you are not authorized to send. Waggle does not gather repository files, interpret paths inside the input, or execute TOML content. A string containing a filename is sent as that string, not loaded as evidence.
+**External transmission:** `run` sends the supplied input object and the definition's questions to `https://api.typesafe.ai/v1/systemone`. Do not include secrets or code you are not authorized to send. The production `waggle run` command does not gather repository files, interpret paths inside the input, or execute TOML content. A string containing a filename is sent as that string, not loaded as evidence.
 
 The POC requests `jev-latest` using the official Typesafe SDK. It makes one attempt with a 10-second timeout, no automatic retries, no fallback provider, and SDK logging disabled. It does not read Pi credentials. SDK environment overrides for endpoint, logging and default model do not change this contract.
 
@@ -87,6 +87,29 @@ The `attention` answer returns:
 
 The card includes CLI flags/arguments, config sources, file side effects and database patterns, including indirect effects from helpers or types. Unchanged I/O in a file does not by itself make an unrelated edit interesting. The full routing policy lives in [the classifier](../../classifiers/review-attention.toml). This is an advisory signal, not an automatic file-hiding filter.
 
+## Review tests for implementation restatement
+
+Use `tautological-tests` to review a selected test with its implementation, relevant setup, teardown, helpers and contract provenance. Three entry points share the same card and evidence contract:
+
+| Entry point | Use it to |
+| --- | --- |
+| Supplied evidence (`waggle run`, below) | Classify one caller-prepared evidence object. |
+| [Fixture evaluation](eval/tautological-tests/README.md#review-the-fixtures) | Validate and tune the card against 28 contrasting fixtures. |
+| [Automatic evidence assembly](eval/tautological-tests/README.md#extract-a-local-case) | Use the optional eval-only Oxc extractor to select a local `bun:test` case, collect bounded supporting modules and prepare cumulative scopes. |
+
+The two evaluation tools are offline by default; `--live` opts into fixture classification or progressive scope expansion. They do not add automatic extraction to the production command. To classify supplied evidence:
+
+```nu
+bun run --silent waggle describe tautological-tests --json
+bun run --silent waggle run tautological-tests --input evidence.json --json
+```
+
+Supply the four nonblank strings declared by the card: `source`, `test`, `context` and `contract`. The [classifier](../../classifiers/tautological-tests.toml) owns the whole-case rubric and its `tautological`, `behavioral`, `mixed` and `needs_context` labels. It distinguishes private workflow-definition restatement from independently checked engine behavior.
+
+Read the score at `answers.review.probabilities.tautological`, alongside all four probabilities and the chosen label. It is the probability of the whole-case category, not a percentage of redundant assertions or provider `confidence`. A `mixed` case can have a low tautological score while containing a redundant assertion. Use the result for review, not automatic test deletion.
+
+See the [evaluation guide](eval/tautological-tests/README.md) for evidence preparation, extraction bounds, progressive stopping and interpretation of the retained JEV/Codex results.
+
 ## Write a classifier
 
 Add a TOML file directly under `classifiers/`. A minimal definition:
@@ -118,7 +141,7 @@ Rules for the POC:
 - Unknown definition fields and unsupported question types are errors. There is no template language or implicit prompt concatenation: questions see the supplied input object directly as state.
 - Keep a principle, concern criteria and legitimate exceptions together. Test useful designs and repairs as well as obvious problems. Do not replace deterministic lint rules with a model call.
 
-The cards cover state coherence, abstraction payoff, failure transparency and human review attention. They remain experimental review aids, especially for reasoning across failure paths.
+The cards cover state coherence, abstraction payoff, failure transparency, human review attention and tautological tests. They remain experimental review aids, especially for reasoning across failure paths.
 
 ## Development checks
 

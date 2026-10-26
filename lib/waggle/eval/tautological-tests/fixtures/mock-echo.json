@@ -1,0 +1,16 @@
+{
+	"id": "mock-echo",
+	"input": {
+		"source": "// client.ts\nexport async function load(client) { return client.fetch(); }",
+		"test": "test('client fetch', async () => { const client = { fetch: mock(() => Promise.resolve({ id: 7 })) }; expect(await client.fetch()).toEqual({ id: 7 }); });",
+		"context": "No hooks, helpers, mocks, imports or additional assertions are omitted.",
+		"contract": "load should delegate retrieval to client.fetch and return the retrieved value."
+	},
+	"expected": {
+		"choice": "tautological",
+		"probabilities": {
+			"tautological": [0.75, 1]
+		}
+	},
+	"rationale": "The assertion repeats the mock's configured response without invoking production load."
+}

@@ -1,0 +1,17 @@
+{
+	"id": "hive-engine-event-ancestry",
+	"input": {
+		"source": "// Adapted from lib/busybee/src/definition.ts at 9b459ed1:162-175,215-229.\nexport function declaresEvent(node, event) {\n  let current = node;\n  while (current) {\n    if ([...current.transitions.keys()].some(descriptor => matchesEventDescriptor(event, descriptor))) return true;\n    current = current.parent;\n  }\n  return false;\n}\nfunction matchesEventDescriptor(event, descriptor) {\n  if (descriptor === event || descriptor === '*') return true;\n  if (!descriptor.endsWith('.*')) return false;\n  const segments = descriptor.split('.');\n  const tokens = event.split('.');\n  return segments.every((segment,index) => segment === '*' ? index === segments.length-1 : segment === tokens[index]);\n}",
+		"test": "test('ancestor declarations without evaluating guard', () => { let evaluated=false; const parent={ transitions: new Map([['NEXT', { guard: () => { evaluated=true; return false; } }]]), parent: undefined }; const child={ transitions: new Map(), parent }; expect(declaresEvent(child,'NEXT')).toBe(true); expect(declaresEvent(child,'REMOVED')).toBe(false); expect(evaluated).toBe(false); });",
+		"context": "No hooks, helpers, mocks, imports or additional assertions are omitted.",
+		"contract": "Adapted from lib/busybee/tests/unit/events.test.ts:23-44 at 9b459ed1. Engine event discovery must walk ancestors and report declarations without evaluating runtime guards."
+	},
+	"expected": {
+		"choice": "behavioral",
+		"probabilities": {
+			"tautological": [0, 0.2],
+			"behavioral": [0.75, 1]
+		}
+	},
+	"rationale": "Checks ancestor traversal, rejection of an undeclared event and guard non-evaluation against the engine's event-discovery contract."
+}

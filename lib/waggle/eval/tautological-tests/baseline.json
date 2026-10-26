@@ -1,0 +1,937 @@
+{
+	"ok": false,
+	"kind": "classification_evaluation",
+	"classifier": {
+		"id": "tautological-tests",
+		"version": 1
+	},
+	"created_at": "2026-10-25T12:08:23.257Z",
+	"definition_hash": "cd4786d6cd9cbbffdaf806b82f4c818cf6f23c764896d5b12820c2c65e42cb11",
+	"completed": 28,
+	"total": 28,
+	"failed": 5,
+	"fixture_hash": "b0be5a7cc1bb88eb3ac49b30fe012d30302b969de5792916496899f17c2f322c",
+	"results": [
+		{
+			"id": "behavioral-with-missing-helper",
+			"expected": {
+				"choice": "needs_context",
+				"probabilities": {
+					"tautological": [0, 0.2],
+					"needs_context": [0.6, 1]
+				}
+			},
+			"passed": false,
+			"mismatches": ["needs_context: expected [0.6, 1], received 0.58"],
+			"request_hash": "48d44240fb4d800e3a098e15b1f0a37e45c31aa0eb9214cd90c55e4111079dfd",
+			"result": {
+				"answers": {
+					"review": {
+						"choice": "needs_context",
+						"confidence": 0.44,
+						"probabilities": {
+							"tautological": 0.07,
+							"behavioral": 0.32,
+							"mixed": 0.03,
+							"needs_context": 0.58
+						},
+						"type": "choice"
+					}
+				},
+				"model": "jev-1.14.0",
+				"usage": {
+					"input_tokens": 1282,
+					"output_tokens": 53
+				}
+			}
+		},
+		{
+			"id": "boundary-validation",
+			"expected": {
+				"choice": "behavioral",
+				"probabilities": {
+					"tautological": [0, 0.2],
+					"behavioral": [0.75, 1]
+				}
+			},
+			"passed": true,
+			"mismatches": [],
+			"request_hash": "b346c4bd4bd0a973d9321b1e0d2f786c958fc2796f2869feb10a42e308d1069f",
+			"result": {
+				"answers": {
+					"review": {
+						"choice": "behavioral",
+						"confidence": 0.83,
+						"probabilities": {
+							"tautological": 0.08,
+							"behavioral": 0.87,
+							"mixed": 0,
+							"needs_context": 0.05
+						},
+						"type": "choice"
+					}
+				},
+				"model": "jev-1.14.0",
+				"usage": {
+					"input_tokens": 1310,
+					"output_tokens": 55
+				}
+			}
+		},
+		{
+			"id": "copied-calculation",
+			"expected": {
+				"choice": "tautological",
+				"probabilities": {
+					"tautological": [0.75, 1]
+				}
+			},
+			"passed": true,
+			"mismatches": [],
+			"request_hash": "7de0465977360f9b6308139a4dbece2662a78f82244a7475b9d54845f8e5e4e9",
+			"result": {
+				"answers": {
+					"review": {
+						"choice": "tautological",
+						"confidence": 0.97,
+						"probabilities": {
+							"tautological": 0.98,
+							"behavioral": 0,
+							"mixed": 0,
+							"needs_context": 0.02
+						},
+						"type": "choice"
+					}
+				},
+				"model": "jev-1.14.0",
+				"usage": {
+					"input_tokens": 1295,
+					"output_tokens": 55
+				}
+			}
+		},
+		{
+			"id": "hive-engine-event-ancestry",
+			"expected": {
+				"choice": "behavioral",
+				"probabilities": {
+					"tautological": [0, 0.2],
+					"behavioral": [0.75, 1]
+				}
+			},
+			"passed": true,
+			"mismatches": [],
+			"request_hash": "91e4bb89a5bbbeb80c1b874f2a28fc5dbd922112f0da63f93351efe34ce6c31f",
+			"result": {
+				"answers": {
+					"review": {
+						"choice": "behavioral",
+						"confidence": 0.95,
+						"probabilities": {
+							"tautological": 0.01,
+							"behavioral": 0.96,
+							"mixed": 0.02,
+							"needs_context": 0.01
+						},
+						"type": "choice"
+					}
+				},
+				"model": "jev-1.14.0",
+				"usage": {
+					"input_tokens": 1528,
+					"output_tokens": 55
+				}
+			}
+		},
+		{
+			"id": "independent-examples",
+			"expected": {
+				"choice": "behavioral",
+				"probabilities": {
+					"tautological": [0, 0.2],
+					"behavioral": [0.75, 1]
+				}
+			},
+			"passed": true,
+			"mismatches": [],
+			"request_hash": "2af2185e243395e8ac17b3d1f3349d2f91bc4f9b8de39cb2cbcb1832077168b8",
+			"result": {
+				"answers": {
+					"review": {
+						"choice": "behavioral",
+						"confidence": 0.92,
+						"probabilities": {
+							"tautological": 0.04,
+							"behavioral": 0.94,
+							"mixed": 0,
+							"needs_context": 0.02
+						},
+						"type": "choice"
+					}
+				},
+				"model": "jev-1.14.0",
+				"usage": {
+					"input_tokens": 1315,
+					"output_tokens": 55
+				}
+			}
+		},
+		{
+			"id": "independent-formula",
+			"expected": {
+				"choice": "behavioral",
+				"probabilities": {
+					"tautological": [0, 0.2],
+					"behavioral": [0.75, 1]
+				}
+			},
+			"passed": false,
+			"mismatches": [
+				"tautological: expected [0, 0.2], received 0.26",
+				"behavioral: expected [0.75, 1], received 0.7"
+			],
+			"request_hash": "43b8187e4b3a63eb8b113c0867840d0ef61766ac08bf084f4ad48ad5d3dcf2ed",
+			"result": {
+				"answers": {
+					"review": {
+						"choice": "behavioral",
+						"confidence": 0.6,
+						"probabilities": {
+							"tautological": 0.26,
+							"behavioral": 0.7,
+							"mixed": 0.02,
+							"needs_context": 0.02
+						},
+						"type": "choice"
+					}
+				},
+				"model": "jev-1.14.0",
+				"usage": {
+					"input_tokens": 1289,
+					"output_tokens": 55
+				}
+			}
+		},
+		{
+			"id": "lifecycle-mixed",
+			"expected": {
+				"choice": "mixed",
+				"probabilities": {
+					"tautological": [0, 0.2],
+					"mixed": [0.6, 1]
+				}
+			},
+			"passed": true,
+			"mismatches": [],
+			"request_hash": "7f9e8bb104a5ddaacd023e983efa8f10489df1225e53f5272b3302db4087f0fb",
+			"result": {
+				"answers": {
+					"review": {
+						"choice": "mixed",
+						"confidence": 0.84,
+						"probabilities": {
+							"tautological": 0.03,
+							"behavioral": 0.06,
+							"mixed": 0.88,
+							"needs_context": 0.03
+						},
+						"type": "choice"
+					}
+				},
+				"model": "jev-1.14.0",
+				"usage": {
+					"input_tokens": 1286,
+					"output_tokens": 52
+				}
+			}
+		},
+		{
+			"id": "literal-self-equality",
+			"expected": {
+				"choice": "tautological",
+				"probabilities": {
+					"tautological": [0.75, 1]
+				}
+			},
+			"passed": true,
+			"mismatches": [],
+			"request_hash": "20e1248a57644bf133073b1be8ce9b0238ad9ef8798faf4b72e1f81d748992bb",
+			"result": {
+				"answers": {
+					"review": {
+						"choice": "tautological",
+						"confidence": 0.96,
+						"probabilities": {
+							"tautological": 0.97,
+							"behavioral": 0,
+							"mixed": 0,
+							"needs_context": 0.03
+						},
+						"type": "choice"
+					}
+				},
+				"model": "jev-1.14.0",
+				"usage": {
+					"input_tokens": 1241,
+					"output_tokens": 55
+				}
+			}
+		},
+		{
+			"id": "local-constant-copy",
+			"expected": {
+				"choice": "tautological",
+				"probabilities": {
+					"tautological": [0.75, 1]
+				}
+			},
+			"passed": true,
+			"mismatches": [],
+			"request_hash": "cf1cf09adcd506107610188d7f732cf4556b97a03073d1346c2c52e4bb972da0",
+			"result": {
+				"answers": {
+					"review": {
+						"choice": "tautological",
+						"confidence": 0.96,
+						"probabilities": {
+							"tautological": 0.97,
+							"behavioral": 0,
+							"mixed": 0,
+							"needs_context": 0.03
+						},
+						"type": "choice"
+					}
+				},
+				"model": "jev-1.14.0",
+				"usage": {
+					"input_tokens": 1246,
+					"output_tokens": 55
+				}
+			}
+		},
+		{
+			"id": "metamorphic-sort",
+			"expected": {
+				"choice": "behavioral",
+				"probabilities": {
+					"tautological": [0, 0.2],
+					"behavioral": [0.75, 1]
+				}
+			},
+			"passed": true,
+			"mismatches": [],
+			"request_hash": "cec0902ca0b616ed77ceb0e451e9f8c410d0730d3e487f32d054edcfcf39f458",
+			"result": {
+				"answers": {
+					"review": {
+						"choice": "behavioral",
+						"confidence": 0.75,
+						"probabilities": {
+							"tautological": 0.03,
+							"behavioral": 0.81,
+							"mixed": 0.14,
+							"needs_context": 0.02
+						},
+						"type": "choice"
+					}
+				},
+				"model": "jev-1.14.0",
+				"usage": {
+					"input_tokens": 1293,
+					"output_tokens": 55
+				}
+			}
+		},
+		{
+			"id": "missing-helper",
+			"expected": {
+				"choice": "needs_context",
+				"probabilities": {
+					"tautological": [0, 0.2],
+					"needs_context": [0.6, 1]
+				}
+			},
+			"passed": true,
+			"mismatches": [],
+			"request_hash": "c804ba42d64a88da80f4b87183c4ba545a3af66bd30f11deaf6b5989da9024ab",
+			"result": {
+				"answers": {
+					"review": {
+						"choice": "needs_context",
+						"confidence": 1,
+						"probabilities": {
+							"tautological": 0,
+							"behavioral": 0,
+							"mixed": 0,
+							"needs_context": 1
+						},
+						"type": "choice"
+					}
+				},
+				"model": "jev-1.14.0",
+				"usage": {
+					"input_tokens": 1280,
+					"output_tokens": 53
+				}
+			}
+		},
+		{
+			"id": "missing-setup",
+			"expected": {
+				"choice": "needs_context",
+				"probabilities": {
+					"tautological": [0, 0.2],
+					"needs_context": [0.6, 1]
+				}
+			},
+			"passed": true,
+			"mismatches": [],
+			"request_hash": "86d479760701421313c85d794107d1db58e589a53be1c0cfd9c0605806e334f0",
+			"result": {
+				"answers": {
+					"review": {
+						"choice": "needs_context",
+						"confidence": 0.99,
+						"probabilities": {
+							"tautological": 0,
+							"behavioral": 0.01,
+							"mixed": 0,
+							"needs_context": 0.99
+						},
+						"type": "choice"
+					}
+				},
+				"model": "jev-1.14.0",
+				"usage": {
+					"input_tokens": 1257,
+					"output_tokens": 53
+				}
+			}
+		},
+		{
+			"id": "mixed-assertions",
+			"expected": {
+				"choice": "mixed",
+				"probabilities": {
+					"tautological": [0, 0.2],
+					"mixed": [0.6, 1]
+				}
+			},
+			"passed": true,
+			"mismatches": [],
+			"request_hash": "e159e70349d77841d7cc066003975fd549d4fe5383fc9582005658a27ba05547",
+			"result": {
+				"answers": {
+					"review": {
+						"choice": "mixed",
+						"confidence": 0.6,
+						"probabilities": {
+							"tautological": 0.12,
+							"behavioral": 0.16,
+							"mixed": 0.7,
+							"needs_context": 0.02
+						},
+						"type": "choice"
+					}
+				},
+				"model": "jev-1.14.0",
+				"usage": {
+					"input_tokens": 1286,
+					"output_tokens": 52
+				}
+			}
+		},
+		{
+			"id": "mock-collaboration",
+			"expected": {
+				"choice": "behavioral",
+				"probabilities": {
+					"tautological": [0, 0.2],
+					"behavioral": [0.75, 1]
+				}
+			},
+			"passed": false,
+			"mismatches": [
+				"tautological: expected [0, 0.2], received 0.38",
+				"behavioral: expected [0.75, 1], received 0.59"
+			],
+			"request_hash": "877858a7201e1e86405d58faca748fb95a26cc0a267d96b7366a213be559ccaf",
+			"result": {
+				"answers": {
+					"review": {
+						"choice": "behavioral",
+						"confidence": 0.45,
+						"probabilities": {
+							"tautological": 0.38,
+							"behavioral": 0.59,
+							"mixed": 0,
+							"needs_context": 0.03
+						},
+						"type": "choice"
+					}
+				},
+				"model": "jev-1.14.0",
+				"usage": {
+					"input_tokens": 1314,
+					"output_tokens": 55
+				}
+			}
+		},
+		{
+			"id": "mock-echo",
+			"expected": {
+				"choice": "tautological",
+				"probabilities": {
+					"tautological": [0.75, 1]
+				}
+			},
+			"passed": true,
+			"mismatches": [],
+			"request_hash": "7388f4e1e08636ac08517b5bc3e520093656d7d2ff54e86e5d8acaf46352f4ac",
+			"result": {
+				"answers": {
+					"review": {
+						"choice": "tautological",
+						"confidence": 0.88,
+						"probabilities": {
+							"tautological": 0.91,
+							"behavioral": 0.03,
+							"mixed": 0.01,
+							"needs_context": 0.05
+						},
+						"type": "choice"
+					}
+				},
+				"model": "jev-1.14.0",
+				"usage": {
+					"input_tokens": 1275,
+					"output_tokens": 55
+				}
+			}
+		},
+		{
+			"id": "protocol-constant",
+			"expected": {
+				"choice": "behavioral",
+				"probabilities": {
+					"tautological": [0, 0.2],
+					"behavioral": [0.75, 1]
+				}
+			},
+			"passed": true,
+			"mismatches": [],
+			"request_hash": "141ddda1756b1bfb7cedeb9096c7589b14e3b29ba681459280178bedb664225d",
+			"result": {
+				"answers": {
+					"review": {
+						"choice": "behavioral",
+						"confidence": 0.71,
+						"probabilities": {
+							"tautological": 0.17,
+							"behavioral": 0.78,
+							"mixed": 0.03,
+							"needs_context": 0.02
+						},
+						"type": "choice"
+					}
+				},
+				"model": "jev-1.14.0",
+				"usage": {
+					"input_tokens": 1254,
+					"output_tokens": 55
+				}
+			}
+		},
+		{
+			"id": "repeat-call-determinism",
+			"expected": {
+				"choice": "behavioral",
+				"probabilities": {
+					"tautological": [0, 0.2],
+					"behavioral": [0.75, 1]
+				}
+			},
+			"passed": true,
+			"mismatches": [],
+			"request_hash": "ea0f1413bc4de1355e1b7e6ef26a1bcc97e09ee107fe2c3316cc3c71c721bb5f",
+			"result": {
+				"answers": {
+					"review": {
+						"choice": "behavioral",
+						"confidence": 0.84,
+						"probabilities": {
+							"tautological": 0.11,
+							"behavioral": 0.88,
+							"mixed": 0,
+							"needs_context": 0.01
+						},
+						"type": "choice"
+					}
+				},
+				"model": "jev-1.14.0",
+				"usage": {
+					"input_tokens": 1293,
+					"output_tokens": 55
+				}
+			}
+		},
+		{
+			"id": "same-value-assertion",
+			"expected": {
+				"choice": "tautological",
+				"probabilities": {
+					"tautological": [0.75, 1]
+				}
+			},
+			"passed": true,
+			"mismatches": [],
+			"request_hash": "72ddb9e86942ae036a7614b15754f3a1104c0c0c23f1b9d6a08ca82af5d6ecb0",
+			"result": {
+				"answers": {
+					"review": {
+						"choice": "tautological",
+						"confidence": 0.99,
+						"probabilities": {
+							"tautological": 0.99,
+							"behavioral": 0,
+							"mixed": 0,
+							"needs_context": 0.01
+						},
+						"type": "choice"
+					}
+				},
+				"model": "jev-1.14.0",
+				"usage": {
+					"input_tokens": 1260,
+					"output_tokens": 55
+				}
+			}
+		},
+		{
+			"id": "self-derived-expected",
+			"expected": {
+				"choice": "tautological",
+				"probabilities": {
+					"tautological": [0.75, 1]
+				}
+			},
+			"passed": true,
+			"mismatches": [],
+			"request_hash": "b8f0aff2045f786bfdda043e5b712a75b96a4cf5c1fa488036e57bda69b51f59",
+			"result": {
+				"answers": {
+					"review": {
+						"choice": "tautological",
+						"confidence": 1,
+						"probabilities": {
+							"tautological": 1,
+							"behavioral": 0,
+							"mixed": 0,
+							"needs_context": 0
+						},
+						"type": "choice"
+					}
+				},
+				"model": "jev-1.14.0",
+				"usage": {
+					"input_tokens": 1280,
+					"output_tokens": 55
+				}
+			}
+		},
+		{
+			"id": "setup-assigns-result",
+			"expected": {
+				"choice": "tautological",
+				"probabilities": {
+					"tautological": [0.75, 1]
+				}
+			},
+			"passed": false,
+			"mismatches": ["tautological: expected [0.75, 1], received 0.59"],
+			"request_hash": "55c55e9b5afb8d5034266d06c251f80735456008fd4ba1595171390f1c64d124",
+			"result": {
+				"answers": {
+					"review": {
+						"choice": "tautological",
+						"confidence": 0.45,
+						"probabilities": {
+							"tautological": 0.59,
+							"behavioral": 0.01,
+							"mixed": 0,
+							"needs_context": 0.4
+						},
+						"type": "choice"
+					}
+				},
+				"model": "jev-1.14.0",
+				"usage": {
+					"input_tokens": 1259,
+					"output_tokens": 55
+				}
+			}
+		},
+		{
+			"id": "setup-produces-result",
+			"expected": {
+				"choice": "behavioral",
+				"probabilities": {
+					"tautological": [0, 0.2],
+					"behavioral": [0.75, 1]
+				}
+			},
+			"passed": false,
+			"mismatches": ["behavioral: expected [0.75, 1], received 0.72"],
+			"request_hash": "6e8c288a477f3d0d62d71e6f5504b1a38657130e062efb35f9087c3ac01bebdb",
+			"result": {
+				"answers": {
+					"review": {
+						"choice": "behavioral",
+						"confidence": 0.63,
+						"probabilities": {
+							"tautological": 0.15,
+							"behavioral": 0.72,
+							"mixed": 0,
+							"needs_context": 0.13
+						},
+						"type": "choice"
+					}
+				},
+				"model": "jev-1.14.0",
+				"usage": {
+					"input_tokens": 1263,
+					"output_tokens": 55
+				}
+			}
+		},
+		{
+			"id": "snapshot-contract",
+			"expected": {
+				"choice": "behavioral",
+				"probabilities": {
+					"tautological": [0, 0.2],
+					"behavioral": [0.75, 1]
+				}
+			},
+			"passed": true,
+			"mismatches": [],
+			"request_hash": "af5f7d617cb19e9a9a967ca0c18ca2f8efe06ffd822a01abe1d7e503293eb588",
+			"result": {
+				"answers": {
+					"review": {
+						"choice": "behavioral",
+						"confidence": 0.81,
+						"probabilities": {
+							"tautological": 0.06,
+							"behavioral": 0.86,
+							"mixed": 0,
+							"needs_context": 0.08
+						},
+						"type": "choice"
+					}
+				},
+				"model": "jev-1.14.0",
+				"usage": {
+					"input_tokens": 1297,
+					"output_tokens": 55
+				}
+			}
+		},
+		{
+			"id": "table-derived-from-definition",
+			"expected": {
+				"choice": "tautological",
+				"probabilities": {
+					"tautological": [0.75, 1]
+				}
+			},
+			"passed": true,
+			"mismatches": [],
+			"request_hash": "5e20d519d23f8803aeb45763d64178ef379c2aad27ad79187879eb7d298c4e7b",
+			"result": {
+				"answers": {
+					"review": {
+						"choice": "tautological",
+						"confidence": 1,
+						"probabilities": {
+							"tautological": 1,
+							"behavioral": 0,
+							"mixed": 0,
+							"needs_context": 0
+						},
+						"type": "choice"
+					}
+				},
+				"model": "jev-1.14.0",
+				"usage": {
+					"input_tokens": 1269,
+					"output_tokens": 55
+				}
+			}
+		},
+		{
+			"id": "teardown-assertion",
+			"expected": {
+				"choice": "behavioral",
+				"probabilities": {
+					"tautological": [0, 0.2],
+					"behavioral": [0.75, 1]
+				}
+			},
+			"passed": true,
+			"mismatches": [],
+			"request_hash": "73ddad65bf1f62a5dce423b3a38c602dafb19b32b317d1ed0a3f044496752f4e",
+			"result": {
+				"answers": {
+					"review": {
+						"choice": "behavioral",
+						"confidence": 0.8,
+						"probabilities": {
+							"tautological": 0.08,
+							"behavioral": 0.85,
+							"mixed": 0.01,
+							"needs_context": 0.06
+						},
+						"type": "choice"
+					}
+				},
+				"model": "jev-1.14.0",
+				"usage": {
+					"input_tokens": 1275,
+					"output_tokens": 55
+				}
+			}
+		},
+		{
+			"id": "unknown-constant-contract",
+			"expected": {
+				"choice": "needs_context",
+				"probabilities": {
+					"tautological": [0, 0.2],
+					"needs_context": [0.6, 1]
+				}
+			},
+			"passed": true,
+			"mismatches": [],
+			"request_hash": "d82f028964050e5e23579bfc969f1dd96dadc59f918b47f42173007f437b5f66",
+			"result": {
+				"answers": {
+					"review": {
+						"choice": "needs_context",
+						"confidence": 0.89,
+						"probabilities": {
+							"tautological": 0.08,
+							"behavioral": 0,
+							"mixed": 0,
+							"needs_context": 0.92
+						},
+						"type": "choice"
+					}
+				},
+				"model": "jev-1.14.0",
+				"usage": {
+					"input_tokens": 1257,
+					"output_tokens": 53
+				}
+			}
+		},
+		{
+			"id": "workflow-definition-shape",
+			"expected": {
+				"choice": "tautological",
+				"probabilities": {
+					"tautological": [0.75, 1]
+				}
+			},
+			"passed": true,
+			"mismatches": [],
+			"request_hash": "f44cc7da5dd86e951765f9d22f5282ab445009c01cba8561fb61e8b63a184663",
+			"result": {
+				"answers": {
+					"review": {
+						"choice": "tautological",
+						"confidence": 0.99,
+						"probabilities": {
+							"tautological": 0.99,
+							"behavioral": 0,
+							"mixed": 0,
+							"needs_context": 0.01
+						},
+						"type": "choice"
+					}
+				},
+				"model": "jev-1.14.0",
+				"usage": {
+					"input_tokens": 1299,
+					"output_tokens": 55
+				}
+			}
+		},
+		{
+			"id": "workflow-definition-through-interpreter",
+			"expected": {
+				"choice": "tautological",
+				"probabilities": {
+					"tautological": [0.75, 1]
+				}
+			},
+			"passed": true,
+			"mismatches": [],
+			"request_hash": "6f7405fde08c714635cbb90033353164bc92c6c4988848576cefa353f14fc19d",
+			"result": {
+				"answers": {
+					"review": {
+						"choice": "tautological",
+						"confidence": 0.96,
+						"probabilities": {
+							"tautological": 0.97,
+							"behavioral": 0.01,
+							"mixed": 0,
+							"needs_context": 0.02
+						},
+						"type": "choice"
+					}
+				},
+				"model": "jev-1.14.0",
+				"usage": {
+					"input_tokens": 1331,
+					"output_tokens": 55
+				}
+			}
+		},
+		{
+			"id": "workflow-engine-guard",
+			"expected": {
+				"choice": "behavioral",
+				"probabilities": {
+					"tautological": [0, 0.2],
+					"behavioral": [0.75, 1]
+				}
+			},
+			"passed": true,
+			"mismatches": [],
+			"request_hash": "77add8ec338072e3672c6682f90eec4bd6c76da10a0abce07734defd710022a1",
+			"result": {
+				"answers": {
+					"review": {
+						"choice": "behavioral",
+						"confidence": 0.8,
+						"probabilities": {
+							"tautological": 0.13,
+							"behavioral": 0.85,
+							"mixed": 0.01,
+							"needs_context": 0.01
+						},
+						"type": "choice"
+					}
+				},
+				"model": "jev-1.14.0",
+				"usage": {
+					"input_tokens": 1356,
+					"output_tokens": 55
+				}
+			}
+		}
+	],
+	"reason": "expectation_mismatch"
+}

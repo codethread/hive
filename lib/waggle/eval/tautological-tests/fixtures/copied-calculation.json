@@ -1,0 +1,16 @@
+{
+	"id": "copied-calculation",
+	"input": {
+		"source": "// price.ts\nexport function total(price, qty) { return Math.round(price * qty * 1.2); }",
+		"test": "test.each([[10, 2], [23, 3]])('total %s %s', (price, qty) => expect(total(price, qty)).toBe(Math.round(price * qty * 1.2)));",
+		"context": "No hooks, helpers, mocks, imports or additional assertions are omitted.",
+		"contract": "The expected expression was copied from this implementation. No independent tax or rounding specification is available."
+	},
+	"expected": {
+		"choice": "tautological",
+		"probabilities": {
+			"tautological": [0.75, 1]
+		}
+	},
+	"rationale": "The test reproduces the implementation calculation, including any shared mistake."
+}

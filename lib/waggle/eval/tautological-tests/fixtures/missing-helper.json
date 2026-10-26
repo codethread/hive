@@ -1,0 +1,17 @@
+{
+	"id": "missing-helper",
+	"input": {
+		"source": "// parser.ts\nexport function parse(s) { if (!/^\\d+$/.test(s)) throw new Error('invalid'); return Number(s); }",
+		"test": "test('parse', () => checkParse(parse, '42'));",
+		"context": "checkParse is imported from test helpers; its body is unavailable. No hooks.",
+		"contract": "parse should return a numeric value for valid decimal strings. The helper might assert an independent result or compare the result with itself."
+	},
+	"expected": {
+		"choice": "needs_context",
+		"probabilities": {
+			"tautological": [0, 0.2],
+			"needs_context": [0.6, 1]
+		}
+	},
+	"rationale": "Cannot infer assertion semantics from the helper name."
+}
