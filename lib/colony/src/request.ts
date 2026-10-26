@@ -238,7 +238,7 @@ export function newRequest(spawn: Bead, repository: RepositoryEndpoint): Request
 }
 /**
  * XState's assign-only machine selects lifecycle transitions without a running actor.
- * Callers persist the result before effects.
+ * Callers own persistence and effect ordering (see acquireRequest and finishSettlement).
  */
 export function transitionRequest(record: RequestRecord, event: RequestEvent): RequestRecord {
 	const snapshot = machine.resolveState({ context: record.context, value: record.state });

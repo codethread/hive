@@ -2399,7 +2399,7 @@
 		},
 		"#test-686": {
 			"threshold": "SLOW",
-			"justification": "ct approved this measured allowance on 2026-10-26 (hv-4t52nj). Full check: 4.236ms; focused: 2.15-2.20ms. Retains serialized checkpoint authority and the next transition after JSON/schema restoration."
+			"justification": "ct approved this measured allowance on 2026-10-26 (hv-4t52nj). Full check: 4.236ms; focused: 2.15-2.20ms. Retains serialized checkpoint authority and the next transition after JSON/schema restoration. Historical measurement: those timings include the former JSON/schema restoration, not the current typed executing/retrying checkpoint authority and next-transition policy in lib/colony/src/request.test.ts. Runtime snapshot serialization and JSON/schema decoding remain in lib/colony/src/store.ts, exercised with real SQLite by history.smoke.test.ts and inspection.test.ts. The existing SLOW allowance is unchanged; no new policy-only timing is claimed."
 		},
 		"#test-687": {
 			"threshold": "SLOW",
@@ -2423,7 +2423,7 @@
 		},
 		"#test-692": {
 			"threshold": "SLOW",
-			"justification": "ct approved this measured allowance on 2026-10-26 (hv-4t52nj). Full check: 3.757ms. Retains JSON/schema restoration of stage authority and rejection of a changed identity."
+			"justification": "ct approved this measured allowance on 2026-10-26 (hv-4t52nj). Full check: 3.757ms. Retains JSON/schema restoration of stage authority and rejection of a changed identity. Historical measurement: that timing includes the former JSON/schema restoration, not the current typed stage-authority identity check in lib/colony/src/request.test.ts. Runtime snapshot serialization and JSON/schema decoding remain in lib/colony/src/store.ts, exercised with real SQLite by history.smoke.test.ts and inspection.test.ts. The existing SLOW allowance is unchanged; no new policy-only timing is claimed."
 		},
 		"#test-693": {
 			"threshold": "SLOW",
@@ -2648,6 +2648,14 @@
 		"#test-748": {
 			"threshold": "SLOW",
 			"justification": "Existing 2026-10-26 slow-test approval applied in hv-wujwxn. PR35 full check (check-7.log): 4.504ms; three fresh-process focused samples: 0.39/0.39/0.39ms. Retains consumed finish CLI policy: unsupported --strategy yields UsageError, the usage exit code and structured JSON failure with empty diagnostics/setup output before any injected dependency is called. Real dispatch, fixture construction, JSON parsing and all four assertions stay measured; injected dependencies perform no Git, filesystem or process I/O. Only the title ID changes; bodies and fixtures are unchanged. This allowance is not a speedup."
+		},
+		"#test-751": {
+			"threshold": "SLOW",
+			"justification": "ct's 2026-10-26 backlog authorization (hv-4t52nj), scoped by Architect follow-up hv-2v8yx3, covers this duplicate-section row only. PR22 full check (pr22-gates-1-check.log): 3.051ms; three fresh-file samples: 0.02/0.02/0.01ms, not cold-first invocations. Retains real installHooks rejecting two valid owned sections in the second configured hook with BeeswaxError and an agent migration goal, preserving all configured files, including not creating the earlier hook. The WorkspaceIO fixture is Map-backed, with no real filesystem, Git process or SQLite work. Meaningful seam/setup reductions were assessed without finding a useful change; edited/broken-section and tracker-hook cases do not replace this non-destructive all-files preflight contract. The outlier's cause is unproved; contention is plausible, not established. Only this row gains SLOW classification; setup and assertions stay measured, other rows and global cutoffs/timeouts stay unchanged. This allowance is not a speedup."
+		},
+		"#test-752": {
+			"threshold": "SLOW",
+			"justification": "ct's 2026-10-26 backlog authorization (hv-4t52nj), scoped by Architect follow-up hv-9t4x6b, covers only retained claiming work's hintless five-second cadence. PR22 full check (pr22-gates-2-check.log): 4.386ms; three fresh-file samples: 0.17/0.17/0.17ms. The real Colony actor uses a SimulatedClock and injected scan, hints and array-backed store reads: advance 5000ms, await idle and assert scans [0, 5000], protecting against an incorrect quiet 60-second delay. These post-startup body timings exclude inherited module-level temporary store, tracker/task/spawn/config preparation, explicit warm actor and prestarted waiting/recovery actors awaited to idle. No native dispatch, Beads subprocess, filesystem observation or SQLite query runs in the measured cadence body; this is not cold-start or end-to-end evidence. No useful reduction of the measured sequence was found; retrying is a distinct state, recovery sends a hint and subscription cases do not prove cadence. The outlier's cause is unproved, not an intrinsic 4ms cost. Only claiming's display title gains this SLOW classification; retrying stays strict. Fixture lifecycle, body operations, assertions, prior allowances, global cutoffs and timeouts remain unchanged. No new warmup or setup relocation; this allowance is not a speedup."
 		}
 	}
 }
