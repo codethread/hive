@@ -35,8 +35,6 @@ Review the snapshot and any other staged changes before committing. Once the sna
 
 ## Recovery and cleanup
 
-On conflicting claims, JSONL conflicts or synchronization failures other than pre-publication `tracker_busy`, stop tracker work and load `beeswax skills get tracker-recovery`. It owns waiting, authorization, writer quiescence and evidence-preserving recovery; `beeswax beads recover` prints the current incident handoff without changing it.
-
-Retain `.beads/hive-sync-incoming.jsonl` and `.beads/hive-sync-base.jsonl` from the failed attempt alongside the live tracker state and diagnostics. These are the accepted remote and Git common-base inputs, not replacement live exports. Preserve audit history and native conflict safeguards; neither rerunning with force flags nor copying an input over the live export is routine recovery.
+On conflicting claims, JSONL conflicts or synchronization failures other than pre-publication `tracker_busy`, pause tracker work and merges involving that tracker. Read `beeswax skills get tracker-recovery` before retrying; it owns waiting, authorization, evidence preservation and recovery. `beeswax beads recover` prints the current incident handoff without changing it.
 
 Keep the permanent tracker worktree outside feature cleanup. Publish completion and verification from a surviving checkout.

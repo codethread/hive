@@ -133,7 +133,7 @@ afterAll(async () => {
 	await rm(state, { force: true, recursive: true });
 });
 
-test("native pass failure remains failed and closes hints and timers", async () => {
+test("native pass failure remains failed and closes hints and timers #test-732", async () => {
 	const current = scenarios.nativeFailure;
 	await waitFor(current.actor, (snapshot) => snapshot.matches("failed"));
 	expect(current.actor.getSnapshot().context.message).toBe("native failure");
@@ -171,7 +171,8 @@ test("recovery seeds current attempts before dispatch and refreshes watches afte
 });
 
 test.each(retainedCases)(
-	"retained subscriptions select the current local nonterminal attempt ($selection pointer) without artifact I/O",
+	"retained subscriptions select the current local nonterminal attempt " +
+		"($selection pointer) without artifact I/O #test-731",
 	({ root, expected }) => {
 		expect(store.currentAttempts(root).map(({ id }) => id)).toEqual([expected]);
 	},

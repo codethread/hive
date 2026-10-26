@@ -13,7 +13,7 @@ test("Beeswax accepts the standard Husky bootstrap and preserves application hoo
 	const root = await mkdtemp(join(tmpdir(), "beeswax husky "));
 	const io = createLiveDependencies();
 	try {
-		await io.command(["git", "init"], root);
+		await io.command(["git", "init", "--template="], root);
 		const module = JSON.stringify(import.meta.resolve("husky"));
 		await io.command(
 			[
