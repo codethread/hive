@@ -145,15 +145,20 @@ test("native pass failure remains failed and closes hints and timers #test-732",
 	expect(current.scans).toHaveLength(ONE);
 });
 
-test.each([...waitingStates])(
-	"retained %s work keeps the five-second cadence even without hints",
-	async (requestState) => {
-		const current = waitingFixtures[waitingStates.indexOf(requestState)]!;
-		current.clock.increment(FIVE_SECONDS);
-		await idle(current);
-		expect(current.scans).toEqual([ZERO, FIVE_SECONDS]);
-	},
-);
+test.each(
+	waitingStates.map((requestState) => ({
+		requestState,
+		title: {
+			claiming: "retained claiming work keeps the five-second cadence even without hints #test-752",
+			retrying: "retained retrying work keeps the five-second cadence even without hints",
+		}[requestState],
+	})),
+)("$title", async ({ requestState }) => {
+	const current = waitingFixtures[waitingStates.indexOf(requestState)]!;
+	current.clock.increment(FIVE_SECONDS);
+	await idle(current);
+	expect(current.scans).toEqual([ZERO, FIVE_SECONDS]);
+});
 
 test("recovery seeds current attempts before dispatch and refreshes watches after dispatch", async () => {
 	const current = scenarios.recovery;

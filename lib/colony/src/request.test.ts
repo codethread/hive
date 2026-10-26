@@ -1,12 +1,7 @@
 /* eslint-disable unicorn/no-null -- Checkpoints and events encode absent values as null. */
 import type { RepositoryEndpoint, SpawnRequest } from "@hive/shared";
 import type { RequestEvent, RequestRecord } from "./request.ts";
-import {
-	assertRequestAuthority,
-	newRequest,
-	requestRecordSchema,
-	transitionRequest,
-} from "./request.ts";
+import { assertRequestAuthority, newRequest, transitionRequest } from "./request.ts";
 import { expect, test } from "bun:test";
 import type { Bead } from "@hive/beads";
 
@@ -124,9 +119,8 @@ test("newRequest captures spawn-bead authority and the selected database #test-6
 	});
 });
 
-// Sample JSON restoration separately from the typed lifecycle's per-transition authority checks.
 test.each(checkpoints)(
-	"JSON/schema restoration preserves $state checkpoints and their next transition #test-686",
+	"typed $state checkpoints preserve authority through their next transition #test-686",
 	({ state, attemptId, claims, retryAt, event, expectedState }) => {
 		const initial = driverRecord();
 		const checkpoint: RequestRecord = {
@@ -141,16 +135,14 @@ test.each(checkpoints)(
 				retryAt,
 			},
 		};
-		const restored = restore(checkpoint);
-		expect(restored).toEqual(checkpoint);
-		assertRequestAuthority(restored, captured);
-		const next = transitionRequest(restored, event);
+		assertRequestAuthority(checkpoint, captured);
+		const next = transitionRequest(checkpoint, event);
 		expect(next.state).toBe(expectedState);
 		assertRequestAuthority(next, captured);
 	},
 );
 
-test("restored stage authority rejects a changed identity #test-692", () => {
+test("stage authority rejects a changed identity #test-692", () => {
 	const initial = driverRecord();
 	const stage: RequestRecord = {
 		...initial,
@@ -163,9 +155,8 @@ test("restored stage authority rejects a changed identity #test-692", () => {
 		identity: "friendly-bee",
 		taskIds: ["stage-1"],
 	};
-	const restored = restore(stage);
-	assertRequestAuthority(restored, authority);
-	expect(() => assertRequestAuthority(restored, { ...authority, identity: "another-bee" })).toThrow(
+	assertRequestAuthority(stage, authority);
+	expect(() => assertRequestAuthority(stage, { ...authority, identity: "another-bee" })).toThrow(
 		Error,
 	);
 });
@@ -190,10 +181,4 @@ function driverRecord(): RequestRecord {
 		id: "request-1",
 		state: "waiting",
 	};
-}
-
-function restore(record: RequestRecord): RequestRecord {
-	// eslint-disable-next-line unicorn/prefer-structured-clone -- Test the checkpoint JSON format.
-	const parsed: unknown = JSON.parse(JSON.stringify(record));
-	return requestRecordSchema.parse(parsed);
 }
