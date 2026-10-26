@@ -1,17 +1,19 @@
-/* eslint-disable import/max-dependencies -- Compose the real SQLite, transport, native memory and CLI boundaries. */
+/* eslint-disable node/no-sync -- Avoid async scheduling for disposable directories; keep setup and cleanup measured. */
+/* eslint-disable import/max-dependencies -- Compose real SQLite, Unix socket and CLI paths with a memory tracker. */
 /* eslint-disable unicorn/no-null -- Retained fixtures preserve absent checkpoint and policy fields. */
-import { afterAll, expect, test } from "bun:test";
 import { createSpawn, createTask, memoryTracker } from "./tracker.test-support.ts";
+import { expect, test } from "bun:test";
 // eslint-disable-next-line import/no-nodejs-modules -- Use disposable state without process artifacts.
 import { hostname, tmpdir } from "node:os";
 import { inspectRepository, inspectRequest } from "./inspection.ts";
 /* eslint-disable-next-line import/no-nodejs-modules --
  * Exercise the existing private SQLite boundary in disposable directories.
  */
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtempSync, rmSync } from "node:fs";
 import { Database } from "bun:sqlite";
 import type { LaunchReceipt } from "./launch.ts";
 import type { RequestRecord } from "./request.ts";
+import type { ServerTarget } from "./client.ts";
 import { colonyRequestSchema } from "@hive/shared";
 import { explainRequest } from "./explain.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Resolve disposable store paths.
@@ -24,178 +26,167 @@ const ONE = 1;
 const TWO = 2;
 const LARGE_HISTORY = 1000;
 const OBSERVED = "2026-10-13T00:00:00Z";
-const workspace = await mkdtemp(join(tmpdir(), "colony-explain-"));
-const repository = { beadsDb: "/fixture/beads.db", root: workspace };
-const tracker = { ...memoryTracker(), repository };
-const taskId = await createTask(tracker);
-const target = await createSpawn(tracker, taskId);
-const fixtures = await Promise.all([EMPTY, LARGE_HISTORY].map((size) => createFixture(size)));
-for (const { store } of fixtures) {
-	inspectRequest(repository, store, target);
-}
-inspectRepository(repository, fixtures[EMPTY]!.store);
-const serverTarget = { state: workspace, socket: join(workspace, "s"), runtimeEntry: "/unused" };
 const limits = { colony: TWO, kind: TWO, kinds: {}, worktree: TWO };
-let selected = fixtures[EMPTY]!.store;
-let unavailable = false;
-const commands: unknown[] = [];
-const server = Bun.serve({
-	unix: serverTarget.socket,
-	fetch: async (httpRequest) => {
-		const command = colonyRequestSchema.parse(await httpRequest.json());
-		commands.push(command);
-		if (unavailable) {
-			return Response.json({ kind: "error", message: "Selected runtime unavailable" });
-		}
-		if (command.kind !== "inspect-request") {
-			throw new Error("Expected a focused diagnostic command");
-		}
-		return Response.json({
-			...inspectRequest(command.repository, selected, command.requestId),
-			colony: {
-				intent: "awake",
-				policy: { limits, ranking: "fifo" },
-				registration: "durable",
-				repository,
-				state: "awake",
-			},
+
+type Fixture = Awaited<ReturnType<typeof createFixture>>;
+type Context = Awaited<ReturnType<typeof createContext>>;
+
+test(
+	"public inspection retains history while explain JSON scopes evidence " +
+		"across history sizes #test-682",
+	async () => {
+		await withFixture(EMPTY, async (small) => {
+			const { repository, store, target } = small;
+			expect(inspectRequest({ ...repository, root: "/other" }, store, target)).toMatchObject({
+				attempts: [],
+				checkpoint: null,
+				occupied: [],
+			});
+			const snapshot = inspectRepository(repository, store);
+			const liveAndTarget = 4;
+			expect(snapshot.attempts).toHaveLength(liveAndTarget);
+			expect(snapshot.requests).toHaveLength(TWO);
+			expect(snapshot.history).toHaveLength(EMPTY);
+			expect(snapshot.attempts.map(({ id }) => id)).toContain("target-exited");
+			expect(snapshot.requests.map(({ id }) => id)).toContain("other");
+			// Keep request identity fixed while comparing independent retained histories.
+			await withFixture(
+				LARGE_HISTORY,
+				// eslint-disable-next-line max-statements -- Verify one public report across evidence groups.
+				async (large) => {
+					let selected = small.store;
+					const { server, serverTarget, commands } = serveInspection(small, () =>
+						inspectRequest(repository, selected, target),
+					);
+					try {
+						const smallReport = await invokeExplanation(small, serverTarget);
+						selected = large.store;
+						const largeReport = await invokeExplanation(large, serverTarget);
+						expect(largeReport.code).toBe(EMPTY);
+						expect(largeReport.stderr).toBe("");
+						expect(Buffer.byteLength(largeReport.stdout)).toBe(
+							Buffer.byteLength(smallReport.stdout),
+						);
+						expect(largeReport.stdout).not.toMatch(/history-|other-starting|other-running/u);
+						const result = JSON.parse(largeReport.stdout);
+						expect(result).toMatchObject({ ok: true, kind: "explanation", id: target });
+						expect(result.runtime.result.value.colony).not.toHaveProperty("attempts");
+						expect(result.runtime.result.value.checkpoint.id).toBe(target);
+						expect(
+							result.runtime.result.value.attempts.map(({ id }: { id: string }) => id),
+						).toEqual(["target-failed", "target-exited"]);
+						expect(result.capacity.result.value).toMatchObject({
+							available: false,
+							limits,
+							occupied: [
+								{ bucket: "/other-bucket", kind: "worker" },
+								{ bucket: repository.root, kind: "librarian" },
+							],
+						});
+						expect(
+							result.processes.map(({ attemptId }: { attemptId: string }) => attemptId),
+						).toEqual(["target-failed", "target-exited"]);
+						expect(result.tracker.result.kind).toBe("available");
+						expect(result.runtime.freshness).toBe("checkpoint_age_unknown");
+						expect(commands).toEqual(
+							Array.from({ length: TWO }, () => ({
+								kind: "inspect-request",
+								repository,
+								requestId: target,
+							})),
+						);
+					} finally {
+						await server.stop(true);
+					}
+				},
+				small,
+			);
 		});
 	},
-});
-const reports: Awaited<ReturnType<typeof invokeExplanation>>[] = [];
-for (const fixture of fixtures) {
-	selected = fixture.store;
-	// eslint-disable-next-line no-await-in-loop -- Compare the same request against independently retained history sizes.
-	reports.push(await invokeExplanation());
-}
-unavailable = true;
-const partial = await invokeExplanation();
-unavailable = false;
-const missingRuntime = await explainRequest(target, tracker, {
-	...serverTarget,
-	socket: join(workspace, "missing"),
-});
+);
 
-afterAll(async () => {
-	await server.stop(true);
-	await Promise.all(
-		fixtures.map(async ({ store, database, state }) => {
-			database.close();
-			store.close();
-			await rm(state, { force: true, recursive: true });
-		}),
-	);
-	await rm(workspace, { force: true, recursive: true });
-});
-
-test("a repository without retained evidence has no checkpoint, attempts or reservations", () => {
-	expect(
-		inspectRequest({ ...repository, root: "/other" }, fixtures[EMPTY]!.store, target),
-	).toMatchObject({
-		attempts: [],
-		checkpoint: null,
-		occupied: [],
+test("failed and unavailable runtime reads preserve native evidence without falling back #test-683", async () => {
+	await withContext(async (fixture) => {
+		const { server, serverTarget, commands } = serveInspection(fixture, () => ({
+			kind: "error",
+			message: "Selected runtime unavailable",
+		}));
+		try {
+			const partial = await invokeExplanation(fixture, serverTarget);
+			const missingRuntime = await explainRequest(fixture.target, fixture.tracker, {
+				...serverTarget,
+				socket: join(fixture.state, "missing"),
+			});
+			const report = JSON.parse(partial.stdout);
+			expect(report).toMatchObject({
+				ok: true,
+				tracker: { result: { kind: "available" } },
+				runtime: { result: { kind: "unavailable" } },
+				capacity: { result: { kind: "unavailable" } },
+			});
+			expect(missingRuntime.runtime.result).toMatchObject({
+				kind: "unavailable",
+				reason: "daemon_unavailable",
+			});
+			expect(report.diagnostics.map(({ code }: { code: string }) => code)).toContain(
+				"runtime_unavailable",
+			);
+			expect(commands).toEqual([
+				{ kind: "inspect-request", repository: fixture.repository, requestId: fixture.target },
+			]);
+		} finally {
+			await server.stop(true);
+		}
 	});
-});
-
-test("public inspect retains complete target and other-request history", () => {
-	const index = EMPTY;
-	const historySize = EMPTY;
-	const { store } = fixtures[index]!;
-	const result = inspectRepository(repository, store);
-	const liveAndTarget = 4;
-	expect(result.attempts).toHaveLength(historySize + liveAndTarget);
-	expect(result.requests).toHaveLength(historySize + TWO);
-	expect(result.history).toHaveLength(historySize);
-	expect(result.attempts.map(({ id }) => id)).toContain("target-exited");
-	expect(result.requests.map(({ id }) => id)).toContain("other");
-});
-
-// eslint-disable-next-line max-statements -- Verify one public report across evidence groups.
-test("explain JSON excludes unrelated history and preserves capacity and selected process evidence", () => {
-	const [small, large] = reports;
-	expect(large!.code).toBe(EMPTY);
-	expect(large!.stderr).toBe("");
-	expect(Buffer.byteLength(large!.stdout)).toBe(Buffer.byteLength(small!.stdout));
-	expect(large!.stdout).not.toMatch(/history-|other-starting|other-running/u);
-	const result = JSON.parse(large!.stdout);
-	expect(result).toMatchObject({ ok: true, kind: "explanation", id: target });
-	expect(result.runtime.result.value.colony).not.toHaveProperty("attempts");
-	expect(result.runtime.result.value.checkpoint.id).toBe(target);
-	expect(result.runtime.result.value.attempts.map(({ id }: { id: string }) => id)).toEqual([
-		"target-failed",
-		"target-exited",
-	]);
-	expect(result.capacity.result.value).toMatchObject({
-		available: false,
-		limits,
-		occupied: [
-			{ bucket: "/other-bucket", kind: "worker" },
-			{ bucket: repository.root, kind: "librarian" },
-		],
-	});
-	expect(result.processes.map(({ attemptId }: { attemptId: string }) => attemptId)).toEqual([
-		"target-failed",
-		"target-exited",
-	]);
-	expect(result.tracker.result.kind).toBe("available");
-	expect(result.runtime.freshness).toBe("checkpoint_age_unknown");
-	expect(commands).toEqual(
-		Array.from({ length: 3 }, () => ({ kind: "inspect-request", repository, requestId: target })),
-	);
-});
-
-test("failed and unavailable runtime reads preserve native evidence without falling back", () => {
-	const report = JSON.parse(partial.stdout);
-	expect(report).toMatchObject({
-		ok: true,
-		tracker: { result: { kind: "available" } },
-		runtime: { result: { kind: "unavailable" } },
-		capacity: { result: { kind: "unavailable" } },
-	});
-	expect(missingRuntime.runtime.result).toMatchObject({
-		kind: "unavailable",
-		reason: "daemon_unavailable",
-	});
-	expect(report.diagnostics.map(({ code }: { code: string }) => code)).toContain(
-		"runtime_unavailable",
-	);
 });
 
 test(
 	"capacity preserves duplicate local reservations and excludes foreign, unbound " +
 		"and orphan requests #test-538",
-	// eslint-disable-next-line max-statements -- Compare all host membership variants against one capacity projection.
-	() => {
-		const { store, database } = fixtures[EMPTY]!;
-		const root = "/host-capacity";
-		store.saveRequest(root, request("local"));
-		store.saveRequest(root, { ...request("foreign"), host: "another-host" });
-		store.saveRequest(root, { ...request("unbound"), host: null });
-		for (const id of ["local-first", "local-second", "foreign", "unbound", "orphan"]) {
-			let spawnId = id;
-			if (id.startsWith("local-")) {
-				spawnId = "local";
-			}
-			insertAttempt(database, root, receipt(id, spawnId), "running");
-		}
-		expect(store.retainedOccupants(root)).toEqual([
-			{ bucket: repository.root, kind: "worker" },
-			{ bucket: repository.root, kind: "worker" },
-		]);
+	async () => {
+		await withFixture(null, ({ store, database, repository, taskId }) => {
+			const root = "/host-capacity";
+			database.transaction(() => {
+				insertRequest(database, request("local", taskId, repository.beadsDb), root);
+				insertRequest(
+					database,
+					{ ...request("foreign", taskId, repository.beadsDb), host: "another-host" },
+					root,
+				);
+				insertRequest(
+					database,
+					{ ...request("unbound", taskId, repository.beadsDb), host: null },
+					root,
+				);
+				for (const id of ["local-first", "local-second", "foreign", "unbound", "orphan"]) {
+					let spawnId = id;
+					if (id.startsWith("local-")) {
+						spawnId = "local";
+					}
+					insertAttempt(database, root, receipt(id, spawnId, { taskId, repository }), "running");
+				}
+			})();
+			expect(store.retainedOccupants(root)).toEqual([
+				{ bucket: repository.root, kind: "worker" },
+				{ bucket: repository.root, kind: "worker" },
+			]);
+		});
 	},
 );
 
-test("checkpoint point reads return fresh writes and do not hydrate unrelated records #test-539", () => {
-	const fixture = fixtures[EMPTY]!;
-	const record = fixture.store.request(repository.root, target)!;
-	const message = "Fresh reconciliation";
-	fixture.store.saveRequest(repository.root, {
-		...record,
-		context: { ...record.context, message },
+test("checkpoint point reads return fresh writes and omit missing requests #test-539", async () => {
+	await withFixture(null, (fixture) => {
+		const { repository, target, taskId } = fixture;
+		fixture.store.saveRequest(repository.root, request(target, taskId, repository.beadsDb));
+		const record = fixture.store.request(repository.root, target)!;
+		const message = "Fresh reconciliation";
+		fixture.store.saveRequest(repository.root, {
+			...record,
+			context: { ...record.context, message },
+		});
+		expect(fixture.store.request(repository.root, target)?.context.message).toBe(message);
+		expect(fixture.store.request(repository.root, "missing")).toBeUndefined();
 	});
-	expect(fixture.store.request(repository.root, target)?.context.message).toBe(message);
-	expect(fixture.store.request(repository.root, "missing")).toBeUndefined();
 });
 
 test.each([
@@ -206,55 +197,114 @@ test.each([
 	{ source: "attempt", tracker: "/z.db" },
 ])(
 	"$source authority rejects retained tracker $tracker #test-540",
-	/* eslint-disable-next-line max-statements --
-	 * Establish independent retained authority and check rejection after membership removal.
-	 */
-	({ source, tracker: retainedTracker }) => {
-		const { database, store } = fixtures[EMPTY]!;
-		const root = `/${source}${retainedTracker}`;
-		const endpoint = { ...repository, root };
-		if (source === "registration") {
-			store.register({ beadsDb: retainedTracker, root });
-		} else {
-			store.register(endpoint);
-			store.saveRequest(root, request("matching"));
-			if (source === "checkpoint") {
-				store.saveRequest(root, { ...request("conflict"), beadsDb: retainedTracker });
+	async ({ source, tracker: retainedTracker }) => {
+		/* eslint-disable-next-line max-statements --
+		 * Check tracker conflicts from registration or evidence retained after membership removal.
+		 */
+		await withFixture(null, (fixture) => {
+			const { database, store, repository, taskId, target } = fixture;
+			const root = `/${source}${retainedTracker}`;
+			const endpoint = { ...repository, root };
+			if (source === "registration") {
+				store.register({ beadsDb: retainedTracker, root });
 			} else {
-				insertAttempt(database, root, receipt(`matching-${retainedTracker}`, "matching"), "exited");
-				insertAttempt(
-					database,
-					root,
-					{ ...receipt(`conflict-${retainedTracker}`, "conflict"), beadsDb: retainedTracker },
-					"exited",
-				);
+				store.register(endpoint);
+				database.transaction(() => {
+					insertRequest(database, request("matching", taskId, repository.beadsDb), root);
+					if (source === "checkpoint") {
+						insertRequest(
+							database,
+							{ ...request("conflict", taskId, repository.beadsDb), beadsDb: retainedTracker },
+							root,
+						);
+					} else {
+						insertAttempt(
+							database,
+							root,
+							receipt(`matching-${retainedTracker}`, "matching", fixture),
+							"exited",
+						);
+						insertAttempt(
+							database,
+							root,
+							{
+								...receipt(`conflict-${retainedTracker}`, "conflict", fixture),
+								beadsDb: retainedTracker,
+							},
+							"exited",
+						);
+					}
+				})();
+				store.remove(root);
 			}
-			store.remove(root);
-		}
-		expect(() => inspectRequest(endpoint, store, target)).toThrow(Error);
+			expect(() => inspectRequest(endpoint, store, target)).toThrow(Error);
+		});
 	},
 );
 
 // --- Private functions ---
-async function createFixture(historySize: number) {
-	const state = await mkdtemp(join(tmpdir(), "colony-inspection-"));
+async function withFixture(
+	historySize: number | null,
+	run: (fixture: Fixture) => Promise<void> | void,
+	context?: Context,
+): Promise<void> {
+	const fixture = await createFixture(context);
+	try {
+		if (historySize !== null) {
+			retainHistory(fixture, historySize);
+		}
+		await run(fixture);
+	} finally {
+		fixture.database.close();
+		fixture.store.close();
+		rmSync(fixture.state, { force: true, recursive: true });
+	}
+}
+
+async function withContext(
+	run: (context: Context & { state: string }) => Promise<void>,
+): Promise<void> {
+	const state = mkdtempSync(join(tmpdir(), "colony-unavailable-"));
+	try {
+		await run({ ...(await createContext(state)), state });
+	} finally {
+		rmSync(state, { force: true, recursive: true });
+	}
+}
+
+async function createContext(root: string) {
+	const repository = { beadsDb: "/fixture/beads.db", root };
+	const tracker = { ...memoryTracker(), repository };
+	const taskId = await createTask(tracker);
+	const target = await createSpawn(tracker, taskId);
+	return { repository, tracker, taskId, target };
+}
+
+async function createFixture(context?: Context) {
+	const state = mkdtempSync(join(tmpdir(), "colony-inspection-"));
+	const selectedContext = context ?? (await createContext(state));
 	const store = openStore(state);
 	const database = new Database(join(state, "colony.sqlite"));
+	return { ...selectedContext, database, state, store };
+}
+
+function retainHistory(fixture: Fixture, historySize: number): void {
+	const { database, repository, taskId, target } = fixture;
 	/* eslint-disable-next-line max-statements --
 	 * Build one SQLite history fixture, including target and other live reservations.
 	 */
 	database.transaction(() => {
-		insertRequest(database, request(target));
-		insertRequest(database, request("other"));
-		insertAttempt(database, repository.root, receipt("target-failed", target), "failed");
-		insertAttempt(database, repository.root, receipt("target-exited", target), "exited");
+		insertRequest(database, request(target, taskId, repository.beadsDb), repository.root);
+		insertRequest(database, request("other", taskId, repository.beadsDb), repository.root);
+		insertAttempt(database, repository.root, receipt("target-failed", target, fixture), "failed");
+		insertAttempt(database, repository.root, receipt("target-exited", target, fixture), "exited");
 		insertAttempt(
 			database,
 			repository.root,
-			{ ...receipt("other-starting", "other"), bucket: "/other-bucket" },
+			{ ...receipt("other-starting", "other", fixture), bucket: "/other-bucket" },
 			"starting",
 		);
-		const running = receipt("other-running", "other");
+		const running = receipt("other-running", "other", fixture);
 		insertAttempt(
 			database,
 			repository.root,
@@ -263,8 +313,8 @@ async function createFixture(historySize: number) {
 		);
 		for (let index = EMPTY; index < historySize; index += ONE) {
 			const id = `history-${index}`;
-			insertRequest(database, request(id));
-			insertAttempt(database, repository.root, receipt(id, id), "exited");
+			insertRequest(database, request(id, taskId, repository.beadsDb), repository.root);
+			insertAttempt(database, repository.root, receipt(id, id, fixture), "exited");
 			database.query("INSERT INTO policy_revisions VALUES (?, ?, ?, ?)").run(
 				id,
 				repository.root,
@@ -279,13 +329,46 @@ async function createFixture(historySize: number) {
 			);
 		}
 	})();
-	return { database, historySize, state, store };
 }
 
-function request(id: string): RequestRecord {
+function serveInspection(
+	fixture: Context & { state: string },
+	inspect: () => ReturnType<typeof inspectRequest> | { kind: "error"; message: string },
+) {
+	const { repository, state } = fixture;
+	const serverTarget = { state, socket: join(state, "s"), runtimeEntry: "/unused" };
+	const commands: unknown[] = [];
+	const server = Bun.serve({
+		unix: serverTarget.socket,
+		fetch: async (httpRequest) => {
+			const command = colonyRequestSchema.parse(await httpRequest.json());
+			commands.push(command);
+			if (command.kind !== "inspect-request") {
+				throw new Error("Expected a focused diagnostic command");
+			}
+			const result = inspect();
+			if (result.kind === "error") {
+				return Response.json(result);
+			}
+			return Response.json({
+				...result,
+				colony: {
+					intent: "awake",
+					policy: { limits, ranking: "fifo" },
+					registration: "durable",
+					repository,
+					state: "awake",
+				},
+			});
+		},
+	});
+	return { server, serverTarget, commands };
+}
+
+function request(id: string, taskId: string, beadsDb: string): RequestRecord {
 	return {
 		assignment: { kind: "driver", runId: taskId },
-		beadsDb: repository.beadsDb,
+		beadsDb,
 		context: {
 			attemptId: null,
 			attempts: EMPTY,
@@ -303,7 +386,11 @@ function request(id: string): RequestRecord {
 	};
 }
 
-function receipt(id: string, spawnId: string): LaunchReceipt {
+function receipt(
+	id: string,
+	spawnId: string,
+	{ repository, taskId }: Pick<Context, "repository" | "taskId">,
+): LaunchReceipt {
 	return {
 		assignment: { kind: "driver", runId: taskId },
 		attemptNumber: ONE,
@@ -355,17 +442,17 @@ function insertAttempt(
 		);
 }
 
-function insertRequest(database: Database, record: RequestRecord): void {
+function insertRequest(database: Database, record: RequestRecord, root: string): void {
 	database
 		.query("INSERT INTO requests VALUES (?, ?, ?)")
-		.run(repository.root, record.id, JSON.stringify(record));
+		.run(root, record.id, JSON.stringify(record));
 }
 
 function unexpectedRead(): never {
 	throw new Error("Diagnostic must not load unrelated history");
 }
 
-async function invokeExplanation() {
+async function invokeExplanation({ target, tracker }: Context, serverTarget: ServerTarget) {
 	let stdout = "";
 	let stderr = "";
 	const code = await runCli(["explain", target, "--json"], {

@@ -14,7 +14,7 @@ interface Watch extends HintWatchCallbacks {
 	closes: number;
 }
 
-test("exact database/WAL and shallow artifact names hint; noisy and foreign files do not", () => {
+test("#test-701 exact database/WAL and shallow artifact names hint; noisy and foreign files do not", () => {
 	const { io, watches, events } = fixture();
 	const hints = createFilesystemHints("/tracker/selected.db", (event) => events.push(event), io);
 	hints.update(["/attempt"]);

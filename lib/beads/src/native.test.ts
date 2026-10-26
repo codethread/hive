@@ -118,7 +118,7 @@ test.each(["list", "search"] as const)(
 	},
 );
 
-test("native routing projection preserves status, AND labels and unlimited selection", async () => {
+test("native routing projection preserves status, AND labels and unlimited selection #test-702", async () => {
 	const service = createNativeBeads({
 		execute: (argv) => {
 			expect(argv).toEqual([
@@ -255,7 +255,7 @@ test("native configuration selects the tracker without record import or export e
 test.each([
 	{ name: "non-string value", output: { lock_timeout: 300_000 } },
 	{ name: "nested value", output: { sync: { auto_flush: "true" } } },
-])("native project configuration rejects $name at the boundary", async ({ output }) => {
+])("native project configuration rejects $name at the boundary #test-709", async ({ output }) => {
 	const service = createNativeBeads({ execute: () => Promise.resolve(JSON.stringify(output)) });
 	await expect(service.config.project({ cwd: "/fixture" })).rejects.toBeInstanceOf(ZodError);
 });

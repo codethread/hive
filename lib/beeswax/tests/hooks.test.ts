@@ -57,7 +57,7 @@ test.each([
 	{ branch: "main", staged: ".beads/issues.jsonl", validates: false },
 	{ branch: "tracker/state", staged: ".beads/issues.jsonl\napp.rb", validates: false },
 ])(
-	"validation selects only the staged tracker artifact: $branch $staged",
+	"validation selects only the staged tracker artifact: $branch $staged #test-685",
 	async ({ branch, staged, validates }) => {
 		let validated = false;
 		await validateTrackerHook(

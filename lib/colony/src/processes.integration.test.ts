@@ -24,7 +24,7 @@ afterAll(() => {
 test("ordinary supervision publishes launch and exit artifacts for the managed child #test-553", async () => {
 	const execution = await fixture(`
 		const result = await api.runOwnedExecution(ref,
-			() => Bun.spawn([process.execPath, "-e", "process.exit(${EXIT_CODE})"],
+			() => Bun.spawn(["/bin/sh", "-c", "exit ${EXIT_CODE}"],
 				{ stdout: "ignore", stderr: "ignore" }),
 			(pid) => Bun.write(ref.directory + "/started", String(pid)).then(() => {}));
 		console.log(JSON.stringify(result));
@@ -51,7 +51,7 @@ test("ordinary supervision publishes launch and exit artifacts for the managed c
 test("native owned-group stop terminates the supervisor and managed child #test-554", async () => {
 	const execution = await fixture(`
   await api.runOwnedExecution(ref,
-   () => Bun.spawn([process.execPath, "-e", "await Bun.stdin.text()"],
+   () => Bun.spawn(["/bin/cat"],
     { stdin: "pipe", stdout: "ignore", stderr: "ignore" }),
    async () => { console.log("ready"); });
  `);
