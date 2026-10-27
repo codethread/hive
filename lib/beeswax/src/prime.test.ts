@@ -25,7 +25,7 @@ const developmentTools = [
 	"scent",
 ];
 
-test("default onboarding contains only everyday tools", () => {
+test("default onboarding contains only everyday tools #test-754", () => {
 	expect(renderPrime({ include: [], exclude: [] })).toMatchInlineSnapshot(`
 	  "This repository uses Hive. Follow these conventions:
 	  Read a tool's instructions when its task applies; use its --help for command options.
@@ -37,7 +37,6 @@ test("default onboarding contains only everyday tools", () => {
 	  Assign work to a human only when that human explicitly instructs it. For handoffs or reservations without that instruction, record the needed human action or decision instead. Preserve existing human assignments unless that human requests clearing them. Human ownership records accountability, separately from assignment.
 	  At pickup, read ancestor descriptions through the top-level task: follow br dep list TASK --type parent-child --json, repeating with depends_on_id until empty; then fetch known ancestors with br list --all --deferred --exclude-label system --id PARENT --id ANCESTOR --format csv --fields id,title,description (repeat --id as needed). Parent-child links carry scope; blocking dependencies carry prerequisites. Child descriptions add narrower scope rather than repeating parent prose.
 	  Publish tracker changes at repository-defined checkpoints; code pushes require separate authorization.
-	  On tracker alerts or sync failures other than pre-publication tracker_busy, pause Beads work and merges; read beeswax skills get tracker-recovery. Existing holds still apply.
 
 	  | Tool | When to use it | Instructions |
 	  | --- | --- | --- |
@@ -50,7 +49,7 @@ test("default onboarding contains only everyday tools", () => {
 	`);
 });
 
-test("includes add optional tools once in canonical order", () => {
+test("includes add optional tools once in canonical order #test-728", () => {
 	const result = renderPrime({
 		include: ["hive-ui", "waggle", "beeswax", "colony", "colony", "bee"],
 		exclude: [],

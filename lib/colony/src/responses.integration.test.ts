@@ -1,6 +1,6 @@
 /* eslint-disable max-statements -- Each test keeps the public command trace and its observable evidence together. */
 /* eslint-disable unicorn/no-null -- Native snapshots distinguish unknown authorship from absent content. */
-// Exercise real Commander commands, Colony orchestration and the Beads adapter together.
+// Exercise Commander commands and Colony response orchestration with the memory Beads service.
 import { createSpawn, createTask, memoryTracker } from "./tracker.test-support.ts";
 import { expect, test } from "bun:test";
 import {
@@ -20,48 +20,13 @@ import { trackerScope } from "./tracker.ts";
 const ZERO = 0;
 const ONE = 1;
 const TWO = 2;
-const REPEAT = 1000;
+const REPEAT = 50;
 const MAX_ACK_BYTES = 1024;
 const BODY = "\n# Authored result\n\nExact report.\n".repeat(REPEAT);
 const endpointOptions = { repo: "/fixture", beadsDb: "/fixture/tracker.db" };
-const missing = await fixture();
-const delivery = await fixture();
-const history = await fixture();
-const interrupted = await fixture();
-const humanInterrupted = await fixture();
-
-// Driver and stage requests deliberately share the same anchor but distinct identities.
-const lineage = await fixture();
-const stageId = await createSpawn(lineage.tracker, lineage.taskId, {
-	description: JSON.stringify({
-		assignment: { kind: "stage", runId: "outer-run", stageId: lineage.taskId },
-		cwd: null,
-		effort: "low",
-		harness: "fixture",
-		kind: "worker",
-		model: "fixture",
-		prompt: BODY,
-		system_prompt: BODY,
-	}),
-});
-const context = {
-	beads: lineage.tracker.beads,
-	scope: trackerScope(lineage.tracker.repository, "worker"),
-};
-const old = await publishResponse(context, {
-	taskId: lineage.taskId,
-	requestId: lineage.requestId,
-	body: "Old driver result",
-});
-const stage = await publishResponse(context, {
-	taskId: lineage.taskId,
-	requestId: stageId,
-	body: "Stage result",
-});
-await lineage.tracker.beads.close(context.scope, lineage.requestId, { reason: "blocked" });
-await lineage.tracker.beads.dep.add(context.scope, stageId, lineage.requestId, "supersedes");
-
 test("managed publication preserves the complete body and returns only its confirmed identity #test-324", async () => {
+	const delivery = await fixture();
+	expect(BODY.length).toBeGreaterThan(MAX_ACK_BYTES);
 	const result = await delivery.invoke([
 		"response",
 		"publish",
@@ -106,9 +71,41 @@ test("managed publication preserves the complete body and returns only its confi
 });
 
 test(
-	"result keeps exact driver/stage identity after supersession without task " +
-		"hydration or readiness #test-329",
+	"result preserves driver/stage response identity after supersession " +
+		"and status omits response bodies #test-329",
 	async () => {
+		// Driver and stage requests deliberately share the same anchor but distinct identities.
+		const lineage = await fixture();
+		const stageId = await createSpawn(lineage.tracker, lineage.taskId, {
+			description: JSON.stringify({
+				assignment: { kind: "stage", runId: "outer-run", stageId: lineage.taskId },
+				cwd: null,
+				effort: "low",
+				harness: "fixture",
+				kind: "worker",
+				model: "fixture",
+				prompt: BODY,
+				system_prompt: BODY,
+			}),
+		});
+		const context = {
+			beads: lineage.tracker.beads,
+			scope: trackerScope(lineage.tracker.repository, "worker"),
+		};
+		const old = await publishResponse(context, {
+			taskId: lineage.taskId,
+			requestId: lineage.requestId,
+			body: "Old driver result",
+		});
+		const stage = await publishResponse(context, {
+			taskId: lineage.taskId,
+			requestId: stageId,
+			body: "Stage result",
+		});
+		await lineage.tracker.beads.close(context.scope, lineage.requestId, { reason: "blocked" });
+		await lineage.tracker.beads.dep.add(context.scope, stageId, lineage.requestId, "supersedes");
+
+		// Result reads must not hydrate tasks, query readiness or read comments.
 		const beads: BeadsService = {
 			...lineage.tracker.beads,
 			show: unused,
@@ -153,10 +150,17 @@ test(
 			"--json",
 		]);
 		expect(JSON.parse(selected.stdout).response.id).toBe(stage.responseId);
+		const status = await lineage.invoke(["status", lineage.requestId, "--json"]);
+		expect(JSON.parse(status.stdout).response).toEqual({
+			state: "available",
+			responseIds: [old.responseId],
+		});
+		expect(status.stdout).not.toContain("Old driver result");
 	},
 );
 
 test("missing response fails in JSON and human modes without interpreting legacy notes #test-327", async () => {
+	const missing = await fixture();
 	await missing.tracker.beads.update(
 		trackerScope(missing.tracker.repository, "worker"),
 		[missing.taskId],
@@ -183,6 +187,7 @@ test.each([
 ])(
 	"publication rejects incompatible request context $args without mutation #test-461",
 	async ({ args }) => {
+		const missing = await fixture();
 		const result = await missing.invoke([
 			"response",
 			"publish",
@@ -205,6 +210,7 @@ test.each([
 );
 
 test("standalone publication opts out of managed context and preserves human reservations #test-427", async () => {
+	const missing = await fixture();
 	const reserved = await createTask(missing.tracker, { assignee: "ct" });
 	const result = await missing.invoke([
 		"response",
@@ -247,10 +253,7 @@ test("standalone publication opts out of managed context and preserves human res
 test.each([{ mode: "json" }, { mode: "human" }])(
 	"uncertain publication in $mode exposes the committed artifact and retry recovers its identity #test-426",
 	async ({ mode }) => {
-		let producer = interrupted;
-		if (mode === "human") {
-			producer = humanInterrupted;
-		}
+		const producer = await fixture();
 		let createdId = "";
 		const broken = {
 			...producer.tracker.beads,
@@ -295,6 +298,7 @@ test.each([{ mode: "json" }, { mode: "human" }])(
 );
 
 test("source-specific discovery remains bounded and history preserves original provenance #test-326", async () => {
+	const history = await fixture();
 	const scope = trackerScope(history.tracker.repository, "author-one");
 	await history.tracker.beads.comments.add(scope, history.taskId, "needle original commentary");
 	await history.tracker.beads.comments.add(scope, history.taskId, "needle original commentary");
@@ -398,7 +402,8 @@ test("source-specific discovery remains bounded and history preserves original p
 	expect(JSON.parse(invalid.stdout)).toMatchObject({ ok: false, reason: "invalid_response_input" });
 });
 
-test("filed search excludes bodies while exact corrections and status preserve identity #test-328", async () => {
+test("filed search omits bodies and corrections preserve the original response #test-328", async () => {
+	const history = await fixture();
 	const producer = await createTask(history.tracker);
 	const scope = trackerScope(history.tracker.repository, "worker");
 	const first = await publishResponse(
@@ -432,18 +437,13 @@ test("filed search excludes bodies while exact corrections and status preserve i
 		},
 	]);
 	expect(found.stdout).not.toContain("original body");
-	const status = await lineage.invoke(["status", lineage.requestId, "--json"]);
-	expect(JSON.parse(status.stdout).response).toEqual({
-		state: "available",
-		responseIds: [old.responseId],
-	});
-	expect(status.stdout).not.toContain("Old driver result");
 });
 
 test(
 	"schema discovery requires no tracker and public argument errors use one " +
 		"silent-stderr document #test-325",
 	async () => {
+		const missing = await fixture();
 		const schema = await missing.invoke(["response", "--schema"], {
 			...missing.tracker.beads,
 			list: unused,

@@ -106,9 +106,8 @@ async function sessionContext(
 		) {
 			return (
 				`Beeswax tracker alert ${alert.id} for ${database} remains active. ` +
-				"Stop Beads workflows and ordinary tracker operations on this endpoint; do not merge. " +
-				"Unrelated non-Beads work and explicitly user-authorized recovery may continue. " +
-				"Poll or background bounded alert wait; announce verified clearance before resuming."
+				"Keep Beads work and merges involving this endpoint paused; independent non-Beads work may continue. " +
+				"Follow beeswax skills get tracker-recovery to wait for verified clearance."
 			);
 		}
 		await io.write(
@@ -125,10 +124,10 @@ async function sessionContext(
 		alert.generation < previous.generation ||
 		(alert.generation === previous.generation && alert.id !== previous.id)
 	) {
-		return activeContext(
-			database,
-			previous.id,
-			"Verified clearance is unavailable; the observed hold remains.",
+		return (
+			`Beeswax tracker hold ${previous.id} for ${database} remains: verified clearance is unavailable. ` +
+			"Keep Beads work and merges involving this endpoint paused; independent non-Beads work may continue. " +
+			"Follow beeswax skills get tracker-recovery to recheck; missing state does not release this hold."
 		);
 	}
 	await io.write(
@@ -137,7 +136,8 @@ async function sessionContext(
 	);
 	return (
 		`Beeswax tracker alert ${alert.id} for ${database}: verified cleared. ` +
-		`Announce clearance before resuming ordinary tracker work. Recovery evidence: ${alert.evidence}`
+		"Stop polling this incident, announce clearance once, " +
+		"and resume ordinary Beads work and merges involving this endpoint."
 	);
 }
 
@@ -145,28 +145,20 @@ function activeContext(database: string, id: string, reason: string): string {
 	const endpoint = shellQuote(database);
 	return (
 		`Beeswax tracker alert ${id} for ${database} is active. ` +
-		"Stop Beads workflows and ordinary tracker operations on this endpoint; do not merge. " +
-		"Unrelated non-Beads work may continue. Only an agent explicitly authorized by the user may " +
-		"inspect or recover native tracker state; a new session grants no authority. " +
-		`Use beeswax beads recover --beads-db ${endpoint} for the handoff. ` +
-		`Poll beeswax beads alert status --beads-db ${endpoint} --json or background a bounded ` +
-		`beeswax beads alert wait --beads-db ${endpoint} --timeout 60 --json. ` +
-		"A failed check or missing receipt is not clearance. Announce verified clearance before resuming. " +
-		"This guidance does not establish writer quiescence.\n" +
+		"Pause Beads workflows, ordinary tracker operations and merges involving this endpoint. " +
+		"Independent non-Beads work may continue. " +
+		"Read beeswax skills get tracker-recovery for waiting or explicitly user-authorized recovery. " +
+		`Use beeswax beads recover --beads-db ${endpoint} for the incident handoff.\n` +
 		`Diagnostics: ${reason}`
 	);
 }
 
 function unavailable(error: unknown): string {
 	return (
-		"Beeswax tracker alert check failed. " +
-		"Stop Beads workflows and ordinary tracker operations on the selected endpoint; do not merge. " +
-		"Unrelated non-Beads work and explicitly user-authorized native tracker inspection/recovery may continue. " +
-		"Recheck independent alert status. With no known hold, a healthy check of this endpoint " +
-		"with no active incident restores baseline; do not announce clearance. " +
-		"Clearance is unverified for any known hold, including a handoff or sync failure. " +
-		"A failed check or missing receipt cannot release it. " +
-		"Announce verified matching or newer clearance before resuming that work.\n" +
+		"Beeswax tracker alert check failed; the selected endpoint's incident state is unverified. " +
+		"Pause Beads work and merges involving this endpoint; independent non-Beads work may continue. " +
+		"This failure does not establish a new incident or clear a known hold. " +
+		"Read beeswax skills get tracker-recovery to recheck status and decide when work can resume.\n" +
 		`Diagnostics: ${errorMessage(error)}`
 	);
 }

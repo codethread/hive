@@ -97,19 +97,22 @@ test("resumed exec waits for its existing ticket and claims before launching #te
 test.each([
 	{ id: "1", code: 75 },
 	{ id: "42", code: 3 },
-])("refuses running or gone ticket $id without allocating a replacement", async ({ id, code }) => {
-	const harness = fixture(occupiedQueue());
-	expect(
-		await runCli(
-			["exec", "-w", "0", "--ticket", id, "--lock", "/lock", "--", "child"],
-			harness.deps,
-		),
-	).toBe(code);
-	expect(harness.commands).toEqual([]);
-	expect(harness.queue).toEqual(occupiedQueue());
-});
+])(
+	"refuses running or gone ticket $id without allocating a replacement #test-711",
+	async ({ id, code }) => {
+		const harness = fixture(occupiedQueue());
+		expect(
+			await runCli(
+				["exec", "-w", "0", "--ticket", id, "--lock", "/lock", "--", "child"],
+				harness.deps,
+			),
+		).toBe(code);
+		expect(harness.commands).toEqual([]);
+		expect(harness.queue).toEqual(occupiedQueue());
+	},
+);
 
-test("a new urgent ticket moves ahead of queued work but not the running command", async () => {
+test("a new urgent ticket moves ahead of queued work but not the running command #test-712", async () => {
 	const harness = fixture(occupiedQueue());
 	expect(
 		await runCli(

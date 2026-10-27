@@ -13,12 +13,13 @@ import {
 	requireOption,
 	toRemovePayload,
 } from "../protocol.ts";
-import { listWorktrees, resolveRemoveTarget } from "../application/repository.ts";
 import type { Deps } from "../services.ts";
 import type { Worktree } from "../domain/worktree.ts";
+import { listWorktrees } from "../git/worktrees.ts";
 import { planLeaveWorktree } from "../application/interactive.ts";
 import { recycleSlot } from "../application/pool.ts";
 import { removeLocalCommand } from "./remove-local.ts";
+import { resolveRemoveTarget } from "../application/repository.ts";
 import { runPreRemoteCheck } from "../application/hooks.ts";
 
 interface RemoveRequest {

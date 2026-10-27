@@ -14,7 +14,6 @@ import {
 } from "./tracker.test-support.ts";
 import { expect, test } from "bun:test";
 import { CommandError } from "@hive/beads";
-import { acknowledgmentSchema } from "@hive/shared";
 import { trackerScope } from "./tracker.ts";
 
 const FIRST = 0;
@@ -22,27 +21,7 @@ const ONE = 1;
 const TWO = 2;
 
 const options = { actor: "operator", beadsDb: "/fixture/tracker.db", repo: "/fixture" };
-// Fixture creation and initial schema compilation are independent of the behavior under test.
-const inspection = await requestFixture();
-const cancellation = await requestFixture();
-const acknowledgment = await requestFixture();
-const conflict = await requestFixture();
-const supersession = memoryTracker();
-const supersessionTask = await createTask(supersession);
-const waiting = await inspectRequest(inspection.id, options, inspection.tracker);
-await acknowledgment.tracker.beads.close(
-	trackerScope(acknowledgment.tracker.repository, "worker"),
-	acknowledgment.id,
-	{ reason: "blocked" },
-);
-const failedRequest = await acknowledgment.tracker.beads.show(
-	trackerScope(acknowledgment.tracker.repository, "inspector"),
-	acknowledgment.id,
-);
-const acceptance = acknowledgmentSchema.parse({
-	closedAt: failedRequest.closed_at,
-	reason: "Accepted separately",
-});
+const acceptanceReason = "Accepted separately";
 
 async function requestFixture() {
 	const tracker = memoryTracker();
@@ -53,7 +32,8 @@ async function requestFixture() {
 }
 
 test("offline inspection derives dependency readiness from the injected tracker #test-415", async () => {
-	const { tracker, dependency, task, id } = inspection;
+	const { tracker, dependency, task, id } = await requestFixture();
+	const waiting = await inspectRequest(id, options, tracker);
 	expect(waiting.request.tasks).toEqual([
 		{ assignee: null, id: task, readiness: "blocked", status: "open" },
 	]);
@@ -66,7 +46,7 @@ test("offline inspection derives dependency readiness from the injected tracker 
 });
 
 test("stop publishes cancellation with current request labels #test-547", async () => {
-	const { tracker, task, id } = cancellation;
+	const { tracker, task, id } = await requestFixture();
 	const result = await stopRequest(id, options, tracker);
 	expect(result.request.disposition).toEqual({ outcome: "cancelled", resolution: "resolved" });
 	expect(result.request.labelPublication).toBe("current");
@@ -85,12 +65,15 @@ test(
 	 * Partial publication, repair and idempotence form one offline acknowledgment contract.
 	 */
 	async () => {
-		const { tracker, id } = acknowledgment;
+		const { tracker, id } = await requestFixture();
+		await tracker.beads.close(trackerScope(tracker.repository, "worker"), id, {
+			reason: "blocked",
+		});
 		const beads = beforeTrackerWrite(tracker.beads, () => {
 			throw new CommandError("br update", { code: 1, stderr: "fixture write failure", stdout: "" });
 		});
 		await expect(
-			acknowledgeRequest(id, { ...options, reason: acceptance.reason }, { ...tracker, beads }),
+			acknowledgeRequest(id, { ...options, reason: acceptanceReason }, { ...tracker, beads }),
 		).rejects.toBeInstanceOf(RequestPublicationError);
 		const retained = await tracker.beads.show(trackerScope(tracker.repository, "inspector"), id);
 		expect(retained.comments).toHaveLength(ONE);
@@ -113,7 +96,7 @@ test(
 );
 
 test("publication rebases a revision conflict while retaining unrelated labels #test-564", async () => {
-	const { tracker, id } = conflict;
+	const { tracker, id } = await requestFixture();
 	await tracker.beads.close(trackerScope(tracker.repository, "worker"), id, {
 		reason: "completed",
 	});
@@ -137,7 +120,8 @@ test("publication rebases a revision conflict while retaining unrelated labels #
  * Assert predecessor and replacement publication order together with the resulting labels.
  */
 test("publication repairs superseded predecessors from native relationship facts #test-663", async () => {
-	const tracker = supersession;
+	const tracker = memoryTracker();
+	const supersessionTask = await createTask(tracker);
 	const predecessor = await createSpawn(tracker, supersessionTask);
 	await tracker.beads.close(trackerScope(tracker.repository, "worker"), predecessor, {
 		reason: "exhausted",
