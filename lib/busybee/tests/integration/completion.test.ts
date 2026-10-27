@@ -1,7 +1,8 @@
 import { BusyBeeError, createServices } from "../../src/native.ts";
-import { assign, createMachine } from "xstate";
-import { complete, navigate, recordResult, start } from "../../src/runtime.ts";
+import { assign, createMachine, initialTransition } from "xstate";
+import { complete, recordResult } from "../../src/runtime.ts";
 import { expect, test } from "bun:test";
+import type { Run } from "../../src/checkpoint.ts";
 import type { Services } from "../../src/native.ts";
 import type { UpdateBead } from "@hive/beads";
 import { createMemoryBeads } from "@hive/beads";
@@ -35,6 +36,7 @@ const definition = {
 	}),
 };
 
+// eslint-disable-next-line max-statements
 async function fixture() {
 	const beads = createMemoryBeads({ db });
 	const io: Services = {
@@ -45,31 +47,67 @@ async function fixture() {
 		importModule: () => Promise.resolve(definition),
 		readBytes: () => Promise.resolve(new ArrayBuffer(FIRST)),
 	};
-	const parent = await beads.create(scope, { title: "Parent", owner: "ct" });
-	const run = await start("workflow.ts", { owner: "ct", parent: parent.id }, io);
-	const root = await beads.show(scope, run.id);
-	const checkpoint = root.dependencies.find((edge) => edge.dependency_type === "related")!.id;
-	const request = { id: run.id, bead: run.active[FIRST]!.bead, choice: "next", data };
-	return { beads, checkpoint, io, request, run };
+	const run = await beads.create(scope, {
+		title: "Completion",
+		owner: "ct",
+		status: "in_progress",
+		labels: ["busybee-workflow"],
+	});
+	const stage = await beads.create(scope, {
+		title: "Work",
+		owner: "ct",
+		parent: run.id,
+		status: "in_progress",
+		labels: ["busybee-workflow"],
+	});
+	const saved: Run = {
+		formatVersion: 1,
+		id: run.id,
+		definition: { kind: "source", source: `${repo}/workflow.ts` },
+		hash: new Bun.CryptoHasher("sha256").update(new ArrayBuffer(FIRST)).digest("hex"),
+		snapshot: definition.machine.getPersistedSnapshot(initialTransition(definition.machine)[FIRST]),
+		active: [
+			{
+				bead: stage.id,
+				context: { saved: {} },
+				key: ":completion.work",
+				node: "completion.work",
+				parent: run.id,
+				path: [],
+				// eslint-disable-next-line unicorn/no-null
+				request: null,
+				meta: { title: "Work", instructions: "Work", commands: { next: "NEXT" } },
+			},
+		],
+		created: [
+			{
+				bead: stage.id,
+				node: "completion.work",
+				parent: run.id,
+				path: [],
+				// eslint-disable-next-line unicorn/no-null
+				request: null,
+				visit: 1,
+			},
+		],
+		history: [],
+		visits: { ":completion.work": 1 },
+	};
+	const checkpoint = await beads.create(scope, {
+		title: "Checkpoint",
+		owner: "ct",
+		labels: ["system", "busybee-checkpoint"],
+		description: JSON.stringify(saved),
+	});
+	await beads.dep.add(scope, run.id, checkpoint.id, "related");
+	const request = { id: run.id, bead: stage.id, choice: "next", data };
+	return { beads, checkpoint: checkpoint.id, io, request };
 }
 
 const barriers = ["result", "checkpoint", "release"];
-const failed = new Map(
-	await Promise.all(barriers.map(async (point) => [point, await fixture()] as const)),
-);
-const reordered = await fixture();
-const reserved = await fixture();
-const warmup = await fixture();
-await invoke(
-	["complete", warmup.run.id, warmup.request.bead, "next", "--data", JSON.stringify(data)],
-	warmup.io,
-);
-await navigate({ id: warmup.run.id, operation: "collect" }, {}, warmup.io);
-
-// Promise barriers cover every awaited publication boundary without clock races.
 
 test.each(barriers)("failed %s publication never attempts closure #test-526", async (point) => {
-	const { beads, checkpoint, io, request } = failed.get(point)!;
+	const { beads, checkpoint, io, request } = await fixture();
 	let closes = FIRST;
 	const result = await complete(
 		request,
@@ -99,7 +137,7 @@ test.each(barriers)("failed %s publication never attempts closure #test-526", as
 });
 
 test("matching open original payload accepts object key reordering without rewriting #test-397", async () => {
-	const { beads, io, request } = reordered;
+	const { beads, io, request } = await fixture();
 	await recordResult(request, {}, io);
 	const saved = await beads.show(scope, request.bead);
 	const result = await invoke(
@@ -127,7 +165,7 @@ test("matching open original payload accepts object key reordering without rewri
 });
 
 test("human reserved stage remains open without saved results #test-578", async () => {
-	const { beads, io, request } = reserved;
+	const { beads, io, request } = await fixture();
 	await beads.update(scope, [request.bead], { labels: ["hitl"] });
 	const result = await invoke(
 		["complete", request.id, request.bead, "next", "--data", JSON.stringify(data)],

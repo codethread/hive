@@ -4,6 +4,7 @@ import type { Deps, ProgressReporter } from "./services.ts";
 import { closeSync, openSync, readSync, writeFileSync } from "node:fs";
 import { createBundledSkills } from "./bundled-skills.ts";
 import { createFileCdDirective } from "./integrations/cd-directive.ts";
+import { createGitWorktreeInventory } from "./git/worktrees.ts";
 import { createLiveConfigService } from "./live-config-service.ts";
 import { createLiveGitRunner } from "./git/executor.ts";
 import { createLiveHookRunner } from "./hooks.ts";
@@ -13,7 +14,7 @@ import { selectMultiplexer } from "./integrations/tmux.ts";
 
 const ANSWER_BYTES = 1;
 
-/** Assemble live Git, filesystem, hook, picker, and terminal services. */
+/** Assemble live services, binding the inventory once to the same runner exposed as git. */
 export function createLiveDeps(): Deps {
 	const git = createLiveGitRunner();
 	const files = createLiveWorkspaceFiles();
@@ -24,6 +25,7 @@ export function createLiveDeps(): Deps {
 		config: createLiveConfigService(files.normalizePath),
 		files,
 		git,
+		worktrees: createGitWorktreeInventory(git),
 		hooks: createLiveHookRunner(),
 		multiplexer: selectMultiplexer({
 			TMUX: process.env.TMUX,

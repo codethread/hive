@@ -27,7 +27,7 @@ test.each([
 		wrapped: false,
 		conflict: false,
 	},
-])("native merge checks code and prefix: $kind", ({ code, message, wrapped, conflict }) => {
+])("native merge code/prefix: $kind #test-699", ({ code, message, wrapped, conflict }) => {
 	let error: Error = new CommandError("br sync --merge", {
 		code: 6,
 		stderr: "",

@@ -45,11 +45,7 @@ New Hive-created children, including Bee and Busy Bee work, use native hash IDs 
 
 ## Conflicts and recovery
 
-Pre-publication `tracker_busy` alone is not an incident and does not release an existing hold; see [Beeswax's contention and recovery guidance](../lib/beeswax/README.md#operate-the-tracker).
-
-On a tracker alert or other synchronization failure, pause Beads workflows, ordinary tracker operations and merges involving that tracker. Use `beeswax beads recover --beads-db "$BEADS_DB"` for the installed recovery handoff, including observer waiting and explicitly user-authorized recovery. Beeswax owns the reusable procedure and independent alert state.
-
-Hive retains the selected database, actor and permanent checkout conventions above. Apply its [publication checkpoints](#synchronization-checkpoints) and coordinate Bee/Colony writers through their owning tools. Recovery authorization must cover the affected endpoint and any publication; it does not authorize application-code pushes. Keep incident evidence outside the affected tracker until ordinary writes are safe.
+Use `beeswax beads recover --beads-db "$BEADS_DB"` for a non-mutating incident handoff. [Beeswax tracker operations](../lib/beeswax/README.md#operate-the-tracker) covers pre-publication `tracker_busy`, alert inspection and recovery authorization.
 
 Once ordinary tracker writes are safe, record each new sync incident as an investigation/fix child of pinned `hv-1sylid` (Beads Rust / Hive sync issues); never claim or close that parent. Include symptoms, exact root cause or explicitly unknown cause, fix versus operational recovery, verification and original evidence, and the first fixed version (or full fix commit SHA for a fix predating versioned releases). Keep unresolved or unverified facts explicit; close the child only when its scope is complete. Preserve original task history and parentage; historical backfills link the original work and do not imply a new fix.
 

@@ -1,14 +1,6 @@
 import { ConfigError, EXIT_CODES, HookError, PreRemoteCheckError, dispatch } from "../../src/index";
-import {
-	commitOnRemoteDefault,
-	createRemoteBranch,
-	deps,
-	pathExists,
-	run,
-	testDeps,
-	useOriginFixture,
-	writeConfig,
-} from "./support.ts";
+import { commitOnRemoteDefault, createRemoteBranch } from "./remote-history.ts";
+import { deps, pathExists, run, testDeps, useOriginFixture, writeConfig } from "./support.ts";
 import { expect, test } from "bun:test";
 import { gitOut, gitSucceeds, useTmpHome } from "./lifecycle-helpers.ts";
 

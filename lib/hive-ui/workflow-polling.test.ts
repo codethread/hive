@@ -47,7 +47,7 @@ test("unchanged checkpoints retain the exact displayed resource and skip full in
 	expect(inspections).toBe(1);
 });
 
-test("changed polling and manual requests coalesce without clearing the displayed snapshot", async () => {
+test("changed polling and manual requests coalesce without clearing the displayed snapshot #test-739", async () => {
 	const update = Promise.withResolvers<WorkflowInspection>();
 	let inspections = 0;
 	const resource = createWorkflowResource({

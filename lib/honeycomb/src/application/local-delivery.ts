@@ -10,11 +10,12 @@ import {
 	UsageError,
 } from "../errors.ts";
 import type { Deps, GitRunner } from "../services.ts";
-import { listWorktrees, resolveWorktreeContainingPath } from "./repository.ts";
 import { GitError } from "../git/error.ts";
 import type { LocalGitRefs } from "./branches.ts";
 import type { Worktree } from "../domain/worktree.ts";
 import { createLocalGitRefs } from "./branches.ts";
+import { listWorktrees } from "../git/worktrees.ts";
+import { resolveWorktreeContainingPath } from "./repository.ts";
 
 const ONE_DESTINATION = 1;
 const NOT_ANCESTOR = 1;

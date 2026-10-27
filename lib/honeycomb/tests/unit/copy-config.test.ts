@@ -17,7 +17,7 @@ test.each([
 	{ name: "home destination", field: "to", value: "~/.env" },
 	{ name: "leading home destination", field: "to", value: "~secret" },
 	{ name: "escaping destination", field: "to", value: "../.env" },
-] as const)("copy entry schema rejects $name", ({ field, value }) => {
+] as const)("copy entry schema rejects $name #test-716", ({ field, value }) => {
 	expect(fields[field].safeParse(value).success).toBe(false);
 });
 

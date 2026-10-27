@@ -34,7 +34,8 @@ export function runBrief(input: ReleaseInput): { title: string; description: str
 	return {
 		title: `Release Hive ${input.nextVersion}`,
 		description:
-			`User authorization: ${input.request}\nRetain ${input.canonicalRoot} and BEADS_DB ${input.beadsDb}. ` +
+			`User authorization: ${input.request}\nRetain ${input.canonicalRoot} and BEADS_DB ` +
+			`${input.beadsDb}. ` +
 			"After done, the authorized caller closes proven scope tasks " +
 			"and publishes final tracker evidence once with bun run beads:sync.",
 	};
@@ -61,7 +62,8 @@ export const machine = setup({
 				commands: { next: "NEXT" },
 				task: ({ context }: { context: ReleaseContext }) => ({
 					instructions:
-						`1. Verify public-source authorization, gh access and the destination ${context.releaseRepository} ` +
+						`1. Verify public-source authorization, gh access and the destination ` +
+						`${context.releaseRepository} ` +
 						"under docs/releases.md#prepare-and-land-the-source.\n" +
 						`2. Fetch tags and reconcile existing effects for ${context.nextVersion}, ` +
 						"then prepare a clean nested Honeycomb worktree.",
@@ -91,7 +93,10 @@ export const machine = setup({
 				task: ({ context }: { context: ReleaseContext }) => ({
 					instructions:
 						"1. Complete Land beneath this run with completedTasks: [], " +
-						"retaining the exact integrated source commit.\n" +
+						"retaining the exact integrated source commit; only verified integration and " +
+						"adoption permit landed. " +
+						"For draft-delivered or merged-blocked, keep this visit and source release work " +
+						"open without publication.\n" +
 						"2. Verify that source's notes and offline changelog commands under " +
 						"docs/releases.md#prepare-and-land-the-source before publication.\n\n" +
 						`Previous result: ${context.evidence}`,
@@ -105,8 +110,10 @@ export const machine = setup({
 				commands: { next: "NEXT" },
 				task: ({ context }: { context: ReleaseContext }) => ({
 					instructions:
-						`Publish immutable v${context.nextVersion} at ${context.revision} to ${context.releaseRepository} ` +
-						"under docs/releases.md#publish-the-source-release, verifying the release notes and source checksum.\n\n" +
+						`Publish immutable v${context.nextVersion} at ${context.revision} to ` +
+						`${context.releaseRepository} ` +
+						"under docs/releases.md#publish-the-source-release, verifying the release notes " +
+						"and source checksum.\n\n" +
 						`Previous result: ${context.evidence}`,
 				}),
 			},

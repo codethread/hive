@@ -36,7 +36,7 @@ test.each([
 	{ body: `${hookSection} edited` },
 	{ body: previousHookSection },
 ])(
-	"unsupported tracker hook leaves policy and local integration untouched: $body",
+	"unsupported tracker hook leaves policy and local integration untouched: $body #test-695",
 	async ({ body }) => {
 		const fx = fixture();
 		fx.files.set(`${tracker}/.husky/pre-commit`, hookSection);

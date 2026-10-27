@@ -4,6 +4,7 @@ import { z } from "zod";
 const text = z.string().trim().nonempty();
 const checkoutSchema = z.object({ path: text.startsWith("/"), branch: text });
 const evidenceSchema = z.object({ evidence: text });
+const publicationSchema = evidenceSchema.extend({ pr: z.url() });
 
 export const inputSchema = z.object({
 	canonicalRoot: text.startsWith("/"),
@@ -14,37 +15,53 @@ export const commandSchemas = {
 	next: evidenceSchema,
 	approved: evidenceSchema,
 	changes: evidenceSchema,
+	timing: evidenceSchema,
+	blocked: evidenceSchema,
+	published: publicationSchema,
 };
 
 type Input = z.infer<typeof inputSchema>;
 interface Context extends Input {
 	/** Evidence from the preceding visit; the native visits retain the full audit trail. */
 	evidence: string;
+	/** A retained timing exception requires a reviewed PR instead of feature-base integration. */
+	timingException: boolean;
 }
 interface Event {
 	/** Outcome mapped by the active task. */
-	type: "NEXT" | "APPROVED" | "CHANGES";
+	type: "NEXT" | "APPROVED" | "CHANGES" | "TIMING" | "BLOCKED" | "PUBLISHED";
 	/** Original outcome parsed by Busy Bee at submission. */
 	data: z.infer<typeof evidenceSchema>;
 }
 
-export const resumeSchema = inputSchema.extend({ evidence: z.string() });
+export const resumeSchema = inputSchema.extend({
+	evidence: z.string(),
+	timingException: z.boolean(),
+});
 
 export function runBrief(input: Input): { title: string; description: string } {
 	return {
 		title: `Deliver feature task ${input.isolation.branch}`,
 		description:
-			`Control checkout: ${input.canonicalRoot}. After done, the authorized driver closes ` +
-			"the satisfied source task; feature-wide acceptance, main landing and publication remain separate.",
+			`Control checkout: ${input.canonicalRoot}. done proves integration into ${input.base.branch}; ` +
+			"draft-delivered does not satisfy integration acceptance. Close only proven source " +
+			"scope; retain draft " +
+			"worktrees and unmet criteria. Name the parent feature coordinator/task in the handoff: it owns " +
+			"combined Land delivery to main or a blocked PR.",
 	};
 }
 
 export const machine = setup({
 	types: { context: {} as Context, input: {} as Input, events: {} as Event },
-	actions: { remember: assign(({ event }) => event.data) },
+	actions: {
+		remember: assign(({ event }) => event.data),
+		markClean: assign({ timingException: false }),
+		markTiming: assign({ timingException: true }),
+	},
+	guards: { timingException: ({ context }) => context.timingException },
 }).createMachine({
 	id: "do-feature-task",
-	context: ({ input }) => ({ ...input, evidence: "" }),
+	context: ({ input }) => ({ ...input, evidence: "", timingException: false }),
 	initial: "prepare",
 	states: {
 		prepare: {
@@ -63,15 +80,28 @@ export const machine = setup({
 		work: {
 			meta: {
 				title: "Implement and check",
-				commands: { next: "NEXT" },
+				commands: { next: "NEXT", timing: "TIMING", blocked: "BLOCKED" },
 				task: ({ context }: { context: Context }) => ({
 					instructions:
-						`Complete the assigned change in ${context.isolation.path}, including requested repairs, ` +
-						"then run bun run check and record the checked base commit and content before review.\n\n" +
+						`1. Finish the assigned change and Bookworm's prose review in ${context.isolation.path}.\n` +
+						"2. Run bun run check, recording base and content; repair failures and use the testing skill " +
+						"to refactor or delete slow tests.\n" +
+						"3. Choose next for a green check; timing only for valuable residual timing " +
+						"gates with functional " +
+						"assertions and static/build checks established, recording unique coverage, " +
+						"measured cost, attempted " +
+						"fixes and proposed allowance; otherwise blocked when repairs cannot proceed. A " +
+						"diagnostic run may " +
+						"establish correctness; a timeout hiding assertions leaves it unknown, and " +
+						"neither passes the normal gate.\n\n" +
 						`Previous result: ${context.evidence}`,
 				}),
 			},
-			on: { NEXT: { actions: "remember", target: "librarian" } },
+			on: {
+				NEXT: { actions: ["remember", "markClean"], target: "librarian" },
+				TIMING: { actions: ["remember", "markTiming"], target: "librarian" },
+				BLOCKED: { actions: "remember", target: "preserve-draft" },
+			},
 		},
 		librarian: {
 			meta: {
@@ -80,10 +110,10 @@ export const machine = setup({
 				task: ({ context }: { context: Context }) => ({
 					bee: { kind: "librarian" },
 					instructions:
-						`Review the final checked change in ${context.isolation.path} against established architecture and ` +
-						"settled user intent; route new or unresolved architectural decisions to Architect. Record the " +
-						"base commit, reviewed commit or diff, findings and response ID. " +
-						"Choose approved for an aligned verdict; otherwise changes.\n\n" +
+						`1. Review the checked base and content in ${context.isolation.path}.\n` +
+						"2. Record reviewed revisions and findings; choose approved if aligned, otherwise changes.\n\n" +
+						`Timing exception: ${context.timingException}; if true, assess the exception for a ` +
+						`decision draft, not integration.\n` +
 						`Previous result: ${context.evidence}`,
 				}),
 			},
@@ -99,36 +129,85 @@ export const machine = setup({
 				task: ({ context }: { context: Context }) => ({
 					bee: { kind: "reviewer" },
 					instructions:
-						`Review the complete change in ${context.isolation.path} against acceptance and repository ` +
-						"standards. Record the base commit, reviewed commit or diff and findings. " +
-						"Choose changes for required repairs or missing Librarian approval of the same base and content; " +
-						"otherwise approved.\n\n" +
+						`1. Review the checked base and content in ${context.isolation.path}.\n` +
+						"2. Record reviewed revisions and findings; choose changes for repairs or " +
+						"missing Librarian approval " +
+						"of this candidate, otherwise approved.\n\n" +
+						`Timing exception: ${context.timingException}; if true, assess the exception for a ` +
+						`decision draft, not integration.\n` +
 						`Previous result: ${context.evidence}`,
 				}),
 			},
 			on: {
-				APPROVED: { actions: "remember", target: "deliver" },
+				APPROVED: [
+					{ guard: "timingException", actions: "remember", target: "reviewed-draft" },
+					{ actions: "remember", target: "deliver" },
+				],
 				CHANGES: { actions: "remember", target: "work" },
 			},
 		},
 		deliver: {
 			meta: {
 				title: "Integrate and clean up",
-				commands: { next: "NEXT", changes: "CHANGES" },
+				commands: { next: "NEXT", changes: "CHANGES", blocked: "BLOCKED" },
 				task: ({ context }: { context: Context }) => ({
 					instructions:
 						`1. Commit the approved content in ${context.isolation.path}, then integrate into ` +
 						`${context.base.branch} at ${context.base.path} following honeycomb integrate --help; ` +
-						"choose changes if content or base changes beyond the review.\n" +
-						"2. Verify local integration and remove the isolated worktree following honeycomb remove --help.\n\n" +
+						"choose changes if content/base changed, or blocked for provider/authorization " +
+						"blockers or PR-only scope.\n" +
+						"2. Verify local integration before removing the isolated worktree with " +
+						"honeycomb remove --help; " +
+						"hand off to the parent feature coordinator for combined Land delivery.\n\n" +
 						`Previous result: ${context.evidence}`,
 				}),
 			},
 			on: {
 				NEXT: { actions: "remember", target: "done" },
+				BLOCKED: { actions: "remember", target: "reviewed-draft" },
 				CHANGES: { actions: "remember", target: "work" },
 			},
 		},
+		"reviewed-draft": {
+			meta: {
+				title: "Publish the reviewed feature task",
+				commands: { published: "PUBLISHED", changes: "CHANGES" },
+				task: ({ context }: { context: Context }) => ({
+					instructions:
+						`1. Publish/update a draft PR from ${context.isolation.branch} to ` +
+						`${context.base.branch} with the ` +
+						"exception/blocker, checks, both review references and next decision; otherwise merge-ready " +
+						"blocked or PR-only work may remain open.\n" +
+						"2. Verify the URL and retain the worktree; choose published with evidence and pr, or changes " +
+						"if content/base changed. If this base cannot be published, leave the visit blocked with " +
+						"branch/commit evidence and next action; never retarget main.\n\n" +
+						`Previous result: ${context.evidence}`,
+				}),
+			},
+			on: {
+				PUBLISHED: { actions: "remember", target: "draft-delivered" },
+				CHANGES: { actions: "remember", target: "work" },
+			},
+		},
+		"preserve-draft": {
+			meta: {
+				title: "Preserve the blocked feature task",
+				commands: { published: "PUBLISHED" },
+				task: ({ context }: { context: Context }) => ({
+					instructions:
+						`1. Commit and publish a draft PR from ${context.isolation.branch} to ${context.base.branch}, ` +
+						"marked unreviewed and failing/unverified, not merge-ready; include failed " +
+						"commands, blocker and next action.\n" +
+						"2. Verify the URL and retain the worktree; choose published with evidence and " +
+						"pr. If this base " +
+						"cannot be published, leave the visit blocked with branch/commit evidence; " +
+						"never retarget main.\n\n" +
+						`Previous result: ${context.evidence}`,
+				}),
+			},
+			on: { PUBLISHED: { actions: "remember", target: "draft-delivered" } },
+		},
+		"draft-delivered": { type: "final" },
 		done: { type: "final" },
 	},
 });

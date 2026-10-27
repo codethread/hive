@@ -4,24 +4,38 @@ import {
 	dispatchStage,
 	submitWorkflow,
 } from "./workflow-submission.ts";
-import { beesConfigSchema, readSpawnRequest } from "@hive/shared";
 import { createTask, memoryTracker } from "./tracker.test-support.ts";
 import { expect, test } from "bun:test";
 import type { BeadsScope } from "@hive/beads";
+import type { BeesConfig } from "@hive/shared";
 import type { WorkflowSubmissionCommands } from "./workflow-submission.ts";
+import { readSpawnRequest } from "@hive/shared";
 import { reportFailure } from "./cli.ts";
 import { trackerScope } from "./tracker.ts";
 import { validateRequestedTasks } from "./producer.ts";
 
 const ONE = 1;
-const config = beesConfigSchema.parse({
+const config: BeesConfig = {
 	owner: "ct",
 	humans: ["ct"],
 	kinds: {
-		worker: { description: "Do work", harness: "fixture", model: "fixture", effort: "low" },
+		worker: {
+			description: "Do work",
+			harness: "fixture",
+			model: "fixture",
+			effort: "low",
+			prompt: "",
+			system_prompt: "",
+			hidden: false,
+			workflow: "do-work",
+		},
 	},
-	formulas: { fixture: { executable: "fixture", argv: ["{{prompt}}"] } },
-});
+	formulas: { fixture: { executable: "fixture", argv: ["{{prompt}}"], headless: [] } },
+	limits: { colony: 4, kind: 2, kinds: {}, worktree: 2 },
+	max_retries: 3,
+	ranking: "bv-pagerank",
+	retry_delay_ms: 250,
+};
 const options = {
 	actor: "requester",
 	beadsDb: "/fixture/tracker.db",
@@ -59,8 +73,9 @@ async function fixture() {
 					checkpoint,
 					"related",
 				);
-				// Unpublished Bee dispatch request identity is explicitly absent in Busybee output.
-				// eslint-disable-next-line unicorn/no-null
+				/* eslint-disable-next-line unicorn/no-null --
+				 * Busy Bee reports an unpublished dispatch request as null.
+				 */
 				return { id: runId, status: "active", active: [{ bead: stage, request: null }] };
 			},
 			show: (id) => Promise.resolve({ id, status: "active", active: [] }),
@@ -81,16 +96,6 @@ async function fixture() {
 	};
 }
 
-// Warm request/config boundary schemas outside the measured tests.
-const warmed = await fixture();
-const warmedResult = await submitWorkflow("worker", warmed.submission, warmed.commands);
-readSpawnRequest(
-	await warmed.tracker.beads.show(
-		trackerScope(warmed.tracker.repository, "inspect"),
-		warmedResult.request.id,
-	),
-);
-
 test.each([
 	{ selector: { workflow: "land" }, selection: { kind: "named", name: "land" } },
 	{
@@ -98,7 +103,7 @@ test.each([
 		selection: { kind: "source", path: "/caller/custom/workflow.ts" },
 	},
 ])(
-	"caller selector $selector is resolved before subprocess execution #test-474",
+	"caller selector $selector resolves to workflow-start input #test-474",
 	async ({ selector, selection }) => {
 		const { commands, selected, submission, parent } = await fixture();
 		const result = await submitWorkflow("worker", { ...submission, ...selector }, commands);
@@ -107,12 +112,12 @@ test.each([
 	},
 );
 
-// Confirm absence of publication, then attach without recreating the ordinary hierarchy.
-
 test(
 	"confirmed orphan attachment retains its native parent and unfinished " +
 		"driver-handled visit #test-364",
-	// eslint-disable-next-line max-statements
+	/* eslint-disable-next-line max-statements --
+	 * Keep orphan setup, attachment and retained hierarchy assertions in one test.
+	 */
 	async () => {
 		const { commands, tracker, selected, handoffs, submission, parent } = await fixture();
 		const run = await commands.workflows.start({
@@ -171,22 +176,28 @@ test("driver publication failure reports the existing run and uncertain request 
 	});
 });
 
-const dispatched = await fixture();
-const dispatchedRun = await createTask(dispatched.tracker, { parent: dispatched.parent });
-const checkpoint = await createTask(dispatched.tracker, {
-	labels: ["system", "busybee-checkpoint"],
-	description: JSON.stringify({ formatVersion: 1, id: dispatchedRun, managedExecution: "managed" }),
-});
-await dispatched.tracker.beads.dep.add(
-	trackerScope(dispatched.tracker.repository, "fixture"),
-	dispatchedRun,
-	checkpoint,
-	"related",
-);
-const group = await createTask(dispatched.tracker, { parent: dispatchedRun });
-const stage = await createTask(dispatched.tracker, { parent: group });
-
+/* eslint-disable-next-line max-statements --
+ * Keep ancestry setup measured with the dispatch and captured-assignment assertions.
+ */
 test("stage dispatch uses native ancestry during initial frontier publication #test-562", async () => {
+	const dispatched = await fixture();
+	const dispatchedRun = await createTask(dispatched.tracker, { parent: dispatched.parent });
+	const checkpoint = await createTask(dispatched.tracker, {
+		labels: ["system", "busybee-checkpoint"],
+		description: JSON.stringify({
+			formatVersion: 1,
+			id: dispatchedRun,
+			managedExecution: "managed",
+		}),
+	});
+	await dispatched.tracker.beads.dep.add(
+		trackerScope(dispatched.tracker.repository, "fixture"),
+		dispatchedRun,
+		checkpoint,
+		"related",
+	);
+	const group = await createTask(dispatched.tracker, { parent: dispatchedRun });
+	const stage = await createTask(dispatched.tracker, { parent: group });
 	const beads = {
 		...dispatched.commands.beads,
 		show: (scope: BeadsScope, id: string) => {

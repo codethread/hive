@@ -20,7 +20,7 @@ test.each([
 	{ seconds: 0.005001, severity: "XSLOW" },
 	{ seconds: 1, severity: "XSLOW" },
 	{ seconds: 1.000001, severity: "DANGER" },
-])("classifies strict timing boundary $seconds as $severity", ({ seconds, severity }) => {
+])("classifies strict timing boundary $seconds as $severity #test-747", ({ seconds, severity }) => {
 	const { lines } = reportTestTimings(
 		{ mode: "changed", exitCode: 0, testCases: [timing(seconds)] },
 		allowances,
@@ -64,17 +64,21 @@ test.each([
 	).toBe(shown);
 });
 
-test("reports nested suites slowest first with decoded, single-line descriptions and source locations", () => {
-	const xml = `<testsuites><testsuite name="file"><testsuite name="suite">
+test(
+	"reports nested suites slowest first with decoded, single-line descriptions " +
+		"and source locations #test-723",
+	() => {
+		const xml = `<testsuites><testsuite name="file"><testsuite name="suite">
 		<testcase name="less slow" classname="suite" file="a.test.ts" line="7" time="0.002" />
 		<testcase name="parse &amp; escape&#10;input" classname="suite" file="b.test.ts" line="9" time="0.006" />
 		<testcase name="inherited allowance" classname="suite #test-2" file="moved.test.ts" line="3" time="0.1" />
 	</testsuite></testsuite><testsuite name="empty" /></testsuites>`;
-	expect(reportSlowTests(xml, allowances)).toEqual([
-		"b.test.ts:9 XSLOW 6.000ms suite > parse & escape input",
-		"a.test.ts:7 SLOW 2.000ms suite > less slow",
-	]);
-});
+		expect(reportSlowTests(xml, allowances)).toEqual([
+			"b.test.ts:9 XSLOW 6.000ms suite > parse & escape input",
+			"a.test.ts:7 SLOW 2.000ms suite > less slow",
+		]);
+	},
+);
 
 test.each(["failure", "error", "skipped"])(
 	"leaves %s cases to Bun rather than timing warnings",
@@ -95,7 +99,9 @@ test("empty reports are silent", () => {
 test.each([
 	"<testsuites>",
 	"<other />",
-	'<testsuites><testsuite><testcase name="missing timing" /></testsuite></testsuites>',
+	// Keep other attributes valid so only missing time causes rejection.
+	'<testsuites><testsuite><testcase name="missing timing" ' +
+		'classname="" file="example.test.ts" line="12" /></testsuite></testsuites>',
 	report("NaN"),
 ])("rejects unusable JUnit rather than silently hiding results: %s", (xml) => {
 	expect(() => reportSlowTests(xml, allowances)).toThrow(Error);
@@ -184,20 +190,23 @@ test.each([
 	{ mode: "changed", seconds: "0.001001", name: "unapproved", severity: "SLOW" },
 	{ mode: "all", seconds: "0.00125", name: "unapproved", severity: "" },
 	{ mode: "all", seconds: "0.001251", name: "unapproved", severity: "SLOW" },
-] as const)("$mode timing boundary $seconds for $name", ({ mode, seconds, name, severity }) => {
-	const feedback = reportTestRun(
-		{ mode, xml: report(seconds, name), exitCode: 0, output: "" },
-		allowances,
-	);
-	if (severity) {
-		expect(feedback.exitCode).toBe(failureExitCode);
-		expect(feedback.lines).toEqual([expect.stringContaining(` ${severity} `)]);
-	} else {
-		expect(feedback.exitCode).toBe(successExitCode);
-		expect(feedback.lines).toEqual([]);
-	}
-	expect(Boolean(feedback.guidance)).toBe(Boolean(severity));
-});
+] as const)(
+	"$mode timing boundary $seconds for $name #test-736",
+	({ mode, seconds, name, severity }) => {
+		const feedback = reportTestRun(
+			{ mode, xml: report(seconds, name), exitCode: 0, output: "" },
+			allowances,
+		);
+		if (severity) {
+			expect(feedback.exitCode).toBe(failureExitCode);
+			expect(feedback.lines).toEqual([expect.stringContaining(` ${severity} `)]);
+		} else {
+			expect(feedback.exitCode).toBe(successExitCode);
+			expect(feedback.lines).toEqual([]);
+		}
+		expect(Boolean(feedback.guidance)).toBe(Boolean(severity));
+	},
+);
 
 test.each([
 	{ mode: "changed", seconds: 0.005, name: "allowed #test-1", severity: "" },

@@ -42,7 +42,7 @@ const assignmentRace = await assignmentFixture();
 const membership = await membershipFixture();
 
 // eslint-disable-next-line max-statements -- Exercise production reads and background replacement without timers.
-test("fast board membership changes retain known native families without claiming uncovered cards", async () => {
+test("board membership refreshes retain known native families without claiming uncovered cards #test-756", async () => {
 	const { colonyId, filter, familyKey, root, child, sibling, uncovered, state, read, reads } =
 		membership;
 	const fetch = spyOn(globalThis, "fetch").mockImplementation(read);
@@ -115,7 +115,7 @@ test("annotation demand reuses fresh singleton and overlapping aliases #test-403
 });
 
 // eslint-disable-next-line max-statements -- Coordinate both read generations without timers or global clock changes.
-test("newer annotation cutoffs wait for an older read and coalesce their refresh", async () => {
+test("newer annotation cutoffs wait for an older read and coalesce their refresh #test-757", async () => {
 	const old = Promise.withResolvers<CardAnnotations>();
 	const fresh = Promise.withResolvers<CardAnnotations>();
 	const entered = Promise.withResolvers<void>();

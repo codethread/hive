@@ -1,7 +1,6 @@
 import { ConfigError, HookError, ReservedPrefixError, dispatch } from "../../src/index";
 import {
 	createPoolSlot,
-	createRemoteBranch,
 	pathExists,
 	run,
 	setTestEnv,
@@ -15,9 +14,9 @@ import { gitOut, gitSucceeds, gitText, useTmpHome } from "./lifecycle-helpers.ts
 import { join, resolve } from "node:path";
 // oxlint-disable-next-line import/no-nodejs-modules -- Integration fixtures exercise real filesystem IO.
 import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { createRemoteBranch } from "./remote-history.ts";
 
 const SINGLE_SLOT = 1;
-const FAIL_OUTSIDE_PLACEHOLDER = '[[ "$(git branch --show-current)" == wk-pool/* ]] || exit 7';
 
 const tmp = useTmpHome("honeycomb-pool-add-test-");
 const { initRepoWithOrigin } = useOriginFixture();
@@ -97,7 +96,7 @@ test("copies into allocated slot after checkout and before setup #test-108", asy
 		root,
 		tmp: tmp.dir,
 	});
-	await dispatch("ensure", ["--cwd", root], testDeps());
+	await createPoolSlot({ branch: "wk-pool/feat1", index: SINGLE_SLOT, initialized: true, root });
 
 	await dispatch(
 		"add",
@@ -119,8 +118,8 @@ test("setup failure during allocation restores an existing branch tip #test-110"
 	const { root } = await initRepoWithOrigin(tmp.dir);
 	await run(["git", "-C", root, "branch", "feature/pool-setup-restore"]);
 	const originalHead = await gitOut(root, "rev-parse", "refs/heads/feature/pool-setup-restore");
-	writeConfig({ command: FAIL_OUTSIDE_PLACEHOLDER, poolSize: SINGLE_SLOT, root, tmp: tmp.dir });
-	await dispatch("ensure", ["--cwd", root], testDeps());
+	writeConfig({ command: "exit 7", poolSize: SINGLE_SLOT, root, tmp: tmp.dir });
+	await createPoolSlot({ branch: "wk-pool/feat1", index: SINGLE_SLOT, initialized: true, root });
 
 	const { failure } = await dispatch(
 		"add",
@@ -136,8 +135,7 @@ test("setup failure during allocation restores an existing branch tip #test-110"
 });
 test("copy setup failure during allocation restores the slot placeholder #test-109", async () => {
 	const { root } = await initRepoWithOrigin(tmp.dir);
-	writeConfig({ command: "echo ready", poolSize: SINGLE_SLOT, root, tmp: tmp.dir });
-	await dispatch("ensure", ["--cwd", root], testDeps());
+	await createPoolSlot({ branch: "wk-pool/feat1", index: SINGLE_SLOT, initialized: true, root });
 	writeConfig({
 		command: "echo should-not-run",
 		copyToml: 'copy = [".env.missing"]\n',

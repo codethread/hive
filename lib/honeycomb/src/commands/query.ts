@@ -23,13 +23,13 @@ import {
 	toTreePayload,
 } from "../protocol.ts";
 import {
-	listWorktrees,
 	readWorktreeTree,
 	resolveCanonicalRoot,
 	resolveWorktreeContainingPath,
 } from "../application/repository.ts";
 import type { Deps } from "../services.ts";
 import type { Worktree } from "../domain/worktree.ts";
+import { listWorktrees } from "../git/worktrees.ts";
 import { runPreRemoteCheck } from "../application/hooks.ts";
 
 interface QueryRequest {
@@ -64,13 +64,13 @@ interface EnsurePoolOptions {
 export async function rootCommand(args: string[], deps: Deps): Promise<CommandResult> {
 	const opts = parseOptions(args);
 	const cwd = requireOption(opts, "cwd");
-	const canonicalRoot = await resolveCanonicalRoot(deps.git, cwd);
+	const canonicalRoot = requireCanonical(await deps.worktrees.list(cwd)).path;
 	return { exitCode: EXIT_CODES.SUCCESS, stdout: `${canonicalRoot}\n` };
 }
 
 export async function listCommand(args: string[], deps: Deps): Promise<CommandResult> {
 	const request = parseQueryRequest(args);
-	const worktrees = await listWorktrees(deps.git, request.cwd);
+	const worktrees = await deps.worktrees.list(request.cwd);
 	return renderList(worktrees, request.output);
 }
 

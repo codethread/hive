@@ -11,7 +11,7 @@ test.each([
 	{ explicit: database, inherited: "/other/.beads/beads.db" },
 	{ explicit: undefined, inherited: database },
 ])(
-	"supplied selection bypasses all repository/database discovery: %j",
+	"supplied selection bypasses all repository/database discovery: %j #test-717",
 	async ({ explicit, inherited }) => {
 		const fx = selectionFixture();
 		fx.services.beadsDb = inherited;

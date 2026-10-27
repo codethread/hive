@@ -44,7 +44,7 @@ test.each([
 	{ jsonl_exists: false },
 	{ jsonl_content_hash: null },
 	{ workspace_health: "unhealthy" },
-])("unavailable native export rejects before graph consumption: %j", async (change) => {
+])("unavailable native export rejects before graph consumption: %j #test-733", async (change) => {
 	const fixture = readerFixture([{ ...healthy, ...change }]);
 	const result = await fixture.reader(colony, consumeGraph).catch((error: unknown) => error);
 	expect(result).toBeInstanceOf(Error);

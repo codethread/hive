@@ -23,7 +23,7 @@ test.each([
 );
 
 test.each(["1", "1.2", "v1.2.3", "01.2.3", "latest", "1.2.3-01"])(
-	"manifest version %s must be full SemVer",
+	"manifest version %s must be full SemVer #test-708",
 	(version) => {
 		expect(workflowVersionSchema.safeParse(version).success).toBe(false);
 	},

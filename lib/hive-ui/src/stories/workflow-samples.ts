@@ -71,7 +71,7 @@ export const workflowSamples: WorkflowSample[] = [
 		checkpoint: "hv-w4pn0",
 		savedAt: "2026-10-15T06:19:16.611433Z",
 		capturedAt: CAPTURED_AT,
-		definition: "land 6.0.0",
+		definition: "land 7.0.0",
 		source: ".workflows/land/workflow.ts",
 		definitionNote:
 			"Historical task metadata with the current Land chart and fictional state and instructions; " +
@@ -126,7 +126,7 @@ export const workflowSamples: WorkflowSample[] = [
 		checkpoint: "hv-g3zno",
 		savedAt: "2026-10-15T04:52:20.698303Z",
 		capturedAt: CAPTURED_AT,
-		definition: "land 6.0.0",
+		definition: "land 7.0.0",
 		source: ".workflows/land/workflow.ts",
 		definitionNote:
 			"Historical task metadata with the current Land chart and fictional state and instructions; " +

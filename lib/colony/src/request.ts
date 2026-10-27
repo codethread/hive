@@ -17,7 +17,7 @@ import {
 	runningObservationCurrent,
 } from "./observations.ts";
 import { acquireClaim, releaseClaims } from "./claims.ts";
-import { assign, createActor, setup } from "xstate";
+import { assign, setup, transition } from "xstate";
 import { observeExecution, resumeExecution, stopExecution } from "./processes.ts";
 import {
 	readSpawnRequest,
@@ -236,14 +236,13 @@ export function newRequest(spawn: Bead, repository: RepositoryEndpoint): Request
 		state: "waiting",
 	};
 }
-/** XState alone selects lifecycle transitions; callers persist the result before effects. */
+/**
+ * XState's assign-only machine selects lifecycle transitions without a running actor.
+ * Callers own persistence and effect ordering (see acquireRequest and finishSettlement).
+ */
 export function transitionRequest(record: RequestRecord, event: RequestEvent): RequestRecord {
 	const snapshot = machine.resolveState({ context: record.context, value: record.state });
-	const actor = createActor(machine, { snapshot });
-	actor.start();
-	actor.send(event);
-	const next = actor.getSnapshot();
-	actor.stop();
+	const [next] = transition(machine, snapshot, event);
 	return { ...record, context: next.context, state: next.value as RequestRecord["state"] };
 }
 

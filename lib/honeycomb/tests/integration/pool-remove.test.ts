@@ -7,15 +7,14 @@ import {
 } from "../../src/index";
 import {
 	commitFile,
-	commitOnRemoteDefault,
 	createPoolSlot,
-	createRemoteBranch,
 	pathExists,
 	run,
 	testDeps,
 	useOriginFixture,
 	writeConfig,
 } from "./support.ts";
+import { commitOnRemoteDefault, createRemoteBranch } from "./remote-history.ts";
 import { expect, test } from "bun:test";
 import { gitOut, gitSucceeds, useTmpHome } from "./lifecycle-helpers.ts";
 // oxlint-disable-next-line import/no-nodejs-modules -- Integration fixtures exercise real filesystem IO.

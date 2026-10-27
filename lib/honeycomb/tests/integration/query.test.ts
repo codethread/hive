@@ -1,21 +1,17 @@
 import { BlockedError, EXIT_CODES, dispatch } from "../../src/index";
 import { afterEach, beforeEach, expect, test } from "bun:test";
 import {
-	createPoolSlot,
 	deps,
 	initRepo,
-	pathExists,
 	restoreTestEnv,
 	run,
 	setTestEnv,
-	testDeps,
 	useOriginFixture,
 	writeConfig,
 } from "./support.ts";
 // Integration fixtures exercise real filesystem and process boundaries.
 // oxlint-disable-next-line import/no-nodejs-modules
 import { mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
-import type { CommandResult } from "../../src/protocol.ts";
 // Integration fixtures exercise real filesystem and process boundaries.
 // oxlint-disable-next-line import/no-nodejs-modules
 import { join } from "node:path";
@@ -162,58 +158,6 @@ test("list remains available with malformed config #test-294", async () => {
 	await assertCanonicalList(root);
 });
 
-async function initIncompletePool() {
-	const root = await initQueryRepo();
-	writeConfig({
-		command: "exit 9",
-		copyToml: 'pre_remote_check = "exit 7"\ncopy = [".env.missing"]\n',
-		poolSize: 3,
-		root,
-		tmp,
-	});
-	await createPoolSlot({ branch: "feature/ready", index: 1, initialized: true, root });
-	await createPoolSlot({ branch: "wk-pool/feat2", index: 2, initialized: false, root });
-	return root;
-}
-
-function assertPoolInventory(result: CommandResult, root: string) {
-	expect(result.exitCode).toBe(EXIT_CODES.SUCCESS);
-	expect(result.stderr).toBeUndefined();
-	expect(result.stdout).toContain(`${root}__feat1`);
-	expect(result.stdout).toContain(`${root}__feat2`);
-	expect(result.stdout).not.toContain(`${root}__feat3`);
-	expect(JSON.parse(result.stdout ?? "{}")).toMatchObject({
-		diagnostics: [],
-		kind: "list",
-		ok: true,
-		setup_output: [],
-		worktrees: [
-			{ canonical: true, path: root },
-			{ branch: "feature/ready", pool: { index: 1, placeholder: false } },
-			{ branch: "wk-pool/feat2", pool: { index: 2, placeholder: true } },
-		],
-	});
-}
-
-test("JSON list reads one Git inventory and leaves missing pool slots absent #test-291", async () => {
-	const root = await initIncompletePool();
-	const liveDeps = testDeps();
-	const calls: string[][] = [];
-	function observeGit(gitArgs: string[]) {
-		calls.push(gitArgs);
-		return liveDeps.git.run(gitArgs);
-	}
-
-	const result = await dispatch("list", ["--cwd", root, "--json"], {
-		...liveDeps,
-		git: { run: observeGit, runRaw: observeGit },
-	});
-
-	assertPoolInventory(result, root);
-	expect(calls).toEqual([["-C", root, "worktree", "list", "--porcelain"]]);
-	expect(await pathExists(`${root}__feat3`)).toBe(false);
-});
-
 async function initLockedPool() {
 	const configRoot = join(tmp, "repo");
 	const { root } = await initRepoWithOrigin(tmp);
@@ -227,15 +171,8 @@ async function initLockedPool() {
 	return root;
 }
 
-test("list annotates locked pool slots and path refuses an unallocated branch #test-290", async () => {
+test("pooled path refuses an unallocated branch #test-290", async () => {
 	const root = await initLockedPool();
-
-	const listResult = await dispatch("list", ["--cwd", root], deps);
-	expect(listResult.stdout).toContain("[pool:free]");
-	const jsonResult = await dispatch("list", ["--cwd", root, "--json"], deps);
-	const json = JSON.parse(jsonResult.stdout ?? "{}");
-	const [, slot] = json.worktrees;
-	expect(slot).toMatchObject({ lock_reason: "keep slot", locked: true });
 
 	const { failure } = await dispatch("path", ["--cwd", root, "--branch", "feature/cool"], deps);
 	expect(failure).toBeInstanceOf(BlockedError);

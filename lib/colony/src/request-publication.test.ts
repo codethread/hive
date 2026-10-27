@@ -57,7 +57,7 @@ test("an unchanged executing checkpoint and running receipt remain eligible afte
 });
 
 test.each(["waiting", "claiming", "settling", "retrying", "terminal"] as const)(
-	"a late %s checkpoint abandons the stdout cohort",
+	"a late %s checkpoint abandons the stdout cohort #test-705",
 	(state) => {
 		expect(
 			runningPublicationStillCurrent(captured, { ...current, record: { ...record, state } }),
