@@ -231,33 +231,30 @@ async function fixture(): Promise<string> {
 			INDENT,
 		),
 	);
-	for (const pkg of packages) {
-		// eslint-disable-next-line no-await-in-loop -- Fixture writes are sequential and small.
-		await mkdir(join(root, "lib", pkg), { recursive: true });
-		// eslint-disable-next-line no-await-in-loop -- Keep each package manifest beside its directory creation.
-		await writeFile(join(root, "lib", pkg, "changelog.json"), JSON.stringify([reviewed]));
-		if (pkg === "colony") {
-			// eslint-disable-next-line no-await-in-loop -- Bee has an independently reviewed history in the same package.
-			await writeFile(join(root, "lib", pkg, "bee-changelog.json"), JSON.stringify([beeReviewed]));
-		}
-		// eslint-disable-next-line no-await-in-loop -- Fixture package history is bundled beside each manifest.
-		await writeFile(
-			join(root, "lib", pkg, "package.json"),
-			JSON.stringify(
-				{
-					name: `@hive/${pkg}`,
-					version: "0.5.0",
-					private: true,
-				},
-				undefined,
-				INDENT,
+	await Promise.all(
+		packages.flatMap((pkg) => [
+			Bun.write(join(root, "lib", pkg, "changelog.json"), JSON.stringify([reviewed])),
+			Bun.write(
+				join(root, "lib", pkg, "package.json"),
+				JSON.stringify(
+					{
+						name: `@hive/${pkg}`,
+						version: "0.5.0",
+						private: true,
+					},
+					undefined,
+					INDENT,
+				),
 			),
-		);
-	}
+		]),
+	);
+	// Bee retains independently authored history alongside Colony's.
+	await writeFile(join(root, "lib/colony/bee-changelog.json"), JSON.stringify([beeReviewed]));
+
 	await mkdir(join(root, ".workflows/example"), { recursive: true });
 	await writeFile(join(root, ".workflows/example/busybee.toml"), 'version = "1.2.3"\n');
 	await command(root, ["bun", "install", "--lockfile-only", "--ignore-scripts"]);
-	await git(root, ["init", "--initial-branch=main"]);
+	await git(root, ["init", "--initial-branch=main", "--template="]);
 	await git(root, ["add", "."]);
 	await git(root, ["commit", "-m", "fixture: initial suite"]);
 	return root;
