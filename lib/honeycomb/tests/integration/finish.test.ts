@@ -2,6 +2,7 @@ import { EXIT_CODES, dispatch } from "../../src/index";
 import {
 	commitFile,
 	commitOnRemoteDefault,
+	createWorktree,
 	deps,
 	useOriginFixture,
 	writeConfig,
@@ -19,7 +20,7 @@ const { initRepoWithOrigin } = useOriginFixture();
 async function prepareFinish(branch: string, policy = "") {
 	const { remote, root } = await initRepoWithOrigin(tmp.dir);
 	writeConfig({ command: "echo ready", copyToml: policy, root, tmp: tmp.dir });
-	await dispatch("add", ["--cwd", root, "--branch", branch, "--json"], deps);
+	await createWorktree({ root, branch, path: `${root}__${branch.replaceAll("/", "--")}` });
 	return { remote, root, worktreePath: `${root}__${branch.replaceAll("/", "--")}` };
 }
 

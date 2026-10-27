@@ -2,6 +2,7 @@ import { ConfigError, EXIT_CODES, dispatch } from "../../src/index";
 import { afterEach, beforeEach, expect, test } from "bun:test";
 import {
 	commitFile,
+	createWorktree,
 	deps,
 	restoreTestEnv,
 	run,
@@ -14,7 +15,7 @@ import {
 import { join, resolve } from "node:path";
 // Integration fixtures exercise real filesystem and process boundaries.
 // oxlint-disable-next-line import/no-nodejs-modules
-import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
+import { lstat, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
 // Integration fixtures exercise real filesystem and process boundaries.
 // oxlint-disable-next-line import/no-nodejs-modules
 import { tmpdir } from "node:os";
@@ -42,7 +43,11 @@ async function initTrackedDescendant() {
 	await mkdir(join(root, "src-dir"));
 	await writeFile(join(root, "src-dir", "foo.txt"), "source\n");
 	writeConfig({ command: "echo ready", root, tmp });
-	await dispatch("add", ["--cwd", root, "--branch", "feature/tracked-desc", "--json"], deps);
+	await createWorktree({
+		root,
+		branch: "feature/tracked-desc",
+		path: `${root}__feature--tracked-desc`,
+	});
 	writeConfig({
 		command: "echo ready",
 		copyToml: 'copy = [{ from = "src-dir", to = "tracked-dir" }]\n',
@@ -76,9 +81,12 @@ async function initTrackedAncestor() {
 	await writeFile(join(root, "tracked-file"), "tracked\n");
 	await run(["git", "-C", root, "add", "tracked-file"]);
 	await run(["git", "-C", root, "commit", "-m", "tracked ancestor"]);
-	await run(["git", "-C", root, "push", "origin", "main"]);
 	writeConfig({ command: "echo ready", root, tmp });
-	await dispatch("add", ["--cwd", root, "--branch", "feature/tracked-ancestor", "--json"], deps);
+	await createWorktree({
+		root,
+		branch: "feature/tracked-ancestor",
+		path: `${root}__feature--tracked-ancestor`,
+	});
 	writeConfig({
 		command: "echo ready",
 		copyToml: 'copy = [{ from = ".env", to = "tracked-file/nested" }]\n',
@@ -106,7 +114,6 @@ async function commitTrackedSettings(root: string) {
 	await writeFile(join(root, ".claude", "settings.json"), '{"tracked":true}\n');
 	await run(["git", "-C", root, "add", "source.txt", ".claude/settings.json"]);
 	await run(["git", "-C", root, "commit", "-m", "track claude settings"]);
-	await run(["git", "-C", root, "push", "origin", "main"]);
 }
 
 async function initTrackedDirectory() {
@@ -114,11 +121,11 @@ async function initTrackedDirectory() {
 	await writeFile(join(root, "source.txt"), "source\n");
 	await commitTrackedSettings(root);
 	writeConfig({ command: "echo ready", root, tmp });
-	await dispatch(
-		"add",
-		["--cwd", root, "--branch", "feature/tracked-dir-ancestor", "--json"],
-		deps,
-	);
+	await createWorktree({
+		root,
+		branch: "feature/tracked-dir-ancestor",
+		path: `${root}__feature--tracked-dir-ancestor`,
+	});
 	writeConfig({
 		command: "echo ready",
 		copyToml: 'copy = [{ from = "source.txt", to = ".claude/settings.local.json" }]\n',
@@ -150,7 +157,11 @@ test("untracked file inside tracked directory destination is allowed #test-168",
 test("copy command reports ConfigError for an object entry without a source #test-173", async () => {
 	const { root } = await initRepoWithOrigin(tmp);
 	writeConfig({ command: "echo ready", root, tmp });
-	await dispatch("add", ["--cwd", root, "--branch", "feature/invalid-object", "--json"], deps);
+	await createWorktree({
+		root,
+		branch: "feature/invalid-object",
+		path: `${root}__feature--invalid-object`,
+	});
 	writeConfig({ command: "echo ready", copyToml: 'copy = [{ to = ".env" }]\n', root, tmp });
 
 	const result = await dispatch(
@@ -175,7 +186,11 @@ async function initSymlinkedExclude() {
 	await writeFile(realExclude, "*.log\n");
 	await writeFile(join(root, ".env"), "ignored\n");
 	writeConfig({ command: "echo ready", copyToml: 'copy = [".env"]\n', root, tmp });
-	await dispatch("add", ["--cwd", root, "--branch", "feature/symlink-exclude", "--json"], deps);
+	await createWorktree({
+		root,
+		branch: "feature/symlink-exclude",
+		path: `${root}__feature--symlink-exclude`,
+	});
 	return { excludePath, realExclude, root };
 }
 
@@ -185,8 +200,8 @@ test("follows symlinked shared exclude path #test-174", async () => {
 	await dispatch("copy", ["--cwd", `${root}__feature--symlink-exclude`], deps);
 
 	expect(await readFile(realExclude, "utf8")).toBe("*.log\n# wktree-start\n.env\n# wktree-end\n");
-	const symlinkResult = await run(["test", "-L", resolve(root, excludePath)]);
-	expect(symlinkResult.exitCode).toBe(EXIT_CODES.SUCCESS);
+	const excludeStat = await lstat(resolve(root, excludePath));
+	expect(excludeStat.isSymbolicLink()).toBe(true);
 });
 
 async function initExcludeFence() {
@@ -195,7 +210,11 @@ async function initExcludeFence() {
 	await writeFile(resolve(root, excludePath), "*.log\n");
 	await writeFile(join(root, ".env"), "ignored\n");
 	writeConfig({ command: "echo ready", copyToml: 'copy = [".env"]\n', root, tmp });
-	await dispatch("add", ["--cwd", root, "--branch", "feature/ignore-copy", "--json"], deps);
+	await createWorktree({
+		root,
+		branch: "feature/ignore-copy",
+		path: `${root}__feature--ignore-copy`,
+	});
 	const worktreePath = `${root}__feature--ignore-copy`;
 	return { excludePath, root, worktreePath };
 }

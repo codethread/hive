@@ -2,9 +2,11 @@
 import { EXIT_CODES, dispatch } from "../../src/index.ts";
 import { afterAll, expect, test } from "bun:test";
 // oxlint-disable-next-line import/no-nodejs-modules -- Native Git fixtures use temporary files.
-import { chmod, cp, mkdtemp, realpath, rename, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdtemp, realpath, rename, rm, writeFile } from "node:fs/promises";
 import { commitFile, createWorktree, initRepo, pathExists, testDeps } from "./support.ts";
 import { gitOut, gitSucceeds, gitText, runCli, useTmpHome } from "./lifecycle-helpers.ts";
+// oxlint-disable-next-line import/no-nodejs-modules -- Native Git fixtures copy real repositories on disk.
+import { cpSync } from "node:fs";
 // oxlint-disable-next-line import/no-nodejs-modules -- Temporary checkout paths.
 import { join } from "node:path";
 // oxlint-disable-next-line import/no-nodejs-modules -- Temporary checkout paths.
@@ -25,7 +27,8 @@ afterAll(async () => {
 async function fixture() {
 	fixtureState.seed ??= await createSeed();
 	const { seed } = fixtureState;
-	await cp(seed.root, join(tmp.dir, "repo"), { recursive: true });
+	// oxlint-disable-next-line node/no-sync -- This sequential fixture copy blocks its test worker.
+	cpSync(seed.root, join(tmp.dir, "repo"), { recursive: true });
 	const root = await realpath(join(tmp.dir, "repo"));
 	const target = join(tmp.dir, "feature");
 	const source = join(tmp.dir, "task");
