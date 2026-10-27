@@ -1,14 +1,6 @@
 import { EXIT_CODES, dispatch } from "../../src/index";
-import {
-	commitFile,
-	commitOnRemoteDefault,
-	createRemoteBranch,
-	deps,
-	pathExists,
-	run,
-	useOriginFixture,
-	writeConfig,
-} from "./support.ts";
+import { commitFile, deps, pathExists, run, useOriginFixture, writeConfig } from "./support.ts";
+import { commitOnRemoteDefault, createRemoteBranch } from "./remote-history.ts";
 import { expect, test } from "bun:test";
 import { gitOut, gitText, useTmpHome } from "./lifecycle-helpers.ts";
 // oxlint-disable-next-line import/no-nodejs-modules -- Integration fixtures exercise real filesystem IO.

@@ -1,5 +1,13 @@
 import { EXIT_CODES, UsageError, dispatch } from "../../src/index";
-import { commitFile, deps, pathExists, run, useOriginFixture, writeConfig } from "./support.ts";
+import {
+	commitFile,
+	createWorktree,
+	deps,
+	pathExists,
+	run,
+	useOriginFixture,
+	writeConfig,
+} from "./support.ts";
 import { expect, test } from "bun:test";
 import { gitText, useTmpHome } from "./lifecycle-helpers.ts";
 // oxlint-disable-next-line import/no-nodejs-modules -- Integration fixtures exercise real filesystem IO.
@@ -13,8 +21,8 @@ const { initRepoWithOrigin } = useOriginFixture();
 test("--base-current stacks a new branch on the worktree containing cwd #test-121", async () => {
 	const { root } = await initRepoWithOrigin(tmp.dir);
 	writeConfig({ command: "echo ready", root, tmp: tmp.dir });
-	await dispatch("add", ["--cwd", root, "--branch", "feature/parent", "--json"], deps);
 	const parentPath = `${root}__feature--parent`;
+	await createWorktree({ root, branch: "feature/parent", path: parentPath });
 	await commitFile({
 		content: "parent\n",
 		message: "parent work",
@@ -57,8 +65,8 @@ test("--base-current from canonical root stacks on the canonical branch #test-12
 test("--base-current refuses a detached worktree #test-123", async () => {
 	const { root } = await initRepoWithOrigin(tmp.dir);
 	writeConfig({ command: "echo ready", root, tmp: tmp.dir });
-	await dispatch("add", ["--cwd", root, "--branch", "feature/detached", "--json"], deps);
 	const worktreePath = `${root}__feature--detached`;
+	await createWorktree({ root, branch: "feature/detached", path: worktreePath });
 	await run(["git", "-C", worktreePath, "checkout", "--detach"]);
 
 	const { failure } = await dispatch(
@@ -70,8 +78,8 @@ test("--base-current refuses a detached worktree #test-123", async () => {
 	expect(await pathExists(`${root}__feature--stacked`)).toBe(false);
 });
 test("--base-current is refused together with --base #test-124", async () => {
-	const { root } = await initRepoWithOrigin(tmp.dir);
-	writeConfig({ command: "echo ready", root, tmp: tmp.dir });
+	// Request parsing must refuse this combination before any repository or config IO.
+	const root = "/unused";
 
 	const { failure } = await dispatch(
 		"add",
