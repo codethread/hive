@@ -1,3 +1,4 @@
+/* eslint-disable unicorn/no-null -- Parser assertions retain explicit-null absent metadata. */
 import {
 	branchExistsInList,
 	parseTrunkFromRemoteShow,
@@ -5,6 +6,8 @@ import {
 	parseWorktreeList,
 } from "../../src/git/worktrees.ts";
 import { describe, expect, test } from "bun:test";
+
+const FIRST_WORKTREE = 0;
 
 const checkoutCases = [
 	{
@@ -125,4 +128,31 @@ describe("git worktree parsers", () => {
 			expect(branchExistsInList(output, branch)).toBe(exists);
 		},
 	);
+});
+
+test.each([
+	{ fields: "locked", locked: true, lockReason: null, prunable: false, prunableReason: null },
+	{
+		fields: "locked keep slot",
+		locked: true,
+		lockReason: "keep slot",
+		prunable: false,
+		prunableReason: null,
+	},
+	{ fields: "prunable", locked: false, lockReason: null, prunable: true, prunableReason: null },
+	{
+		fields: "prunable gitdir file points to non-existent location",
+		locked: false,
+		lockReason: null,
+		prunable: true,
+		prunableReason: "gitdir file points to non-existent location",
+	},
+])("preserves porcelain markers and reason distinctions: $fields", ({ fields, ...expected }) => {
+	expect(
+		parseWorktreeList(`worktree /repo with spaces\nHEAD abc123\n${fields}\n`)[FIRST_WORKTREE],
+	).toMatchObject({ path: "/repo with spaces", ...expected });
+});
+
+test("rejects malformed porcelain without a worktree path", () => {
+	expect(() => parseWorktreeList("HEAD abc123\nbranch refs/heads/main\n")).toThrow(Error);
 });

@@ -7,7 +7,6 @@ import {
 	dispatch,
 } from "../../src/index";
 import {
-	commitOnRemoteDefault,
 	createPoolSlot,
 	pathExists,
 	run,
@@ -19,6 +18,8 @@ import { expect, test } from "bun:test";
 import { gitOut, gitSucceeds, runCli, useTmpHome } from "./lifecycle-helpers.ts";
 // oxlint-disable-next-line import/no-nodejs-modules -- Real Git fixtures exercise filesystem boundaries.
 import { join, resolve } from "node:path";
+import type { CommandResult } from "../../src/index";
+import { commitOnRemoteDefault } from "./remote-history.ts";
 // oxlint-disable-next-line import/no-nodejs-modules -- Real Git fixtures exercise filesystem boundaries.
 import { writeFile } from "node:fs/promises";
 
@@ -80,12 +81,21 @@ async function poolFixture(options: {
 	return root;
 }
 
-function addPool(root: string, flags: string[] = []) {
-	return dispatch(
-		"add",
-		["--cwd", root, "--branch", "feature/new", "--slot", `${root}__feat2`, "--json", ...flags],
-		testDeps(),
-	);
+function addPool(root: string, flags: string[] = [], launcher = false): Promise<CommandResult> {
+	const args = [
+		"--cwd",
+		root,
+		"--branch",
+		"feature/new",
+		"--slot",
+		`${root}__feat2`,
+		"--json",
+		...flags,
+	];
+	if (launcher) {
+		return runCli(["add", ...args]);
+	}
+	return dispatch("add", args, testDeps());
 }
 
 function failureConfig(failure: string) {
@@ -164,24 +174,19 @@ test.each([
 	{ noNetwork: true, skipCommand: true, state: "cold" },
 	{ noNetwork: true, skipCommand: true, state: "warm" },
 ] as const)(
-	"real CLI pooled flags preserve copies and truthful marker (noNetwork=$noNetwork, " +
+	"pooled flags preserve copies and truthful marker (noNetwork=$noNetwork, " +
 		"skipCommand=$skipCommand, state=$state) #test-103",
 	async (options) => {
 		const root = await poolFixture(options);
 		const flags = addFlags(options);
-		const result = await runCli([
-			"--cwd",
+		// Keep one real CLI composition with both flags; slot-state permutations need no extra Bun process.
+		const result = await addPool(
 			root,
-			"add",
-			"--branch",
-			"feature/new",
-			"--slot",
-			`${root}__feat2`,
-			"--json",
-			...flags,
-		]);
+			flags,
+			options.noNetwork && options.skipCommand && options.state === "cold",
+		);
 		expect(result.exitCode).toBe(EXIT_CODES.SUCCESS);
-		await expectFlagEffects(root, result.stdout, options);
+		await expectFlagEffects(root, result.stdout ?? "{}", options);
 		expect(await Bun.file(`${root}__feat2/.env`).text()).toBe("copied\n");
 		expect(await markerExists(`${root}__feat2`)).toBe(
 			!options.skipCommand || options.state === "warm",

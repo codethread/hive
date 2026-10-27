@@ -2,7 +2,6 @@ import { EXIT_CODES, ReservedPrefixError, dispatch } from "../../src/index";
 // oxlint-disable-next-line import/no-nodejs-modules -- Integration fixtures exercise real filesystem IO.
 import { basename, join } from "node:path";
 import {
-	createRemoteBranch,
 	deps,
 	pathExists,
 	run,
@@ -15,6 +14,7 @@ import { expect, test } from "bun:test";
 // oxlint-disable-next-line import/no-nodejs-modules -- Integration fixtures exercise real filesystem IO.
 import { mkdir, readFile, realpath, writeFile } from "node:fs/promises";
 import { runCli, useTmpHome } from "./lifecycle-helpers.ts";
+import { createRemoteBranch } from "./remote-history.ts";
 
 const tmp = useTmpHome("honeycomb-add-test-");
 const { initRepoWithOrigin } = useOriginFixture();
@@ -177,7 +177,8 @@ test("without project config post_create_script_path is null #test-250", async (
 	expect(JSON.parse(result.stdout ?? "{}").post_create_script_path).toBeNull();
 });
 test("rejects reserved pool branch prefix #test-252", async () => {
-	const { root } = await initRepoWithOrigin(tmp.dir);
+	// Reserved branch syntax is refused before repository discovery.
+	const root = "/unused";
 	const { failure } = await dispatch(
 		"add",
 		["--cwd", root, "--branch", "wk-pool/feat1", "--json"],

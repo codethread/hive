@@ -6,7 +6,7 @@ import { packRepository } from "./pack.ts";
 const before = "count: 20\nsize: 80\nin-pack: 3\npacks: 2\nsize-pack: 16\ngarbage: 0";
 const after = "count: 0\nsize: 0\nin-pack: 23\npacks: 1\nsize-pack: 12\ngarbage: 0";
 
-test("packing retains unreachable objects and reports explicitly sized storage observations", async () => {
+test("packing retains unreachable objects and reports explicitly sized storage observations #test-726", async () => {
 	const commands: (readonly string[])[] = [];
 	const remaining = ["/repo/.git", before, "", after];
 	const result = await packRepository("/repo", async (argv, cwd) => {

@@ -60,4 +60,6 @@ Inspect confirmed effects and retained IDs after any command failure; a failed r
 
 For explicitly authorized failure or cancellation of pending generated work, read `busybee settle --help`. Settlement is separate from successful completion and source acceptance; a request to resume work does not authorize retirement.
 
-For definition restoration failures, read [saved-run compatibility](../workflow-authoring/SKILL.md#evolve-existing-runs) with `busybee skills get workflow-authoring`. Retain run/task/evidence references and follow the task's recovery authorization; retrying does not authorize a duplicate run. A missing saved name needs the caller's workflow choice. Checkpoint locks retained after uncertain writes require inspection and explicit recovery; never steal them or force-close unfinished work.
+For definition restoration failures, read [saved-run compatibility](../workflow-authoring/SKILL.md#evolve-existing-runs) with `busybee skills get workflow-authoring`. Retain run/task/evidence references and follow the application's recovery authorization before creating a replacement run. A missing saved name needs the caller's workflow choice.
+
+Inspect the checkpoint owner and native effects before explicit recovery within existing task authority; “explicit” does not itself mean renewed human permission. Busy Bee has no unlock command. Preserve live or uncertain locks; recovery does not authorize replaying effects or force-closing unfinished work.

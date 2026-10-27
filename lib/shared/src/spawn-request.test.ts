@@ -80,7 +80,7 @@ test("stdout and lifecycle evidence are selected independently of comment order 
 	expect(latestColonyObservation(reversed)).toEqual(lifecycle);
 });
 
-test("lifecycle observations remain ordered after local IDs and input order change", () => {
+test("lifecycle observations remain ordered after local IDs and input order change #test-735", () => {
 	const older = {
 		author: "colony",
 		created_at: "2026-10-04T10:00:00Z",
@@ -330,7 +330,7 @@ test.each([
 	{ host: "foreign-host", expected: "foreign-host" },
 	{ host: undefined, expected: null },
 ])(
-	"host routing projection reads $expected without decoding workflow execution",
+	"host routing projection reads $expected without decoding workflow execution #test-738",
 	({ host, expected }) => {
 		const bead = { description: JSON.stringify({ host }) };
 		expect(readSpawnRequestHost(bead)).toBe(expected);

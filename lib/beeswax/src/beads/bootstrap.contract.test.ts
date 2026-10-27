@@ -97,7 +97,7 @@ async function fixture(tmp: string, history: History = "present") {
 	const calls: string[][] = [];
 	const command = fixtureCommand(tmp, calls);
 	await mkdir(seed);
-	await command(["git", "init", "--initial-branch=main"], seed);
+	await command(["git", "init", "--template=", "--initial-branch=main"], seed);
 	await Bun.write(join(seed, "package.json"), '{"name":"bootstrap-fixture","private":true}\n');
 	await Bun.write(join(seed, "mise.toml"), "");
 	await Bun.write(
@@ -127,8 +127,8 @@ async function fixture(tmp: string, history: History = "present") {
 	if (history === "missing-branch") {
 		await command(["git", "branch", "-D", "tracker/state"], seed);
 	}
-	await command(["git", "clone", "--bare", seed, remote], tmp);
-	await command(["git", "clone", remote, root], tmp);
+	await command(["git", "clone", "--template=", "--bare", seed, remote], tmp);
+	await command(["git", "clone", "--template=", remote, root], tmp);
 	await command(["git", "config", "core.hooksPath", "/dev/null"], root);
 	const tracker = join(root, ".worktrees", "tracker--state");
 	return {

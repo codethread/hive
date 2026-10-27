@@ -16,9 +16,7 @@ For an existing project contract, use `beeswax sync --help` to reproduce it loca
 
 When implementation inspection is needed, use `beeswax info --help` for release provenance and source retrieval. It reports source availability explicitly; do not infer a matching source tree from an unrelated checkout.
 
-For harness onboarding, follow setup/update help for selection and trust requirements. Commit the selected generated files with the contract and run sync in each checkout. Verify that the actual execution checkout has those files and the matching Beeswax executable on the harness's `PATH`.
-
-Selected adapters deliver the offline primer and observe tracker alerts at harness callbacks. Verify both delivery paths in the execution checkout; generated files alone do not establish runtime delivery or writer quiescence.
+For harness onboarding, follow setup/update help for selection and trust requirements. Commit the selected generated files with the contract and run sync in each checkout. Verify primer and tracker-alert delivery in a session with the current adapters loaded: generated files and the matching Beeswax executable on the harness's `PATH` are prerequisites, not proof of delivery. Idle sessions receive no immediate alert notification.
 
 For the optional customizable `hive` workflow, use setup's `--install-workflow-skill` only when requested. Follow `beeswax setup --help` for prerequisites, destinations and preservation rules. Review and commit the installed files and links; verify workflow discovery in the execution checkout. Use deliberate manual review for later workflow updates.
 
@@ -43,4 +41,4 @@ On failure, inspect completed phases, any `trackerEffects` and installer diagnos
 
 At an authorized remote exchange or integration checkpoint, read [publication guidance](references/publication.md). Retrieve linked resources with `beeswax skills file repository-setup PATH`.
 
-For pre-publication `tracker_busy`, follow [publication contention](references/publication.md#publication-contention). For tracker alerts or other synchronization failures, load `beeswax skills get tracker-recovery` before further tracker work. It separates observers waiting for clearance from explicitly authorized recovery.
+For pre-publication `tracker_busy`, follow [publication contention](references/publication.md#publication-contention). For other synchronization failures during setup, load `beeswax skills get tracker-recovery` before further tracker work.
