@@ -181,8 +181,8 @@ async function prepare() {
 		});
 	const native = createNativeBeads({ execute });
 	await mkdir(first);
-	await runCommand(["git", "init", "--bare", remote], root);
-	await runCommand(["git", "init", "-b", "tracker/state"], first);
+	await runCommand(["git", "init", "--template=", "--bare", remote], root);
+	await runCommand(["git", "init", "--template=", "-b", "tracker/state"], first);
 	await configureGit(first);
 	await execute(
 		["br", "init", "--prefix", "probe", "--db", scope(first).db, "--actor", actor],
@@ -195,7 +195,10 @@ async function prepare() {
 	await runCommand(["git", "commit", "-m", "initial tracker"], first);
 	await runCommand(["git", "remote", "add", "origin", remote], first);
 	await runCommand(["git", "push", "-u", "origin", "tracker/state"], first);
-	await runCommand(["git", "clone", "--branch", "tracker/state", remote, second], root);
+	await runCommand(
+		["git", "clone", "--template=", "--branch", "tracker/state", remote, second],
+		root,
+	);
 	await configureGit(second);
 	// Seed equal native baselines only in this disposable fixture; publication never copies DBs.
 	await cp(join(first, ".beads"), join(second, ".beads"), { recursive: true });
@@ -230,7 +233,10 @@ async function prepare() {
 }
 
 async function configureGit(cwd: string): Promise<void> {
-	await runCommand(["git", "config", "user.name", "Tracker fixture"], cwd);
-	await runCommand(["git", "config", "user.email", "tracker@example.test"], cwd);
-	await runCommand(["git", "config", "commit.gpgsign", "false"], cwd);
+	const path = join(cwd, ".git/config");
+	await Bun.write(
+		path,
+		`${await Bun.file(path).text()}\n[user]\n\tname = Tracker fixture\n` +
+			"\temail = tracker@example.test\n[commit]\n\tgpgsign = false\n",
+	);
 }

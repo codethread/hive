@@ -53,7 +53,7 @@ test.each([
 		},
 	},
 ] satisfies { mode: CopyMode; raw: RawRepositoryConfig }[])(
-	"local copy entries use effective $mode default and retain explicit modes",
+	"local copy entries use effective $mode default and retain explicit modes #test-693",
 	({ mode, raw }) => {
 		const policy = explainPolicy(localConfig(raw), root);
 		expect(policy.project?.copy).toEqual([
@@ -196,7 +196,7 @@ test.each([
 	{ name: "empty destinations", raw: { copy: [{ from: ".env", to: [] }] } },
 	{ name: "unknown finish key", raw: { finish: { removeWorktree: true } } },
 	{ name: "invalid finish value", raw: { finish: { push: "yes" } } },
-])("repository schema rejects $name", ({ raw }) => {
+])("repository schema rejects $name #test-700", ({ raw }) => {
 	expect(RepositoryConfigSchema.safeParse(raw).success).toBe(false);
 });
 

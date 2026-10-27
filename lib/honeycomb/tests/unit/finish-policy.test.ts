@@ -4,7 +4,7 @@ import type { Deps } from "../../src/services.ts";
 import { dispatch } from "../../src/main.ts";
 import { parseIntegrationPlan } from "../../src/commands/finish-integration.ts";
 
-test("finish rejects --strategy before calling dependencies", async () => {
+test("finish rejects --strategy before calling dependencies #test-748", async () => {
 	const unexpected = mock((): never => {
 		throw new Error("Unexpected dependency call");
 	});
@@ -54,6 +54,7 @@ function unusedDependencies(unexpected: () => never): Deps {
 	return {
 		skills: { getSkills: unexpected, getSkillFile: unexpected },
 		git: { run: unexpected, runRaw: unexpected },
+		worktrees: { list: unexpected },
 		config: { read: unexpected, explain: unexpected },
 		files: {
 			normalizePath: unexpected,

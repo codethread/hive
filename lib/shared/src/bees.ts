@@ -134,15 +134,11 @@ export function validateFormula(formula: Formula): void {
 		prompt: "validation",
 		system_prompt: "validation",
 	};
+	const render = createFormulaRenderer(formula, "headless");
 	for (const prompt of ["", "validation"]) {
 		for (const system_prompt of ["", "validation"]) {
-			renderFormula(formula, { ...recipe, prompt, system_prompt }, "headless", "/validation-home");
-			renderFormula(
-				formula,
-				{ ...recipe, cwd: ".", prompt, system_prompt },
-				"headless",
-				"/validation-home",
-			);
+			render({ ...recipe, prompt, system_prompt }, "/validation-home");
+			render({ ...recipe, cwd: ".", prompt, system_prompt }, "/validation-home");
 		}
 	}
 }
@@ -155,25 +151,39 @@ export function renderFormula(
 	mode: "interactive" | "headless",
 	home: string,
 ): Invocation {
-	const render = (token: string) =>
-		Handlebars.compile(token, { noEscape: true, strict: true })(recipe, {
-			helpers: { json: formulaJson },
-		});
+	return createFormulaRenderer(formula, mode)(recipe, home);
+}
+
+// --- Private functions ---
+
+function createFormulaRenderer(formula: Formula, mode: "interactive" | "headless") {
 	let { argv } = formula;
 	if (mode === "headless") {
 		argv = [...formula.headless, ...argv];
 	}
-	let executable = render(formula.executable);
-	if (executable.startsWith("~/")) {
-		executable = `${home}${executable.slice("~".length)}`;
-	}
-	return invocationSchema.parse({
-		argv: argv.map((token) => render(token)).filter((argument) => argument !== ""),
-		executable,
-	});
+	const renderExecutable = compileFormulaToken(formula.executable);
+	const renderArguments = argv.map((token) => compileFormulaToken(token));
+	return (recipe: Recipe, home: string): Invocation => {
+		let executable = renderExecutable(recipe);
+		if (executable.startsWith("~/")) {
+			executable = `${home}${executable.slice("~".length)}`;
+		}
+		return invocationSchema.parse({
+			argv: renderArguments.map((render) => render(recipe)).filter((argument) => argument !== ""),
+			executable,
+		});
+	};
 }
 
-// --- Private functions ---
+function compileFormulaToken(token: string): (recipe: Recipe) => string {
+	// NUL must reach Handlebars to preserve its parser failure, even without a mustache opener.
+	if (!token.includes("{{") && !token.includes("\u0000")) {
+		return () => token;
+	}
+	const render = Handlebars.compile(token, { noEscape: true, strict: true });
+	return (recipe) => render(recipe, { helpers: { json: formulaJson } });
+}
+
 function formulaJson(value: unknown): string {
 	// Handlebars does not enforce strict lookup for helper arguments.
 	const json = JSON.stringify(value);

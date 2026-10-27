@@ -124,7 +124,7 @@ function fenced(
 	return input;
 }
 
-test("reconciliation preserves every user byte and generic actionable/status policy", () => {
+test("reconciliation preserves every user byte and generic actionable/status policy #test-755", () => {
 	const header = "# my viewer policy\r\nrecipes:\r\n  # Work is intentionally actionable\r\n";
 	const personalWork =
 		"  work:\r\n    description: 'My work' # exact quotes\r\n" +

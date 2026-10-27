@@ -2,9 +2,9 @@ import { ConfigError, EXIT_CODES, dispatch } from "../../src/index";
 import { afterEach, beforeEach, expect, test } from "bun:test";
 import {
 	commitFile,
+	createWorktree,
 	deps,
 	restoreTestEnv,
-	run,
 	setTestEnv,
 	useOriginFixture,
 	writeConfig,
@@ -40,7 +40,7 @@ afterEach(async () => {
 test("reports ready JSON for a non-canonical worktree with no copy config #test-258", async () => {
 	const { root } = await initRepoWithOrigin(tmp);
 	writeConfig({ command: "echo ready", root, tmp });
-	await dispatch("add", ["--cwd", root, "--branch", "feature/copy", "--json"], deps);
+	await createWorktree({ root, branch: "feature/copy", path: `${root}__feature--copy` });
 	const worktreePath = `${root}__feature--copy`;
 
 	const nestedCwd = join(worktreePath, "nested", "dir");
@@ -64,7 +64,11 @@ test("reports ready JSON for a non-canonical worktree with no copy config #test-
 test("non-json copy prints a one-line summary to stderr #test-262", async () => {
 	const { root } = await initRepoWithOrigin(tmp);
 	writeConfig({ command: "echo ready", root, tmp });
-	await dispatch("add", ["--cwd", root, "--branch", "feature/human-copy", "--json"], deps);
+	await createWorktree({
+		root,
+		branch: "feature/human-copy",
+		path: `${root}__feature--human-copy`,
+	});
 	const worktreePath = `${root}__feature--human-copy`;
 
 	const result = await dispatch("copy", ["--cwd", worktreePath], deps);
@@ -83,9 +87,8 @@ test("local-only copy skips failing pre_remote_check #test-263", async () => {
 		root,
 		tmp,
 	});
-	await run(["git", "-C", root, "branch", "feature/local-copy"]);
 	const worktreePath = `${root}__feature--local-copy`;
-	await run(["git", "-C", root, "worktree", "add", worktreePath, "feature/local-copy"]);
+	await createWorktree({ root, branch: "feature/local-copy", path: worktreePath });
 
 	const result = await dispatch("copy", ["--cwd", worktreePath, "--json"], deps);
 
@@ -110,7 +113,7 @@ test("copies a root-relative file and reports copied JSON #test-260", async () =
 	const { root } = await initRepoWithOrigin(tmp);
 	await writeFile(join(root, ".env"), "SECRET=one\n");
 	writeConfig({ command: "echo ready", copyToml: 'copy = [".env"]\n', root, tmp });
-	await dispatch("add", ["--cwd", root, "--branch", "feature/copy", "--json"], deps);
+	await createWorktree({ root, branch: "feature/copy", path: `${root}__feature--copy` });
 	const worktreePath = `${root}__feature--copy`;
 
 	const result = await dispatch("copy", ["--cwd", worktreePath, "--json"], deps);
@@ -133,7 +136,7 @@ test("rerunning copy replaces an untracked destination with current source #test
 	const { root } = await initRepoWithOrigin(tmp);
 	await writeFile(join(root, ".env"), "first\n");
 	writeConfig({ command: "echo ready", copyToml: 'copy = [".env"]\n', root, tmp });
-	await dispatch("add", ["--cwd", root, "--branch", "feature/replace", "--json"], deps);
+	await createWorktree({ root, branch: "feature/replace", path: `${root}__feature--replace` });
 	const worktreePath = `${root}__feature--replace`;
 	await dispatch("copy", ["--cwd", worktreePath], deps);
 	await writeFile(join(root, ".env"), "second\n");
@@ -152,10 +155,13 @@ async function initTrackedDestination() {
 		path: "tracked-copy.txt",
 		repo: root,
 	});
-	await run(["git", "-C", root, "push", "origin", "main"]);
 	await writeFile(join(root, "tracked-copy.txt"), "new source\n");
 	writeConfig({ command: "echo ready", root, tmp });
-	await dispatch("add", ["--cwd", root, "--branch", "feature/tracked-copy", "--json"], deps);
+	await createWorktree({
+		root,
+		branch: "feature/tracked-copy",
+		path: `${root}__feature--tracked-copy`,
+	});
 	writeConfig({ command: "echo ready", copyToml: 'copy = ["tracked-copy.txt"]\n', root, tmp });
 	const worktreePath = `${root}__feature--tracked-copy`;
 	return { worktreePath };
@@ -174,7 +180,11 @@ test("tracked destination blocks with unsafe JSON and leaves file intact #test-2
 test("copy command reports ConfigError for an escaping string entry #test-261", async () => {
 	const { root } = await initRepoWithOrigin(tmp);
 	writeConfig({ command: "echo ready", root, tmp });
-	await dispatch("add", ["--cwd", root, "--branch", "feature/invalid-copy", "--json"], deps);
+	await createWorktree({
+		root,
+		branch: "feature/invalid-copy",
+		path: `${root}__feature--invalid-copy`,
+	});
 	writeConfig({ command: "echo ready", copyToml: 'copy = ["../escape"]\n', root, tmp });
 
 	const result = await dispatch(

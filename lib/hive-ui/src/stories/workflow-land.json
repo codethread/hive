@@ -15,6 +15,21 @@
 					{
 						"target": ["#land.librarian"]
 					}
+				],
+				"TIMING": [
+					{
+						"target": ["#land.librarian"]
+					}
+				],
+				"BLOCKED": [
+					{
+						"target": ["#land.preserve-draft"]
+					}
+				],
+				"DEFERRED": [
+					{
+						"target": ["#land.merged-blocked"]
+					}
 				]
 			}
 		},
@@ -44,6 +59,10 @@
 						"guard": "alreadyIntegrated"
 					},
 					{
+						"target": ["#land.reviewed-draft"],
+						"guard": "timingException"
+					},
+					{
 						"target": ["#land.finish"]
 					}
 				],
@@ -63,6 +82,11 @@
 						"target": ["#land.verify"]
 					}
 				],
+				"BLOCKED": [
+					{
+						"target": ["#land.reviewed-draft"]
+					}
+				],
 				"CHANGES": [
 					{
 						"target": ["#land.check"]
@@ -77,6 +101,11 @@
 				"NEXT": [
 					{
 						"target": ["#land.local-update"]
+					}
+				],
+				"DEFERRED": [
+					{
+						"target": ["#land.merged-blocked"]
 					}
 				],
 				"CHANGES": [
@@ -94,8 +123,50 @@
 					{
 						"target": ["#land.done"]
 					}
+				],
+				"DEFERRED": [
+					{
+						"target": ["#land.merged-blocked"]
+					}
 				]
 			}
+		},
+		"reviewed-draft": {
+			"id": "land.reviewed-draft",
+			"type": "atomic",
+			"on": {
+				"PUBLISHED": [
+					{
+						"target": ["#land.draft-delivered"]
+					}
+				],
+				"CHANGES": [
+					{
+						"target": ["#land.check"]
+					}
+				]
+			}
+		},
+		"preserve-draft": {
+			"id": "land.preserve-draft",
+			"type": "atomic",
+			"on": {
+				"PUBLISHED": [
+					{
+						"target": ["#land.draft-delivered"]
+					}
+				]
+			}
+		},
+		"draft-delivered": {
+			"id": "land.draft-delivered",
+			"type": "final",
+			"on": {}
+		},
+		"merged-blocked": {
+			"id": "land.merged-blocked",
+			"type": "final",
+			"on": {}
 		},
 		"done": {
 			"id": "land.done",

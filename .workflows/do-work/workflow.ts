@@ -37,7 +37,14 @@ export const machine = setup({ types: {} as { context: Work; input: Work } }).cr
 				commands: { next: "COMPLETED" },
 				task: ({ context }: { context: Work }) => ({
 					title: context.title,
-					instructions: context.request,
+					instructions:
+						`${
+							context.request
+						}\n\n1. Deliver within scope: reports end with the report; delegated code contributes to the parent ` +
+						`coordinator's delivery; authorized top-level implementation follows this repository's delivery ` +
+						`workflow to merge by default, or a draft/open PR when blocked or explicitly PR-only.\n` +
+						`2. Verify caller acceptance; a draft does not satisfy required integration. Leave unmet work open ` +
+						`with its blocker and next action.`,
 					acceptanceCriteria: context.acceptance
 						.map((criterion) => `- [ ] ${criterion}`)
 						.join("\n"),

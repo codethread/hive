@@ -1,7 +1,7 @@
 import { ConfigError, EXIT_CODES } from "../../src/errors.ts";
 import { expect, test } from "bun:test";
+import { explainPolicy, resolveEffectiveCommand } from "../../src/domain/config.ts";
 import type { ProjectConfig } from "../../src/domain/config.ts";
-import { explainPolicy } from "../../src/domain/config.ts";
 import { parseConfig as parseTomlConfig } from "../../src/config.ts";
 
 function parseConfig(toml: string) {
@@ -238,4 +238,45 @@ test.each([
 			name: ConfigError.name,
 		}),
 	);
+});
+
+test("inherited rule command satisfies pooled and copy setup requirement", () => {
+	const config = parseConfig(`
+[[rule]]
+root_glob = "/tmp/**"
+command = "echo inherited"
+
+[[project]]
+root = "/tmp/repo"
+pool_size = 1
+copy = [".env"]
+`);
+	const [project] = config.projects;
+	expect(project?.command).toBeNull();
+	expect(resolveEffectiveCommand(config, "/tmp/repo").command).toBe("echo inherited");
+});
+
+test("matches canonical roots while retaining configured project source paths", () => {
+	const canonicalPaths = new Map([["/home/link", "/real/repo"]]);
+	const normalizePath = (path: string) => canonicalPaths.get(path) ?? path;
+	const config = parseTomlConfig(
+		`
+[[rule]]
+root_glob = "/real/**"
+command = "echo inherited"
+
+[[project]]
+root = "~/link"
+pool_size = 1
+pre_remote_check = "echo check"
+`,
+		{ cwd: "/work", home: "/home", normalizePath },
+	);
+	const explanation = explainPolicy(config, "/real/repo", normalizePath);
+	expect(explanation.project?.root).toBe("/home/link");
+	expect(explanation.command).toEqual({ command: "echo inherited", source: "rule:/real/**" });
+	expect(explanation.preRemoteCheck).toEqual({
+		source: "project:/home/link",
+		value: "echo check",
+	});
 });

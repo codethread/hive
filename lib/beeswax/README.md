@@ -80,10 +80,6 @@ The adapters require `beeswax` and `scent` on the harness's `PATH`. Setup, sync 
 
 Read `beeswax update --help` for selection and filtering options. Unspecified headless options retain saved choices. Include/exclude filters affect primer guidance only, including the optional Scent help pointer; they do not enable or disable identity.
 
-Harness-discovered skill descriptions advertise when to load a skill; bodies and references enter context on demand.
-
-Alert callbacks read independent state for the selected tracker and deliver hold or clearance guidance. They are advisory: they neither prevent arbitrary native writes nor stop workers, and an idle session receives no immediate push. Existing sessions need the current adapter loaded; verify delivery in each supported harness before relying on it. A missing receipt or failed check cannot clear a hold already observed by a session.
-
 Start a new session after setup. [Claude Code](https://code.claude.com/docs/en/hooks#sessionstart) and [Codex](https://learn.chatgpt.com/docs/hooks#sessionstart) add the command's output to model context. In Codex, trust the project and use `/hooks` to review and trust each new or changed hook definition. Pi loads project extensions after project trust is granted.
 
 ## Commit the project contract
@@ -137,11 +133,11 @@ BV uses the selected `BEADS_DB`, but discovers project recipes in the checkout w
 
 Use `beeswax beads env --json` to inspect the selected tracker and `beeswax beads sync --help` for explicit snapshot exchange. Each consuming repository sets its publication checkpoints; Hive's are in [Beads integration](../../docs/beads-integration.md). Discover merge and staged-validation protocols with `beeswax system git --help`.
 
-Pre-publication `tracker_busy` is an unsuccessful checkpoint, not an incident or clearance; retry after the active publisher finishes, preserving any existing hold.
+Pre-publication `tracker_busy` means the checkpoint did not start; it neither establishes an incident nor changes an existing alert.
 
-Failed native reconciliation or Git publication raises a durable alert outside the tracker, keyed by the selected database path. Alert state is user-local and is not exchanged with other clones or hosts. Pause Beads workflows, ordinary tracker operations and merges involving that tracker; independent non-Beads work may continue.
+Failed native reconciliation or Git publication raises a durable alert outside the tracker, keyed by the selected database path. Alert state is user-local and is not exchanged with other clones or hosts. Alerts are advisory: they do not prevent native writes or stop running workers.
 
-Use `beeswax beads recover` for the non-mutating incident handoff and installed recovery instructions, available without Hive sources. Read `beeswax beads alert status --help` for inspection or `beeswax beads alert wait --help` for bounded waiting without opening SQLite. Recovery requires explicit user authorization; only successful recovery publication clears the current incident. Recovery automation through Bee is a future possibility, not part of this version.
+Use `beeswax beads recover` for the non-mutating incident handoff and recovery instructions, available without Hive sources. Read `beeswax beads alert status --help` for inspection or `beeswax beads alert wait --help` for bounded waiting without opening SQLite. Recovery requires explicit user authorization; only successful recovery publication clears the current incident.
 
 Incident/clearance receipts, per-harness session receipts and their locks use only `${XDG_STATE_HOME:-$HOME/.local/state}/hive/beeswax/tracker-alerts/` (default `~/.local/state/hive/beeswax/tracker-alerts/`). An empty or relative `XDG_STATE_HOME` uses the default.
 

@@ -201,7 +201,7 @@ test("sync requires explicit acceptance of the BV component even at the same ver
 });
 
 // eslint-disable-next-line max-statements -- Verify selected checkout effects without tracker-side project metadata.
-test("sync installs recipes when the selected tracker predates Beeswax configuration", async () => {
+test("sync installs recipes when the selected tracker predates Beeswax configuration #test-698", async () => {
 	const fx = fixture();
 	await writeProjectConfig(root, defaultProjectConfig("none"), fx.deps);
 	await writeProjectLock(root, fx.deps);
@@ -238,7 +238,7 @@ test("an invalid selected tracker cannot receive BV recipes", async () => {
 	expect(fx.files.has("/repo/.bv/recipes.yaml")).toBe(false);
 });
 
-test("later synchronization failures retain confirmed BV output in the receipt", async () => {
+test("later synchronization failures retain confirmed BV output in the receipt #test-737", async () => {
 	const fx = configured();
 	fx.files.set("/repo/.pi/extensions/beeswax.js", "// beeswax:begin onboarding v2\n");
 

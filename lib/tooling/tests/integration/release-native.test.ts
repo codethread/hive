@@ -248,6 +248,7 @@ async function fixture(): Promise<string> {
 			),
 		]),
 	);
+	// Bee retains independently authored history alongside Colony's.
 	await writeFile(join(root, "lib/colony/bee-changelog.json"), JSON.stringify([beeReviewed]));
 
 	await mkdir(join(root, ".workflows/example"), { recursive: true });

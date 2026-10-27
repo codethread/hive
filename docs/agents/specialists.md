@@ -12,7 +12,7 @@ Supply the original request and corrections, rationale, exact writable files, au
 
 Architect authors new or revised architectural decisions: domain meaning, patterns, module responsibilities, interfaces, seams and evolution. Librarian curates the accepted guidance: where it lives, what it means and whether a change conforms to it. Read [architecture](../architecture.md) and the relevant [domain records](domain.md) before selecting either role.
 
-Librarian consultation is optional. Use it to locate or explain established guidance when that helps; routine lookups and clear placement rules need no consultation. Final Librarian review is mandatory before commit or handoff and covers the actual final base and diff. [Land](../../.workflows/land/workflow.ts) and [feature-task delivery](../../.workflows/do-feature-task/workflow.ts) dispatch that review before Reviewer. Repairs or a changed base return through checks and review.
+Librarian consultation is optional. Use it to locate or explain established guidance when that helps; routine lookups and clear placement rules need no consultation. [Land](../../.workflows/land/workflow.ts) and [feature-task delivery](../../.workflows/do-feature-task/workflow.ts) own checks and review sequencing; required final reviews cover the actual base and diff.
 
 | Question or finding | Route |
 | --- | --- |
@@ -42,4 +42,4 @@ The task owner applies the advice and records any blocker and next action under 
 
 ## Completion
 
-Specialists complete their own report work. Examined implementation and landing acceptance remain with their owners. [Response delivery](./responses.md) distinguishes reports from retained specialist evidence.
+Specialists complete their assigned report or contribution, without recursively starting delivery. Examined implementation and landing acceptance remain with their owners. [Response delivery](./responses.md) distinguishes reports from retained specialist evidence.
