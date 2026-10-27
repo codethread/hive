@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 /* oxlint-disable-next-line import/no-nodejs-modules -- fixtures stub an fzf binary on disk */
-import { chmod, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 /* oxlint-disable-next-line import/no-nodejs-modules -- stub fixtures live at known paths */
 import { join } from "node:path";
 /* oxlint-disable-next-line import/no-nodejs-modules -- the stub PATH needs a temporary directory */
@@ -30,9 +30,10 @@ const FZF_SCRIPT = `
 async function runWithStub(bin: string, exitCode: number, script = FZF_SCRIPT) {
 	await writeFile(
 		join(bin, "fzf"),
-		`#!/bin/sh\nprintf '%s\\n' "$@" > "${join(bin, "args")}"\nhead -n 1\nexit ${exitCode}\n`,
+		`#!/bin/sh\nprintf '%s\\n' "$@" > "${join(bin, "args")}"\n` +
+			`IFS= read -r line\nprintf '%s\\n' "$line"\nexit ${exitCode}\n`,
+		{ mode: EXECUTABLE_MODE },
 	);
-	await chmod(join(bin, "fzf"), EXECUTABLE_MODE);
 
 	const proc = Bun.spawn([process.execPath, "-e", script], {
 		env: { ...process.env, PATH: `${bin}:${process.env.PATH}` },

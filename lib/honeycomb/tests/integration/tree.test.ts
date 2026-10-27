@@ -15,7 +15,9 @@ const home = useTmpHome("honeycomb-tree-");
 async function initTreeRepo(defaultBranch = "main") {
 	const root = join(home.dir, "repo");
 	await initRepo(root);
-	await gitOut(root, "branch", "-m", defaultBranch);
+	if (defaultBranch !== "main") {
+		await gitOut(root, "branch", "-m", defaultBranch);
+	}
 	await gitOut(root, "update-ref", `refs/remotes/origin/${defaultBranch}`, "HEAD");
 	await gitOut(
 		root,
@@ -34,7 +36,6 @@ async function addBranch(root: string, branch: string, base: string) {
 
 async function commit(repo: string, message: string) {
 	await gitOut(repo, "commit", "--allow-empty", "-m", message);
-	return gitOut(repo, "rev-parse", "HEAD");
 }
 
 async function treeJson(root: string) {
@@ -48,7 +49,8 @@ async function initOlderAndUnrelatedTree() {
 	const root = await initTreeRepo();
 	const old = await addBranch(root, "old", "main");
 	const oldHead = await gitOut(old, "rev-parse", "HEAD");
-	const mainHead = await commit(root, "advance main");
+	await commit(root, "advance main");
+	const mainHead = await gitOut(root, "rev-parse", "HEAD");
 	const separate = await addBranch(root, "separate", "main");
 	await gitOut(separate, "checkout", "--orphan", "independent");
 	await commit(separate, "independent root");
