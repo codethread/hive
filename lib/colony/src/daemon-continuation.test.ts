@@ -402,7 +402,7 @@ test("persisted stop intent before submission fails on a still-live owner withou
 	expect(saved.checkpoint.continuation?.phase).toBe("stop_requested");
 });
 
-test("a delayed replacement can be observed after an incomplete startup without resubmitting", async () => {
+test("a delayed replacement can be observed after an incomplete startup without resubmitting #test-758", async () => {
 	const { deps, calls, setCurrent } = fixture(leg("start_requested"));
 	const { request } = deps;
 	deps.request = () => Promise.reject(absentSocket);
