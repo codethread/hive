@@ -115,7 +115,7 @@ test("annotation demand reuses fresh singleton and overlapping aliases #test-403
 });
 
 // eslint-disable-next-line max-statements -- Coordinate both read generations without timers or global clock changes.
-test("newer annotation cutoffs wait for an older read and coalesce their refresh", async () => {
+test("newer annotation cutoffs wait for an older read and coalesce their refresh #test-757", async () => {
 	const old = Promise.withResolvers<CardAnnotations>();
 	const fresh = Promise.withResolvers<CardAnnotations>();
 	const entered = Promise.withResolvers<void>();
