@@ -6,16 +6,8 @@ import {
 	UsageError,
 	dispatch,
 } from "../../src/index";
-import {
-	commitFile,
-	commitOnRemoteDefault,
-	createRemoteBranch,
-	pathExists,
-	run,
-	testDeps,
-	useOriginFixture,
-	writeConfig,
-} from "./support.ts";
+import { commitFile, pathExists, run, testDeps, useOriginFixture, writeConfig } from "./support.ts";
+import { commitOnRemoteDefault, createRemoteBranch } from "./remote-history.ts";
 import { expect, test } from "bun:test";
 import { gitOut, gitSucceeds, runCli, useTmpHome } from "./lifecycle-helpers.ts";
 // oxlint-disable-next-line import/no-nodejs-modules -- Real Git fixtures exercise filesystem boundaries.
@@ -45,17 +37,13 @@ async function offlineFixture(policy = "origin_default") {
 	return { root, remote };
 }
 
-function offlineAdd(root: string, extra: string[] = []) {
-	return runCli([
-		"--cwd",
-		root,
-		"add",
-		"--branch",
-		"feature/offline",
-		"--no-network",
-		"--json",
-		...extra,
-	]);
+async function offlineAdd(root: string, extra: string[] = [], launcher = false) {
+	const args = ["--cwd", root, "--branch", "feature/offline", "--no-network", "--json", ...extra];
+	if (launcher) {
+		return runCli(["add", ...args]);
+	}
+	const result = await dispatch("add", args, testDeps());
+	return { ...result, stdout: result.stdout ?? "" };
 }
 
 async function aheadDevelop(policy: string) {
@@ -144,7 +132,8 @@ test.each(["local", "remote"] as const)(
 	"offline existing %s branch uses local state according to cached branch state #test-175",
 	async (state) => {
 		const { root, expected } = await existingBranch(state);
-		const result = await offlineAdd(root);
+		// One CLI case checks --no-network forwarding; other branch states use dispatch.
+		const result = await offlineAdd(root, [], state === "local");
 		expect(result.exitCode).toBe(EXIT_CODES.SUCCESS);
 		expect(await gitOut(root, "rev-parse", "feature/offline")).toBe(expected);
 	},
@@ -164,16 +153,12 @@ test.each([{ flags: ["--skip-command"] }, { flags: ["--skip-command", "--no-netw
 	"skip-command retains regular copy/symlink setup (flags=$flags) #test-182",
 	async ({ flags }) => {
 		const root = await copyFixture();
-		const result = await runCli([
-			"--cwd",
-			root,
+		const result = await dispatch(
 			"add",
-			"--branch",
-			"feature/skip",
-			"--json",
-			...flags,
-		]);
-		const payload = JSON.parse(result.stdout);
+			["--cwd", root, "--branch", "feature/skip", "--json", ...flags],
+			testDeps(),
+		);
+		const payload = JSON.parse(result.stdout ?? "{}");
 		expect(result.exitCode).toBe(EXIT_CODES.SUCCESS);
 		expect(payload).toMatchObject({ kind: "ready", setup_output: [] });
 		expect(payload.diagnostics.join("\n")).toContain("--skip-command");

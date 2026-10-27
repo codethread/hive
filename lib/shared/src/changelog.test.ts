@@ -34,7 +34,7 @@ test("exclusive since filters before paging entries within a release", () => {
 	expect(last.nextOffset).toBeUndefined();
 });
 
-test("exact selection and human rendering retain explicit breaking and adoption meaning", () => {
+test("exact selection and human rendering retain explicit breaking and adoption meaning #test-706", () => {
 	const page = queryChangelog(tool, history, { release: "0.6.0", offset: 0 });
 	expect(page.releases).toEqual([{ version: "0.6.0", changes: [change] }]);
 	const text = renderChangelog(page);
@@ -46,7 +46,7 @@ test("exact selection and human rendering retain explicit breaking and adoption 
 	expect(() => queryChangelog(tool, history, { release: "0.5.0", offset: 0 })).toThrow(Error);
 });
 
-test("large histories of empty releases stay bounded and expose exhaustion", () => {
+test("large histories of empty releases stay bounded and expose exhaustion #test-704", () => {
 	const empty = Array.from({ length: 140 }, (_unused, patch) => ({
 		version: `0.1.${patch}`,
 		changes: [],

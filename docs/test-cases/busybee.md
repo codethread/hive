@@ -10,7 +10,9 @@ The record contains 27 scenarios and 7 scenario outlines (46 instances after exp
 
 ## Reading and restoration
 
-All source pointers below refer to revision `61e736f8e1f4bfad9b7338e140d33938d0426f71`, beneath `lib/busybee/tests/integration/`. Restore with `git show <revision>:<path>` and retain the file helpers, imported definitions and `support.ts`.
+Current [test scope](../../lib/busybee/AGENTS.md#verification) is engine-only. The workflow-specific stages, briefs and review policies below remain historical, not restoration candidates.
+
+All source pointers below refer to revision `61e736f8e1f4bfad9b7338e140d33938d0426f71`, beneath `lib/busybee/tests/integration/`. Inspect them with `git show <revision>:<path>`; their helpers and imported definitions describe that revision, not current fixtures.
 
 The native fixture (`support.ts:29`) used disposable Git repositories, real Beads CLI/database storage and real XState/Zod definitions. Worker outcomes, notes and closures were scripted. Landing did not execute checks, reviews, commits, merges, pushes or GitHub requests. Concurrent collection used Hive's Bee wrapper with a non-model executable; it did not test a model provider. Lock races used barriers or an injected clock, and failure scenarios deliberately injected errors.
 
@@ -497,4 +499,4 @@ Restoration mapping (original registration titles):
 | `catalogue.test.ts`  |             2 |                  2 |
 | Total                |            45 |                 46 |
 
-The navigation and visits files were removed in full. Only listed cases and table rows were removed from the other files. Native storage, lock races and parent/child closure are external boundaries to reconsider; navigation and receipt behavior may be exercised with an injected tracker after a focused native adapter contract is validated. Keep simulated outcomes distinct from actual checks or integration effects when restoring coverage.
+The navigation and visits files were removed in full. Only listed cases and table rows were removed from the other files. Native storage, lock races and parent/child closure are external boundaries to reconsider; engine navigation may be exercised with an injected tracker after a focused native adapter contract is validated. Keep simulated outcomes distinct from actual checks or integration effects when restoring coverage.

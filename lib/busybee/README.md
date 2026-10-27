@@ -144,23 +144,21 @@ The demo creates its original work bead and prints `repo`, `db`, `parent`, `inpu
 
 ## Deliver independent feature tasks
 
-Hive's [do-feature-task](../../.workflows/do-feature-task/workflow.ts) delivers an assigned task from an isolated worktree into a local feature base. After implementation and checks, it dispatches Librarian for conformity review and Reviewer for code and test standards, then proceeds to delivery. Requested changes return to work and both reviews. [Honeycomb's local-delivery guide](../honeycomb/README.md#local-feature-delivery) covers integration and cleanup.
+Hive's [do-feature-task](../../.workflows/do-feature-task/workflow.ts) delivers an assigned task from an isolated worktree into a local feature base, or preserves blocked work in a PR. The definition owns checks, review and disposition; [Honeycomb's local-delivery guide](../honeycomb/README.md#local-feature-delivery) covers integration and cleanup.
 
 Keep the workflow catalogue and driver in the canonical checkout. Read `busybee --repo CANONICAL_ROOT input-schema do-feature-task --json` for the `canonicalRoot`, `base` and `isolation` input; base and isolation identify distinct noncanonical worktrees on nondefault branches. The assignment and authorization remain on the source task.
 
 Use `bee spawn --help` to dispatch a `slow-worker` with `--workflow do-feature-task --parent SOURCE_ID --input-file FILE --cwd CANONICAL_ROOT`. These workflows and bee kinds are repository configuration, separate from executable installation. Native prerequisites and Colony capacity govern admission.
 
-The run brief owns post-done source completion; the [specialist protocol](../../docs/agents/specialists.md) owns role selection and decision escalation.
+The run brief owns source completion; a PR does not satisfy integration acceptance. The parent coordinator retains combined-feature delivery. The [specialist protocol](../../docs/agents/specialists.md) owns role selection and decision escalation.
 
 ## Landing from the current state
 
-The repository's [Land workflow](../../.workflows/land/workflow.ts) requires an explicit user request to land the agreed scope, including unfinished implementation. Read `busybee input-schema land` for input and follow its active briefs.
+The repository's [Land workflow](../../.workflows/land/workflow.ts) handles authorized implementation delivery by default, including unfinished work and existing PRs, while respecting explicit PR-only or review-only scope. Read `busybee input-schema land` for input and follow its active briefs.
 
-The check stage completes implementation, prose review and full checks before Bee-dispatched Librarian and Reviewer assess the final change. Findings or changes to content or base return through checks and both reviews. Proven prior integration also receives these reviews before verification, without repeating integration. Each outcome carries evidence, with the visits and filed responses retaining the review trail.
+The definition owns checks, review and delivery disposition; a finished run does not alone satisfy source acceptance. Visits and filed responses retain the evidence.
 
 The run brief retains the canonical checkout and tracker endpoint, and owns post-done closure/publication instructions. Standalone Land publishes after authorized source closures; Land nested beneath Release leaves the final checkpoint to Release. [Delegation and result flow](#delegate-a-workflow-to-bee) covers worker delivery and collection.
-
-The [Land integration test](./tests/integration/land.test.ts) verifies that invalid retained input is rejected before tasks are published.
 
 ## Native outcomes and retirement
 
@@ -178,11 +176,11 @@ Engine checkpoints use `formatVersion: 1`, independently of workflow SemVer. The
 
 For an incompatible named workflow that still exists, a bee may start a fresh run of the **same name for the same already-authorized scope without asking the user again**. Inspect `br show RUN --json` to recover its native parent and visit links, then `busybee input-schema NAME`. Prepare input for the current schema and use `busybee run NAME --parent ORIGINAL_PARENT --input-file FILE --owner HUMAN` with the retained repository, database and assignment options. Preserve the original request and authorization, source/target, scope, owner/assignment intent, tracker and old run/task/evidence references. Inspect completed and uncertain effects before execution; use the current workflow's triage and current evidence to continue remaining work without blindly replaying completed effects or bypassing checks and reviews. Retain the old run as history; starting fresh does not decide its closure.
 
-For abandoned, incompatible or uncertain partial work, inspect the retained run, visits, request IDs and comments (`br show ID --json`, `br comments ID --json`, and `bee status REQUEST --json`). Record completed effects, saved results, remaining acceptance and the next operator action in comments on unfinished work. Leave unfinished work open for an explicit handoff unless its authorized [settlement](#native-outcomes-and-retirement) passes the required checks. A completed replacement neither retires an old sibling nor satisfies their shared parent's acceptance. Do not force-close unfinished work, detach history or steal a checkpoint lock to make completion appear successful. Busy Bee reports retained visit/request IDs and accepted-result references for incompatible runs, and an inspection command for partial writes.
+For abandoned, incompatible or uncertain partial work, inspect the retained run, visits, request IDs and comments (`br show ID --json`, `br comments ID --json`, and `bee status REQUEST --json`). Record completed effects, saved results, remaining acceptance and the next operator action in comments on unfinished work. Leave unfinished work open for an explicit handoff unless its authorized [settlement](#native-outcomes-and-retirement) passes the required checks. A completed replacement neither retires an old sibling nor satisfies their shared parent's acceptance. Do not force-close unfinished work or detach history to make completion appear successful. Busy Bee reports retained visit/request IDs and accepted-result references for incompatible runs, and an inspection command for partial writes.
 
 If the saved workflow name no longer exists, **stop and ask the user which workflow to use**. Do not infer a replacement. A missing/malformed manifest in an existing workflow folder, invalid entry or unrelated I/O failure needs diagnosis of that failure. Busy Bee reports these separately from a missing name. It does not create a replacement run or migrate the saved snapshot. Explicit-file runs continue to identify their saved source file; the same-name recovery policy applies to named runs.
 
-Concurrent submissions require one live database. Tracker synchronization does not provide a distributed lock. Invalid submissions fail before publishing task effects. If a write has been attempted and its outcome is uncertain, Busy Bee retains the checkpoint lock for inspection. There is no automatic expiry or partial-write recovery. Inspect the reported checkpoint and native records before recovery; prefer a fresh run after uncertain effects. The [specification](./SPEC.md#checkpoint-and-failure-boundary) explains this boundary.
+Concurrent submissions require one live database; tracker synchronization is not a distributed lock. Invalid submissions fail before publishing task effects. After an uncertain write, Busy Bee retains the checkpoint lock with no automatic expiry, partial-write recovery or unlock command. Inspect the checkpoint, owner and native effects before explicit recovery within existing task authority; this does not itself require renewed human permission. Preserve live or uncertain locks; prefer a fresh run under the same-scope recovery policy above. The [specification](./SPEC.md#checkpoint-and-failure-boundary) explains this boundary.
 
 ## Delegate a workflow to Bee
 

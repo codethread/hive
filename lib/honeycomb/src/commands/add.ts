@@ -1,3 +1,4 @@
+// eslint-disable import/max-dependencies -- Add keeps native inventory reads on its operation-scoped runner.
 import {
 	CanonicalRootError,
 	DuplicateBranchError,
@@ -25,16 +26,13 @@ import {
 	requireOption,
 	toAddPayload,
 } from "../protocol.ts";
-import {
-	listWorktrees,
-	resolveCanonicalRoot,
-	resolveWorktreeContainingPath,
-} from "../application/repository.ts";
+import { resolveCanonicalRoot, resolveWorktreeContainingPath } from "../application/repository.ts";
 import { runBootstrap, runPreRemoteCheck } from "../application/hooks.ts";
 import type { Deps } from "../services.ts";
 import type { Worktree } from "../domain/worktree.ts";
 import { addPooledWorktree } from "./add-pool.ts";
 import { focusWorktree } from "../application/interactive.ts";
+import { listWorktrees } from "../git/worktrees.ts";
 import { projectNameFor } from "../domain/config.ts";
 
 interface AddRequest {

@@ -1,4 +1,4 @@
-import { deps, pathExists, run, setTestEnv, useOriginFixture } from "./support.ts";
+import { createWorktree, deps, pathExists, run, setTestEnv, useOriginFixture } from "./support.ts";
 import { expect, test } from "bun:test";
 import { gitText, useTmpHome } from "./lifecycle-helpers.ts";
 // oxlint-disable-next-line import/no-nodejs-modules -- Integration fixtures exercise real filesystem IO.
@@ -28,7 +28,7 @@ async function prepareLegacyWorktrees() {
 	await mkdir(join(configHome, "hive"), { recursive: true });
 	setTestEnv("XDG_CONFIG_HOME", configHome);
 	await writeFile(join(configHome, "hive", "honeycomb.toml"), 'worktree_location = "sibling"\n');
-	await dispatch("add", ["--cwd", root, "--branch", "feature/legacy", "--json"], deps);
+	await createWorktree({ root, branch: "feature/legacy", path: `${root}__feature--legacy` });
 	const manualPath = join(tmp.dir, "manual-worktree");
 	await run(["git", "-C", root, "worktree", "add", "-b", "feature/manual", manualPath]);
 	const resolvedManualPath = await realpath(manualPath);

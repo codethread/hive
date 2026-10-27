@@ -38,23 +38,22 @@ const input = JSON.stringify({
 
 test.each(["claude", "codex", "pi"] as const)(
 	"%s delivers the hold and exact incident clearance on successive callbacks #test-571",
-	// eslint-disable-next-line max-statements -- Verify one continuous active-to-clear callback sequence.
 	// eslint-disable-next-line max-statements -- Verify one continuous active-to-clear callback sequence per vendor.
 	async (harness) => {
 		const fx = fixture();
 		let current = active;
 		const deps = { ...fx.deps, receiptPath, observe: () => Promise.resolve(current) };
 		const held = await runHarnessAlert(harness, input, deps);
-		expect(JSON.stringify(held)).toContain("do not merge");
-		expect(JSON.stringify(held)).toContain("explicitly authorized");
-		expect(JSON.stringify(held)).toContain("--timeout 60");
+		expect(JSON.stringify(held)).toContain("merges involving this endpoint");
+		expect(JSON.stringify(held)).toContain("explicitly user-authorized recovery");
+		expect(JSON.stringify(held)).toContain("beeswax skills get tracker-recovery");
 		expect([...fx.files.keys()]).toEqual([
 			expect.stringMatching(/^\/user-state\/%2Fselected%2Ftracker.db\//u),
 		]);
 		current = cleared;
-		expect(JSON.stringify(await runHarnessAlert(harness, input, deps))).toContain(
-			"verified cleared",
-		);
+		const released = JSON.stringify(await runHarnessAlert(harness, input, deps));
+		expect(released).toContain("verified cleared");
+		expect(released).toContain("Stop polling");
 		expect(JSON.stringify(await runHarnessAlert(harness, input, deps))).not.toContain(
 			"verified cleared",
 		);
@@ -70,7 +69,7 @@ test.each([null, { ...cleared.alert!, id: "another-incident" }])(
 		await runHarnessAlert("codex", input, deps);
 		current = { ...active, alert };
 		const output = JSON.stringify(await runHarnessAlert("codex", input, deps));
-		expect(output).toContain("hold remains");
+		expect(output).toContain("verified clearance is unavailable");
 		expect(output).not.toContain("verified cleared");
 	},
 );
@@ -90,7 +89,9 @@ test("a stale lower-generation clearance cannot release the current hold", async
 	const deps = { ...fx.deps, receiptPath, observe: () => Promise.resolve(current) };
 	await runHarnessAlert("codex", input, deps);
 	current = cleared;
-	expect(JSON.stringify(await runHarnessAlert("codex", input, deps))).toContain("hold remains");
+	expect(JSON.stringify(await runHarnessAlert("codex", input, deps))).toContain(
+		"verified clearance is unavailable",
+	);
 });
 
 test.each([
@@ -108,7 +109,7 @@ test.each([
 	await runHarnessAlert("codex", input, deps);
 	current = { ...cleared, alert: { ...cleared.alert!, ...late } };
 	const output = JSON.stringify(await runHarnessAlert("codex", input, deps));
-	expect(output).toContain("hold remains");
+	expect(output).toContain("verified clearance is unavailable");
 	expect(JSON.parse([...fx.files.values()].join(""))).toMatchObject({
 		id: "incident-two",
 		generation: 2,
@@ -116,14 +117,14 @@ test.each([
 	});
 });
 
-test("repeated active callbacks remain concise and retain the recovery exception", async () => {
+test("repeated active callbacks remain concise and retain the recovery procedure", async () => {
 	const fx = fixture();
 	const deps = { ...fx.deps, receiptPath, observe: () => Promise.resolve(active) };
 	const first = JSON.stringify(await runHarnessAlert("codex", input, deps));
 	const next = JSON.stringify(await runHarnessAlert("codex", input, deps));
 	expect(next.length).toBeLessThan(first.length);
-	expect(next).toContain("user-authorized recovery");
-	expect(next).toContain("do not merge");
+	expect(next).toContain("beeswax skills get tracker-recovery");
+	expect(next).toContain("merges involving this endpoint");
 });
 
 test("a fresh observer outage returns to baseline after healthy absence without claiming clearance", async () => {
@@ -140,7 +141,7 @@ test("a fresh observer outage returns to baseline after healthy absence without 
 		},
 	};
 	const paused = JSON.stringify(await runHarnessAlert("codex", input, deps));
-	expect(paused).toContain("do not merge");
+	expect(paused).toContain("merges involving this endpoint");
 	failed = false;
 	expect(await runHarnessAlert("codex", input, deps)).toEqual({});
 	expect([...fx.files.keys()]).toEqual([]);
@@ -161,9 +162,9 @@ test.each(["unavailable"] as const)(
 			await runHarnessAlert("claude", input, { ...fx.deps, receiptPath, observe }),
 		);
 		const preview = output.slice(FIRST_CHARACTER, CONTEXT_PREVIEW_CHARACTERS);
-		expect(preview).toContain("do not merge");
-		expect(preview).toContain("Unrelated non-Beads work");
-		expect(preview).toContain("authorized");
+		expect(preview).toContain("merges involving this endpoint");
+		expect(preview).toContain("independent non-Beads work");
+		expect(preview).toContain("beeswax skills get tracker-recovery");
 		expect(output).toContain(reason);
 	},
 );

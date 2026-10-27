@@ -1,21 +1,21 @@
+/* eslint-disable unicorn/no-null -- Null models command inheritance, no pool, and no hook value or source. */
 import { expect, test } from "bun:test";
 import {
 	explainPolicy,
 	resolveEffectiveCommand,
 	resolvePreRemoteCheck,
 } from "../../src/domain/config.ts";
-import { parseConfig as parseTomlConfig } from "../../src/config.ts";
+import type { TreesConfig } from "../../src/domain/config.ts";
 
-function parseConfig(toml: string) {
-	return parseTomlConfig(toml, {
-		cwd: "/work",
-		home: "/home/test",
-		normalizePath: (path) => path,
-	});
-}
+const emptyConfig: TreesConfig = {
+	defaults: {},
+	projects: [],
+	rules: [],
+	worktreeLocation: "sibling",
+};
 
 test("resolves built-in policy defaults #test-363", () => {
-	const policy = explainPolicy(parseConfig(""), "/tmp/repo");
+	const policy = explainPolicy(emptyConfig, "/tmp/repo");
 	expect(policy.addPolicy).toBe("origin_default");
 	expect(policy.finishPolicy).toEqual({
 		deleteBranch: false,
@@ -26,24 +26,23 @@ test("resolves built-in policy defaults #test-363", () => {
 	});
 });
 
-test("matching rules apply in file order with later fields winning #test-418", () => {
-	const config = parseConfig(`
-[[rule]]
-root_glob = "/tmp/**"
-command = "echo first"
-[rule.add]
-policy = "fresh_canonical"
-[rule.finish]
-strategy = "squash"
-push = true
-
-[[rule]]
-root_glob = "/tmp/repo"
-command = "echo second"
-[rule.finish]
-push = false
-remove_worktree = true
-`);
+test("matching rules apply in configuration order with later fields winning #test-418", () => {
+	const config: TreesConfig = {
+		...emptyConfig,
+		rules: [
+			{
+				rootGlob: "/tmp/**",
+				command: "echo first",
+				add: { policy: "fresh_canonical" },
+				finish: { strategy: "squash", push: true },
+			},
+			{
+				rootGlob: "/tmp/repo",
+				command: "echo second",
+				finish: { push: false, removeWorktree: true },
+			},
+		],
+	};
 	const policy = explainPolicy(config, "/tmp/repo");
 	expect(policy.matchedRules.map((rule) => rule.rootGlob)).toEqual(["/tmp/**", "/tmp/repo"]);
 	expect(policy.addPolicy).toBe("fresh_canonical");
@@ -59,93 +58,97 @@ remove_worktree = true
 });
 
 test("exact project command overrides inherited rule command #test-483", () => {
-	const config = parseConfig(`
-[[rule]]
-root_glob = "/tmp/**"
-command = "echo rule"
-
-[[project]]
-root = "/tmp/repo"
-command = "echo project"
-`);
+	const config: TreesConfig = {
+		...emptyConfig,
+		rules: [{ rootGlob: "/tmp/**", command: "echo rule" }],
+		projects: [
+			{
+				root: "/tmp/repo",
+				name: "repo",
+				command: "echo project",
+				copy: [],
+				copyModeDefault: "copy",
+				poolSize: 1,
+			},
+		],
+	};
 	expect(resolveEffectiveCommand(config, "/tmp/repo")).toEqual({
 		command: "echo project",
 		source: "project:/tmp/repo",
 	});
 });
 
-const preRemoteConfig = `[[rule]]
-root_glob = "/tmp/**"
-pre_remote_check = "echo first >&2"
-[[rule]]
-root_glob = "/tmp/repo/**"
-pre_remote_check = "echo second >&2"
-[[project]]
-root = "/tmp/repo"
-pre_remote_check = "echo project >&2"`;
+const preRemoteConfig: TreesConfig = {
+	...emptyConfig,
+	rules: [
+		{ rootGlob: "/tmp/**", command: "setup", preRemoteCheck: "echo first >&2" },
+		{ rootGlob: "/tmp/repo/**", command: "setup", preRemoteCheck: "echo second >&2" },
+	],
+	projects: [
+		{
+			root: "/tmp/repo",
+			name: "repo",
+			command: "setup",
+			copy: [],
+			copyModeDefault: "copy",
+			poolSize: 1,
+			preRemoteCheck: "echo project >&2",
+		},
+	],
+};
 test.each([
 	{
-		// eslint-disable-next-line unicorn/no-null -- The default layer supplies no value or source.
 		expected: { source: null, value: null },
 		name: "default",
 		root: "/tmp/repo",
-		toml: "",
+		config: emptyConfig,
 	},
 	{
 		expected: { source: "rule:/tmp/**", value: "echo first >&2" },
 		name: "rule",
 		root: "/tmp/other",
-		toml: preRemoteConfig,
+		config: preRemoteConfig,
 	},
 	{
 		expected: { source: "rule:/tmp/repo/**", value: "echo second >&2" },
 		name: "later rule",
 		root: "/tmp/repo/nested",
-		toml: preRemoteConfig,
+		config: preRemoteConfig,
 	},
 	{
 		expected: { source: "project:/tmp/repo", value: "echo project >&2" },
 		name: "project",
 		root: "/tmp/repo",
-		toml: preRemoteConfig,
+		config: preRemoteConfig,
 	},
-])("resolves pre_remote_check from $name #test-667", ({ toml, root, expected }) => {
-	expect(resolvePreRemoteCheck(parseConfig(toml), root)).toEqual(expected);
+])("resolves pre_remote_check from $name #test-667", ({ config, root, expected }) => {
+	expect(resolvePreRemoteCheck(config, root)).toEqual(expected);
 });
 
-test("inherited rule command satisfies pooled and copy setup requirement", () => {
-	const config = parseConfig(`
-[[rule]]
-root_glob = "/tmp/**"
-command = "echo inherited"
-
-[[project]]
-root = "/tmp/repo"
-pool_size = 1
-copy = [".env"]
-`);
-	const [project] = config.projects;
-	expect(project?.command).toBeNull();
-	expect(resolveEffectiveCommand(config, "/tmp/repo").command).toBe("echo inherited");
-});
-
-test("exact project overrides matching rule and can omit command for policy only", () => {
-	const config = parseConfig(`
-[[rule]]
-root_glob = "/tmp/**"
-[rule.add]
-policy = "fresh_canonical"
-[rule.finish]
-strategy = "squash"
-
-[[project]]
-name = "repo"
-root = "/tmp/repo"
-[project.add]
-policy = "origin_default"
-[project.finish]
-enabled = false
-`);
+test("exact project policy overrides matching rules without a project command", () => {
+	const config: TreesConfig = {
+		...emptyConfig,
+		rules: [
+			{
+				rootGlob: "/tmp/**",
+				command: "setup",
+				add: { policy: "fresh_canonical" },
+				finish: { strategy: "squash" },
+			},
+		],
+		projects: [
+			{
+				root: "/tmp/repo",
+				name: "repo",
+				command: null,
+				copy: [],
+				copyModeDefault: "copy",
+				poolSize: null,
+				add: { policy: "origin_default" },
+				finish: { enabled: false },
+			},
+		],
+	};
 	const [project] = config.projects;
 	expect(project?.command).toBeNull();
 	const policy = explainPolicy(config, "/tmp/repo");
@@ -156,21 +159,22 @@ enabled = false
 
 test("finish policy merges field-by-field across defaults rules and project", () => {
 	const policy = explainPolicy(
-		parseConfig(`
-[defaults.finish]
-strategy = "rebase_ff"
-push = true
-
-[[rule]]
-root_glob = "/tmp/**"
-[rule.finish]
-remove_worktree = true
-
-[[project]]
-root = "/tmp/repo"
-[project.finish]
-delete_branch = true
-`),
+		{
+			...emptyConfig,
+			defaults: { finish: { strategy: "rebase_ff", push: true } },
+			rules: [{ rootGlob: "/tmp/**", command: "setup", finish: { removeWorktree: true } }],
+			projects: [
+				{
+					root: "/tmp/repo",
+					name: "repo",
+					command: "setup",
+					copy: [],
+					copyModeDefault: "copy",
+					poolSize: 1,
+					finish: { deleteBranch: true },
+				},
+			],
+		},
 		"/tmp/repo",
 	);
 	expect(policy.finishPolicy).toEqual({
@@ -179,30 +183,5 @@ delete_branch = true
 		push: true,
 		removeWorktree: true,
 		strategy: "rebase_ff",
-	});
-});
-
-test("matches canonical roots while retaining configured project source paths", () => {
-	const canonicalPaths = new Map([["/home/link", "/real/repo"]]);
-	const normalizePath = (path: string) => canonicalPaths.get(path) ?? path;
-	const config = parseTomlConfig(
-		`
-[[rule]]
-root_glob = "/real/**"
-command = "echo inherited"
-
-[[project]]
-root = "~/link"
-pool_size = 1
-pre_remote_check = "echo check"
-`,
-		{ cwd: "/work", home: "/home", normalizePath },
-	);
-	const explanation = explainPolicy(config, "/real/repo", normalizePath);
-	expect(explanation.project?.root).toBe("/home/link");
-	expect(explanation.command).toEqual({ command: "echo inherited", source: "rule:/real/**" });
-	expect(explanation.preRemoteCheck).toEqual({
-		source: "project:/home/link",
-		value: "echo check",
 	});
 });

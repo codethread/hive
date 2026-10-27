@@ -3,7 +3,7 @@ import type { ProjectConfig, WorktreeLocation } from "../domain/config.ts";
 import { buildPoolState, ensurePlaceholderBranch, placeholderBranchFor } from "./pool-state.ts";
 import { ConfigError } from "../errors.ts";
 import type { Deps } from "../services.ts";
-import { listWorktrees } from "./repository.ts";
+import { listWorktrees } from "../git/worktrees.ts";
 import { projectNameFor } from "../domain/config.ts";
 import { runBootstrap } from "./hooks.ts";
 

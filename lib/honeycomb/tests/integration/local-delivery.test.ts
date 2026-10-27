@@ -27,7 +27,7 @@ afterAll(async () => {
 async function fixture() {
 	fixtureState.seed ??= await createSeed();
 	const { seed } = fixtureState;
-	// oxlint-disable-next-line node/no-sync -- Synchronous copying avoids async overhead in sequential fixture setup.
+	// oxlint-disable-next-line node/no-sync -- This sequential fixture copy blocks its test worker.
 	cpSync(seed.root, join(tmp.dir, "repo"), { recursive: true });
 	const root = await realpath(join(tmp.dir, "repo"));
 	const target = join(tmp.dir, "feature");

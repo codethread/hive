@@ -2,15 +2,16 @@ import { EXIT_CODES, HookError } from "../../src/errors.ts";
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 // Integration fixtures exercise real filesystem and process boundaries.
 // oxlint-disable-next-line import/no-nodejs-modules
-import { chmod, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { closeSync, openSync, writeSync } from "node:fs";
 // Integration fixtures exercise real filesystem and process boundaries.
 // oxlint-disable-next-line import/no-nodejs-modules
-import { closeSync, openSync, writeSync } from "node:fs";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { createLiveGitRunner } from "../../src/git/executor.ts";
 import { createLiveHookRunner } from "../../src/hooks.ts";
 // Integration fixtures exercise real filesystem and process boundaries.
 // oxlint-disable-next-line import/no-nodejs-modules
 import { join } from "node:path";
+import { testDeps } from "./support.ts";
 // Integration fixtures exercise real filesystem and process boundaries.
 // oxlint-disable-next-line import/no-nodejs-modules
 import { tmpdir } from "node:os";
@@ -70,8 +71,7 @@ describe("LiveHookRunner", () => {
 
 	test("throws HookError with exit code and slot path on failure #test-306", async () => {
 		const script = join(tmp, "hook.sh");
-		await writeFile(script, "echo bad >&2\nexit 7\n");
-		await chmod(script, EXECUTABLE_MODE);
+		await writeFile(script, "echo bad >&2\nexit 7\n", { mode: EXECUTABLE_MODE });
 		const runner = createLiveHookRunner();
 
 		try {
@@ -83,6 +83,25 @@ describe("LiveHookRunner", () => {
 			expect((error as HookError).slotPath).toBe(tmp);
 		}
 	});
+});
+
+test("dependency helper pairs an overridden Git runner with its inventory", async () => {
+	const calls: string[][] = [];
+	const run = (args: string[]) => {
+		calls.push(args);
+		return Promise.resolve({
+			exitCode: EXIT_CODES.SUCCESS,
+			stdout: "worktree /fixture\nbare\n",
+			stderr: "",
+		});
+	};
+	const git = { run, runRaw: run };
+	const deps = testDeps({ git });
+	expect(deps.git).toBe(git);
+	expect(await deps.worktrees.list("/fixture")).toMatchObject([
+		{ path: "/fixture", canonical: true, bare: true },
+	]);
+	expect(calls).toEqual([["-C", "/fixture", "worktree", "list", "--porcelain"]]);
 });
 
 describe("createLiveGitRunner", () => {

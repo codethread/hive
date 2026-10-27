@@ -169,12 +169,10 @@ export function renderInstructions(step: StepId, context: LandSnapshot["context"
 		};
 	}
 	return {
-		title: "Final state: Done",
+		title: `Final state: ${details.title}`,
 		instructions:
 			`This final state has no worker instructions. ` +
-			`The run brief includes the caller's responsibilities after a real run reports done:\n\n${
-				runBrief(context).description
-			}`,
+			`The run brief includes the caller's responsibilities:\n\n${runBrief(context).description}`,
 		source: "Land run brief · fictional context",
 	};
 }
@@ -188,6 +186,8 @@ export function availableOutcomes(snapshot: LandSnapshot, sample: SampleContext)
 	return Object.entries(metadata.commands).map(([command, type]) => {
 		const data = commandSchemas[command as Command].parse({
 			evidence: sample.evidence,
+			pr: sample.prUrl,
+			revision: "1111111111111111111111111111111111111111",
 		});
 		const event: LandEvent = { type, data };
 		const enabled = snapshot.can(event);

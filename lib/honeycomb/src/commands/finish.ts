@@ -1,3 +1,4 @@
+// eslint-disable import/max-dependencies -- Finish still combines native inventory reads with lifecycle services.
 import {
 	BlockedError,
 	CanonicalRootError,
@@ -21,12 +22,13 @@ import {
 	prepareSourceIntegration,
 } from "./finish-integration.ts";
 import { finalizeReadyResult, parseOptions, parseOutputMode, requireOption } from "../protocol.ts";
-import { listWorktrees, resolveWorktreeContainingPath } from "../application/repository.ts";
 import type { Deps } from "../services.ts";
 import type { IntegrationPlan } from "./finish-integration.ts";
 import type { Worktree } from "../domain/worktree.ts";
 import { detectOriginDefaultBranch } from "../application/branches.ts";
+import { listWorktrees } from "../git/worktrees.ts";
 import { pushAndCleanup } from "./finish-cleanup.ts";
+import { resolveWorktreeContainingPath } from "../application/repository.ts";
 import { runPreRemoteCheck } from "../application/hooks.ts";
 
 type FinishPolicyPlan = PolicyExplanation["finishPolicy"];

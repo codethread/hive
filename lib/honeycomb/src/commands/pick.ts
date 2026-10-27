@@ -1,10 +1,10 @@
 import type { Deps, PickerItem } from "../services.ts";
 import { EXIT_CODES, HoneycombError, PickerCancelled, UsageError } from "../errors.ts";
 import { gitLogPreviewCommand, openRequestForWorktree } from "../integrations/multiplexer.ts";
-import { listWorktrees, resolveWorktreeContainingPath } from "../application/repository.ts";
 import { parseOptions, requireOption } from "../protocol.ts";
 import type { CommandResult } from "../protocol.ts";
 import type { Worktree } from "../domain/worktree.ts";
+import { resolveWorktreeContainingPath } from "../application/repository.ts";
 
 interface PickRequest {
 	/** Checkout to search from. */
@@ -85,7 +85,7 @@ async function buildPickList(
 	request: PickRequest,
 	deps: Deps,
 ): Promise<{ items: PickerItem[]; worktrees: Worktree[] }> {
-	const listed = await listWorktrees(deps.git, request.cwd);
+	const listed = await deps.worktrees.list(request.cwd);
 	const worktrees = listed.filter((worktree) => !worktree.bare);
 	const current = resolveWorktreeContainingPath(worktrees, request.cwd, deps.files);
 	const preview = previewCommandFor(request.interactive, deps);
