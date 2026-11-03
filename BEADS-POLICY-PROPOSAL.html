@@ -1,0 +1,1374 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width,initial-scale=1" />
+		<title>Beads policy and breaking migration proposal</title>
+		<style>
+			:root {
+				color-scheme: light dark;
+				/* Rose Pine Dawn: pi/themes/rose-pine-dawn.json */
+				--bg: #fdf9f5;
+				--fg: #575279;
+				--muted: #9893a5;
+				--dim: #797593;
+				--border: #dfdad9;
+				--code-bg: #fffaf3;
+				--accent: #b85c58;
+				--link: #286983;
+				--info-bg: #f4ede8;
+				--info-bd: #56949f;
+				--warn-bg: #f4ede8;
+				--warn-bd: #a86a00;
+				--error-bg: #f4ede8;
+				--error-bd: #b4637a;
+				--success-bg: #f4ede8;
+				--success-bd: #a86a00;
+				--add-bg: #fceee5;
+				--add-fg: #a86a00;
+				--del-bg: #f9e8e7;
+				--del-fg: #b4637a;
+				--syntax-comment: #797593;
+				--syntax-keyword: #907aa9;
+				--syntax-function: #286983;
+				--syntax-variable: #575279;
+				--syntax-string: #56949f;
+				--syntax-number: #a86a00;
+				--syntax-type: #a86a00;
+				--syntax-operator: #286983;
+				--syntax-punctuation: #f2e9e1;
+			}
+			@media (prefers-color-scheme: dark) {
+				:root {
+					/* Rose Pine Moon: pi/themes/rose-pine-moon.json */
+					--bg: #232136;
+					--fg: #e0def4;
+					--muted: #6e6a86;
+					--dim: #6e698f;
+					--border: #2e2a42;
+					--code-bg: #2a273f;
+					--accent: #c4a7e7;
+					--link: #9ccfd8;
+					--info-bg: #2a283e;
+					--info-bd: #9a68d6;
+					--warn-bg: #2a283e;
+					--warn-bd: #f6c177;
+					--error-bg: #2a283e;
+					--error-bd: #eb6f92;
+					--success-bg: #2a283e;
+					--success-bd: #9ccfd8;
+					--add-bg: #2e2a42;
+					--add-fg: #bddfe5;
+					--del-bg: #2e2a42;
+					--del-fg: #f095af;
+					--syntax-comment: #58556b;
+					--syntax-keyword: #3e8fb0;
+					--syntax-function: #bddfe5;
+					--syntax-variable: #9e98dd;
+					--syntax-string: #f9d5a2;
+					--syntax-number: #ea9a97;
+					--syntax-type: #decef2;
+					--syntax-operator: #6e698f;
+					--syntax-punctuation: #58556b;
+				}
+			}
+			* {
+				box-sizing: border-box;
+			}
+			html {
+				-webkit-text-size-adjust: 100%;
+			}
+			body {
+				margin: 0 auto;
+				padding: 2.5rem 1.25rem 6rem;
+				max-width: 78ch;
+				background: var(--bg);
+				color: var(--fg);
+				font-family:
+					ui-sans-serif,
+					system-ui,
+					-apple-system,
+					"Segoe UI",
+					Helvetica,
+					Arial,
+					sans-serif;
+				font-size: 16px;
+				line-height: 1.6;
+			}
+			h1,
+			h2,
+			h3,
+			h4 {
+				line-height: 1.25;
+				margin: 2em 0 0.6em;
+				font-weight: 600;
+			}
+			h1 {
+				font-size: 2rem;
+				margin-top: 0;
+			}
+			h2 {
+				font-size: 1.4rem;
+				padding-bottom: 0.2em;
+				border-bottom: 1px solid var(--border);
+			}
+			h3 {
+				font-size: 1.15rem;
+			}
+			h4 {
+				font-size: 1rem;
+				color: var(--muted);
+				text-transform: uppercase;
+				letter-spacing: 0.05em;
+			}
+			p {
+				margin: 0.8em 0;
+			}
+			a {
+				color: var(--link);
+				text-underline-offset: 2px;
+			}
+			hr {
+				border: 0;
+				border-top: 1px solid var(--border);
+				margin: 2em 0;
+			}
+			small,
+			.muted {
+				color: var(--muted);
+				font-size: 0.9em;
+			}
+			ul,
+			ol {
+				padding-left: 1.4em;
+			}
+			li + li {
+				margin-top: 0.25em;
+			}
+
+			code {
+				font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+				font-size: 0.92em;
+				background: var(--code-bg);
+				padding: 0.12em 0.35em;
+				border-radius: 4px;
+			}
+			pre {
+				position: relative;
+				background: var(--code-bg);
+				border: 1px solid var(--border);
+				border-radius: 6px;
+				padding: 0.9em 1em;
+				overflow-x: auto;
+				white-space: pre-wrap;
+				overflow-wrap: anywhere;
+				font-size: 0.88em;
+				line-height: 1.5;
+			}
+			pre.no-wrap {
+				white-space: pre;
+				overflow-wrap: normal;
+			}
+			pre code {
+				background: transparent;
+				padding: 0;
+				font-size: inherit;
+				white-space: inherit;
+			}
+			pre .copy-btn {
+				position: absolute;
+				top: 0.5em;
+				right: 0.5em;
+				background: var(--bg);
+				color: var(--muted);
+				border: 1px solid var(--border);
+				border-radius: 4px;
+				padding: 0.15em 0.5em;
+				font-size: 0.75em;
+				cursor: pointer;
+				opacity: 0;
+				transition: opacity 0.15s;
+			}
+			pre:hover .copy-btn {
+				opacity: 1;
+			}
+			pre .copy-btn:hover {
+				color: var(--fg);
+			}
+
+			blockquote {
+				margin: 1em 0;
+				padding: 0.5em 1em;
+				border-left: 3px solid var(--border);
+				color: var(--muted);
+			}
+
+			table {
+				border-collapse: collapse;
+				width: 100%;
+				margin: 1em 0;
+				font-size: 0.95em;
+			}
+			th,
+			td {
+				padding: 0.55em 0.75em;
+				border-bottom: 1px solid var(--border);
+				text-align: left;
+				vertical-align: top;
+			}
+			th {
+				font-weight: 600;
+				background: var(--code-bg);
+			}
+			tbody tr:hover {
+				background: var(--code-bg);
+			}
+
+			details {
+				margin: 1em 0;
+				padding: 0.5em 0.9em;
+				border: 1px solid var(--border);
+				border-radius: 6px;
+			}
+			details > summary {
+				cursor: pointer;
+				font-weight: 500;
+			}
+			details[open] > summary {
+				margin-bottom: 0.5em;
+				padding-bottom: 0.5em;
+				border-bottom: 1px solid var(--border);
+			}
+
+			.callout {
+				margin: 1em 0;
+				padding: 0.75em 1em;
+				border-left: 3px solid var(--info-bd);
+				background: var(--info-bg);
+				border-radius: 0 6px 6px 0;
+			}
+			.callout > :first-child {
+				margin-top: 0;
+			}
+			.callout > :last-child {
+				margin-bottom: 0;
+			}
+			.callout.warn {
+				border-color: var(--warn-bd);
+				background: var(--warn-bg);
+			}
+			.callout.error {
+				border-color: var(--error-bd);
+				background: var(--error-bg);
+			}
+			.callout.success {
+				border-color: var(--success-bd);
+				background: var(--success-bg);
+			}
+			.callout-title {
+				font-weight: 600;
+				margin-bottom: 0.3em;
+			}
+
+			pre.diff code .add,
+			pre.diff .add {
+				display: block;
+				background: var(--add-bg);
+				color: var(--add-fg);
+			}
+			pre.diff code .del,
+			pre.diff .del {
+				display: block;
+				background: var(--del-bg);
+				color: var(--del-fg);
+			}
+
+			.grid-2 {
+				display: grid;
+				grid-template-columns: 1fr 1fr;
+				gap: 1em;
+			}
+			@media (max-width: 640px) {
+				.grid-2 {
+					grid-template-columns: 1fr;
+				}
+			}
+
+			.badge {
+				display: inline-block;
+				padding: 0.1em 0.55em;
+				font-size: 0.78em;
+				border: 1px solid var(--border);
+				border-radius: 999px;
+				color: var(--muted);
+				vertical-align: 0.1em;
+			}
+
+			/* Diagrams render as SVG; keep them tidy. */
+			.mermaid,
+			.graphviz {
+				margin: 1.2em 0;
+				text-align: center;
+			}
+			.mermaid svg,
+			.graphviz svg {
+				max-width: 100%;
+				height: auto;
+				background: transparent;
+			}
+
+			/* Tabs — CSS-only via :has(). Supports up to 5 tabs per group. */
+			.tabs {
+				margin: 1.2em 0;
+			}
+			.tabs > .tab {
+				display: inline-block;
+				padding: 0.5em 0.9em 0.6em;
+				cursor: pointer;
+				color: var(--muted);
+				border-bottom: 2px solid transparent;
+				user-select: none;
+				margin-right: 0.2em;
+			}
+			.tabs > .tab:first-of-type {
+				padding-left: 0;
+			}
+			.tabs > .tab input {
+				display: none;
+			}
+			.tabs > .tab:hover {
+				color: var(--fg);
+			}
+			.tabs > .tab:has(input:checked) {
+				color: var(--fg);
+				border-bottom-color: var(--accent);
+				font-weight: 500;
+			}
+			.tabs > .tab-panel {
+				display: none;
+				padding: 0.9em 0;
+				border-top: 1px solid var(--border);
+				margin-top: -2px;
+			}
+			.tabs:has(.tab:nth-of-type(1) input:checked) > .tab-panel:nth-of-type(1),
+			.tabs:has(.tab:nth-of-type(2) input:checked) > .tab-panel:nth-of-type(2),
+			.tabs:has(.tab:nth-of-type(3) input:checked) > .tab-panel:nth-of-type(3),
+			.tabs:has(.tab:nth-of-type(4) input:checked) > .tab-panel:nth-of-type(4),
+			.tabs:has(.tab:nth-of-type(5) input:checked) > .tab-panel:nth-of-type(5) {
+				display: block;
+			}
+			.tabs > .tab-panel > :first-child {
+				margin-top: 0;
+			}
+			.tabs > .tab-panel > :last-child {
+				margin-bottom: 0;
+			}
+
+			/* Syntax highlighting: Rose Pine token colors from the active Pi theme. */
+			pre code.hljs {
+				background: transparent;
+				color: var(--syntax-variable);
+				padding: 0;
+			}
+			.hljs-comment,
+			.hljs-quote {
+				color: var(--syntax-comment);
+			}
+			.hljs-keyword,
+			.hljs-selector-tag,
+			.hljs-subst {
+				color: var(--syntax-keyword);
+			}
+			.hljs-title,
+			.hljs-section,
+			.hljs-name {
+				color: var(--syntax-function);
+			}
+			.hljs-variable,
+			.hljs-template-variable,
+			.hljs-attr,
+			.hljs-attribute {
+				color: var(--syntax-variable);
+			}
+			.hljs-string,
+			.hljs-regexp,
+			.hljs-symbol,
+			.hljs-bullet {
+				color: var(--syntax-string);
+			}
+			.hljs-number,
+			.hljs-literal {
+				color: var(--syntax-number);
+			}
+			.hljs-type,
+			.hljs-class .hljs-title,
+			.hljs-built_in {
+				color: var(--syntax-type);
+			}
+			.hljs-operator,
+			.hljs-deletion,
+			.hljs-addition {
+				color: var(--syntax-operator);
+			}
+			.hljs-punctuation {
+				color: var(--syntax-punctuation);
+			}
+
+			/* Outline — auto-generated, fixed right gutter on wide screens.
+     Uses rem (font-size-independent) for the offset calc; `ch` inside .outline
+     would resolve against its smaller 0.85em font and undershoot. */
+			.outline {
+				position: fixed;
+				top: 3rem;
+				left: calc(50% + 22rem + 1.5rem);
+				width: 14rem;
+				max-height: calc(100vh - 5rem);
+				overflow-y: auto;
+				font-size: 0.85em;
+				line-height: 1.4;
+				padding-left: 1rem;
+				border-left: 1px solid var(--border);
+			}
+			.outline-title {
+				color: var(--muted);
+				text-transform: uppercase;
+				letter-spacing: 0.05em;
+				font-size: 0.78em;
+				margin-bottom: 0.6em;
+			}
+			.outline ul {
+				list-style: none;
+				padding: 0;
+				margin: 0;
+			}
+			.outline li {
+				margin: 0;
+			}
+			.outline a {
+				color: var(--muted);
+				text-decoration: none;
+				display: block;
+				padding: 0.25em 0 0.25em 0.9em;
+				margin-left: -1em;
+				border-left: 2px solid transparent;
+			}
+			.outline a:hover {
+				color: var(--fg);
+			}
+			.outline a.active {
+				color: var(--fg);
+				border-left-color: var(--accent);
+				font-weight: 500;
+			}
+			.outline ul.sub {
+				margin-left: 1em;
+			}
+			.outline ul.sub a {
+				font-size: 0.95em;
+			}
+			/* Need viewport > 2*(body half + gap + outline + edge): ~22rem + 1.5rem + 14rem + 1rem = 38.5rem per side. */
+			@media (max-width: 1280px) {
+				.outline {
+					display: none;
+				}
+			}
+
+			html {
+				scroll-behavior: smooth;
+				scroll-padding-top: 1.5rem;
+			}
+		</style>
+	</head>
+	<body>
+		<!--
+  AGENT: write the response content below this comment, then delete the comment.
+  Available primitives are documented in SKILL.md. Key classes:
+    callout (info | warn | error | success), callout-title, grid-2,
+    diff on pre with add/del spans, no-wrap on pre to preserve horizontal scrolling,
+    mermaid/graphviz on pre, tabs/tab/tab-panel, badge, details/summary.
+  Note: this comment cannot contain a literal mermaid arrow because the HTML
+  parser closes the comment at the first occurrence of those three chars.
+-->
+
+		<h1>Beads policy and breaking migration proposal</h1>
+<section id="implementation-status" class="callout">
+<h2>Implementation status — 25 October 2026</h2>
+<p>The original 24 October status and “does not change policy” statement describe publication of the proposal itself. Subsequently, ct approved a bounded guidance implementation: <a href="https://github.com/codethread/hive/pull/13">PR #13</a>, merged as <code>a56f8c5a5d30df95b175ce4acf4b23b22619c160</code>, delivers <strong>section 2's agent-guidance slice</strong> through <code>hv-7q3odu</code>, not the whole proposal.</p>
+<p>Implemented guidance covers the current brief, native acceptance as the sole checklist, consolidated current notes, selective comments and optional linked diary history. New ordinary work leaves <code>design</code> and <code>prerequisites</code> unused; tracked prerequisites use blocking links. Agent-authored work starts explicitly in draft, with meaningful acceptance before leaving draft and verified acceptance/required children before closure. Useful historical content and governing instructions remain protected. Removing references to already-injected startup context is supporting guidance hygiene, not a new delivery mechanism.</p>
+<p>The authoritative repository policy is <a href="https://github.com/codethread/hive/blob/a56f8c5a5d30df95b175ce4acf4b23b22619c160/docs/beads-meta.md#authoring-and-handing-off-work">Authoring and handing off work</a>, with concise local pointers and self-contained portable Hive defaults. Existing customized workflow copies require deliberate, reviewed adoption; normal Beeswax updates do not replace them.</p>
+<p><strong>Limits:</strong> PR #13 preserves existing engine-owned fields and completion contracts, including Busy Bee result notes, settlement intent and structured close reasons. It delivers no native class enforcement, runtime storage/completion redesign, retention/deletion or migration, and establishes no general workflow-producer compliance. The separate native acceptance-carrier work <code>hv-tdd0r1</code>, delivered by PR #14, is not part of PR #13. Broader recommendations remain separately scoped; this annotation neither rewrites them nor authorizes their implementation or destructive adoption.</p>
+
+</section>
+
+
+		<div class="callout warn"><p><strong>Status: proposal for ct's review, 24 October 2026.</strong> This document separates agreed workshop direction, recommended architecture and verified current behavior. It does not change policy, code, configuration or existing work, and does not authorize deletion or a database reset.</p></div>
+<h2 id="section-1">1. Executive decision</h2>
+<p>Retain meaningful work; stop treating its fields as workflow transport. An ordinary task should explain its purpose, acceptance and durable conclusions without requiring a reader to reconstruct an execution transcript. Put machine coordination in system-description JSON. Keep working history separately, then deliberately compact and retire it only after its important content survives on retained work.</p>
+<p>The ordinary field policy below is agreed direction. The architecture, retention protocol and rollout are recommendations requiring approval and implementation, not capabilities already installed. The complete Architect report, <strong><code>hv-puh37j</code></strong> (request <code>hv-0ednz1</code>, run <code>hv-yaodxg</code>), supplies the recommended target.</p>
+<table>
+<thead>
+<tr><th>Decision</th><th>Recommendation</th><th>Deliberate cost or break</th></tr>
+</thead>
+<tbody>
+<tr><td>Ordinary work</td><td>Prose brief, native AC, consolidated notes; retain meaningful auto/manual work indefinitely by default.</td><td>Generated work cannot be swept away as automation waste.</td></tr>
+<tr><td>Runtime content</td><td>One versioned workflow-system document; one versioned spawn document per request.</td><td>Whole-document writes need coordinated ownership/CAS; fewer fields does not mean cheaper writes.</td></tr>
+<tr><td>Completion</td><td>Required authored response → <code>complete</code> → <code>collect</code>; original result stays in system JSON.</td><td>Remove public save-only <code>record-result</code> and direct <code>next</code>/<code>choice</code>; unclassified native closure cannot advance.</td></tr>
+<tr><td>Lifecycle evidence</td><td>Native guarded close plus confirmed system evidence tied to the exact closure.</td><td>Accept an explicit closed-but-unconfirmed interval; no inference of success or hidden prose grammar.</td></tr>
+<tr><td>Failed/cancelled execution</td><td>End execution honestly while preserving unfinished native work and unchecked AC.</td><td>Settlement no longer assumes every generated task must close.</td></tr>
+<tr><td>Retention</td><td>Reviewed knowledge compaction, then explicit execution retirement, then exact physical purge at a generation rebuild.</td><td>Full reports and diagnostics may intentionally be lost; compaction is not lossless summarization.</td></tr>
+<tr><td>Cutover</td><td>New database <strong>containing retained work</strong>, new tracker transport generation, coordinated upgraded writers.</td><td>No mixed-version writers, old snapshot merge, automatic executable-checkpoint conversion or blank reset.</td></tr>
+</tbody>
+</table>
+<p>Keep native Beads, XState and Colony's process-safety machinery; rebuild the affected persistence contracts rather than replacing every product. Do not use ephemeral active families as a shortcut. Destructive adoption remains ct's decision. No retention age or automatic cleanup cron is proposed.</p>
+<h2 id="section-2">2. Accepted ordinary-work policy</h2>
+<p>This applies to work regardless of who creates or performs it: an agent's task, a workflow auto bead or a workflow manual bead. <strong>Auto/manual describes creation provenance, not system classification or dispatch.</strong> A driver-handled visit and a Bee-dispatched visit follow the same work policy.</p>
+<table>
+<thead>
+<tr><th>Surface</th><th>Authoritative content and behavior</th></tr>
+</thead>
+<tbody>
+<tr><td><code>description</code></td><td>Current problem, intended outcome, scope and context. Keep the brief meaningful after completion. Update changed intent deliberately; preserve consequential rationale in notes.</td></tr>
+<tr><td><code>acceptance_criteria</code></td><td>Concrete, verifiable completion outcomes, normally Markdown checkboxes. This is the only acceptance checklist; do not duplicate it in description.</td></tr>
+<tr><td><code>notes</code></td><td>A compact, current account of what was done, why it matters, decisions and rationale, verification, limitations and handoff. Include unresolved work and next actions while unfinished.</td></tr>
+<tr><td>Linked diary comments</td><td>Optional working history, experiments and intermediate reasoning. Promote important conclusions to the task before handoff or retirement.</td></tr>
+<tr><td>Task comments</td><td>Selective useful conversation capture and short delivery/progress evidence where needed. Distinguish quotations, paraphrases and accepted decisions. No automatic transcript requirement.</td></tr>
+<tr><td><code>design</code>, <code>prerequisites</code></td><td>Leave unused under the new policy. Preserve useful historical contents during migration by moving their meaning to the appropriate retained brief or notes. Model prerequisite work as separate tasks and blocking links.</td></tr>
+<tr><td><code>close_reason</code></td><td>A readable, proof-bearing explanation of why this work can close, not a machine result or a replacement for the durable account. Nonempty is the agreed native requirement; no substantive minimum length or pattern is selected.</td></tr>
+<tr><td>Status, owner, assignee, labels</td><td>Preserve native authority and existing stewardship. Owner means human accountability; assignee means who is doing the work. Preserve HITL and human reservations.</td></tr>
+</tbody>
+</table>
+<h3>Ordinary lifecycle</h3>
+<ol>
+<li>Create work explicitly in <code>draft</code>; configuration can reject another initial status but does not change the CLI's default to draft.</li>
+<li>Supply meaningful native acceptance before leaving draft. Apply the presence requirement to every permitted departure, not only one convenient transition.</li>
+<li>Claim only available authorized scope. Parent-child links group work and have native completion/readiness consequences; blocking links express prerequisites. A diary is not unfinished child work.</li>
+<li>Keep notes current at consequential decisions, handoffs, interruptions and completion. Append convenience does not justify an endless sequence of competing summaries: notes is one mutable string, with no native latest-summary selector or per-entry attribution.</li>
+<li>Verify the outcomes, then tick only the criteria actually satisfied. Close with evidence when acceptance and required child work are complete. Leave unfinished work open with its blocker or next action.</li>
+</ol>
+<p>Native checks can establish presence and recognize unchecked boxes; they cannot establish that criteria are meaningful or true. A nonempty paragraph without checkboxes passed the tested completion predicate. Agents remain responsible for verification. The reported-gate protocol is excluded: its gate results did not travel through JSONL in the experiment.</p>
+<p><strong>Why leave design unused?</strong> The agreed brief/notes split already gives intent and durable rationale a home. Requiring a separate final design account would duplicate notes or make readers guess which is current. This is a field-use policy, not deletion of valuable historical design material.</p>
+<h2 id="section-3">3. Target records and relationships</h2>
+<p>These are semantic classes, <strong>not new CLI type names or already-registered labels</strong>. Existing label stewardship remains; implementation must register any diary/retirement vocabulary. A <code>docs</code> task can be executable work, so its type alone must not exempt it from work gates.</p>
+<table>
+<thead>
+<tr><th>Record</th><th>Content home</th><th>Lifecycle / retention</th></tr>
+</thead>
+<tbody>
+<tr><td>Meaningful ordinary task, including workflow auto/manual work</td><td>Prose description; native AC; durable notes; optional diary</td><td>Draft-first work gates. Retain by default, including completed generated tasks.</td></tr>
+<tr><td>Run or grouping bead</td><td>Readable coordination scope, genuine native AC and notes</td><td>Driver verifies actual coordination acceptance; Busy Bee owns normal closure. Retain substantive work; a container is eligible only when its useful content survives elsewhere.</td></tr>
+<tr><td>Workflow system bead</td><td>Entire content payload in one versioned description JSON: checkpoint, exact inventory, originals, ownership, settlement, closure evidence</td><td>Valid control state, no fake work AC or payload in notes/comments/close reason. Keep until execution retirement.</td></tr>
+<tr><td>Spawn bead</td><td>Versioned description JSON: captured request, latest observations, terminal and resolution evidence</td><td>Native status records requested/closed; Bee/Colony own scoped JSON mutations. Keep through settlement and retirement.</td></tr>
+<tr><td>Response artifact</td><td>JSON envelope with complete Markdown body, author, producing task/request and corrections</td><td>Non-system, non-executable; immutable while retained. Publish closed with a readable publication reason, not task AC.</td></tr>
+<tr><td>Development diary artifact</td><td>Short prose purpose/anchor description; authored timestamped comments</td><td>Non-executable, independently linked history. No work claim/readiness or fake AC. Retire only after its important content is independently retained.</td></tr>
+<tr><td>Specialist evidence and merge reference</td><td>Existing steward-owned representation</td><td>Retain unless its owner explicitly defines a safe replacement. Closed does not mean disposable.</td></tr>
+<tr><td>Retirement receipt / generation manifest</td><td>Small system JSON with exact IDs, digests, retained targets and operation state</td><td>Product owners establish eligibility; Beeswax coordinates. Retain until a safely superseding generation/archive index.</td></tr>
+</tbody>
+</table>
+<p><strong>Explicit policy qualification:</strong> draft/AC rules apply to executable work, including generated work and substantive coordination scope, not to system state or non-executable artifacts. This is the Architect's recommended clarification of the workshop's early all-beads wording, not a silent exception already present in policy. Native class-scoped enforcement is required (§8). Unknown classification defaults to retention; contradictory classification fails automation validation.</p>
+<h3>Typed relationships</h3>
+<p>Direction below is source → target. Use supported native types; edge metadata alone is insufficient for discovery because the tested show/list interfaces did not expose it.</p>
+<table>
+<thead>
+<tr><th>Relationship</th><th>Meaning and retention consequence</th></tr>
+</thead>
+<tbody>
+<tr><td>Child → parent, <code>parent-child</code></td><td>Work scope with native gates, not a deletion graph. Reparent retained children explicitly before removing a container.</td></tr>
+<tr><td>Dependent → prerequisite, <code>blocks</code></td><td>Real execution prerequisite, never an attachment link. Preserve unresolved outside dependencies.</td></tr>
+<tr><td>Run → workflow system, <code>related</code></td><td>Discover exactly one matching live system document; validate run identity.</td></tr>
+<tr><td>Spawn → assigned run/stage, <code>related</code></td><td>Exact captured execution anchor, not all related work. Replacement preserves the assignment.</td></tr>
+<tr><td>Replacement request → predecessor, <code>supersedes</code></td><td>Resolution lineage; predecessor outcome remains historical fact.</td></tr>
+<tr><td>Response → producing task, <code>replies-to</code>; response → request, <code>related</code></td><td>Delivery provenance. Retain required endpoints while the exact response reader depends on them.</td></tr>
+<tr><td>Correction → every previous current response head, <code>supersedes</code></td><td>Explicit correction, not newest-timestamp-wins. Ambiguous heads block compaction.</td></tr>
+<tr><td>Diary → work, <code>related</code></td><td>Nonblocking attachment. A diary informing several tasks needs verified knowledge destinations for all of them.</td></tr>
+<tr><td>Retirement receipt → retained summaries, <code>related</code></td><td>Discover compaction provenance; summaries must remain useful without the receipt.</td></tr>
+</tbody>
+</table>
+<p>Use <code>related</code> for these new attachment associations while preserving existing merge-reference <code>relates-to</code> conventions. Titles make diaries readable; validated class/schema, not title parsing, identifies them. Execution/artifact identity includes tracker identity, generation and native ID. Retained work preserves its native ID with an explicit mapping across reconstruction; purged identities are not reused.</p>
+<h2 id="section-4">4. Busy Bee: current writes to target flow</h2>
+<h3>What changes</h3>
+<table>
+<thead>
+<tr><th>Current write / reader</th><th>Target</th></tr>
+</thead>
+<tbody>
+<tr><td>Stage notes hold the original <code>{choice,data}</code>; collection parses the entire field.</td><td><code>results[visitId]</code> in the system document; ordinary notes are never workflow transport.</td></tr>
+<tr><td>Checkpoint notes hold invocation ownership.</td><td>Typed lock member, acquired and released through whole-document compare-and-set (CAS) against native revision.</td></tr>
+<tr><td>Run notes temporarily hold settlement intent.</td><td>System settlement member plus confirmed/uncertain effect IDs; no prose-note cleanup overwrite.</td></tr>
+<tr><td>Native close reason holds structured lifecycle JSON.</td><td>Readable reason plus joined native closure/system confirmation. Outcome labels remain derived indexes.</td></tr>
+<tr><td>Default definition renders AC into instructions; creation lacks an AC carrier.</td><td>Explicit acceptance through definition → frozen visit → native field; explicit draft creation/promotion. Frozen AC is provenance, not a second editable checklist.</td></tr>
+<tr><td>Dispatch copies the rendered brief and also tells the worker to read it.</td><td>Short assignment/endpoint pointer, preserving delivery/navigation boundaries and exact captured role.</td></tr>
+<tr><td>New stage dispatch can precede saved inventory.</td><td>Persist a <code>publishing</code> frontier with created IDs before request creation; admit execution only after stable publication and ownership release.</td></tr>
+</tbody>
+</table>
+<p>Busy Bee still owns XState progression, projection, generated inventory and its system document. Shared owns only the consumed identity/control/evidence schemas and definition-free readers. Colony and UI must use those readers at <strong>all</strong> claim, admission, final-launch, completion and display boundaries. They must not restore a workflow definition merely to determine native completion. Missing or incompatible definitions must not hide lifecycle evidence.</p>
+<h3>Illustrative proposed workflow JSON</h3>
+<p>This is a partial design example, <strong>not an installed schema, accepted command payload or complete snapshot</strong>. Native metadata remains outside it. Actual validation must reject contradictory variants.</p>
+<pre><code>{
+  &quot;kind&quot;: &quot;workflow-system&quot;,
+  &quot;formatVersion&quot;: 2,
+  &quot;generation&quot;: &quot;g2&quot;,
+  &quot;runId&quot;: &quot;work-run&quot;,
+  &quot;lock&quot;: {&quot;owner&quot;: &quot;invocation-uuid&quot;, &quot;host&quot;: &quot;host-a&quot;, &quot;pid&quot;: 123},
+  &quot;managedExecution&quot;: &quot;managed&quot;,
+  &quot;publication&quot;: {&quot;state&quot;: &quot;stable&quot;},
+  &quot;execution&quot;: {&quot;state&quot;: &quot;active&quot;},
+  &quot;created&quot;: [{&quot;bead&quot;: &quot;work-visit&quot;, &quot;scope&quot;: &quot;visit&quot;, &quot;node&quot;: &quot;work&quot;, &quot;visit&quot;: 1}],
+  &quot;results&quot;: {
+    &quot;work-visit&quot;: {
+      &quot;original&quot;: {&quot;choice&quot;: &quot;next&quot;, &quot;data&quot;: {}},
+      &quot;recordedBy&quot;: &quot;bee-identity&quot;,
+      &quot;observedTaskRevision&quot;: &quot;native-updated-at&quot;,
+      &quot;consumption&quot;: {&quot;state&quot;: &quot;unconsumed&quot;}
+    }
+  },
+  &quot;closures&quot;: {
+    &quot;work-visit&quot;: {
+      &quot;state&quot;: &quot;confirmed&quot;,
+      &quot;scope&quot;: &quot;visit&quot;,
+      &quot;outcome&quot;: &quot;succeeded&quot;,
+      &quot;closedAt&quot;: &quot;2026-10-24T12:00:00.123456Z&quot;
+    }
+  },
+  &quot;settlement&quot;: {&quot;state&quot;: &quot;none&quot;}
+}
+</code></pre>
+<p>The real document also retains definition locator/version/hash, actor paths, frozen contracts, snapshot and accepted history. Index originals by <strong>native visit ID</strong>, not node name or request: a loop creates another visit, while an explicit request replacement can target the same visit. Keep original input separate from transformed data actually consumed; no full answers, diary logs or Colony attempt history belong in this ledger.</p>
+<h3>Successful completion and collection</h3>
+<ol>
+<li>The worker reads current native scope, AC, identity/reservations and revision; verifies acceptance and files any required authored response.</li>
+<li>Under per-run ownership, completion validates the original JSON against the frozen outcome contract and permitted transition, saves it once and records the inspected task revision. Equivalent structural JSON retries match; conflicting originals fail. Arrays/scalars and a payload member named <code>choice</code> remain valid where the schema allows them.</li>
+<li>Recheck task authority. Moving the result off the task removes the existing atomic task-CAS/result-write coupling; a system CAS does not replace it. Persist prepared closure evidence, then invoke <strong>native guarded close</strong> against the freshly inspected task revision with a readable reason. A changed scope/AC/assignment requires rereading and revalidation, not blind acceptance of the saved result.</li>
+<li>Reread successful native closure; persist confirmation bound to run, scope, visit and exact native <code>closed_at</code>. Publish derived outcome labels, release through a fresh owner-checked write, and return confirmed effects. Completion does not advance the chart.</li>
+<li>The driver collects only native-closed visits with matching successful confirmation and original result. Validate the batch before advancing in stable frontier order; consume the original through deterministic schema transformation, never reparse transformed history as input. Keep originals until retirement for retry and explanation.</li>
+</ol>
+<p><strong>Verified correction from the broad Architect report:</strong> installed <code>br close --help</code> already exposes <code>--if-unchanged</code>. Hive's Beads close interface and Busy Bee call do not consume it; their comment saying native close has no revision condition is stale. The required change is adapter consumption, not invention of native close CAS. It still does not make two records atomic. DB-local event-derived <code>status_revision</code> is not a portable closure token.</p>
+<p>The target removes public <code>record-result</code> and direct <code>next</code>/<code>choice</code> submission, retaining internal save-before-close recovery. Current code can navigate from some ordinary unclassified closes while Colony refuses them as successful anchors; the target deliberately removes that discrepancy. An external close does not become successful execution merely because a result exists. This is a behavioral break selected by the broad report, not preservation of the first report's narrower compatibility option.</p>
+<h3>Uncertain effects and recovery</h3>
+<table>
+<thead>
+<tr><th>Observed point of failure</th><th>Required target behavior</th></tr>
+</thead>
+<tbody>
+<tr><td>Before original save</td><td>No saved-result or completion success; retry after fresh checks.</td></tr>
+<tr><td>Original saved; native close definitely refused</td><td>Preserve original and refusal. Clear only conclusively unperformed intent, release ownership, repair acceptance/authority and retry the identical original explicitly.</td></tr>
+<tr><td>Native close attempted but reply uncertain, or close succeeded before confirmation failed</td><td>Retain prepared evidence and ownership; expose <code>publication-pending</code> and exact known/uncertain IDs. No automatic unlock, re-close or success inference.</td></tr>
+<tr><td>Closure confirmed; label write failed</td><td>Repair only the derived namespace; do not repeat closure, replace the result or rewrite unrelated labels.</td></tr>
+<tr><td>Frontier/tasks/requests partly published</td><td>Inspect retained operation IDs and actual effects before resuming. Do not recreate a request or replay external effects from a failed command receipt alone.</td></tr>
+</tbody>
+</table>
+<p>Recovery inspects original result, native closure, prepared intent, command/invocation receipts and ownership. A closed task plus matching readable wording is insufficient proof that the intended operation closed it. If attribution remains ambiguous, leave it unclassified and explicitly plan remaining work; never reopen/reclose to manufacture evidence. Later notes/labels do not invalidate confirmation, but reopen/reclose does. Retain the reason as provenance, not as a required byte-identical machine grammar.</p>
+<p>Per-run ownership serializes cooperating writers on one selected database. Refresh the whole document before every owned patch; never overwrite a newer result or fence with a stale snapshot. PID is diagnostic, not permission to expire or steal ownership. Snapshot exchange is not a distributed writer lock. The joined read reports native state plus pending, confirmed, unclassified, publication-pending, inconsistent or retired evidence, with observation stamps—not fabricated atomicity.</p>
+<h3>Failed/cancelled execution is not completed work</h3>
+<p>Persist settlement intent before fresh owning-host execution clearance; hold publication ownership through inventory/clearance/publication. Only explicit unmanaged provenance permits daemon-free settlement. Sleeping Colony, closing a request or exiting the daemon does not prove detached workers stopped. Foreign, unbound or uncertain execution ownership refuses clearance.</p>
+<p>Settlement stops progression/admission and records execution disposition. Preserve successful visits and their requests, even if a review chose <code>changes</code> or the run later fails. <strong>Leave incomplete native work open/blocked with unchecked AC.</strong> No invented outcome, blanket ticking or force-close. A container closes only when its real coordination acceptance and child gates pass; otherwise it remains retained work even after its execution ends. Reparenting useful unfinished work is separately reviewed, not an automatic settlement side effect.</p>
+<p>Consequently Colony's target mapping distinguishes two facts: request success requires a confirmed successful native anchor closure; explicitly failed/cancelled execution can settle its request unsuccessfully while its native anchor remains unfinished. UI and status output must show both, not label an open task completed.</p>
+<h2 id="section-5">5. Bee and Colony: current values, execution and answers</h2>
+<p>Preserve Colony's existing scheduling, claim/release, reserve-before-launch, supervisor handoff, process ownership and retry mechanisms. Replace storage contracts at their seams; private SQLite still owns attempt checkpoints and useful local diagnostics, not native task truth.</p>
+<table>
+<thead>
+<tr><th>Current source</th><th>Target source and invariant</th></tr>
+</thead>
+<tbody>
+<tr><td>Spawn JSON captures recipe/host/assignment.</td><td>Versioned generation-bound request JSON retains those facts; exact captured role is not a pointer to today's mutable role file.</td></tr>
+<tr><td>Colony observation/stdout and manual-attempt comments accumulate.</td><td>Latest required JSON members preserve attribution, owning host, observation/recording times and attempt identity. Useful detail remains local.</td></tr>
+<tr><td>Acknowledgment comment resolves an exact failed closure.</td><td>Closure-bound JSON acknowledgment records actor/time/reason; do not migrate it as disposable telemetry.</td></tr>
+<tr><td>Request close-reason tokens define outcome.</td><td>Prepared/confirmed JSON evidence plus native closure; arbitrary external close becomes unclassified, not implicit cancellation.</td></tr>
+<tr><td>Outcome/resolution labels project facts.</td><td>Keep them as indexes, preserving other stewards' labels; missing/stale projection is visible and repairable.</td></tr>
+<tr><td>Native response envelope and exact links hold the answer.</td><td>Keep complete immutable response artifacts while live; add explicit compacted/archived reads after reviewed retirement.</td></tr>
+</tbody>
+</table>
+<h3>Illustrative proposed spawn and response JSON</h3>
+<p>Partial shapes only; these are not installed input formats.</p>
+<pre><code>{
+  &quot;kind&quot;: &quot;spawn-request&quot;,
+  &quot;formatVersion&quot;: 2,
+  &quot;generation&quot;: &quot;g2&quot;,
+  &quot;host&quot;: &quot;host-a&quot;,
+  &quot;assignment&quot;: {&quot;kind&quot;: &quot;stage&quot;, &quot;runId&quot;: &quot;work-run&quot;, &quot;stageId&quot;: &quot;work-visit&quot;},
+  &quot;latest&quot;: {
+    &quot;state&quot;: &quot;executing&quot;,
+    &quot;attemptId&quot;: &quot;attempt-uuid&quot;,
+    &quot;attemptNumber&quot;: 2,
+    &quot;retriesStarted&quot;: 1,
+    &quot;observedAt&quot;: &quot;2026-10-24T12:00:00Z&quot;,
+    &quot;recordedAt&quot;: &quot;2026-10-24T12:00:02Z&quot;,
+    &quot;actor&quot;: &quot;sys-colony&quot;,
+    &quot;stdout&quot;: {&quot;lastOutputAt&quot;: null}
+  },
+  &quot;closure&quot;: {&quot;state&quot;: &quot;none&quot;},
+  &quot;acknowledgment&quot;: {&quot;state&quot;: &quot;none&quot;}
+}
+</code></pre>
+<pre><code>{
+  &quot;kind&quot;: &quot;response&quot;,
+  &quot;formatVersion&quot;: 2,
+  &quot;generation&quot;: &quot;g2&quot;,
+  &quot;taskId&quot;: &quot;work-visit&quot;,
+  &quot;requestId&quot;: &quot;spawn-id&quot;,
+  &quot;author&quot;: &quot;bee-identity&quot;,
+  &quot;body&quot;: &quot;# Complete answer\n\nThe authored report is here, not merely a file link.&quot;,
+  &quot;supersedes&quot;: []
+}
+</code></pre>
+<p>The real spawn retains the captured recipe, identity and execution options omitted from the illustration. A new attempt resets stdout evidence to unknown. Attempt ordinal and retries started are separate. Latest means <strong>latest recorded</strong>, not alive now; a poll with no new observation must not manufacture freshness.</p>
+<p>The Architect recommends immediate publication of observed lifecycle/attempt/settlement changes, and changed stdout activity at most once per <strong>60 seconds</strong>, plus first/final observations. This is a proposed throttle, not measured freshness or existing behavior. Detailed local history survives until retirement and incident holds clear, then follows an exact local-artifact manifest; it has no unbounded cross-machine-history promise.</p>
+<p>Observation, stop and acknowledgment writers use fresh CAS and preserve each other's members. A prepared terminal mutation has an operation owner/fence; an observation writer cannot confirm or clear it. Uncertain request closure follows the workflow recovery discipline. Competing cross-clone acknowledgment edits require deliberate resolution rather than the current comment-union winner selection.</p>
+<p>Only the captured host automatically executes/reconciles. Bind private store authority, receipts and finish reports to generation as well as request/attempt; losing local history is not permission to relaunch. Automatic retries retain request and friendly identity. Explicit retry creates a replacement with a <code>supersedes</code> link, preserving the anchor and predecessor's failed outcome; successful replacement creation resolves attention, not history. Uncertain creation returns known IDs and blocks duplicate submission until inspected.</p>
+<p>Response availability is independent of acceptance and request success. Correction supersedes every current head; ambiguous heads cannot be compacted by picking the latest timestamp. While retained, exact reads return the actual original and validate provenance. Either preserve all required anchors/lineage or compact the response as a unit. After retirement, return an explicit <strong>compacted</strong> result with retained summary destinations—not a summary pretending to be the old full answer.</p>
+<h2 id="section-6">6. Compaction and retention</h2>
+<h3>Preserve meaning before removing its sources</h3>
+<p>Retain meaningful task briefs for the foreseeable future. Before a diary, response, runtime container or system record can go, its important outcomes, decisions, rationale, verification, corrections, failures and unresolved limitations must survive independently on retained work or curated evidence. A link to a soon-to-be-deleted report is not a summary.</p>
+<p>Use one consolidated current account, not one summary per attempt. Some reports have enough unique value that the right compaction result is <strong>retain the complete report</strong> or preserve a dedicated knowledge/evidence bead. Smaller is not automatically better. Selective manual conversation capture remains allowed; a speculative quotation does not become an accepted decision merely because it was copied.</p>
+<p>The proposed compaction gate is:</p>
+<ol>
+<li>Read every relevant response head/correction and diary source. Map important facts/sections to named retained destinations; list deliberately discarded detail and why it is dispensable.</li>
+<li>Write the current brief/notes with revision guards, preserving attribution and fact/recommendation/user-decision distinctions. Record verification precisely enough to understand its scope and limitations after source removal.</li>
+<li>Have an independent agent verify routine compaction against sources and native acceptance. Human review covers reserved/disputed/safety-sensitive decisions and the destructive manifest; a one-agent operation needs human verification rather than self-certification.</li>
+<li>Verify the retained account answers what was requested, delivered, chosen and tested, why, what failed, what remains uncertain and who/what is needed next—<strong>without opening a deletion candidate</strong>.</li>
+<li>Record source/target revisions and content digests, coverage, verifier and approval. Any relevant source, destination or incoming-reference change invalidates approval.</li>
+</ol>
+<p>This knowingly permits loss of raw wording, intermediate reasoning or logs after reviewed compaction. It does not claim that summarization is lossless. Native individual-comment deletion is unavailable today; separating future diaries avoids repeatedly filling retained work with independently disposable history. Initial reconstruction can drop selected old comments only through the approved native maintenance projection, not ad hoc editing.</p>
+<h3>Worked examples</h3>
+<p>The IDs, revisions and results in these examples are <strong>illustrative</strong>, not new verification claims.</p>
+<p><strong>1. Ongoing work.</strong> <code>TASK-CACHE</code> implements cache invalidation. After the first experiment, notes say: “Content hash chosen over mtime because equal-timestamp replacements reproduced stale reads. Parser unit cases passed at <code>REV-A</code>; watcher restart and recovery cases are untested. Next: add restart tests; do not close.” Diary <code>DIARY-CACHE</code> holds the attempted timings and rejected prototype. No completion is implied, and no retirement is allowed while those facts remain needed for the active execution.</p>
+<p><strong>2. Interrupted handoff.</strong> Before yielding, the worker adds: “Implementation is in worktree X at <code>REV-B</code>; the restart case fails after interrupted rename. No deployment occurred. AC 1–2 verified, AC 3 unchecked; next owner must reproduce the failure before changing recovery.” The successor reads current native scope/AC/notes, discovers the diary through its typed link and opens only the relevant experiment. Completion-only summarization would have lost this handoff; updating notes at the interruption preserves it.</p>
+<p><strong>3. Historical reading before and after purge.</strong> After successful delivery and independent compaction review, retain this substantive account on <code>TASK-CACHE</code> <strong>before</strong> deleting any attachments:</p>
+<blockquote>
+<p><strong>Outcome:</strong> content-hash invalidation replaced mtime-only invalidation at <code>REV-C</code>. Scope was the local file cache; remote cache coherence was excluded.</p>
+<p><strong>Why:</strong> equal-timestamp content replacement could otherwise serve stale data. A watcher-only solution was rejected because missed events still needed recovery.</p>
+<p><strong>Verification:</strong> the focused cache suite passed all 12 cases at <code>REV-C</code>, including equal-mtime replacement and interrupted-restart recovery; package typecheck passed. No network-filesystem benchmark was run.</p>
+<p><strong>Correction and limitation:</strong> the first report overstated cross-filesystem coverage; the corrected conclusion is local-filesystem behavior only. Notes retain that correction, not the discarded claim.</p>
+<p><strong>Remaining work:</strong> <code>TASK-NETFS</code> is still open for network-filesystem validation; this task's closed acceptance did not include it.</p>
+<p><strong>Provenance:</strong> implementation and corrected report authored by worker A; compaction checked by verifier B on date D. Execution G1/run R was retired after collection and owning-host clearance. Original diagnostic detail may no longer be available.</p>
+</blockquote>
+<table>
+<thead>
+<tr><th>Surface</th><th>Before physical purge</th><th>After physical purge</th></tr>
+</thead>
+<tbody>
+<tr><td>Retained task description</td><td>Meaningful original/current scope</td><td>Same scope retained.</td></tr>
+<tr><td>Native AC/status/close reason</td><td>Verified completed scope; readable reason</td><td>Preserved; no new success inferred from deletion.</td></tr>
+<tr><td>Notes</td><td>Complete account above, verified against sources</td><td><strong>The same substantive text</strong>, independently useful; no dead-link-only proof.</td></tr>
+<tr><td>Diary and corrected response lineage</td><td>Exact originals still readable</td><td>Removed only if named in the approved manifest. Exact reads say compacted and identify retained destinations.</td></tr>
+<tr><td>Follow-up <code>TASK-NETFS</code></td><td>Open with its own AC/dependency context</td><td>Still open; neither summary nor purge closes it.</td></tr>
+</tbody>
+</table>
+<p>A historian can answer why content hashing was chosen and what was not tested from the retained task. They cannot recover every discarded timestamp or original sentence, and the reader says so. If exact wording is important, retain the report instead of approving this deletion.</p>
+<p><strong>4. Failed/cancelled run.</strong> Run R produced a successful design review, then its implementation visit failed before migration. Keep the review outcome and its caveats; keep implementation AC unchecked and notes explaining the failure, known effects and next action. Resolve request attention explicitly, prove workers stopped and collect or deliberately dispose saved results as unconsumed. Execution retirement may then remove R's machinery while retaining the unfinished task under reviewed surviving scope. If an external migration effect remains uncertain, retirement is refused until that uncertainty is resolved—not reset to “not attempted.”</p>
+<h3>The coherent retirement boundary</h3>
+<p>Execution retirement is distinct from a workflow visit leaving the active frontier, unsuccessful settlement, task closure and physical deletion. It ends the execution's retry/attach/complete/collect/settle/simulation capabilities. A future attempt at unfinished work requires a deliberately inspected new execution, not resurrection of the retired one.</p>
+<p>Before retirement, require all of the following:</p>
+<ul>
+<li>Complete generated inventory and known effects; every saved result collected or explicitly retained as unconsumed under terminal execution. No unresolved closure/progression uncertainty or unexplained publication owner.</li>
+<li>Terminal, operationally resolved driver/stage/replacement requests, no pending delivery and no ambiguous response corrections. Acknowledging a failure does not satisfy its unfinished task.</li>
+<li>Fresh owning-host proof of no live/unverified attempt, pending reservation, finish report or claim-release obligation; all manual/incident holds resolved.</li>
+<li>Retention of meaningful auto/manual work, unresolved tasks, human reservations, specialist evidence and merge references. Open ancestors need not finish merely to permit a settled family to retire.</li>
+<li>Verified knowledge coverage and all outside references accounted for. A retained exact response pins its required lineage; do not leave it malformed by deleting an anchor.</li>
+<li>Reviewed parent/link rewrites for retained children of removable structural containers; preserve meaningful grouping rather than flattening it for convenience. Apply the governing-context check below before any container removal or reparenting.</li>
+</ul>
+<p><strong>Governing-context check.</strong> Inventory effective native <code>agent_context</code> and applicable ancestor prose instructions for every affected retained child, with source IDs and authority attribution. Preserve still-applicable instructions in a surviving governing home or retain the container; historical notes alone do not keep a restriction governing. Verify the resulting ancestor chain for both lost and newly inherited constraints. An unresolved conflict, authority change or instruction loss blocks the rewrite/removal pending its proper decision-maker.</p>
+<p>Current <code>docs/beads-meta.md:104</code> guidance distinguishes emission from scope: when enabled, native inherited-context emission selects the root ancestor (preferring the topmost epic) and immediate parent, not every intermediate ancestor. Hive currently disables emission; agents still explicitly read applicable ancestor instructions. Preserve native governing metadata where it applies, without repurposing workflow-system JSON or changing the selected ordinary-field policy.</p>
+<p>Publish and verify the retirement receipt and system retired state <strong>before</strong> deletion. Reads distinguish current, retired-with-detail, compacted and archived/unavailable records; known removed IDs resolve through exact receipt/index entries. Absence alone never proves retirement. Native tasks can remain unfinished after their execution retires.</p>
+<h3>Exact manifest, never cascade</h3>
+<p>The manifest is the reviewed operation, not a query like “all closed workflow beads.” It contains:</p>
+<ul>
+<li>tracker/generation/operation identity; exact source IDs, class reasons, revisions and digests;</li>
+<li>retained destinations, knowledge coverage, source-to-retained mapping and summary digests;</li>
+<li>exact deletions and parent/link rewrites, including inbound/outbound typed edges and known embedded references;</li>
+<li>before/after governing-context mapping: affected children, ancestor chains, source IDs/revisions and authority attribution, native <code>agent_context</code> and applicable prose instructions, surviving governing homes and verified effective constraints;</li>
+<li>response heads/lineage, native closure/collection facts, request/attempt clearance and preserved reservations/holds;</li>
+<li>archive disposition, actor/verifier/approval and phase-by-phase confirmed/uncertain effects.</li>
+</ul>
+<p>For the cache example, an approved manifest might retain <code>TASK-CACHE</code> and <code>TASK-NETFS</code>, reparent a useful visit to a surviving feature, and delete exactly its reviewed diary, response lineage, run/group shells, workflow system record and resolved request lineage. It must not recursively add an outside dependent merely because that would make deletion easier.</p>
+<p>Recheck the affected reference set, not only row revisions: a newly added incoming link invalidates the plan. During the maintenance freeze, verify snapshot/edge digests immediately before applying. Native <code>--cascade</code> follows blocking dependents and can select ancestors; it is not containment cleanup and is excluded. Verify resulting records, edges and export, not only a successful command exit.</p>
+<h2 id="section-7">7. Breaking cutover and clean-reset implications</h2>
+<h3>Recommended path: rebuild from retained data</h3>
+<p>Use one maintenance coordinator, a finite enrolled writer fleet and a <strong>new tracker generation built from a verified retained projection</strong>. Keep deletion knowledge within the current generation; do physical reclamation at the next coordinated reconstruction. No independent host hard-purge, tombstone TTL or automatic cleanup-on-close.</p>
+<p>Why this boundary: soft deletion retains payload; plain import of an absent record need not delete the receiver's copy; native merge can recreate a full tombstone; sufficiently stale data can return after deletion knowledge disappears. In the workshop fixture, tombstone-first import preserved the receiver's comments, a subsequent no-op flush did not re-export them, and a later merge refused <code>DeleteVsModify</code>. These are different sequences, not proof of a working purge protocol.</p>
+<p>A new generation rejects old snapshots and common bases instead of trying to invent convergent comment-pruning semantics. This is an explicit transport/storage capability to build and validate—not something one successful tracker sync establishes today.</p>
+<h3>Cutover sequence and stop conditions</h3>
+<ol>
+<li><strong>Prepare and inventory.</strong> Enumerate selected databases, publishers, direct agent sessions, hooks, worktrees, Colony registrations/daemons, detached supervisors and backup/restore routes. Resolve tracker incidents. Approve exact manifest, policy, tool versions and retained projection. A local lock or sleeping Colony is not a fleet freeze.</li>
+<li><strong>Drain and freeze.</strong> Finish old live work with matching old tools where practical. Otherwise stop/quarantine explicitly and preserve completed/uncertain effects. Pause all writers/importers/publishers; verify process ownership and termination. Every online enrolled host acknowledges the same freeze/digest; unavailable hosts are revoked from the next generation, not presumed acknowledged.</li>
+<li><strong>Reconcile and back up.</strong> Reconcile outstanding same-generation work with native conflict handling; stop on conflicts. Capture and verify an immutable <strong>pre-mutation</strong> backup of database, export/base, links, policy and required private receipts before summary/reparent/tombstone changes. This is the pre-activation rollback source. Offline unpublished work is deferred to reviewed salvage, not silently lost.</li>
+<li><strong>Compact and communicate retirement.</strong> Verify summaries/coverage, then publish the approved retirement/tombstone set with one fixed provenance through native operations. Confirm online participants received that exact set. G remains full-payload read-only evidence; hosts do not invent competing deletion timestamps.</li>
+<li><strong>Construct G+1.</strong> Use supported native reconstruction tooling, to be implemented where ordinary import is insufficient. Preserve retained IDs, scope, AC, state, owner, human assignment/reservations, meaningful dates, labels, closure meaning and surviving links. Preserve native <code>agent_context</code> and applicable ancestor instructions in the manifest's surviving governing homes. Apply only approved summary, governing-context, parent/link and content-retention transformations. Unknown/uncompacted records stay in full. No hand-edited live JSONL or runtime SQL purge.</li>
+<li><strong>Verify before activation.</strong> Compare exact retained IDs/fields/edges and summary digests; test retained response retrieval and explicit retirement reads, unfinished work, native gates, export/reimport and fresh-clone hydration. Verify the before/after governing-context mapping against reconstructed native metadata and full ancestor chains, checking lost and newly inherited constraints. Keep writers disabled until verification passes.</li>
+<li><strong>Activate once.</strong> Switch the accepted generation/transport descriptor with coordinated compatible tools. Use a <strong>new tracker Git repository/history</strong>, not an old/new <code>tracker/state</code> merge. Preserve the permanent local tracker checkout identity/path through a controlled migration; do not casually delete it. Record the activation point and admitted writers/attempts.</li>
+<li><strong>Rejoin and reclaim.</strong> Upgraded hosts verify generation, manifest digest and minimum protocol, then reseed. Returning stale hosts export unpublished old work into quarantine for explicit salvage; accepted remaining work is reconstructed deliberately, never imported as a whole old snapshot. After approved rollback-window/archive review, remove only manifest-listed old DB/base/export/backup and local Colony artifact families. Verify no active registration or restore route points to G as writable authority.</li>
+</ol>
+<h3>Generation enforcement must be real</h3>
+<p>Require generation in database/export manifests, native import/merge admission, Hive invocation/receipts and transport selection. Missing/mismatched generation rejects mutation/import before effects; no “legacy means current” fallback. The standalone Git merge adapter must also reject incompatible generations rather than implement a different deletion policy.</p>
+<p>A new marker cannot make old binaries obey. Retire old writable paths and runtime binaries, revoke old publication credentials/targets, and grant G+1 transport only to enrolled upgraded publishers. Archive old tracker repositories read-only. If old publishers cannot be fenced or execution cannot be proved stopped, <strong>do not activate</strong>. This is an operational guarantee for cooperating tools/hosts, not a security boundary against a privileged same-OS-user bypass.</p>
+<h3>What a clean reset does—and does not—mean</h3>
+<p>A clean database is recommended; a blank loss-of-history reset is not. Retain every unresolved ordinary record and meaningful completed work by default. Preserve human assignments unless that human authorizes release. Native reconstruction needs explicit identity/chronology preservation and validated source mapping, not recreation of everything as newly open work.</p>
+<p>Legacy workflow close JSON may be converted to its readable reason only with verified migration/retirement evidence preserving its disposition. Do not infer success from chart <code>done</code> or labels. Retain useful generated visits and reparent only under the approved scope mapping. Keep exact response lineages whose knowledge is not safely compacted.</p>
+<p>Do not automatically convert executable old checkpoints into new live snapshots. New runs receive only inspected remaining scope and evidence of already-performed effects. Unknown processes or uncertain irreversible effects block activation for that scope; there is no requirement to purge every old record for cutover to count as successful.</p>
+<p>Keep one checksummed read-only G archive for rollback/provenance, separately governed and never a live merge source. New G+1 clones need not fetch G's history. Current-generation retirement receipts support exact-ID lookup; later reconstruction can move them into a read-only generation index. If the archive is subsequently deliberately discarded, exact old-detail reads must say unavailable. Permanent forensic logs or old workflow previews are not promised.</p>
+<p>A fresh DB does not erase Git objects, remote clones, backups or logs. Lossless packing is not erasure. Secure historical erasure requires a separate authorized fleet/provider/backup operation.</p>
+<h3>Rollback and coordinated adoption</h3>
+<p>Before G+1 admits any writer, attempt or external effect, discard a failed candidate and restore frozen G with matching tools. <strong>After activation, switching back to G is not rollback:</strong> it can lose new work and replay effects. Stop G+1, preserve its changes and repair forward, potentially into another generation. Archive restoration always enters quarantine and never automatically wakes Colony.</p>
+<p>Ship native policy/reconstruction support, Beads/Shared contracts, Busy Bee, Bee/Colony, UI, Beeswax/BV adapters, definitions, hooks and installed guidance together. Verify actual executable provenance and daemon versions, not only checkout revisions. No dual writes, old-comment/notes fallback, mixed-format admission or automatic legacy snapshot conversion. Read shipped changelog/adoption actions after upgrading. Cross-clone destructive authorization and rehearsal remain prerequisites, not completed work in this proposal.</p>
+<h2 id="section-8">8. Native YAML: supported today versus required extension</h2>
+<p>The ordinary-work predicates exist, but <strong>the combined work/system/artifact policy cannot be installed faithfully with today's YAML</strong>. The disposable enforcement experiment used installed <code>br 0.7.6</code>; source comparison was the Hive snapshot-sync fork at <code>b77ae70</code>.</p>
+<table>
+<thead>
+<tr><th>Requirement</th><th>Verified current capability</th><th>Required action</th></tr>
+</thead>
+<tbody>
+<tr><td>Draft-first work</td><td>Strict <code>workflow.transitions.initial: [draft]</code> rejects implicit open creation.</td><td>Change every work producer to pass draft; scope this policy to work in the native extension.</td></tr>
+<tr><td>AC before leaving draft</td><td><code>workflow.required_fields</code> accepts exact <code>from -&gt; to</code> keys or a bare target status; <code>acceptance_criteria_present</code> tests the dedicated field.</td><td>Cover every allowed departure. Do not invent wildcard transition syntax.</td></tr>
+<tr><td>Completed AC before closure</td><td>Target <code>closed: [acceptance_criteria]</code> checks the dedicated field.</td><td>Prefer this over the older closure checklist gate that also scans description/design/notes. Agents verify truth.</td></tr>
+<tr><td>Nonempty close reason</td><td><code>close_policy.require_close_reason</code> with <code>enabled: true</code>, <code>min_length: 1</code>.</td><td>Scope the requirement to applicable prose records; system payload stays in description. One character expresses presence, not a new quality rule.</td></tr>
+<tr><td>Work versus machine/artifact behavior</td><td>No class/label selector on these required-field or close-reason gates.</td><td>Add a small native record-class policy extension; do not put fake AC on system records.</td></tr>
+<tr><td>Special creation routes</td><td><code>entry_routes</code> admitted system/open and response/closed in the fixture.</td><td>Creation exceptions do not exempt later closes: the admitted system record still failed global closed-AC requirements.</td></tr>
+<tr><td>Born-closed artifact validation</td><td>An admitted response was created closed without AC or a close reason.</td><td>Validate initial/terminal creation coherently in the new class contract; ordinary close checks cannot be assumed to run during creation.</td></tr>
+<tr><td>Keep design/prerequisites unused</td><td>No native field-prohibition setting found.</td><td>Guidance and owned writers enforce this; do not add a prerequisite-completion requirement.</td></tr>
+<tr><td>Label stewardship</td><td>Existing taxonomy and tool ownership remain in force.</td><td>Classification needs validation, not an informal new label that bypasses work gates.</td></tr>
+</tbody>
+</table>
+<p>Do not substitute conditional reported gates: they are a different feature and were rejected for this policy. Additive class transitions also do not supply field/closure scope. The extension must reject ambiguous classification and attempts to evade gates by reclassifying executable work, and test create, update, claim and close together. This document intentionally supplies no invented installable YAML for that extension.</p>
+<h2 id="section-9">9. Graph, read, write and storage costs</h2>
+<h3>Read topology first; hydrate selected content</h3>
+<p>The experiments support linked history at the tested scales, not unlimited attachment traversal. Discover typed neighbors and relevant families first, deduplicate IDs, then request only needed bodies. An attachment reader needs width and byte budgets, explicit continuation and freshness, not merely a depth limit. Graph timings below are three-sample local observations after fixture creation warmed storage, not latency guarantees; setup and browser rendering are excluded.</p>
+<table>
+<thead>
+<tr><th>Measured case</th><th>Observation</th><th>Boundary</th></tr>
+</thead>
+<tbody>
+<tr><td>5,000 thin records</td><td>BV full JSONL graph about 46 ms median; native full show of 100 records about 3.7 s.</td><td>Different work, not an equivalent-operation speed contest.</td></tr>
+<tr><td>1,000 records with 40.7 MB of bodies/notes/comments</td><td>BV graph about 63 ms; show of 100 about 6 s.</td><td>Topology output avoids delivering all text, but BV still reads its selected whole file. Root/depth limits bound output, not that input read.</td></tr>
+<tr><td>Dense 100-node, 4,950-edge graph</td><td>Depth-ten tree emitted 9,046 occurrences / 1.26 MB.</td><td>Tree can repeat nodes; its <code>parent_id</code> is a traversal predecessor, not proof of containment. Depth one cannot bound a broad star.</td></tr>
+<tr><td>Rooted 1,000-node blocking chain</td><td>Native rooted graph timed out at 12 s in all three samples; all-graph/BV paths took about 23–31 ms.</td><td>A focused endpoint finding, not a claim that every native graph operation is slow.</td></tr>
+<tr><td>Actual UI hierarchy helpers</td><td>About 124 ms for 1,000 parent-child nodes; 824 ms for 5,000, hydrating summaries in batches of 500.</td><td>Browser rendering and full board decoration were not measured. Related diaries are outside this hierarchy.</td></tr>
+<tr><td>Brief/notes projection fixture</td><td>Historical full show: 3,544 compact JSON bytes; selected historical fields: 659 bytes.</td><td>Output reduction, not storage reclamation or a substitute for full pickup authority/context.</td></tr>
+</tbody>
+</table>
+<p><code>br graph</code> omits <code>related</code> and <code>replies-to</code>, and interprets parent-child for execution order; it is not an attachment index. Native dependency lists expose typed direct neighbors. Tree omits edge types. BV includes the tested relationship types, but a newly linked, unexported diary was missing from its older JSONL while present in native reads/BV SQLite. Preserve the UI's before/after native freshness checks; BV's own loaded/not-stale report did not establish export coverage.</p>
+<p>Full <code>br show --json</code> includes all attached comments and has no field selector. Exact-ID native list projection can omit comment bodies; comment-list filtering happens after retrieving the whole array. Therefore a separate diary improves ordinary pickup context even before deletion. Discovery also changes after compaction: ordinary search found comment text but not notes-only text in the fixture. Retained-summary search must explicitly cover notes, not promise unchanged keyword search after deleting a diary.</p>
+<h3>Latest-only writes reduce accumulation, not necessarily write cost</h3>
+<p>Twenty sequential small observations on disposable trackers produced these results:</p>
+<table>
+<thead>
+<tr><th>Initial payload</th><th>Append comments</th><th>Replace latest JSON member</th><th>Median write time</th></tr>
+</thead>
+<tbody>
+<tr><td>16 KiB</td><td>20,616-byte JSONL; 20 comments</td><td>16,838 bytes; no comments</td><td>48.0 ms versus 46.7 ms</td></tr>
+<tr><td>256 KiB</td><td>266,377 bytes; 20 comments</td><td>262,599 bytes; no comments</td><td>54.8 ms in both modes</td></tr>
+</tbody>
+</table>
+<p>The probe saved roughly 3.8 KB of comment/record overhead, with no per-description-edit audit rows observed. Paired SQLite allocations were identical. It included native auto-export and subprocess capture, but no lock/CAS cycle, contention, production ledger, network or physical reclamation test. Retain no-op suppression and coalescing; benchmark the proposed whole-document ownership/result workload separately.</p>
+<h3>Keep cost layers separate</h3>
+<p>The 22 October census attributed about 73% of snapshot bytes to <strong>system plus non-system workflow buckets</strong>, not deletable waste. Workflow briefs and authored responses contain valuable evidence. Another census found 1,889 captured role prompts with 32 distinct values: roughly 6.19 MB of theoretical exact-value redundancy before reference overhead. This motivates prompt review, not replacing captured instructions with mutable files.</p>
+<p>On a disposable copy, native reconciliation took 39.6–40.9 s, including an unchanged repeat; the core three-way calculation was about 75 ms. Whole-state loading/witnesses/publication dominated. Physical compaction reduced roughly 243 MB to 134 MB without improving merge time. Retention may reduce the logical population, but no end-to-end retention speedup is established.</p>
+<p>Live rows, current JSONL/native base, SQLite allocated pages, <code>.br_history</code>, Git history and Colony's local artifacts are different stores. Removing one diary does not erase old snapshots, compact SQLite or clean local logs. Do not weaken recovery witnesses to improve a benchmark. Native correctness-preserving unchanged/incremental merge work remains a separate performance opportunity.</p>
+<h2 id="section-10">10. Scoped implementation order and acceptance</h2>
+<p>These are bounded proposed work packages, not newly created tasks or authorization to start them. Keep each slice focused; split a growing package by contract rather than building a general persistence platform.</p>
+<table>
+<thead>
+<tr><th>Order / owner</th><th>Deliverable</th><th>Acceptance boundary</th></tr>
+</thead>
+<tbody>
+<tr><td>1. Native Beads + Beads adapter</td><td>Class-scoped policy; consume existing close CAS; generation admission and native reconstruction contract</td><td>Generated work cannot evade draft/AC through reclassification; artifacts have coherent creation/closure without fake AC; stale close fails atomically; incompatible generation refuses before writes.</td></tr>
+<tr><td>2. Shared + Busy Bee</td><td>New workflow document, native AC carrier, one completion path and joined evidence</td><td>Preserve original versus transformed data; notes never parsed/overwritten; unclassified close cannot advance; identical retries work after collection.</td></tr>
+<tr><td>3. Busy Bee + Colony</td><td>Publishing-frontier/admission fence and honest unsuccessful settlement</td><td>No launch crosses publishing/settlement/retirement; partial IDs survive; prior successful stage stays successful; unfinished AC/task stays unfinished.</td></tr>
+<tr><td>4. Bee/Colony + Shared</td><td>Versioned spawn JSON, observations/acknowledgment/closure, response contract and generation-bound attempts</td><td>Races preserve scoped members; foreign/stale attempt denied; closure is not process-stop proof; exact response bodies/corrections remain readable.</td></tr>
+<tr><td>5. UI + Shared + viewer/tool owners</td><td>Bounded projection/search and current/retired views</td><td>Notes searchable; typed links/continuation/freshness explicit; useful generated work visible; missing definition does not hide lifecycle facts.</td></tr>
+<tr><td>6. Product owners + Beeswax + native maintenance</td><td>Plan-only retirement, semantic coverage, exact manifest and reconstruction</td><td>Outside links/late edits invalidate approval; unresolved delivery/process uncertainty blocks retirement; retained scope and IDs survive; no cascade.</td></tr>
+<tr><td>7. Operator + Beeswax</td><td>Disposable fleet rehearsal, then separately approved generation cutover</td><td>Old tool/credential, offline host, mixed base and old backup cannot enter G+1; fresh clone verifies; phase recovery and rollback boundary hold.</td></tr>
+<tr><td>8. Bookworm + tool owners</td><td>Accepted guidance, help, definitions, prompts and release/adoption notes</td><td>One authoritative home per rule; composed prompts have no stale notes-as-result or alternate-completion instructions.</td></tr>
+</tbody>
+</table>
+<p><strong>Cross-cutting acceptance scenarios:</strong></p>
+<ul>
+<li>Two parallel completes and a collector cannot lose results or clear another owner; a loop revisit has a new native identity.</li>
+<li>Interrupt every boundary: original save, prepared intent, native close, confirmation, labels, frontier/task/request publication. Preserve known versus uncertain effects; never replay an irreversible effect merely because a response failed.</li>
+<li>Edit brief/AC/assignee between save and close; CAS refuses stale closure. Reopen/reclose invalidates the old confirmation; later legitimate notes edits do not.</li>
+<li>Review chooses <code>changes</code>, then run is cancelled: prior review/request success remains, useful incomplete work stays open, no human assignment changes.</li>
+<li>Concurrent observation/stop/acknowledgment, stale finish report and absent private ownership proof do not create liveness, erase resolution or launch replacement work.</li>
+<li>Two response heads, a retained response with a purge-candidate request, an omitted caveat, an open manual child and an outside blocking dependent all prevent premature deletion.</li>
+<li>Add a comment or incoming edge after review: manifest approval invalidates. Retirement before collection, driver cleanup or supervisor exit refuses.</li>
+<li>Freeze/apply interrupted at each phase, tombstones on only one peer, old backup restore and indefinitely offline clone have explicit non-resurrection outcomes through the <strong>actual Hive publication path</strong>, not only native fixture merges.</li>
+<li>Fresh reconstruction preserves meaningful IDs/chronology, native acceptance/state, human reservations, surviving edges and summaries. Exact response reads distinguish original, compacted and unavailable detail.</li>
+<li>Retain an unfinished child while removing its parent carrying “No production writes.” Exercise both native <code>agent_context</code> and ancestor-prose variants: the restriction remains attributable and governing after reconstruction, not merely archived in notes. Test enabled root/topmost-epic and immediate-parent emission plus explicit reads of other relevant ancestors, then Hive's emission-disabled manual ancestor-read path. An unmapped loss or newly inherited conflict/authority change blocks the rewrite/removal.</li>
+<li>Realistic large ledgers/recipes/diaries are benchmarked through public boundaries for serialized bytes, native calls, CAS latency, p50/p95 read/merge latency, RSS, row/event counts and Git/local/archive growth. Small latest-only writes are not a throughput acceptance substitute.</li>
+</ul>
+<p>For ordinary reads, adopt the Architect's proposed 50-record/50-relations-per-direction pages with explicit continuation and a documented byte budget (its example is 128 KiB). These are target defaults to implement and test, not current universal CLI flags. Never truncate an exact body silently; full selected responses remain retrievable. Backend operations lacking paging must gain it or expose their unbounded cost. Prefer native indexed notes-aware search; until available, an honest bounded union of description/comment and notes queries must preserve deduplication and continuation.</p>
+<p>Current and retired UI views must retain meaningful generated work, hide only appropriate system/artifact/coordination clutter, and expose archived-execution provenance separately from task status. Generation/export digest join source/cache identity. Keep native SQLite ranking and exported JSONL topology distinct; viewer filters do not become scheduling authority.</p>
+<h2 id="section-11">11. Risks, tradeoffs and unresolved facts</h2>
+<table>
+<thead>
+<tr><th>Risk or tradeoff</th><th>Recommendation and remaining fact to establish</th></tr>
+</thead>
+<tbody>
+<tr><td>Closed-but-unconfirmed interval</td><td>Accept it explicitly rather than retain machine close-reason grammar or build a general transaction engine. Rehearse recovery and measure incidence; never infer confirmation.</td></tr>
+<tr><td>One large system document</td><td>Simpler ownership, stronger retention coupling and potentially larger CAS/export writes. Benchmark realistic histories; split long-lived executions at deliberate continuation boundaries, not by silently trimming required originals.</td></tr>
+<tr><td>Summary loses an important caveat</td><td>Require coverage review, self-contained retained meaning and independent verification. Default to retaining uncertain material, not forcing a size target.</td></tr>
+<tr><td>Full report or log deliberately disappears</td><td>Exact-reader contract must say compacted/unavailable. Raw wording cannot be reconstructed from a summary; preserve it when that matters.</td></tr>
+<tr><td>Stale clone/backup reintroduces data or effects</td><td>Enforce generation and transport admission, quarantine salvage and no automatic wake. Current Hive does not yet provide the validated protocol.</td></tr>
+<tr><td>New native capability scope grows</td><td>Build class-scoped gates, guarded-close consumption, projection/search and reconstruction as bounded seams. Avoid a new scheduler, distributed transaction engine or independent comment-GC merger.</td></tr>
+<tr><td>Class exception weakens ordinary policy</td><td>Validate class plus representation at creation/transitions; reject reclassification evasion. Generated work and executable documentation tasks remain ordinary.</td></tr>
+<tr><td>Failed execution leaves open run/container</td><td>Intentional truthfulness, not a cleanup defect. Separate execution disposition from task acceptance in readers and continuation guidance.</td></tr>
+<tr><td>Search loses diary facts after compaction</td><td>Notes-aware search is required; existing ordinary search did not cover notes-only findings.</td></tr>
+<tr><td>Existing historical evidence is heterogeneous</td><td>Preserve unknowns and curated specialist/merge references in full until their owners approve a replacement. No volume percentage establishes deletion eligibility.</td></tr>
+</tbody>
+</table>
+<p>The broad Architect report deliberately resolves options left open in the first focused report: class exemptions, a single completion path, revision-guarded joined evidence, publishing-before-dispatch, unfinished work after unsuccessful settlement and generation-based physical purge. These are explicit proposed breaks, <strong>not unresolved contradictions between the reports</strong>.</p>
+<p>Remaining implementation facts include actual fleet/credential inventory, selected archive access and eventual disposal rules, native reconstruction preservation guarantees, real large-ledger/CAS performance and end-to-end cross-clone purge/rejoin behavior. No retention interval, physical-reclamation promise or performance improvement is established. The native class-policy gap and existing unguarded adapter call are verified, not questions to handwave away.</p>
+<p>The proposal is ready for adoption review; implementation and destructive cutover require separate authorization. The parent owns final review/presentation, complete checks where applicable, commits and landing. This report changes none of those authorities.</p>
+<h2 id="section-12">Appendix A. Evidence and authoritative homes</h2>
+<h3>Evidence ledger</h3>
+<details><summary>Expand evidence ledger</summary>
+<p>Current implementation references below are relative to canonical <code>/Users/ct/dev/projects/hive</code> at <strong><code>020d38baddd4c82aefd70da9a7158b1c8ea55dcb</code></strong>, confirmed during this synthesis. The workshop checkout is the older <strong><code>186da413144705420e3da42f66d19680d111bb77</code></strong> plus untracked research artifacts; it is not the source of current runtime claims. Local evidence filenames below are relative to this proposal's workshop directory. Historical reports retain their own revisions and limits.</p>
+<table>
+<thead>
+<tr><th>Evidence</th><th>Retained source</th><th>What it supports</th></tr>
+</thead>
+<tbody>
+<tr><td>Agreed intent and corrections</td><td><code>BEADS-POLICY-NOTES.md:1</code>; workshop <code>hv-igexmh</code> under <code>hv-2ezek8</code></td><td>New top sections supersede historical alternatives. Proposal authority is separate from destructive-action authority.</td></tr>
+<tr><td>Focused Busy Bee architecture</td><td>Native response <code>hv-j43n80</code>, request <code>hv-y0jkkh</code>, run <code>hv-4xwxog</code>; <code>BEADS-BUSYBEE-ARCHITECT-REPORT.md:1</code></td><td>Complete Busy Bee write/consumer inventory, original-result semantics, joined-evidence tradeoff and publication ordering.</td></tr>
+<tr><td>Broad architecture</td><td>Native response <code>hv-puh37j</code>, request <code>hv-0ednz1</code>, run <code>hv-yaodxg</code>, author <code>chocolate-grand-sparrow</code>; final request outcome <strong>succeeded</strong>, verified with <code>bee result</code></td><td>Selected full target: explicit classes, single completion path, guarded joined evidence, honest unsuccessful settlement, retirement and generation cutover.</td></tr>
+<tr><td>Current automation inventory</td><td><code>BEADS-AUTOMATION-WRITES.html:1</code></td><td>Busy Bee/Bee/Colony producers and downstream consumers at the canonical revision above.</td></tr>
+<tr><td>Native enforcement</td><td><code>BEADS-POLICY-ENFORCEMENT-EVIDENCE.md:1</code>; <code>BEADS-POLICY-ENFORCEMENT-EXPERIMENT.json:1</code></td><td>Disposable draft/AC/reason/entry-route tests; no label-scoped field or closure gates.</td></tr>
+<tr><td>Latest-value probe</td><td><code>BEADS-AUTOMATION-WRITE-EVIDENCE.md:1</code>; <code>BEADS-AUTOMATION-WRITE-EXPERIMENT.json:1</code></td><td>Bounded storage/write observations, not CAS throughput or physical reclamation.</td></tr>
+<tr><td>Graph discovery/hydration</td><td><code>BEADS-GRAPH-PERFORMANCE.html:1</code>; <code>BEADS-GRAPH-EXPERIMENT.json:1</code>, <code>BEADS-GRAPH-SUPPLEMENT.json:1</code>, <code>BEADS-GRAPH-HYDRATION.json:1</code>, <code>BEADS-GRAPH-FRESHNESS.json:1</code>, <code>BEADS-GRAPH-TIMEOUT-CONFIRMATION.json:1</code></td><td>Typed-link coverage, repeated traversal, output versus input budgets, selected topology/hydration timing and freshness limits.</td></tr>
+<tr><td>Fields, relationships and pruning</td><td><code>BEADS-JSON-READING-EXPERIMENT.json:1</code>, <code>BEADS-RELATIONSHIP-EXPERIMENT.json:1</code>, <code>BEADS-JSONL-PRUNING-EXPERIMENT.json:1</code>, <code>BEADS-GATE-EXPERIMENT.json:1</code></td><td>Projection/search differences, supported links, local deletion and receiver behavior, nonexported reported-gate evidence.</td></tr>
+<tr><td>Tracker growth</td><td>Native response <code>hv-shvp84</code>, report task <code>hv-9jqdeq</code>; <code>BEADS-TRACKER-GROWTH-PRIOR-REPORT.md:1</code></td><td>22 October census and isolated native merge/disk measurements.</td></tr>
+<tr><td>Retention research</td><td>Native response <code>hv-iy8u3v</code>, report task <code>hv-pvqi7x</code>; <code>BEADS-RETENTION-PRIOR-REPORT.md:1</code></td><td>Native merge/import asymmetries, stale reintroduction, storage layers and current API limits.</td></tr>
+<tr><td>Ephemeral-family precedent</td><td>Native response <code>hv-07n1lr</code>, report task <code>hv-9yi08m</code>; architecture <code>hv-uxs2bx</code></td><td>Referenced prior investigation of local execution families; not a validated fleet purge protocol.</td></tr>
+<tr><td>Historical field rationale</td><td><code>BEADS-FIELD-HISTORY.json:1</code>; focused report cites <code>hv-hb71ub</code> and <code>hv-8focnc</code></td><td>Preserve original-result and ownership guarantees, not accidental field placement. The comments-research request <code>hv-0qzrzx</code> delivered but failed workflow completion; delivery is not success.</td></tr>
+</tbody>
+</table>
+<p>Measurements are prior disposable experiments, not rerun here. The native build used for the main probes was <code>br 0.7.6</code>, Hive snapshot-sync source <code>b77ae7094e9fde7cba304ba00d306ec483c6bdd2</code>; a version string alone does not independently identify every installed binary's revision. No full networked, concurrent Hive purge/cutover validation has been performed.</p>
+</details>
+<h3>Current source anchors and future documentation homes</h3>
+<details><summary>Expand current source anchors and future documentation homes</summary>
+<table>
+<thead>
+<tr><th>Home</th><th>Current evidence / approved-change destination</th></tr>
+</thead>
+<tbody>
+<tr><td><code>GLOSSARY.md:1</code></td><td>Shared identity, task, response, system and workflow vocabulary. Any new record class needs an explicit definition rather than quietly renaming all generated records.</td></tr>
+<tr><td><code>docs/architecture.md:1</code></td><td>Package ownership and current native closure authority. Record the joined-evidence change here after approval; keep engine details in the specification.</td></tr>
+<tr><td><code>lib/busybee/SPEC.md:1</code></td><td>Authoritative workflow identity, progression, result, closure, settlement and checkpoint contract.</td></tr>
+<tr><td><code>lib/busybee/src/runtime.ts:392</code>, <code>lib/busybee/src/runtime.ts:944</code>, <code>lib/busybee/src/runtime.ts:1223</code>, <code>lib/busybee/src/runtime.ts:1636</code></td><td>Current result persistence, original-input retry/read and generated completion/dispatch prose.</td></tr>
+<tr><td><code>lib/busybee/src/native.ts:116</code>, <code>lib/busybee/src/native.ts:271</code>; <code>lib/busybee/src/settlement.ts:331</code></td><td>Native creation/closure and run-note settlement intent. The stale close-CAS comment requires correction with the adapter implementation, outside this prose-only scope.</td></tr>
+<tr><td><code>lib/beads/src/service.ts:28</code>; native <code>/Users/ct/dev/projects/beads_rust/src/cli/commands/close.rs:41</code></td><td>Adapter lacks the native guarded-close option confirmed in installed <code>br close --help</code>; extend the consumed seam rather than claiming native lacks it.</td></tr>
+<tr><td><code>.workflows/do-work/workflow.ts:22</code>; <code>lib/busybee/src/definition.ts:16</code></td><td>Definition-to-visit acceptance gap and repeated request/checklist rendering.</td></tr>
+<tr><td><code>lib/shared/src/workflow-lifecycle.ts:29</code>; <code>lib/colony/src/workflow-anchor.ts:25</code></td><td>Current structured close-reason authority and Colony anchor/admission consumers.</td></tr>
+<tr><td><code>docs/agents/spawn-requests.md:1</code>; <code>lib/shared/src/spawn-request.ts:1</code></td><td>Request outcome versus resolution, owning-host authority, acknowledgment and replacement. Update contract and all readers together.</td></tr>
+<tr><td><code>lib/colony/src/observations.ts:1</code>; <code>lib/colony/src/requests.ts:1</code></td><td>Current observations/acknowledgment and label publication.</td></tr>
+<tr><td><code>docs/agents/responses.md:1</code>; <code>lib/colony/src/response-store.ts:412</code></td><td>Authored response/correction provenance and current born-closed JSON artifact creation.</td></tr>
+<tr><td><code>lib/colony/src/response-protocol.ts:1</code>; <code>lib/shared/src/response-protocol.ts:1</code></td><td>Composed delivery guidance: shared target pointer versus general role protocol.</td></tr>
+<tr><td><code>lib/hive-ui/server/data.ts:48</code>; <code>lib/hive-ui/server/api.ts:142</code>; <code>docs/design/hive-ui.md:1</code></td><td>Workflow identity/outcome projections and UI topology/freshness contract.</td></tr>
+<tr><td><code>docs/beads-meta.md:1</code>; <code>docs/beads-labels.md:1</code></td><td>Ordinary field/reference guidance and existing label stewardship. Field guidance changes; stewardship is retained.</td></tr>
+<tr><td><code>docs/beads-integration.md:1</code>; <code>lib/beeswax/src/beads/publish.ts:132</code></td><td>Tracker publication/recovery policy and native reconciliation path; home for approved generation/rejoin behavior.</td></tr>
+<tr><td><code>AGENTS.md:1</code>; execution/authoring tool help</td><td>Keep only routing and short pointers on the agent hot path. Detailed class/retention/recovery procedures belong in their owning guides and tool contracts.</td></tr>
+</tbody>
+</table>
+</details>
+<h3>Composed-prompt audit</h3>
+<details><summary>Expand composed-prompt audit</summary>
+<p>Current composition repeats a request in the run brief, workflow context and stage instructions. Busy Bee adds completion/discovery prose, then copies the rendered stage description into a dispatch prompt that also tells the worker to read the stage. Bee appends a common delivery protocol to the captured role; assignment instructions add the response target. This is observed composition, not proof that every stored duplicate is dispensable.</p>
+<p>The target should render the operative brief and native AC once, dispatch a short run/stage/endpoint pointer with the worker's navigation boundary, and keep delivery mechanics in tool help plus one shared target pointer. Preserve exact captured role/provenance and frozen visit inputs where consumers genuinely require them; current native briefs remain authoritative for work. Do not replace captured text with mutable current files or let a frozen copy override later scope corrections. Inspect the composed result across sources, rather than pruning each prompt in isolation. An immutable shared prompt store is optional later work, not a prerequisite or an assumed lossless optimization.</p>
+<p>This proposal is the review artifact; it does not become an always-loaded agent rule. After approval, its relevant decisions should be encoded once in the homes above, with concise discovery pointers. The HTML body is a presentation of this same proposal, not a second policy authority.</p>
+</details>
+
+
+		<!-- Auto-outline: scans h2/h3, assigns ids, builds a right-side nav, tracks scroll. -->
+		<script>
+			(function () {
+				const headings = [...document.querySelectorAll("h2, h3")];
+				if (headings.length < 3) return;
+
+				const slug = (t) =>
+					t
+						.toLowerCase()
+						.trim()
+						.replace(/[^a-z0-9]+/g, "-")
+						.replace(/^-|-$/g, "") || "section";
+				const seen = new Map();
+				headings.forEach((h) => {
+					let id = slug(h.textContent);
+					const n = seen.get(id) || 0;
+					if (n) id = id + "-" + n;
+					seen.set(slug(h.textContent), n + 1);
+					h.id = id;
+				});
+
+				const nav = document.createElement("nav");
+				nav.className = "outline";
+				nav.innerHTML = '<div class="outline-title">On this page</div>';
+				const ul = document.createElement("ul");
+				nav.appendChild(ul);
+				let subUl = null;
+				let lastH2Li = null;
+				headings.forEach((h) => {
+					const li = document.createElement("li");
+					const a = document.createElement("a");
+					a.href = "#" + h.id;
+					a.textContent = h.textContent;
+					a.dataset.target = h.id;
+					li.appendChild(a);
+					if (h.tagName === "H2") {
+						ul.appendChild(li);
+						lastH2Li = li;
+						subUl = null;
+					} else {
+						if (!subUl) {
+							subUl = document.createElement("ul");
+							subUl.className = "sub";
+							(lastH2Li || ul).appendChild(subUl);
+						}
+						subUl.appendChild(li);
+					}
+				});
+				document.body.appendChild(nav);
+
+				const links = new Map();
+				nav.querySelectorAll("a").forEach((a) => links.set(a.dataset.target, a));
+
+				function updateActive() {
+					const y = window.scrollY + 80;
+					let current = null;
+					for (const h of headings) {
+						if (h.offsetTop <= y) current = h;
+						else break;
+					}
+					nav.querySelectorAll("a.active").forEach((a) => a.classList.remove("active"));
+					if (current) {
+						const link = links.get(current.id);
+						if (link) link.classList.add("active");
+					}
+				}
+				let raf = 0;
+				window.addEventListener(
+					"scroll",
+					() => {
+						if (raf) return;
+						raf = requestAnimationFrame(() => {
+							raf = 0;
+							updateActive();
+						});
+					},
+					{ passive: true },
+				);
+				updateActive();
+			})();
+		</script>
+
+		<script>
+			// Copy-to-clipboard buttons for pre blocks (skips rendered diagrams).
+			document.querySelectorAll("pre:not(.mermaid):not(.graphviz)").forEach((pre) => {
+				const btn = document.createElement("button");
+				btn.className = "copy-btn";
+				btn.type = "button";
+				btn.textContent = "copy";
+				btn.addEventListener("click", async () => {
+					try {
+						const clone = pre.cloneNode(true);
+						clone.querySelector(".copy-btn")?.remove();
+						await navigator.clipboard.writeText(clone.textContent);
+						btn.textContent = "copied";
+						setTimeout(() => {
+							btn.textContent = "copy";
+						}, 1200);
+					} catch {
+						btn.textContent = "err";
+					}
+				});
+				pre.appendChild(btn);
+			});
+		</script>
+
+		<script>
+			const richResponseTheme = (() => {
+				const palette = {
+					dawn: {
+						bg: "#fdf9f5",
+						fg: "#575279",
+						muted: "#9893a5",
+						dim: "#797593",
+						border: "#dfdad9",
+						codeBg: "#fffaf3",
+						accent: "#b85c58",
+						link: "#286983",
+						infoBg: "#f4ede8",
+						infoBd: "#56949f",
+						warnBd: "#a86a00",
+						errorBd: "#b4637a",
+						successBd: "#a86a00",
+					},
+					moon: {
+						bg: "#232136",
+						fg: "#e0def4",
+						muted: "#6e6a86",
+						dim: "#6e698f",
+						border: "#2e2a42",
+						codeBg: "#2a273f",
+						accent: "#c4a7e7",
+						link: "#9ccfd8",
+						infoBg: "#2a283e",
+						infoBd: "#9a68d6",
+						warnBd: "#f6c177",
+						errorBd: "#eb6f92",
+						successBd: "#9ccfd8",
+					},
+				};
+
+				const isDark = () => matchMedia("(prefers-color-scheme: dark)").matches;
+				const currentPalette = () => (isDark() ? palette.moon : palette.dawn);
+				const oppositePalette = () => (isDark() ? palette.dawn : palette.moon);
+				const css = (name) =>
+					getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+				const current = () => ({
+					bg: css("--bg"),
+					fg: css("--fg"),
+					muted: css("--muted"),
+					dim: css("--dim"),
+					border: css("--border"),
+					codeBg: css("--code-bg"),
+					accent: css("--accent"),
+					link: css("--link"),
+					infoBg: css("--info-bg"),
+					infoBd: css("--info-bd"),
+					warnBd: css("--warn-bd"),
+					errorBd: css("--error-bd"),
+					successBd: css("--success-bd"),
+				});
+
+				const normalizeColor = (value) => {
+					if (!value) return value;
+					const normalized = value.trim().toLowerCase();
+					if (/^#[0-9a-f]{3}$/i.test(normalized)) {
+						return "#" + [...normalized.slice(1)].map((ch) => ch + ch).join("");
+					}
+					const rgb = normalized.match(/^rgba?\(([^)]+)\)$/);
+					if (rgb) {
+						const [r, g, b] = rgb[1]
+							.split(",")
+							.slice(0, 3)
+							.map((part) => Number.parseInt(part.trim(), 10));
+						if ([r, g, b].every((part) => Number.isFinite(part))) {
+							return "#" + [r, g, b].map((part) => part.toString(16).padStart(2, "0")).join("");
+						}
+					}
+					return normalized;
+				};
+
+				const themedGraphvizColor = (value) => {
+					const normalized = normalizeColor(value);
+					if (!normalized || normalized === "none" || normalized === "transparent") return value;
+					if (normalized === "black" || normalized === "#000000") return current().fg;
+					if (normalized === "white" || normalized === "#ffffff") return current().bg;
+
+					const from = oppositePalette();
+					const to = currentPalette();
+					for (const [key, source] of Object.entries(from)) {
+						if (normalized === source) return to[key];
+					}
+					return value;
+				};
+
+				const rewriteStyleColors = (styleValue) =>
+					styleValue
+						.split(";")
+						.map((entry) => {
+							const [prop, raw] = entry.split(":");
+							if (!prop || raw == null) return entry;
+							if (!["fill", "stroke", "color", "stop-color"].includes(prop.trim().toLowerCase())) {
+								return entry;
+							}
+							return `${prop}:${themedGraphvizColor(raw)}`;
+						})
+						.join(";");
+
+				const themeGraphvizSvg = (svg) => {
+					svg.style.background = "transparent";
+					svg.querySelectorAll("*").forEach((node) => {
+						["fill", "stroke", "color", "stop-color"].forEach((attr) => {
+							if (node.hasAttribute(attr)) {
+								node.setAttribute(attr, themedGraphvizColor(node.getAttribute(attr)));
+							}
+						});
+						if (node.hasAttribute("style")) {
+							node.setAttribute("style", rewriteStyleColors(node.getAttribute("style")));
+						}
+					});
+					return svg;
+				};
+
+				const mermaidTheme = () => {
+					const colors = current();
+					return {
+						theme: "base",
+						darkMode: isDark(),
+						themeVariables: {
+							background: colors.bg,
+							fontFamily:
+								'ui-sans-serif, system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif',
+							fontSize: "16px",
+							textColor: colors.fg,
+							primaryColor: colors.codeBg,
+							primaryTextColor: colors.fg,
+							primaryBorderColor: colors.border,
+							secondaryColor: colors.infoBg,
+							secondaryTextColor: colors.fg,
+							secondaryBorderColor: colors.infoBd,
+							tertiaryColor: colors.bg,
+							tertiaryTextColor: colors.fg,
+							tertiaryBorderColor: colors.border,
+							lineColor: colors.link,
+							mainBkg: colors.codeBg,
+							secondBkg: colors.infoBg,
+							tertiaryBkg: colors.bg,
+							clusterBkg: colors.codeBg,
+							clusterBorder: colors.border,
+							nodeBorder: colors.border,
+							edgeLabelBackground: colors.bg,
+							defaultLinkColor: colors.link,
+							titleColor: colors.fg,
+							labelColor: colors.fg,
+							labelTextColor: colors.fg,
+							actorBkg: colors.codeBg,
+							actorBorder: colors.border,
+							actorTextColor: colors.fg,
+							actorLineColor: colors.link,
+							signalColor: colors.link,
+							signalTextColor: colors.fg,
+							noteBkgColor: colors.infoBg,
+							noteBorderColor: colors.infoBd,
+							noteTextColor: colors.fg,
+							activationBkgColor: colors.codeBg,
+							activationBorderColor: colors.border,
+							sequenceNumberColor: colors.bg,
+							sectionBkgColor: colors.codeBg,
+							altSectionBkgColor: colors.infoBg,
+							sectionBkgColor2: colors.bg,
+							gridColor: colors.border,
+							cScale0: colors.codeBg,
+							cScale1: colors.infoBg,
+							cScale2: colors.bg,
+							cScale3: colors.codeBg,
+							cScale4: colors.infoBg,
+							cScale5: colors.bg,
+							pie1: colors.link,
+							pie2: colors.accent,
+							pie3: colors.infoBd,
+							pie4: colors.warnBd,
+							pie5: colors.errorBd,
+							pieOuterStrokeColor: colors.border,
+							pieSectionTextColor: colors.fg,
+							pieTitleTextColor: colors.fg,
+							ganttTaskBkgColor: colors.link,
+							ganttTaskTextColor: colors.bg,
+							ganttTaskOutsideColor: colors.fg,
+							ganttTaskBorderColor: colors.link,
+							ganttGridColor: colors.border,
+						},
+					};
+				};
+
+				return { mermaidTheme, themeGraphvizSvg };
+			})();
+		</script>
+
+		<!--
+  Mermaid: loaded only if a .mermaid block exists. UMD build (not ESM) so it works
+  from file:// origins — `file://` is a unique security origin and blocks ES-module
+  dynamic imports. The `@11` tag on jsdelivr auto-resolves to the latest 11.x release.
+-->
+		<script>
+			if (document.querySelector(".mermaid")) {
+				const s = document.createElement("script");
+				s.src = "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js";
+				s.onload = async () => {
+					try {
+						window.mermaid.initialize({
+							startOnLoad: false,
+							securityLevel: "loose",
+							...richResponseTheme.mermaidTheme(),
+						});
+						await window.mermaid.run({ querySelector: ".mermaid" });
+					} catch (e) {
+						console.error("[mermaid] render failed:", e?.message || e, e);
+						document.querySelectorAll(".mermaid").forEach((el) => {
+							if (!el.dataset.mermaidError) {
+								el.dataset.mermaidError = "1";
+								el.insertAdjacentHTML(
+									"beforebegin",
+									'<div class="callout error"><div class="callout-title">Mermaid render error</div>' +
+										"<code>" +
+										String(e?.message || e).replace(
+											/[<>&]/g,
+											(c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" })[c],
+										) +
+										"</code></div>",
+								);
+							}
+						});
+					}
+				};
+				s.onerror = () => console.error("[mermaid] failed to load script from CDN");
+				document.head.appendChild(s);
+			}
+		</script>
+
+		<!--
+  Graphviz: loaded only if a .graphviz block exists. @viz-js/viz bundles Graphviz
+  to WebAssembly, so rendering works in-browser without requiring `dot` in PATH.
+-->
+		<script>
+			if (document.querySelector(".graphviz")) {
+				const s = document.createElement("script");
+				s.src = "https://cdn.jsdelivr.net/npm/@viz-js/viz@3/lib/viz-standalone.js";
+				s.onload = async () => {
+					try {
+						const viz = await window.Viz.instance();
+						document.querySelectorAll(".graphviz").forEach((el) => {
+							const svg = richResponseTheme.themeGraphvizSvg(viz.renderSVGElement(el.textContent));
+							el.replaceChildren(svg);
+						});
+					} catch (e) {
+						console.error("[graphviz] render failed:", e?.message || e, e);
+						document.querySelectorAll(".graphviz").forEach((el) => {
+							if (!el.dataset.graphvizError) {
+								el.dataset.graphvizError = "1";
+								el.insertAdjacentHTML(
+									"beforebegin",
+									'<div class="callout error"><div class="callout-title">Graphviz render error</div>' +
+										"<code>" +
+										String(e?.message || e).replace(
+											/[<>&]/g,
+											(c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" })[c],
+										) +
+										"</code></div>",
+								);
+							}
+						});
+					}
+				};
+				s.onerror = () => console.error("[graphviz] failed to load script from CDN");
+				document.head.appendChild(s);
+			}
+		</script>
+
+		<!--
+  Syntax highlighting (highlight.js): opt-in via code blocks with a language-xxx class.
+  Loads only when at least one such block exists. Token colors come from the inline
+  Rose Pine Dawn/Moon CSS variables above, matching the active OS color scheme.
+-->
+		<script>
+			(function () {
+				const blocks = document.querySelectorAll('pre code[class*="language-"]');
+				if (!blocks.length) return;
+				const base = "https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build";
+				const s = document.createElement("script");
+				s.src = base + "/highlight.min.js";
+				s.onload = () => blocks.forEach((el) => window.hljs.highlightElement(el));
+				s.onerror = () => console.error("[hljs] failed to load script from CDN");
+				document.head.appendChild(s);
+			})();
+		</script>
+	</body>
+</html>

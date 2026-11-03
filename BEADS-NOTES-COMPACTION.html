@@ -1,0 +1,1161 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width,initial-scale=1" />
+		<title>Notes as the durable task summary</title>
+		<style>
+			:root {
+				color-scheme: light dark;
+				/* Rose Pine Dawn: pi/themes/rose-pine-dawn.json */
+				--bg: #fdf9f5;
+				--fg: #575279;
+				--muted: #9893a5;
+				--dim: #797593;
+				--border: #dfdad9;
+				--code-bg: #fffaf3;
+				--accent: #b85c58;
+				--link: #286983;
+				--info-bg: #f4ede8;
+				--info-bd: #56949f;
+				--warn-bg: #f4ede8;
+				--warn-bd: #a86a00;
+				--error-bg: #f4ede8;
+				--error-bd: #b4637a;
+				--success-bg: #f4ede8;
+				--success-bd: #a86a00;
+				--add-bg: #fceee5;
+				--add-fg: #a86a00;
+				--del-bg: #f9e8e7;
+				--del-fg: #b4637a;
+				--syntax-comment: #797593;
+				--syntax-keyword: #907aa9;
+				--syntax-function: #286983;
+				--syntax-variable: #575279;
+				--syntax-string: #56949f;
+				--syntax-number: #a86a00;
+				--syntax-type: #a86a00;
+				--syntax-operator: #286983;
+				--syntax-punctuation: #f2e9e1;
+			}
+			@media (prefers-color-scheme: dark) {
+				:root {
+					/* Rose Pine Moon: pi/themes/rose-pine-moon.json */
+					--bg: #232136;
+					--fg: #e0def4;
+					--muted: #6e6a86;
+					--dim: #6e698f;
+					--border: #2e2a42;
+					--code-bg: #2a273f;
+					--accent: #c4a7e7;
+					--link: #9ccfd8;
+					--info-bg: #2a283e;
+					--info-bd: #9a68d6;
+					--warn-bg: #2a283e;
+					--warn-bd: #f6c177;
+					--error-bg: #2a283e;
+					--error-bd: #eb6f92;
+					--success-bg: #2a283e;
+					--success-bd: #9ccfd8;
+					--add-bg: #2e2a42;
+					--add-fg: #bddfe5;
+					--del-bg: #2e2a42;
+					--del-fg: #f095af;
+					--syntax-comment: #58556b;
+					--syntax-keyword: #3e8fb0;
+					--syntax-function: #bddfe5;
+					--syntax-variable: #9e98dd;
+					--syntax-string: #f9d5a2;
+					--syntax-number: #ea9a97;
+					--syntax-type: #decef2;
+					--syntax-operator: #6e698f;
+					--syntax-punctuation: #58556b;
+				}
+			}
+			* {
+				box-sizing: border-box;
+			}
+			html {
+				-webkit-text-size-adjust: 100%;
+			}
+			body {
+				margin: 0 auto;
+				padding: 2.5rem 1.25rem 6rem;
+				max-width: 78ch;
+				background: var(--bg);
+				color: var(--fg);
+				font-family:
+					ui-sans-serif,
+					system-ui,
+					-apple-system,
+					"Segoe UI",
+					Helvetica,
+					Arial,
+					sans-serif;
+				font-size: 16px;
+				line-height: 1.6;
+			}
+			h1,
+			h2,
+			h3,
+			h4 {
+				line-height: 1.25;
+				margin: 2em 0 0.6em;
+				font-weight: 600;
+			}
+			h1 {
+				font-size: 2rem;
+				margin-top: 0;
+			}
+			h2 {
+				font-size: 1.4rem;
+				padding-bottom: 0.2em;
+				border-bottom: 1px solid var(--border);
+			}
+			h3 {
+				font-size: 1.15rem;
+			}
+			h4 {
+				font-size: 1rem;
+				color: var(--muted);
+				text-transform: uppercase;
+				letter-spacing: 0.05em;
+			}
+			p {
+				margin: 0.8em 0;
+			}
+			a {
+				color: var(--link);
+				text-underline-offset: 2px;
+			}
+			hr {
+				border: 0;
+				border-top: 1px solid var(--border);
+				margin: 2em 0;
+			}
+			small,
+			.muted {
+				color: var(--muted);
+				font-size: 0.9em;
+			}
+			ul,
+			ol {
+				padding-left: 1.4em;
+			}
+			li + li {
+				margin-top: 0.25em;
+			}
+
+			code {
+				font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+				font-size: 0.92em;
+				background: var(--code-bg);
+				padding: 0.12em 0.35em;
+				border-radius: 4px;
+			}
+			pre {
+				position: relative;
+				background: var(--code-bg);
+				border: 1px solid var(--border);
+				border-radius: 6px;
+				padding: 0.9em 1em;
+				overflow-x: auto;
+				white-space: pre-wrap;
+				overflow-wrap: anywhere;
+				font-size: 0.88em;
+				line-height: 1.5;
+			}
+			pre.no-wrap {
+				white-space: pre;
+				overflow-wrap: normal;
+			}
+			pre code {
+				background: transparent;
+				padding: 0;
+				font-size: inherit;
+				white-space: inherit;
+			}
+			pre .copy-btn {
+				position: absolute;
+				top: 0.5em;
+				right: 0.5em;
+				background: var(--bg);
+				color: var(--muted);
+				border: 1px solid var(--border);
+				border-radius: 4px;
+				padding: 0.15em 0.5em;
+				font-size: 0.75em;
+				cursor: pointer;
+				opacity: 0;
+				transition: opacity 0.15s;
+			}
+			pre:hover .copy-btn {
+				opacity: 1;
+			}
+			pre .copy-btn:hover {
+				color: var(--fg);
+			}
+
+			blockquote {
+				margin: 1em 0;
+				padding: 0.5em 1em;
+				border-left: 3px solid var(--border);
+				color: var(--muted);
+			}
+
+			table {
+				border-collapse: collapse;
+				width: 100%;
+				margin: 1em 0;
+				font-size: 0.95em;
+			}
+			th,
+			td {
+				padding: 0.55em 0.75em;
+				border-bottom: 1px solid var(--border);
+				text-align: left;
+				vertical-align: top;
+			}
+			th {
+				font-weight: 600;
+				background: var(--code-bg);
+			}
+			tbody tr:hover {
+				background: var(--code-bg);
+			}
+
+			details {
+				margin: 1em 0;
+				padding: 0.5em 0.9em;
+				border: 1px solid var(--border);
+				border-radius: 6px;
+			}
+			details > summary {
+				cursor: pointer;
+				font-weight: 500;
+			}
+			details[open] > summary {
+				margin-bottom: 0.5em;
+				padding-bottom: 0.5em;
+				border-bottom: 1px solid var(--border);
+			}
+
+			.callout {
+				margin: 1em 0;
+				padding: 0.75em 1em;
+				border-left: 3px solid var(--info-bd);
+				background: var(--info-bg);
+				border-radius: 0 6px 6px 0;
+			}
+			.callout > :first-child {
+				margin-top: 0;
+			}
+			.callout > :last-child {
+				margin-bottom: 0;
+			}
+			.callout.warn {
+				border-color: var(--warn-bd);
+				background: var(--warn-bg);
+			}
+			.callout.error {
+				border-color: var(--error-bd);
+				background: var(--error-bg);
+			}
+			.callout.success {
+				border-color: var(--success-bd);
+				background: var(--success-bg);
+			}
+			.callout-title {
+				font-weight: 600;
+				margin-bottom: 0.3em;
+			}
+
+			pre.diff code .add,
+			pre.diff .add {
+				display: block;
+				background: var(--add-bg);
+				color: var(--add-fg);
+			}
+			pre.diff code .del,
+			pre.diff .del {
+				display: block;
+				background: var(--del-bg);
+				color: var(--del-fg);
+			}
+
+			.grid-2 {
+				display: grid;
+				grid-template-columns: 1fr 1fr;
+				gap: 1em;
+			}
+			@media (max-width: 640px) {
+				.grid-2 {
+					grid-template-columns: 1fr;
+				}
+			}
+
+			.badge {
+				display: inline-block;
+				padding: 0.1em 0.55em;
+				font-size: 0.78em;
+				border: 1px solid var(--border);
+				border-radius: 999px;
+				color: var(--muted);
+				vertical-align: 0.1em;
+			}
+
+			/* Diagrams render as SVG; keep them tidy. */
+			.mermaid,
+			.graphviz {
+				margin: 1.2em 0;
+				text-align: center;
+			}
+			.mermaid svg,
+			.graphviz svg {
+				max-width: 100%;
+				height: auto;
+				background: transparent;
+			}
+
+			/* Tabs — CSS-only via :has(). Supports up to 5 tabs per group. */
+			.tabs {
+				margin: 1.2em 0;
+			}
+			.tabs > .tab {
+				display: inline-block;
+				padding: 0.5em 0.9em 0.6em;
+				cursor: pointer;
+				color: var(--muted);
+				border-bottom: 2px solid transparent;
+				user-select: none;
+				margin-right: 0.2em;
+			}
+			.tabs > .tab:first-of-type {
+				padding-left: 0;
+			}
+			.tabs > .tab input {
+				display: none;
+			}
+			.tabs > .tab:hover {
+				color: var(--fg);
+			}
+			.tabs > .tab:has(input:checked) {
+				color: var(--fg);
+				border-bottom-color: var(--accent);
+				font-weight: 500;
+			}
+			.tabs > .tab-panel {
+				display: none;
+				padding: 0.9em 0;
+				border-top: 1px solid var(--border);
+				margin-top: -2px;
+			}
+			.tabs:has(.tab:nth-of-type(1) input:checked) > .tab-panel:nth-of-type(1),
+			.tabs:has(.tab:nth-of-type(2) input:checked) > .tab-panel:nth-of-type(2),
+			.tabs:has(.tab:nth-of-type(3) input:checked) > .tab-panel:nth-of-type(3),
+			.tabs:has(.tab:nth-of-type(4) input:checked) > .tab-panel:nth-of-type(4),
+			.tabs:has(.tab:nth-of-type(5) input:checked) > .tab-panel:nth-of-type(5) {
+				display: block;
+			}
+			.tabs > .tab-panel > :first-child {
+				margin-top: 0;
+			}
+			.tabs > .tab-panel > :last-child {
+				margin-bottom: 0;
+			}
+
+			/* Syntax highlighting: Rose Pine token colors from the active Pi theme. */
+			pre code.hljs {
+				background: transparent;
+				color: var(--syntax-variable);
+				padding: 0;
+			}
+			.hljs-comment,
+			.hljs-quote {
+				color: var(--syntax-comment);
+			}
+			.hljs-keyword,
+			.hljs-selector-tag,
+			.hljs-subst {
+				color: var(--syntax-keyword);
+			}
+			.hljs-title,
+			.hljs-section,
+			.hljs-name {
+				color: var(--syntax-function);
+			}
+			.hljs-variable,
+			.hljs-template-variable,
+			.hljs-attr,
+			.hljs-attribute {
+				color: var(--syntax-variable);
+			}
+			.hljs-string,
+			.hljs-regexp,
+			.hljs-symbol,
+			.hljs-bullet {
+				color: var(--syntax-string);
+			}
+			.hljs-number,
+			.hljs-literal {
+				color: var(--syntax-number);
+			}
+			.hljs-type,
+			.hljs-class .hljs-title,
+			.hljs-built_in {
+				color: var(--syntax-type);
+			}
+			.hljs-operator,
+			.hljs-deletion,
+			.hljs-addition {
+				color: var(--syntax-operator);
+			}
+			.hljs-punctuation {
+				color: var(--syntax-punctuation);
+			}
+
+			/* Outline — auto-generated, fixed right gutter on wide screens.
+     Uses rem (font-size-independent) for the offset calc; `ch` inside .outline
+     would resolve against its smaller 0.85em font and undershoot. */
+			.outline {
+				position: fixed;
+				top: 3rem;
+				left: calc(50% + 22rem + 1.5rem);
+				width: 14rem;
+				max-height: calc(100vh - 5rem);
+				overflow-y: auto;
+				font-size: 0.85em;
+				line-height: 1.4;
+				padding-left: 1rem;
+				border-left: 1px solid var(--border);
+			}
+			.outline-title {
+				color: var(--muted);
+				text-transform: uppercase;
+				letter-spacing: 0.05em;
+				font-size: 0.78em;
+				margin-bottom: 0.6em;
+			}
+			.outline ul {
+				list-style: none;
+				padding: 0;
+				margin: 0;
+			}
+			.outline li {
+				margin: 0;
+			}
+			.outline a {
+				color: var(--muted);
+				text-decoration: none;
+				display: block;
+				padding: 0.25em 0 0.25em 0.9em;
+				margin-left: -1em;
+				border-left: 2px solid transparent;
+			}
+			.outline a:hover {
+				color: var(--fg);
+			}
+			.outline a.active {
+				color: var(--fg);
+				border-left-color: var(--accent);
+				font-weight: 500;
+			}
+			.outline ul.sub {
+				margin-left: 1em;
+			}
+			.outline ul.sub a {
+				font-size: 0.95em;
+			}
+			/* Need viewport > 2*(body half + gap + outline + edge): ~22rem + 1.5rem + 14rem + 1rem = 38.5rem per side. */
+			@media (max-width: 1280px) {
+				.outline {
+					display: none;
+				}
+			}
+
+			html {
+				scroll-behavior: smooth;
+				scroll-padding-top: 1.5rem;
+			}
+		</style>
+	</head>
+	<body>
+		<!--
+  AGENT: write the response content below this comment, then delete the comment.
+  Available primitives are documented in SKILL.md. Key classes:
+    callout (info | warn | error | success), callout-title, grid-2,
+    diff on pre with add/del spans, no-wrap on pre to preserve horizontal scrolling,
+    mermaid/graphviz on pre, tabs/tab/tab-panel, badge, details/summary.
+  Note: this comment cannot contain a literal mermaid arrow because the HTML
+  parser closes the comment at the first occurrence of those three chars.
+-->
+
+		<h1>Notes as the durable task summary</h1>
+
+		<p><span class="badge">Workshop analysis</span> <span class="badge">24 October 2026</span> <span class="badge">For discussion</span></p>
+<p>Keep the detailed development diary in a linked bead. Use the task's notes to preserve the conclusions that should survive that diary: what changed, why the chosen approach was useful, what evidence supports it, and what remains unresolved.</p>
+<div class="callout">
+<p class="callout-title">Recommendation to evaluate</p>
+<p><strong>Notes can be the default home for durable task summaries, with the diary holding the detailed work history.</strong> Summarize at meaningful handoffs as well as completion. Leave design unused unless it has an independently useful job, such as a substantial approach that another Bee must review before implementation.</p>
+<p>This is a proposed convention, not adopted policy. A separate diary and local purging work in the experiments. Coordinated purging through Hive's full synchronization process remains unverified.</p>
+</div>
+<nav aria-label="Document contents"><p><a href="#what-is-being-compacted">Proposed split</a> · <a href="#one-example-three-readers">Three use cases</a> · <a href="#the-strongest-case-for-notes-and-the-strongest-objection">Benefits and costs</a> · <a href="#appending-a-summary-does-not-make-notes-an-append-only-journal">Append or curate?</a> · <a href="#does-design-still-earn-a-separate-field">Does design add value?</a> · <a href="#the-diary-is-a-useful-retention-boundary">Retention</a> · <a href="#what-remains-to-decide">Decisions</a> · <a href="#evidence-and-limits">Evidence</a></p></nav>
+
+<h2 id="what-is-being-compacted">What is being compacted?</h2>
+<p>Compaction here means turning a detailed account of the work into a smaller account that preserves its useful conclusions. <strong>Writing that summary and deleting its source are separate operations.</strong> We can improve reading immediately while retaining the diary until a later, coordinated cleanup.</p>
+<div class="grid-2">
+<section>
+<h3>The task bead</h3>
+<p><strong>The brief and durable conclusions.</strong></p>
+<ul>
+<li><strong>Description:</strong> the problem, intended outcome and scope.</li>
+<li><strong>Acceptance criteria:</strong> verifiable completion conditions. These describe success, not necessarily the implementation steps.</li>
+<li><strong>Notes, proposed:</strong> coherent handoff and completion summaries, including rationale and evidence.</li>
+<li><strong>Close reason:</strong> required by the agreed direction. Its exact relationship to a full response or notes summary is still open.</li>
+<li><strong>Design:</strong> assessed separately below; no decision to remove or require it.</li>
+</ul>
+</section>
+<section>
+<h3>The linked diary bead</h3>
+<p><strong>The detailed record of work in progress.</strong></p>
+<ul>
+<li>Experiments, observations, failed approaches and conversations needed to understand the work.</li>
+<li>Comments are a useful candidate for entries with native author and timestamp; putting the diary in a text field would not provide those per-entry attributes.</li>
+<li>A nonblocking association makes it discoverable without turning the log into a prerequisite.</li>
+<li>Its retention can differ from the task's, once essential conclusions have been preserved.</li>
+</ul>
+</section>
+</div>
+<p>A task read can reveal the diary's title and relationship without loading its contents. This is useful both while the diary is live and while it is retained for later investigation. The names “diary” and “mail” remain workshop concepts, not adopted bead types or relationship names.</p>
+
+<h2 id="one-example-three-readers">One example, three readers</h2>
+<p>The following cache task is illustrative. It shows the information each reader needs; it is not a report of production implementation or test results.</p>
+<blockquote><strong>Description:</strong> Ensure that a cache invalidation prevents subsequent reads from returning stale values.<br><strong>Acceptance criteria:</strong> A regression check demonstrates fresh reads after invalidation, including a warmed secondary cache.</blockquote>
+
+<div class="tabs">
+<label class="tab"><input type="radio" name="reader" checked />Bee doing the work</label>
+<label class="tab"><input type="radio" name="reader" />Bee taking over</label>
+<label class="tab"><input type="radio" name="reader" />Historical reader</label>
+
+<div class="tab-panel">
+<h3>1. A Bee working on its current assignment</h3>
+<p>The Bee needs room to try approaches without repeatedly rewriting the main brief. The diary can carry the immediate trail:</p>
+<pre><code>Observation: clearing the primary cache left a stale secondary entry.
+Attempt: invalidate both caches at the shared write boundary.
+Result: the regression example passes; concurrent invalidation remains untested.
+Next: check concurrent updates before treating the approach as complete.</code></pre>
+<p>After completing and verifying the task, the Bee appends a compact explanation to notes:</p>
+<pre><code>Completion summary — [time] — [Bee identity]
+Changed: invalidation now covers both cache layers.
+Why: primary-only invalidation allowed the secondary cache to serve stale data.
+Alternative: a shorter expiry would reduce the stale window but would not
+meet the required post-invalidation behavior.
+Evidence: [durable revision and focused test result].
+Remaining limitations: [state them, or explicitly state none found].
+Diary coverage: [diary ID and last entry reviewed].</code></pre>
+<p><strong>Value:</strong> the task retains the reason for the extra invalidation, rather than just a list of changed files. A future Bee is less likely to remove it as apparently redundant work.</p>
+<p><strong>Cost:</strong> the author must review the diary and distinguish settled facts from tentative observations. A polished summary can still be wrong; closing the task does not validate the prose.</p>
+<p><strong>When it is excessive:</strong> a small, obvious change may need only a short note. A separate diary is valuable when there is useful history to retain, not simply because every task could have one.</p>
+</div>
+
+<div class="tab-panel">
+<h3>2. Another Bee continues unfinished work</h3>
+<p>Suppose the instruction is simply, “The previous Bee was working on this task; pick it up.” A completion-only notes convention has a gap: <strong>the previous Bee may not have reached completion.</strong></p>
+<ol>
+<li>Read the task's description, acceptance criteria and available notes. Follow its parent scope and governing instructions under the existing pickup policy.</li>
+<li>Inspect its relationships to find the diary and any actual blockers. A diary's nonblocking link is context, not permission to ignore a blocking dependency.</li>
+<li>Read the latest handoff summary and inspect diary entries beyond its stated coverage. If there is no summary, the diary becomes the recovery source.</li>
+<li>Check the referenced worktree, revision, uncommitted changes and current test state. A note describes a prior observation; it is not a live inspection of the code.</li>
+</ol>
+<pre><code>Handoff summary — [time] — [Bee identity]
+State: dual-cache invalidation is implemented in [worktree/revision].
+Why: the warmed secondary cache defeated the first approach.
+Verified: focused regression passes in [recorded environment].
+Unfinished: concurrent invalidation has not been checked.
+Next action: add or run the concurrency case before claiming completion.
+Coverage: reviewed diary entries through [time/entry identifier].
+This supersedes the earlier checkpoint that described primary-only invalidation.</code></pre>
+<p><strong>Value:</strong> the receiving Bee gets a clear starting position and knows which evidence is still missing. It can consult the diary selectively instead of reconstructing everything.</p>
+<p><strong>Failure mode:</strong> stale notes can be more misleading than an obviously unfinished log. Beads has no native per-summary freshness marker. Coverage, author and time in this example are authored conventions; an unexpected interruption can leave them absent.</p>
+<p><strong>Implication:</strong> if efficient continuation is a goal, notes need a role at intentional handoff or pause, not just after completion. Abrupt failures still require a diary-and-code recovery path.</p>
+</div>
+
+<div class="tab-panel">
+<h3>3. Someone investigates the task later</h3>
+<p>The reader's first question is often “Why was this done?” rather than “What did the agent do every ten minutes?” Notes can answer that directly while the description retains the problem and acceptance criteria retain the success conditions.</p>
+<table>
+<thead><tr><th>Diary retained</th><th>Diary purged</th></tr></thead>
+<tbody><tr><td>Read the summary first, then open the diary to challenge an assumption, recover chronology or examine an abandoned approach.</td><td>The summary must stand on its own for essential rationale, outcome, limitations and durable evidence. The native diary link disappears on local hard deletion.</td></tr></tbody>
+</table>
+<p><strong>Value:</strong> the enduring record explains why dual invalidation was necessary, what alternative was rejected, and what verification was available at the time. It need not preserve every intermediate command.</p>
+<p><strong>Loss:</strong> omitted details cannot be recovered from the task after the diary is purged. “See diary for why” is not a sufficient durable summary. An old diary ID can remain as provenance, but must not be the only route to an essential fact.</p>
+<p><strong>Discovery matters:</strong> ordinary search does not match notes or design in the tested version. A reader who already knows the task can read notes efficiently; a reader searching only for a rationale phrase may miss it. Retained comments are searchable, but that route disappears if their diary is purged.</p>
+<p><strong>Implication:</strong> historical search needs a notes-aware query convention alongside ordinary search. Keep legitimate subject and scope in the task title and description; do not duplicate the entire rationale there merely to work around search.</p>
+</div>
+</div>
+
+<table>
+<thead><tr><th>Reader</th><th>What notes must offer</th><th>What the diary adds</th></tr></thead>
+<tbody>
+<tr><td>Current Bee</td><td>A place to preserve settled conclusions without rewriting the brief.</td><td>Working history and observations that are not yet conclusions.</td></tr>
+<tr><td>Next Bee</td><td>A recent state, known gaps and next action, when a handoff was possible.</td><td>Context after the last summary and a recovery trail if there was no handoff.</td></tr>
+<tr><td>Historical reader</td><td>A self-contained explanation of choices, value, outcome and limitations.</td><td>Optional depth while retained; it must not remain essential after purge.</td></tr>
+</tbody>
+</table>
+
+<h2 id="the-strongest-case-for-notes-and-the-strongest-objection">The strongest case for notes, and the strongest objection</h2>
+<div class="grid-2">
+<section>
+<h3>Why this arrangement is attractive</h3>
+<ul>
+<li><strong>Durable rationale travels with the task.</strong> Knowing the task ID is enough to retrieve the explanation.</li>
+<li><strong>The brief stays focused.</strong> A conclusion can evolve without turning the original description into a chronological report.</li>
+<li><strong>Reading can be selective.</strong> The task exposes its associated diary without embedding the diary's whole history.</li>
+<li><strong>Retention matches the object.</strong> A whole diary can be purged independently of the task summary.</li>
+<li><strong>Summarizing can improve reasoning.</strong> Explaining why an alternative was rejected reveals whether the decision had a concrete basis.</li>
+<li><strong>Append is convenient.</strong> A Bee can add a coherent summary without first fetching and rewriting the entire notes string.</li>
+</ul>
+</section>
+<section>
+<h3>What could make it fail</h3>
+<ul>
+<li><strong>Summary debt.</strong> The Bee stops before writing notes, or later work makes a good summary stale.</li>
+<li><strong>Selective memory.</strong> Compression can omit uncertainty, counterevidence or a failure that will matter later.</li>
+<li><strong>A new form of bloat.</strong> Many appended checkpoints can make notes as hard to read as the original diary.</li>
+<li><strong>Search loses coverage.</strong> Moving searchable comment content into notes changes how it can be found.</li>
+<li><strong>Extra objects need discipline.</strong> Creating, linking, finding and retaining diary beads adds work.</li>
+<li><strong>Deletion is coordinated work.</strong> A smaller local export is not proof of safe cleanup across all databases.</li>
+</ul>
+</section>
+</div>
+<p>The extra bead is not required merely to hide comments from a read: a projected <code>br list</code> read can already omit comment bodies. Its stronger benefit is separating the retention lifetime of detailed history from that of the task's conclusions.</p>
+
+<h2 id="appending-a-summary-does-not-make-notes-an-append-only-journal">Appending a summary does not make notes an append-only journal</h2>
+<p>Notes is one mutable text field. Its append operation inserts a newline when needed and suppresses an exact repeated trailing block. It adds no heading, author or timestamp. The field can still be replaced, and there is no native “give me the latest summary entry” operation.</p>
+<table>
+<thead><tr><th>Convention</th><th>What it buys</th><th>What it costs</th></tr></thead>
+<tbody>
+<tr><td><strong>Append only at completion</strong></td><td>Low overhead; a concise final explanation for history.</td><td>Does not provide an efficient handoff before completion.</td></tr>
+<tr><td><strong>Append at meaningful handoffs and completion</strong></td><td>Preserves earlier positions and makes intentional continuation easier.</td><td>The reader must distinguish old checkpoints from current conclusions; repeated summaries accumulate.</td></tr>
+<tr><td><strong>Maintain a compact current summary</strong></td><td>One coherent account with less stale prose to interpret.</td><td>Requires read/modify/write and care around concurrent edits; prior summaries need history elsewhere if they matter.</td></tr>
+</tbody>
+</table>
+<div class="callout">
+<p class="callout-title">A practical candidate for the first iteration</p>
+<p>Append only when a meaningful decision, handoff or completion needs a durable account. Use an explicit heading and state which earlier checkpoint it supersedes. Keep frequent observations in the diary. If repeated reopening makes notes unwieldy, deliberately curate it rather than treating every previous summary as permanently sacred.</p>
+<p>This respects the requested append workflow while acknowledging its limits. It is a proposal, not a native feature or a settled policy.</p>
+</div>
+<p>For an intentional rewrite, Beads offers <code>--if-unchanged</code> to reject an update based on an outdated bead timestamp; large destructive rewrites also have a separate force guard. Neither guarantees that the revised summary is correct. The append experiments did not establish broader multiwriter guarantees.</p>
+<details>
+<summary>What should survive compaction?</summary>
+<ul>
+<li>The implemented outcome and its relationship to the original scope.</li>
+<li>The reasons for significant choices, including relevant constraints and rejected alternatives.</li>
+<li>The benefit obtained and the tradeoffs or remaining limitations.</li>
+<li>Verification evidence and a durable reference when one exists.</li>
+<li>Unfinished work or superseded conclusions, stated explicitly.</li>
+<li>Enough provenance to understand who summarized which part of the diary.</li>
+</ul>
+<p>A useful test is: could another Bee explain and safely continue or revisit this task without needing a diary that has already been purged? That is a content review, not something Beads validates automatically.</p>
+</details>
+
+<h2 id="does-design-still-earn-a-separate-field">Does design still earn a separate field?</h2>
+<p><strong>If notes already holds the final “what I did and why,” a design field holding the same final explanation adds little.</strong> Its value would have to come from an independently useful purpose, not a different storage mechanism.</p>
+<p>Current Hive guidance uses design for the approach, constraints and rationale of important decisions. It is optional for small tasks. Using it only as a final account would change that convention. Both design and notes are mutable text fields exported through JSONL, without their own author/time metadata; neither is covered by ordinary keyword search in the tested build. Notes additionally has append and a dedicated contains filter.</p>
+<table>
+<thead><tr><th>Option</th><th>Best case</th><th>Cost and assessment</th></tr></thead>
+<tbody>
+<tr><td><strong>Notes + diary; design unused</strong></td><td>One durable summary surface. Plans can live in diary entries while tentative; settled rationale moves into notes.</td><td>A substantial current approach may be buried in history. Best default candidate when no one needs to review or update the plan independently.</td></tr>
+<tr><td><strong>Design for the substantial current approach; notes for handoff and outcome</strong></td><td>Before implementation, another Bee can inspect a coherent plan without reconstructing the diary. Outcome summaries can explain where implementation departed from it.</td><td>Another document to maintain. Its status must be explicit after implementation: updated to match, or clearly identified as an earlier proposal. Valuable only when that separate planning/review surface is actually used.</td></tr>
+<tr><td><strong>Design for final rationale; notes for state and evidence</strong></td><td>A stable explanation stays separate from an accumulating operational notes field.</td><td>Historical and handoff readers need both fields. If notes is also meant to contain the full final why, this becomes duplicate maintenance. Coherent as an alternative to the proposed notes role, not a benefit gained by copying the same rationale twice.</td></tr>
+</tbody>
+</table>
+<h3>A concrete reason to keep design</h3>
+<p>Before changing invalidation, a reviewer might need to assess one coherent proposal: the chosen write boundary, alternatives, concurrency assumptions and tradeoffs. That is a different task from reading dated experiments. A separate design field can help if it is the agreed place that reviewer reads and the author maintains.</p>
+<h3>A concrete reason to leave it unused</h3>
+<p>For a small change where the useful explanation is simply “invalidate both caches because the secondary cache otherwise returns stale data,” the notes summary already does the job. An identical design paragraph adds a second place to become stale.</p>
+<p><strong>Provisional recommendation:</strong> do not require design for every task, and do not use it as a second final-summary field. Retain its use only if we choose a distinct planning or design-review role with a clear reader and update responsibility. “Leave unused” is a policy choice; it does not imply removing the native field from Beads.</p>
+<details>
+<summary>What the existing bead sample actually established</summary>
+<p>Some sampled beads separated a concrete plan from the brief; others repeated the approach across description and design, or included the approach entirely in description. One completed example still asked for 47 cases in description while design and acceptance reflected an accepted correction to 46. That shows a maintenance mismatch, not that separate design is always wrong.</p>
+<p>The sample was illustrative, not statistically representative, and consisted of current snapshots rather than before/after histories. It supports asking what independent job design performs; it does not establish a universal field policy.</p>
+</details>
+
+<h2 id="reading-and-search-the-limits-that-affect-the-proposal">Reading and search: the limits that affect the proposal</h2>
+<table>
+<thead><tr><th>Question</th><th>Verified behavior</th></tr></thead>
+<tbody>
+<tr><td>Does reading the task pull in its diary?</td><td><code>br show TASK --json</code> shows direct linked-bead summaries, including nonblocking links, but not those beads' bodies or comments. It still includes comments attached directly to TASK.</td></tr>
+<tr><td>Can I request only the summary fields?</td><td><code>br list</code> supports JSON field projection and omits comment bodies. <code>br show</code> has no <code>--fields</code> option.</td></tr>
+<tr><td>Can I find the diary by an edge annotation?</td><td>Annotations survive JSONL but were absent from both <code>show</code> and <code>dep list</code> output. A visible title and a consistent supported link matter. Custom edge names “diary” and “mail” were rejected.</td></tr>
+<tr><td>Will ordinary search find the final rationale?</td><td>It searches title, description, ID and comments; not notes or design. Notes has <code>--notes-contains</code>; design has no equivalent filter in this build.</td></tr>
+<tr><td>Does adding a notes filter broaden ordinary search?</td><td>No. On <code>br search</code> it is an additional AND condition. To cover ordinary text OR notes, run separate queries and combine the results.</td></tr>
+</tbody>
+</table>
+<details>
+<summary>Illustrative read commands</summary>
+<p>These show the supported read surfaces. IDs are placeholders; they do not replace claim, ancestor or governing-context checks during real pickup.</p>
+<pre><code>br show TASK_ID --json
+
+br dep list TASK_ID --direction both --type related --json
+br show DIARY_ID --json
+
+br list --id TASK_ID --all --deferred --exclude-label system   --fields id,title,status,description,acceptance_criteria,notes,close_reason   --json
+
+br list --notes-contains "secondary cache" --all --deferred   --exclude-label system --json</code></pre>
+<p>Use the relationship type actually chosen for the eventual policy. <code>related</code> is an experimental candidate; <code>relates-to</code> was also nonblocking. Include closed work deliberately for historical queries.</p>
+</details>
+
+<h2 id="the-diary-is-a-useful-retention-boundary">The diary is a useful retention boundary</h2>
+<p>The local deletion experiment supports this part of the proposal. After the conclusion was saved on the task, hard-deleting the linked diary removed its comments and relationship while preserving the task and summary. Both edge directions were tested.</p>
+<table>
+<thead><tr><th>Disposable snapshot</th><th>JSONL size</th><th>Retained diary history</th></tr></thead>
+<tbody>
+<tr><td>Task + diary</td><td>4,614 bytes</td><td>Eight comments</td></tr>
+<tr><td>Diary tombstoned</td><td>4,534 bytes</td><td>Eight comments still stored</td></tr>
+<tr><td>Diary hard-deleted</td><td>477 bytes</td><td>Diary and comments absent</td></tr>
+</tbody>
+</table>
+<p>These are measurements of small synthetic snapshots, not estimates for the whole tracker or its Git history. A fresh database imported the smaller snapshot cleanly. An older database retained its record on ordinary import.</p>
+<div class="callout warn">
+<p class="callout-title">Tombstone propagation is not the same as coordinated purging</p>
+<p>Importing a tombstone into an older database marked its diary deleted. Importing a later pruned snapshot left that tombstone and comments in its database. In that exact sequence, its export did no work; it did not put the record back into JSONL. A subsequent merge reported <code>DeleteVsModify</code> and was left unresolved.</p>
+<p>A separate merge from the original live-record snapshot recognized deletion but emitted a tombstone with retained content. Neither experiment tested Hive's entire synchronization pipeline. We need a procedure covering participating, stale and offline databases before routine purging is adopted.</p>
+</div>
+<p>ct's direction is that this looks workable with coordinated deletion policy. A useful immediate boundary is to evaluate the summary-and-diary convention while retaining the diaries; physical cleanup need not be required to gain clearer reads.</p>
+
+<h2 id="what-remains-to-decide">What remains to decide</h2>
+<table>
+<thead><tr><th>Decision</th><th>Proposed starting position, for review</th></tr></thead>
+<tbody>
+<tr><td>When is a summary written?</td><td>At completion and at meaningful intentional handoffs; use the diary as recovery evidence after an abrupt interruption.</td></tr>
+<tr><td>What does notes preserve?</td><td>Outcome, rationale, value, evidence, limitations and any remaining action. Do not substitute a raw transcript.</td></tr>
+<tr><td>How does the reader find the current account?</td><td>Explicit summary headings, provenance and supersession wording. Decide when accumulated summaries should be curated.</td></tr>
+<tr><td>When is a diary worth creating?</td><td>When the task generates useful work history with a different retention lifetime. Avoid making a trivial task require an empty diary.</td></tr>
+<tr><td>Does design have an independent reader?</td><td>Keep it for a coherent approach only when that separate planning/review surface is useful; otherwise leave it unused.</td></tr>
+<tr><td>How does close reason fit?</td><td>Evaluate a short proof-bearing closure explanation referring to the durable summary, versus the earlier idea of putting the full response there. Do not silently adopt either.</td></tr>
+<tr><td>How do historical readers search?</td><td>Use both ordinary search and the notes filter when looking for rationale. Resolve this before deleting searchable diary comments.</td></tr>
+<tr><td>When may a diary be purged?</td><td>After reviewing its summary and under a validated cross-database cleanup procedure. No retention interval or purge authorization has been agreed.</td></tr>
+</tbody>
+</table>
+<p>One policy is intended to apply to agent-authored and system-driven records. Existing automation conflicts are a later implementation task, not exceptions. In particular, notes cannot casually become both an unrestricted prose summary and a machine-consumed JSONL log: choose and migrate the representation deliberately. Current Busy Bee result consumers must be accounted for before applying this convention to their records.</p>
+<p>The agreed separation of description and acceptance criteria remains intact. No new policy on design, summary structure, diary classification, retention or automated cleanup has been enacted by this document.</p>
+
+<h2 id="evidence-and-limits">Evidence and limits</h2>
+<p>The observations come from the installed <code>br 0.7.6</code>, build <code>hive-snapshot-sync@b77ae70</code>, native help/source checks and disposable experiments on 24 October 2026. Proposed examples and recommendations above are explicitly separate from those observations.</p>
+<details>
+<summary>Local workshop records</summary>
+<ul>
+<li><code>BEADS-POLICY-NOTES.md</code> — agreed directions, open questions, discussion corrections and experiment summaries.</li>
+<li><code>BEADS-JSON-READING-EXPERIMENT.json</code> — notes/comments read shapes, output sizes and initial search checks. Later design-search and comment-deletion checks are recorded in the workshop note.</li>
+<li><code>BEADS-RELATIONSHIP-EXPERIMENT.json</code> — relationship visibility, annotations, readiness, closure and independent diary deletion.</li>
+<li><code>BEADS-JSONL-PRUNING-EXPERIMENT.json</code> — exact snapshots, imports, merges and the unresolved disposable conflict.</li>
+<li><code>BEADS-DESIGN-SAMPLE.json</code> and <code>BEADS-DESIGN-SOURCES.json</code> — illustrative current beads and their field usage.</li>
+<li><code>BEADS-FIELD-HISTORY.json</code> — historical rationale reports. Their recommendations are evidence, not accepted policy.</li>
+</ul>
+<p>These supporting files are saved beside this document in the <code>codex--beads-policy-workshop</code> worktree. The report is self-contained; the files preserve the detailed receipts.</p>
+</details>
+<details>
+<summary>Existing guidance relevant to the comparison</summary>
+<p><code>docs/beads-meta.md</code> describes the current field convention: description for the brief, design for approach and rationale, and notes for progress/handoff evidence. The proposed model changes those responsibilities and would need an explicit documentation and automation update.</p>
+<p><code>AGENTS.md</code> separates parent scope from blocking prerequisites and defines task pickup. <code>docs/beads-integration.md</code> defines shared database selection and publication boundaries. <code>GLOSSARY.md</code> defines Bee, task bead, response bead and system bead; this document does not redefine them or turn the proposed diary into an adopted domain type.</p>
+</details>
+
+
+		<!-- Auto-outline: scans h2/h3, assigns ids, builds a right-side nav, tracks scroll. -->
+		<script>
+			(function () {
+				const headings = [...document.querySelectorAll("h2, h3")];
+				if (headings.length < 3) return;
+
+				const slug = (t) =>
+					t
+						.toLowerCase()
+						.trim()
+						.replace(/[^a-z0-9]+/g, "-")
+						.replace(/^-|-$/g, "") || "section";
+				const seen = new Map();
+				headings.forEach((h) => {
+					let id = slug(h.textContent);
+					const n = seen.get(id) || 0;
+					if (n) id = id + "-" + n;
+					seen.set(slug(h.textContent), n + 1);
+					h.id = id;
+				});
+
+				const nav = document.createElement("nav");
+				nav.className = "outline";
+				nav.innerHTML = '<div class="outline-title">On this page</div>';
+				const ul = document.createElement("ul");
+				nav.appendChild(ul);
+				let subUl = null;
+				let lastH2Li = null;
+				headings.forEach((h) => {
+					const li = document.createElement("li");
+					const a = document.createElement("a");
+					a.href = "#" + h.id;
+					a.textContent = h.textContent;
+					a.dataset.target = h.id;
+					li.appendChild(a);
+					if (h.tagName === "H2") {
+						ul.appendChild(li);
+						lastH2Li = li;
+						subUl = null;
+					} else {
+						if (!subUl) {
+							subUl = document.createElement("ul");
+							subUl.className = "sub";
+							(lastH2Li || ul).appendChild(subUl);
+						}
+						subUl.appendChild(li);
+					}
+				});
+				document.body.appendChild(nav);
+
+				const links = new Map();
+				nav.querySelectorAll("a").forEach((a) => links.set(a.dataset.target, a));
+
+				function updateActive() {
+					const y = window.scrollY + 80;
+					let current = null;
+					for (const h of headings) {
+						if (h.offsetTop <= y) current = h;
+						else break;
+					}
+					nav.querySelectorAll("a.active").forEach((a) => a.classList.remove("active"));
+					if (current) {
+						const link = links.get(current.id);
+						if (link) link.classList.add("active");
+					}
+				}
+				let raf = 0;
+				window.addEventListener(
+					"scroll",
+					() => {
+						if (raf) return;
+						raf = requestAnimationFrame(() => {
+							raf = 0;
+							updateActive();
+						});
+					},
+					{ passive: true },
+				);
+				updateActive();
+			})();
+		</script>
+
+		<script>
+			// Copy-to-clipboard buttons for pre blocks (skips rendered diagrams).
+			document.querySelectorAll("pre:not(.mermaid):not(.graphviz)").forEach((pre) => {
+				const btn = document.createElement("button");
+				btn.className = "copy-btn";
+				btn.type = "button";
+				btn.textContent = "copy";
+				btn.addEventListener("click", async () => {
+					try {
+						const clone = pre.cloneNode(true);
+						clone.querySelector(".copy-btn")?.remove();
+						await navigator.clipboard.writeText(clone.textContent);
+						btn.textContent = "copied";
+						setTimeout(() => {
+							btn.textContent = "copy";
+						}, 1200);
+					} catch {
+						btn.textContent = "err";
+					}
+				});
+				pre.appendChild(btn);
+			});
+		</script>
+
+		<script>
+			const richResponseTheme = (() => {
+				const palette = {
+					dawn: {
+						bg: "#fdf9f5",
+						fg: "#575279",
+						muted: "#9893a5",
+						dim: "#797593",
+						border: "#dfdad9",
+						codeBg: "#fffaf3",
+						accent: "#b85c58",
+						link: "#286983",
+						infoBg: "#f4ede8",
+						infoBd: "#56949f",
+						warnBd: "#a86a00",
+						errorBd: "#b4637a",
+						successBd: "#a86a00",
+					},
+					moon: {
+						bg: "#232136",
+						fg: "#e0def4",
+						muted: "#6e6a86",
+						dim: "#6e698f",
+						border: "#2e2a42",
+						codeBg: "#2a273f",
+						accent: "#c4a7e7",
+						link: "#9ccfd8",
+						infoBg: "#2a283e",
+						infoBd: "#9a68d6",
+						warnBd: "#f6c177",
+						errorBd: "#eb6f92",
+						successBd: "#9ccfd8",
+					},
+				};
+
+				const isDark = () => matchMedia("(prefers-color-scheme: dark)").matches;
+				const currentPalette = () => (isDark() ? palette.moon : palette.dawn);
+				const oppositePalette = () => (isDark() ? palette.dawn : palette.moon);
+				const css = (name) =>
+					getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+				const current = () => ({
+					bg: css("--bg"),
+					fg: css("--fg"),
+					muted: css("--muted"),
+					dim: css("--dim"),
+					border: css("--border"),
+					codeBg: css("--code-bg"),
+					accent: css("--accent"),
+					link: css("--link"),
+					infoBg: css("--info-bg"),
+					infoBd: css("--info-bd"),
+					warnBd: css("--warn-bd"),
+					errorBd: css("--error-bd"),
+					successBd: css("--success-bd"),
+				});
+
+				const normalizeColor = (value) => {
+					if (!value) return value;
+					const normalized = value.trim().toLowerCase();
+					if (/^#[0-9a-f]{3}$/i.test(normalized)) {
+						return "#" + [...normalized.slice(1)].map((ch) => ch + ch).join("");
+					}
+					const rgb = normalized.match(/^rgba?\(([^)]+)\)$/);
+					if (rgb) {
+						const [r, g, b] = rgb[1]
+							.split(",")
+							.slice(0, 3)
+							.map((part) => Number.parseInt(part.trim(), 10));
+						if ([r, g, b].every((part) => Number.isFinite(part))) {
+							return "#" + [r, g, b].map((part) => part.toString(16).padStart(2, "0")).join("");
+						}
+					}
+					return normalized;
+				};
+
+				const themedGraphvizColor = (value) => {
+					const normalized = normalizeColor(value);
+					if (!normalized || normalized === "none" || normalized === "transparent") return value;
+					if (normalized === "black" || normalized === "#000000") return current().fg;
+					if (normalized === "white" || normalized === "#ffffff") return current().bg;
+
+					const from = oppositePalette();
+					const to = currentPalette();
+					for (const [key, source] of Object.entries(from)) {
+						if (normalized === source) return to[key];
+					}
+					return value;
+				};
+
+				const rewriteStyleColors = (styleValue) =>
+					styleValue
+						.split(";")
+						.map((entry) => {
+							const [prop, raw] = entry.split(":");
+							if (!prop || raw == null) return entry;
+							if (!["fill", "stroke", "color", "stop-color"].includes(prop.trim().toLowerCase())) {
+								return entry;
+							}
+							return `${prop}:${themedGraphvizColor(raw)}`;
+						})
+						.join(";");
+
+				const themeGraphvizSvg = (svg) => {
+					svg.style.background = "transparent";
+					svg.querySelectorAll("*").forEach((node) => {
+						["fill", "stroke", "color", "stop-color"].forEach((attr) => {
+							if (node.hasAttribute(attr)) {
+								node.setAttribute(attr, themedGraphvizColor(node.getAttribute(attr)));
+							}
+						});
+						if (node.hasAttribute("style")) {
+							node.setAttribute("style", rewriteStyleColors(node.getAttribute("style")));
+						}
+					});
+					return svg;
+				};
+
+				const mermaidTheme = () => {
+					const colors = current();
+					return {
+						theme: "base",
+						darkMode: isDark(),
+						themeVariables: {
+							background: colors.bg,
+							fontFamily:
+								'ui-sans-serif, system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif',
+							fontSize: "16px",
+							textColor: colors.fg,
+							primaryColor: colors.codeBg,
+							primaryTextColor: colors.fg,
+							primaryBorderColor: colors.border,
+							secondaryColor: colors.infoBg,
+							secondaryTextColor: colors.fg,
+							secondaryBorderColor: colors.infoBd,
+							tertiaryColor: colors.bg,
+							tertiaryTextColor: colors.fg,
+							tertiaryBorderColor: colors.border,
+							lineColor: colors.link,
+							mainBkg: colors.codeBg,
+							secondBkg: colors.infoBg,
+							tertiaryBkg: colors.bg,
+							clusterBkg: colors.codeBg,
+							clusterBorder: colors.border,
+							nodeBorder: colors.border,
+							edgeLabelBackground: colors.bg,
+							defaultLinkColor: colors.link,
+							titleColor: colors.fg,
+							labelColor: colors.fg,
+							labelTextColor: colors.fg,
+							actorBkg: colors.codeBg,
+							actorBorder: colors.border,
+							actorTextColor: colors.fg,
+							actorLineColor: colors.link,
+							signalColor: colors.link,
+							signalTextColor: colors.fg,
+							noteBkgColor: colors.infoBg,
+							noteBorderColor: colors.infoBd,
+							noteTextColor: colors.fg,
+							activationBkgColor: colors.codeBg,
+							activationBorderColor: colors.border,
+							sequenceNumberColor: colors.bg,
+							sectionBkgColor: colors.codeBg,
+							altSectionBkgColor: colors.infoBg,
+							sectionBkgColor2: colors.bg,
+							gridColor: colors.border,
+							cScale0: colors.codeBg,
+							cScale1: colors.infoBg,
+							cScale2: colors.bg,
+							cScale3: colors.codeBg,
+							cScale4: colors.infoBg,
+							cScale5: colors.bg,
+							pie1: colors.link,
+							pie2: colors.accent,
+							pie3: colors.infoBd,
+							pie4: colors.warnBd,
+							pie5: colors.errorBd,
+							pieOuterStrokeColor: colors.border,
+							pieSectionTextColor: colors.fg,
+							pieTitleTextColor: colors.fg,
+							ganttTaskBkgColor: colors.link,
+							ganttTaskTextColor: colors.bg,
+							ganttTaskOutsideColor: colors.fg,
+							ganttTaskBorderColor: colors.link,
+							ganttGridColor: colors.border,
+						},
+					};
+				};
+
+				return { mermaidTheme, themeGraphvizSvg };
+			})();
+		</script>
+
+		<!--
+  Mermaid: loaded only if a .mermaid block exists. UMD build (not ESM) so it works
+  from file:// origins — `file://` is a unique security origin and blocks ES-module
+  dynamic imports. The `@11` tag on jsdelivr auto-resolves to the latest 11.x release.
+-->
+		<script>
+			if (document.querySelector(".mermaid")) {
+				const s = document.createElement("script");
+				s.src = "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js";
+				s.onload = async () => {
+					try {
+						window.mermaid.initialize({
+							startOnLoad: false,
+							securityLevel: "loose",
+							...richResponseTheme.mermaidTheme(),
+						});
+						await window.mermaid.run({ querySelector: ".mermaid" });
+					} catch (e) {
+						console.error("[mermaid] render failed:", e?.message || e, e);
+						document.querySelectorAll(".mermaid").forEach((el) => {
+							if (!el.dataset.mermaidError) {
+								el.dataset.mermaidError = "1";
+								el.insertAdjacentHTML(
+									"beforebegin",
+									'<div class="callout error"><div class="callout-title">Mermaid render error</div>' +
+										"<code>" +
+										String(e?.message || e).replace(
+											/[<>&]/g,
+											(c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" })[c],
+										) +
+										"</code></div>",
+								);
+							}
+						});
+					}
+				};
+				s.onerror = () => console.error("[mermaid] failed to load script from CDN");
+				document.head.appendChild(s);
+			}
+		</script>
+
+		<!--
+  Graphviz: loaded only if a .graphviz block exists. @viz-js/viz bundles Graphviz
+  to WebAssembly, so rendering works in-browser without requiring `dot` in PATH.
+-->
+		<script>
+			if (document.querySelector(".graphviz")) {
+				const s = document.createElement("script");
+				s.src = "https://cdn.jsdelivr.net/npm/@viz-js/viz@3/lib/viz-standalone.js";
+				s.onload = async () => {
+					try {
+						const viz = await window.Viz.instance();
+						document.querySelectorAll(".graphviz").forEach((el) => {
+							const svg = richResponseTheme.themeGraphvizSvg(viz.renderSVGElement(el.textContent));
+							el.replaceChildren(svg);
+						});
+					} catch (e) {
+						console.error("[graphviz] render failed:", e?.message || e, e);
+						document.querySelectorAll(".graphviz").forEach((el) => {
+							if (!el.dataset.graphvizError) {
+								el.dataset.graphvizError = "1";
+								el.insertAdjacentHTML(
+									"beforebegin",
+									'<div class="callout error"><div class="callout-title">Graphviz render error</div>' +
+										"<code>" +
+										String(e?.message || e).replace(
+											/[<>&]/g,
+											(c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" })[c],
+										) +
+										"</code></div>",
+								);
+							}
+						});
+					}
+				};
+				s.onerror = () => console.error("[graphviz] failed to load script from CDN");
+				document.head.appendChild(s);
+			}
+		</script>
+
+		<!--
+  Syntax highlighting (highlight.js): opt-in via code blocks with a language-xxx class.
+  Loads only when at least one such block exists. Token colors come from the inline
+  Rose Pine Dawn/Moon CSS variables above, matching the active OS color scheme.
+-->
+		<script>
+			(function () {
+				const blocks = document.querySelectorAll('pre code[class*="language-"]');
+				if (!blocks.length) return;
+				const base = "https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build";
+				const s = document.createElement("script");
+				s.src = base + "/highlight.min.js";
+				s.onload = () => blocks.forEach((el) => window.hljs.highlightElement(el));
+				s.onerror = () => console.error("[hljs] failed to load script from CDN");
+				document.head.appendChild(s);
+			})();
+		</script>
+	</body>
+</html>

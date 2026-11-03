@@ -1,0 +1,997 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width,initial-scale=1" />
+		<title>Reading linked beads: graph performance and limits</title>
+		<style>
+			:root {
+				color-scheme: light dark;
+				/* Rose Pine Dawn: pi/themes/rose-pine-dawn.json */
+				--bg: #fdf9f5;
+				--fg: #575279;
+				--muted: #9893a5;
+				--dim: #797593;
+				--border: #dfdad9;
+				--code-bg: #fffaf3;
+				--accent: #b85c58;
+				--link: #286983;
+				--info-bg: #f4ede8;
+				--info-bd: #56949f;
+				--warn-bg: #f4ede8;
+				--warn-bd: #a86a00;
+				--error-bg: #f4ede8;
+				--error-bd: #b4637a;
+				--success-bg: #f4ede8;
+				--success-bd: #a86a00;
+				--add-bg: #fceee5;
+				--add-fg: #a86a00;
+				--del-bg: #f9e8e7;
+				--del-fg: #b4637a;
+				--syntax-comment: #797593;
+				--syntax-keyword: #907aa9;
+				--syntax-function: #286983;
+				--syntax-variable: #575279;
+				--syntax-string: #56949f;
+				--syntax-number: #a86a00;
+				--syntax-type: #a86a00;
+				--syntax-operator: #286983;
+				--syntax-punctuation: #f2e9e1;
+			}
+			@media (prefers-color-scheme: dark) {
+				:root {
+					/* Rose Pine Moon: pi/themes/rose-pine-moon.json */
+					--bg: #232136;
+					--fg: #e0def4;
+					--muted: #6e6a86;
+					--dim: #6e698f;
+					--border: #2e2a42;
+					--code-bg: #2a273f;
+					--accent: #c4a7e7;
+					--link: #9ccfd8;
+					--info-bg: #2a283e;
+					--info-bd: #9a68d6;
+					--warn-bg: #2a283e;
+					--warn-bd: #f6c177;
+					--error-bg: #2a283e;
+					--error-bd: #eb6f92;
+					--success-bg: #2a283e;
+					--success-bd: #9ccfd8;
+					--add-bg: #2e2a42;
+					--add-fg: #bddfe5;
+					--del-bg: #2e2a42;
+					--del-fg: #f095af;
+					--syntax-comment: #58556b;
+					--syntax-keyword: #3e8fb0;
+					--syntax-function: #bddfe5;
+					--syntax-variable: #9e98dd;
+					--syntax-string: #f9d5a2;
+					--syntax-number: #ea9a97;
+					--syntax-type: #decef2;
+					--syntax-operator: #6e698f;
+					--syntax-punctuation: #58556b;
+				}
+			}
+			* {
+				box-sizing: border-box;
+			}
+			html {
+				-webkit-text-size-adjust: 100%;
+			}
+			body {
+				margin: 0 auto;
+				padding: 2.5rem 1.25rem 6rem;
+				max-width: 78ch;
+				background: var(--bg);
+				color: var(--fg);
+				font-family:
+					ui-sans-serif,
+					system-ui,
+					-apple-system,
+					"Segoe UI",
+					Helvetica,
+					Arial,
+					sans-serif;
+				font-size: 16px;
+				line-height: 1.6;
+			}
+			h1,
+			h2,
+			h3,
+			h4 {
+				line-height: 1.25;
+				margin: 2em 0 0.6em;
+				font-weight: 600;
+			}
+			h1 {
+				font-size: 2rem;
+				margin-top: 0;
+			}
+			h2 {
+				font-size: 1.4rem;
+				padding-bottom: 0.2em;
+				border-bottom: 1px solid var(--border);
+			}
+			h3 {
+				font-size: 1.15rem;
+			}
+			h4 {
+				font-size: 1rem;
+				color: var(--muted);
+				text-transform: uppercase;
+				letter-spacing: 0.05em;
+			}
+			p {
+				margin: 0.8em 0;
+			}
+			a {
+				color: var(--link);
+				text-underline-offset: 2px;
+			}
+			hr {
+				border: 0;
+				border-top: 1px solid var(--border);
+				margin: 2em 0;
+			}
+			small,
+			.muted {
+				color: var(--muted);
+				font-size: 0.9em;
+			}
+			ul,
+			ol {
+				padding-left: 1.4em;
+			}
+			li + li {
+				margin-top: 0.25em;
+			}
+
+			code {
+				font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+				font-size: 0.92em;
+				background: var(--code-bg);
+				padding: 0.12em 0.35em;
+				border-radius: 4px;
+			}
+			pre {
+				position: relative;
+				background: var(--code-bg);
+				border: 1px solid var(--border);
+				border-radius: 6px;
+				padding: 0.9em 1em;
+				overflow-x: auto;
+				white-space: pre-wrap;
+				overflow-wrap: anywhere;
+				font-size: 0.88em;
+				line-height: 1.5;
+			}
+			pre.no-wrap {
+				white-space: pre;
+				overflow-wrap: normal;
+			}
+			pre code {
+				background: transparent;
+				padding: 0;
+				font-size: inherit;
+				white-space: inherit;
+			}
+			pre .copy-btn {
+				position: absolute;
+				top: 0.5em;
+				right: 0.5em;
+				background: var(--bg);
+				color: var(--muted);
+				border: 1px solid var(--border);
+				border-radius: 4px;
+				padding: 0.15em 0.5em;
+				font-size: 0.75em;
+				cursor: pointer;
+				opacity: 0;
+				transition: opacity 0.15s;
+			}
+			pre:hover .copy-btn {
+				opacity: 1;
+			}
+			pre .copy-btn:hover {
+				color: var(--fg);
+			}
+
+			blockquote {
+				margin: 1em 0;
+				padding: 0.5em 1em;
+				border-left: 3px solid var(--border);
+				color: var(--muted);
+			}
+
+			table {
+				border-collapse: collapse;
+				width: 100%;
+				margin: 1em 0;
+				font-size: 0.95em;
+			}
+			th,
+			td {
+				padding: 0.55em 0.75em;
+				border-bottom: 1px solid var(--border);
+				text-align: left;
+				vertical-align: top;
+			}
+			th {
+				font-weight: 600;
+				background: var(--code-bg);
+			}
+			tbody tr:hover {
+				background: var(--code-bg);
+			}
+
+			details {
+				margin: 1em 0;
+				padding: 0.5em 0.9em;
+				border: 1px solid var(--border);
+				border-radius: 6px;
+			}
+			details > summary {
+				cursor: pointer;
+				font-weight: 500;
+			}
+			details[open] > summary {
+				margin-bottom: 0.5em;
+				padding-bottom: 0.5em;
+				border-bottom: 1px solid var(--border);
+			}
+
+			.callout {
+				margin: 1em 0;
+				padding: 0.75em 1em;
+				border-left: 3px solid var(--info-bd);
+				background: var(--info-bg);
+				border-radius: 0 6px 6px 0;
+			}
+			.callout > :first-child {
+				margin-top: 0;
+			}
+			.callout > :last-child {
+				margin-bottom: 0;
+			}
+			.callout.warn {
+				border-color: var(--warn-bd);
+				background: var(--warn-bg);
+			}
+			.callout.error {
+				border-color: var(--error-bd);
+				background: var(--error-bg);
+			}
+			.callout.success {
+				border-color: var(--success-bd);
+				background: var(--success-bg);
+			}
+			.callout-title {
+				font-weight: 600;
+				margin-bottom: 0.3em;
+			}
+
+			pre.diff code .add,
+			pre.diff .add {
+				display: block;
+				background: var(--add-bg);
+				color: var(--add-fg);
+			}
+			pre.diff code .del,
+			pre.diff .del {
+				display: block;
+				background: var(--del-bg);
+				color: var(--del-fg);
+			}
+
+			.grid-2 {
+				display: grid;
+				grid-template-columns: 1fr 1fr;
+				gap: 1em;
+			}
+			@media (max-width: 640px) {
+				.grid-2 {
+					grid-template-columns: 1fr;
+				}
+			}
+
+			.badge {
+				display: inline-block;
+				padding: 0.1em 0.55em;
+				font-size: 0.78em;
+				border: 1px solid var(--border);
+				border-radius: 999px;
+				color: var(--muted);
+				vertical-align: 0.1em;
+			}
+
+			/* Diagrams render as SVG; keep them tidy. */
+			.mermaid,
+			.graphviz {
+				margin: 1.2em 0;
+				text-align: center;
+			}
+			.mermaid svg,
+			.graphviz svg {
+				max-width: 100%;
+				height: auto;
+				background: transparent;
+			}
+
+			/* Tabs — CSS-only via :has(). Supports up to 5 tabs per group. */
+			.tabs {
+				margin: 1.2em 0;
+			}
+			.tabs > .tab {
+				display: inline-block;
+				padding: 0.5em 0.9em 0.6em;
+				cursor: pointer;
+				color: var(--muted);
+				border-bottom: 2px solid transparent;
+				user-select: none;
+				margin-right: 0.2em;
+			}
+			.tabs > .tab:first-of-type {
+				padding-left: 0;
+			}
+			.tabs > .tab input {
+				display: none;
+			}
+			.tabs > .tab:hover {
+				color: var(--fg);
+			}
+			.tabs > .tab:has(input:checked) {
+				color: var(--fg);
+				border-bottom-color: var(--accent);
+				font-weight: 500;
+			}
+			.tabs > .tab-panel {
+				display: none;
+				padding: 0.9em 0;
+				border-top: 1px solid var(--border);
+				margin-top: -2px;
+			}
+			.tabs:has(.tab:nth-of-type(1) input:checked) > .tab-panel:nth-of-type(1),
+			.tabs:has(.tab:nth-of-type(2) input:checked) > .tab-panel:nth-of-type(2),
+			.tabs:has(.tab:nth-of-type(3) input:checked) > .tab-panel:nth-of-type(3),
+			.tabs:has(.tab:nth-of-type(4) input:checked) > .tab-panel:nth-of-type(4),
+			.tabs:has(.tab:nth-of-type(5) input:checked) > .tab-panel:nth-of-type(5) {
+				display: block;
+			}
+			.tabs > .tab-panel > :first-child {
+				margin-top: 0;
+			}
+			.tabs > .tab-panel > :last-child {
+				margin-bottom: 0;
+			}
+
+			/* Syntax highlighting: Rose Pine token colors from the active Pi theme. */
+			pre code.hljs {
+				background: transparent;
+				color: var(--syntax-variable);
+				padding: 0;
+			}
+			.hljs-comment,
+			.hljs-quote {
+				color: var(--syntax-comment);
+			}
+			.hljs-keyword,
+			.hljs-selector-tag,
+			.hljs-subst {
+				color: var(--syntax-keyword);
+			}
+			.hljs-title,
+			.hljs-section,
+			.hljs-name {
+				color: var(--syntax-function);
+			}
+			.hljs-variable,
+			.hljs-template-variable,
+			.hljs-attr,
+			.hljs-attribute {
+				color: var(--syntax-variable);
+			}
+			.hljs-string,
+			.hljs-regexp,
+			.hljs-symbol,
+			.hljs-bullet {
+				color: var(--syntax-string);
+			}
+			.hljs-number,
+			.hljs-literal {
+				color: var(--syntax-number);
+			}
+			.hljs-type,
+			.hljs-class .hljs-title,
+			.hljs-built_in {
+				color: var(--syntax-type);
+			}
+			.hljs-operator,
+			.hljs-deletion,
+			.hljs-addition {
+				color: var(--syntax-operator);
+			}
+			.hljs-punctuation {
+				color: var(--syntax-punctuation);
+			}
+
+			/* Outline — auto-generated, fixed right gutter on wide screens.
+     Uses rem (font-size-independent) for the offset calc; `ch` inside .outline
+     would resolve against its smaller 0.85em font and undershoot. */
+			.outline {
+				position: fixed;
+				top: 3rem;
+				left: calc(50% + 22rem + 1.5rem);
+				width: 14rem;
+				max-height: calc(100vh - 5rem);
+				overflow-y: auto;
+				font-size: 0.85em;
+				line-height: 1.4;
+				padding-left: 1rem;
+				border-left: 1px solid var(--border);
+			}
+			.outline-title {
+				color: var(--muted);
+				text-transform: uppercase;
+				letter-spacing: 0.05em;
+				font-size: 0.78em;
+				margin-bottom: 0.6em;
+			}
+			.outline ul {
+				list-style: none;
+				padding: 0;
+				margin: 0;
+			}
+			.outline li {
+				margin: 0;
+			}
+			.outline a {
+				color: var(--muted);
+				text-decoration: none;
+				display: block;
+				padding: 0.25em 0 0.25em 0.9em;
+				margin-left: -1em;
+				border-left: 2px solid transparent;
+			}
+			.outline a:hover {
+				color: var(--fg);
+			}
+			.outline a.active {
+				color: var(--fg);
+				border-left-color: var(--accent);
+				font-weight: 500;
+			}
+			.outline ul.sub {
+				margin-left: 1em;
+			}
+			.outline ul.sub a {
+				font-size: 0.95em;
+			}
+			/* Need viewport > 2*(body half + gap + outline + edge): ~22rem + 1.5rem + 14rem + 1rem = 38.5rem per side. */
+			@media (max-width: 1280px) {
+				.outline {
+					display: none;
+				}
+			}
+
+			html {
+				scroll-behavior: smooth;
+				scroll-padding-top: 1.5rem;
+			}
+		</style>
+	</head>
+	<body>
+		<!--
+  AGENT: write the response content below this comment, then delete the comment.
+  Available primitives are documented in SKILL.md. Key classes:
+    callout (info | warn | error | success), callout-title, grid-2,
+    diff on pre with add/del spans, no-wrap on pre to preserve horizontal scrolling,
+    mermaid/graphviz on pre, tabs/tab/tab-panel, badge, details/summary.
+  Note: this comment cannot contain a literal mermaid arrow because the HTML
+  parser closes the comment at the first occurrence of those three chars.
+-->
+
+		<h1>Reading linked beads: graph performance and limits</h1>
+
+		<p><span class="badge">Measured on disposable trackers</span> <span class="badge">24 October 2026</span> <span class="badge">br 0.7.6 · BV 0.25.2</span></p>
+<p><strong>Using linked diary and response beads looks practical at the tested sizes, provided discovery stays separate from full-record hydration.</strong> The biggest risks are choosing an API that omits the links, expanding a wide or dense neighborhood without a result budget, reading every diary body, and confusing an exported snapshot with the current database.</p>
+<div class="callout warn"><div class="callout-title">The names conceal a significant difference</div><p><code>br graph</code> is a readiness/dependency view. It omitted <code>related</code> and <code>replies-to</code> edges in the fixture. <code>br dep list</code>, <code>br dep tree</code> and <code>bv --robot-graph</code> could find those links. They are not interchangeable graph readers.</p></div>
+<p>The automation write map has also been corrected: <strong>title, status and labels remain valid for system beads</strong>. The JSON-description simplification concerns content fields, including notes, design, comments and close reason.</p>
+
+<h2>Which API answers which question</h2>
+<table><thead><tr><th>API</th><th>What it returns</th><th>Useful for</th><th>Important limits</th></tr></thead><tbody>
+<tr><td><code>br dep list ID --direction both --json</code></td><td>Direct typed edges with the neighbor's ID, title, status and priority. Optional exact type filter.</td><td>Find this task's diary, response or other direct attachments without opening their content.</td><td>One hop; no native pagination or field projection here. Both directions are necessary unless the link convention fixes direction. Labels are not returned. The test included tombstone/system neighbors.</td></tr>
+<tr><td><code>br dep tree ID --direction both --json</code></td><td>Traversal occurrences with depth, predecessor, status and repeat/truncation flags.</td><td>Explore a neighborhood or chain with a depth limit.</td><td>Default maximum depth is 10. JSON omits edge types. A bead can occur several times; <code>parent_id</code> is the traversal predecessor, not proof of a parent-child relationship. No node/byte budget.</td></tr>
+<tr><td><code>br graph ID --json</code></td><td>Readiness-affecting dependents; <code>--dependencies</code> reverses that walk. Untyped edge pairs.</td><td>What this task unblocks, or what blocks it.</td><td>Not a general attachment graph. Parent-child edges are interpreted as work ordering. One long blocking-chain case exceeded the read timeout.</td></tr>
+<tr><td><code>br graph --all --json</code></td><td>Active connected components using readiness-affecting links.</td><td>Whole active dependency structure.</td><td>Still omits nonblocking links and edge types. The fixture included deferred and draft records, despite the narrower wording in help; it excluded closed/tombstone records.</td></tr>
+<tr><td><code>bv --robot-graph --graph-format json</code></td><td>Unique nodes and typed directed edges, plus source diagnostics. Accepts explicit SQLite or JSONL input.</td><td>Build a reusable topology index, including related diaries and reply chains.</td><td>Root/depth filtering reduced output but did not eliminate whole-source loading cost. Default full graph includes ordinary and system records. Tombstones were excluded.</td></tr>
+<tr><td><code>br list --fields … --json</code></td><td>Projected scalar/card fields, with filtering and pagination.</td><td>Hydrate names, status, labels and summaries for selected IDs.</td><td>Does not supply graph edges or comments. Specify historical status inclusion deliberately. The current CLI supports projection in JSON although help describes fields as CSV.</td></tr>
+<tr><td><code>br show ID… --json</code></td><td>Full requested bead bodies, their own comments and direct neighbor summaries.</td><td>Read the one diary or task whose content is actually needed.</td><td>Batching IDs into one process did not make full hydration cheap. It does not recursively pull in neighbors' bodies, but a highly connected bead still has a large relation list.</td></tr>
+</tbody></table>
+<details><summary>The mixed fixture checked meaning, not just speed</summary>
+<p>Twelve records included a task, child, related diaries in both edge directions, mail/reply links, a closed reply, a blocking task, deferred/draft records, a system record, a tombstone and a disconnected task.</p>
+<ul><li>Direct dependency list found all nine incident links, including the tombstone edge.</li><li>Dependency tree found eleven reachable IDs, including the closed reply, tombstone and system record; it omitted relationship types.</li><li>Native graph from the task returned only the task and its blocking dependent. Whole native graph showed two readiness edges and represented the parent-child relationship in execution-order direction.</li><li>BV full graph returned eleven non-tombstone records and nine typed edges. A depth-one view returned nine nodes and eight edges; the closed reply was two hops away and only appeared in the full traversal.</li></ul>
+<p>The graph commands do not inherit the ordinary-work exclusion convention automatically. This controlled system-record inspection was deliberate; normal work selection still uses Hive's prescribed filters/recipe.</p>
+</details>
+
+<h2>Measured read costs</h2>
+<p>Median elapsed milliseconds across three fresh CLI processes per cell. These commands perform different amounts of work; this table compares practical read strategies, not equivalent implementations of one operation. Full ranges and output sizes are retained in the raw results.</p>
+<table><thead><tr><th>Fixture</th><th>Direct links</th><th>Tree, depth 10</th><th>BV full JSONL graph</th><th>BV SQLite depth 1</th><th>Show 100 records</th><th>Project up to 500 summaries</th></tr></thead><tbody><tr><td>100-node star</td><td>15<br><small>15–15</small></td><td>35<br><small>33–35</small></td><td>23<br><small>22–24</small></td><td>26<br><small>24–27</small></td><td>164<br><small>162–172</small></td><td>14<br><small>14–15</small></td></tr><tr><td>1,000-node star</td><td>32<br><small>30–33</small></td><td>21<br><small>20–22</small></td><td>27<br><small>26–27</small></td><td>46<br><small>42–47</small></td><td>826<br><small>769–831</small></td><td>30<br><small>28–31</small></td></tr><tr><td>5,000-node star</td><td>112<br><small>108–119</small></td><td>59<br><small>56–63</small></td><td>46<br><small>45–52</small></td><td>118<br><small>117–129</small></td><td>3,725<br><small>3,626–3,767</small></td><td>77<br><small>77–89</small></td></tr><tr><td>11-node island in 5,000</td><td>66<br><small>64–77</small></td><td>14<br><small>13–16</small></td><td>42<br><small>41–44</small></td><td>112<br><small>107–113</small></td><td>356<br><small>350–371</small></td><td>51<br><small>51–58</small></td></tr><tr><td>1,000-node star, 40.7 MB payload</td><td>131<br><small>131–138</small></td><td>54<br><small>54–57</small></td><td>63<br><small>62–64</small></td><td>74<br><small>74–76</small></td><td>6,010<br><small>5,838–6,044</small></td><td>72<br><small>70–78</small></td></tr></tbody></table>
+<p>The 1,000-record payload case has the same topology as the thin 1,000-record star, but about <strong>40.7 MB of exported descriptions, notes and comments</strong> rather than 0.52 MB. BV's full graph response stayed about 163 KB. Reading 100 full records returned about 4.16 MB and took about six seconds. Projecting 500 card summaries returned about 106 KB.</p>
+<div class="grid-2">
+<div class="callout"><div class="callout-title">Small answer does not imply a small read</div><p>In a 5,000-record tracker where the root has only ten links, BV's depth-one output shrank from about 546 KB to 3 KB. Time stayed about 41–42 ms. This bounds the answer, but does not make the operation equivalent to a local indexed edge lookup.</p></div>
+<div class="callout"><div class="callout-title">Depth does not bound width</div><p>A star of 5,000 records is entirely within one hop. BV depth one returned all 5,000 nodes, almost the same 820 KB as the full graph. A task acquiring thousands of diary/mail links still needs a result-count or pagination strategy.</p></div>
+</div>
+
+<h2>Pathological shapes and failure modes</h2>
+<table><thead><tr><th>Fixture</th><th>Observed result</th><th>Policy/tooling implication</th></tr></thead><tbody>
+<tr><td>1,000-node related chain</td><td>Default dependency tree returned eleven nodes and flagged its frontier. A depth-2,000 traversal returned all 1,000 in about 90 ms. BV full graph took about 27 ms.</td><td>A default tree is not complete history. Read its flags and make the depth boundary explicit.</td></tr>
+<tr><td>121-node diamond ladder, 160 related edges</td><td>Deep tree returned 161 occurrences for 121 unique IDs. BV returned 121 nodes and 160 edges. Traversal completed without exponential expansion.</td><td>Deduplicate by bead ID when aggregating tree output; do not count occurrences as distinct work.</td></tr>
+<tr><td>100-node dense graph, 4,950 related edges</td><td>Depth-ten tree returned 9,046 occurrences and 1.26 MB in about 149 ms. Deep tree returned 4,951 occurrences and 687 KB. BV returned 100 unique nodes and 4,950 edges, about 284 KB in 27 ms.</td><td>A smaller depth can still produce more occurrences due to traversal order and repeated frontier entries. Prefer a node/edge model for dense structures.</td></tr>
+<tr><td>200-node related cycle</td><td>Deep tree returned 201 occurrences for 200 IDs, with a repeat marker. BV returned the 200 nodes and 200 edges. No command hung.</td><td>Cycles were handled in this fixture. Consumers still need visited-ID tracking when composing their own traversal.</td></tr>
+<tr><td>1,000-node blocking chain</td><td><strong>Rooted native graph exceeded 12 seconds on all three runs.</strong> Whole native graph returned 1,000 nodes/999 edges in about 23 ms; BV full graph in about 31 ms.</td><td>A rooted graph read is not always the cheaper read. Keep a timeout and investigate this specific path before using it as an interactive default.</td></tr>
+<tr><td>100-node dense blocking graph</td><td>Rooted native graph took roughly 178 ms. Whole native graph and BV completed around 26–31 ms, returning all 4,950 edges.</td><td>The long-chain issue is shape-sensitive, not simply “more edges are slower.”</td></tr>
+</tbody></table>
+<p>Native graph's source batches the currently known traversal frontier. In a chain that frontier is narrow, so repeated database reads remain. That is a plausible contributor to the timeout, supported by code inspection; this report does not claim a profiler-proven root cause.</p>
+<p>Dependency tree uses <code>repeat</code> for previously expanded occurrences. In the installed version those entries can also have <code>truncated: true</code>. Interpret the flags together: not every truncated entry means the configured depth alone hid a new branch.</p>
+
+<h2>What Hive UI actually hydrates</h2>
+<ol>
+<li><strong>Check the export.</strong> The ordinary-bead hierarchy reader resolves the selected JSONL file and checks native sync status.</li>
+<li><strong>Read topology through BV.</strong> It loads the exported graph and validates node counts, unique IDs, endpoints and source diagnostics.</li>
+<li><strong>Select a parent-child family.</strong> It excludes system/bee/merge-labelled nodes and tombstones, then follows only parent-child edges. Family mode follows parents and children; outline mode follows descendants.</li>
+<li><strong>Hydrate native summaries in batches of 500 IDs.</strong> These fields omit descriptions, notes and comments. Missing list records can fall back to exact show reads.</li>
+<li><strong>Check freshness again.</strong> Changes during hydration mark the result stale. The board data layer caches family results for a ten-second window and supports explicit refresh cutoffs.</li>
+</ol>
+<p><strong>A related diary is not part of this hierarchy today.</strong> It can appear in the detail inspector's non-parent dependency/dependent lists. Those return up to 50 relationships per direction, together with a total count. That cap is applied after the full native detail read; it does not cap the underlying relation-fetch cost.</p>
+<p>The separate Bee visualization consumes an already loaded scene. Workflow diagrams have their own Busy Bee inspection path. The measurements below concern ordinary-bead topology and summary hydration, not every graph in the UI.</p>
+<table><thead><tr><th>Topology source</th><th>Hydrated family</th><th>Native summary batches</th><th>Median ms (range)</th></tr></thead><tbody><tr><td>Mixed semantics, 12 records</td><td>2 record(s)</td><td>1 × up to 500</td><td>63 (59–64)</td></tr><tr><td>1,000-node star</td><td>1 record(s)</td><td>1 × up to 500</td><td>80 (79–83)</td></tr><tr><td>5,000-node star</td><td>1 record(s)</td><td>1 × up to 500</td><td>167 (166–168)</td></tr><tr><td>1,000-node star, 40.7 MB payload</td><td>1 record(s)</td><td>1 × up to 500</td><td>279 (275–288)</td></tr><tr><td>11-node island in 5,000</td><td>1 record(s)</td><td>1 × up to 500</td><td>135 (134–152)</td></tr><tr><td>1,000-node parent-child star</td><td>1,000 record(s)</td><td>2 × up to 500</td><td>124 (117–124)</td></tr><tr><td>5,000-node parent-child star</td><td>5,000 record(s)</td><td>10 × up to 500</td><td>824 (821–838)</td></tr></tbody></table>
+<p>These measurements invoke the actual topology/hierarchy helpers and native adapters. They include BV, before/after freshness checks, native projection and parsing. They exclude HTTP transport, workflow/card decoration, browser layout/rendering and warm board-cache hits. A 500-record batch size is not a 500-record total limit: the complete 5,000-child family still becomes one hydrated result.</p>
+
+<h2>Freshness can hide a newly linked diary</h2>
+<p>In a separate controlled fixture, I exported a task and then added one diary plus its related link to SQLite with automatic export disabled:</p>
+<table><thead><tr><th>Reader</th><th>Result</th></tr></thead><tbody>
+<tr><td>Native dependency list</td><td>Found the new diary edge immediately</td></tr>
+<tr><td>BV with explicit SQLite input</td><td>Two nodes, one edge</td></tr>
+<tr><td>BV with the older explicit JSONL input</td><td>One node, no edges; its own source report said loaded and not stale</td></tr>
+<tr><td>Native sync status</td><td>One dirty record, database newer, coverage drift; detectable by Hive UI's surrounding checks</td></tr>
+</tbody></table>
+<p>The JSONL result accurately described its selected file; it did not establish that the file contained the latest database changes. For a live agent handoff, “no diary in this snapshot” must not become “there is no diary.” This experiment did not perform or validate cross-machine synchronization.</p>
+
+<h2>How the linked-diary approach should use these readers</h2>
+<div class="tabs">
+<label class="tab"><input type="radio" name="usecases" checked />Current worker</label>
+<label class="tab"><input type="radio" name="usecases" />Taking over</label>
+<label class="tab"><input type="radio" name="usecases" />Historical review</label>
+<div class="tab-panel"><p>The Bee already knows its task and active diary. Read those exact records as needed. Repeatedly rebuilding the full graph provides little value for an append or checkpoint. Keep critical task conclusions in the compact main record; put detailed working history behind its link.</p></div>
+<div class="tab-panel"><p>Read the main task's description, acceptance and durable notes first. Discover direct attachments with a typed bidirectional dependency list, or use a freshness-checked topology index if one is already available. Fetch title/status/labels for the candidate attachments in a batch, then open the selected diary or response. Do not expand every related record's body just to learn what is attached.</p></div>
+<div class="tab-panel"><p>Include closed records deliberately. BV can provide a typed historical topology from a known snapshot; native detail supplies the body of a selected response or diary. State the snapshot boundary and preserve tombstone semantics. A whole retained diary history should be an explicit expansion, not the default cost of opening an old task.</p></div>
+</div>
+<p>The tested data supports the linked-record direction, but the frictionless reader still needs a contract: direct attachment types, type/label classification, an explicit width/byte budget, continuation behavior and freshness. A general recursive “follow every link” command would mix containment, prerequisites, mail and history, and could expand far beyond the original task.</p>
+
+<h2>Concrete follow-up candidates</h2>
+<ul>
+<li><strong>Do not use native graph for diary discovery.</strong> Its omission of related/reply edges is semantic behavior, not a performance bug.</li>
+<li><strong>Keep the topology-then-projection pattern.</strong> Add a bounded attachment view alongside the UI's parent-child hierarchy, rather than turning diaries into children just to make them visible.</li>
+<li><strong>Investigate slow full hydration and rooted native graph separately.</strong> The 100-record show and long blocking-chain results are repeatable examples for focused performance work.</li>
+<li><strong>Retain source freshness checks.</strong> Root/depth filtering and BV source authority do not replace comparing the export with current native state.</li>
+<li><strong>Set limits by records and bytes as well as depth.</strong> Broad stars and dense graphs need meaningful continuation/completeness signals.</li>
+</ul>
+<p>These are investigation conclusions and candidate implementation work. No performance fixes, runtime policy changes, tracker publication or repository code changes were made.</p>
+
+<h2>Method and retained evidence</h2>
+<p>Machine: Apple M4, macOS. CLI benchmark: three sequential fresh processes per command, deterministic mixed command order, first sample retained, no manual filesystem-cache flush. Fixture preparation naturally warmed storage. Native reads used explicit disposable databases with automatic import/export disabled; BV robot cache was disabled. Twelve seconds was the per-read timeout. Median is descriptive, not a percentile/service-level guarantee.</p>
+<p>The main matrix uses ten synthetic fixtures, from 12 to 5,000 records. Supplementary fixtures compare blocking versus related edges and parent-child hydration. Fixtures were admitted through native JSONL import/export; the shared Hive tracker was never used as a load-test target. Setup/import cost is excluded. No million-node extrapolation, remote latency, peak-memory measurement, lock contention test or browser rendering benchmark is claimed.</p>
+<p>The primary timings were collected sequentially. An initial UI-helper run overlapped a supplementary test; that UI run was discarded and replaced with the sequential samples shown here. The supplementary rooted-chain probes briefly overlapped that initial UI check. All three timed out; an additional isolated confirmation also exceeded the same 12-second limit.</p>
+<details><summary>Source pointers and reproducible artifacts</summary>
+<p>Hive source revision inspected: <code>020d38baddd4c82aefd70da9a7158b1c8ea55dcb</code>. Native Rust behavior was inspected at installed revision <code>b77ae70</code>. BV conclusions are grounded in the installed CLI outputs; its local source was used to understand traversal.</p>
+<table><thead><tr><th>Source</th><th>Relevant behavior</th></tr></thead><tbody>
+<tr><td><code>lib/hive-ui/server/topology.ts</code></td><td>BV JSONL topology and before/after native freshness checks</td></tr>
+<tr><td><code>lib/hive-ui/server/hierarchy.ts</code></td><td>Parent-child-only traversal, exclusions, summary columns and 500-ID batches</td></tr>
+<tr><td><code>lib/hive-ui/server/data.ts</code></td><td>Ten-second family cache, exact-read fallback, full detail and relationship slicing</td></tr>
+<tr><td><code>lib/hive-ui/contracts.ts</code></td><td>50 relationships per direction; separate board/annotation sizes</td></tr>
+<tr><td><code>lib/shared/src/bv.ts</code></td><td>Explicit JSONL graph invocation and output/source validation</td></tr>
+<tr><td><code>lib/beads/src/native.ts</code></td><td>Projected list and multi-ID show command composition</td></tr>
+<tr><td><code>beads_rust/src/cli/commands/graph.rs</code></td><td>Readiness-only links, execution-order interpretation, root frontier traversal versus bulk all-graph loading</td></tr>
+<tr><td><code>beads_rust/src/cli/commands/dep.rs</code></td><td>Direct typed links, bounded-depth tree, repeat/truncation behavior</td></tr>
+</tbody></table>
+<p>Saved beside the workshop note: <code>BEADS-GRAPH-EXPERIMENT.py</code> and <code>.json</code>, <code>BEADS-GRAPH-SUPPLEMENT.py</code> and <code>.json</code>, <code>BEADS-GRAPH-HYDRATION.ts</code> and <code>.json</code>, plus <code>BEADS-GRAPH-FRESHNESS.json</code> and <code>BEADS-GRAPH-TIMEOUT-CONFIRMATION.json</code>. The main result records the disposable fixture location. These are local experiment artifacts, not installed product tests.</p>
+</details>
+
+
+		<!-- Auto-outline: scans h2/h3, assigns ids, builds a right-side nav, tracks scroll. -->
+		<script>
+			(function () {
+				const headings = [...document.querySelectorAll("h2, h3")];
+				if (headings.length < 3) return;
+
+				const slug = (t) =>
+					t
+						.toLowerCase()
+						.trim()
+						.replace(/[^a-z0-9]+/g, "-")
+						.replace(/^-|-$/g, "") || "section";
+				const seen = new Map();
+				headings.forEach((h) => {
+					let id = slug(h.textContent);
+					const n = seen.get(id) || 0;
+					if (n) id = id + "-" + n;
+					seen.set(slug(h.textContent), n + 1);
+					h.id = id;
+				});
+
+				const nav = document.createElement("nav");
+				nav.className = "outline";
+				nav.innerHTML = '<div class="outline-title">On this page</div>';
+				const ul = document.createElement("ul");
+				nav.appendChild(ul);
+				let subUl = null;
+				let lastH2Li = null;
+				headings.forEach((h) => {
+					const li = document.createElement("li");
+					const a = document.createElement("a");
+					a.href = "#" + h.id;
+					a.textContent = h.textContent;
+					a.dataset.target = h.id;
+					li.appendChild(a);
+					if (h.tagName === "H2") {
+						ul.appendChild(li);
+						lastH2Li = li;
+						subUl = null;
+					} else {
+						if (!subUl) {
+							subUl = document.createElement("ul");
+							subUl.className = "sub";
+							(lastH2Li || ul).appendChild(subUl);
+						}
+						subUl.appendChild(li);
+					}
+				});
+				document.body.appendChild(nav);
+
+				const links = new Map();
+				nav.querySelectorAll("a").forEach((a) => links.set(a.dataset.target, a));
+
+				function updateActive() {
+					const y = window.scrollY + 80;
+					let current = null;
+					for (const h of headings) {
+						if (h.offsetTop <= y) current = h;
+						else break;
+					}
+					nav.querySelectorAll("a.active").forEach((a) => a.classList.remove("active"));
+					if (current) {
+						const link = links.get(current.id);
+						if (link) link.classList.add("active");
+					}
+				}
+				let raf = 0;
+				window.addEventListener(
+					"scroll",
+					() => {
+						if (raf) return;
+						raf = requestAnimationFrame(() => {
+							raf = 0;
+							updateActive();
+						});
+					},
+					{ passive: true },
+				);
+				updateActive();
+			})();
+		</script>
+
+		<script>
+			// Copy-to-clipboard buttons for pre blocks (skips rendered diagrams).
+			document.querySelectorAll("pre:not(.mermaid):not(.graphviz)").forEach((pre) => {
+				const btn = document.createElement("button");
+				btn.className = "copy-btn";
+				btn.type = "button";
+				btn.textContent = "copy";
+				btn.addEventListener("click", async () => {
+					try {
+						const clone = pre.cloneNode(true);
+						clone.querySelector(".copy-btn")?.remove();
+						await navigator.clipboard.writeText(clone.textContent);
+						btn.textContent = "copied";
+						setTimeout(() => {
+							btn.textContent = "copy";
+						}, 1200);
+					} catch {
+						btn.textContent = "err";
+					}
+				});
+				pre.appendChild(btn);
+			});
+		</script>
+
+		<script>
+			const richResponseTheme = (() => {
+				const palette = {
+					dawn: {
+						bg: "#fdf9f5",
+						fg: "#575279",
+						muted: "#9893a5",
+						dim: "#797593",
+						border: "#dfdad9",
+						codeBg: "#fffaf3",
+						accent: "#b85c58",
+						link: "#286983",
+						infoBg: "#f4ede8",
+						infoBd: "#56949f",
+						warnBd: "#a86a00",
+						errorBd: "#b4637a",
+						successBd: "#a86a00",
+					},
+					moon: {
+						bg: "#232136",
+						fg: "#e0def4",
+						muted: "#6e6a86",
+						dim: "#6e698f",
+						border: "#2e2a42",
+						codeBg: "#2a273f",
+						accent: "#c4a7e7",
+						link: "#9ccfd8",
+						infoBg: "#2a283e",
+						infoBd: "#9a68d6",
+						warnBd: "#f6c177",
+						errorBd: "#eb6f92",
+						successBd: "#9ccfd8",
+					},
+				};
+
+				const isDark = () => matchMedia("(prefers-color-scheme: dark)").matches;
+				const currentPalette = () => (isDark() ? palette.moon : palette.dawn);
+				const oppositePalette = () => (isDark() ? palette.dawn : palette.moon);
+				const css = (name) =>
+					getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+				const current = () => ({
+					bg: css("--bg"),
+					fg: css("--fg"),
+					muted: css("--muted"),
+					dim: css("--dim"),
+					border: css("--border"),
+					codeBg: css("--code-bg"),
+					accent: css("--accent"),
+					link: css("--link"),
+					infoBg: css("--info-bg"),
+					infoBd: css("--info-bd"),
+					warnBd: css("--warn-bd"),
+					errorBd: css("--error-bd"),
+					successBd: css("--success-bd"),
+				});
+
+				const normalizeColor = (value) => {
+					if (!value) return value;
+					const normalized = value.trim().toLowerCase();
+					if (/^#[0-9a-f]{3}$/i.test(normalized)) {
+						return "#" + [...normalized.slice(1)].map((ch) => ch + ch).join("");
+					}
+					const rgb = normalized.match(/^rgba?\(([^)]+)\)$/);
+					if (rgb) {
+						const [r, g, b] = rgb[1]
+							.split(",")
+							.slice(0, 3)
+							.map((part) => Number.parseInt(part.trim(), 10));
+						if ([r, g, b].every((part) => Number.isFinite(part))) {
+							return "#" + [r, g, b].map((part) => part.toString(16).padStart(2, "0")).join("");
+						}
+					}
+					return normalized;
+				};
+
+				const themedGraphvizColor = (value) => {
+					const normalized = normalizeColor(value);
+					if (!normalized || normalized === "none" || normalized === "transparent") return value;
+					if (normalized === "black" || normalized === "#000000") return current().fg;
+					if (normalized === "white" || normalized === "#ffffff") return current().bg;
+
+					const from = oppositePalette();
+					const to = currentPalette();
+					for (const [key, source] of Object.entries(from)) {
+						if (normalized === source) return to[key];
+					}
+					return value;
+				};
+
+				const rewriteStyleColors = (styleValue) =>
+					styleValue
+						.split(";")
+						.map((entry) => {
+							const [prop, raw] = entry.split(":");
+							if (!prop || raw == null) return entry;
+							if (!["fill", "stroke", "color", "stop-color"].includes(prop.trim().toLowerCase())) {
+								return entry;
+							}
+							return `${prop}:${themedGraphvizColor(raw)}`;
+						})
+						.join(";");
+
+				const themeGraphvizSvg = (svg) => {
+					svg.style.background = "transparent";
+					svg.querySelectorAll("*").forEach((node) => {
+						["fill", "stroke", "color", "stop-color"].forEach((attr) => {
+							if (node.hasAttribute(attr)) {
+								node.setAttribute(attr, themedGraphvizColor(node.getAttribute(attr)));
+							}
+						});
+						if (node.hasAttribute("style")) {
+							node.setAttribute("style", rewriteStyleColors(node.getAttribute("style")));
+						}
+					});
+					return svg;
+				};
+
+				const mermaidTheme = () => {
+					const colors = current();
+					return {
+						theme: "base",
+						darkMode: isDark(),
+						themeVariables: {
+							background: colors.bg,
+							fontFamily:
+								'ui-sans-serif, system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif',
+							fontSize: "16px",
+							textColor: colors.fg,
+							primaryColor: colors.codeBg,
+							primaryTextColor: colors.fg,
+							primaryBorderColor: colors.border,
+							secondaryColor: colors.infoBg,
+							secondaryTextColor: colors.fg,
+							secondaryBorderColor: colors.infoBd,
+							tertiaryColor: colors.bg,
+							tertiaryTextColor: colors.fg,
+							tertiaryBorderColor: colors.border,
+							lineColor: colors.link,
+							mainBkg: colors.codeBg,
+							secondBkg: colors.infoBg,
+							tertiaryBkg: colors.bg,
+							clusterBkg: colors.codeBg,
+							clusterBorder: colors.border,
+							nodeBorder: colors.border,
+							edgeLabelBackground: colors.bg,
+							defaultLinkColor: colors.link,
+							titleColor: colors.fg,
+							labelColor: colors.fg,
+							labelTextColor: colors.fg,
+							actorBkg: colors.codeBg,
+							actorBorder: colors.border,
+							actorTextColor: colors.fg,
+							actorLineColor: colors.link,
+							signalColor: colors.link,
+							signalTextColor: colors.fg,
+							noteBkgColor: colors.infoBg,
+							noteBorderColor: colors.infoBd,
+							noteTextColor: colors.fg,
+							activationBkgColor: colors.codeBg,
+							activationBorderColor: colors.border,
+							sequenceNumberColor: colors.bg,
+							sectionBkgColor: colors.codeBg,
+							altSectionBkgColor: colors.infoBg,
+							sectionBkgColor2: colors.bg,
+							gridColor: colors.border,
+							cScale0: colors.codeBg,
+							cScale1: colors.infoBg,
+							cScale2: colors.bg,
+							cScale3: colors.codeBg,
+							cScale4: colors.infoBg,
+							cScale5: colors.bg,
+							pie1: colors.link,
+							pie2: colors.accent,
+							pie3: colors.infoBd,
+							pie4: colors.warnBd,
+							pie5: colors.errorBd,
+							pieOuterStrokeColor: colors.border,
+							pieSectionTextColor: colors.fg,
+							pieTitleTextColor: colors.fg,
+							ganttTaskBkgColor: colors.link,
+							ganttTaskTextColor: colors.bg,
+							ganttTaskOutsideColor: colors.fg,
+							ganttTaskBorderColor: colors.link,
+							ganttGridColor: colors.border,
+						},
+					};
+				};
+
+				return { mermaidTheme, themeGraphvizSvg };
+			})();
+		</script>
+
+		<!--
+  Mermaid: loaded only if a .mermaid block exists. UMD build (not ESM) so it works
+  from file:// origins — `file://` is a unique security origin and blocks ES-module
+  dynamic imports. The `@11` tag on jsdelivr auto-resolves to the latest 11.x release.
+-->
+		<script>
+			if (document.querySelector(".mermaid")) {
+				const s = document.createElement("script");
+				s.src = "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js";
+				s.onload = async () => {
+					try {
+						window.mermaid.initialize({
+							startOnLoad: false,
+							securityLevel: "loose",
+							...richResponseTheme.mermaidTheme(),
+						});
+						await window.mermaid.run({ querySelector: ".mermaid" });
+					} catch (e) {
+						console.error("[mermaid] render failed:", e?.message || e, e);
+						document.querySelectorAll(".mermaid").forEach((el) => {
+							if (!el.dataset.mermaidError) {
+								el.dataset.mermaidError = "1";
+								el.insertAdjacentHTML(
+									"beforebegin",
+									'<div class="callout error"><div class="callout-title">Mermaid render error</div>' +
+										"<code>" +
+										String(e?.message || e).replace(
+											/[<>&]/g,
+											(c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" })[c],
+										) +
+										"</code></div>",
+								);
+							}
+						});
+					}
+				};
+				s.onerror = () => console.error("[mermaid] failed to load script from CDN");
+				document.head.appendChild(s);
+			}
+		</script>
+
+		<!--
+  Graphviz: loaded only if a .graphviz block exists. @viz-js/viz bundles Graphviz
+  to WebAssembly, so rendering works in-browser without requiring `dot` in PATH.
+-->
+		<script>
+			if (document.querySelector(".graphviz")) {
+				const s = document.createElement("script");
+				s.src = "https://cdn.jsdelivr.net/npm/@viz-js/viz@3/lib/viz-standalone.js";
+				s.onload = async () => {
+					try {
+						const viz = await window.Viz.instance();
+						document.querySelectorAll(".graphviz").forEach((el) => {
+							const svg = richResponseTheme.themeGraphvizSvg(viz.renderSVGElement(el.textContent));
+							el.replaceChildren(svg);
+						});
+					} catch (e) {
+						console.error("[graphviz] render failed:", e?.message || e, e);
+						document.querySelectorAll(".graphviz").forEach((el) => {
+							if (!el.dataset.graphvizError) {
+								el.dataset.graphvizError = "1";
+								el.insertAdjacentHTML(
+									"beforebegin",
+									'<div class="callout error"><div class="callout-title">Graphviz render error</div>' +
+										"<code>" +
+										String(e?.message || e).replace(
+											/[<>&]/g,
+											(c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" })[c],
+										) +
+										"</code></div>",
+								);
+							}
+						});
+					}
+				};
+				s.onerror = () => console.error("[graphviz] failed to load script from CDN");
+				document.head.appendChild(s);
+			}
+		</script>
+
+		<!--
+  Syntax highlighting (highlight.js): opt-in via code blocks with a language-xxx class.
+  Loads only when at least one such block exists. Token colors come from the inline
+  Rose Pine Dawn/Moon CSS variables above, matching the active OS color scheme.
+-->
+		<script>
+			(function () {
+				const blocks = document.querySelectorAll('pre code[class*="language-"]');
+				if (!blocks.length) return;
+				const base = "https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build";
+				const s = document.createElement("script");
+				s.src = base + "/highlight.min.js";
+				s.onload = () => blocks.forEach((el) => window.hljs.highlightElement(el));
+				s.onerror = () => console.error("[hljs] failed to load script from CDN");
+				document.head.appendChild(s);
+			})();
+		</script>
+	</body>
+</html>

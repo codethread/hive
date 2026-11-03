@@ -1,0 +1,1058 @@
+{
+  "version": "br 0.7.6 (release) (hive-snapshot-sync@b77ae70)",
+  "results": {
+    "root": "/private/var/folders/6w/lnly9x394flgz3q7zty955500000gn/T/beads-json-reading-p1sd9xw1",
+    "ids": {
+      "with_comments": "demo-tlb",
+      "summary_only": "demo-rip",
+      "notes_log": "demo-btq"
+    },
+    "active_shows": {
+      "with_comments": [
+        {
+          "id": "demo-tlb",
+          "title": "Fixture with comments and a concise summary",
+          "description": "Synthetic fixture: fix repeated refresh behavior while retaining visible update ordering. No real product implementation is represented.",
+          "acceptance_criteria": "- [x] Prepare the synthetic reading fixture.",
+          "notes": "Handoff: ordering fix drafted; focused case passes. Next: verify the reconnect case, then review. No blocker. Current approach: discard stale refresh callbacks. summaryneedleqx",
+          "status": "in_progress",
+          "priority": 2,
+          "issue_type": "task",
+          "owner": "ct",
+          "created_at": "2026-10-24T11:35:17.201906Z",
+          "created_by": "amaranth-fat-bedbug",
+          "updated_at": "2026-10-24T11:35:17.658138Z",
+          "source_repo": "beads-json-reading-p1sd9xw1",
+          "source_repo_path": "/private/var/folders/6w/lnly9x394flgz3q7zty955500000gn/T/beads-json-reading-p1sd9xw1",
+          "compaction_level": 0,
+          "original_size": 0,
+          "comments": [
+            {
+              "id": 1,
+              "issue_id": "demo-tlb",
+              "author": "fixture-worker-a",
+              "text": "Started the synthetic refresh task. Located callback ordering in fixture/refresh.ts. Baseline captured; next step is to reproduce reconnect behavior. Working tree is fixture/example.",
+              "created_at": "2026-10-24T11:35:17Z"
+            },
+            {
+              "id": 2,
+              "issue_id": "demo-tlb",
+              "author": "fixture-worker-b",
+              "text": "Baseline reproduction: reconnect emits an old callback after the replacement subscription. commentneedleqx marks this comment-only search fact. The visible result briefly moves backward before the next event arrives.",
+              "created_at": "2026-10-24T11:35:17Z"
+            },
+            {
+              "id": 3,
+              "issue_id": "demo-tlb",
+              "author": "fixture-worker-a",
+              "text": "Experiment A: tried a second cache. It concealed the symptom but introduced two sources of truth and did not explain the event ordering. This experiment was rejected; it is historical context, not the current plan.",
+              "created_at": "2026-10-24T11:35:17Z"
+            },
+            {
+              "id": 4,
+              "issue_id": "demo-tlb",
+              "author": "fixture-worker-b",
+              "text": "Decision: retain one subscription generation and discard callbacks from older generations. This keeps ownership explicit and leaves current-generation ordering unchanged. No second cache is planned.",
+              "created_at": "2026-10-24T11:35:17Z"
+            },
+            {
+              "id": 5,
+              "issue_id": "demo-tlb",
+              "author": "fixture-worker-a",
+              "text": "Implementation draft prepared. The focused ordering scenario passes in this fictional fixture. Reconnect coverage remains the next action. Do not read this interim result as completion of the whole task.",
+              "created_at": "2026-10-24T11:35:17Z"
+            },
+            {
+              "id": 6,
+              "issue_id": "demo-tlb",
+              "author": "fixture-worker-b",
+              "text": "Review observation: keep generation invalidation adjacent to subscription replacement. A reviewer asked for an explicit reconnect regression and a clear statement that quiet callbacks are not evidence of failure.",
+              "created_at": "2026-10-24T11:35:17Z"
+            },
+            {
+              "id": 7,
+              "issue_id": "demo-tlb",
+              "author": "fixture-worker-a",
+              "text": "Reconnect scenario added and checked in the fictional example. The earlier second-cache idea remains rejected. Final explanation should preserve why a single generation marker was chosen.",
+              "created_at": "2026-10-24T11:35:17Z"
+            },
+            {
+              "id": 8,
+              "issue_id": "demo-tlb",
+              "author": "fixture-worker-b",
+              "text": "Final handoff: keep the concise outcome and rationale in notes; retain this discussion for optional historical inspection. No real code or tests were changed by this disposable fixture.",
+              "created_at": "2026-10-24T11:35:17Z"
+            }
+          ],
+          "acceptance_items": [
+            {
+              "index": 1,
+              "text": "Prepare the synthetic reading fixture.",
+              "checked": true
+            }
+          ]
+        }
+      ],
+      "summary_only": [
+        {
+          "id": "demo-rip",
+          "title": "Fixture with concise notes only",
+          "description": "Synthetic fixture: fix repeated refresh behavior while retaining visible update ordering. No real product implementation is represented.",
+          "acceptance_criteria": "- [x] Prepare the synthetic reading fixture.",
+          "notes": "Handoff: ordering fix drafted; focused case passes. Next: verify the reconnect case, then review. No blocker. Current approach: discard stale refresh callbacks. summaryneedleqx",
+          "status": "in_progress",
+          "priority": 2,
+          "issue_type": "task",
+          "owner": "ct",
+          "created_at": "2026-10-24T11:35:17.279756Z",
+          "created_by": "amaranth-fat-bedbug",
+          "updated_at": "2026-10-24T11:35:17.315498Z",
+          "source_repo": "beads-json-reading-p1sd9xw1",
+          "source_repo_path": "/private/var/folders/6w/lnly9x394flgz3q7zty955500000gn/T/beads-json-reading-p1sd9xw1",
+          "compaction_level": 0,
+          "original_size": 0,
+          "acceptance_items": [
+            {
+              "index": 1,
+              "text": "Prepare the synthetic reading fixture.",
+              "checked": true
+            }
+          ]
+        }
+      ],
+      "notes_log": [
+        {
+          "id": "demo-btq",
+          "title": "Fixture with the work log in notes",
+          "description": "Synthetic fixture: fix repeated refresh behavior while retaining visible update ordering. No real product implementation is represented.",
+          "acceptance_criteria": "- [x] Prepare the synthetic reading fixture.",
+          "notes": "Started the synthetic refresh task. Located callback ordering in fixture/refresh.ts. Baseline captured; next step is to reproduce reconnect behavior. Working tree is fixture/example.\n\nBaseline reproduction: reconnect emits an old callback after the replacement subscription. commentneedleqx marks this comment-only search fact. The visible result briefly moves backward before the next event arrives.\n\nExperiment A: tried a second cache. It concealed the symptom but introduced two sources of truth and did not explain the event ordering. This experiment was rejected; it is historical context, not the current plan.\n\nDecision: retain one subscription generation and discard callbacks from older generations. This keeps ownership explicit and leaves current-generation ordering unchanged. No second cache is planned.\n\nImplementation draft prepared. The focused ordering scenario passes in this fictional fixture. Reconnect coverage remains the next action. Do not read this interim result as completion of the whole task.\n\nReview observation: keep generation invalidation adjacent to subscription replacement. A reviewer asked for an explicit reconnect regression and a clear statement that quiet callbacks are not evidence of failure.\n\nReconnect scenario added and checked in the fictional example. The earlier second-cache idea remains rejected. Final explanation should preserve why a single generation marker was chosen.\n\nFinal handoff: keep the concise outcome and rationale in notes; retain this discussion for optional historical inspection. No real code or tests were changed by this disposable fixture.",
+          "status": "in_progress",
+          "priority": 2,
+          "issue_type": "task",
+          "owner": "ct",
+          "created_at": "2026-10-24T11:35:17.349949Z",
+          "created_by": "amaranth-fat-bedbug",
+          "updated_at": "2026-10-24T11:35:17.387393Z",
+          "source_repo": "beads-json-reading-p1sd9xw1",
+          "source_repo_path": "/private/var/folders/6w/lnly9x394flgz3q7zty955500000gn/T/beads-json-reading-p1sd9xw1",
+          "compaction_level": 0,
+          "original_size": 0,
+          "acceptance_items": [
+            {
+              "index": 1,
+              "text": "Prepare the synthetic reading fixture.",
+              "checked": true
+            }
+          ]
+        }
+      ]
+    },
+    "active_exact_list": {
+      "issues": [
+        {
+          "id": "demo-tlb",
+          "title": "Fixture with comments and a concise summary",
+          "description": "Synthetic fixture: fix repeated refresh behavior while retaining visible update ordering. No real product implementation is represented.",
+          "acceptance_criteria": "- [x] Prepare the synthetic reading fixture.",
+          "notes": "Handoff: ordering fix drafted; focused case passes. Next: verify the reconnect case, then review. No blocker. Current approach: discard stale refresh callbacks. summaryneedleqx",
+          "status": "in_progress",
+          "priority": 2,
+          "issue_type": "task",
+          "owner": "ct",
+          "created_at": "2026-10-24T11:35:17.201906Z",
+          "created_by": "amaranth-fat-bedbug",
+          "updated_at": "2026-10-24T11:35:17.658138Z",
+          "source_repo": "beads-json-reading-p1sd9xw1",
+          "source_repo_path": "/private/var/folders/6w/lnly9x394flgz3q7zty955500000gn/T/beads-json-reading-p1sd9xw1",
+          "compaction_level": 0,
+          "original_size": 0,
+          "dependency_count": 0,
+          "dependent_count": 0
+        }
+      ],
+      "total": 1,
+      "limit": 0,
+      "offset": 0,
+      "has_more": false
+    },
+    "fields_json": {
+      "issues": [
+        {
+          "id": "demo-tlb",
+          "title": "Fixture with comments and a concise summary",
+          "status": "in_progress",
+          "notes": "Handoff: ordering fix drafted; focused case passes. Next: verify the reconnect case, then review. No blocker. Current approach: discard stale refresh callbacks. summaryneedleqx"
+        }
+      ],
+      "total": 1,
+      "limit": 0,
+      "offset": 0,
+      "has_more": false
+    },
+    "all_comments": [
+      {
+        "id": 1,
+        "issue_id": "demo-tlb",
+        "author": "fixture-worker-a",
+        "text": "Started the synthetic refresh task. Located callback ordering in fixture/refresh.ts. Baseline captured; next step is to reproduce reconnect behavior. Working tree is fixture/example.",
+        "created_at": "2026-10-24T11:35:17Z"
+      },
+      {
+        "id": 2,
+        "issue_id": "demo-tlb",
+        "author": "fixture-worker-b",
+        "text": "Baseline reproduction: reconnect emits an old callback after the replacement subscription. commentneedleqx marks this comment-only search fact. The visible result briefly moves backward before the next event arrives.",
+        "created_at": "2026-10-24T11:35:17Z"
+      },
+      {
+        "id": 3,
+        "issue_id": "demo-tlb",
+        "author": "fixture-worker-a",
+        "text": "Experiment A: tried a second cache. It concealed the symptom but introduced two sources of truth and did not explain the event ordering. This experiment was rejected; it is historical context, not the current plan.",
+        "created_at": "2026-10-24T11:35:17Z"
+      },
+      {
+        "id": 4,
+        "issue_id": "demo-tlb",
+        "author": "fixture-worker-b",
+        "text": "Decision: retain one subscription generation and discard callbacks from older generations. This keeps ownership explicit and leaves current-generation ordering unchanged. No second cache is planned.",
+        "created_at": "2026-10-24T11:35:17Z"
+      },
+      {
+        "id": 5,
+        "issue_id": "demo-tlb",
+        "author": "fixture-worker-a",
+        "text": "Implementation draft prepared. The focused ordering scenario passes in this fictional fixture. Reconnect coverage remains the next action. Do not read this interim result as completion of the whole task.",
+        "created_at": "2026-10-24T11:35:17Z"
+      },
+      {
+        "id": 6,
+        "issue_id": "demo-tlb",
+        "author": "fixture-worker-b",
+        "text": "Review observation: keep generation invalidation adjacent to subscription replacement. A reviewer asked for an explicit reconnect regression and a clear statement that quiet callbacks are not evidence of failure.",
+        "created_at": "2026-10-24T11:35:17Z"
+      },
+      {
+        "id": 7,
+        "issue_id": "demo-tlb",
+        "author": "fixture-worker-a",
+        "text": "Reconnect scenario added and checked in the fictional example. The earlier second-cache idea remains rejected. Final explanation should preserve why a single generation marker was chosen.",
+        "created_at": "2026-10-24T11:35:17Z"
+      },
+      {
+        "id": 8,
+        "issue_id": "demo-tlb",
+        "author": "fixture-worker-b",
+        "text": "Final handoff: keep the concise outcome and rationale in notes; retain this discussion for optional historical inspection. No real code or tests were changed by this disposable fixture.",
+        "created_at": "2026-10-24T11:35:17Z"
+      }
+    ],
+    "handoff_projection": [
+      {
+        "id": "demo-tlb",
+        "status": "in_progress",
+        "description": "Synthetic fixture: fix repeated refresh behavior while retaining visible update ordering. No real product implementation is represented.",
+        "notes": "Handoff: ordering fix drafted; focused case passes. Next: verify the reconnect case, then review. No blocker. Current approach: discard stale refresh callbacks. summaryneedleqx"
+      }
+    ],
+    "recent_comments": [
+      {
+        "author": "fixture-worker-a",
+        "created_at": "2026-10-24T11:35:17Z",
+        "text": "Reconnect scenario added and checked in the fictional example. The earlier second-cache idea remains rejected. Final explanation should preserve why a single generation marker was chosen."
+      },
+      {
+        "author": "fixture-worker-b",
+        "created_at": "2026-10-24T11:35:17Z",
+        "text": "Final handoff: keep the concise outcome and rationale in notes; retain this discussion for optional historical inspection. No real code or tests were changed by this disposable fixture."
+      }
+    ],
+    "show_fields_attempt": {
+      "stdout": "",
+      "stderr": "error: unexpected argument '--fields' found\n\n  tip: to pass '--fields' as a value, use '-- --fields'\n\nUsage: br show <IDS>...\n\nFor more information, try '--help'.\n",
+      "exit": 2
+    },
+    "comments_limit_attempt": {
+      "stdout": "",
+      "stderr": "error: unexpected argument '--limit' found\n\n  tip: to pass '--limit' as a value, use '-- --limit'\n\nUsage: br comments list <ID>\n\nFor more information, try '--help'.\n",
+      "exit": 2
+    },
+    "historical_show": [
+      {
+        "id": "demo-tlb",
+        "title": "Fixture with comments and a concise summary",
+        "description": "Synthetic fixture: fix repeated refresh behavior while retaining visible update ordering. No real product implementation is represented.",
+        "acceptance_criteria": "- [x] Prepare the synthetic reading fixture.",
+        "notes": "Outcome: stale refresh callbacks discarded; reconnect and ordering cases verified in this fictional scenario. Rationale: preserve event order without a second cache. summaryneedleqx",
+        "status": "closed",
+        "priority": 2,
+        "issue_type": "task",
+        "owner": "ct",
+        "created_at": "2026-10-24T11:35:17.201906Z",
+        "created_by": "amaranth-fat-bedbug",
+        "updated_at": "2026-10-24T11:35:17.813712Z",
+        "closed_at": "2026-10-24T11:35:17.813446Z",
+        "close_reason": "Synthetic fixture completed for JSON reading comparisons; no production work.",
+        "source_repo": "beads-json-reading-p1sd9xw1",
+        "source_repo_path": "/private/var/folders/6w/lnly9x394flgz3q7zty955500000gn/T/beads-json-reading-p1sd9xw1",
+        "compaction_level": 0,
+        "original_size": 0,
+        "comments": [
+          {
+            "id": 1,
+            "issue_id": "demo-tlb",
+            "author": "fixture-worker-a",
+            "text": "Started the synthetic refresh task. Located callback ordering in fixture/refresh.ts. Baseline captured; next step is to reproduce reconnect behavior. Working tree is fixture/example.",
+            "created_at": "2026-10-24T11:35:17Z"
+          },
+          {
+            "id": 2,
+            "issue_id": "demo-tlb",
+            "author": "fixture-worker-b",
+            "text": "Baseline reproduction: reconnect emits an old callback after the replacement subscription. commentneedleqx marks this comment-only search fact. The visible result briefly moves backward before the next event arrives.",
+            "created_at": "2026-10-24T11:35:17Z"
+          },
+          {
+            "id": 3,
+            "issue_id": "demo-tlb",
+            "author": "fixture-worker-a",
+            "text": "Experiment A: tried a second cache. It concealed the symptom but introduced two sources of truth and did not explain the event ordering. This experiment was rejected; it is historical context, not the current plan.",
+            "created_at": "2026-10-24T11:35:17Z"
+          },
+          {
+            "id": 4,
+            "issue_id": "demo-tlb",
+            "author": "fixture-worker-b",
+            "text": "Decision: retain one subscription generation and discard callbacks from older generations. This keeps ownership explicit and leaves current-generation ordering unchanged. No second cache is planned.",
+            "created_at": "2026-10-24T11:35:17Z"
+          },
+          {
+            "id": 5,
+            "issue_id": "demo-tlb",
+            "author": "fixture-worker-a",
+            "text": "Implementation draft prepared. The focused ordering scenario passes in this fictional fixture. Reconnect coverage remains the next action. Do not read this interim result as completion of the whole task.",
+            "created_at": "2026-10-24T11:35:17Z"
+          },
+          {
+            "id": 6,
+            "issue_id": "demo-tlb",
+            "author": "fixture-worker-b",
+            "text": "Review observation: keep generation invalidation adjacent to subscription replacement. A reviewer asked for an explicit reconnect regression and a clear statement that quiet callbacks are not evidence of failure.",
+            "created_at": "2026-10-24T11:35:17Z"
+          },
+          {
+            "id": 7,
+            "issue_id": "demo-tlb",
+            "author": "fixture-worker-a",
+            "text": "Reconnect scenario added and checked in the fictional example. The earlier second-cache idea remains rejected. Final explanation should preserve why a single generation marker was chosen.",
+            "created_at": "2026-10-24T11:35:17Z"
+          },
+          {
+            "id": 8,
+            "issue_id": "demo-tlb",
+            "author": "fixture-worker-b",
+            "text": "Final handoff: keep the concise outcome and rationale in notes; retain this discussion for optional historical inspection. No real code or tests were changed by this disposable fixture.",
+            "created_at": "2026-10-24T11:35:17Z"
+          }
+        ],
+        "acceptance_items": [
+          {
+            "index": 1,
+            "text": "Prepare the synthetic reading fixture.",
+            "checked": true
+          }
+        ]
+      }
+    ],
+    "historical_exact_list": {
+      "issues": [
+        {
+          "id": "demo-tlb",
+          "title": "Fixture with comments and a concise summary",
+          "description": "Synthetic fixture: fix repeated refresh behavior while retaining visible update ordering. No real product implementation is represented.",
+          "acceptance_criteria": "- [x] Prepare the synthetic reading fixture.",
+          "notes": "Outcome: stale refresh callbacks discarded; reconnect and ordering cases verified in this fictional scenario. Rationale: preserve event order without a second cache. summaryneedleqx",
+          "status": "closed",
+          "priority": 2,
+          "issue_type": "task",
+          "owner": "ct",
+          "created_at": "2026-10-24T11:35:17.201906Z",
+          "created_by": "amaranth-fat-bedbug",
+          "updated_at": "2026-10-24T11:35:17.813712Z",
+          "closed_at": "2026-10-24T11:35:17.813446Z",
+          "close_reason": "Synthetic fixture completed for JSON reading comparisons; no production work.",
+          "source_repo": "beads-json-reading-p1sd9xw1",
+          "source_repo_path": "/private/var/folders/6w/lnly9x394flgz3q7zty955500000gn/T/beads-json-reading-p1sd9xw1",
+          "compaction_level": 0,
+          "original_size": 0,
+          "dependency_count": 0,
+          "dependent_count": 0
+        }
+      ],
+      "total": 1,
+      "limit": 0,
+      "offset": 0,
+      "has_more": false
+    },
+    "historical_default_list": {
+      "issues": [],
+      "total": 0,
+      "limit": 0,
+      "offset": 0,
+      "has_more": false
+    },
+    "search_comment": {
+      "issues": [
+        {
+          "id": "demo-tlb",
+          "title": "Fixture with comments and a concise summary",
+          "description": "Synthetic fixture: fix repeated refresh behavior while retaining visible update ordering. No real product implementation is represented.",
+          "acceptance_criteria": "- [x] Prepare the synthetic reading fixture.",
+          "notes": "Outcome: stale refresh callbacks discarded; reconnect and ordering cases verified in this fictional scenario. Rationale: preserve event order without a second cache. summaryneedleqx",
+          "status": "closed",
+          "priority": 2,
+          "issue_type": "task",
+          "owner": "ct",
+          "created_at": "2026-10-24T11:35:17.201906Z",
+          "created_by": "amaranth-fat-bedbug",
+          "updated_at": "2026-10-24T11:35:17.813712Z",
+          "closed_at": "2026-10-24T11:35:17.813446Z",
+          "close_reason": "Synthetic fixture completed for JSON reading comparisons; no production work.",
+          "source_repo": "beads-json-reading-p1sd9xw1",
+          "source_repo_path": "/private/var/folders/6w/lnly9x394flgz3q7zty955500000gn/T/beads-json-reading-p1sd9xw1",
+          "compaction_level": 0,
+          "original_size": 0,
+          "dependency_count": 0,
+          "dependent_count": 0
+        }
+      ],
+      "hidden_closed_count": 0,
+      "limit": 50,
+      "offset": 0,
+      "has_more": false
+    },
+    "search_summary": {
+      "issues": [],
+      "hidden_closed_count": 0,
+      "limit": 50,
+      "offset": 0,
+      "has_more": false
+    },
+    "notes_summary_filter": {
+      "issues": [
+        {
+          "id": "demo-rip",
+          "title": "Fixture with concise notes only",
+          "description": "Synthetic fixture: fix repeated refresh behavior while retaining visible update ordering. No real product implementation is represented.",
+          "acceptance_criteria": "- [x] Prepare the synthetic reading fixture.",
+          "notes": "Outcome: stale refresh callbacks discarded; reconnect and ordering cases verified in this fictional scenario. Rationale: preserve event order without a second cache. summaryneedleqx",
+          "status": "closed",
+          "priority": 2,
+          "issue_type": "task",
+          "owner": "ct",
+          "created_at": "2026-10-24T11:35:17.279756Z",
+          "created_by": "amaranth-fat-bedbug",
+          "updated_at": "2026-10-24T11:35:17.885910Z",
+          "closed_at": "2026-10-24T11:35:17.885613Z",
+          "close_reason": "Synthetic fixture completed for JSON reading comparisons; no production work.",
+          "source_repo": "beads-json-reading-p1sd9xw1",
+          "source_repo_path": "/private/var/folders/6w/lnly9x394flgz3q7zty955500000gn/T/beads-json-reading-p1sd9xw1",
+          "compaction_level": 0,
+          "original_size": 0,
+          "dependency_count": 0,
+          "dependent_count": 0
+        },
+        {
+          "id": "demo-tlb",
+          "title": "Fixture with comments and a concise summary",
+          "description": "Synthetic fixture: fix repeated refresh behavior while retaining visible update ordering. No real product implementation is represented.",
+          "acceptance_criteria": "- [x] Prepare the synthetic reading fixture.",
+          "notes": "Outcome: stale refresh callbacks discarded; reconnect and ordering cases verified in this fictional scenario. Rationale: preserve event order without a second cache. summaryneedleqx",
+          "status": "closed",
+          "priority": 2,
+          "issue_type": "task",
+          "owner": "ct",
+          "created_at": "2026-10-24T11:35:17.201906Z",
+          "created_by": "amaranth-fat-bedbug",
+          "updated_at": "2026-10-24T11:35:17.813712Z",
+          "closed_at": "2026-10-24T11:35:17.813446Z",
+          "close_reason": "Synthetic fixture completed for JSON reading comparisons; no production work.",
+          "source_repo": "beads-json-reading-p1sd9xw1",
+          "source_repo_path": "/private/var/folders/6w/lnly9x394flgz3q7zty955500000gn/T/beads-json-reading-p1sd9xw1",
+          "compaction_level": 0,
+          "original_size": 0,
+          "dependency_count": 0,
+          "dependent_count": 0
+        }
+      ],
+      "total": 2,
+      "limit": 0,
+      "offset": 0,
+      "has_more": false
+    },
+    "notes_log_filter": {
+      "issues": [
+        {
+          "id": "demo-btq",
+          "title": "Fixture with the work log in notes",
+          "description": "Synthetic fixture: fix repeated refresh behavior while retaining visible update ordering. No real product implementation is represented.",
+          "acceptance_criteria": "- [x] Prepare the synthetic reading fixture.",
+          "notes": "Started the synthetic refresh task. Located callback ordering in fixture/refresh.ts. Baseline captured; next step is to reproduce reconnect behavior. Working tree is fixture/example.\n\nBaseline reproduction: reconnect emits an old callback after the replacement subscription. commentneedleqx marks this comment-only search fact. The visible result briefly moves backward before the next event arrives.\n\nExperiment A: tried a second cache. It concealed the symptom but introduced two sources of truth and did not explain the event ordering. This experiment was rejected; it is historical context, not the current plan.\n\nDecision: retain one subscription generation and discard callbacks from older generations. This keeps ownership explicit and leaves current-generation ordering unchanged. No second cache is planned.\n\nImplementation draft prepared. The focused ordering scenario passes in this fictional fixture. Reconnect coverage remains the next action. Do not read this interim result as completion of the whole task.\n\nReview observation: keep generation invalidation adjacent to subscription replacement. A reviewer asked for an explicit reconnect regression and a clear statement that quiet callbacks are not evidence of failure.\n\nReconnect scenario added and checked in the fictional example. The earlier second-cache idea remains rejected. Final explanation should preserve why a single generation marker was chosen.\n\nFinal handoff: keep the concise outcome and rationale in notes; retain this discussion for optional historical inspection. No real code or tests were changed by this disposable fixture.",
+          "status": "closed",
+          "priority": 2,
+          "issue_type": "task",
+          "owner": "ct",
+          "created_at": "2026-10-24T11:35:17.349949Z",
+          "created_by": "amaranth-fat-bedbug",
+          "updated_at": "2026-10-24T11:35:17.930578Z",
+          "closed_at": "2026-10-24T11:35:17.929508Z",
+          "close_reason": "Synthetic fixture completed for JSON reading comparisons; no production work.",
+          "source_repo": "beads-json-reading-p1sd9xw1",
+          "source_repo_path": "/private/var/folders/6w/lnly9x394flgz3q7zty955500000gn/T/beads-json-reading-p1sd9xw1",
+          "compaction_level": 0,
+          "original_size": 0,
+          "dependency_count": 0,
+          "dependent_count": 0
+        }
+      ],
+      "total": 1,
+      "limit": 0,
+      "offset": 0,
+      "has_more": false
+    },
+    "measurements_compact_json_bytes": {
+      "with_comments": 3407,
+      "summary_only": 945,
+      "notes_log": 2397,
+      "exact_list": 961,
+      "handoff_projection": 382,
+      "all_comments": 2438,
+      "recent_two_comments": 525,
+      "historical_show": 3544,
+      "historical_exact_list": 1098,
+      "active_projected_list": 342,
+      "historical_projected_list": 659,
+      "keyword_comments": 579
+    },
+    "historical_projected_list": {
+      "issues": [
+        {
+          "id": "demo-tlb",
+          "title": "Fixture with comments and a concise summary",
+          "status": "closed",
+          "description": "Synthetic fixture: fix repeated refresh behavior while retaining visible update ordering. No real product implementation is represented.",
+          "acceptance_criteria": "- [x] Prepare the synthetic reading fixture.",
+          "notes": "Outcome: stale refresh callbacks discarded; reconnect and ordering cases verified in this fictional scenario. Rationale: preserve event order without a second cache. summaryneedleqx",
+          "close_reason": "Synthetic fixture completed for JSON reading comparisons; no production work."
+        }
+      ],
+      "total": 1,
+      "limit": 0,
+      "offset": 0,
+      "has_more": false
+    },
+    "keyword_comments": [
+      {
+        "id": 3,
+        "author": "fixture-worker-a",
+        "created_at": "2026-10-24T11:35:17Z",
+        "text": "Experiment A: tried a second cache. It concealed the symptom but introduced two sources of truth and did not explain the event ordering. This experiment was rejected; it is historical context, not the current plan."
+      },
+      {
+        "id": 4,
+        "author": "fixture-worker-b",
+        "created_at": "2026-10-24T11:35:17Z",
+        "text": "Decision: retain one subscription generation and discard callbacks from older generations. This keeps ownership explicit and leaves current-generation ordering unchanged. No second cache is planned."
+      }
+    ],
+    "native_projection_command": [
+      "br",
+      "list",
+      "--id",
+      "demo-tlb",
+      "--all",
+      "--deferred",
+      "--exclude-label",
+      "system",
+      "--fields",
+      "id,title,status,description,acceptance_criteria,notes,close_reason",
+      "--json",
+      "--db",
+      "/private/var/folders/6w/lnly9x394flgz3q7zty955500000gn/T/beads-json-reading-p1sd9xw1/.beads/beads.db",
+      "--no-auto-flush",
+      "--no-auto-import"
+    ],
+    "native_projection_stderr": ""
+  },
+  "commands": [
+    {
+      "args": [
+        "init",
+        "--prefix",
+        "demo"
+      ],
+      "exit": 0,
+      "stdout": "{\"initialized\":true,\"beads_dir\":\"/private/var/folders/6w/lnly9x394flgz3q7zty955500000gn/T/beads-json-reading-p1sd9xw1/.beads\",\"database_path\":\"/private/var/folders/6w/lnly9x394flgz3q7zty955500000gn/T/beads-json-reading-p1sd9xw1/.beads/beads.db\",\"prefix\":\"demo\",\"files\":{\"directory\":\"created\",\"database\":\"created\",\"metadata\":\"created\",\"config\":\"created\",\"gitignore\":\"created\",\"jsonl\":\"created\"}}\n",
+      "stderr": "2026-10-24T11:35:17.111839Z  WARN fsqlite_core::connection: WAL-FEC requires a caller-owned runtime blocking pool; primary WAL durability is unchanged\n"
+    },
+    {
+      "args": [
+        "create",
+        "Fixture with comments and a concise summary",
+        "--description",
+        "Synthetic fixture: fix repeated refresh behavior while retaining visible update ordering. No real product implementation is represented.",
+        "--acceptance-criteria",
+        "- [x] Prepare the synthetic reading fixture.",
+        "--status",
+        "draft",
+        "--owner",
+        "ct"
+      ],
+      "exit": 0,
+      "stdout": "{\"id\":\"demo-tlb\",\"title\":\"Fixture with comments and a concise summary\",\"description\":\"Synthetic fixture: fix repeated refresh behavior while retaining visible update ordering. No real product implementation is represented.\",\"acceptance_criteria\":\"- [x] Prepare the synthetic reading fixture.\",\"status\":\"draft\",\"priority\":2,\"issue_type\":\"task\",\"owner\":\"ct\",\"created_at\":\"2026-10-24T11:35:17.201906Z\",\"created_by\":\"amaranth-fat-bedbug\",\"updated_at\":\"2026-10-24T11:35:17.201906Z\",\"source_repo\":\"beads-json-reading-p1sd9xw1\",\"source_repo_path\":\"/private/var/folders/6w/lnly9x394flgz3q7zty955500000gn/T/beads-json-reading-p1sd9xw1\",\"compaction_level\":0,\"original_size\":0}\n",
+      "stderr": "2026-10-24T11:35:17.197972Z  WARN fsqlite_core::connection: WAL-FEC requires a caller-owned runtime blocking pool; primary WAL durability is unchanged\n"
+    },
+    {
+      "args": [
+        "update",
+        "demo-tlb",
+        "--status",
+        "in_progress",
+        "--notes",
+        "Handoff: ordering fix drafted; focused case passes. Next: verify the reconnect case, then review. No blocker. Current approach: discard stale refresh callbacks. summaryneedleqx"
+      ],
+      "exit": 0,
+      "stdout": "[{\"id\":\"demo-tlb\",\"title\":\"Fixture with comments and a concise summary\",\"status\":\"in_progress\",\"priority\":2,\"assignee\":null,\"owner\":\"ct\",\"updated_at\":\"2026-10-24T11:35:17.244883Z\"}]\n",
+      "stderr": "2026-10-24T11:35:17.238822Z  WARN fsqlite_core::connection: WAL-FEC requires a caller-owned runtime blocking pool; primary WAL durability is unchanged\n"
+    },
+    {
+      "args": [
+        "create",
+        "Fixture with concise notes only",
+        "--description",
+        "Synthetic fixture: fix repeated refresh behavior while retaining visible update ordering. No real product implementation is represented.",
+        "--acceptance-criteria",
+        "- [x] Prepare the synthetic reading fixture.",
+        "--status",
+        "draft",
+        "--owner",
+        "ct"
+      ],
+      "exit": 0,
+      "stdout": "{\"id\":\"demo-rip\",\"title\":\"Fixture with concise notes only\",\"description\":\"Synthetic fixture: fix repeated refresh behavior while retaining visible update ordering. No real product implementation is represented.\",\"acceptance_criteria\":\"- [x] Prepare the synthetic reading fixture.\",\"status\":\"draft\",\"priority\":2,\"issue_type\":\"task\",\"owner\":\"ct\",\"created_at\":\"2026-10-24T11:35:17.279756Z\",\"created_by\":\"amaranth-fat-bedbug\",\"updated_at\":\"2026-10-24T11:35:17.279756Z\",\"source_repo\":\"beads-json-reading-p1sd9xw1\",\"source_repo_path\":\"/private/var/folders/6w/lnly9x394flgz3q7zty955500000gn/T/beads-json-reading-p1sd9xw1\",\"compaction_level\":0,\"original_size\":0}\n",
+      "stderr": "2026-10-24T11:35:17.275923Z  WARN fsqlite_core::connection: WAL-FEC requires a caller-owned runtime blocking pool; primary WAL durability is unchanged\n"
+    },
+    {
+      "args": [
+        "update",
+        "demo-rip",
+        "--status",
+        "in_progress",
+        "--notes",
+        "Handoff: ordering fix drafted; focused case passes. Next: verify the reconnect case, then review. No blocker. Current approach: discard stale refresh callbacks. summaryneedleqx"
+      ],
+      "exit": 0,
+      "stdout": "[{\"id\":\"demo-rip\",\"title\":\"Fixture with concise notes only\",\"status\":\"in_progress\",\"priority\":2,\"assignee\":null,\"owner\":\"ct\",\"updated_at\":\"2026-10-24T11:35:17.315498Z\"}]\n",
+      "stderr": "2026-10-24T11:35:17.309916Z  WARN fsqlite_core::connection: WAL-FEC requires a caller-owned runtime blocking pool; primary WAL durability is unchanged\n"
+    },
+    {
+      "args": [
+        "create",
+        "Fixture with the work log in notes",
+        "--description",
+        "Synthetic fixture: fix repeated refresh behavior while retaining visible update ordering. No real product implementation is represented.",
+        "--acceptance-criteria",
+        "- [x] Prepare the synthetic reading fixture.",
+        "--status",
+        "draft",
+        "--owner",
+        "ct"
+      ],
+      "exit": 0,
+      "stdout": "{\"id\":\"demo-btq\",\"title\":\"Fixture with the work log in notes\",\"description\":\"Synthetic fixture: fix repeated refresh behavior while retaining visible update ordering. No real product implementation is represented.\",\"acceptance_criteria\":\"- [x] Prepare the synthetic reading fixture.\",\"status\":\"draft\",\"priority\":2,\"issue_type\":\"task\",\"owner\":\"ct\",\"created_at\":\"2026-10-24T11:35:17.349949Z\",\"created_by\":\"amaranth-fat-bedbug\",\"updated_at\":\"2026-10-24T11:35:17.349949Z\",\"source_repo\":\"beads-json-reading-p1sd9xw1\",\"source_repo_path\":\"/private/var/folders/6w/lnly9x394flgz3q7zty955500000gn/T/beads-json-reading-p1sd9xw1\",\"compaction_level\":0,\"original_size\":0}\n",
+      "stderr": "2026-10-24T11:35:17.345771Z  WARN fsqlite_core::connection: WAL-FEC requires a caller-owned runtime blocking pool; primary WAL durability is unchanged\n"
+    },
+    {
+      "args": [
+        "update",
+        "demo-btq",
+        "--status",
+        "in_progress",
+        "--notes",
+        "Started the synthetic refresh task. Located callback ordering in fixture/refresh.ts. Baseline captured; next step is to reproduce reconnect behavior. Working tree is fixture/example.\n\nBaseline reproduction: reconnect emits an old callback after the replacement subscription. commentneedleqx marks this comment-only search fact. The visible result briefly moves backward before the next event arrives.\n\nExperiment A: tried a second cache. It concealed the symptom but introduced two sources of truth and did not explain the event ordering. This experiment was rejected; it is historical context, not the current plan.\n\nDecision: retain one subscription generation and discard callbacks from older generations. This keeps ownership explicit and leaves current-generation ordering unchanged. No second cache is planned.\n\nImplementation draft prepared. The focused ordering scenario passes in this fictional fixture. Reconnect coverage remains the next action. Do not read this interim result as completion of the whole task.\n\nReview observation: keep generation invalidation adjacent to subscription replacement. A reviewer asked for an explicit reconnect regression and a clear statement that quiet callbacks are not evidence of failure.\n\nReconnect scenario added and checked in the fictional example. The earlier second-cache idea remains rejected. Final explanation should preserve why a single generation marker was chosen.\n\nFinal handoff: keep the concise outcome and rationale in notes; retain this discussion for optional historical inspection. No real code or tests were changed by this disposable fixture."
+      ],
+      "exit": 0,
+      "stdout": "[{\"id\":\"demo-btq\",\"title\":\"Fixture with the work log in notes\",\"status\":\"in_progress\",\"priority\":2,\"assignee\":null,\"owner\":\"ct\",\"updated_at\":\"2026-10-24T11:35:17.387393Z\"}]\n",
+      "stderr": "2026-10-24T11:35:17.380789Z  WARN fsqlite_core::connection: WAL-FEC requires a caller-owned runtime blocking pool; primary WAL durability is unchanged\n"
+    },
+    {
+      "args": [
+        "comments",
+        "add",
+        "demo-tlb",
+        "--author",
+        "fixture-worker-a",
+        "--message",
+        "Started the synthetic refresh task. Located callback ordering in fixture/refresh.ts. Baseline captured; next step is to reproduce reconnect behavior. Working tree is fixture/example."
+      ],
+      "exit": 0,
+      "stdout": "{\"id\":1,\"issue_id\":\"demo-tlb\",\"author\":\"fixture-worker-a\",\"text\":\"Started the synthetic refresh task. Located callback ordering in fixture/refresh.ts. Baseline captured; next step is to reproduce reconnect behavior. Working tree is fixture/example.\",\"created_at\":\"2026-10-24T11:35:17Z\"}\n",
+      "stderr": "2026-10-24T11:35:17.418726Z  WARN fsqlite_core::connection: WAL-FEC requires a caller-owned runtime blocking pool; primary WAL durability is unchanged\n"
+    },
+    {
+      "args": [
+        "comments",
+        "add",
+        "demo-tlb",
+        "--author",
+        "fixture-worker-b",
+        "--message",
+        "Baseline reproduction: reconnect emits an old callback after the replacement subscription. commentneedleqx marks this comment-only search fact. The visible result briefly moves backward before the next event arrives."
+      ],
+      "exit": 0,
+      "stdout": "{\"id\":2,\"issue_id\":\"demo-tlb\",\"author\":\"fixture-worker-b\",\"text\":\"Baseline reproduction: reconnect emits an old callback after the replacement subscription. commentneedleqx marks this comment-only search fact. The visible result briefly moves backward before the next event arrives.\",\"created_at\":\"2026-10-24T11:35:17Z\"}\n",
+      "stderr": "2026-10-24T11:35:17.450775Z  WARN fsqlite_core::connection: WAL-FEC requires a caller-owned runtime blocking pool; primary WAL durability is unchanged\n"
+    },
+    {
+      "args": [
+        "comments",
+        "add",
+        "demo-tlb",
+        "--author",
+        "fixture-worker-a",
+        "--message",
+        "Experiment A: tried a second cache. It concealed the symptom but introduced two sources of truth and did not explain the event ordering. This experiment was rejected; it is historical context, not the current plan."
+      ],
+      "exit": 0,
+      "stdout": "{\"id\":3,\"issue_id\":\"demo-tlb\",\"author\":\"fixture-worker-a\",\"text\":\"Experiment A: tried a second cache. It concealed the symptom but introduced two sources of truth and did not explain the event ordering. This experiment was rejected; it is historical context, not the current plan.\",\"created_at\":\"2026-10-24T11:35:17Z\"}\n",
+      "stderr": "2026-10-24T11:35:17.482745Z  WARN fsqlite_core::connection: WAL-FEC requires a caller-owned runtime blocking pool; primary WAL durability is unchanged\n"
+    },
+    {
+      "args": [
+        "comments",
+        "add",
+        "demo-tlb",
+        "--author",
+        "fixture-worker-b",
+        "--message",
+        "Decision: retain one subscription generation and discard callbacks from older generations. This keeps ownership explicit and leaves current-generation ordering unchanged. No second cache is planned."
+      ],
+      "exit": 0,
+      "stdout": "{\"id\":4,\"issue_id\":\"demo-tlb\",\"author\":\"fixture-worker-b\",\"text\":\"Decision: retain one subscription generation and discard callbacks from older generations. This keeps ownership explicit and leaves current-generation ordering unchanged. No second cache is planned.\",\"created_at\":\"2026-10-24T11:35:17Z\"}\n",
+      "stderr": "2026-10-24T11:35:17.514752Z  WARN fsqlite_core::connection: WAL-FEC requires a caller-owned runtime blocking pool; primary WAL durability is unchanged\n"
+    },
+    {
+      "args": [
+        "comments",
+        "add",
+        "demo-tlb",
+        "--author",
+        "fixture-worker-a",
+        "--message",
+        "Implementation draft prepared. The focused ordering scenario passes in this fictional fixture. Reconnect coverage remains the next action. Do not read this interim result as completion of the whole task."
+      ],
+      "exit": 0,
+      "stdout": "{\"id\":5,\"issue_id\":\"demo-tlb\",\"author\":\"fixture-worker-a\",\"text\":\"Implementation draft prepared. The focused ordering scenario passes in this fictional fixture. Reconnect coverage remains the next action. Do not read this interim result as completion of the whole task.\",\"created_at\":\"2026-10-24T11:35:17Z\"}\n",
+      "stderr": "2026-10-24T11:35:17.546714Z  WARN fsqlite_core::connection: WAL-FEC requires a caller-owned runtime blocking pool; primary WAL durability is unchanged\n"
+    },
+    {
+      "args": [
+        "comments",
+        "add",
+        "demo-tlb",
+        "--author",
+        "fixture-worker-b",
+        "--message",
+        "Review observation: keep generation invalidation adjacent to subscription replacement. A reviewer asked for an explicit reconnect regression and a clear statement that quiet callbacks are not evidence of failure."
+      ],
+      "exit": 0,
+      "stdout": "{\"id\":6,\"issue_id\":\"demo-tlb\",\"author\":\"fixture-worker-b\",\"text\":\"Review observation: keep generation invalidation adjacent to subscription replacement. A reviewer asked for an explicit reconnect regression and a clear statement that quiet callbacks are not evidence of failure.\",\"created_at\":\"2026-10-24T11:35:17Z\"}\n",
+      "stderr": "2026-10-24T11:35:17.579749Z  WARN fsqlite_core::connection: WAL-FEC requires a caller-owned runtime blocking pool; primary WAL durability is unchanged\n"
+    },
+    {
+      "args": [
+        "comments",
+        "add",
+        "demo-tlb",
+        "--author",
+        "fixture-worker-a",
+        "--message",
+        "Reconnect scenario added and checked in the fictional example. The earlier second-cache idea remains rejected. Final explanation should preserve why a single generation marker was chosen."
+      ],
+      "exit": 0,
+      "stdout": "{\"id\":7,\"issue_id\":\"demo-tlb\",\"author\":\"fixture-worker-a\",\"text\":\"Reconnect scenario added and checked in the fictional example. The earlier second-cache idea remains rejected. Final explanation should preserve why a single generation marker was chosen.\",\"created_at\":\"2026-10-24T11:35:17Z\"}\n",
+      "stderr": "2026-10-24T11:35:17.618832Z  WARN fsqlite_core::connection: WAL-FEC requires a caller-owned runtime blocking pool; primary WAL durability is unchanged\n"
+    },
+    {
+      "args": [
+        "comments",
+        "add",
+        "demo-tlb",
+        "--author",
+        "fixture-worker-b",
+        "--message",
+        "Final handoff: keep the concise outcome and rationale in notes; retain this discussion for optional historical inspection. No real code or tests were changed by this disposable fixture."
+      ],
+      "exit": 0,
+      "stdout": "{\"id\":8,\"issue_id\":\"demo-tlb\",\"author\":\"fixture-worker-b\",\"text\":\"Final handoff: keep the concise outcome and rationale in notes; retain this discussion for optional historical inspection. No real code or tests were changed by this disposable fixture.\",\"created_at\":\"2026-10-24T11:35:17Z\"}\n",
+      "stderr": "2026-10-24T11:35:17.652728Z  WARN fsqlite_core::connection: WAL-FEC requires a caller-owned runtime blocking pool; primary WAL durability is unchanged\n"
+    },
+    {
+      "args": [
+        "show",
+        "demo-tlb"
+      ],
+      "exit": 0,
+      "stdout": "[{\"id\":\"demo-tlb\",\"title\":\"Fixture with comments and a concise summary\",\"description\":\"Synthetic fixture: fix repeated refresh behavior while retaining visible update ordering. No real product implementation is represented.\",\"acceptance_criteria\":\"- [x] Prepare the synthetic reading fixture.\",\"notes\":\"Handoff: ordering fix drafted; focused case passes. Next: verify the reconnect case, then review. No blocker. Current approach: discard stale refresh callbacks. summaryneedleqx\",\"status\":\"in_progress\",\"priority\":2,\"issue_type\":\"task\",\"owner\":\"ct\",\"created_at\":\"2026-10-24T11:35:17.201906Z\",\"created_by\":\"amaranth-fat-bedbug\",\"updated_at\":\"2026-10-24T11:35:17.658138Z\",\"source_repo\":\"beads-json-reading-p1sd9xw1\",\"source_repo_path\":\"/private/var/folders/6w/lnly9x394flgz3q7zty955500000gn/T/beads-json-reading-p1sd9xw1\",\"compaction_level\":0,\"original_size\":0,\"comments\":[{\"id\":1,\"issue_id\":\"demo-tlb\",\"author\":\"fixture-worker-a\",\"text\":\"Started the synthetic refresh task. Located callback ordering in fixture/refresh.ts. Baseline captured; next step is to reproduce reconnect behavior. Working tree is fixture/example.\",\"created_at\":\"2026-10-24T11:35:17Z\"},{\"id\":2,\"issue_id\":\"demo-tlb\",\"author\":\"fixture-worker-b\",\"text\":\"Baseline reproduction: reconnect emits an old callback after the replacement subscription. commentneedleqx marks this comment-only search fact. The visible result briefly moves backward before the next event arrives.\",\"created_at\":\"2026-10-24T11:35:17Z\"},{\"id\":3,\"issue_id\":\"demo-tlb\",\"author\":\"fixture-worker-a\",\"text\":\"Experiment A: tried a second cache. It concealed the symptom but introduced two sources of truth and did not explain the event ordering. This experiment was rejected; it is historical context, not the current plan.\",\"created_at\":\"2026-10-24T11:35:17Z\"},{\"id\":4,\"issue_id\":\"demo-tlb\",\"author\":\"fixture-worker-b\",\"text\":\"Decision: retain one subscription generation and discard callbacks from older generations. This keeps ownership explicit and leaves current-generation ordering unchanged. No second cache is planned.\",\"created_at\":\"2026-10-24T11:35:17Z\"},{\"id\":5,\"issue_id\":\"demo-tlb\",\"author\":\"fixture-worker-a\",\"text\":\"Implementation draft prepared. The focused ordering scenario passes in this fictional fixture. Reconnect coverage remains the next action. Do not read this interim result as completion of the whole task.\",\"created_at\":\"2026-10-24T11:35:17Z\"},{\"id\":6,\"issue_id\":\"demo-tlb\",\"author\":\"fixture-worker-b\",\"text\":\"Review observation: keep generation invalidation adjacent to subscription replacement. A reviewer asked for an explicit reconnect regression and a clear statement that quiet callbacks are not evidence of failure.\",\"created_at\":\"2026-10-24T11:35:17Z\"},{\"id\":7,\"issue_id\":\"demo-tlb\",\"author\":\"fixture-worker-a\",\"text\":\"Reconnect scenario added and checked in the fictional example. The earlier second-cache idea remains rejected. Final explanation should preserve why a single generation marker was chosen.\",\"created_at\":\"2026-10-24T11:35:17Z\"},{\"id\":8,\"issue_id\":\"demo-tlb\",\"author\":\"fixture-worker-b\",\"text\":\"Final handoff: keep the concise outcome and rationale in notes; retain this discussion for optional historical inspection. No real code or tests were changed by this disposable fixture.\",\"created_at\":\"2026-10-24T11:35:17Z\"}],\"acceptance_items\":[{\"index\":1,\"text\":\"Prepare the synthetic reading fixture.\",\"checked\":true}]}]\n",
+      "stderr": ""
+    },
+    {
+      "args": [
+        "show",
+        "demo-rip"
+      ],
+      "exit": 0,
+      "stdout": "[{\"id\":\"demo-rip\",\"title\":\"Fixture with concise notes only\",\"description\":\"Synthetic fixture: fix repeated refresh behavior while retaining visible update ordering. No real product implementation is represented.\",\"acceptance_criteria\":\"- [x] Prepare the synthetic reading fixture.\",\"notes\":\"Handoff: ordering fix drafted; focused case passes. Next: verify the reconnect case, then review. No blocker. Current approach: discard stale refresh callbacks. summaryneedleqx\",\"status\":\"in_progress\",\"priority\":2,\"issue_type\":\"task\",\"owner\":\"ct\",\"created_at\":\"2026-10-24T11:35:17.279756Z\",\"created_by\":\"amaranth-fat-bedbug\",\"updated_at\":\"2026-10-24T11:35:17.315498Z\",\"source_repo\":\"beads-json-reading-p1sd9xw1\",\"source_repo_path\":\"/private/var/folders/6w/lnly9x394flgz3q7zty955500000gn/T/beads-json-reading-p1sd9xw1\",\"compaction_level\":0,\"original_size\":0,\"acceptance_items\":[{\"index\":1,\"text\":\"Prepare the synthetic reading fixture.\",\"checked\":true}]}]\n",
+      "stderr": ""
+    },
+    {
+      "args": [
+        "show",
+        "demo-btq"
+      ],
+      "exit": 0,
+      "stdout": "[{\"id\":\"demo-btq\",\"title\":\"Fixture with the work log in notes\",\"description\":\"Synthetic fixture: fix repeated refresh behavior while retaining visible update ordering. No real product implementation is represented.\",\"acceptance_criteria\":\"- [x] Prepare the synthetic reading fixture.\",\"notes\":\"Started the synthetic refresh task. Located callback ordering in fixture/refresh.ts. Baseline captured; next step is to reproduce reconnect behavior. Working tree is fixture/example.\\n\\nBaseline reproduction: reconnect emits an old callback after the replacement subscription. commentneedleqx marks this comment-only search fact. The visible result briefly moves backward before the next event arrives.\\n\\nExperiment A: tried a second cache. It concealed the symptom but introduced two sources of truth and did not explain the event ordering. This experiment was rejected; it is historical context, not the current plan.\\n\\nDecision: retain one subscription generation and discard callbacks from older generations. This keeps ownership explicit and leaves current-generation ordering unchanged. No second cache is planned.\\n\\nImplementation draft prepared. The focused ordering scenario passes in this fictional fixture. Reconnect coverage remains the next action. Do not read this interim result as completion of the whole task.\\n\\nReview observation: keep generation invalidation adjacent to subscription replacement. A reviewer asked for an explicit reconnect regression and a clear statement that quiet callbacks are not evidence of failure.\\n\\nReconnect scenario added and checked in the fictional example. The earlier second-cache idea remains rejected. Final explanation should preserve why a single generation marker was chosen.\\n\\nFinal handoff: keep the concise outcome and rationale in notes; retain this discussion for optional historical inspection. No real code or tests were changed by this disposable fixture.\",\"status\":\"in_progress\",\"priority\":2,\"issue_type\":\"task\",\"owner\":\"ct\",\"created_at\":\"2026-10-24T11:35:17.349949Z\",\"created_by\":\"amaranth-fat-bedbug\",\"updated_at\":\"2026-10-24T11:35:17.387393Z\",\"source_repo\":\"beads-json-reading-p1sd9xw1\",\"source_repo_path\":\"/private/var/folders/6w/lnly9x394flgz3q7zty955500000gn/T/beads-json-reading-p1sd9xw1\",\"compaction_level\":0,\"original_size\":0,\"acceptance_items\":[{\"index\":1,\"text\":\"Prepare the synthetic reading fixture.\",\"checked\":true}]}]\n",
+      "stderr": ""
+    },
+    {
+      "args": [
+        "list",
+        "--id",
+        "demo-tlb",
+        "--all",
+        "--deferred",
+        "--exclude-label",
+        "system"
+      ],
+      "exit": 0,
+      "stdout": "{\"issues\":[{\"id\":\"demo-tlb\",\"title\":\"Fixture with comments and a concise summary\",\"description\":\"Synthetic fixture: fix repeated refresh behavior while retaining visible update ordering. No real product implementation is represented.\",\"acceptance_criteria\":\"- [x] Prepare the synthetic reading fixture.\",\"notes\":\"Handoff: ordering fix drafted; focused case passes. Next: verify the reconnect case, then review. No blocker. Current approach: discard stale refresh callbacks. summaryneedleqx\",\"status\":\"in_progress\",\"priority\":2,\"issue_type\":\"task\",\"owner\":\"ct\",\"created_at\":\"2026-10-24T11:35:17.201906Z\",\"created_by\":\"amaranth-fat-bedbug\",\"updated_at\":\"2026-10-24T11:35:17.658138Z\",\"source_repo\":\"beads-json-reading-p1sd9xw1\",\"source_repo_path\":\"/private/var/folders/6w/lnly9x394flgz3q7zty955500000gn/T/beads-json-reading-p1sd9xw1\",\"compaction_level\":0,\"original_size\":0,\"dependency_count\":0,\"dependent_count\":0}],\"total\":1,\"limit\":0,\"offset\":0,\"has_more\":false}\n",
+      "stderr": ""
+    },
+    {
+      "args": [
+        "list",
+        "--id",
+        "demo-tlb",
+        "--all",
+        "--deferred",
+        "--exclude-label",
+        "system",
+        "--fields",
+        "id,title,status,notes"
+      ],
+      "exit": 0,
+      "stdout": "{\"issues\":[{\"id\":\"demo-tlb\",\"title\":\"Fixture with comments and a concise summary\",\"status\":\"in_progress\",\"notes\":\"Handoff: ordering fix drafted; focused case passes. Next: verify the reconnect case, then review. No blocker. Current approach: discard stale refresh callbacks. summaryneedleqx\"}],\"total\":1,\"limit\":0,\"offset\":0,\"has_more\":false}\n",
+      "stderr": ""
+    },
+    {
+      "args": [
+        "comments",
+        "list",
+        "demo-tlb"
+      ],
+      "exit": 0,
+      "stdout": "[{\"id\":1,\"issue_id\":\"demo-tlb\",\"author\":\"fixture-worker-a\",\"text\":\"Started the synthetic refresh task. Located callback ordering in fixture/refresh.ts. Baseline captured; next step is to reproduce reconnect behavior. Working tree is fixture/example.\",\"created_at\":\"2026-10-24T11:35:17Z\"},{\"id\":2,\"issue_id\":\"demo-tlb\",\"author\":\"fixture-worker-b\",\"text\":\"Baseline reproduction: reconnect emits an old callback after the replacement subscription. commentneedleqx marks this comment-only search fact. The visible result briefly moves backward before the next event arrives.\",\"created_at\":\"2026-10-24T11:35:17Z\"},{\"id\":3,\"issue_id\":\"demo-tlb\",\"author\":\"fixture-worker-a\",\"text\":\"Experiment A: tried a second cache. It concealed the symptom but introduced two sources of truth and did not explain the event ordering. This experiment was rejected; it is historical context, not the current plan.\",\"created_at\":\"2026-10-24T11:35:17Z\"},{\"id\":4,\"issue_id\":\"demo-tlb\",\"author\":\"fixture-worker-b\",\"text\":\"Decision: retain one subscription generation and discard callbacks from older generations. This keeps ownership explicit and leaves current-generation ordering unchanged. No second cache is planned.\",\"created_at\":\"2026-10-24T11:35:17Z\"},{\"id\":5,\"issue_id\":\"demo-tlb\",\"author\":\"fixture-worker-a\",\"text\":\"Implementation draft prepared. The focused ordering scenario passes in this fictional fixture. Reconnect coverage remains the next action. Do not read this interim result as completion of the whole task.\",\"created_at\":\"2026-10-24T11:35:17Z\"},{\"id\":6,\"issue_id\":\"demo-tlb\",\"author\":\"fixture-worker-b\",\"text\":\"Review observation: keep generation invalidation adjacent to subscription replacement. A reviewer asked for an explicit reconnect regression and a clear statement that quiet callbacks are not evidence of failure.\",\"created_at\":\"2026-10-24T11:35:17Z\"},{\"id\":7,\"issue_id\":\"demo-tlb\",\"author\":\"fixture-worker-a\",\"text\":\"Reconnect scenario added and checked in the fictional example. The earlier second-cache idea remains rejected. Final explanation should preserve why a single generation marker was chosen.\",\"created_at\":\"2026-10-24T11:35:17Z\"},{\"id\":8,\"issue_id\":\"demo-tlb\",\"author\":\"fixture-worker-b\",\"text\":\"Final handoff: keep the concise outcome and rationale in notes; retain this discussion for optional historical inspection. No real code or tests were changed by this disposable fixture.\",\"created_at\":\"2026-10-24T11:35:17Z\"}]\n",
+      "stderr": ""
+    },
+    {
+      "args": [
+        "show",
+        "demo-tlb",
+        "--fields",
+        "id,notes"
+      ],
+      "exit": 2,
+      "stdout": "",
+      "stderr": "error: unexpected argument '--fields' found\n\n  tip: to pass '--fields' as a value, use '-- --fields'\n\nUsage: br show <IDS>...\n\nFor more information, try '--help'.\n"
+    },
+    {
+      "args": [
+        "comments",
+        "list",
+        "demo-tlb",
+        "--limit",
+        "2"
+      ],
+      "exit": 2,
+      "stdout": "",
+      "stderr": "error: unexpected argument '--limit' found\n\n  tip: to pass '--limit' as a value, use '-- --limit'\n\nUsage: br comments list <ID>\n\nFor more information, try '--help'.\n"
+    },
+    {
+      "args": [
+        "update",
+        "demo-tlb",
+        "--notes",
+        "Outcome: stale refresh callbacks discarded; reconnect and ordering cases verified in this fictional scenario. Rationale: preserve event order without a second cache. summaryneedleqx"
+      ],
+      "exit": 0,
+      "stdout": "[{\"id\":\"demo-tlb\",\"title\":\"Fixture with comments and a concise summary\",\"status\":\"in_progress\",\"priority\":2,\"assignee\":null,\"owner\":\"ct\",\"updated_at\":\"2026-10-24T11:35:17.778049Z\"}]\n",
+      "stderr": "2026-10-24T11:35:17.772926Z  WARN fsqlite_core::connection: WAL-FEC requires a caller-owned runtime blocking pool; primary WAL durability is unchanged\n"
+    },
+    {
+      "args": [
+        "close",
+        "demo-tlb",
+        "--reason",
+        "Synthetic fixture completed for JSON reading comparisons; no production work."
+      ],
+      "exit": 0,
+      "stdout": "[{\"id\":\"demo-tlb\",\"title\":\"Fixture with comments and a concise summary\",\"status\":\"closed\",\"closed_at\":\"2026-10-24T11:35:17.813446+00:00\",\"close_reason\":\"Synthetic fixture completed for JSON reading comparisons; no production work.\"}]\n",
+      "stderr": "2026-10-24T11:35:17.806917Z  WARN fsqlite_core::connection: WAL-FEC requires a caller-owned runtime blocking pool; primary WAL durability is unchanged\n"
+    },
+    {
+      "args": [
+        "update",
+        "demo-rip",
+        "--notes",
+        "Outcome: stale refresh callbacks discarded; reconnect and ordering cases verified in this fictional scenario. Rationale: preserve event order without a second cache. summaryneedleqx"
+      ],
+      "exit": 0,
+      "stdout": "[{\"id\":\"demo-rip\",\"title\":\"Fixture with concise notes only\",\"status\":\"in_progress\",\"priority\":2,\"assignee\":null,\"owner\":\"ct\",\"updated_at\":\"2026-10-24T11:35:17.850381Z\"}]\n",
+      "stderr": "2026-10-24T11:35:17.844959Z  WARN fsqlite_core::connection: WAL-FEC requires a caller-owned runtime blocking pool; primary WAL durability is unchanged\n"
+    },
+    {
+      "args": [
+        "close",
+        "demo-rip",
+        "--reason",
+        "Synthetic fixture completed for JSON reading comparisons; no production work."
+      ],
+      "exit": 0,
+      "stdout": "[{\"id\":\"demo-rip\",\"title\":\"Fixture with concise notes only\",\"status\":\"closed\",\"closed_at\":\"2026-10-24T11:35:17.885613+00:00\",\"close_reason\":\"Synthetic fixture completed for JSON reading comparisons; no production work.\"}]\n",
+      "stderr": "2026-10-24T11:35:17.878944Z  WARN fsqlite_core::connection: WAL-FEC requires a caller-owned runtime blocking pool; primary WAL durability is unchanged\n"
+    },
+    {
+      "args": [
+        "close",
+        "demo-btq",
+        "--reason",
+        "Synthetic fixture completed for JSON reading comparisons; no production work."
+      ],
+      "exit": 0,
+      "stdout": "[{\"id\":\"demo-btq\",\"title\":\"Fixture with the work log in notes\",\"status\":\"closed\",\"closed_at\":\"2026-10-24T11:35:17.929508+00:00\",\"close_reason\":\"Synthetic fixture completed for JSON reading comparisons; no production work.\"}]\n",
+      "stderr": "2026-10-24T11:35:17.919823Z  WARN fsqlite_core::connection: WAL-FEC requires a caller-owned runtime blocking pool; primary WAL durability is unchanged\n"
+    },
+    {
+      "args": [
+        "show",
+        "demo-tlb"
+      ],
+      "exit": 0,
+      "stdout": "[{\"id\":\"demo-tlb\",\"title\":\"Fixture with comments and a concise summary\",\"description\":\"Synthetic fixture: fix repeated refresh behavior while retaining visible update ordering. No real product implementation is represented.\",\"acceptance_criteria\":\"- [x] Prepare the synthetic reading fixture.\",\"notes\":\"Outcome: stale refresh callbacks discarded; reconnect and ordering cases verified in this fictional scenario. Rationale: preserve event order without a second cache. summaryneedleqx\",\"status\":\"closed\",\"priority\":2,\"issue_type\":\"task\",\"owner\":\"ct\",\"created_at\":\"2026-10-24T11:35:17.201906Z\",\"created_by\":\"amaranth-fat-bedbug\",\"updated_at\":\"2026-10-24T11:35:17.813712Z\",\"closed_at\":\"2026-10-24T11:35:17.813446Z\",\"close_reason\":\"Synthetic fixture completed for JSON reading comparisons; no production work.\",\"source_repo\":\"beads-json-reading-p1sd9xw1\",\"source_repo_path\":\"/private/var/folders/6w/lnly9x394flgz3q7zty955500000gn/T/beads-json-reading-p1sd9xw1\",\"compaction_level\":0,\"original_size\":0,\"comments\":[{\"id\":1,\"issue_id\":\"demo-tlb\",\"author\":\"fixture-worker-a\",\"text\":\"Started the synthetic refresh task. Located callback ordering in fixture/refresh.ts. Baseline captured; next step is to reproduce reconnect behavior. Working tree is fixture/example.\",\"created_at\":\"2026-10-24T11:35:17Z\"},{\"id\":2,\"issue_id\":\"demo-tlb\",\"author\":\"fixture-worker-b\",\"text\":\"Baseline reproduction: reconnect emits an old callback after the replacement subscription. commentneedleqx marks this comment-only search fact. The visible result briefly moves backward before the next event arrives.\",\"created_at\":\"2026-10-24T11:35:17Z\"},{\"id\":3,\"issue_id\":\"demo-tlb\",\"author\":\"fixture-worker-a\",\"text\":\"Experiment A: tried a second cache. It concealed the symptom but introduced two sources of truth and did not explain the event ordering. This experiment was rejected; it is historical context, not the current plan.\",\"created_at\":\"2026-10-24T11:35:17Z\"},{\"id\":4,\"issue_id\":\"demo-tlb\",\"author\":\"fixture-worker-b\",\"text\":\"Decision: retain one subscription generation and discard callbacks from older generations. This keeps ownership explicit and leaves current-generation ordering unchanged. No second cache is planned.\",\"created_at\":\"2026-10-24T11:35:17Z\"},{\"id\":5,\"issue_id\":\"demo-tlb\",\"author\":\"fixture-worker-a\",\"text\":\"Implementation draft prepared. The focused ordering scenario passes in this fictional fixture. Reconnect coverage remains the next action. Do not read this interim result as completion of the whole task.\",\"created_at\":\"2026-10-24T11:35:17Z\"},{\"id\":6,\"issue_id\":\"demo-tlb\",\"author\":\"fixture-worker-b\",\"text\":\"Review observation: keep generation invalidation adjacent to subscription replacement. A reviewer asked for an explicit reconnect regression and a clear statement that quiet callbacks are not evidence of failure.\",\"created_at\":\"2026-10-24T11:35:17Z\"},{\"id\":7,\"issue_id\":\"demo-tlb\",\"author\":\"fixture-worker-a\",\"text\":\"Reconnect scenario added and checked in the fictional example. The earlier second-cache idea remains rejected. Final explanation should preserve why a single generation marker was chosen.\",\"created_at\":\"2026-10-24T11:35:17Z\"},{\"id\":8,\"issue_id\":\"demo-tlb\",\"author\":\"fixture-worker-b\",\"text\":\"Final handoff: keep the concise outcome and rationale in notes; retain this discussion for optional historical inspection. No real code or tests were changed by this disposable fixture.\",\"created_at\":\"2026-10-24T11:35:17Z\"}],\"acceptance_items\":[{\"index\":1,\"text\":\"Prepare the synthetic reading fixture.\",\"checked\":true}]}]\n",
+      "stderr": ""
+    },
+    {
+      "args": [
+        "list",
+        "--id",
+        "demo-tlb",
+        "--all",
+        "--deferred",
+        "--exclude-label",
+        "system"
+      ],
+      "exit": 0,
+      "stdout": "{\"issues\":[{\"id\":\"demo-tlb\",\"title\":\"Fixture with comments and a concise summary\",\"description\":\"Synthetic fixture: fix repeated refresh behavior while retaining visible update ordering. No real product implementation is represented.\",\"acceptance_criteria\":\"- [x] Prepare the synthetic reading fixture.\",\"notes\":\"Outcome: stale refresh callbacks discarded; reconnect and ordering cases verified in this fictional scenario. Rationale: preserve event order without a second cache. summaryneedleqx\",\"status\":\"closed\",\"priority\":2,\"issue_type\":\"task\",\"owner\":\"ct\",\"created_at\":\"2026-10-24T11:35:17.201906Z\",\"created_by\":\"amaranth-fat-bedbug\",\"updated_at\":\"2026-10-24T11:35:17.813712Z\",\"closed_at\":\"2026-10-24T11:35:17.813446Z\",\"close_reason\":\"Synthetic fixture completed for JSON reading comparisons; no production work.\",\"source_repo\":\"beads-json-reading-p1sd9xw1\",\"source_repo_path\":\"/private/var/folders/6w/lnly9x394flgz3q7zty955500000gn/T/beads-json-reading-p1sd9xw1\",\"compaction_level\":0,\"original_size\":0,\"dependency_count\":0,\"dependent_count\":0}],\"total\":1,\"limit\":0,\"offset\":0,\"has_more\":false}\n",
+      "stderr": ""
+    },
+    {
+      "args": [
+        "list",
+        "--id",
+        "demo-tlb",
+        "--exclude-label",
+        "system"
+      ],
+      "exit": 0,
+      "stdout": "{\"issues\":[],\"total\":0,\"limit\":0,\"offset\":0,\"has_more\":false}\n",
+      "stderr": ""
+    },
+    {
+      "args": [
+        "search",
+        "commentneedleqx",
+        "--all",
+        "--deferred",
+        "--exclude-label",
+        "system"
+      ],
+      "exit": 0,
+      "stdout": "{\"issues\":[{\"id\":\"demo-tlb\",\"title\":\"Fixture with comments and a concise summary\",\"description\":\"Synthetic fixture: fix repeated refresh behavior while retaining visible update ordering. No real product implementation is represented.\",\"acceptance_criteria\":\"- [x] Prepare the synthetic reading fixture.\",\"notes\":\"Outcome: stale refresh callbacks discarded; reconnect and ordering cases verified in this fictional scenario. Rationale: preserve event order without a second cache. summaryneedleqx\",\"status\":\"closed\",\"priority\":2,\"issue_type\":\"task\",\"owner\":\"ct\",\"created_at\":\"2026-10-24T11:35:17.201906Z\",\"created_by\":\"amaranth-fat-bedbug\",\"updated_at\":\"2026-10-24T11:35:17.813712Z\",\"closed_at\":\"2026-10-24T11:35:17.813446Z\",\"close_reason\":\"Synthetic fixture completed for JSON reading comparisons; no production work.\",\"source_repo\":\"beads-json-reading-p1sd9xw1\",\"source_repo_path\":\"/private/var/folders/6w/lnly9x394flgz3q7zty955500000gn/T/beads-json-reading-p1sd9xw1\",\"compaction_level\":0,\"original_size\":0,\"dependency_count\":0,\"dependent_count\":0}],\"hidden_closed_count\":0,\"limit\":50,\"offset\":0,\"has_more\":false}\n",
+      "stderr": ""
+    },
+    {
+      "args": [
+        "search",
+        "summaryneedleqx",
+        "--all",
+        "--deferred",
+        "--exclude-label",
+        "system"
+      ],
+      "exit": 0,
+      "stdout": "{\"issues\":[],\"hidden_closed_count\":0,\"limit\":50,\"offset\":0,\"has_more\":false}\n",
+      "stderr": ""
+    },
+    {
+      "args": [
+        "list",
+        "--notes-contains",
+        "summaryneedleqx",
+        "--all",
+        "--deferred",
+        "--exclude-label",
+        "system"
+      ],
+      "exit": 0,
+      "stdout": "{\"issues\":[{\"id\":\"demo-rip\",\"title\":\"Fixture with concise notes only\",\"description\":\"Synthetic fixture: fix repeated refresh behavior while retaining visible update ordering. No real product implementation is represented.\",\"acceptance_criteria\":\"- [x] Prepare the synthetic reading fixture.\",\"notes\":\"Outcome: stale refresh callbacks discarded; reconnect and ordering cases verified in this fictional scenario. Rationale: preserve event order without a second cache. summaryneedleqx\",\"status\":\"closed\",\"priority\":2,\"issue_type\":\"task\",\"owner\":\"ct\",\"created_at\":\"2026-10-24T11:35:17.279756Z\",\"created_by\":\"amaranth-fat-bedbug\",\"updated_at\":\"2026-10-24T11:35:17.885910Z\",\"closed_at\":\"2026-10-24T11:35:17.885613Z\",\"close_reason\":\"Synthetic fixture completed for JSON reading comparisons; no production work.\",\"source_repo\":\"beads-json-reading-p1sd9xw1\",\"source_repo_path\":\"/private/var/folders/6w/lnly9x394flgz3q7zty955500000gn/T/beads-json-reading-p1sd9xw1\",\"compaction_level\":0,\"original_size\":0,\"dependency_count\":0,\"dependent_count\":0},{\"id\":\"demo-tlb\",\"title\":\"Fixture with comments and a concise summary\",\"description\":\"Synthetic fixture: fix repeated refresh behavior while retaining visible update ordering. No real product implementation is represented.\",\"acceptance_criteria\":\"- [x] Prepare the synthetic reading fixture.\",\"notes\":\"Outcome: stale refresh callbacks discarded; reconnect and ordering cases verified in this fictional scenario. Rationale: preserve event order without a second cache. summaryneedleqx\",\"status\":\"closed\",\"priority\":2,\"issue_type\":\"task\",\"owner\":\"ct\",\"created_at\":\"2026-10-24T11:35:17.201906Z\",\"created_by\":\"amaranth-fat-bedbug\",\"updated_at\":\"2026-10-24T11:35:17.813712Z\",\"closed_at\":\"2026-10-24T11:35:17.813446Z\",\"close_reason\":\"Synthetic fixture completed for JSON reading comparisons; no production work.\",\"source_repo\":\"beads-json-reading-p1sd9xw1\",\"source_repo_path\":\"/private/var/folders/6w/lnly9x394flgz3q7zty955500000gn/T/beads-json-reading-p1sd9xw1\",\"compaction_level\":0,\"original_size\":0,\"dependency_count\":0,\"dependent_count\":0}],\"total\":2,\"limit\":0,\"offset\":0,\"has_more\":false}\n",
+      "stderr": ""
+    },
+    {
+      "args": [
+        "list",
+        "--notes-contains",
+        "commentneedleqx",
+        "--all",
+        "--deferred",
+        "--exclude-label",
+        "system"
+      ],
+      "exit": 0,
+      "stdout": "{\"issues\":[{\"id\":\"demo-btq\",\"title\":\"Fixture with the work log in notes\",\"description\":\"Synthetic fixture: fix repeated refresh behavior while retaining visible update ordering. No real product implementation is represented.\",\"acceptance_criteria\":\"- [x] Prepare the synthetic reading fixture.\",\"notes\":\"Started the synthetic refresh task. Located callback ordering in fixture/refresh.ts. Baseline captured; next step is to reproduce reconnect behavior. Working tree is fixture/example.\\n\\nBaseline reproduction: reconnect emits an old callback after the replacement subscription. commentneedleqx marks this comment-only search fact. The visible result briefly moves backward before the next event arrives.\\n\\nExperiment A: tried a second cache. It concealed the symptom but introduced two sources of truth and did not explain the event ordering. This experiment was rejected; it is historical context, not the current plan.\\n\\nDecision: retain one subscription generation and discard callbacks from older generations. This keeps ownership explicit and leaves current-generation ordering unchanged. No second cache is planned.\\n\\nImplementation draft prepared. The focused ordering scenario passes in this fictional fixture. Reconnect coverage remains the next action. Do not read this interim result as completion of the whole task.\\n\\nReview observation: keep generation invalidation adjacent to subscription replacement. A reviewer asked for an explicit reconnect regression and a clear statement that quiet callbacks are not evidence of failure.\\n\\nReconnect scenario added and checked in the fictional example. The earlier second-cache idea remains rejected. Final explanation should preserve why a single generation marker was chosen.\\n\\nFinal handoff: keep the concise outcome and rationale in notes; retain this discussion for optional historical inspection. No real code or tests were changed by this disposable fixture.\",\"status\":\"closed\",\"priority\":2,\"issue_type\":\"task\",\"owner\":\"ct\",\"created_at\":\"2026-10-24T11:35:17.349949Z\",\"created_by\":\"amaranth-fat-bedbug\",\"updated_at\":\"2026-10-24T11:35:17.930578Z\",\"closed_at\":\"2026-10-24T11:35:17.929508Z\",\"close_reason\":\"Synthetic fixture completed for JSON reading comparisons; no production work.\",\"source_repo\":\"beads-json-reading-p1sd9xw1\",\"source_repo_path\":\"/private/var/folders/6w/lnly9x394flgz3q7zty955500000gn/T/beads-json-reading-p1sd9xw1\",\"compaction_level\":0,\"original_size\":0,\"dependency_count\":0,\"dependent_count\":0}],\"total\":1,\"limit\":0,\"offset\":0,\"has_more\":false}\n",
+      "stderr": ""
+    },
+    {
+      "args": [
+        "br",
+        "list",
+        "--id",
+        "demo-tlb",
+        "--all",
+        "--deferred",
+        "--exclude-label",
+        "system",
+        "--fields",
+        "id,title,status,description,acceptance_criteria,notes,close_reason",
+        "--json",
+        "--db",
+        "/private/var/folders/6w/lnly9x394flgz3q7zty955500000gn/T/beads-json-reading-p1sd9xw1/.beads/beads.db",
+        "--no-auto-flush",
+        "--no-auto-import"
+      ],
+      "exit": 0,
+      "stdout": "{\"issues\":[{\"id\":\"demo-tlb\",\"title\":\"Fixture with comments and a concise summary\",\"status\":\"closed\",\"description\":\"Synthetic fixture: fix repeated refresh behavior while retaining visible update ordering. No real product implementation is represented.\",\"acceptance_criteria\":\"- [x] Prepare the synthetic reading fixture.\",\"notes\":\"Outcome: stale refresh callbacks discarded; reconnect and ordering cases verified in this fictional scenario. Rationale: preserve event order without a second cache. summaryneedleqx\",\"close_reason\":\"Synthetic fixture completed for JSON reading comparisons; no production work.\"}],\"total\":1,\"limit\":0,\"offset\":0,\"has_more\":false}\n",
+      "stderr": ""
+    }
+  ]
+}

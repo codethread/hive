@@ -1,0 +1,1033 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width,initial-scale=1" />
+		<title>Automation writes after the system-bead simplification</title>
+		<style>
+			:root {
+				color-scheme: light dark;
+				/* Rose Pine Dawn: pi/themes/rose-pine-dawn.json */
+				--bg: #fdf9f5;
+				--fg: #575279;
+				--muted: #9893a5;
+				--dim: #797593;
+				--border: #dfdad9;
+				--code-bg: #fffaf3;
+				--accent: #b85c58;
+				--link: #286983;
+				--info-bg: #f4ede8;
+				--info-bd: #56949f;
+				--warn-bg: #f4ede8;
+				--warn-bd: #a86a00;
+				--error-bg: #f4ede8;
+				--error-bd: #b4637a;
+				--success-bg: #f4ede8;
+				--success-bd: #a86a00;
+				--add-bg: #fceee5;
+				--add-fg: #a86a00;
+				--del-bg: #f9e8e7;
+				--del-fg: #b4637a;
+				--syntax-comment: #797593;
+				--syntax-keyword: #907aa9;
+				--syntax-function: #286983;
+				--syntax-variable: #575279;
+				--syntax-string: #56949f;
+				--syntax-number: #a86a00;
+				--syntax-type: #a86a00;
+				--syntax-operator: #286983;
+				--syntax-punctuation: #f2e9e1;
+			}
+			@media (prefers-color-scheme: dark) {
+				:root {
+					/* Rose Pine Moon: pi/themes/rose-pine-moon.json */
+					--bg: #232136;
+					--fg: #e0def4;
+					--muted: #6e6a86;
+					--dim: #6e698f;
+					--border: #2e2a42;
+					--code-bg: #2a273f;
+					--accent: #c4a7e7;
+					--link: #9ccfd8;
+					--info-bg: #2a283e;
+					--info-bd: #9a68d6;
+					--warn-bg: #2a283e;
+					--warn-bd: #f6c177;
+					--error-bg: #2a283e;
+					--error-bd: #eb6f92;
+					--success-bg: #2a283e;
+					--success-bd: #9ccfd8;
+					--add-bg: #2e2a42;
+					--add-fg: #bddfe5;
+					--del-bg: #2e2a42;
+					--del-fg: #f095af;
+					--syntax-comment: #58556b;
+					--syntax-keyword: #3e8fb0;
+					--syntax-function: #bddfe5;
+					--syntax-variable: #9e98dd;
+					--syntax-string: #f9d5a2;
+					--syntax-number: #ea9a97;
+					--syntax-type: #decef2;
+					--syntax-operator: #6e698f;
+					--syntax-punctuation: #58556b;
+				}
+			}
+			* {
+				box-sizing: border-box;
+			}
+			html {
+				-webkit-text-size-adjust: 100%;
+			}
+			body {
+				margin: 0 auto;
+				padding: 2.5rem 1.25rem 6rem;
+				max-width: 78ch;
+				background: var(--bg);
+				color: var(--fg);
+				font-family:
+					ui-sans-serif,
+					system-ui,
+					-apple-system,
+					"Segoe UI",
+					Helvetica,
+					Arial,
+					sans-serif;
+				font-size: 16px;
+				line-height: 1.6;
+			}
+			h1,
+			h2,
+			h3,
+			h4 {
+				line-height: 1.25;
+				margin: 2em 0 0.6em;
+				font-weight: 600;
+			}
+			h1 {
+				font-size: 2rem;
+				margin-top: 0;
+			}
+			h2 {
+				font-size: 1.4rem;
+				padding-bottom: 0.2em;
+				border-bottom: 1px solid var(--border);
+			}
+			h3 {
+				font-size: 1.15rem;
+			}
+			h4 {
+				font-size: 1rem;
+				color: var(--muted);
+				text-transform: uppercase;
+				letter-spacing: 0.05em;
+			}
+			p {
+				margin: 0.8em 0;
+			}
+			a {
+				color: var(--link);
+				text-underline-offset: 2px;
+			}
+			hr {
+				border: 0;
+				border-top: 1px solid var(--border);
+				margin: 2em 0;
+			}
+			small,
+			.muted {
+				color: var(--muted);
+				font-size: 0.9em;
+			}
+			ul,
+			ol {
+				padding-left: 1.4em;
+			}
+			li + li {
+				margin-top: 0.25em;
+			}
+
+			code {
+				font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+				font-size: 0.92em;
+				background: var(--code-bg);
+				padding: 0.12em 0.35em;
+				border-radius: 4px;
+			}
+			pre {
+				position: relative;
+				background: var(--code-bg);
+				border: 1px solid var(--border);
+				border-radius: 6px;
+				padding: 0.9em 1em;
+				overflow-x: auto;
+				white-space: pre-wrap;
+				overflow-wrap: anywhere;
+				font-size: 0.88em;
+				line-height: 1.5;
+			}
+			pre.no-wrap {
+				white-space: pre;
+				overflow-wrap: normal;
+			}
+			pre code {
+				background: transparent;
+				padding: 0;
+				font-size: inherit;
+				white-space: inherit;
+			}
+			pre .copy-btn {
+				position: absolute;
+				top: 0.5em;
+				right: 0.5em;
+				background: var(--bg);
+				color: var(--muted);
+				border: 1px solid var(--border);
+				border-radius: 4px;
+				padding: 0.15em 0.5em;
+				font-size: 0.75em;
+				cursor: pointer;
+				opacity: 0;
+				transition: opacity 0.15s;
+			}
+			pre:hover .copy-btn {
+				opacity: 1;
+			}
+			pre .copy-btn:hover {
+				color: var(--fg);
+			}
+
+			blockquote {
+				margin: 1em 0;
+				padding: 0.5em 1em;
+				border-left: 3px solid var(--border);
+				color: var(--muted);
+			}
+
+			table {
+				border-collapse: collapse;
+				width: 100%;
+				margin: 1em 0;
+				font-size: 0.95em;
+			}
+			th,
+			td {
+				padding: 0.55em 0.75em;
+				border-bottom: 1px solid var(--border);
+				text-align: left;
+				vertical-align: top;
+			}
+			th {
+				font-weight: 600;
+				background: var(--code-bg);
+			}
+			tbody tr:hover {
+				background: var(--code-bg);
+			}
+
+			details {
+				margin: 1em 0;
+				padding: 0.5em 0.9em;
+				border: 1px solid var(--border);
+				border-radius: 6px;
+			}
+			details > summary {
+				cursor: pointer;
+				font-weight: 500;
+			}
+			details[open] > summary {
+				margin-bottom: 0.5em;
+				padding-bottom: 0.5em;
+				border-bottom: 1px solid var(--border);
+			}
+
+			.callout {
+				margin: 1em 0;
+				padding: 0.75em 1em;
+				border-left: 3px solid var(--info-bd);
+				background: var(--info-bg);
+				border-radius: 0 6px 6px 0;
+			}
+			.callout > :first-child {
+				margin-top: 0;
+			}
+			.callout > :last-child {
+				margin-bottom: 0;
+			}
+			.callout.warn {
+				border-color: var(--warn-bd);
+				background: var(--warn-bg);
+			}
+			.callout.error {
+				border-color: var(--error-bd);
+				background: var(--error-bg);
+			}
+			.callout.success {
+				border-color: var(--success-bd);
+				background: var(--success-bg);
+			}
+			.callout-title {
+				font-weight: 600;
+				margin-bottom: 0.3em;
+			}
+
+			pre.diff code .add,
+			pre.diff .add {
+				display: block;
+				background: var(--add-bg);
+				color: var(--add-fg);
+			}
+			pre.diff code .del,
+			pre.diff .del {
+				display: block;
+				background: var(--del-bg);
+				color: var(--del-fg);
+			}
+
+			.grid-2 {
+				display: grid;
+				grid-template-columns: 1fr 1fr;
+				gap: 1em;
+			}
+			@media (max-width: 640px) {
+				.grid-2 {
+					grid-template-columns: 1fr;
+				}
+			}
+
+			.badge {
+				display: inline-block;
+				padding: 0.1em 0.55em;
+				font-size: 0.78em;
+				border: 1px solid var(--border);
+				border-radius: 999px;
+				color: var(--muted);
+				vertical-align: 0.1em;
+			}
+
+			/* Diagrams render as SVG; keep them tidy. */
+			.mermaid,
+			.graphviz {
+				margin: 1.2em 0;
+				text-align: center;
+			}
+			.mermaid svg,
+			.graphviz svg {
+				max-width: 100%;
+				height: auto;
+				background: transparent;
+			}
+
+			/* Tabs — CSS-only via :has(). Supports up to 5 tabs per group. */
+			.tabs {
+				margin: 1.2em 0;
+			}
+			.tabs > .tab {
+				display: inline-block;
+				padding: 0.5em 0.9em 0.6em;
+				cursor: pointer;
+				color: var(--muted);
+				border-bottom: 2px solid transparent;
+				user-select: none;
+				margin-right: 0.2em;
+			}
+			.tabs > .tab:first-of-type {
+				padding-left: 0;
+			}
+			.tabs > .tab input {
+				display: none;
+			}
+			.tabs > .tab:hover {
+				color: var(--fg);
+			}
+			.tabs > .tab:has(input:checked) {
+				color: var(--fg);
+				border-bottom-color: var(--accent);
+				font-weight: 500;
+			}
+			.tabs > .tab-panel {
+				display: none;
+				padding: 0.9em 0;
+				border-top: 1px solid var(--border);
+				margin-top: -2px;
+			}
+			.tabs:has(.tab:nth-of-type(1) input:checked) > .tab-panel:nth-of-type(1),
+			.tabs:has(.tab:nth-of-type(2) input:checked) > .tab-panel:nth-of-type(2),
+			.tabs:has(.tab:nth-of-type(3) input:checked) > .tab-panel:nth-of-type(3),
+			.tabs:has(.tab:nth-of-type(4) input:checked) > .tab-panel:nth-of-type(4),
+			.tabs:has(.tab:nth-of-type(5) input:checked) > .tab-panel:nth-of-type(5) {
+				display: block;
+			}
+			.tabs > .tab-panel > :first-child {
+				margin-top: 0;
+			}
+			.tabs > .tab-panel > :last-child {
+				margin-bottom: 0;
+			}
+
+			/* Syntax highlighting: Rose Pine token colors from the active Pi theme. */
+			pre code.hljs {
+				background: transparent;
+				color: var(--syntax-variable);
+				padding: 0;
+			}
+			.hljs-comment,
+			.hljs-quote {
+				color: var(--syntax-comment);
+			}
+			.hljs-keyword,
+			.hljs-selector-tag,
+			.hljs-subst {
+				color: var(--syntax-keyword);
+			}
+			.hljs-title,
+			.hljs-section,
+			.hljs-name {
+				color: var(--syntax-function);
+			}
+			.hljs-variable,
+			.hljs-template-variable,
+			.hljs-attr,
+			.hljs-attribute {
+				color: var(--syntax-variable);
+			}
+			.hljs-string,
+			.hljs-regexp,
+			.hljs-symbol,
+			.hljs-bullet {
+				color: var(--syntax-string);
+			}
+			.hljs-number,
+			.hljs-literal {
+				color: var(--syntax-number);
+			}
+			.hljs-type,
+			.hljs-class .hljs-title,
+			.hljs-built_in {
+				color: var(--syntax-type);
+			}
+			.hljs-operator,
+			.hljs-deletion,
+			.hljs-addition {
+				color: var(--syntax-operator);
+			}
+			.hljs-punctuation {
+				color: var(--syntax-punctuation);
+			}
+
+			/* Outline — auto-generated, fixed right gutter on wide screens.
+     Uses rem (font-size-independent) for the offset calc; `ch` inside .outline
+     would resolve against its smaller 0.85em font and undershoot. */
+			.outline {
+				position: fixed;
+				top: 3rem;
+				left: calc(50% + 22rem + 1.5rem);
+				width: 14rem;
+				max-height: calc(100vh - 5rem);
+				overflow-y: auto;
+				font-size: 0.85em;
+				line-height: 1.4;
+				padding-left: 1rem;
+				border-left: 1px solid var(--border);
+			}
+			.outline-title {
+				color: var(--muted);
+				text-transform: uppercase;
+				letter-spacing: 0.05em;
+				font-size: 0.78em;
+				margin-bottom: 0.6em;
+			}
+			.outline ul {
+				list-style: none;
+				padding: 0;
+				margin: 0;
+			}
+			.outline li {
+				margin: 0;
+			}
+			.outline a {
+				color: var(--muted);
+				text-decoration: none;
+				display: block;
+				padding: 0.25em 0 0.25em 0.9em;
+				margin-left: -1em;
+				border-left: 2px solid transparent;
+			}
+			.outline a:hover {
+				color: var(--fg);
+			}
+			.outline a.active {
+				color: var(--fg);
+				border-left-color: var(--accent);
+				font-weight: 500;
+			}
+			.outline ul.sub {
+				margin-left: 1em;
+			}
+			.outline ul.sub a {
+				font-size: 0.95em;
+			}
+			/* Need viewport > 2*(body half + gap + outline + edge): ~22rem + 1.5rem + 14rem + 1rem = 38.5rem per side. */
+			@media (max-width: 1280px) {
+				.outline {
+					display: none;
+				}
+			}
+
+			html {
+				scroll-behavior: smooth;
+				scroll-padding-top: 1.5rem;
+			}
+		</style>
+	</head>
+	<body>
+		<!--
+  AGENT: write the response content below this comment, then delete the comment.
+  Available primitives are documented in SKILL.md. Key classes:
+    callout (info | warn | error | success), callout-title, grid-2,
+    diff on pre with add/del spans, no-wrap on pre to preserve horizontal scrolling,
+    mermaid/graphviz on pre, tabs/tab/tab-panel, badge, details/summary.
+  Note: this comment cannot contain a literal mermaid arrow because the HTML
+  parser closes the comment at the first occurrence of those three chars.
+-->
+
+		<h1>Automation writes after the system-bead simplification</h1>
+
+		<p><span class="badge">Workshop evidence</span> <span class="badge">24 October 2026</span> <span class="badge">Proposed policy, current code</span></p>
+<p>With system beads simplified to a title and JSON description, the remaining field-policy questions are concentrated in <strong>agent-visible workflow beads</strong>. Busy Bee currently puts results in stage notes, temporary settlement state in run notes, and machine-readable outcomes in close reasons. It also generates acceptance checklists inside descriptions.</p>
+<div class="callout success"><div class="callout-title">The simplification applied here</div><p><strong>System beads: title, status and labels remain valid; the content payload belongs in one JSON document occupying the entire description.</strong> Content payloads currently stored in design, notes, comments or close reason are technical debt to migrate. It does not determine the desired field policy. This is the working policy for this comparison; no code, live records or tracker configuration have been changed.</p></div>
+<p>The main map below covers Busy Bee, Bee and Colony's direct write paths. “Automation wrote it” and “it is a system bead” are different facts. The author of the content may also differ from the tool that stores it.</p>
+
+<h2>The boundary that makes this simpler</h2>
+<div class="grid-2">
+<div class="callout"><div class="callout-title">System records — migration bucket</div><p>Workflow system beads hold checkpoints. Spawn beads hold execution requests. Under the new direction their application payload belongs wholly inside JSON in description. Existing locks, observations and outcomes elsewhere are listed later as debt.</p></div>
+<div class="callout"><div class="callout-title">Agent-visible records — discussion bucket</div><p>Workflow runs, stages and grouping beads contain work. Response beads contain authored answers. These are not labelled <code>system</code>, even when automation creates them. Their field use is the main subject here.</p></div>
+</div>
+<p>“Agents do not look at system beads” means they are outside normal work selection. Diagnostic tools and authorized system operations still read them. The simplification concerns content fields: description, design, notes, comments and close reason. Title, status and searchable labels are explicitly retained. Native identity, assignment and typed links are shown separately; this discussion has not proposed removing them.</p>
+
+<table><thead><tr><th>Record</th><th>Current classification</th><th>Why it exists</th><th>Treatment in this document</th></tr></thead><tbody>
+<tr><td>Workflow system bead</td><td><code>system</code> + <code>busybee-checkpoint</code></td><td>Checkpoint, generated-work inventory and coordination</td><td>JSON-description target; existing deviations are debt</td></tr>
+<tr><td>Spawn bead</td><td><code>system</code> + <code>bee</code> + agent-kind labels</td><td>Captured recipe, workflow assignment and execution request</td><td>JSON-description target; existing deviations are debt</td></tr>
+<tr><td>Workflow run</td><td><code>busybee-workflow</code>; no system label</td><td>Work container and workflow's final disposition</td><td>Agent-visible field policy applies</td></tr>
+<tr><td>Stage / grouping bead</td><td><code>busybee-workflow</code>; no system label</td><td>Executable work / structural scope within a run</td><td>Agent-visible field policy applies</td></tr>
+<tr><td>Response bead</td><td><code>response</code>, type <code>docs</code>; no system label</td><td>Complete authored answer with provenance and corrections</td><td>Agent-visible artifact; already uses a JSON description</td></tr>
+</tbody></table>
+
+<h2>What still goes into other fields</h2>
+<p>This is the short answer after setting aside system-record migration. The rows describe <strong>current behavior</strong>, not proposed exceptions.</p>
+<table><thead><tr><th>Field</th><th>Non-system target</th><th>What writes it today</th><th>Consequence for the proposed policy</th></tr></thead><tbody>
+<tr><td><strong>Notes</strong></td><td>Workflow stage</td><td>Busy Bee saves the worker's original <code>{choice, data}</code> result as the entire field. Collection parses that JSON.</td><td><strong>Direct conflict with a prose summary.</strong> Existing different notes refuse the save; prose appended after the result breaks its JSON consumer.</td></tr>
+<tr><td><strong>Notes</strong></td><td>Workflow run</td><td>Cancellation/failure settlement appends a tagged JSON intent, then removes it after successful settlement.</td><td>Usually temporary, but it can remain after interrupted settlement. It is operational state, not a durable summary.</td></tr>
+<tr><td><strong>Close reason</strong></td><td>Run, stage and group</td><td>Busy Bee closes with a JSON lifecycle fact: role, run, outcome and explanation. Bee/Colony interpret that fact.</td><td>Currently a machine contract, not a free-form final agent response. Moving the facts requires changing readers as well as writers.</td></tr>
+<tr><td><strong>Acceptance criteria</strong></td><td>Generated run/stage/group</td><td>No dedicated native-field population in the inspected creation path. The default “do work” definition embeds its checklist in stage description.</td><td>Known conflict with the agreed separation. The definition contract and native projection need to carry acceptance separately.</td></tr>
+<tr><td><strong>Status and assignee</strong></td><td>Run/stage and claimed work</td><td>Busy Bee creates open/in-progress work and closes it. Colony claims work and releases unfinished claims.</td><td>These remain operational writes on ordinary work. Creation currently does not follow the proposed draft-first lifecycle.</td></tr>
+<tr><td><strong>Labels and relationships</strong></td><td>Runs, stages, groups, responses</td><td>Busy Bee creates containment and publishes outcome labels. Bee creates response/provenance/correction links.</td><td>They support discovery, scope and execution. They are distinct from where narrative or machine payloads belong.</td></tr>
+<tr><td><strong>Comments</strong></td><td>Ordinary work</td><td>No direct automatic comment writer to ordinary work found in the inspected Busy Bee/Bee/Colony paths. Runtime comments target system spawn beads.</td><td>Agent-authored comments are a separate practice. The proposed diary policy must change agent guidance as well as tool behavior where needed.</td></tr>
+<tr><td><strong>Design, prerequisites, agent context</strong></td><td>Ordinary work</td><td>No direct writes found in these inspected production paths.</td><td>Setting design aside has no identified direct runtime writer to migrate here. This is not a claim about arbitrary agent commands or every integration.</td></tr>
+</tbody></table>
+
+<h2>Walk through the scenarios</h2>
+<p>Each scenario separates the content's author from the mechanism that records it.</p>
+<div class="tabs">
+<label class="tab"><input type="radio" name="scenarios" checked />Start and perform work</label>
+<label class="tab"><input type="radio" name="scenarios" />Complete or stop</label>
+<label class="tab"><input type="radio" name="scenarios" />File an answer</label>
+<div class="tab-panel">
+<h4>Start a workflow</h4>
+<ol>
+<li><strong>The caller supplies the request.</strong> The workflow definition renders the run title and description from its input. Busy Bee creates the run beneath existing ordinary work, initially in progress.</li>
+<li><strong>The definition supplies stage instructions.</strong> Busy Bee creates stage/group descriptions from those instructions and adds completion and discovery guidance. Driver-handled stages and groups start in progress; Bee-dispatched stages start open.</li>
+<li><strong>The default “do work” workflow adds its acceptance checklist to those instructions.</strong> Consequently the checklist lands in description, not native acceptance criteria. This is definition-authored content stored by Busy Bee.</li>
+<li><strong>For a dispatched stage, Busy Bee copies the rendered brief into the spawn prompt.</strong> Bee captures that prompt in the system spawn bead's JSON description. This duplication already crosses the work/system boundary; moving all system payload into description does not itself remove it.</li>
+<li><strong>Colony claims the task under the Bee's identity.</strong> Native claim updates assignment/status while preserving its human owner. The claim does not create a work summary.</li>
+</ol>
+<div class="callout warn"><div class="callout-title">A concrete policy mismatch</div><p>Giving generated stages meaningful acceptance criteria will require a native acceptance field in the definition-to-bead path. Enabling draft/acceptance gates alone does not supply that missing data.</p></div>
+<p><small>Evidence: A, B, G and H in the source index.</small></p>
+</div>
+<div class="tab-panel">
+<h4>Save a result and finish a stage</h4>
+<ol>
+<li><strong>The worker or driver supplies the selected outcome and data.</strong> Busy Bee validates the payload against the workflow schema and saves the original input in stage notes.</li>
+<li><strong>Busy Bee closes the stage.</strong> Its close reason is a structured lifecycle fact; success uses a fixed explanation. The selected outcome and detailed result remain in notes, not in that explanation.</li>
+<li><strong>The driver collects the result.</strong> Busy Bee reads and parses the entire notes field. It advances the workflow and updates the system checkpoint. Groups and the run close when the workflow reaches their completion conditions.</li>
+</ol>
+<details><summary>Small examples of the actual storage contracts</summary>
+<p>Illustrative values using the current formats, not a copy of a live record:</p>
+<p>Stage <code>notes</code>:</p><pre><code>{"choice":"next","data":{}}</code></pre>
+<p>Stage <code>close_reason</code>:</p><pre><code>{"kind":"busybee-lifecycle","formatVersion":1,"scope":"visit","runId":"RUN_ID","outcome":"succeeded","reason":"Original worker result saved; visit completed."}</code></pre>
+<p>The first is the authored outcome payload. The second records the engine's lifecycle conclusion. Neither is automatically the complete authored answer.</p>
+</details>
+<h4>Cancel or fail a run</h4>
+<p>The operator supplies an explanation. Busy Bee appends a <code>Busy Bee settlement:</code> JSON line to the run's existing notes, records the inspected inventory, and closes pending generated work bottom-up with lifecycle facts. It closes the run and restores the original notes when settlement succeeds. If settlement is interrupted, the marker can remain and blocks new admission until resolved.</p>
+<p>Colony also releases owned unfinished claims: it clears the assignee and changes in-progress work to open, preserving the owner and respecting HITL reservations. Its execution observations and request outcome are written to the system spawn bead, already assigned to the migration bucket.</p>
+<p><small>Evidence: C, D, E and H.</small></p>
+</div>
+<div class="tab-panel">
+<h4>Publish the agent's complete answer</h4>
+<p><strong>The agent authors the answer; Bee files it.</strong> Bee creates a separate, closed response bead with a JSON description containing the body, author, producing task, optional spawn-request provenance and superseded response IDs. A response is visible independently of whether the producing task was accepted or the execution succeeded.</p>
+<table><thead><tr><th>Location</th><th>What is stored</th></tr></thead><tbody>
+<tr><td>Response title</td><td>Caller-supplied title, or a generated title naming the producing task</td></tr>
+<tr><td>Response description</td><td>JSON envelope containing the full authored answer and provenance</td></tr>
+<tr><td>Response metadata</td><td>Type docs, status closed, owner ct, response label</td></tr>
+<tr><td>Response relationships</td><td><code>replies-to</code> producing task; optional <code>related</code> spawn request; <code>supersedes</code> prior responses</td></tr>
+<tr><td>Producing task's notes / comments / close reason</td><td>The response publisher does not copy the answer into these fields or close the producing task</td></tr>
+</tbody></table>
+<p>A correction creates a new response that explicitly supersedes the prior current answer. The original remains available. This is enforced by the response publication protocol; it is not a claim that the underlying generic Beads fields are intrinsically immutable.</p>
+<div class="callout"><div class="callout-title">A useful existing separation</div><p>Response payload already lives in JSON description without being a system record. The remaining policy question is the division between a complete answer and the main task's concise durable notes. Copying every answer into notes would reintroduce duplication; retaining essential conclusions and linking the full answer is a candidate, not an adopted rule.</p></div>
+<p>The publisher currently creates responses already closed without explicitly supplying acceptance criteria or a close reason. Draft-first and required-close-reason compatibility therefore needs a deliberate implementation decision and validation; this inspection does not establish how future YAML gates would treat that creation path.</p>
+<p><small>Evidence: F.</small></p>
+</div>
+</div>
+
+<h2>The remaining decisions are small enough to separate</h2>
+<table><thead><tr><th>Topic</th><th>Established direction</th><th>Still to resolve</th></tr></thead><tbody>
+<tr><td>System payload</td><td>Title, status and labels retained. JSON description owns the content payload; other content fields are debt.</td><td>Migrate content-field consumers while retaining native status and searchable labels. The JSON outcome and native lifecycle still need a consistent contract.</td></tr>
+<tr><td>Task description</td><td>What the work is for; acceptance belongs in its own field.</td><td>How much tool instruction belongs in generated task descriptions versus command-provided context.</td></tr>
+<tr><td>Task notes</td><td>Direction: durable consolidated account, including important reasoning.</td><td>Relocate workflow stage results and run settlement intent before making this a universal ordinary-work convention.</td></tr>
+<tr><td>Design</td><td>Set aside for now in the summary-and-diary model.</td><td>No identified runtime writer in scope. Existing agent guidance and historic records need separate treatment.</td></tr>
+<tr><td>Diary</td><td>Direction: linked working history with its own retention boundary.</td><td>Low-friction creation, discovery and compaction. Coordinated purge still needs validation through actual Hive sync.</td></tr>
+<tr><td>Close reason</td><td>Require a reason for ordinary work closure.</td><td>Readable proof versus machine lifecycle envelope; final answer placement remains separate. Current workflow consumers rely on the envelope.</td></tr>
+<tr><td>Response</td><td>Existing complete authored artifact, already linked and independently addressable.</td><td>Relationship to summary notes and universal lifecycle requirements; it must not be accidentally reclassified as system merely because Bee creates it.</td></tr>
+</tbody></table>
+<p>A plausible later change is to place workflow result and coordination payloads in the system record's JSON, while leaving the agent-visible work bead with description, acceptance and durable notes. <strong>That is a migration candidate, not a selected architecture.</strong> In particular, today's native closure couples status and lifecycle evidence in one operation; a relocation must preserve the completion/recovery contract and avoid two competing sources of truth.</p>
+
+<h2>System migration debt, kept out of the main debate</h2>
+<details><summary>Expand the current system write map</summary>
+<p>These writes are acknowledged debt under the requested simplification. Listing them preserves the implementation facts without using them to complicate the desired content policy.</p>
+<table><thead><tr><th>Trigger and tool</th><th>Current destination</th><th>Content and authorship</th><th>Target under the simplification</th></tr></thead><tbody>
+<tr><td>Busy Bee starts / advances a run</td><td>Workflow system bead description</td><td>Runtime-generated JSON checkpoint: definition, snapshot, visits, active/generated work and history</td><td>Already the right payload location; retain JSON description</td></tr>
+<tr><td>Busy Bee acquires / releases coordination lock</td><td>Workflow system bead notes</td><td>Runtime JSON owner and process ID; later cleared. Busy Bee and Colony read the field for coordination.</td><td>Move this state into the system JSON and update lock/read protocols together</td></tr>
+<tr><td>Bee submits an execution request</td><td>Spawn description</td><td>Captured recipe, workflow assignment and host. Prompt content comes from caller/defaults or Busy Bee's generated brief.</td><td>Already JSON description; retain that location</td></tr>
+<tr><td>Colony observes execution</td><td>Spawn comments</td><td>System-authored running/waiting/settled facts, plus stdout-activity JSON with attempt and timestamps</td><td>Move required observation data into description JSON, preserving explicit attribution/time where needed</td></tr>
+<tr><td>Bee launches an explicit local attempt</td><td>Spawn comments</td><td>Runtime writes manual-attempt identity and local directory provenance</td><td>Move provenance into description JSON</td></tr>
+<tr><td>Bee acknowledges a failed request</td><td>Spawn comments</td><td>Caller-authored reason; tool records it with the exact failed closure timestamp. Native comment carries actor/time.</td><td>Move the acknowledgment payload and required attribution into description JSON</td></tr>
+<tr><td>Colony settles / Bee stops a request</td><td>Spawn close reason and status</td><td>Runtime outcome token, or Bee's stop reason. Shared code derives request outcome from this native closure.</td><td>Move meaningful outcome payload into description JSON; reconcile the current native lifecycle dependency</td></tr>
+<tr><td>Creation and lifecycle publication</td><td>System labels, assignment and relationships</td><td>Discovery labels, outcome/resolution projections, Bee identity, task links and supersession</td><td>Retain status and searchable labels as requested. Identity, assignment and links remain native coordination metadata in this map.</td></tr>
+</tbody></table>
+<p>JSON can carry fields at arbitrary nesting points, but a single description is still one mutable value. Consolidating writers changes update coordination; it does not provide independent atomic writes for each nested property. Likewise, native comment attribution and timestamps must be represented explicitly if the new JSON record still needs them.</p>
+<p><small>Evidence: A, G, I, J and K.</small></p>
+</details>
+
+<h2>What this map deliberately distinguishes</h2>
+<div class="grid-2">
+<div><h3>Agent authorship</h3><p>A worker supplies a workflow result and authors a full response. A caller supplies a request or failure acknowledgment. Automation may store that material without having composed it. A programmatic write is not proof of system-authored content.</p></div>
+<div><h3>Runtime authorship</h3><p>Locks, checkpoint structure, lifecycle facts, observation timestamps, query labels and generated completion instructions come from code. They can be interleaved today with agent-visible work even when the destination is not a system bead.</p></div>
+</div>
+<p>Colony's private SQLite checkpoints and local receipt, finish-report and stdout/stderr files are also separate from Beads. They are not automatically bead notes, comments or conversation transcripts. The new system-body rule is not a verified claim that all runtime persistence already fits in Beads.</p>
+<p>Manual conversation capture remains the agreed modest first pass: agents may selectively add useful conversation material as comments where appropriate. This source map does not imply an existing automated transcript-capture service.</p>
+
+<h2>Evidence and limits</h2>
+<p>This is a read-only source inspection of the canonical checkout at <code>020d38baddd4c82aefd70da9a7158b1c8ea55dcb</code>. The workshop artifact is saved in its existing isolated worktree. Source references below belong to that inspected canonical revision, not the older worktree base. No production automation was run to populate a tracker for this report.</p>
+<table><thead><tr><th>Ref</th><th>Source location</th><th>What it establishes</th></tr></thead><tbody>
+<tr><td>A</td><td><code>lib/busybee/src/runtime.ts:496, 516, 540, 721, 1592</code><br><code>lib/busybee/src/native.ts:116, 237</code></td><td>Run/checkpoint creation, system classification, lock notes, stage/group creation and native create projection</td></tr>
+<tr><td>B</td><td><code>lib/busybee/src/definition.ts:16</code><br><code>.workflows/do-work/workflow.ts:22, 40</code><br><code>lib/busybee/src/runtime.ts:1636</code></td><td>Title/description and instruction contracts; checklist rendered into instructions; generated description guidance</td></tr>
+<tr><td>C</td><td><code>lib/busybee/src/runtime.ts:1015, 1022, 1223</code></td><td>Stage-result notes write, conflicting-notes refusal and whole-field JSON parsing</td></tr>
+<tr><td>D</td><td><code>lib/busybee/src/native.ts:271</code><br><code>lib/shared/src/workflow-lifecycle.ts:28, 98</code><br><code>lib/colony/src/workflow-anchor.ts:26</code></td><td>Structured close reason, native lifecycle parser and Colony consumer</td></tr>
+<tr><td>E</td><td><code>lib/busybee/src/settlement.ts:331</code><br><code>lib/shared/src/workflow-lifecycle.ts:123</code><br><code>lib/colony/src/workflow-anchor.ts:73</code></td><td>Temporary run-note intent, cleanup and admission fence</td></tr>
+<tr><td>F</td><td><code>lib/colony/src/response-store.ts:18, 123, 412, 456</code></td><td>Response JSON schema, corrections, closed artifact creation and provenance links</td></tr>
+<tr><td>G</td><td><code>lib/busybee/src/runtime.ts:1666</code><br><code>lib/colony/src/producer.ts:201, 229</code></td><td>Brief copied into dispatch prompt; spawn JSON recipe capture and task links</td></tr>
+<tr><td>H</td><td><code>lib/colony/src/claims.ts:14, 49</code></td><td>Conditional claims and release of unfinished work; owner preservation</td></tr>
+<tr><td>I</td><td><code>lib/colony/src/observations.ts:88, 186, 213</code><br><code>lib/colony/src/launch.ts:146</code></td><td>Spawn observation comments, stdout activity and manual attempt provenance</td></tr>
+<tr><td>J</td><td><code>lib/colony/src/requests.ts:176, 202, 318</code><br><code>lib/colony/src/request.ts:765</code><br><code>lib/shared/src/spawn-request.ts:284</code></td><td>Stop/acknowledgment, terminal request closure and derived request labels/outcomes</td></tr>
+<tr><td>K</td><td><code>docs/architecture.md:76–91</code><br><code>lib/colony/src/launch.ts:317, 327, 389</code></td><td>Native versus private authority, receipt/log persistence and finish evidence</td></tr>
+</tbody></table>
+<p>The negative findings are bounded to direct production write paths in Busy Bee and Colony (including the Bee CLI), plus the cited workflow definitions and shared readers. Agent commands, hooks and unrelated integrations can write additional fields. “No direct writer found” does not mean a field is unused across the whole repository.</p>
+<div class="callout"><div class="callout-title">What has and has not been done</div><p>The requested simplification is applied to this comparison and recorded in the workshop notes. The application, tracker configuration and existing beads are unchanged. This is evidence for the next policy decisions; it does not execute the migrations, establish purge safety across clones or settle the remaining response/summary distinction.</p></div>
+
+
+		<!-- Auto-outline: scans h2/h3, assigns ids, builds a right-side nav, tracks scroll. -->
+		<script>
+			(function () {
+				const headings = [...document.querySelectorAll("h2, h3")];
+				if (headings.length < 3) return;
+
+				const slug = (t) =>
+					t
+						.toLowerCase()
+						.trim()
+						.replace(/[^a-z0-9]+/g, "-")
+						.replace(/^-|-$/g, "") || "section";
+				const seen = new Map();
+				headings.forEach((h) => {
+					let id = slug(h.textContent);
+					const n = seen.get(id) || 0;
+					if (n) id = id + "-" + n;
+					seen.set(slug(h.textContent), n + 1);
+					h.id = id;
+				});
+
+				const nav = document.createElement("nav");
+				nav.className = "outline";
+				nav.innerHTML = '<div class="outline-title">On this page</div>';
+				const ul = document.createElement("ul");
+				nav.appendChild(ul);
+				let subUl = null;
+				let lastH2Li = null;
+				headings.forEach((h) => {
+					const li = document.createElement("li");
+					const a = document.createElement("a");
+					a.href = "#" + h.id;
+					a.textContent = h.textContent;
+					a.dataset.target = h.id;
+					li.appendChild(a);
+					if (h.tagName === "H2") {
+						ul.appendChild(li);
+						lastH2Li = li;
+						subUl = null;
+					} else {
+						if (!subUl) {
+							subUl = document.createElement("ul");
+							subUl.className = "sub";
+							(lastH2Li || ul).appendChild(subUl);
+						}
+						subUl.appendChild(li);
+					}
+				});
+				document.body.appendChild(nav);
+
+				const links = new Map();
+				nav.querySelectorAll("a").forEach((a) => links.set(a.dataset.target, a));
+
+				function updateActive() {
+					const y = window.scrollY + 80;
+					let current = null;
+					for (const h of headings) {
+						if (h.offsetTop <= y) current = h;
+						else break;
+					}
+					nav.querySelectorAll("a.active").forEach((a) => a.classList.remove("active"));
+					if (current) {
+						const link = links.get(current.id);
+						if (link) link.classList.add("active");
+					}
+				}
+				let raf = 0;
+				window.addEventListener(
+					"scroll",
+					() => {
+						if (raf) return;
+						raf = requestAnimationFrame(() => {
+							raf = 0;
+							updateActive();
+						});
+					},
+					{ passive: true },
+				);
+				updateActive();
+			})();
+		</script>
+
+		<script>
+			// Copy-to-clipboard buttons for pre blocks (skips rendered diagrams).
+			document.querySelectorAll("pre:not(.mermaid):not(.graphviz)").forEach((pre) => {
+				const btn = document.createElement("button");
+				btn.className = "copy-btn";
+				btn.type = "button";
+				btn.textContent = "copy";
+				btn.addEventListener("click", async () => {
+					try {
+						const clone = pre.cloneNode(true);
+						clone.querySelector(".copy-btn")?.remove();
+						await navigator.clipboard.writeText(clone.textContent);
+						btn.textContent = "copied";
+						setTimeout(() => {
+							btn.textContent = "copy";
+						}, 1200);
+					} catch {
+						btn.textContent = "err";
+					}
+				});
+				pre.appendChild(btn);
+			});
+		</script>
+
+		<script>
+			const richResponseTheme = (() => {
+				const palette = {
+					dawn: {
+						bg: "#fdf9f5",
+						fg: "#575279",
+						muted: "#9893a5",
+						dim: "#797593",
+						border: "#dfdad9",
+						codeBg: "#fffaf3",
+						accent: "#b85c58",
+						link: "#286983",
+						infoBg: "#f4ede8",
+						infoBd: "#56949f",
+						warnBd: "#a86a00",
+						errorBd: "#b4637a",
+						successBd: "#a86a00",
+					},
+					moon: {
+						bg: "#232136",
+						fg: "#e0def4",
+						muted: "#6e6a86",
+						dim: "#6e698f",
+						border: "#2e2a42",
+						codeBg: "#2a273f",
+						accent: "#c4a7e7",
+						link: "#9ccfd8",
+						infoBg: "#2a283e",
+						infoBd: "#9a68d6",
+						warnBd: "#f6c177",
+						errorBd: "#eb6f92",
+						successBd: "#9ccfd8",
+					},
+				};
+
+				const isDark = () => matchMedia("(prefers-color-scheme: dark)").matches;
+				const currentPalette = () => (isDark() ? palette.moon : palette.dawn);
+				const oppositePalette = () => (isDark() ? palette.dawn : palette.moon);
+				const css = (name) =>
+					getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+				const current = () => ({
+					bg: css("--bg"),
+					fg: css("--fg"),
+					muted: css("--muted"),
+					dim: css("--dim"),
+					border: css("--border"),
+					codeBg: css("--code-bg"),
+					accent: css("--accent"),
+					link: css("--link"),
+					infoBg: css("--info-bg"),
+					infoBd: css("--info-bd"),
+					warnBd: css("--warn-bd"),
+					errorBd: css("--error-bd"),
+					successBd: css("--success-bd"),
+				});
+
+				const normalizeColor = (value) => {
+					if (!value) return value;
+					const normalized = value.trim().toLowerCase();
+					if (/^#[0-9a-f]{3}$/i.test(normalized)) {
+						return "#" + [...normalized.slice(1)].map((ch) => ch + ch).join("");
+					}
+					const rgb = normalized.match(/^rgba?\(([^)]+)\)$/);
+					if (rgb) {
+						const [r, g, b] = rgb[1]
+							.split(",")
+							.slice(0, 3)
+							.map((part) => Number.parseInt(part.trim(), 10));
+						if ([r, g, b].every((part) => Number.isFinite(part))) {
+							return "#" + [r, g, b].map((part) => part.toString(16).padStart(2, "0")).join("");
+						}
+					}
+					return normalized;
+				};
+
+				const themedGraphvizColor = (value) => {
+					const normalized = normalizeColor(value);
+					if (!normalized || normalized === "none" || normalized === "transparent") return value;
+					if (normalized === "black" || normalized === "#000000") return current().fg;
+					if (normalized === "white" || normalized === "#ffffff") return current().bg;
+
+					const from = oppositePalette();
+					const to = currentPalette();
+					for (const [key, source] of Object.entries(from)) {
+						if (normalized === source) return to[key];
+					}
+					return value;
+				};
+
+				const rewriteStyleColors = (styleValue) =>
+					styleValue
+						.split(";")
+						.map((entry) => {
+							const [prop, raw] = entry.split(":");
+							if (!prop || raw == null) return entry;
+							if (!["fill", "stroke", "color", "stop-color"].includes(prop.trim().toLowerCase())) {
+								return entry;
+							}
+							return `${prop}:${themedGraphvizColor(raw)}`;
+						})
+						.join(";");
+
+				const themeGraphvizSvg = (svg) => {
+					svg.style.background = "transparent";
+					svg.querySelectorAll("*").forEach((node) => {
+						["fill", "stroke", "color", "stop-color"].forEach((attr) => {
+							if (node.hasAttribute(attr)) {
+								node.setAttribute(attr, themedGraphvizColor(node.getAttribute(attr)));
+							}
+						});
+						if (node.hasAttribute("style")) {
+							node.setAttribute("style", rewriteStyleColors(node.getAttribute("style")));
+						}
+					});
+					return svg;
+				};
+
+				const mermaidTheme = () => {
+					const colors = current();
+					return {
+						theme: "base",
+						darkMode: isDark(),
+						themeVariables: {
+							background: colors.bg,
+							fontFamily:
+								'ui-sans-serif, system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif',
+							fontSize: "16px",
+							textColor: colors.fg,
+							primaryColor: colors.codeBg,
+							primaryTextColor: colors.fg,
+							primaryBorderColor: colors.border,
+							secondaryColor: colors.infoBg,
+							secondaryTextColor: colors.fg,
+							secondaryBorderColor: colors.infoBd,
+							tertiaryColor: colors.bg,
+							tertiaryTextColor: colors.fg,
+							tertiaryBorderColor: colors.border,
+							lineColor: colors.link,
+							mainBkg: colors.codeBg,
+							secondBkg: colors.infoBg,
+							tertiaryBkg: colors.bg,
+							clusterBkg: colors.codeBg,
+							clusterBorder: colors.border,
+							nodeBorder: colors.border,
+							edgeLabelBackground: colors.bg,
+							defaultLinkColor: colors.link,
+							titleColor: colors.fg,
+							labelColor: colors.fg,
+							labelTextColor: colors.fg,
+							actorBkg: colors.codeBg,
+							actorBorder: colors.border,
+							actorTextColor: colors.fg,
+							actorLineColor: colors.link,
+							signalColor: colors.link,
+							signalTextColor: colors.fg,
+							noteBkgColor: colors.infoBg,
+							noteBorderColor: colors.infoBd,
+							noteTextColor: colors.fg,
+							activationBkgColor: colors.codeBg,
+							activationBorderColor: colors.border,
+							sequenceNumberColor: colors.bg,
+							sectionBkgColor: colors.codeBg,
+							altSectionBkgColor: colors.infoBg,
+							sectionBkgColor2: colors.bg,
+							gridColor: colors.border,
+							cScale0: colors.codeBg,
+							cScale1: colors.infoBg,
+							cScale2: colors.bg,
+							cScale3: colors.codeBg,
+							cScale4: colors.infoBg,
+							cScale5: colors.bg,
+							pie1: colors.link,
+							pie2: colors.accent,
+							pie3: colors.infoBd,
+							pie4: colors.warnBd,
+							pie5: colors.errorBd,
+							pieOuterStrokeColor: colors.border,
+							pieSectionTextColor: colors.fg,
+							pieTitleTextColor: colors.fg,
+							ganttTaskBkgColor: colors.link,
+							ganttTaskTextColor: colors.bg,
+							ganttTaskOutsideColor: colors.fg,
+							ganttTaskBorderColor: colors.link,
+							ganttGridColor: colors.border,
+						},
+					};
+				};
+
+				return { mermaidTheme, themeGraphvizSvg };
+			})();
+		</script>
+
+		<!--
+  Mermaid: loaded only if a .mermaid block exists. UMD build (not ESM) so it works
+  from file:// origins — `file://` is a unique security origin and blocks ES-module
+  dynamic imports. The `@11` tag on jsdelivr auto-resolves to the latest 11.x release.
+-->
+		<script>
+			if (document.querySelector(".mermaid")) {
+				const s = document.createElement("script");
+				s.src = "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js";
+				s.onload = async () => {
+					try {
+						window.mermaid.initialize({
+							startOnLoad: false,
+							securityLevel: "loose",
+							...richResponseTheme.mermaidTheme(),
+						});
+						await window.mermaid.run({ querySelector: ".mermaid" });
+					} catch (e) {
+						console.error("[mermaid] render failed:", e?.message || e, e);
+						document.querySelectorAll(".mermaid").forEach((el) => {
+							if (!el.dataset.mermaidError) {
+								el.dataset.mermaidError = "1";
+								el.insertAdjacentHTML(
+									"beforebegin",
+									'<div class="callout error"><div class="callout-title">Mermaid render error</div>' +
+										"<code>" +
+										String(e?.message || e).replace(
+											/[<>&]/g,
+											(c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" })[c],
+										) +
+										"</code></div>",
+								);
+							}
+						});
+					}
+				};
+				s.onerror = () => console.error("[mermaid] failed to load script from CDN");
+				document.head.appendChild(s);
+			}
+		</script>
+
+		<!--
+  Graphviz: loaded only if a .graphviz block exists. @viz-js/viz bundles Graphviz
+  to WebAssembly, so rendering works in-browser without requiring `dot` in PATH.
+-->
+		<script>
+			if (document.querySelector(".graphviz")) {
+				const s = document.createElement("script");
+				s.src = "https://cdn.jsdelivr.net/npm/@viz-js/viz@3/lib/viz-standalone.js";
+				s.onload = async () => {
+					try {
+						const viz = await window.Viz.instance();
+						document.querySelectorAll(".graphviz").forEach((el) => {
+							const svg = richResponseTheme.themeGraphvizSvg(viz.renderSVGElement(el.textContent));
+							el.replaceChildren(svg);
+						});
+					} catch (e) {
+						console.error("[graphviz] render failed:", e?.message || e, e);
+						document.querySelectorAll(".graphviz").forEach((el) => {
+							if (!el.dataset.graphvizError) {
+								el.dataset.graphvizError = "1";
+								el.insertAdjacentHTML(
+									"beforebegin",
+									'<div class="callout error"><div class="callout-title">Graphviz render error</div>' +
+										"<code>" +
+										String(e?.message || e).replace(
+											/[<>&]/g,
+											(c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" })[c],
+										) +
+										"</code></div>",
+								);
+							}
+						});
+					}
+				};
+				s.onerror = () => console.error("[graphviz] failed to load script from CDN");
+				document.head.appendChild(s);
+			}
+		</script>
+
+		<!--
+  Syntax highlighting (highlight.js): opt-in via code blocks with a language-xxx class.
+  Loads only when at least one such block exists. Token colors come from the inline
+  Rose Pine Dawn/Moon CSS variables above, matching the active OS color scheme.
+-->
+		<script>
+			(function () {
+				const blocks = document.querySelectorAll('pre code[class*="language-"]');
+				if (!blocks.length) return;
+				const base = "https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11/build";
+				const s = document.createElement("script");
+				s.src = base + "/highlight.min.js";
+				s.onload = () => blocks.forEach((el) => window.hljs.highlightElement(el));
+				s.onerror = () => console.error("[hljs] failed to load script from CDN");
+				document.head.appendChild(s);
+			})();
+		</script>
+	</body>
+</html>

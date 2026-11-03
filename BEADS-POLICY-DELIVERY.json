@@ -1,0 +1,81 @@
+{
+  "kind": "beads-policy-proposal-delivery",
+  "format_version": 1,
+  "verified_at": "2026-10-24T21:27:26.160219+00:00",
+  "workshop": "hv-igexmh",
+  "delivery_task": "hv-igexmh.1",
+  "full_response": "hv-g68ruu",
+  "diary": "hv-n10i3c",
+  "chronological_note_comment": 44660,
+  "architecture_response": "hv-puh37j",
+  "full_review_response": "hv-ukc4d8",
+  "repair_response": "hv-w4rfzi",
+  "final_review_response": "hv-o18885",
+  "final_review": "aligned; sole P2 resolved; no remaining material findings",
+  "final_review_request": {
+    "id": "hv-jirhgh",
+    "outcome": "succeeded"
+  },
+  "canonical_revision": "020d38baddd4c82aefd70da9a7158b1c8ea55dcb",
+  "workshop_base": "186da413144705420e3da42f66d19680d111bb77",
+  "lan_url": "http://192.168.68.129:8995/",
+  "server": {
+    "session": "rich-response-8995",
+    "ttl_seconds": 86400,
+    "started_approximate_utc": "2026-10-24T21:07:00Z"
+  },
+  "checks": [
+    "native full response body equals final Markdown",
+    "final source hashes match final Librarian review",
+    "render validator passed",
+    "served HTML matches saved HTML",
+    "browser text/layout and navigation checked",
+    "no tracked application diff"
+  ],
+  "scope": "proposal only; no live policy/config implementation, pruning/reset, tracker publication, commit or push",
+  "full_code_suites": "not run; proposal/evidence-only scope",
+  "artifacts": [
+    {
+      "path": "/Users/ct/dev/projects/hive/.worktrees/codex--beads-policy-workshop/BEADS-POLICY-PROPOSAL.md",
+      "bytes": 70103,
+      "sha256": "9a8eab40c824aeb6eb1e457a21b546c497e7950b448b8a8324b15b49bf87e9fd"
+    },
+    {
+      "path": "/Users/ct/dev/projects/hive/.worktrees/codex--beads-policy-workshop/BEADS-POLICY-PROPOSAL.html",
+      "bytes": 102164,
+      "sha256": "288d5a555dfcb2c00ff866a81a727f840ed46b412250f2b2ed88bd73dba681de"
+    },
+    {
+      "path": "/Users/ct/dev/projects/hive/.worktrees/codex--beads-policy-workshop/BEADS-POLICY-NOTES.md",
+      "bytes": 46663,
+      "sha256": "3b7edbfb30d781442b844059d0e790d1a5ad16ab83b52ce08b340584e29f42cb"
+    },
+    {
+      "path": "/Users/ct/dev/projects/hive/.worktrees/codex--beads-policy-workshop/BEADS-POLICY-LIBRARIAN-REVIEW.md",
+      "bytes": 10481,
+      "sha256": "98cac30076abea8aff4613caa2882a80c1a64629f460a841e959a0dd871c975d"
+    },
+    {
+      "path": "/Users/ct/dev/projects/hive/.worktrees/codex--beads-policy-workshop/BEADS-POLICY-REPAIR-REPORT.md",
+      "bytes": 3593,
+      "sha256": "5ad775a148e1f15167b8a3933c165ee86a28a232a46b510f31706097253f895c"
+    },
+    {
+      "path": "/Users/ct/dev/projects/hive/.worktrees/codex--beads-policy-workshop/BEADS-POLICY-FINAL-REVIEW-REPORT.md",
+      "bytes": 6424,
+      "sha256": "9eae68b586003d8ec25ae7553f2c1ddf92346517387889b4593c47c53e9f9073"
+    }
+  ],
+  "implementation_status": {
+    "date": "2026-10-25",
+    "proposal_slice": "section 2 agent-facing guidance",
+    "pull_request": "https://github.com/codethread/hive/pull/13",
+    "commit": "a56f8c5a5d30df95b175ce4acf4b23b22619c160",
+    "implementation_task": "hv-7q3odu",
+    "annotated_response": "hv-8284ex",
+    "original_response": "hv-g68ruu",
+    "reservation_preserved": true,
+    "markdown_sha256": "f015020e286f7ae80f3176f94c7288a8e2f79ea8fd40807517c25b89ea6d1820",
+    "html_sha256": "157343e235a4c7a4277ede4aea6290c99d11c65a6ed0dc491fd8bb6bd7dadc24"
+  }
+}

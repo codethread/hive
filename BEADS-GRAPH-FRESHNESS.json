@@ -1,0 +1,124 @@
+{
+  "task": "gp-ppq",
+  "diary": "gp-n72",
+  "sync_status": {
+    "dirty_count": 1,
+    "last_export_time": "2026-10-24T20:06:05.352236+00:00",
+    "jsonl_content_hash": "28ef86688ceed4ed522de76d7de5eea8db48d28e1dd0c2f610bf7695f0fbfde4",
+    "jsonl_exists": true,
+    "jsonl_newer": false,
+    "db_newer": true,
+    "workspace_health": "degraded",
+    "reliability_audit": {
+      "source": "sync.status",
+      "health": "degraded",
+      "anomaly_count": 1,
+      "anomalies": [
+        {
+          "code": "db_newer",
+          "severity": "degraded",
+          "message": "database has newer data than JSONL"
+        }
+      ]
+    },
+    "coverage": {
+      "db_exportable_issues": 2,
+      "jsonl_unique_ids": 1
+    },
+    "coverage_drift": true,
+    "git_export": {
+      "available": false,
+      "reason": "not_probed",
+      "diagnostic_command": "br vcs-status --json"
+    }
+  },
+  "graphs": {
+    "jsonl": {
+      "nodes": 1,
+      "edges": 0,
+      "ids": [
+        "gp-ppq"
+      ],
+      "source_authority": {
+        "state": "complete",
+        "claim_safe": true,
+        "readiness": "proven",
+        "loaded": 1,
+        "failed": 0,
+        "disabled": 0,
+        "valid": 1,
+        "errors": 0,
+        "skipped": 0,
+        "read_errors": 0,
+        "visible": 1,
+        "tombstones": 0,
+        "warning_count": 0,
+        "sources": [
+          {
+            "source_path": "/var/folders/6w/lnly9x394flgz3q7zty955500000gn/T/hive-graph-bench-_issgpru/freshness/.beads/issues.jsonl",
+            "source_kind": "jsonl_local",
+            "status": "loaded",
+            "data_hash": "6c927618e476489f8faad50d9c9d0843ce87101b08dc019bd262b397c25a6a0b",
+            "valid": 1,
+            "errors": 0,
+            "skipped": 0,
+            "read_errors": 0,
+            "visible": 1,
+            "tombstones": 0,
+            "stale": false,
+            "warning_count": 0
+          }
+        ]
+      }
+    },
+    "sqlite": {
+      "nodes": 2,
+      "edges": 1,
+      "ids": [
+        "gp-n72",
+        "gp-ppq"
+      ],
+      "source_authority": {
+        "state": "complete",
+        "claim_safe": true,
+        "readiness": "proven",
+        "loaded": 1,
+        "failed": 0,
+        "disabled": 0,
+        "valid": 2,
+        "errors": 0,
+        "skipped": 0,
+        "read_errors": 0,
+        "visible": 2,
+        "tombstones": 0,
+        "warning_count": 0,
+        "sources": [
+          {
+            "source_path": "/var/folders/6w/lnly9x394flgz3q7zty955500000gn/T/hive-graph-bench-_issgpru/freshness/.beads/beads.db",
+            "source_kind": "sqlite",
+            "status": "loaded",
+            "data_hash": "dd971d1e17c2ab964a35cd8e5653f453cd689d5c40d775dbf431837dd6f6514c",
+            "valid": 2,
+            "errors": 0,
+            "skipped": 0,
+            "read_errors": 0,
+            "visible": 2,
+            "tombstones": 0,
+            "stale": false,
+            "warning_count": 0
+          }
+        ]
+      }
+    }
+  },
+  "direct": [
+    {
+      "issue_id": "gp-n72",
+      "depends_on_id": "gp-ppq",
+      "type": "related",
+      "title": "Unexported diary",
+      "status": "open",
+      "priority": 2
+    }
+  ]
+}

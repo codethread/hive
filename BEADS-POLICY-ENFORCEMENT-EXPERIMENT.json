@@ -1,0 +1,238 @@
+{
+  "root": "/var/folders/6w/lnly9x394flgz3q7zty955500000gn/T/hive-policy-probe-a1vo_y37",
+  "cases": [
+    {
+      "case": "init",
+      "args": [
+        "init",
+        "--prefix",
+        "pp",
+        "--json"
+      ],
+      "exit": 0,
+      "stdout": "{\"initialized\":true,\"beads_dir\":\"/private/var/folders/6w/lnly9x394flgz3q7zty955500000gn/T/hive-policy-probe-a1vo_y37/.beads\",\"database_path\":\"/private/var/folders/6w/lnly9x394flgz3q7zty955500000gn/T/hive-policy-probe-a1vo_y37/.beads/beads.db\",\"prefix\":\"pp\",\"files\":{\"directory\":\"created\",\"database\":\"created\",\"metadata\":\"created\",\"config\":\"created\",\"gitignore\":\"created\",\"jsonl\":\"created\"}}\n",
+      "stderr": "2026-10-24T20:46:03.933090Z  WARN fsqlite_core::connection: WAL-FEC requires a caller-owned runtime blocking pool; primary WAL durability is unchanged\n"
+    },
+    {
+      "case": "implicit-open-rejected",
+      "args": [
+        "create",
+        "Default status",
+        "--owner",
+        "ct",
+        "--json"
+      ],
+      "exit": 4,
+      "stdout": "{\n  \"error\": {\n    \"code\": \"VALIDATION_FAILED\",\n    \"message\": \"Validation failed: status: initial status 'open' is not permitted by the project workflow policy (.beads/policy.yaml workflow.transitions, key 'initial'). Allowed initial statuses: draft.\",\n    \"hint\": null,\n    \"retryable\": true,\n    \"context\": {\n      \"field\": \"status\",\n      \"reason\": \"initial status 'open' is not permitted by the project workflow policy (.beads/policy.yaml workflow.transitions, key 'initial'). Allowed initial statuses: draft.\"\n    }\n  }\n}\n",
+      "stderr": "2026-10-24T20:46:04.026127Z  WARN fsqlite_core::connection: WAL-FEC requires a caller-owned runtime blocking pool; primary WAL durability is unchanged\n"
+    },
+    {
+      "case": "draft-create",
+      "args": [
+        "create",
+        "Ordinary work",
+        "--status",
+        "draft",
+        "--owner",
+        "ct",
+        "--json"
+      ],
+      "exit": 0,
+      "stdout": "{\"id\":\"pp-0fv\",\"title\":\"Ordinary work\",\"status\":\"draft\",\"priority\":2,\"issue_type\":\"task\",\"owner\":\"ct\",\"created_at\":\"2026-10-24T20:46:04.050280Z\",\"created_by\":\"amaranth-fat-bedbug\",\"updated_at\":\"2026-10-24T20:46:04.050280Z\",\"source_repo\":\"hive-policy-probe-a1vo_y37\",\"source_repo_path\":\"/private/var/folders/6w/lnly9x394flgz3q7zty955500000gn/T/hive-policy-probe-a1vo_y37\",\"compaction_level\":0,\"original_size\":0}\n",
+      "stderr": "2026-10-24T20:46:04.046159Z  WARN fsqlite_core::connection: WAL-FEC requires a caller-owned runtime blocking pool; primary WAL durability is unchanged\n"
+    },
+    {
+      "case": "leave-draft-without-ac",
+      "args": [
+        "update",
+        "pp-0fv",
+        "--status",
+        "open",
+        "--json"
+      ],
+      "exit": 4,
+      "stdout": "{\n  \"error\": {\n    \"code\": \"POLICY_VIOLATION\",\n    \"message\": \"Policy violation for pp-0fv: transition 'draft -> open' requires non-empty acceptance criteria for pp-0fv\",\n    \"hint\": \"Fix the violation(s) above. For a transition gate, scope the requirement in .beads/policy.yaml: workflow.required_fields takes \\\"from -> to\\\" and bare target-status keys, and acceptance_criteria_present requires the field without requiring its checklist to be complete (acceptance_criteria requires both). `br close` additionally accepts --bypass-policy --bypass-reason \\\"<text>\\\" when the policy allows bypass; those flags are close-only.\",\n    \"retryable\": false,\n    \"context\": {\n      \"issue_id\": \"pp-0fv\",\n      \"summary\": \"transition 'draft -> open' requires non-empty acceptance criteria for pp-0fv\",\n      \"violations\": [\n        {\n          \"gate\": \"transition_acceptance_criteria_missing\",\n          \"message\": \"transition 'draft -> open' requires non-empty acceptance criteria for pp-0fv\",\n          \"detail\": {\n            \"issue_id\": \"pp-0fv\",\n            \"from\": \"draft\",\n            \"to\": \"open\",\n            \"required_field\": \"acceptance_criteria_present\",\n            \"reason\": \"missing\"\n          }\n        }\n      ]\n    }\n  }\n}\n",
+      "stderr": "2026-10-24T20:46:04.095205Z  WARN fsqlite_core::connection: WAL-FEC requires a caller-owned runtime blocking pool; primary WAL durability is unchanged\n"
+    },
+    {
+      "case": "unchecked-ac-can-leave-draft",
+      "args": [
+        "update",
+        "pp-0fv",
+        "--acceptance-criteria",
+        "- [ ] Check result",
+        "--status",
+        "open",
+        "--json"
+      ],
+      "exit": 0,
+      "stdout": "[{\"id\":\"pp-0fv\",\"title\":\"Ordinary work\",\"status\":\"open\",\"priority\":2,\"assignee\":null,\"owner\":\"ct\",\"updated_at\":\"2026-10-24T20:46:04.124896Z\"}]\n",
+      "stderr": "2026-10-24T20:46:04.119152Z  WARN fsqlite_core::connection: WAL-FEC requires a caller-owned runtime blocking pool; primary WAL durability is unchanged\n"
+    },
+    {
+      "case": "unchecked-ac-cannot-close",
+      "args": [
+        "close",
+        "pp-0fv",
+        "--reason",
+        "Verified outcome",
+        "--json"
+      ],
+      "exit": 4,
+      "stdout": "{\n  \"error\": {\n    \"code\": \"POLICY_VIOLATION\",\n    \"message\": \"Policy violation for pp-0fv: transition 'open -> closed' requires all acceptance criteria to be satisfied for pp-0fv; 1 unchecked item(s) remain\",\n    \"hint\": \"Fix the violation(s) above. For a transition gate, scope the requirement in .beads/policy.yaml: workflow.required_fields takes \\\"from -> to\\\" and bare target-status keys, and acceptance_criteria_present requires the field without requiring its checklist to be complete (acceptance_criteria requires both). `br close` additionally accepts --bypass-policy --bypass-reason \\\"<text>\\\" when the policy allows bypass; those flags are close-only.\",\n    \"retryable\": false,\n    \"context\": {\n      \"issue_id\": \"pp-0fv\",\n      \"summary\": \"transition 'open -> closed' requires all acceptance criteria to be satisfied for pp-0fv; 1 unchecked item(s) remain\",\n      \"violations\": [\n        {\n          \"gate\": \"transition_acceptance_criteria_unchecked\",\n          \"message\": \"transition 'open -> closed' requires all acceptance criteria to be satisfied for pp-0fv; 1 unchecked item(s) remain\",\n          \"detail\": {\n            \"issue_id\": \"pp-0fv\",\n            \"from\": \"open\",\n            \"to\": \"closed\",\n            \"required_field\": \"acceptance_criteria\",\n            \"reason\": \"unchecked\",\n            \"unchecked\": [\n              \"Check result\"\n            ]\n          }\n        }\n      ]\n    }\n  }\n}\n",
+      "stderr": "2026-10-24T20:46:04.163154Z  WARN fsqlite_core::connection: WAL-FEC requires a caller-owned runtime blocking pool; primary WAL durability is unchanged\n"
+    },
+    {
+      "case": "paragraph-ac",
+      "args": [
+        "update",
+        "pp-0fv",
+        "--acceptance-criteria",
+        "This is a non-checklist paragraph; no criteria were actually ticked.",
+        "--json"
+      ],
+      "exit": 0,
+      "stdout": "[{\"id\":\"pp-0fv\",\"title\":\"Ordinary work\",\"status\":\"open\",\"priority\":2,\"assignee\":null,\"owner\":\"ct\",\"updated_at\":\"2026-10-24T20:46:04.189457Z\"}]\n",
+      "stderr": "2026-10-24T20:46:04.184059Z  WARN fsqlite_core::connection: WAL-FEC requires a caller-owned runtime blocking pool; primary WAL durability is unchanged\n"
+    },
+    {
+      "case": "reason-required",
+      "args": [
+        "close",
+        "pp-0fv",
+        "--json"
+      ],
+      "exit": 4,
+      "stdout": "{\n  \"error\": {\n    \"code\": \"POLICY_VIOLATION\",\n    \"message\": \"Policy violation for pp-0fv: close_reason fails policy: minimum length is 1 chars (got 0)\",\n    \"hint\": \"Fix the violation(s) above. For a transition gate, scope the requirement in .beads/policy.yaml: workflow.required_fields takes \\\"from -> to\\\" and bare target-status keys, and acceptance_criteria_present requires the field without requiring its checklist to be complete (acceptance_criteria requires both). `br close` additionally accepts --bypass-policy --bypass-reason \\\"<text>\\\" when the policy allows bypass; those flags are close-only.\",\n    \"retryable\": false,\n    \"context\": {\n      \"issue_id\": \"pp-0fv\",\n      \"summary\": \"close_reason fails policy: minimum length is 1 chars (got 0)\",\n      \"violations\": [\n        {\n          \"gate\": \"close_reason_min_length\",\n          \"message\": \"close_reason fails policy: minimum length is 1 chars (got 0)\",\n          \"detail\": {\n            \"min_length\": 1,\n            \"actual_length\": 0,\n            \"issue_id\": \"pp-0fv\"\n          }\n        }\n      ]\n    }\n  }\n}\n",
+      "stderr": "2026-10-24T20:46:04.217153Z  WARN fsqlite_core::connection: WAL-FEC requires a caller-owned runtime blocking pool; primary WAL durability is unchanged\n"
+    },
+    {
+      "case": "paragraph-passes-completion",
+      "args": [
+        "close",
+        "pp-0fv",
+        "--reason",
+        "Verified outcome",
+        "--json"
+      ],
+      "exit": 0,
+      "stdout": "[{\"id\":\"pp-0fv\",\"title\":\"Ordinary work\",\"status\":\"closed\",\"closed_at\":\"2026-10-24T20:46:04.245368+00:00\",\"close_reason\":\"Verified outcome\"}]\n",
+      "stderr": "2026-10-24T20:46:04.237976Z  WARN fsqlite_core::connection: WAL-FEC requires a caller-owned runtime blocking pool; primary WAL durability is unchanged\n"
+    },
+    {
+      "case": "system-draft-create",
+      "args": [
+        "create",
+        "System record",
+        "--status",
+        "draft",
+        "--labels",
+        "system",
+        "--deps",
+        "related:pp-0fv",
+        "--description",
+        "{\"kind\":\"fixture\"}",
+        "--owner",
+        "ct",
+        "--json"
+      ],
+      "exit": 0,
+      "stdout": "{\"id\":\"pp-qrl\",\"title\":\"System record\",\"description\":\"{\\\"kind\\\":\\\"fixture\\\"}\",\"status\":\"draft\",\"priority\":2,\"issue_type\":\"task\",\"owner\":\"ct\",\"created_at\":\"2026-10-24T20:46:04.281318Z\",\"created_by\":\"amaranth-fat-bedbug\",\"updated_at\":\"2026-10-24T20:46:04.281318Z\",\"source_repo\":\"hive-policy-probe-a1vo_y37\",\"source_repo_path\":\"/private/var/folders/6w/lnly9x394flgz3q7zty955500000gn/T/hive-policy-probe-a1vo_y37\",\"compaction_level\":0,\"original_size\":0,\"labels\":[\"system\"],\"dependencies\":[{\"issue_id\":\"pp-qrl\",\"depends_on_id\":\"pp-0fv\",\"type\":\"related\",\"created_at\":\"2026-10-24T20:46:04.281318Z\",\"created_by\":\"amaranth-fat-bedbug\",\"metadata\":\"{}\",\"thread_id\":\"\"}]}\n",
+      "stderr": "2026-10-24T20:46:04.277140Z  WARN fsqlite_core::connection: WAL-FEC requires a caller-owned runtime blocking pool; primary WAL durability is unchanged\n"
+    },
+    {
+      "case": "system-no-label-exemption",
+      "args": [
+        "update",
+        "pp-qrl",
+        "--status",
+        "open",
+        "--json"
+      ],
+      "exit": 4,
+      "stdout": "{\n  \"error\": {\n    \"code\": \"POLICY_VIOLATION\",\n    \"message\": \"Policy violation for pp-qrl: transition 'draft -> open' requires non-empty acceptance criteria for pp-qrl\",\n    \"hint\": \"Fix the violation(s) above. For a transition gate, scope the requirement in .beads/policy.yaml: workflow.required_fields takes \\\"from -> to\\\" and bare target-status keys, and acceptance_criteria_present requires the field without requiring its checklist to be complete (acceptance_criteria requires both). `br close` additionally accepts --bypass-policy --bypass-reason \\\"<text>\\\" when the policy allows bypass; those flags are close-only.\",\n    \"retryable\": false,\n    \"context\": {\n      \"issue_id\": \"pp-qrl\",\n      \"summary\": \"transition 'draft -> open' requires non-empty acceptance criteria for pp-qrl\",\n      \"violations\": [\n        {\n          \"gate\": \"transition_acceptance_criteria_missing\",\n          \"message\": \"transition 'draft -> open' requires non-empty acceptance criteria for pp-qrl\",\n          \"detail\": {\n            \"issue_id\": \"pp-qrl\",\n            \"from\": \"draft\",\n            \"to\": \"open\",\n            \"required_field\": \"acceptance_criteria_present\",\n            \"reason\": \"missing\"\n          }\n        }\n      ]\n    }\n  }\n}\n",
+      "stderr": "2026-10-24T20:46:04.313190Z  WARN fsqlite_core::connection: WAL-FEC requires a caller-owned runtime blocking pool; primary WAL durability is unchanged\n"
+    },
+    {
+      "case": "response-closed-create-rejected",
+      "args": [
+        "create",
+        "Response record",
+        "--status",
+        "closed",
+        "--labels",
+        "response",
+        "--deps",
+        "replies-to:pp-0fv",
+        "--owner",
+        "ct",
+        "--json"
+      ],
+      "exit": 4,
+      "stdout": "{\n  \"error\": {\n    \"code\": \"VALIDATION_FAILED\",\n    \"message\": \"Validation failed: status: initial status 'closed' is not permitted by the project workflow policy (.beads/policy.yaml workflow.transitions, key 'initial'). Allowed initial statuses: draft.\",\n    \"hint\": null,\n    \"retryable\": true,\n    \"context\": {\n      \"field\": \"status\",\n      \"reason\": \"initial status 'closed' is not permitted by the project workflow policy (.beads/policy.yaml workflow.transitions, key 'initial'). Allowed initial statuses: draft.\"\n    }\n  }\n}\n",
+      "stderr": "2026-10-24T20:46:04.331991Z  WARN fsqlite_core::connection: WAL-FEC requires a caller-owned runtime blocking pool; primary WAL durability is unchanged\n"
+    },
+    {
+      "case": "system-entry-route",
+      "args": [
+        "create",
+        "System entry route",
+        "--status",
+        "open",
+        "--labels",
+        "system",
+        "--deps",
+        "related:pp-0fv",
+        "--owner",
+        "ct",
+        "--json"
+      ],
+      "exit": 0,
+      "stdout": "{\"id\":\"pp-m6q\",\"title\":\"System entry route\",\"status\":\"open\",\"priority\":2,\"issue_type\":\"task\",\"owner\":\"ct\",\"created_at\":\"2026-10-24T20:46:04.353154Z\",\"created_by\":\"amaranth-fat-bedbug\",\"updated_at\":\"2026-10-24T20:46:04.353154Z\",\"source_repo\":\"hive-policy-probe-a1vo_y37\",\"source_repo_path\":\"/private/var/folders/6w/lnly9x394flgz3q7zty955500000gn/T/hive-policy-probe-a1vo_y37\",\"compaction_level\":0,\"original_size\":0,\"labels\":[\"system\"],\"dependencies\":[{\"issue_id\":\"pp-m6q\",\"depends_on_id\":\"pp-0fv\",\"type\":\"related\",\"created_at\":\"2026-10-24T20:46:04.353154Z\",\"created_by\":\"amaranth-fat-bedbug\",\"metadata\":\"{}\",\"thread_id\":\"\"}]}\n",
+      "stderr": "2026-10-24T20:46:04.348114Z  WARN fsqlite_core::connection: WAL-FEC requires a caller-owned runtime blocking pool; primary WAL durability is unchanged\n"
+    },
+    {
+      "case": "system-entry-still-cannot-close",
+      "args": [
+        "close",
+        "pp-m6q",
+        "--reason",
+        "Finished system record",
+        "--json"
+      ],
+      "exit": 4,
+      "stdout": "{\n  \"error\": {\n    \"code\": \"POLICY_VIOLATION\",\n    \"message\": \"Policy violation for pp-m6q: transition 'open -> closed' requires non-empty acceptance criteria for pp-m6q\",\n    \"hint\": \"Fix the violation(s) above. For a transition gate, scope the requirement in .beads/policy.yaml: workflow.required_fields takes \\\"from -> to\\\" and bare target-status keys, and acceptance_criteria_present requires the field without requiring its checklist to be complete (acceptance_criteria requires both). `br close` additionally accepts --bypass-policy --bypass-reason \\\"<text>\\\" when the policy allows bypass; those flags are close-only.\",\n    \"retryable\": false,\n    \"context\": {\n      \"issue_id\": \"pp-m6q\",\n      \"summary\": \"transition 'open -> closed' requires non-empty acceptance criteria for pp-m6q\",\n      \"violations\": [\n        {\n          \"gate\": \"transition_acceptance_criteria_missing\",\n          \"message\": \"transition 'open -> closed' requires non-empty acceptance criteria for pp-m6q\",\n          \"detail\": {\n            \"issue_id\": \"pp-m6q\",\n            \"from\": \"open\",\n            \"to\": \"closed\",\n            \"required_field\": \"acceptance_criteria\",\n            \"reason\": \"missing\"\n          }\n        }\n      ]\n    }\n  }\n}\n",
+      "stderr": "2026-10-24T20:46:04.383124Z  WARN fsqlite_core::connection: WAL-FEC requires a caller-owned runtime blocking pool; primary WAL durability is unchanged\n"
+    },
+    {
+      "case": "response-entry-closed-without-ac-or-reason",
+      "args": [
+        "create",
+        "Response entry route",
+        "--status",
+        "closed",
+        "--labels",
+        "response",
+        "--deps",
+        "replies-to:pp-0fv",
+        "--owner",
+        "ct",
+        "--json"
+      ],
+      "exit": 0,
+      "stdout": "{\"id\":\"pp-ysg\",\"title\":\"Response entry route\",\"status\":\"closed\",\"priority\":2,\"issue_type\":\"task\",\"owner\":\"ct\",\"created_at\":\"2026-10-24T20:46:04.408267Z\",\"created_by\":\"amaranth-fat-bedbug\",\"updated_at\":\"2026-10-24T20:46:04.408267Z\",\"closed_at\":\"2026-10-24T20:46:04.408267Z\",\"source_repo\":\"hive-policy-probe-a1vo_y37\",\"source_repo_path\":\"/private/var/folders/6w/lnly9x394flgz3q7zty955500000gn/T/hive-policy-probe-a1vo_y37\",\"compaction_level\":0,\"original_size\":0,\"labels\":[\"response\"],\"dependencies\":[{\"issue_id\":\"pp-ysg\",\"depends_on_id\":\"pp-0fv\",\"type\":\"replies-to\",\"created_at\":\"2026-10-24T20:46:04.408267Z\",\"created_by\":\"amaranth-fat-bedbug\",\"metadata\":\"{}\",\"thread_id\":\"\"}]}\n",
+      "stderr": "2026-10-24T20:46:04.403029Z  WARN fsqlite_core::connection: WAL-FEC requires a caller-owned runtime blocking pool; primary WAL durability is unchanged\n"
+    }
+  ],
+  "policy": "allow_bypass: false\nclose_policy:\n  require_close_reason:\n    enabled: true\n    min_length: 1\nworkflow:\n  strict: true\n  statuses: [draft, open, in_progress, in_review, blocked, deferred, closed, tombstone, pinned]\n  transitions:\n    initial: [draft]\n    draft: [open]\n    open: [in_progress]\n    any: [closed]\n  required_fields:\n    \"draft -> open\": [acceptance_criteria_present]\n    closed: [acceptance_criteria]\n",
+  "entry_routes_added": [
+    {
+      "label": "system",
+      "to": "open"
+    },
+    {
+      "label": "response",
+      "to": "closed"
+    }
+  ]
+}

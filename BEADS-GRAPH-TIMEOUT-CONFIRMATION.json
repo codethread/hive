@@ -1,0 +1,7 @@
+{
+  "timeout": true,
+  "limit_ms": 12000,
+  "case": "blocking-chain-1000",
+  "command": "br-graph-root",
+  "isolated_confirmation": true
+}

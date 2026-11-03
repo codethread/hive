@@ -1,0 +1,1094 @@
+[
+  {
+    "case": "mixed-semantics",
+    "rep": 0,
+    "ms": 63.737291,
+    "nodes": 2,
+    "stale": false,
+    "batches": [
+      2
+    ],
+    "calls": [
+      {
+        "tool": "br",
+        "operation": "sync-status",
+        "ms": 11.407499999999999,
+        "bytes": 634
+      },
+      {
+        "tool": "br",
+        "operation": "where",
+        "ms": 20.711875,
+        "bytes": 524
+      },
+      {
+        "tool": "bv",
+        "operation": "graph",
+        "ms": 20.376624999999997,
+        "bytes": 2958
+      },
+      {
+        "tool": "br",
+        "operation": "list",
+        "ms": 10.264125,
+        "bytes": 481
+      },
+      {
+        "tool": "br",
+        "operation": "sync-status",
+        "ms": 10.718292000000005,
+        "bytes": 634
+      }
+    ]
+  },
+  {
+    "case": "mixed-semantics",
+    "rep": 1,
+    "ms": 62.94283300000001,
+    "nodes": 2,
+    "stale": false,
+    "batches": [
+      2
+    ],
+    "calls": [
+      {
+        "tool": "br",
+        "operation": "sync-status",
+        "ms": 11.099167000000008,
+        "bytes": 634
+      },
+      {
+        "tool": "br",
+        "operation": "where",
+        "ms": 21.219791999999998,
+        "bytes": 524
+      },
+      {
+        "tool": "bv",
+        "operation": "graph",
+        "ms": 20.579291999999995,
+        "bytes": 2958
+      },
+      {
+        "tool": "br",
+        "operation": "list",
+        "ms": 10.097833000000008,
+        "bytes": 481
+      },
+      {
+        "tool": "br",
+        "operation": "sync-status",
+        "ms": 10.559708,
+        "bytes": 634
+      }
+    ]
+  },
+  {
+    "case": "mixed-semantics",
+    "rep": 2,
+    "ms": 59.363541,
+    "nodes": 2,
+    "stale": false,
+    "batches": [
+      2
+    ],
+    "calls": [
+      {
+        "tool": "br",
+        "operation": "sync-status",
+        "ms": 11.101459000000006,
+        "bytes": 634
+      },
+      {
+        "tool": "br",
+        "operation": "where",
+        "ms": 17.655749999999983,
+        "bytes": 524
+      },
+      {
+        "tool": "bv",
+        "operation": "graph",
+        "ms": 20.486124999999987,
+        "bytes": 2958
+      },
+      {
+        "tool": "br",
+        "operation": "list",
+        "ms": 10.150833000000006,
+        "bytes": 481
+      },
+      {
+        "tool": "br",
+        "operation": "sync-status",
+        "ms": 10.694959000000011,
+        "bytes": 634
+      }
+    ]
+  },
+  {
+    "case": "star-1000",
+    "rep": 0,
+    "ms": 82.558583,
+    "nodes": 1,
+    "stale": false,
+    "batches": [
+      1
+    ],
+    "calls": [
+      {
+        "tool": "br",
+        "operation": "sync-status",
+        "ms": 19.201459,
+        "bytes": 638
+      },
+      {
+        "tool": "br",
+        "operation": "where",
+        "ms": 22.724165999999997,
+        "bytes": 500
+      },
+      {
+        "tool": "bv",
+        "operation": "graph",
+        "ms": 25.753749999999997,
+        "bytes": 163127
+      },
+      {
+        "tool": "br",
+        "operation": "list",
+        "ms": 17.879666000000014,
+        "bytes": 273
+      },
+      {
+        "tool": "br",
+        "operation": "sync-status",
+        "ms": 14.895624999999995,
+        "bytes": 638
+      }
+    ]
+  },
+  {
+    "case": "star-1000",
+    "rep": 1,
+    "ms": 78.575041,
+    "nodes": 1,
+    "stale": false,
+    "batches": [
+      1
+    ],
+    "calls": [
+      {
+        "tool": "br",
+        "operation": "sync-status",
+        "ms": 16.086457999999993,
+        "bytes": 638
+      },
+      {
+        "tool": "br",
+        "operation": "where",
+        "ms": 18.921290999999997,
+        "bytes": 500
+      },
+      {
+        "tool": "bv",
+        "operation": "graph",
+        "ms": 25.741041999999993,
+        "bytes": 163127
+      },
+      {
+        "tool": "br",
+        "operation": "list",
+        "ms": 18.212750000000028,
+        "bytes": 273
+      },
+      {
+        "tool": "br",
+        "operation": "sync-status",
+        "ms": 14.793707999999981,
+        "bytes": 638
+      }
+    ]
+  },
+  {
+    "case": "star-1000",
+    "rep": 2,
+    "ms": 80.04624999999999,
+    "nodes": 1,
+    "stale": false,
+    "batches": [
+      1
+    ],
+    "calls": [
+      {
+        "tool": "br",
+        "operation": "sync-status",
+        "ms": 18.366000000000042,
+        "bytes": 638
+      },
+      {
+        "tool": "br",
+        "operation": "where",
+        "ms": 21.361084000000005,
+        "bytes": 500
+      },
+      {
+        "tool": "bv",
+        "operation": "graph",
+        "ms": 25.402041999999994,
+        "bytes": 163127
+      },
+      {
+        "tool": "br",
+        "operation": "list",
+        "ms": 17.66225000000003,
+        "bytes": 273
+      },
+      {
+        "tool": "br",
+        "operation": "sync-status",
+        "ms": 14.808334000000002,
+        "bytes": 638
+      }
+    ]
+  },
+  {
+    "case": "star-5000",
+    "rep": 0,
+    "ms": 167.39854099999997,
+    "nodes": 1,
+    "stale": false,
+    "batches": [
+      1
+    ],
+    "calls": [
+      {
+        "tool": "br",
+        "operation": "sync-status",
+        "ms": 34.40979200000004,
+        "bytes": 638
+      },
+      {
+        "tool": "br",
+        "operation": "where",
+        "ms": 36.169917,
+        "bytes": 500
+      },
+      {
+        "tool": "bv",
+        "operation": "graph",
+        "ms": 47.18420800000001,
+        "bytes": 820128
+      },
+      {
+        "tool": "br",
+        "operation": "list",
+        "ms": 48.397875,
+        "bytes": 274
+      },
+      {
+        "tool": "br",
+        "operation": "sync-status",
+        "ms": 32.685292000000004,
+        "bytes": 638
+      }
+    ]
+  },
+  {
+    "case": "star-5000",
+    "rep": 1,
+    "ms": 166.302458,
+    "nodes": 1,
+    "stale": false,
+    "batches": [
+      1
+    ],
+    "calls": [
+      {
+        "tool": "br",
+        "operation": "sync-status",
+        "ms": 34.410833000000025,
+        "bytes": 638
+      },
+      {
+        "tool": "br",
+        "operation": "where",
+        "ms": 35.56112499999995,
+        "bytes": 500
+      },
+      {
+        "tool": "bv",
+        "operation": "graph",
+        "ms": 45.40745900000002,
+        "bytes": 820128
+      },
+      {
+        "tool": "br",
+        "operation": "list",
+        "ms": 49.66645900000003,
+        "bytes": 274
+      },
+      {
+        "tool": "br",
+        "operation": "sync-status",
+        "ms": 33.077792000000045,
+        "bytes": 638
+      }
+    ]
+  },
+  {
+    "case": "star-5000",
+    "rep": 2,
+    "ms": 168.29733299999998,
+    "nodes": 1,
+    "stale": false,
+    "batches": [
+      1
+    ],
+    "calls": [
+      {
+        "tool": "br",
+        "operation": "sync-status",
+        "ms": 34.12545799999998,
+        "bytes": 638
+      },
+      {
+        "tool": "br",
+        "operation": "where",
+        "ms": 37.43666600000006,
+        "bytes": 500
+      },
+      {
+        "tool": "bv",
+        "operation": "graph",
+        "ms": 45.55875000000003,
+        "bytes": 820128
+      },
+      {
+        "tool": "br",
+        "operation": "list",
+        "ms": 49.38850000000002,
+        "bytes": 274
+      },
+      {
+        "tool": "br",
+        "operation": "sync-status",
+        "ms": 33.27358300000003,
+        "bytes": 638
+      }
+    ]
+  },
+  {
+    "case": "payload-star-1000",
+    "rep": 0,
+    "ms": 288.48970799999995,
+    "nodes": 1,
+    "stale": false,
+    "batches": [
+      1
+    ],
+    "calls": [
+      {
+        "tool": "br",
+        "operation": "where",
+        "ms": 39.96408299999996,
+        "bytes": 532
+      },
+      {
+        "tool": "br",
+        "operation": "sync-status",
+        "ms": 81.94191699999999,
+        "bytes": 638
+      },
+      {
+        "tool": "bv",
+        "operation": "graph",
+        "ms": 63.27212499999996,
+        "bytes": 163143
+      },
+      {
+        "tool": "br",
+        "operation": "list",
+        "ms": 61.87566700000002,
+        "bytes": 273
+      },
+      {
+        "tool": "br",
+        "operation": "sync-status",
+        "ms": 80.04641700000002,
+        "bytes": 638
+      }
+    ]
+  },
+  {
+    "case": "payload-star-1000",
+    "rep": 1,
+    "ms": 279.1395,
+    "nodes": 1,
+    "stale": false,
+    "batches": [
+      1
+    ],
+    "calls": [
+      {
+        "tool": "br",
+        "operation": "where",
+        "ms": 39.382834,
+        "bytes": 532
+      },
+      {
+        "tool": "br",
+        "operation": "sync-status",
+        "ms": 81.32658399999991,
+        "bytes": 638
+      },
+      {
+        "tool": "bv",
+        "operation": "graph",
+        "ms": 59.50854099999992,
+        "bytes": 163143
+      },
+      {
+        "tool": "br",
+        "operation": "list",
+        "ms": 60.06712500000003,
+        "bytes": 273
+      },
+      {
+        "tool": "br",
+        "operation": "sync-status",
+        "ms": 76.97862499999997,
+        "bytes": 638
+      }
+    ]
+  },
+  {
+    "case": "payload-star-1000",
+    "rep": 2,
+    "ms": 275.1365840000001,
+    "nodes": 1,
+    "stale": false,
+    "batches": [
+      1
+    ],
+    "calls": [
+      {
+        "tool": "br",
+        "operation": "where",
+        "ms": 39.388374999999996,
+        "bytes": 532
+      },
+      {
+        "tool": "br",
+        "operation": "sync-status",
+        "ms": 78.05750000000012,
+        "bytes": 638
+      },
+      {
+        "tool": "bv",
+        "operation": "graph",
+        "ms": 57.910082999999986,
+        "bytes": 163143
+      },
+      {
+        "tool": "br",
+        "operation": "list",
+        "ms": 60.661625000000186,
+        "bytes": 273
+      },
+      {
+        "tool": "br",
+        "operation": "sync-status",
+        "ms": 77.34370899999999,
+        "bytes": 638
+      }
+    ]
+  },
+  {
+    "case": "small-island-5000",
+    "rep": 0,
+    "ms": 151.73962499999993,
+    "nodes": 1,
+    "stale": false,
+    "batches": [
+      1
+    ],
+    "calls": [
+      {
+        "tool": "br",
+        "operation": "sync-status",
+        "ms": 29.5278330000001,
+        "bytes": 638
+      },
+      {
+        "tool": "br",
+        "operation": "where",
+        "ms": 38.52154200000018,
+        "bytes": 532
+      },
+      {
+        "tool": "bv",
+        "operation": "graph",
+        "ms": 45.351584,
+        "bytes": 545747
+      },
+      {
+        "tool": "br",
+        "operation": "list",
+        "ms": 40.54279199999996,
+        "bytes": 272
+      },
+      {
+        "tool": "br",
+        "operation": "sync-status",
+        "ms": 25.55020800000011,
+        "bytes": 638
+      }
+    ]
+  },
+  {
+    "case": "small-island-5000",
+    "rep": 1,
+    "ms": 134.22120800000016,
+    "nodes": 1,
+    "stale": false,
+    "batches": [
+      1
+    ],
+    "calls": [
+      {
+        "tool": "br",
+        "operation": "sync-status",
+        "ms": 26.003542000000152,
+        "bytes": 638
+      },
+      {
+        "tool": "br",
+        "operation": "where",
+        "ms": 28.701000000000022,
+        "bytes": 532
+      },
+      {
+        "tool": "bv",
+        "operation": "graph",
+        "ms": 38.536542000000054,
+        "bytes": 545747
+      },
+      {
+        "tool": "br",
+        "operation": "list",
+        "ms": 39.513124999999945,
+        "bytes": 272
+      },
+      {
+        "tool": "br",
+        "operation": "sync-status",
+        "ms": 25.701416999999765,
+        "bytes": 638
+      }
+    ]
+  },
+  {
+    "case": "small-island-5000",
+    "rep": 2,
+    "ms": 135.12529199999972,
+    "nodes": 1,
+    "stale": false,
+    "batches": [
+      1
+    ],
+    "calls": [
+      {
+        "tool": "br",
+        "operation": "where",
+        "ms": 27.29116699999986,
+        "bytes": 532
+      },
+      {
+        "tool": "br",
+        "operation": "sync-status",
+        "ms": 27.018165999999837,
+        "bytes": 638
+      },
+      {
+        "tool": "bv",
+        "operation": "graph",
+        "ms": 38.868417000000136,
+        "bytes": 545747
+      },
+      {
+        "tool": "br",
+        "operation": "list",
+        "ms": 41.51745800000026,
+        "bytes": 272
+      },
+      {
+        "tool": "br",
+        "operation": "sync-status",
+        "ms": 25.6457919999998,
+        "bytes": 638
+      }
+    ]
+  },
+  {
+    "case": "parent-star-1000",
+    "rep": 0,
+    "ms": 116.76041600000008,
+    "nodes": 1000,
+    "stale": false,
+    "batches": [
+      500,
+      500
+    ],
+    "calls": [
+      {
+        "tool": "br",
+        "operation": "sync-status",
+        "ms": 14.653667000000041,
+        "bytes": 638
+      },
+      {
+        "tool": "br",
+        "operation": "where",
+        "ms": 21.267957999999908,
+        "bytes": 528
+      },
+      {
+        "tool": "bv",
+        "operation": "graph",
+        "ms": 24.101666999999907,
+        "bytes": 168136
+      },
+      {
+        "tool": "br",
+        "operation": "list",
+        "ms": 26.343583000000308,
+        "bytes": 105957
+      },
+      {
+        "tool": "br",
+        "operation": "list",
+        "ms": 25.81754200000023,
+        "bytes": 106065
+      },
+      {
+        "tool": "br",
+        "operation": "sync-status",
+        "ms": 14.478749999999764,
+        "bytes": 638
+      }
+    ]
+  },
+  {
+    "case": "parent-star-1000",
+    "rep": 1,
+    "ms": 123.51470800000016,
+    "nodes": 1000,
+    "stale": false,
+    "batches": [
+      500,
+      500
+    ],
+    "calls": [
+      {
+        "tool": "br",
+        "operation": "sync-status",
+        "ms": 17.425582999999733,
+        "bytes": 638
+      },
+      {
+        "tool": "br",
+        "operation": "where",
+        "ms": 20.949540999999954,
+        "bytes": 528
+      },
+      {
+        "tool": "bv",
+        "operation": "graph",
+        "ms": 25.50237500000003,
+        "bytes": 168136
+      },
+      {
+        "tool": "br",
+        "operation": "list",
+        "ms": 29.651374999999916,
+        "bytes": 105957
+      },
+      {
+        "tool": "br",
+        "operation": "list",
+        "ms": 27.453083000000333,
+        "bytes": 106065
+      },
+      {
+        "tool": "br",
+        "operation": "sync-status",
+        "ms": 15.399875000000065,
+        "bytes": 638
+      }
+    ]
+  },
+  {
+    "case": "parent-star-1000",
+    "rep": 2,
+    "ms": 123.82591700000012,
+    "nodes": 1000,
+    "stale": false,
+    "batches": [
+      500,
+      500
+    ],
+    "calls": [
+      {
+        "tool": "br",
+        "operation": "sync-status",
+        "ms": 18.601666000000023,
+        "bytes": 638
+      },
+      {
+        "tool": "br",
+        "operation": "where",
+        "ms": 22.20929100000012,
+        "bytes": 528
+      },
+      {
+        "tool": "bv",
+        "operation": "graph",
+        "ms": 26.38283300000012,
+        "bytes": 168136
+      },
+      {
+        "tool": "br",
+        "operation": "list",
+        "ms": 28.31633299999976,
+        "bytes": 105957
+      },
+      {
+        "tool": "br",
+        "operation": "list",
+        "ms": 27.799375000000055,
+        "bytes": 106065
+      },
+      {
+        "tool": "br",
+        "operation": "sync-status",
+        "ms": 15.638374999999996,
+        "bytes": 638
+      }
+    ]
+  },
+  {
+    "case": "parent-star-5000",
+    "rep": 0,
+    "ms": 823.7317910000002,
+    "nodes": 5000,
+    "stale": false,
+    "batches": [
+      500,
+      500,
+      500,
+      500,
+      500,
+      500,
+      500,
+      500,
+      500,
+      500
+    ],
+    "calls": [
+      {
+        "tool": "br",
+        "operation": "sync-status",
+        "ms": 34.014000000000124,
+        "bytes": 638
+      },
+      {
+        "tool": "br",
+        "operation": "where",
+        "ms": 35.912166999999954,
+        "bytes": 528
+      },
+      {
+        "tool": "bv",
+        "operation": "graph",
+        "ms": 47.765957999999955,
+        "bytes": 845137
+      },
+      {
+        "tool": "br",
+        "operation": "list",
+        "ms": 70.904,
+        "bytes": 105958
+      },
+      {
+        "tool": "br",
+        "operation": "list",
+        "ms": 67.11050000000023,
+        "bytes": 106065
+      },
+      {
+        "tool": "br",
+        "operation": "list",
+        "ms": 66.80983300000025,
+        "bytes": 106565
+      },
+      {
+        "tool": "br",
+        "operation": "list",
+        "ms": 67.77199999999993,
+        "bytes": 106565
+      },
+      {
+        "tool": "br",
+        "operation": "list",
+        "ms": 66.81349999999975,
+        "bytes": 106565
+      },
+      {
+        "tool": "br",
+        "operation": "list",
+        "ms": 68.28029199999992,
+        "bytes": 106565
+      },
+      {
+        "tool": "br",
+        "operation": "list",
+        "ms": 67.67508300000009,
+        "bytes": 106565
+      },
+      {
+        "tool": "br",
+        "operation": "list",
+        "ms": 67.66679199999999,
+        "bytes": 106565
+      },
+      {
+        "tool": "br",
+        "operation": "list",
+        "ms": 67.86870899999985,
+        "bytes": 106565
+      },
+      {
+        "tool": "br",
+        "operation": "list",
+        "ms": 68.5512920000001,
+        "bytes": 106565
+      },
+      {
+        "tool": "br",
+        "operation": "sync-status",
+        "ms": 32.16083299999991,
+        "bytes": 638
+      }
+    ]
+  },
+  {
+    "case": "parent-star-5000",
+    "rep": 1,
+    "ms": 838.3039169999997,
+    "nodes": 5000,
+    "stale": false,
+    "batches": [
+      500,
+      500,
+      500,
+      500,
+      500,
+      500,
+      500,
+      500,
+      500,
+      500
+    ],
+    "calls": [
+      {
+        "tool": "br",
+        "operation": "sync-status",
+        "ms": 31.971541000000343,
+        "bytes": 638
+      },
+      {
+        "tool": "br",
+        "operation": "where",
+        "ms": 33.5099580000001,
+        "bytes": 528
+      },
+      {
+        "tool": "bv",
+        "operation": "graph",
+        "ms": 45.83820800000012,
+        "bytes": 845137
+      },
+      {
+        "tool": "br",
+        "operation": "list",
+        "ms": 71.7322909999998,
+        "bytes": 105958
+      },
+      {
+        "tool": "br",
+        "operation": "list",
+        "ms": 68.91045899999972,
+        "bytes": 106065
+      },
+      {
+        "tool": "br",
+        "operation": "list",
+        "ms": 67.28999999999996,
+        "bytes": 106565
+      },
+      {
+        "tool": "br",
+        "operation": "list",
+        "ms": 72.0027500000001,
+        "bytes": 106565
+      },
+      {
+        "tool": "br",
+        "operation": "list",
+        "ms": 71.03345800000034,
+        "bytes": 106565
+      },
+      {
+        "tool": "br",
+        "operation": "list",
+        "ms": 72.15712499999972,
+        "bytes": 106565
+      },
+      {
+        "tool": "br",
+        "operation": "list",
+        "ms": 72.93229199999996,
+        "bytes": 106565
+      },
+      {
+        "tool": "br",
+        "operation": "list",
+        "ms": 68.18112500000007,
+        "bytes": 106565
+      },
+      {
+        "tool": "br",
+        "operation": "list",
+        "ms": 68.08649999999989,
+        "bytes": 106565
+      },
+      {
+        "tool": "br",
+        "operation": "list",
+        "ms": 68.65545900000052,
+        "bytes": 106565
+      },
+      {
+        "tool": "br",
+        "operation": "sync-status",
+        "ms": 31.17162499999995,
+        "bytes": 638
+      }
+    ]
+  },
+  {
+    "case": "parent-star-5000",
+    "rep": 2,
+    "ms": 820.7624999999998,
+    "nodes": 5000,
+    "stale": false,
+    "batches": [
+      500,
+      500,
+      500,
+      500,
+      500,
+      500,
+      500,
+      500,
+      500,
+      500
+    ],
+    "calls": [
+      {
+        "tool": "br",
+        "operation": "sync-status",
+        "ms": 31.71704200000022,
+        "bytes": 638
+      },
+      {
+        "tool": "br",
+        "operation": "where",
+        "ms": 35.048665999999685,
+        "bytes": 528
+      },
+      {
+        "tool": "bv",
+        "operation": "graph",
+        "ms": 44.6904169999998,
+        "bytes": 845137
+      },
+      {
+        "tool": "br",
+        "operation": "list",
+        "ms": 70.97741700000006,
+        "bytes": 105958
+      },
+      {
+        "tool": "br",
+        "operation": "list",
+        "ms": 67.19704099999944,
+        "bytes": 106065
+      },
+      {
+        "tool": "br",
+        "operation": "list",
+        "ms": 67.43129099999987,
+        "bytes": 106565
+      },
+      {
+        "tool": "br",
+        "operation": "list",
+        "ms": 67.91541700000016,
+        "bytes": 106565
+      },
+      {
+        "tool": "br",
+        "operation": "list",
+        "ms": 67.34091699999954,
+        "bytes": 106565
+      },
+      {
+        "tool": "br",
+        "operation": "list",
+        "ms": 68.1700839999994,
+        "bytes": 106565
+      },
+      {
+        "tool": "br",
+        "operation": "list",
+        "ms": 67.60329199999978,
+        "bytes": 106565
+      },
+      {
+        "tool": "br",
+        "operation": "list",
+        "ms": 67.468167,
+        "bytes": 106565
+      },
+      {
+        "tool": "br",
+        "operation": "list",
+        "ms": 69.47579099999984,
+        "bytes": 106565
+      },
+      {
+        "tool": "br",
+        "operation": "list",
+        "ms": 67.9047500000006,
+        "bytes": 106565
+      },
+      {
+        "tool": "br",
+        "operation": "sync-status",
+        "ms": 32.544832999999926,
+        "bytes": 638
+      }
+    ]
+  }
+]

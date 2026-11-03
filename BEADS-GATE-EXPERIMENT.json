@@ -1,0 +1,356 @@
+{
+  "version": "br 0.7.6 (release) (hive-snapshot-sync@b77ae70)",
+  "summary": {
+    "base": "/private/var/folders/6w/lnly9x394flgz3q7zty955500000gn/T/beads-gate-portability-i45_5d4t",
+    "issue": "demo-gdz",
+    "before_report_close": {
+      "error": {
+        "code": "POLICY_VIOLATION",
+        "message": "Policy violation for demo-gdz: transition 'in_review' -> 'closed' requires gate 'security_sign_off' to pass for demo-gdz, but no provider has reported a pass. Record a result with `br gate report demo-gdz --gate security_sign_off --provider <name> --status pass --to closed`.",
+        "hint": "Fix the violation(s) above. For a transition gate, scope the requirement in .beads/policy.yaml: workflow.required_fields takes \"from -> to\" and bare target-status keys, and acceptance_criteria_present requires the field without requiring its checklist to be complete (acceptance_criteria requires both). `br close` additionally accepts --bypass-policy --bypass-reason \"<text>\" when the policy allows bypass; those flags are close-only.",
+        "retryable": false,
+        "context": {
+          "issue_id": "demo-gdz",
+          "summary": "transition 'in_review' -> 'closed' requires gate 'security_sign_off' to pass for demo-gdz, but no provider has reported a pass. Record a result with `br gate report demo-gdz --gate security_sign_off --provider <name> --status pass --to closed`.",
+          "violations": [
+            {
+              "gate": "gate_security_sign_off",
+              "message": "transition 'in_review' -> 'closed' requires gate 'security_sign_off' to pass for demo-gdz, but no provider has reported a pass. Record a result with `br gate report demo-gdz --gate security_sign_off --provider <name> --status pass --to closed`.",
+              "detail": {
+                "issue_id": "demo-gdz",
+                "gate": "security_sign_off",
+                "from": "in_review",
+                "to": "closed",
+                "failing_providers": []
+              }
+            }
+          ]
+        }
+      }
+    },
+    "reported": {
+      "id": 1,
+      "issue_id": "demo-gdz",
+      "from_status": "in_review",
+      "to_status": "closed",
+      "status_revision": 3,
+      "gate": "security_sign_off",
+      "provider": "security",
+      "passed": true,
+      "note": "Disposable fixture pass; no real security review claimed."
+    },
+    "source_tables": {
+      "gate_results": [
+        {
+          "issue_id": "demo-gdz",
+          "gate": "security_sign_off",
+          "provider": "security",
+          "passed": 1,
+          "note": "Disposable fixture pass; no real security review claimed.",
+          "recorded_by": "amaranth-fat-bedbug",
+          "recorded_at": "2026-10-24 10:44:17"
+        }
+      ],
+      "gate_result_history": [
+        {
+          "id": 1,
+          "issue_id": "demo-gdz",
+          "from_status": "in_review",
+          "to_status": "closed",
+          "status_revision": 3,
+          "gate": "security_sign_off",
+          "provider": "security",
+          "passed": 1,
+          "note": "Disposable fixture pass; no real security review claimed.",
+          "recorded_by": "amaranth-fat-bedbug",
+          "recorded_at": "2026-10-24 10:44:17"
+        }
+      ]
+    },
+    "source_gate_list": {
+      "issue_id": "demo-gdz",
+      "current_status": "in_review",
+      "history": [
+        {
+          "id": 1,
+          "issue_id": "demo-gdz",
+          "from_status": "in_review",
+          "to_status": "closed",
+          "status_revision": 3,
+          "gate": "security_sign_off",
+          "provider": "security",
+          "passed": true,
+          "note": "Disposable fixture pass; no real security review claimed.",
+          "recorded_by": "amaranth-fat-bedbug",
+          "recorded_at": "2026-10-24 10:44:17"
+        }
+      ],
+      "legacy_results": [],
+      "gated_transitions": [
+        {
+          "from": "in_review",
+          "to": "closed",
+          "gates": [
+            {
+              "gate": "security_sign_off",
+              "satisfied": true
+            }
+          ],
+          "satisfied": true
+        }
+      ]
+    },
+    "export_receipt": {
+      "exported_issues": 1,
+      "exported_dependencies": 0,
+      "exported_labels": 1,
+      "exported_comments": 0,
+      "content_hash": "898c061b7b785f69c06d463972a56fb726397ed9668b8e853f07680829f14fa5",
+      "cleared_dirty": 1,
+      "policy": "strict",
+      "success_rate": 1.0,
+      "errors": []
+    },
+    "jsonl_records": [
+      {
+        "id": "demo-gdz",
+        "title": "Gate portability experiment",
+        "description": "Disposable experiment: copy JSONL to a fresh tracker and test gate enforcement.",
+        "acceptance_criteria": "- [x] Fixture prepared for the gate experiment.",
+        "status": "in_review",
+        "priority": 2,
+        "issue_type": "task",
+        "owner": "ct",
+        "created_at": "2026-10-24T10:44:16.915444Z",
+        "created_by": "amaranth-fat-bedbug",
+        "updated_at": "2026-10-24T10:44:16.951051Z",
+        "source_repo": "machine-a",
+        "compaction_level": 0,
+        "original_size": 0,
+        "labels": [
+          "security-review"
+        ]
+      }
+    ],
+    "import_receipt": {
+      "created": 1,
+      "updated": 0,
+      "skipped": 0,
+      "tombstone_skipped": 0,
+      "orphans_removed": 0,
+      "blocked_cache_rebuilt": true
+    },
+    "target_tables": {
+      "gate_results": [],
+      "gate_result_history": []
+    },
+    "target_gate_list": {
+      "issue_id": "demo-gdz",
+      "current_status": "in_review",
+      "history": [],
+      "legacy_results": [],
+      "gated_transitions": [
+        {
+          "from": "in_review",
+          "to": "closed",
+          "gates": [
+            {
+              "gate": "security_sign_off",
+              "satisfied": false
+            }
+          ],
+          "satisfied": false
+        }
+      ]
+    },
+    "target_close": {
+      "error": {
+        "code": "POLICY_VIOLATION",
+        "message": "Policy violation for demo-gdz: transition 'in_review' -> 'closed' requires gate 'security_sign_off' to pass for demo-gdz, but no provider has reported a pass. Record a result with `br gate report demo-gdz --gate security_sign_off --provider <name> --status pass --to closed`.",
+        "hint": "Fix the violation(s) above. For a transition gate, scope the requirement in .beads/policy.yaml: workflow.required_fields takes \"from -> to\" and bare target-status keys, and acceptance_criteria_present requires the field without requiring its checklist to be complete (acceptance_criteria requires both). `br close` additionally accepts --bypass-policy --bypass-reason \"<text>\" when the policy allows bypass; those flags are close-only.",
+        "retryable": false,
+        "context": {
+          "issue_id": "demo-gdz",
+          "summary": "transition 'in_review' -> 'closed' requires gate 'security_sign_off' to pass for demo-gdz, but no provider has reported a pass. Record a result with `br gate report demo-gdz --gate security_sign_off --provider <name> --status pass --to closed`.",
+          "violations": [
+            {
+              "gate": "gate_security_sign_off",
+              "message": "transition 'in_review' -> 'closed' requires gate 'security_sign_off' to pass for demo-gdz, but no provider has reported a pass. Record a result with `br gate report demo-gdz --gate security_sign_off --provider <name> --status pass --to closed`.",
+              "detail": {
+                "issue_id": "demo-gdz",
+                "gate": "security_sign_off",
+                "from": "in_review",
+                "to": "closed",
+                "failing_providers": []
+              }
+            }
+          ]
+        }
+      }
+    },
+    "source_close": [
+      {
+        "id": "demo-gdz",
+        "title": "Gate portability experiment",
+        "status": "closed",
+        "closed_at": "2026-10-24T10:44:17.574732+00:00",
+        "close_reason": "Fixture verified: local gate passes; exported JSONL omits gate evidence."
+      }
+    ]
+  },
+  "commands": [
+    {
+      "workspace": "machine-a",
+      "args": [
+        "init",
+        "--prefix",
+        "demo"
+      ],
+      "exit": 0,
+      "stdout": "{\"initialized\":true,\"beads_dir\":\"/private/var/folders/6w/lnly9x394flgz3q7zty955500000gn/T/beads-gate-portability-i45_5d4t/machine-a/.beads\",\"database_path\":\"/private/var/folders/6w/lnly9x394flgz3q7zty955500000gn/T/beads-gate-portability-i45_5d4t/machine-a/.beads/beads.db\",\"prefix\":\"demo\",\"files\":{\"directory\":\"created\",\"database\":\"created\",\"metadata\":\"created\",\"config\":\"created\",\"gitignore\":\"created\",\"jsonl\":\"created\"}}\n",
+      "stderr": "2026-10-24T10:44:16.624227Z  WARN fsqlite_core::connection: WAL-FEC requires a caller-owned runtime blocking pool; primary WAL durability is unchanged\n"
+    },
+    {
+      "workspace": "machine-b",
+      "args": [
+        "init",
+        "--prefix",
+        "demo"
+      ],
+      "exit": 0,
+      "stdout": "{\"initialized\":true,\"beads_dir\":\"/private/var/folders/6w/lnly9x394flgz3q7zty955500000gn/T/beads-gate-portability-i45_5d4t/machine-b/.beads\",\"database_path\":\"/private/var/folders/6w/lnly9x394flgz3q7zty955500000gn/T/beads-gate-portability-i45_5d4t/machine-b/.beads/beads.db\",\"prefix\":\"demo\",\"files\":{\"directory\":\"created\",\"database\":\"created\",\"metadata\":\"created\",\"config\":\"created\",\"gitignore\":\"created\",\"jsonl\":\"created\"}}\n",
+      "stderr": "2026-10-24T10:44:16.813150Z  WARN fsqlite_core::connection: WAL-FEC requires a caller-owned runtime blocking pool; primary WAL durability is unchanged\n"
+    },
+    {
+      "workspace": "machine-a",
+      "args": [
+        "create",
+        "Gate portability experiment",
+        "--description",
+        "Disposable experiment: copy JSONL to a fresh tracker and test gate enforcement.",
+        "--acceptance-criteria",
+        "- [x] Fixture prepared for the gate experiment.",
+        "--status",
+        "draft",
+        "--owner",
+        "ct",
+        "--labels",
+        "security-review"
+      ],
+      "exit": 0,
+      "stdout": "{\"id\":\"demo-gdz\",\"title\":\"Gate portability experiment\",\"description\":\"Disposable experiment: copy JSONL to a fresh tracker and test gate enforcement.\",\"acceptance_criteria\":\"- [x] Fixture prepared for the gate experiment.\",\"status\":\"draft\",\"priority\":2,\"issue_type\":\"task\",\"owner\":\"ct\",\"created_at\":\"2026-10-24T10:44:16.915444Z\",\"created_by\":\"amaranth-fat-bedbug\",\"updated_at\":\"2026-10-24T10:44:16.915444Z\",\"source_repo\":\"machine-a\",\"source_repo_path\":\"/private/var/folders/6w/lnly9x394flgz3q7zty955500000gn/T/beads-gate-portability-i45_5d4t/machine-a\",\"compaction_level\":0,\"original_size\":0,\"labels\":[\"security-review\"]}\n",
+      "stderr": "2026-10-24T10:44:16.911257Z  WARN fsqlite_core::connection: WAL-FEC requires a caller-owned runtime blocking pool; primary WAL durability is unchanged\n"
+    },
+    {
+      "workspace": "machine-a",
+      "args": [
+        "update",
+        "demo-gdz",
+        "--status",
+        "in_review"
+      ],
+      "exit": 0,
+      "stdout": "[{\"id\":\"demo-gdz\",\"title\":\"Gate portability experiment\",\"status\":\"in_review\",\"priority\":2,\"assignee\":null,\"owner\":\"ct\",\"updated_at\":\"2026-10-24T10:44:16.951051Z\"}]\n",
+      "stderr": "2026-10-24T10:44:16.945238Z  WARN fsqlite_core::connection: WAL-FEC requires a caller-owned runtime blocking pool; primary WAL durability is unchanged\n"
+    },
+    {
+      "workspace": "machine-a",
+      "args": [
+        "close",
+        "demo-gdz",
+        "--reason",
+        "Attempt before a recorded security-review pass."
+      ],
+      "exit": 4,
+      "stdout": "{\n  \"error\": {\n    \"code\": \"POLICY_VIOLATION\",\n    \"message\": \"Policy violation for demo-gdz: transition 'in_review' -> 'closed' requires gate 'security_sign_off' to pass for demo-gdz, but no provider has reported a pass. Record a result with `br gate report demo-gdz --gate security_sign_off --provider <name> --status pass --to closed`.\",\n    \"hint\": \"Fix the violation(s) above. For a transition gate, scope the requirement in .beads/policy.yaml: workflow.required_fields takes \\\"from -> to\\\" and bare target-status keys, and acceptance_criteria_present requires the field without requiring its checklist to be complete (acceptance_criteria requires both). `br close` additionally accepts --bypass-policy --bypass-reason \\\"<text>\\\" when the policy allows bypass; those flags are close-only.\",\n    \"retryable\": false,\n    \"context\": {\n      \"issue_id\": \"demo-gdz\",\n      \"summary\": \"transition 'in_review' -> 'closed' requires gate 'security_sign_off' to pass for demo-gdz, but no provider has reported a pass. Record a result with `br gate report demo-gdz --gate security_sign_off --provider <name> --status pass --to closed`.\",\n      \"violations\": [\n        {\n          \"gate\": \"gate_security_sign_off\",\n          \"message\": \"transition 'in_review' -> 'closed' requires gate 'security_sign_off' to pass for demo-gdz, but no provider has reported a pass. Record a result with `br gate report demo-gdz --gate security_sign_off --provider <name> --status pass --to closed`.\",\n          \"detail\": {\n            \"issue_id\": \"demo-gdz\",\n            \"gate\": \"security_sign_off\",\n            \"from\": \"in_review\",\n            \"to\": \"closed\",\n            \"failing_providers\": []\n          }\n        }\n      ]\n    }\n  }\n}\n",
+      "stderr": "2026-10-24T10:44:16.981293Z  WARN fsqlite_core::connection: WAL-FEC requires a caller-owned runtime blocking pool; primary WAL durability is unchanged\n"
+    },
+    {
+      "workspace": "machine-a",
+      "args": [
+        "gate",
+        "report",
+        "demo-gdz",
+        "--gate",
+        "security_sign_off",
+        "--provider",
+        "security",
+        "--status",
+        "pass",
+        "--to",
+        "closed",
+        "--note",
+        "Disposable fixture pass; no real security review claimed."
+      ],
+      "exit": 0,
+      "stdout": "{\"id\":1,\"issue_id\":\"demo-gdz\",\"from_status\":\"in_review\",\"to_status\":\"closed\",\"status_revision\":3,\"gate\":\"security_sign_off\",\"provider\":\"security\",\"passed\":true,\"note\":\"Disposable fixture pass; no real security review claimed.\"}\n",
+      "stderr": "2026-10-24T10:44:17.004279Z  WARN fsqlite_core::connection: WAL-FEC requires a caller-owned runtime blocking pool; primary WAL durability is unchanged\n"
+    },
+    {
+      "workspace": "machine-a",
+      "args": [
+        "gate",
+        "list",
+        "demo-gdz"
+      ],
+      "exit": 0,
+      "stdout": "{\"issue_id\":\"demo-gdz\",\"current_status\":\"in_review\",\"history\":[{\"id\":1,\"issue_id\":\"demo-gdz\",\"from_status\":\"in_review\",\"to_status\":\"closed\",\"status_revision\":3,\"gate\":\"security_sign_off\",\"provider\":\"security\",\"passed\":true,\"note\":\"Disposable fixture pass; no real security review claimed.\",\"recorded_by\":\"amaranth-fat-bedbug\",\"recorded_at\":\"2026-10-24 10:44:17\"}],\"legacy_results\":[],\"gated_transitions\":[{\"from\":\"in_review\",\"to\":\"closed\",\"gates\":[{\"gate\":\"security_sign_off\",\"satisfied\":true}],\"satisfied\":true}]}\n",
+      "stderr": "2026-10-24T10:44:17.026522Z  WARN fsqlite_core::connection: WAL-FEC requires a caller-owned runtime blocking pool; primary WAL durability is unchanged\n"
+    },
+    {
+      "workspace": "machine-a",
+      "args": [
+        "sync",
+        "--flush-only"
+      ],
+      "exit": 0,
+      "stdout": "{\"exported_issues\":1,\"exported_dependencies\":0,\"exported_labels\":1,\"exported_comments\":0,\"content_hash\":\"898c061b7b785f69c06d463972a56fb726397ed9668b8e853f07680829f14fa5\",\"cleared_dirty\":1,\"policy\":\"strict\",\"success_rate\":1.0,\"errors\":[]}\n",
+      "stderr": "2026-10-24T10:44:17.045985Z  WARN fsqlite_core::connection: WAL-FEC requires a caller-owned runtime blocking pool; primary WAL durability is unchanged\n"
+    },
+    {
+      "workspace": "machine-b",
+      "args": [
+        "sync",
+        "--import-only"
+      ],
+      "exit": 0,
+      "stdout": "{\"created\":1,\"updated\":0,\"skipped\":0,\"tombstone_skipped\":0,\"orphans_removed\":0,\"blocked_cache_rebuilt\":true}\n",
+      "stderr": "2026-10-24T10:44:17.104261Z  WARN fsqlite_core::connection: WAL-FEC requires a caller-owned runtime blocking pool; primary WAL durability is unchanged\n2026-10-24T10:44:17.138080Z  WARN fsqlite_core::connection: WAL-FEC requires a caller-owned runtime blocking pool; primary WAL durability is unchanged\n2026-10-24T10:44:17.193100Z  WARN fsqlite_core::connection: WAL-FEC requires a caller-owned runtime blocking pool; primary WAL durability is unchanged\n2026-10-24T10:44:17.500139Z  WARN fsqlite_core::connection: WAL-FEC requires a caller-owned runtime blocking pool; primary WAL durability is unchanged\n"
+    },
+    {
+      "workspace": "machine-b",
+      "args": [
+        "gate",
+        "list",
+        "demo-gdz"
+      ],
+      "exit": 0,
+      "stdout": "{\"issue_id\":\"demo-gdz\",\"current_status\":\"in_review\",\"history\":[],\"legacy_results\":[],\"gated_transitions\":[{\"from\":\"in_review\",\"to\":\"closed\",\"gates\":[{\"gate\":\"security_sign_off\",\"satisfied\":false}],\"satisfied\":false}]}\n",
+      "stderr": "2026-10-24T10:44:17.521467Z  WARN fsqlite_core::connection: WAL-FEC requires a caller-owned runtime blocking pool; primary WAL durability is unchanged\n"
+    },
+    {
+      "workspace": "machine-b",
+      "args": [
+        "close",
+        "demo-gdz",
+        "--reason",
+        "Attempt after importing the source JSONL."
+      ],
+      "exit": 4,
+      "stdout": "{\n  \"error\": {\n    \"code\": \"POLICY_VIOLATION\",\n    \"message\": \"Policy violation for demo-gdz: transition 'in_review' -> 'closed' requires gate 'security_sign_off' to pass for demo-gdz, but no provider has reported a pass. Record a result with `br gate report demo-gdz --gate security_sign_off --provider <name> --status pass --to closed`.\",\n    \"hint\": \"Fix the violation(s) above. For a transition gate, scope the requirement in .beads/policy.yaml: workflow.required_fields takes \\\"from -> to\\\" and bare target-status keys, and acceptance_criteria_present requires the field without requiring its checklist to be complete (acceptance_criteria requires both). `br close` additionally accepts --bypass-policy --bypass-reason \\\"<text>\\\" when the policy allows bypass; those flags are close-only.\",\n    \"retryable\": false,\n    \"context\": {\n      \"issue_id\": \"demo-gdz\",\n      \"summary\": \"transition 'in_review' -> 'closed' requires gate 'security_sign_off' to pass for demo-gdz, but no provider has reported a pass. Record a result with `br gate report demo-gdz --gate security_sign_off --provider <name> --status pass --to closed`.\",\n      \"violations\": [\n        {\n          \"gate\": \"gate_security_sign_off\",\n          \"message\": \"transition 'in_review' -> 'closed' requires gate 'security_sign_off' to pass for demo-gdz, but no provider has reported a pass. Record a result with `br gate report demo-gdz --gate security_sign_off --provider <name> --status pass --to closed`.\",\n          \"detail\": {\n            \"issue_id\": \"demo-gdz\",\n            \"gate\": \"security_sign_off\",\n            \"from\": \"in_review\",\n            \"to\": \"closed\",\n            \"failing_providers\": []\n          }\n        }\n      ]\n    }\n  }\n}\n",
+      "stderr": "2026-10-24T10:44:17.543354Z  WARN fsqlite_core::connection: WAL-FEC requires a caller-owned runtime blocking pool; primary WAL durability is unchanged\n"
+    },
+    {
+      "workspace": "machine-a",
+      "args": [
+        "close",
+        "demo-gdz",
+        "--reason",
+        "Fixture verified: local gate passes; exported JSONL omits gate evidence."
+      ],
+      "exit": 0,
+      "stdout": "[{\"id\":\"demo-gdz\",\"title\":\"Gate portability experiment\",\"status\":\"closed\",\"closed_at\":\"2026-10-24T10:44:17.574732+00:00\",\"close_reason\":\"Fixture verified: local gate passes; exported JSONL omits gate evidence.\"}]\n",
+      "stderr": "2026-10-24T10:44:17.567294Z  WARN fsqlite_core::connection: WAL-FEC requires a caller-owned runtime blocking pool; primary WAL durability is unchanged\n"
+    }
+  ]
+}

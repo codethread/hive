@@ -1,0 +1,538 @@
+{
+  "root": "/var/folders/6w/lnly9x394flgz3q7zty955500000gn/T/hive-latest-value-probe-dhx2ezqn",
+  "method": "20 sequential updates per fixture; subprocess wall times include native auto-export and output capture; one fixture per mode/size, no contention or performance guarantee. Explicit disposable databases only. No CAS read/lock cycle measured.",
+  "cases": [
+    {
+      "mode": "comments",
+      "payload_bytes": 16384,
+      "updates": 20,
+      "median_update_ms": 47.98893749966737,
+      "range_ms": [
+        45.87183300009201,
+        51.94370799927128
+      ],
+      "db_bytes": 356352,
+      "jsonl_bytes": 20616,
+      "events_count": 22,
+      "event_text_bytes": 1583,
+      "comments_count": 20,
+      "comment_text_bytes": 1530,
+      "receipts": [
+        {
+          "operation": "init",
+          "ms": 93.940042000213,
+          "stdout_bytes": 433
+        },
+        {
+          "operation": "create",
+          "ms": 59.60145799963357,
+          "stdout_bytes": 16908
+        },
+        {
+          "operation": "comments",
+          "ms": 48.92962499980058,
+          "stdout_bytes": 190
+        },
+        {
+          "operation": "comments",
+          "ms": 51.94370799927128,
+          "stdout_bytes": 190
+        },
+        {
+          "operation": "comments",
+          "ms": 49.0401249999195,
+          "stdout_bytes": 190
+        },
+        {
+          "operation": "comments",
+          "ms": 46.96808399967267,
+          "stdout_bytes": 190
+        },
+        {
+          "operation": "comments",
+          "ms": 49.995207999927516,
+          "stdout_bytes": 190
+        },
+        {
+          "operation": "comments",
+          "ms": 47.934332999830076,
+          "stdout_bytes": 190
+        },
+        {
+          "operation": "comments",
+          "ms": 49.320375000206695,
+          "stdout_bytes": 190
+        },
+        {
+          "operation": "comments",
+          "ms": 47.45199999979377,
+          "stdout_bytes": 190
+        },
+        {
+          "operation": "comments",
+          "ms": 49.01229200004309,
+          "stdout_bytes": 190
+        },
+        {
+          "operation": "comments",
+          "ms": 45.919250000224565,
+          "stdout_bytes": 191
+        },
+        {
+          "operation": "comments",
+          "ms": 47.02550000001793,
+          "stdout_bytes": 192
+        },
+        {
+          "operation": "comments",
+          "ms": 48.99641599968163,
+          "stdout_bytes": 192
+        },
+        {
+          "operation": "comments",
+          "ms": 47.917834000145376,
+          "stdout_bytes": 192
+        },
+        {
+          "operation": "comments",
+          "ms": 45.87183300009201,
+          "stdout_bytes": 192
+        },
+        {
+          "operation": "comments",
+          "ms": 48.04354199950467,
+          "stdout_bytes": 192
+        },
+        {
+          "operation": "comments",
+          "ms": 47.867417000816204,
+          "stdout_bytes": 192
+        },
+        {
+          "operation": "comments",
+          "ms": 47.04766699978791,
+          "stdout_bytes": 192
+        },
+        {
+          "operation": "comments",
+          "ms": 48.97245799929806,
+          "stdout_bytes": 192
+        },
+        {
+          "operation": "comments",
+          "ms": 47.839791999649606,
+          "stdout_bytes": 192
+        },
+        {
+          "operation": "comments",
+          "ms": 48.08966699965822,
+          "stdout_bytes": 192
+        },
+        {
+          "operation": "sync",
+          "ms": 25.661124999714957,
+          "stdout_bytes": 175
+        }
+      ]
+    },
+    {
+      "mode": "description",
+      "payload_bytes": 16384,
+      "updates": 20,
+      "median_update_ms": 46.74406249978347,
+      "range_ms": [
+        43.83216699989134,
+        49.59354199945665
+      ],
+      "db_bytes": 356352,
+      "jsonl_bytes": 16838,
+      "events_count": 2,
+      "event_text_bytes": 53,
+      "comments_count": 0,
+      "comment_text_bytes": 0,
+      "receipts": [
+        {
+          "operation": "init",
+          "ms": 89.94162500039238,
+          "stdout_bytes": 439
+        },
+        {
+          "operation": "create",
+          "ms": 54.679000000760425,
+          "stdout_bytes": 16914
+        },
+        {
+          "operation": "update",
+          "ms": 47.655000000304426,
+          "stdout_bytes": 150
+        },
+        {
+          "operation": "update",
+          "ms": 45.78862499965908,
+          "stdout_bytes": 150
+        },
+        {
+          "operation": "update",
+          "ms": 45.83979200015165,
+          "stdout_bytes": 150
+        },
+        {
+          "operation": "update",
+          "ms": 45.825624999451975,
+          "stdout_bytes": 150
+        },
+        {
+          "operation": "update",
+          "ms": 47.80395800025872,
+          "stdout_bytes": 150
+        },
+        {
+          "operation": "update",
+          "ms": 45.725832999778504,
+          "stdout_bytes": 150
+        },
+        {
+          "operation": "update",
+          "ms": 46.855708999828494,
+          "stdout_bytes": 150
+        },
+        {
+          "operation": "update",
+          "ms": 44.717166999362234,
+          "stdout_bytes": 150
+        },
+        {
+          "operation": "update",
+          "ms": 45.71641599977738,
+          "stdout_bytes": 150
+        },
+        {
+          "operation": "update",
+          "ms": 43.83216699989134,
+          "stdout_bytes": 150
+        },
+        {
+          "operation": "update",
+          "ms": 45.9114999994199,
+          "stdout_bytes": 150
+        },
+        {
+          "operation": "update",
+          "ms": 43.961832999229955,
+          "stdout_bytes": 150
+        },
+        {
+          "operation": "update",
+          "ms": 48.79799999980605,
+          "stdout_bytes": 150
+        },
+        {
+          "operation": "update",
+          "ms": 46.63241599973844,
+          "stdout_bytes": 150
+        },
+        {
+          "operation": "update",
+          "ms": 47.078624999812746,
+          "stdout_bytes": 150
+        },
+        {
+          "operation": "update",
+          "ms": 49.59354199945665,
+          "stdout_bytes": 150
+        },
+        {
+          "operation": "update",
+          "ms": 47.861791999821435,
+          "stdout_bytes": 150
+        },
+        {
+          "operation": "update",
+          "ms": 47.79662500004633,
+          "stdout_bytes": 150
+        },
+        {
+          "operation": "update",
+          "ms": 47.70533400005661,
+          "stdout_bytes": 150
+        },
+        {
+          "operation": "update",
+          "ms": 47.79266700006701,
+          "stdout_bytes": 150
+        },
+        {
+          "operation": "sync",
+          "ms": 26.63475000008475,
+          "stdout_bytes": 175
+        }
+      ]
+    },
+    {
+      "mode": "comments",
+      "payload_bytes": 262144,
+      "updates": 20,
+      "median_update_ms": 54.83172899994315,
+      "range_ms": [
+        51.15504199966381,
+        57.53133300004265
+      ],
+      "db_bytes": 847872,
+      "jsonl_bytes": 266377,
+      "events_count": 22,
+      "event_text_bytes": 1583,
+      "comments_count": 20,
+      "comment_text_bytes": 1530,
+      "receipts": [
+        {
+          "operation": "init",
+          "ms": 94.34166699975322,
+          "stdout_bytes": 435
+        },
+        {
+          "operation": "create",
+          "ms": 69.51495799967233,
+          "stdout_bytes": 262670
+        },
+        {
+          "operation": "comments",
+          "ms": 57.53133300004265,
+          "stdout_bytes": 190
+        },
+        {
+          "operation": "comments",
+          "ms": 54.901333000088925,
+          "stdout_bytes": 190
+        },
+        {
+          "operation": "comments",
+          "ms": 53.91116600003443,
+          "stdout_bytes": 190
+        },
+        {
+          "operation": "comments",
+          "ms": 53.90295800043532,
+          "stdout_bytes": 190
+        },
+        {
+          "operation": "comments",
+          "ms": 54.9904580002476,
+          "stdout_bytes": 190
+        },
+        {
+          "operation": "comments",
+          "ms": 54.97666600058437,
+          "stdout_bytes": 190
+        },
+        {
+          "operation": "comments",
+          "ms": 52.95270800070284,
+          "stdout_bytes": 190
+        },
+        {
+          "operation": "comments",
+          "ms": 57.033416999729525,
+          "stdout_bytes": 190
+        },
+        {
+          "operation": "comments",
+          "ms": 53.866375000325206,
+          "stdout_bytes": 190
+        },
+        {
+          "operation": "comments",
+          "ms": 52.97129100017628,
+          "stdout_bytes": 191
+        },
+        {
+          "operation": "comments",
+          "ms": 54.91791700023896,
+          "stdout_bytes": 192
+        },
+        {
+          "operation": "comments",
+          "ms": 53.17549999926996,
+          "stdout_bytes": 192
+        },
+        {
+          "operation": "comments",
+          "ms": 54.84083300052589,
+          "stdout_bytes": 192
+        },
+        {
+          "operation": "comments",
+          "ms": 54.15358299978834,
+          "stdout_bytes": 192
+        },
+        {
+          "operation": "comments",
+          "ms": 55.849291999948036,
+          "stdout_bytes": 192
+        },
+        {
+          "operation": "comments",
+          "ms": 52.95637499966688,
+          "stdout_bytes": 192
+        },
+        {
+          "operation": "comments",
+          "ms": 54.85991699970327,
+          "stdout_bytes": 192
+        },
+        {
+          "operation": "comments",
+          "ms": 51.15504199966381,
+          "stdout_bytes": 192
+        },
+        {
+          "operation": "comments",
+          "ms": 54.822624999360414,
+          "stdout_bytes": 192
+        },
+        {
+          "operation": "comments",
+          "ms": 55.09433299994271,
+          "stdout_bytes": 192
+        },
+        {
+          "operation": "sync",
+          "ms": 29.251666000163823,
+          "stdout_bytes": 175
+        }
+      ]
+    },
+    {
+      "mode": "description",
+      "payload_bytes": 262144,
+      "updates": 20,
+      "median_update_ms": 54.759125000146014,
+      "range_ms": [
+        52.408167000066896,
+        57.35050000021147
+      ],
+      "db_bytes": 847872,
+      "jsonl_bytes": 262599,
+      "events_count": 2,
+      "event_text_bytes": 53,
+      "comments_count": 0,
+      "comment_text_bytes": 0,
+      "receipts": [
+        {
+          "operation": "init",
+          "ms": 91.42520800014609,
+          "stdout_bytes": 441
+        },
+        {
+          "operation": "create",
+          "ms": 58.541124999464955,
+          "stdout_bytes": 262676
+        },
+        {
+          "operation": "update",
+          "ms": 55.17587500071386,
+          "stdout_bytes": 150
+        },
+        {
+          "operation": "update",
+          "ms": 54.87950000042474,
+          "stdout_bytes": 150
+        },
+        {
+          "operation": "update",
+          "ms": 53.36045900003228,
+          "stdout_bytes": 150
+        },
+        {
+          "operation": "update",
+          "ms": 54.63874999986729,
+          "stdout_bytes": 150
+        },
+        {
+          "operation": "update",
+          "ms": 56.40191699967545,
+          "stdout_bytes": 150
+        },
+        {
+          "operation": "update",
+          "ms": 55.54970799948933,
+          "stdout_bytes": 150
+        },
+        {
+          "operation": "update",
+          "ms": 52.4143329994331,
+          "stdout_bytes": 150
+        },
+        {
+          "operation": "update",
+          "ms": 56.610583000292536,
+          "stdout_bytes": 150
+        },
+        {
+          "operation": "update",
+          "ms": 54.3418749994089,
+          "stdout_bytes": 150
+        },
+        {
+          "operation": "update",
+          "ms": 54.36783299956005,
+          "stdout_bytes": 150
+        },
+        {
+          "operation": "update",
+          "ms": 54.47416700008034,
+          "stdout_bytes": 150
+        },
+        {
+          "operation": "update",
+          "ms": 55.533542000375746,
+          "stdout_bytes": 150
+        },
+        {
+          "operation": "update",
+          "ms": 52.468083000349,
+          "stdout_bytes": 150
+        },
+        {
+          "operation": "update",
+          "ms": 56.62183299955359,
+          "stdout_bytes": 150
+        },
+        {
+          "operation": "update",
+          "ms": 56.473708000339684,
+          "stdout_bytes": 150
+        },
+        {
+          "operation": "update",
+          "ms": 52.44829200000822,
+          "stdout_bytes": 150
+        },
+        {
+          "operation": "update",
+          "ms": 57.35050000021147,
+          "stdout_bytes": 150
+        },
+        {
+          "operation": "update",
+          "ms": 52.408167000066896,
+          "stdout_bytes": 150
+        },
+        {
+          "operation": "update",
+          "ms": 52.46595799962961,
+          "stdout_bytes": 150
+        },
+        {
+          "operation": "update",
+          "ms": 55.51570899933722,
+          "stdout_bytes": 150
+        },
+        {
+          "operation": "sync",
+          "ms": 31.097209000108705,
+          "stdout_bytes": 175
+        }
+      ]
+    }
+  ]
+}

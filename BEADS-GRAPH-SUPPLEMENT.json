@@ -1,0 +1,230 @@
+[
+  {
+    "case": "blocking-chain-1000",
+    "command": "br-graph-root",
+    "rep": 0,
+    "timeout": true
+  },
+  {
+    "case": "blocking-chain-1000",
+    "command": "br-graph-all",
+    "rep": 0,
+    "ms": 22.567292000076122,
+    "bytes": 111855,
+    "exit": 0,
+    "nodes": 1000,
+    "edges": 999
+  },
+  {
+    "case": "blocking-chain-1000",
+    "command": "bv-jsonl-full",
+    "rep": 0,
+    "ms": 30.65375000005588,
+    "bytes": 162128,
+    "exit": 0,
+    "nodes": 1000,
+    "edges": 999
+  },
+  {
+    "case": "blocking-chain-1000",
+    "command": "bv-jsonl-depth1",
+    "rep": 0,
+    "ms": 30.680874999688967,
+    "bytes": 1606,
+    "exit": 0,
+    "nodes": 2,
+    "edges": 1
+  },
+  {
+    "case": "blocking-chain-1000",
+    "command": "br-graph-root",
+    "rep": 1,
+    "timeout": true
+  },
+  {
+    "case": "blocking-chain-1000",
+    "command": "br-graph-all",
+    "rep": 1,
+    "ms": 22.239875000195752,
+    "bytes": 111855,
+    "exit": 0,
+    "nodes": 1000,
+    "edges": 999
+  },
+  {
+    "case": "blocking-chain-1000",
+    "command": "bv-jsonl-full",
+    "rep": 1,
+    "ms": 30.925624999781576,
+    "bytes": 162128,
+    "exit": 0,
+    "nodes": 1000,
+    "edges": 999
+  },
+  {
+    "case": "blocking-chain-1000",
+    "command": "bv-jsonl-depth1",
+    "rep": 1,
+    "ms": 32.38912500000879,
+    "bytes": 1606,
+    "exit": 0,
+    "nodes": 2,
+    "edges": 1
+  },
+  {
+    "case": "blocking-chain-1000",
+    "command": "br-graph-root",
+    "rep": 2,
+    "timeout": true
+  },
+  {
+    "case": "blocking-chain-1000",
+    "command": "br-graph-all",
+    "rep": 2,
+    "ms": 22.643000000243774,
+    "bytes": 111855,
+    "exit": 0,
+    "nodes": 1000,
+    "edges": 999
+  },
+  {
+    "case": "blocking-chain-1000",
+    "command": "bv-jsonl-full",
+    "rep": 2,
+    "ms": 30.853665999984514,
+    "bytes": 162128,
+    "exit": 0,
+    "nodes": 1000,
+    "edges": 999
+  },
+  {
+    "case": "blocking-chain-1000",
+    "command": "bv-jsonl-depth1",
+    "rep": 2,
+    "ms": 30.90124999971522,
+    "bytes": 1606,
+    "exit": 0,
+    "nodes": 2,
+    "edges": 1
+  },
+  {
+    "case": "blocking-dense-100",
+    "command": "br-graph-root",
+    "rep": 0,
+    "ms": 175.72729100038487,
+    "bytes": 137133,
+    "exit": 0,
+    "nodes": 100,
+    "edges": 4950
+  },
+  {
+    "case": "blocking-dense-100",
+    "command": "br-graph-all",
+    "rep": 0,
+    "ms": 25.926875000095606,
+    "bytes": 137180,
+    "exit": 0,
+    "nodes": 100,
+    "edges": 4950
+  },
+  {
+    "case": "blocking-dense-100",
+    "command": "bv-jsonl-full",
+    "rep": 0,
+    "ms": 28.83204099998693,
+    "bytes": 279096,
+    "exit": 0,
+    "nodes": 100,
+    "edges": 4950
+  },
+  {
+    "case": "blocking-dense-100",
+    "command": "bv-jsonl-depth1",
+    "rep": 0,
+    "ms": 29.68137499965451,
+    "bytes": 279147,
+    "exit": 0,
+    "nodes": 100,
+    "edges": 4950
+  },
+  {
+    "case": "blocking-dense-100",
+    "command": "br-graph-root",
+    "rep": 1,
+    "ms": 178.30924999998388,
+    "bytes": 137133,
+    "exit": 0,
+    "nodes": 100,
+    "edges": 4950
+  },
+  {
+    "case": "blocking-dense-100",
+    "command": "br-graph-all",
+    "rep": 1,
+    "ms": 27.836167000259593,
+    "bytes": 137180,
+    "exit": 0,
+    "nodes": 100,
+    "edges": 4950
+  },
+  {
+    "case": "blocking-dense-100",
+    "command": "bv-jsonl-full",
+    "rep": 1,
+    "ms": 30.83241700005601,
+    "bytes": 279096,
+    "exit": 0,
+    "nodes": 100,
+    "edges": 4950
+  },
+  {
+    "case": "blocking-dense-100",
+    "command": "bv-jsonl-depth1",
+    "rep": 1,
+    "ms": 31.48304200021812,
+    "bytes": 279147,
+    "exit": 0,
+    "nodes": 100,
+    "edges": 4950
+  },
+  {
+    "case": "blocking-dense-100",
+    "command": "br-graph-root",
+    "rep": 2,
+    "ms": 180.14962500001275,
+    "bytes": 137133,
+    "exit": 0,
+    "nodes": 100,
+    "edges": 4950
+  },
+  {
+    "case": "blocking-dense-100",
+    "command": "br-graph-all",
+    "rep": 2,
+    "ms": 25.725625000177388,
+    "bytes": 137180,
+    "exit": 0,
+    "nodes": 100,
+    "edges": 4950
+  },
+  {
+    "case": "blocking-dense-100",
+    "command": "bv-jsonl-full",
+    "rep": 2,
+    "ms": 28.693124999790598,
+    "bytes": 279096,
+    "exit": 0,
+    "nodes": 100,
+    "edges": 4950
+  },
+  {
+    "case": "blocking-dense-100",
+    "command": "bv-jsonl-depth1",
+    "rep": 2,
+    "ms": 29.047166000054858,
+    "bytes": 279147,
+    "exit": 0,
+    "nodes": 100,
+    "edges": 4950
+  }
+]
