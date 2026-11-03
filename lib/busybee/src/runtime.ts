@@ -1570,7 +1570,6 @@ async function enter(input: EntryInput, services: Services): Promise<ActiveEntry
 		request = await spawnBee(
 			{
 				bead,
-				description: taskDescription(prepared.meta, { run, endpoint, bead }),
 				endpoint,
 				meta: prepared.meta,
 				run: run.id,
@@ -1629,14 +1628,14 @@ function nativeTaskOptions(
 
 function taskDescription(
 	meta: ActiveEntry["meta"],
-	{ run, endpoint, bead = "TASK_ID" }: { run: Run; endpoint: MutationEndpoint; bead?: string },
+	{ run, endpoint }: { run: Run; endpoint: MutationEndpoint },
 ): string {
 	let completion = "Busy Bee closes this grouping bead after its workers finish; leave it open.";
 	if (meta.commands) {
 		let taskId = run.id;
 		let delivery = "The driver files the run's final answer or synthesis.";
 		if (meta.bee) {
-			taskId = bead;
+			taskId = "TASK_ID";
 			delivery = "File this stage's answer before completing it.";
 		}
 		completion =
@@ -1658,17 +1657,18 @@ function taskDescription(
 async function spawnBee(
 	input: {
 		bead: string;
-		description: string;
 		endpoint: MutationEndpoint;
 		meta: ActiveEntry["meta"];
 		run: string;
 	},
 	services: Services,
 ): Promise<string> {
-	const { bead, description, endpoint, meta, run } = input;
+	const { bead, endpoint, meta, run } = input;
 	const prompt =
-		`Workflow task ${bead}.\n\n${description}\n\n` +
-		`Read br show ${bead} --json and follow its completion instructions. ` +
+		`Workflow task ${bead} in run ${run}.\n\n` +
+		`Read br show ${bead} --json for the full brief and native acceptance criteria; ` +
+		"follow its completion instructions.\n\n" +
+		`${renderResponseInstructions({ taskId: bead })}\n\n` +
 		"Leave workflow navigation to the driver.";
 	const output = await services.execute(
 		[

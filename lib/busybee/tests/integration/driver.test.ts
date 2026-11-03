@@ -75,7 +75,14 @@ const beeDefinition = {
 		id: "bee-dispatch-test",
 		initial: "work",
 		states: {
-			work: { meta: { ...meta, bee: { kind: "worker" } }, on: { SELECTED: "done" } },
+			work: {
+				meta: {
+					...meta,
+					bee: { kind: "worker" },
+					task: () => ({ ...meta.task(), acceptanceCriteria: "- [ ] Verify dispatched work" }),
+				},
+				on: { SELECTED: "done" },
+			},
 			done: { type: "final" },
 		},
 	}),
@@ -504,6 +511,7 @@ describe("Bee-dispatched stage coordination", () => {
 	test(
 		"Bee dispatch uses the stage seam and response target with the existing run and " +
 			"endpoint #test-516",
+		// eslint-disable-next-line max-statements
 		async () => {
 			const { calls, run, stage } = dispatch;
 			expect(calls[FIRST]!.slice(FIRST, DISPATCH_PREFIX)).toEqual([
@@ -529,11 +537,22 @@ describe("Bee-dispatched stage coordination", () => {
 				]),
 			);
 			const prompt = calls[FIRST]![calls[FIRST]!.indexOf("--prompt") + ONE]!;
+			expect(prompt).toContain(`Workflow task ${stage.bead} in run ${run.id}.`);
+			expect(prompt).toContain(`br show ${stage.bead} --json`);
 			expect(prompt).toContain(renderResponseInstructions({ taskId: stage.bead }));
+			expect(prompt).toContain("completion instructions");
+			expect(prompt).toContain("Leave workflow navigation to the driver.");
 			expect(prompt).not.toContain(renderResponseInstructions({ taskId: run.id }));
+			expect(prompt).not.toContain(meta.task().instructions);
+			expect(prompt).not.toContain("Verify dispatched work");
 			const task = await dispatch.beads.show(scope, stage.bead);
+			expect(task.acceptance_criteria).toBe("- [ ] Verify dispatched work");
+			expect(task.description).toContain(meta.task().instructions);
 			expect(task.description).toContain(renderResponseInstructions({ taskId: "TASK_ID" }));
+			expect(task.description).toContain("busybee complete --help");
+			expect(task.description).toContain(`discover ${run.id} --json`);
 			expect(task.description).not.toContain(renderResponseInstructions({ taskId: run.id }));
+			expect(prompt).not.toContain(task.description);
 		},
 	);
 
