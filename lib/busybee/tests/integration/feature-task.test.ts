@@ -2,7 +2,6 @@ import {
 	commandSchemas,
 	inputSchema,
 	machine,
-	resumeSchema,
 } from "../../../../.workflows/do-feature-task/workflow.ts";
 import { expect, test } from "bun:test";
 import { initialTransition, transition } from "xstate";
@@ -14,18 +13,6 @@ const evidence = "SIMULATED observations; no real check, review or Git operation
 const data = { evidence };
 type Snapshot = SnapshotFrom<typeof machine>;
 type Choice = keyof typeof commandSchemas;
-
-// The chart is the public process: review is a separate native visit, not prose inside implementation.
-test("#test-306 feature tasks isolate, check, independently review and deliver", () => {
-	const { input, initial, working, reviewing, delivering } = stages();
-	const done = advance(delivering, "next");
-	expect([initial, working, reviewing, delivering, done].map((snapshot) => snapshot.value)).toEqual(
-		["prepare", "work", "review", "deliver", "done"],
-	);
-	expect(task(reviewing).bee).toEqual({ kind: "reviewer" });
-	expect(done.status).toBe("done");
-	expect(resumeSchema.parse(done.context)).toEqual({ ...input, evidence });
-});
 
 test.each([
 	{ name: "review findings", stage: "reviewing" as const, choice: "changes" as const },

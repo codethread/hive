@@ -1,7 +1,6 @@
 /* eslint-disable import/max-dependencies -- Compose the real SQLite, transport, native memory and CLI boundaries. */
 /* eslint-disable unicorn/no-null -- Retained fixtures preserve absent checkpoint and policy fields. */
 import { afterAll, expect, test } from "bun:test";
-import { colonyRequestSchema, executionClearanceSchema } from "@hive/shared";
 import { createSpawn, createTask, memoryTracker } from "./tracker.test-support.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Use disposable state without process artifacts.
 import { hostname, tmpdir } from "node:os";
@@ -13,6 +12,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { Database } from "bun:sqlite";
 import type { LaunchReceipt } from "./launch.ts";
 import type { RequestRecord } from "./request.ts";
+import { colonyRequestSchema } from "@hive/shared";
 import { createAdmissionGate } from "./admission.ts";
 import { executionClearance } from "./execution-clearance.ts";
 import { explainRequest } from "./explain.ts";
@@ -22,14 +22,12 @@ import { observeExecution } from "./processes.ts";
 import { openStore } from "./store.ts";
 import { requestServer } from "./client.ts";
 import { runCli } from "./cli.ts";
-import { z } from "zod";
 
 const EMPTY = 0;
 const ONE = 1;
 const TWO = 2;
 const LARGE_HISTORY = 1000;
 const OBSERVED = "2026-10-13T00:00:00Z";
-const MAX_CLEARANCE_BYTES = 1500;
 const workspace = await mkdtemp(join(tmpdir(), "colony-explain-"));
 const repository = { beadsDb: "/fixture/beads.db", root: workspace };
 const tracker = { ...memoryTracker(), repository };
@@ -345,49 +343,6 @@ test("unrelated malformed history is excluded from diagnostic hydration", () => 
 	const { store } = fixtures[ONE]!;
 	expect(inspectRequest(repository, store, target).attempts).toHaveLength(TWO);
 	expect(store.request(repository.root, target)?.id).toBe(target);
-});
-
-/* eslint-disable-next-line max-statements --
- * Exercise scoped CLI, typed transport, explicit refusal and offline schema together.
- */
-test("#test-95 clearance CLI preserves endpoint/scope and bounded refusal through real typed transport", async () => {
-	selected = fixtures[EMPTY]!.store;
-	const run = await createTask(tracker);
-	const args = [
-		"system",
-		"execution-clearance",
-		run,
-		"--anchors",
-		JSON.stringify([run]),
-		"--repo",
-		repository.root,
-		"--beads-db",
-		repository.beadsDb,
-		"--json",
-	];
-	const clear = await invokeColony(args);
-	expect(clear).toMatchObject({ code: 0, stderr: "" });
-	expect(
-		executionClearanceSchema.extend({ ok: z.literal(true) }).parse(JSON.parse(clear.stdout)),
-	).toMatchObject({
-		result: { kind: "clear", proof: "no-managed-requests" },
-		repository,
-		scope: { runId: run, anchorIds: [run] },
-	});
-	await createSpawn(tracker, run);
-	const refused = await invokeColony(args);
-	expect(refused).toMatchObject({ code: 0, stderr: "" });
-	expect(JSON.parse(refused.stdout)).toMatchObject({
-		result: { kind: "refused", blockers: [{ reason: "missing_request_history" }] },
-	});
-	expect(refused.stdout.length).toBeLessThan(MAX_CLEARANCE_BYTES);
-	expect(refused.stdout).not.toContain("Complete assigned tasks");
-	const calls = commands.length;
-	expect(await invokeColony(["system", "execution-clearance-schema", "--json"])).toMatchObject({
-		code: 0,
-		stderr: "",
-	});
-	expect(commands).toHaveLength(calls);
 });
 
 // --- Private functions ---

@@ -8,33 +8,6 @@ import { trackerScope } from "./tracker.ts";
 
 const workflows = { inspect: () => Promise.reject(new Error("Unexpected workflow inspection")) };
 
-test("#test-111 preparation finishes completed requests before formula or process effects", async () => {
-	const tracker = memoryTracker();
-	const task = await createTask(tracker);
-	await tracker.beads.close(trackerScope(tracker.repository, "worker"), task, {
-		reason: JSON.stringify({
-			kind: "busybee-lifecycle",
-			formatVersion: 1,
-			scope: "run",
-			runId: task,
-			outcome: "succeeded",
-			reason: "Completed",
-		}),
-	});
-	const id = await createSpawn(tracker, task);
-
-	const prepared = await prepareLaunch(
-		{ ...tracker.repository, beads: tracker.beads, workflows, id, state: "/unused/private-state" },
-		{},
-		"unused-attempt",
-	);
-	expect(prepared).toEqual({
-		kind: "finished",
-		outcome: "completed",
-		message: `Workflow run ${task} succeeded: Completed`,
-	});
-});
-
 test("preparation refuses another host before resolving task or process authority", async () => {
 	const tracker = memoryTracker();
 	const task = await createTask(tracker);
@@ -165,23 +138,6 @@ test.each([
 		expect(await current.beads.show(scope, requestId)).toMatchObject({ status: "open" });
 	},
 );
-
-test.each([
-	{ reason: "Completed", name: "legacy" },
-	{ reason: '{"kind":"busybee-lifecycle"}', name: "malformed" },
-])("#test-113 preparation diagnoses $name closed anchors", async ({ reason }) => {
-	const current = memoryTracker();
-	const runId = await createTask(current);
-	const requestId = await createSpawn(current, runId);
-	await current.beads.close(trackerScope(current.repository, "worker"), runId, { reason });
-	await expect(
-		prepareLaunch(
-			{ ...current.repository, beads: current.beads, workflows, id: requestId, state: "/unused" },
-			{},
-			"unused-attempt",
-		),
-	).rejects.toBeInstanceOf(Error);
-});
 
 test.each([
 	{ locked: true, settlement: "none" as const },

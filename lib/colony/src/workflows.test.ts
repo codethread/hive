@@ -30,52 +30,6 @@ const commands = workflowCommands({
 	},
 });
 
-test.each([
-	{ selection: { kind: "named" as const, name: "do-work" }, command: ["run", "do-work"] },
-	{ selection: { kind: "named" as const, name: "land" }, command: ["run", "land"] },
-	{
-		selection: { kind: "source" as const, path: "/caller/workflow.ts" },
-		command: ["start", "/caller/workflow.ts"],
-	},
-])(
-	"#test-108 workflow adapter forwards parent and endpoint for $command",
-	async ({ selection, command }) => {
-		calls.length = 0;
-		const result = await commands.start({
-			parent: "original-1",
-			endpoint,
-			owner: "ct",
-			inputFile: "/caller/work.json",
-			selection,
-		});
-		expect(result).toEqual(run);
-		expect(calls).toEqual([
-			{
-				argv: [
-					"busybee",
-					"--repo",
-					"/execution",
-					"--db",
-					"/tracker/beads.db",
-					"--actor",
-					"agent",
-					"--json",
-					...command,
-					"--parent",
-					"original-1",
-					"--input-file",
-					"/caller/work.json",
-					"--owner",
-					"ct",
-					"--assignee",
-					"",
-				],
-				cwd: "/execution",
-			},
-		]);
-	},
-);
-
 test("driver admission selects advance preparation with the selected endpoint", async () => {
 	calls.length = 0;
 	expect(await commands.advance({ runId: run.id, mode: "prepare-driver" }, endpoint)).toEqual({

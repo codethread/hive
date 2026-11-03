@@ -1,19 +1,16 @@
 /* eslint-disable unicorn/no-null -- Settlement intent preserves explicit replacement absence. */
 import {
-	BEE_ACKNOWLEDGMENT_PREFIX,
 	WORKFLOW_SETTLEMENT_PREFIX,
 	beesConfigSchema,
 	nativeWorkflowState,
 	readSpawnRequest,
 	readSpawnRequestSummary,
-	requestDisposition,
-	requestNeedsAttention,
 	requestResolution,
 	workflowResolution,
 } from "@hive/shared";
 import { beforeTrackerWrite, createTask, memoryTracker } from "./tracker.test-support.ts";
 import { expect, test } from "bun:test";
-import { retryRequest, spawnWorkflowRequest, validateRequestedTasks } from "./producer.ts";
+import { retryRequest, spawnWorkflowRequest } from "./producer.ts";
 import type { ProducerCommands } from "./producer.ts";
 import { RequestPublicationError } from "./requests.ts";
 import type { WorkflowAssignment } from "@hive/shared";
@@ -66,46 +63,6 @@ function commands(tracker: ReturnType<typeof memoryTracker>): ProducerCommands {
 	};
 }
 
-// eslint-disable-next-line max-statements -- Measure the full native admission and duplicate refusal scenario.
-test("#test-105 submission rejects human reservations and admits one open request per task", async () => {
-	const admission = memoryTracker();
-	const task = await createTask(admission);
-	const reserved = await createTask(admission, { assignee: "ct" });
-
-	const context = commands(admission);
-	await expect(
-		spawnWorkflowRequest(
-			{ kind: "worker", assignment: { kind: "driver", runId: reserved }, options },
-			context,
-		),
-	).rejects.toBeInstanceOf(Error);
-	await expect(
-		validateRequestedTasks({ requestedIds: [reserved], options }, context),
-	).rejects.toBeInstanceOf(Error);
-	const created = await spawnWorkflowRequest(
-		{ kind: "worker", assignment: { kind: "driver", runId: task }, options },
-		context,
-	);
-	const request = await admission.beads.show(
-		trackerScope(admission.repository, "inspector"),
-		created.request.id,
-	);
-	expect(request.owner).toBe("ct");
-	expect(request.assignee).toBe(created.request.assignee);
-	expect(request.dependencies.map(({ id, dependency_type }) => ({ id, dependency_type }))).toEqual([
-		{ id: task, dependency_type: "related" },
-	]);
-	await expect(
-		spawnWorkflowRequest(
-			{ kind: "worker", assignment: { kind: "driver", runId: task }, options },
-			context,
-		),
-	).rejects.toBeInstanceOf(Error);
-	await expect(
-		validateRequestedTasks({ requestedIds: [task], options }, context),
-	).rejects.toBeInstanceOf(Error);
-});
-
 test.each(["driver", "stage"])(
 	"%s submission captures its scope and enforces duplicate admission",
 	// eslint-disable-next-line max-statements -- Measure scope capture and duplicate refusal from a fresh hierarchy.
@@ -137,122 +94,6 @@ test.each(["driver", "stage"])(
 		await expect(
 			spawnWorkflowRequest({ kind: "worker", assignment, options }, context),
 		).rejects.toBeInstanceOf(Error);
-	},
-);
-
-test.each(["driver", "stage"] as const)(
-	"#test-304 %s cancellation requires opt-in and retains native history on replacement and repetition",
-	// eslint-disable-next-line max-statements -- Measure native history and replacement together.
-	async (kind) => {
-		const tracker = memoryTracker();
-		const runId = await createTask(tracker);
-		let assignment: WorkflowAssignment = { kind: "driver", runId };
-		if (kind === "stage") {
-			assignment = { kind, runId, stageId: await createTask(tracker, { parent: runId }) };
-		}
-		const created = await spawnWorkflowRequest(
-			{ kind: "worker", assignment, options },
-			commands(tracker),
-		);
-		const scope = trackerScope(tracker.repository, "operator");
-		await tracker.beads.close(scope, created.request.id, { reason: "Stopped by Bee" });
-		const original = await tracker.beads.show(scope, created.request.id);
-		const context = commands(tracker);
-		await expect(retryRequest(original.id, options, context)).rejects.toBeInstanceOf(Error);
-		const replacement = await retryRequest(
-			original.id,
-			{ ...options, resumeCancelled: true, model: "current-override" },
-			context,
-		);
-		const request = readSpawnRequest(await tracker.beads.show(scope, replacement.request.id));
-		expect(request).toMatchObject({
-			assignment,
-			host: hostname(),
-			recipe: { model: "current-override" },
-		});
-		expect(request.identity).not.toBe(original.assignee);
-		expect(request.taskIds).toEqual(readSpawnRequest(original).taskIds);
-		const retained = await tracker.beads.show(scope, original.id);
-		expect(retained).toMatchObject({
-			status: "closed",
-			close_reason: original.close_reason,
-			closed_at: original.closed_at,
-			assignee: original.assignee,
-			description: original.description,
-		});
-		expect(requestDisposition(retained)).toEqual({ outcome: "cancelled", resolution: "resolved" });
-		expect(requestNeedsAttention(retained)).toBe(false);
-		expect(requestResolution(retained)).toEqual({
-			kind: "superseded",
-			replacementIds: [request.id],
-		});
-		await expect(
-			retryRequest(original.id, { ...options, resumeCancelled: true }, context),
-		).rejects.toBeInstanceOf(Error);
-		const repeated = await tracker.beads.show(scope, original.id);
-		expect(repeated.dependents).toEqual(retained.dependents);
-	},
-);
-
-test.each([
-	"closed-anchor",
-	"human",
-	"hitl",
-	"open-request",
-	"acknowledged",
-	"ambiguous",
-	"succeeded",
-])(
-	"#test-305 explicit cancellation resumption preserves %s refusal",
-	// eslint-disable-next-line max-statements -- Measure the complete reserved-scope refusal.
-	async (reason) => {
-		const tracker = memoryTracker();
-		const scope = trackerScope(tracker.repository, "operator");
-		const runId = await createTask(tracker);
-		const stageId = await createTask(tracker, { parent: runId });
-		const assignment = { kind: "stage", runId, stageId } as const;
-		const context = commands(tracker);
-		const created = await spawnWorkflowRequest({ kind: "worker", assignment, options }, context);
-		let closeReason = "cancelled";
-		if (reason === "acknowledged") {
-			closeReason = "blocked";
-		} else if (reason === "succeeded") {
-			closeReason = "completed";
-		}
-		await tracker.beads.close(scope, created.request.id, { reason: closeReason });
-		if (reason === "closed-anchor") {
-			await tracker.beads.close(scope, stageId);
-		} else if (reason === "human") {
-			await tracker.beads.update(scope, [stageId], { assignee: "ct" });
-		} else if (reason === "hitl") {
-			await tracker.beads.update(scope, [stageId], { addLabels: ["hitl"] });
-		} else if (reason === "acknowledged") {
-			const old = await tracker.beads.show(scope, created.request.id);
-			await tracker.beads.comments.add(
-				scope,
-				old.id,
-				`${BEE_ACKNOWLEDGMENT_PREFIX} ${JSON.stringify({ closedAt: old.closed_at, reason: "accepted" })}`,
-			);
-		} else if (reason === "open-request") {
-			await spawnWorkflowRequest({ kind: "worker", assignment, options }, context);
-		} else if (reason === "ambiguous") {
-			await Promise.all(
-				["First replacement", "Second replacement"].map((title) =>
-					tracker.beads.create(scope, {
-						title,
-						owner: "ct",
-						deps: [{ id: created.request.id, type: "supersedes" }],
-					}),
-				),
-			);
-		}
-		const { id } = created.request;
-		const before = await tracker.beads.show(scope, id);
-		await expect(
-			retryRequest(id, { ...options, resumeCancelled: true }, commands(tracker)),
-		).rejects.toBeInstanceOf(Error);
-		const after = await tracker.beads.show(scope, id);
-		expect(after.dependents).toEqual(before.dependents);
 	},
 );
 

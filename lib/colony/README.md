@@ -220,7 +220,7 @@ Canonical loads record their source without inventing an author. Configuration c
 
 ## Verification
 
-Repository test commands and gates are indexed in [repository commands](../../docs/repository-commands.md#test-selection). Current smoke tests under [`src/`](src/) exercise real filesystem, tracker, socket and process boundaries. Scripted workers make failure cases reproducible; they do not prove authenticated provider launches. Removed timing-heavy checks and restoration pointers remain in the [Colony coverage record](../../docs/test-cases/colony.md).
+Repository test commands and gates are indexed in [repository commands](../../docs/repository-commands.md#test-selection). Current smoke tests under [`src/`](src/) exercise real filesystem, private SQLite storage, socket and process boundaries. Scripted workers make failure cases reproducible; they do not prove authenticated provider launches. Removed timing-heavy checks and restoration pointers remain in the [Colony coverage record](../../docs/test-cases/colony.md); the later [lifecycle removal record](../../docs/test-cases/lifecycle-slow-test-removal.md) accounts for the deleted clearance, recovery, claims and workflow-consumer checks.
 
 For a real authenticated native harness, read `bun run lib/colony/scripts/native-smoke.ts --help`. The opt-in probe requires Bun, Git, br, Honeycomb and an absolute native executable. It creates a private new output directory, isolated repository/tracker/daemon and a bounded native run, retaining evidence on success or failure. Cleanup cancels and reconciles owned work before stopping the private daemon. It supplies no account access, Scent setup or service installation.
 

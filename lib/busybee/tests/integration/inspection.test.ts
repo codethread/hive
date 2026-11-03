@@ -1,129 +1,21 @@
 /* eslint-disable unicorn/no-null -- Saved checkpoints encode absent requests as null. */
 import { expect, test } from "bun:test";
-import { workflowInspectionSchema, workflowPreviewSchema } from "@hive/shared";
 import type { Definition } from "../../src/definition.ts";
 import type { Run } from "../../src/checkpoint.ts";
 import { captureCli } from "./support.ts";
 import { createMachine } from "xstate";
 import { createMemoryBeads } from "@hive/beads";
 import { createServices } from "../../src/native.ts";
+import { workflowPreviewSchema } from "@hive/shared";
 import { z } from "zod";
 
 const SUCCESS = 0;
 const FAILURE = 1;
 const FIRST = 0;
-const CHILD = 1;
 const ACTOR_COUNT = 2;
 const repo = "/inspection";
 const db = "/tracker/beads.db";
 const command = ["--repo", repo, "--db", db];
-
-// eslint-disable-next-line max-statements -- Verify the complete public payload and no-effect boundary together.
-test("#test-206 system preview freezes active briefs and renders retained actor contexts without effects", async () => {
-	const fixture = await inspectionFixture();
-	const before = await fixture.records();
-	const result = await captureCli(
-		[...command, "inspect", fixture.id, "--diagram", "--instructions", "--json"],
-		fixture.services,
-	);
-	expect(result.code, result.stdout).toBe(SUCCESS);
-	expect(result.stderr).toBe("");
-	const envelope = JSON.parse(result.stdout);
-	const document = envelope.diagram.data;
-	expect(envelope).toMatchObject({
-		ok: true,
-		kind: "workflow_lifecycle",
-		diagram: { kind: "available" },
-	});
-	expect(document).toMatchObject({ formatVersion: 1 });
-	const inspection = workflowInspectionSchema.parse(document);
-	expect(inspection.definition).toMatchObject({
-		savedHash: "old-source",
-		sourceMatch: "compatible",
-	});
-	expect(inspection.actors[FIRST]).toMatchObject({
-		path: [],
-		snapshot: { value: "work", status: "active" },
-		machine: { states: { work: { invoke: [{ id: "worker", src: "xstate.invoke.0.flow.work" }] } } },
-		instructions: {
-			flow: { kind: "none" },
-			"flow.work": {
-				kind: "frozen",
-				title: "Published",
-				instructions: "Original brief",
-				bead: "visit",
-			},
-			"flow.future": { kind: "rendered", title: "Preview root", instructions: "Saved root" },
-			"flow.broken": { kind: "unavailable", message: "Needs future input" },
-			"flow.done": { kind: "none" },
-		},
-	});
-	expect(inspection.actors[FIRST]!.machine).toHaveProperty("states.work.invoke", [
-		{ id: "worker", src: "xstate.invoke.0.flow.work" },
-	]);
-	expect(inspection.actors[CHILD]).toMatchObject({
-		path: ["worker"],
-		snapshot: { value: "work", status: "stopped" },
-		instructions: {
-			"flow.work": { kind: "rendered", title: "Child", instructions: "Saved child" },
-		},
-	});
-	expect(fixture.rendered()).toEqual(["root", "child"]);
-	expect(result.stdout).not.toContain("private-secret");
-	expect(await fixture.records()).toEqual(before);
-});
-
-// eslint-disable-next-line max-statements -- Verify opt-in privacy and no-effect boundaries across both graph modes.
-test("#test-203 public inspection expands structure and instructions explicitly without native effects", async () => {
-	const fixture = await inspectionFixture();
-	const before = await fixture.records();
-	const structural = await captureCli(
-		[...command, "inspect", fixture.id, "--diagram", "--json"],
-		fixture.services,
-	);
-	expect(structural.code).toBe(SUCCESS);
-	expect(JSON.parse(structural.stdout)).toMatchObject({
-		diagram: { kind: "available", mode: "structure" },
-	});
-	expect(structural.stdout).not.toContain('"instructions"');
-	expect(structural.stdout).not.toContain("private-secret");
-	expect(fixture.rendered()).toEqual([]);
-	const expanded = await captureCli(
-		[...command, "inspect", fixture.id, "--diagram", "--instructions", "--json"],
-		fixture.services,
-	);
-	expect(expanded.code).toBe(SUCCESS);
-	expect(JSON.parse(expanded.stdout)).toMatchObject({
-		diagram: {
-			kind: "available",
-			mode: "instructions",
-			data: {
-				actors: [
-					{ instructions: { "flow.work": { kind: "frozen", instructions: "Original brief" } } },
-					{},
-				],
-			},
-		},
-	});
-	expect(expanded.stdout).not.toContain("private-secret");
-	expect(await fixture.records()).toEqual(before);
-});
-
-test(
-	"#test-204 public schema includes expansion failures " +
-		"and lone instructions reject before tracker access",
-	async () => {
-		const services = { ...createServices(), execute: forbidden };
-		const schema = await captureCli(["inspect", "--schema", "--json"], services);
-		expect(schema.code).toBe(SUCCESS);
-		expect(JSON.parse(schema.stdout)).toMatchObject({
-			schema: { properties: { diagram: { anyOf: expect.any(Array) } } },
-		});
-		const invalid = await captureCli(["inspect", "missing", "--instructions", "--json"], services);
-		expect(invalid.code).toBe(FAILURE);
-		expect(JSON.parse(invalid.stdout)).toMatchObject({ ok: false, reason: "usage" });
-	},
-);
 
 test("ordinary preview stays structural and never invokes instruction renderers", async () => {
 	const fixture = await inspectionFixture();
@@ -182,43 +74,6 @@ test("unavailable diagram preserves native lifecycle before rendering callbacks"
 		diagram: { kind: "unavailable", reason: "preview_unavailable" },
 	});
 	expect(fixture.rendered()).toEqual([]);
-});
-
-test("#test-207 checkpoint version reads no definition or callbacks and performs no writes", async () => {
-	const fixture = await inspectionFixture();
-	const before = await fixture.records();
-	const services = {
-		...fixture.services,
-		importModule: forbidden,
-		readBytes: forbidden,
-		readText: forbidden,
-		readDirectory: forbidden,
-	};
-	const result = await captureCli(
-		[...command, "system", "checkpoint", fixture.id, "--json"],
-		services,
-	);
-	expect(result.code, result.stdout).toBe(SUCCESS);
-	expect(result.stderr).toBe("");
-	expect(JSON.parse(result.stdout)).toEqual({
-		ok: true,
-		kind: "workflow_checkpoint",
-		runId: fixture.id,
-		checkpoint: before[CHILD]!.id,
-		savedAt: before[CHILD]!.updated_at,
-	});
-	expect(fixture.rendered()).toEqual([]);
-	expect(await fixture.records()).toEqual(before);
-});
-
-test("#test-208 checkpoint schema is available without tracker access", async () => {
-	const result = await captureCli(["system", "schema", "--checkpoint", "--json"], createServices());
-	expect(result.code).toBe(SUCCESS);
-	expect(JSON.parse(result.stdout)).toMatchObject({
-		ok: true,
-		kind: "workflow_checkpoint_schema",
-		schema: { properties: { checkpoint: { type: "string" }, savedAt: { type: "string" } } },
-	});
 });
 
 // --- Private fixtures ---

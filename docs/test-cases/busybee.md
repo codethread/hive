@@ -1,6 +1,8 @@
 # Busy Bee coverage record
 
-This record preserves removed executable checks and maps current replacement coverage; it does not define a new behavior contract. Remaining tests may cover portions. The original 45 removed cases measured over 1000ms; faster siblings and the unmeasured repository-default tracker-selection row remain. Three later joined native removals and their current replacements are mapped under [lifecycle and settlement transport](#lifecycle-and-settlement-transport). Removing coverage supplies no passing evidence for those scenarios or the complete suite.
+This record preserves removed executable checks; it does not define a new behavior contract. The original 45 removed cases measured over 1000ms; faster siblings and the unmeasured repository-default tracker-selection row remain. Three later joined native removals and their subsequently removed E8 replacements are mapped under [lifecycle and settlement transport](#lifecycle-and-settlement-transport).
+
+The [authorized lifecycle removal record](./lifecycle-slow-test-removal.md) accounts for a further 65 reviewed IDs and 131 runtime cases across Busy Bee, Colony, Shared and Hive UI. It includes native and memory settlement, joined transport and continuity checks. Remaining tests may cover portions; a green remaining suite supplies no equivalent proof of the removed scenarios.
 
 Historical command names, error reasons and delivery wording below are restoration evidence, not current contracts. Use `busybee inspect --work`, `complete` and `advance` for current execution; the [specification](../../lib/busybee/SPEC.md) owns their semantics. The current [response protocol](../agents/responses.md) keeps authored answers separate from saved `{choice,data}` outcomes and concise verification comments. Current [driver tests](../../lib/busybee/tests/integration/driver.test.ts) exercise response targeting and collection without treating response artifacts as workflow children.
 
@@ -485,9 +487,9 @@ Restoration mapping (original registration titles):
 
 ## Lifecycle and settlement transport
 
-These three joined native scenarios were removed during D's reconciliation onto delivered C, under ct's superseding direction in `hv-00pk4.5.1` comment 25592 to delete slow tests causing retry stalls. Earlier Architect response `hv-600c3h` and nested advice `hv-kiq73y` recommended environmental diagnosis; neither approved these deletions. Their retained failed check reports #73 at 5396.85ms, #82 at 5334.27ms and #83 at 5451.81ms against the unchanged 5000ms timeout. Their removal left a coverage gap; it was neither a timing improvement nor successful native proof. E8 adds the current traces mapped below without restoring those tests unchanged.
+These three joined native scenarios were removed during D's reconciliation onto delivered C, under ct's superseding direction in `hv-00pk4.5.1` comment 25592 to delete slow tests causing retry stalls. Earlier Architect response `hv-600c3h` and nested advice `hv-kiq73y` recommended environmental diagnosis; neither approved these deletions. Their retained failed check reports #73 at 5396.85ms, #82 at 5334.27ms and #83 at 5451.81ms against the unchanged 5000ms timeout. Their removal left a coverage gap; it was neither a timing improvement nor successful native proof. E8 added the traces mapped below, which were later removed in the authorized 65-ID cohort.
 
-Restoration source: B revision `10c3e5b408c05ac532d17d93bf8119a77446bc9b`, beneath `lib/busybee/tests/integration/`. Its `navigate`/`collect` calls are historical; adapt them to the current [progression contract](../../lib/busybee/SPEC.md#work-and-progression). The current traces retain complete measured subject setup, native export/import, source removal and final assertions. The fixtures used disposable native endpoints and scripted outcomes; settlement supplied a no-managed-requests clearance result rather than exercising a live daemon or worker.
+Restoration source: B revision `10c3e5b408c05ac532d17d93bf8119a77446bc9b`, beneath `lib/busybee/tests/integration/`. Its `navigate`/`collect` calls are historical; adapt them to the current [progression contract](../../lib/busybee/SPEC.md#work-and-progression). The fixtures used disposable native endpoints and scripted outcomes; settlement supplied a no-managed-requests clearance result rather than exercising a live daemon or worker.
 
 ### J1
 
@@ -540,25 +542,25 @@ Restoration mapping (original registration titles):
 | J2 | `settlement-native.test.ts:23` | #test-82 cancelled replacement and preserved successful visit survive native export/import without source |
 | J3 | `settlement-native.test.ts:121` | #test-83 failed acknowledgment and replacement remain failed after independent native transport |
 
-Historical restoration pointers: J1 used its whole file and the native fixture in `support.ts`; J2/J3 used the original imports, definition body at `settlement-native.test.ts:16`, `scenario` at line 256 and `transport` at line 290. The retained #test-84 ordinary native close-refusal check and memory-backed lifecycle/settlement tests cover distinct boundaries.
+Historical restoration pointers: J1 used its whole file and the native fixture in `support.ts`; J2/J3 used the original imports, definition body at `settlement-native.test.ts:16`, `scenario` at line 256 and `transport` at line 290. The #test-84 ordinary native close-refusal check and memory-backed lifecycle/settlement tests were also removed in the later cohort.
 
-### Current joined traces
+### Historical E8 joined traces
 
-[`lifecycle-transport.test.ts`](../../lib/busybee/tests/integration/lifecycle-transport.test.ts) now covers the joined scenarios through public `complete`, `advance`, `settle` and `inspect` parsing with native Beads. Its [fixture](../../lib/busybee/tests/integration/lifecycle-transport-support.ts) removes the workflow source, rejects source access during inspection, explicitly flushes/copies/imports JSONL into an independent database and compares every fixture record.
+At revision `937c48ae486eb503a6927a9a8b26d7b096d5c6a1`, `lib/busybee/tests/integration/lifecycle-transport.test.ts` covered the joined scenarios through public `complete`, `advance`, `settle` and `inspect` parsing with native Beads. Its sibling `lifecycle-transport-support.ts` fixture removed the workflow source, rejected source access during inspection, explicitly flushed/copied/imported JSONL into an independent database and compared every fixture record. Both files are now deleted; their exact removal mapping is in the [manifest](./lifecycle-slow-test-removal.json).
 
-| Scenario | Current registration title |
+| Scenario | Registration title at the E8 revision |
 | --- | --- |
 | J1 | #test-300 grouped authored rejection retries native refusal and transports successful facts |
 | J2 | #test-301 cancellation transports completed evidence and same-parent replacement provenance |
 | J3 | #test-302 failed closure transports acknowledgment then replacement without rewriting failure |
 
-All subject and destination setup remains in each measured body; only standard empty-source bootstrap uses the existing fixture hook. Independent destination initialization overlaps source setup, and source reads overlap destination import. Both started branches settle before returning. Destination automatic import/export is disabled in its config and native scope; explicit exchange and equality checks remain. J3 still transports and inspects acknowledgment before supersession and the second exchange.
+All subject and destination setup remained in each measured body; only standard empty-source bootstrap used the fixture hook. Independent destination initialization overlapped source setup, and source reads overlapped destination import. Both started branches settled before returning. Destination automatic import/export was disabled in its config and native scope; explicit exchange and equality checks remained. J3 transported and inspected acknowledgment before supersession and the second exchange.
 
-The first cold file run after that fixture redesign passed all three tests and 88 assertions. [Timing justifications](../../lib/tooling/slow-tests.json) own the measured durations, earlier failures and near-limit observations. Bun-reported timings do not separate hook/body cost or guarantee margin below the unchanged 5000ms timeout. Feature-local allowances remain subject to ct's final inventory review in `hv-00pk4.15` before landing.
+The first cold file run after that fixture redesign passed all three tests and 88 assertions. Timing justifications in `lib/tooling/slow-tests.json` at that revision retain the measured durations, earlier failures and near-limit observations. Bun-reported timings did not separate hook/body cost or guarantee margin below the unchanged 5000ms timeout. ct subsequently rejected the reviewed allowances and authorized deletion in `hv-00pk4.22`; the [removal record](./lifecycle-slow-test-removal.md) preserves that decision and its evidence references.
 
-This proves native exchange between independent databases on one physical host. Clearance is an injected no-managed-requests result; no live daemon, worker-stop or second-host proof is claimed. Passing implementation evidence does not complete its producing report, E8 acceptance, final checks/reviews or operator adoption.
+That historical run demonstrated native exchange between independent databases on one physical host. Clearance was an injected no-managed-requests result; it supplied no live daemon, worker-stop or second-host proof. Its passing result is historical evidence, not current regression coverage or proof of later integration or operator adoption.
 
-## Reconciliation
+## Earlier removal reconciliation
 
 | Original file               | Removed cases | Scenario instances |
 | --------------------------- | ------------: | -----------------: |
@@ -573,4 +575,4 @@ This proves native exchange between independent databases on one physical host. 
 | `settlement-native.test.ts` |             2 |                  2 |
 | Total                       |            48 |                 49 |
 
-The navigation, visits and lifecycle files were removed in full. Only listed cases and table rows were removed from the other files; #test-84 remains in `settlement-native.test.ts`. Native storage, lock races and parent/child closure are external boundaries to reconsider; navigation and receipt behavior may be exercised with an injected tracker after a focused native adapter contract is validated. Keep simulated outcomes distinct from actual checks or integration effects when restoring coverage.
+The navigation, visits and lifecycle files were removed in full. At that earlier revision, only listed cases and table rows were removed from the other files; #test-84 still remained in `settlement-native.test.ts`. The later cohort removed that check and the file. This table counts only the earlier 48 cases; the [lifecycle manifest](./lifecycle-slow-test-removal.json) accounts for the later removals across all four packages. Keep simulated outcomes distinct from actual checks or integration effects when reading historical coverage.

@@ -16,21 +16,6 @@ import { trackerScope } from "./tracker.ts";
 const ONE = 1;
 const TWO = 2;
 
-test("#test-92 clearance distinguishes no managed request from unverified missing request history", async () => {
-	const selected = await fixture(false);
-	expect(await executionClearance(selected.selection, selected.runtime)).toMatchObject({
-		result: { kind: "clear", proof: "no-managed-requests", requests: [] },
-	});
-	const request = await createSpawn(selected.tracker, selected.run);
-	selected.runtime.host = readSpawnRequest(
-		await selected.tracker.beads.show(selected.scope, request),
-	).host!;
-	expect(await executionClearance(selected.selection, selected.runtime)).toMatchObject({
-		result: { kind: "refused", blockers: [{ reason: "missing_request_history" }] },
-	});
-	expect(selected.observed).toEqual([]);
-});
-
 test("never-launched authority is independent of native request closure", async () => {
 	const selected = await fixture();
 	expect(await executionClearance(selected.selection, selected.runtime)).toMatchObject({
@@ -107,28 +92,6 @@ test("clearance checks earlier exited attempts even after the current attempt an
 		result: { kind: "clear", requests: [{ proof: "stopped", attemptIds: ["earlier", "current"] }] },
 	});
 	expect(selected.observed).toEqual(["earlier", "earlier", "current"]);
-});
-
-test("#test-93 missing ownership and contrary retained inventory never become empty clear scope", async () => {
-	const selected = await fixture();
-	selected.attempts.push(attempt(selected, "unverified"));
-	selected.record!.context.attempts = ONE;
-	selected.runtime.observe = () => Promise.reject(new Error("Missing ownership evidence"));
-	expect(await executionClearance(selected.selection, selected.runtime)).toMatchObject({
-		result: {
-			kind: "refused",
-			blockers: [{ reason: "unverified_execution", attemptId: "unverified" }],
-		},
-	});
-	selected.records.push({ ...selected.record!, id: "unlinked-history" });
-	expect(await executionClearance(selected.selection, selected.runtime)).toMatchObject({
-		result: {
-			kind: "refused",
-			blockers: expect.arrayContaining([
-				{ reason: "unlinked_request_history", requestId: "unlinked-history", attemptId: null },
-			]),
-		},
-	});
 });
 
 test("an in-flight admission becomes visible before a queued clearance observation", async () => {

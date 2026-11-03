@@ -6,7 +6,6 @@ import {
 } from "./workflow-lifecycle.ts";
 import { expect, test } from "bun:test";
 import { beadSchema } from "@hive/beads";
-import { z } from "zod";
 
 const fact = {
 	kind: "busybee-lifecycle",
@@ -27,15 +26,6 @@ test.each([undefined, "Completed", '{"kind":"other"}'])(
 		expect(parseWorkflowClosure(reason)).toBeUndefined();
 	},
 );
-
-test.each([
-	{ ...fact, formatVersion: 2 },
-	{ ...fact, scope: "task" },
-	{ ...fact, outcome: "done" },
-	{ ...fact, runId: "" },
-])("#test-78 invalid tagged facts fail at the native read boundary", (value) => {
-	expect(() => parseWorkflowClosure(JSON.stringify(value))).toThrow(z.ZodError);
-});
 
 test("failed workflow resolution binds both closure fields and preserves failure after replacement", () => {
 	const closed = beadSchema.parse({

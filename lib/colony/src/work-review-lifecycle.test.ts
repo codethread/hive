@@ -8,32 +8,6 @@ import { reconcileWorkReviews } from "./work-review-runtime.ts";
 
 const FORMAT_VERSION = 1;
 const NOW = 0;
-const scenarios = [
-	{ outcome: "pending", phase: "submitted" },
-	{ outcome: "unclassified", phase: "attention" },
-	{ outcome: "failed", phase: "attention" },
-	{ outcome: "cancelled", phase: "attention" },
-	{ outcome: "succeeded", phase: null },
-] as const;
-type Outcome = (typeof scenarios)[number]["outcome"];
-
-test.each([...scenarios])(
-	"#test-311 work-review completion keeps native $outcome separate from a successful request",
-	async ({ outcome, phase }) => {
-		const { fixture, active } = await reviewedRequest();
-		fixture.runtime.workReview.inspect = () => Promise.resolve(nativeState(outcome, active.runId));
-		await reconcileWorkReviews(fixture.runtime, { nextDue: NOW });
-		const { control } = await fixture.control();
-		if (phase === null) {
-			expect(control.branches.blocked.active).toBeNull();
-			expect(control.branches.blocked.last).toEqual(active);
-		} else {
-			expect(control.branches.blocked.active).toMatchObject({ ...active, phase });
-			expect(control.branches.blocked.last).toBeNull();
-		}
-		expect(fixture.submissions).toEqual([]);
-	},
-);
 
 test.each(["author", "request"] as const)(
 	"native success does not release a review with a changed response %s",
@@ -89,13 +63,7 @@ async function changeResponseIdentity(
 	});
 }
 
-function nativeState(outcome: Outcome, runId: string): NativeWorkflowState {
-	if (outcome === "pending") {
-		return { kind: "pending" };
-	}
-	if (outcome === "unclassified") {
-		return { kind: "unavailable", reason: "unclassified_closure" };
-	}
+function nativeState(outcome: "succeeded", runId: string): NativeWorkflowState {
 	return {
 		kind: "terminal",
 		closedAt: "sampled",
