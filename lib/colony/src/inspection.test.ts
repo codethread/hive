@@ -13,10 +13,14 @@ import { Database } from "bun:sqlite";
 import type { LaunchReceipt } from "./launch.ts";
 import type { RequestRecord } from "./request.ts";
 import { colonyRequestSchema } from "@hive/shared";
+import { createAdmissionGate } from "./admission.ts";
+import { executionClearance } from "./execution-clearance.ts";
 import { explainRequest } from "./explain.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Resolve disposable store paths.
 import { join } from "node:path";
+import { observeExecution } from "./processes.ts";
 import { openStore } from "./store.ts";
+import { requestServer } from "./client.ts";
 import { runCli } from "./cli.ts";
 
 const EMPTY = 0;
@@ -44,6 +48,7 @@ const limits = { colony: TWO, kind: TWO, kinds: {}, worktree: TWO };
 let selected = fixtures[EMPTY]!.store;
 let unavailable = false;
 const commands: unknown[] = [];
+const withAdmission = createAdmissionGate();
 const server = Bun.serve({
 	unix: serverTarget.socket,
 	fetch: async (httpRequest) => {
@@ -51,6 +56,35 @@ const server = Bun.serve({
 		commands.push(command);
 		if (unavailable) {
 			return Response.json({ kind: "error", message: "Selected runtime unavailable" });
+		}
+		if (command.kind === "execution-clearance") {
+			return Response.json(
+				await executionClearance(command.scope, {
+					...tracker,
+					store: selected,
+					registered: true,
+					withAdmission,
+					host: hostname(),
+					now: () => OBSERVED,
+					observe: observeExecution,
+					workflows: {
+						inspect: (runId) =>
+							Promise.resolve({
+								runId,
+								nativeStatus: "in_progress",
+								updatedAt: OBSERVED,
+								publication: {
+									checkpoint: "checkpoint",
+									savedAt: OBSERVED,
+									locked: true,
+									settlement: "none",
+								},
+								lifecycle: { kind: "pending" },
+								resolution: { kind: "unresolved" },
+							}),
+					},
+				}),
+			);
 		}
 		if (command.kind !== "inspect-request") {
 			throw new Error("Expected a focused diagnostic command");
@@ -445,10 +479,25 @@ function unexpectedRead(): never {
 	throw new Error("Diagnostic must not load unrelated history");
 }
 
-async function invokeExplanation() {
+function invokeExplanation() {
+	return invokeColony(["explain", target, "--json"]);
+}
+
+async function invokeColony(args: string[]) {
 	let stdout = "";
 	let stderr = "";
-	const code = await runCli(["explain", target, "--json"], {
+	const code = await runCli(args, {
+		executionClearance: async (scope, options) => {
+			const result = await requestServer(serverTarget, {
+				kind: "execution-clearance",
+				scope,
+				repository: { root: options.repo, beadsDb: options.beadsDb },
+			});
+			if (result.kind !== "execution-clearance") {
+				throw new Error("Expected clearance response");
+			}
+			return result;
+		},
 		add: unexpectedRead,
 		config: unexpectedRead,
 		events: unexpectedRead,

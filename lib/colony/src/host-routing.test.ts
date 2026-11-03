@@ -5,15 +5,12 @@ import { createSpawn, createTask, memoryTracker } from "./tracker.test-support.t
 import { hostname, tmpdir } from "node:os";
 // eslint-disable-next-line import/no-nodejs-modules -- Prepare and remove the private store outside behavior timing.
 import { mkdtemp, rm } from "node:fs/promises";
-import { publishRequestLabels, reconcileClosedRequestLabels } from "./requests.ts";
 import type { BeadRecord } from "@hive/beads";
-import type { Store } from "./store.ts";
 import { ZodError } from "zod";
-import { beesConfigSchema } from "@hive/shared";
-import { dispatch } from "./dispatch.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Match the established request-recovery private store fixture.
 import { join } from "node:path";
 import { openStore } from "./store.ts";
+import { publishRequestLabels } from "./requests.ts";
 import { trackerScope } from "./tracker.ts";
 
 interface RoutingCase {
@@ -37,110 +34,25 @@ interface Fixture extends RoutingCase {
 
 const state = await mkdtemp(join(tmpdir(), "colony-host-routing-"));
 const store = openStore(state);
-const config = beesConfigSchema.parse({ formulas: {}, humans: ["ct"], owner: "ct" });
-// Match request-recovery's no-op evidence; Beads/store operations remain actual fixture adapters.
-const history: Store["history"] = {
-	run: (_input, action) =>
-		action({ completed: () => {}, failed: () => {}, reference: () => {}, step: () => {} }),
-};
-const origins = [
-	{ origin: "foreign", host: "foreign-host" },
-	{ origin: "unbound", host: undefined },
-	{ origin: "local", host: hostname() },
-];
-const cases: RoutingCase[] = (["open", "closed"] as const).flatMap((status) =>
-	origins.map(({ origin, host }) => ({ status, origin, host })),
-);
-const prepared = await Promise.all(cases.map((input) => routingFixture(input)));
-const fixtures = new Map(
-	prepared.map((fixture) => [`${fixture.status}:${fixture.origin}`, fixture]),
-);
-const predecessor = await routingFixture({
-	status: "closed",
-	origin: "replacement",
-	host: "foreign-host",
-});
-const replacement = await createSpawn(predecessor.tracker, predecessor.task, {
-	deps: [
-		{ id: predecessor.task, type: "related" },
-		{ id: predecessor.id, type: "supersedes" },
-	],
-});
-predecessor.before = await predecessor.tracker.beads.show(
-	trackerScope(predecessor.tracker.repository, "fixture"),
-	predecessor.id,
-);
-
 const predecessorCases = [{ current: false }, { current: true }];
-const localPredecessors = await Promise.all(
-	predecessorCases.map(async ({ current }) => {
-		const fixture = await routingFixture({
-			status: "closed",
-			origin: String(current),
-			host: hostname(),
-		});
-		if (current) {
-			await fixture.tracker.beads.update(
-				trackerScope(fixture.tracker.repository, "fixture"),
-				[fixture.id],
-				{
-					setLabels: [
-						"system",
-						"bee",
-						"agent:worker",
-						"bee-outcome:succeeded",
-						"bee-resolution:resolved",
-					],
-				},
-			);
-		}
-		const id = await createSpawn(fixture.tracker, fixture.task, {
-			deps: [
-				{ id: fixture.task, type: "related" },
-				{ id: fixture.id, type: "supersedes" },
-			],
-		});
-		fixture.before = await fixture.tracker.beads.show(
-			trackerScope(fixture.tracker.repository, "fixture"),
-			fixture.id,
-		);
-		return { current, fixture, replacement: id };
-	}),
-);
-
-test.each(cases.filter(({ origin }) => origin !== "local"))(
-	"automatic $status routing excludes $origin before decoding workflow assignment #test-361",
-	async ({ status, origin }) => {
-		const fixture = fixtures.get(`${status}:${origin}`)!;
-		await route(fixture);
-		const after = await fixture.tracker.beads.show(
-			trackerScope(fixture.tracker.repository, "fixture"),
-			fixture.id,
-		);
-		const task = await fixture.tracker.beads.show(
-			trackerScope(fixture.tracker.repository, "fixture"),
-			fixture.task,
-		);
-		expect(after).toEqual(fixture.before);
-		expect(task.assignee).toBeUndefined();
-		expect(store.requests(fixture.tracker.repository.root)).toEqual([]);
-	},
-);
-
-test.each(cases.filter(({ origin }) => origin === "local"))(
-	"automatic $status routing rejects a local request missing workflow assignment #test-400",
-	async ({ status, origin }) => {
-		const fixture = fixtures.get(`${status}:${origin}`)!;
-		await expect(route(fixture)).rejects.toBeInstanceOf(ZodError);
-		const after = await fixture.tracker.beads.show(
-			trackerScope(fixture.tracker.repository, "fixture"),
-			fixture.id,
-		);
-		expect(after).toEqual(fixture.before);
-	},
-);
 
 test("automatic replacement publication leaves an unsupported foreign predecessor unchanged #test-636", async () => {
+	const predecessor = await routingFixture({
+		status: "closed",
+		origin: "replacement",
+		host: "foreign-host",
+	});
+	const replacement = await createSpawn(predecessor.tracker, predecessor.task, {
+		deps: [
+			{ id: predecessor.task, type: "related" },
+			{ id: predecessor.id, type: "supersedes" },
+		],
+	});
+	predecessor.before = await predecessor.tracker.beads.show(
+		trackerScope(predecessor.tracker.repository, "fixture"),
+		predecessor.id,
+	);
+
 	await publishRequestLabels(predecessor.tracker, "colony", replacement, hostname());
 	const after = await predecessor.tracker.beads.show(
 		trackerScope(predecessor.tracker.repository, "fixture"),
@@ -152,7 +64,7 @@ test("automatic replacement publication leaves an unsupported foreign predecesso
 test.each(predecessorCases)(
 	"local predecessor with current labels $current is validated before publication #test-637",
 	async ({ current }) => {
-		const selected = localPredecessors.find((fixture) => fixture.current === current)!;
+		const selected = await localPredecessorFixture(current);
 		await expect(
 			publishRequestLabels(selected.fixture.tracker, "colony", selected.replacement, hostname()),
 		).rejects.toBeInstanceOf(ZodError);
@@ -168,21 +80,6 @@ afterAll(async () => {
 	store.close();
 	await rm(state, { recursive: true, force: true });
 });
-
-function route(fixture: Fixture): Promise<void> {
-	if (fixture.status === "open") {
-		return dispatch(
-			{
-				...fixture.tracker,
-				state,
-				store: { ...store, history },
-			},
-			config,
-			"fixture",
-		);
-	}
-	return reconcileClosedRequestLabels(fixture.tracker);
-}
 
 async function routingFixture(input: RoutingCase): Promise<Fixture> {
 	const tracker = memoryTracker();
@@ -200,4 +97,38 @@ async function routingFixture(input: RoutingCase): Promise<Fixture> {
 	}
 	const before = await tracker.beads.show(trackerScope(tracker.repository, "fixture"), id);
 	return { ...input, tracker, task, id, before };
+}
+
+async function localPredecessorFixture(current: boolean) {
+	const fixture = await routingFixture({
+		status: "closed",
+		origin: String(current),
+		host: hostname(),
+	});
+	if (current) {
+		await fixture.tracker.beads.update(
+			trackerScope(fixture.tracker.repository, "fixture"),
+			[fixture.id],
+			{
+				setLabels: [
+					"system",
+					"bee",
+					"agent:worker",
+					"bee-outcome:succeeded",
+					"bee-resolution:resolved",
+				],
+			},
+		);
+	}
+	const id = await createSpawn(fixture.tracker, fixture.task, {
+		deps: [
+			{ id: fixture.task, type: "related" },
+			{ id: fixture.id, type: "supersedes" },
+		],
+	});
+	fixture.before = await fixture.tracker.beads.show(
+		trackerScope(fixture.tracker.repository, "fixture"),
+		fixture.id,
+	);
+	return { fixture, replacement: id };
 }

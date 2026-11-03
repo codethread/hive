@@ -11,10 +11,6 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 
 const SUCCESS = 0;
-const imports =
-	"import {createMachine,setup,assign} from " +
-	`${JSON.stringify(import.meta.resolve("xstate"))};import {z} from ` +
-	`${JSON.stringify(import.meta.resolve("zod"))};`;
 
 export interface RepositoryFixture {
 	/** Disposable fixture root, including the execution repository. */
@@ -74,21 +70,6 @@ export async function createRepository(fixture: RepositoryFixture, repo: string)
 		new URL("../../../../node_modules", import.meta.url).pathname,
 		join(repo, "node_modules"),
 	);
-}
-
-export async function writeDefinition(
-	fixture: RepositoryFixture,
-	name: string,
-	body: string,
-): Promise<string> {
-	const source = join(fixture.root, name, "workflow.ts");
-	await Bun.write(
-		source,
-		`${imports}export const inputSchema=z.object({});export function ` +
-			'runBrief(){return {title:"Integration ' +
-			`workflow",description:"Complete the fixture tasks"};}${body}`,
-	);
-	return source;
 }
 
 export function optionsArgs(fixture: RepositoryFixture): string[] {

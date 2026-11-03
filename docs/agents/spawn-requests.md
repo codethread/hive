@@ -22,6 +22,12 @@ Every produced spawn has one `bee-outcome:*` and one `bee-resolution:*` label. T
 
 All other combinations, duplicate labels and unknown values are invalid projections. Inspection treats native statuses other than `closed` as pending; Colony itself uses `open` and `closed`. Reopening a terminal spawn does not reset its history: use `bee retry`.
 
+### Workflow anchors
+
+A driver's anchor is its run; a dispatched worker's anchor is its visit. Colony reads the [native workflow fact](../../lib/busybee/SPEC.md#native-lifecycle) through Shared at acquisition, launch preparation and reconciliation, including unlaunched, running, finish-report and exit paths. A `succeeded` anchor supplies request completion, `cancelled` supplies cancellation, and `failed` supplies failure with native request close reason `blocked`. Native `closed` alone supplies no successful outcome: unclassified or malformed workflow closures fail visibly.
+
+A genuinely successful visit remains successful when later run scope is retired. A failed driver attempt alone leaves the run pending. Run and request acknowledgment/replacement histories remain independent. [Execution clearance](../architecture.md#workflow-settlement-and-execution-clearance) governs process proof before run settlement; anchor disposition does not prove process exit.
+
 ## Transitions and resolution
 
 Automatic retries preserve the request and identity. Explicit `bee retry` creates `replacement --supersedes--> original`; only successful creation resolves an unresolved failure. Deliberate cancellation resumption requires `--resume-cancelled`. Read `bee retry --help` for eligibility, process verification and recipe selection. `related` edges identify work; `supersedes` edges identify replacements.
@@ -44,7 +50,7 @@ Acknowledgment precedes label publication. After `request_labels_pending`, fix t
 
 `bee finish --help` owns worker delivery and completion instructions; [responses](./responses.md) are independent authored artifacts.
 
-Task closure leaves a live bee time for cleanup. After exit or `finish success`, Colony checks linked work; unfinished work follows bounded retry/exhaustion even after a success report. A validated `finish blocked` instead ends automatic retries, preserves closed tasks and blocked states, releases only unfinished claims still owned by that bee, and records the reason and unfinished IDs. The spawn closes failed/unresolved for caller attention.
+Successful anchor closure leaves a live bee time for cleanup; unsuccessful retirement enters verified process cleanup. After exit or `finish success`, Colony consumes the anchor's disposition; pending work follows bounded retry/exhaustion even after a success report. A validated `finish blocked` instead ends automatic retries, preserves closed tasks and blocked states, releases only unfinished claims still owned by that bee, and records the reason and unfinished IDs. The spawn closes failed/unresolved for caller attention.
 
 After resolving the blocker, the caller uses `bee retry`. Blocked tasks must first become ready through an explicit update or dependency resolution. Retry creates a new request; it does not reopen the original or resume its session.
 

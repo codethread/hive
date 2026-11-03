@@ -1,5 +1,5 @@
 import { BusyBeeError, createServices, readBead, resolveEndpoint } from "./native.ts";
-import type { Options, Services } from "./native.ts";
+import type { Endpoint, Options, Services } from "./native.ts";
 import type { WorkflowCheckpoint, WorkflowInspection, WorkflowPreview } from "@hive/shared";
 import { checkpointBead, restoreDefinition } from "./runtime.ts";
 import { inspectActors, previewActors } from "./definition-preview.ts";
@@ -33,8 +33,8 @@ export async function preview(
 	return { ...projection, actors: previewActors(definition.machine, run.snapshot) };
 }
 
-/** Render tooling-only instruction previews using each retained actor's saved context. */
-export async function inspect(
+/** Render instruction previews using each retained actor's saved context. */
+export async function inspectDiagram(
 	id: string,
 	options: Options = {},
 	services: Services = createServices(),
@@ -50,6 +50,11 @@ export async function inspect(
 // eslint-disable-next-line max-statements -- Keep read-only loading and provenance together.
 export async function loadSavedPreview(id: string, options: Options, services: Services) {
 	const endpoint = await resolveEndpoint(options, services);
+	return loadSavedPreviewAt(id, endpoint, services);
+}
+
+// eslint-disable-next-line max-statements -- Keep selected endpoint, graph provenance and loading together.
+async function loadSavedPreviewAt(id: string, endpoint: Endpoint, services: Services) {
 	const [parent, checkpoint] = await Promise.all([
 		readBead(endpoint, id, services),
 		checkpointBead(endpoint, id, services),

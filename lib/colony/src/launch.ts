@@ -3,9 +3,8 @@
  * ownership.
  */
 import type { Bead, BeadsService } from "@hive/beads";
-import type { Formula, Recipe, RepositoryEndpoint, SpawnRequest } from "@hive/shared";
-import { colonyEntry, entryCommand } from "./executables.ts";
 import {
+	COLONY_MANUAL_EXECUTION_PREFIX,
 	formulaSchema,
 	invocationSchema,
 	readSpawnRequest,
@@ -14,12 +13,28 @@ import {
 	renderResponseInstructions,
 	workflowAssignmentSchema,
 } from "@hive/shared";
+import type {
+	Formula,
+	Recipe,
+	RepositoryEndpoint,
+	SpawnRequest,
+	WorkflowAssignment,
+} from "@hive/shared";
+import {
+	assertWorkflowAdmission,
+	readWorkflowCompletion,
+	workflowCompletion,
+} from "./workflow-anchor.ts";
+import { colonyEntry, entryCommand } from "./executables.ts";
+
 // eslint-disable-next-line import/no-nodejs-modules -- Supply the host home at the native invocation boundary.
 import { homedir, hostname } from "node:os";
 // eslint-disable-next-line import/no-nodejs-modules -- Resolve owned receipt and execution directories.
 import { join, resolve as resolvePath } from "node:path";
 // eslint-disable-next-line import/no-nodejs-modules -- Own process log files and canonicalize launch cwd.
 import { link, mkdir, open, realpath, rename, unlink } from "node:fs/promises";
+import type { WorkflowCommands } from "./workflows.ts";
+import type { WorkflowCompletion } from "./workflow-anchor.ts";
 import { agentEnvironment } from "./identity.ts";
 import { loadBeesConfig } from "./config.ts";
 import { match } from "ts-pattern";
@@ -90,7 +105,9 @@ export const workerReceiptSchema = z.discriminatedUnion("kind", [
 ]);
 export type LaunchReceipt = z.infer<typeof launchReceiptSchema>;
 export interface LaunchRequest extends RepositoryEndpoint {
-	/** Injected tracker used during preparation only. */
+	/** Source-independent Busy Bee lifecycle observation used to fence admission. */
+	workflows: Pick<WorkflowCommands, "inspect">;
+	/** Native request/anchor reads and manual-launch provenance writes. */
 	beads: BeadsService;
 	/** Spawn request to execute. */
 	id: string;
@@ -99,7 +116,7 @@ export interface LaunchRequest extends RepositoryEndpoint {
 }
 type Eligibility =
 	| { kind: "eligible"; tasks: Bead[] }
-	| { kind: "finished" }
+	| ({ kind: "finished" } & Omit<Extract<WorkflowCompletion, { kind: "terminal" }>, "kind">)
 	| { kind: "waiting"; reason: string };
 export interface Scheduling {
 	/** Highest urgency across every related task. */
@@ -114,6 +131,9 @@ export type Preparation =
 	| Exclude<Eligibility, { kind: "eligible" }>;
 type Outcome = { kind: "exited"; code: number } | { kind: "failed"; message: string };
 
+/* eslint-disable-next-line max-statements --
+ * Publish manual-attempt provenance and recheck admission before any process effect.
+ */
 export async function launch(request: LaunchRequest): Promise<unknown> {
 	const { config } = await loadBeesConfig(request.root);
 	const prepared = await prepareLaunch(request, config.formulas, crypto.randomUUID());
@@ -126,6 +146,15 @@ export async function launch(request: LaunchRequest): Promise<unknown> {
 			throw new Error(`Request ${request.id} has no unfinished tasks`);
 		})
 		.exhaustive();
+	await request.beads.comments.add(
+		trackerScope(request, receipt.identity),
+		request.id,
+		`${COLONY_MANUAL_EXECUTION_PREFIX}${JSON.stringify({ attemptId: receipt.id, directory: receipt.directory })}`,
+	);
+	const fence = await launchFence(request, receipt.assignment, receipt.identity);
+	if (fence !== undefined) {
+		throw new Error(fence);
+	}
 	await writeReceipt(receipt);
 	const outcome = await executeWorker(receipt, request.state);
 	const result = { ...receipt, outcome };
@@ -171,10 +200,22 @@ export async function prepareLaunch(
 	const tasks = await Promise.all(
 		taskIds.map((id) => beads.show(trackerScope(request, identity), id)),
 	);
+	const completion = await readWorkflowCompletion(
+		{ beads, repository: request },
+		assignment,
+		identity,
+	);
+	if (completion.kind === "terminal") {
+		return { ...completion, kind: "finished" };
+	}
 	const ready = await beads.ready(trackerScope(request, identity), { limit: 0 });
-	const eligible = eligibility(tasks, ready, identity);
+	const eligible = eligibility(tasks, ready, identity, assignment);
 	if (eligible.kind !== "eligible") {
 		return eligible;
+	}
+	const fence = await launchFence(request, assignment, identity);
+	if (fence !== undefined) {
+		return { kind: "waiting", reason: fence };
 	}
 	const formula = formulas[recipe.harness];
 	if (!formula) {
@@ -231,13 +272,13 @@ export function renderExecutionRecipe({
 			{ kind: "driver" },
 			({ runId }) =>
 				`Coordinate existing Busy Bee run ${runId}; resume it on retry. Read its full native ` +
-				`brief once with br show ${runId} --json, then busybee show ${runId} --json and ` +
-				`busybee discover ${runId} --json. Read br show TASK --json once per active visit; ` +
-				"refresh native briefs when relevant scope, state or authority changes. Use compact " +
-				"run views between those reads; busybee show --help covers instruction expansion. " +
+				`brief once with br show ${runId} --json, then busybee inspect ${runId} --work --json. ` +
+				"Read br show TASK --json once per active visit; refresh native briefs when relevant " +
+				"scope, state or authority changes. Use bare inspect for lifecycle reads and --work " +
+				"for active briefs and choices; busybee inspect --help covers expansion availability. " +
 				"Follow the active stage briefs. Claim only unassigned or self-owned driver-handled " +
 				"visits; preserve other identities and human/HITL reservations. Collect saved " +
-				`closed-stage results with busybee collect ${runId} --json, including interrupted ` +
+				`closed-stage results with busybee advance ${runId} --json, including interrupted ` +
 				"deliveries. Read busybee --help for options. Bee-dispatched workers own " +
 				"their stage claims; read their responses for your final synthesis.\n\n" +
 				"Remain running while workers are pending. Waiting uses ordinary quota; ask the " +
@@ -250,8 +291,7 @@ export function renderExecutionRecipe({
 			({ stageId, runId }) =>
 				`Perform only Bee-dispatched stage ${stageId} in run ${runId}. Read its full ` +
 				"brief, acceptance criteria and result schema; follow its delivery and closure " +
-				"instructions. The driver collects your saved result and Busy Bee advances the " +
-				"workflow; leave navigation and group/run closure to them. Report bee finish " +
+				"instructions. Report bee finish " +
 				"success only after your stage and its required child work are complete.",
 		)
 		.exhaustive();
@@ -440,19 +480,23 @@ export async function launchBucket(cwd: string): Promise<string> {
 }
 
 /** Shared native-ready and reservation decision used before launch and by explain. */
+/* eslint-disable-next-line max-params --
+ * Native readiness, reservation identity and captured workflow authority are distinct inputs.
+ */
 export function eligibility(
 	tasks: Bead[],
 	ready: Pick<Bead, "id">[],
 	identity: string,
+	assignment: WorkflowAssignment,
 ): Eligibility {
 	if (tasks.length === EMPTY) {
 		return { kind: "waiting", reason: "Spawn request has no related tasks" };
 	}
-	const unfinished = tasks.filter((task) => task.status !== "closed");
-	if (unfinished.length === EMPTY) {
-		return { kind: "finished" };
+	const completion = workflowCompletion(tasks[EMPTY]!, assignment);
+	if (completion.kind === "terminal") {
+		return { ...completion, kind: "finished" };
 	}
-	const blocked = unfinished.find(
+	const blocked = tasks.find(
 		(task) =>
 			!ready.some((item) => item.id === task.id) ||
 			(task.assignee !== undefined && task.assignee !== identity) ||
@@ -461,7 +505,31 @@ export function eligibility(
 	if (blocked) {
 		return { kind: "waiting", reason: `Task ${blocked.id} is not ready or is reserved` };
 	}
-	return { kind: "eligible", tasks: unfinished };
+	return { kind: "eligible", tasks };
+}
+
+export async function launchFence(
+	request: Pick<LaunchRequest, "beads" | "root" | "beadsDb" | "workflows">,
+	assignment: WorkflowAssignment,
+	identity: string,
+): Promise<string | undefined> {
+	const observation = await request.workflows.inspect(assignment.runId, {
+		repo: request.root,
+		db: request.beadsDb,
+		actor: identity,
+	});
+	if (observation.runId !== assignment.runId) {
+		throw new Error(`Busy Bee inspection does not match workflow ${assignment.runId}`);
+	}
+	if (observation.publication.locked || observation.publication.settlement === "pending") {
+		return `Workflow ${assignment.runId} publication is fenced`;
+	}
+	if (observation.lifecycle.kind !== "pending") {
+		throw new Error(`Workflow ${assignment.runId} is not pending in Busy Bee inspection`);
+	}
+	const run = await request.beads.show(trackerScope(request, identity), assignment.runId);
+	assertWorkflowAdmission(run);
+	return undefined;
 }
 
 // --- Private functions ---

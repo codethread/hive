@@ -335,7 +335,7 @@ async function trackerFacts(
 		),
 		beads.ready(trackerScope(repository, request.identity), { limit: 0 }),
 	]);
-	const decision = eligibility(tasks, ready, request.identity);
+	const decision = eligibility(tasks, ready, request.identity, request.assignment);
 	return {
 		closeReason: spawn.close_reason ?? null,
 		disposition: requestDisposition(spawn),

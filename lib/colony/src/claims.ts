@@ -2,7 +2,10 @@ import { CommandError } from "@hive/beads";
 import type { OperationEvidence } from "./history.ts";
 import type { RequestRecord } from "./request.ts";
 import type { TrackerContext } from "./tracker.ts";
+import type { WorkflowAssignment } from "@hive/shared";
+import type { WorkflowCompletion } from "./workflow-anchor.ts";
 import { trackerScope } from "./tracker.ts";
+import { workflowCompletion } from "./workflow-anchor.ts";
 
 /** Claim only the task versions inspected by the daemon, preserving their human owner. */
 /* eslint-disable-next-line max-statements, max-params --
@@ -10,14 +13,15 @@ import { trackerScope } from "./tracker.ts";
  */
 export async function acquireClaim(
 	{ beads, repository }: TrackerContext,
-	identity: string,
+	{ identity, assignment }: { identity: string; assignment: WorkflowAssignment },
 	id: string,
 	evidence: OperationEvidence,
-): Promise<"claimed" | "closed" | "conflict"> {
+): Promise<"claimed" | "conflict" | Extract<WorkflowCompletion, { kind: "terminal" }>> {
 	evidence.step("tracker.show", id);
 	const task = await beads.show(trackerScope(repository, identity), id);
-	if (task.status === "closed") {
-		return "closed";
+	const completion = workflowCompletion(task, assignment);
+	if (completion.kind === "terminal") {
+		return completion;
 	}
 	if ((task.assignee && task.assignee !== identity) || task.labels.includes("hitl")) {
 		return "conflict";

@@ -52,6 +52,10 @@ beads.list = async (scope, selection) => {
 	return list(scope, selection);
 };
 await serve(target, beads, {
+	workflows: { inspect: unexpected },
+	observe: unexpected,
+	host: "fixture",
+	now: unexpected,
 	loadActivity: () =>
 		Promise.resolve({
 			state: "awake",
@@ -150,4 +154,8 @@ async function receiveStop(command: {
 	}
 	stopped = true;
 	return response;
+}
+
+function unexpected(): never {
+	throw new Error("Disabled fixture operation");
 }

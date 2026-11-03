@@ -3,7 +3,13 @@
  */
 import { Command, CommanderError } from "commander";
 import { DaemonRequestError, DaemonUnavailableError } from "./client.ts";
-import { beesConfigSchema, policyChangeSchema } from "@hive/shared";
+import type { ExecutionClearance, ExecutionClearanceSelection } from "@hive/shared";
+import {
+	beesConfigSchema,
+	executionClearanceSchema,
+	executionClearanceSelectionSchema,
+	policyChangeSchema,
+} from "@hive/shared";
 import {
 	changelogHistorySchema,
 	changelogQuerySchema,
@@ -76,6 +82,11 @@ export type ConfigOptions = RepositoryOptions &
 		| { operation: "update"; actor: string; file: string }
 	);
 export interface ColonyDependencies {
+	/** Fresh scoped execution proof serialized with the owning daemon's admissions. */
+	executionClearance: (
+		scope: ExecutionClearanceSelection,
+		options: RepositoryOptions,
+	) => Promise<ExecutionClearance>;
 	/** Explain one request using read-only tracker and runtime evidence. */
 	explain: (id: string, options: RepositoryOptions) => Promise<Explanation>;
 	/** Read bounded operation evidence without contacting the daemon or tracker. */
@@ -125,6 +136,60 @@ export async function runCli(argv: string[], deps: ColonyDependencies): Promise<
 		.option("--json", "Emit errors as JSON too")
 		.configureOutput({ writeErr: () => {}, writeOut: deps.stdout })
 		.exitOverride();
+	const system = program.command("system").description("Typed daemon observation interfaces");
+	system
+		.command("execution-clearance-schema")
+		.description("Read clearance selection and success schemas without contacting a daemon")
+		.addHelpText(
+			"after",
+			"\nEmits one JSON document with selection and schema. Requires no repository, " +
+				"tracker, configuration or daemon. The success schema includes both clear and " +
+				"refused observations; use system execution-clearance --help for prerequisites.",
+		)
+		.action(() => {
+			const successSchema = executionClearanceSchema.extend({ ok: z.literal(true) });
+			const document = {
+				ok: true,
+				kind: "execution_clearance_schema",
+				selection: z.toJSONSchema(executionClearanceSelectionSchema),
+				schema: z.toJSONSchema(successSchema),
+			};
+			deps.stdout(`${JSON.stringify(document)}\n`);
+		});
+	repositoryOptions(
+		system
+			.command("execution-clearance <run>")
+			.description("Observe owning-host quiescence for the exact workflow inventory")
+			.requiredOption(
+				"--anchors <json>",
+				"JSON array of the run and every generated visit/group ID",
+			)
+			.addHelpText(
+				"after",
+				"\nBusy Bee calls this while holding the run's checkpoint lock. Supply its exact " +
+					"generated inventory, including completed anchors. The selected owning-host " +
+					"daemon must be running and have this repository/tracker registered; this read " +
+					"does not start it, stop workers or change requests.\n\n" +
+					"The daemon serializes clearance with final admission and verifies every retained " +
+					"attempt's ownership and exit. Closed requests alone do not prove exit. Missing " +
+					"history, foreign/unbound hosts, live or unverified processes and marked manual " +
+					"launches refuse clearance. This is a scoped local observation, not a durable " +
+					"lease or distributed lock.\n\n" +
+					"Use --json for scope, host, observedAt and result. A successful read can return " +
+					"result.kind refused with blockers; ok true does not mean execution is clear. " +
+					"Offline schemas: colony system execution-clearance-schema --json.",
+			),
+	).action(async (runId: string, options: RepositoryOptions & { anchors: string }) => {
+		const scope = executionClearanceSelectionSchema.parse({
+			runId,
+			anchorIds: JSON.parse(options.anchors),
+		});
+		writeColonyResult(
+			await deps.executionClearance(scope, options),
+			argv.includes("--json"),
+			deps.stdout,
+		);
+	});
 
 	program
 		.command("changelog")

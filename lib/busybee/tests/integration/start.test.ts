@@ -1,8 +1,8 @@
 /* eslint-disable unicorn/no-null -- Saved checkpoints encode absent requests as null. */
 import type { BeadsScope, UpdateBead } from "@hive/beads";
 import { BusyBeeError, createServices, readBead } from "../../src/native.ts";
+import { advance, readWork } from "../../src/runtime.ts";
 import { captureCli, invoke } from "./support.ts";
-import { discover, navigate } from "../../src/runtime.ts";
 import { expect, test } from "bun:test";
 import type { Services } from "../../src/native.ts";
 import { createMachine } from "xstate";
@@ -179,28 +179,36 @@ test("start publishes an initial worker and one JSON success document through th
 			.flatMap(({ operation }) => ["beforeWrite", operation]),
 	);
 	instructions = "Changed renderer after publication";
-	const shown = await invoke(["show", started.id], startServices);
+	const shown = await invoke(["inspect", started.id], startServices);
 	expect(shown.code).toBe(SUCCESS);
-	expect(shown.document).toMatchObject({ kind: "show", ok: true, ...started });
+	expect(shown.document).toMatchObject({ kind: "workflow_lifecycle", ok: true, runId: started.id });
 	expect(shown.stdout).not.toContain("Complete work");
 	expect(shown.stdout).not.toContain("raw-actor-context");
-	const expanded = await invoke(["show", started.id, "--instructions"], startServices);
+	const expanded = await invoke(["inspect", started.id, "--work"], startServices);
 	expect(expanded.code).toBe(SUCCESS);
 	expect(expanded.document).toMatchObject({
-		kind: "show",
+		kind: "workflow_lifecycle",
 		ok: true,
-		active: [{ ...started.active[FIRST], instructions: frozenInstructions }],
+		work: {
+			kind: "available",
+			data: { active: [{ ...started.active[FIRST], instructions: frozenInstructions }] },
+		},
 	});
-	expect(expanded.stdout).not.toContain("raw-actor-context");
+	expect(expanded.stdout).toContain("raw-actor-context");
 	expect(Buffer.byteLength(shown.stdout)).toBeLessThan(
 		Buffer.byteLength(expanded.stdout) / SIZE_REDUCTION_FACTOR,
 	);
 	const collected = await invoke(
-		["--actor", "starting-agent", "collect", started.id],
+		["--actor", "starting-agent", "advance", started.id],
 		startServices,
 	);
 	expect(collected.code).toBe(SUCCESS);
-	expect(collected.document).toMatchObject({ kind: "collect", ok: true, ...started });
+	expect(collected.document).toMatchObject({
+		kind: "workflow_advance",
+		ok: true,
+		runId: started.id,
+		status: started.status,
+	});
 	expect(collected.stdout).not.toContain("Complete work");
 	expect(collected.stdout).not.toContain("raw-actor-context");
 });
@@ -231,16 +239,24 @@ test("show rejects a changed named checkpoint before import with authorized same
 	expect(error.message).toContain("Inspect completed and uncertain effects");
 	expect(error.message).toContain("Retain the old run as history");
 	expect(error.message).toContain("--parent ORIGINAL_PARENT");
-	expect(error.message).toContain("replacement completion does not complete them");
-	const response = await invoke(["show", fixture.id], fixture.io);
+	expect(error.message).toContain(
+		"Replacement completion alone does not dispose of old work or satisfy its parent.",
+	);
+	const response = await invoke(["inspect", fixture.id, "--work"], fixture.io);
 	expect(response.document).toMatchObject({
-		ok: false,
-		kind: "show",
-		reason: "definition_changed",
-		runId: fixture.id,
-		stageIds: ["completed"],
-		stageRequestIds: ["completed-request"],
-		nextAction: `br show ${fixture.id} --json`,
+		ok: true,
+		kind: "workflow_lifecycle",
+		lifecycle: { kind: "pending" },
+		work: {
+			kind: "unavailable",
+			reason: "definition_changed",
+			context: {
+				runId: fixture.id,
+				stageIds: ["completed"],
+				stageRequestIds: ["completed-request"],
+				nextAction: `br show ${fixture.id} --json`,
+			},
+		},
 	});
 	expect(response.stderr).toBe("");
 	await fixture.assertPreserved();
@@ -315,7 +331,8 @@ test("changed explicit-file runs keep their source-based diagnostic #test-46", a
 		'"Workflow definition changed; inspect the current source at ' +
 			"/repo/.workflows/example/entry.ts and start a fresh run. Inspect br show mem-1 --json " +
 			"and retained visits first; preserve their evidence and native parent when handing off " +
-			'remaining work. Leave unfinished old work open; replacement completion does not complete it."',
+			"remaining work. Use busybee settle --help for explicit retirement; unresolved scope stays open " +
+			'for handoff. Replacement completion alone does not dispose of it."',
 	);
 	await fixture.assertPreserved();
 });
@@ -323,9 +340,9 @@ test("changed explicit-file runs keep their source-based diagnostic #test-46", a
 async function inspect(operation: string, fixture: { id: string; io: Services }): Promise<Error> {
 	const { id, io } = fixture;
 	const inspections: Record<string, () => Promise<unknown>> = {
-		show: () => navigate({ id, operation: "show" }, {}, io),
-		collect: () => navigate({ id, operation: "collect" }, {}, io),
-		discover: () => discover(id, {}, io),
+		show: () => readWork(id, {}, io),
+		collect: () => advance({ id, mode: "results" }, {}, io),
+		discover: () => readWork(id, {}, io),
 	};
 	try {
 		await inspections[operation]!();

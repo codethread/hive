@@ -9,12 +9,13 @@ import {
 	workflows,
 } from "./data.ts";
 import { Info, RefreshCw, Workflow, X } from "lucide-react";
+import type { Resource, WorkflowSnapshot } from "./data.ts";
 import { useEffect, useRef } from "react";
 import { Button } from "./primitives.tsx";
-import type { Resource } from "./data.ts";
 import { ResourceNotice } from "./ui.tsx";
 import { WorkflowDiagram } from "./workflow-diagram.tsx";
 import type { WorkflowInspection } from "../contracts.ts";
+import { WorkflowLifecycleBanner } from "./workflow-lifecycle.tsx";
 import { pollVisibleWorkflow } from "./workflow-polling.ts";
 import { useParams } from "@tanstack/react-router";
 import { useStore } from "zustand";
@@ -81,7 +82,8 @@ function OpenWorkflowDialog({
 		workflows.store,
 		(state) => state.entries[`${colonyId}/${id}`] ?? EMPTY,
 	);
-	const preview = snapshot(resource);
+	const view = snapshot(resource);
+	const preview = view === null ? null : snapshot(view.diagram);
 	useEffect(
 		() =>
 			pollVisibleWorkflow((conditional) => loadWorkflow(colonyId, id, conditional), {
@@ -134,7 +136,7 @@ function OpenWorkflowDialog({
 							<h3 title={preview === null ? id : preview.title}>
 								{preview === null ? "Workflow preview" : preview.title}
 							</h3>
-							<span className="workflow-run-id">{preview === null ? id : preview.runId}</span>
+							<span className="workflow-run-id">{view === null ? id : view.native.runId}</span>
 							{preview !== null && (
 								<span className="workflow-current-state" title="Current saved state">
 									<span className="workflow-status-dot" />
@@ -202,15 +204,34 @@ function WorkflowContent({
 	theme,
 }: {
 	source: string;
-	resource: Resource<WorkflowInspection>;
+	resource: Resource<WorkflowSnapshot>;
 	colony: string;
 	theme: "light" | "dark";
 }) {
-	const preview = snapshot(resource);
+	const view = snapshot(resource);
+	const preview = view === null ? null : snapshot(view.diagram);
 	return (
 		<>
-			<ResourceNotice resource={resource} source={source} label="Workflow" />
-			{preview !== null && <WorkflowDiagram inspection={preview} colony={colony} theme={theme} />}
+			{view !== null && resource.kind === "failed" && (
+				<output className="block px-3 pt-3 text-sm text-muted">
+					Showing last-known native facts.
+				</output>
+			)}
+			{view !== null && <WorkflowLifecycleBanner inspection={view.native} colony={colony} />}
+			<ResourceNotice resource={resource} source={source} label="Lifecycle" />
+			{view?.diagram.kind === "failed" && (
+				<p role="alert" className="p-3 text-sm text-alert">
+					Diagram unavailable. {preview !== null && "Showing the last saved diagram. "}
+					{view.diagram.message}
+				</p>
+			)}
+			{view === null
+				? resource.kind !== "failed" && (
+						<output className="p-6 text-sm text-muted">Reading workflow lifecycle…</output>
+					)
+				: preview !== null && (
+						<WorkflowDiagram inspection={preview} colony={colony} theme={theme} />
+					)}
 		</>
 	);
 }

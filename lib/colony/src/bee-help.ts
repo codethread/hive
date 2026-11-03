@@ -157,7 +157,7 @@ strings clear them. Keep assignments in workflow input. Model/effort/harness
 options override execution defaults; human ownership comes from configuration.
 
 Retain request.id for status/result (see bee result --help) and workflow.runId for
-busybee show. Submission is separate from execution and workflow completion.
+busybee inspect. Submission is separate from execution and workflow completion.
 
 Partial failures retain confirmed IDs and publication uncertainty. Inspect incoming
 request links before recovery. Attach a confirmed orphan with bee attach-workflow

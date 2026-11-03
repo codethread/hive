@@ -27,7 +27,12 @@ import { submitFinish } from "../src/launch.ts";
 import { workflowCommands } from "../src/workflows.ts";
 
 const USER_ARGUMENTS_START = 2;
-const tracker = { beads: createNativeBeads(), resolveRepository, loadBeesConfig };
+const tracker = {
+	beads: createNativeBeads(),
+	resolveRepository,
+	loadBeesConfig,
+	workflows: workflowCommands({ execute: (argv, cwd) => execute(argv, cwd, process.env) }),
+};
 const setupFiles = {
 	checkouts: setupCheckouts,
 	read: async (path: string) => {
@@ -44,7 +49,6 @@ const setupFiles = {
 const submission = {
 	...tracker,
 	cwd: process.cwd(),
-	workflows: workflowCommands({ execute: (argv, cwd) => execute(argv, cwd, process.env) }),
 	executionDirectory: async (directory: string) => {
 		const path = await realpath(directory);
 		const info = await stat(path);

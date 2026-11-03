@@ -136,6 +136,8 @@ export const machine = setup({
 				task: ({ context }: { context: Context }) => ({
 					title: `Update local tools: ${targetTitle(context)}`,
 					instructions:
+						"For breaking workflow-control updates, follow " +
+						"beeswax skills file repository-setup references/workflow-adoption.md before installation.\n" +
 						`1. From clean synchronized main in ${context.canonicalRoot}, run bun install --frozen-lockfile, ` +
 						"then bun run --filter '*' build; install with bun run --filter '*' install:bin " +
 						"only after every build succeeds.\n" +

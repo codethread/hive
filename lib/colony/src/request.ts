@@ -20,12 +20,14 @@ import type { Bead } from "@hive/beads";
 import type { OperationEvidence } from "./history.ts";
 import type { Store } from "./store.ts";
 import type { TrackerContext } from "./tracker.ts";
+import type { WorkflowCompletion } from "./workflow-anchor.ts";
 /* eslint-disable-next-line import/no-nodejs-modules --
  * Durable checkpoints retain authority only on their requesting host.
  */
 import { hostname } from "node:os";
 import { publishRequestLabels } from "./requests.ts";
 import { readFinishReport } from "./launch.ts";
+import { readWorkflowCompletion } from "./workflow-anchor.ts";
 import { trackerScope } from "./tracker.ts";
 import { z } from "zod";
 
@@ -66,7 +68,6 @@ export type RequestEvent =
 	| { type: "WAIT"; message: string }
 	| { type: "INTEND"; id: string }
 	| { type: "ACQUIRED"; id: string }
-	| { type: "SKIP" }
 	| { type: "START"; id: string }
 	| { type: "SETTLE"; outcome: RequestContext["outcome"]; message: string }
 	| { type: "RELEASED" }
@@ -106,7 +107,6 @@ const machine = setup({
 					}),
 					target: "settling",
 				},
-				SKIP: { actions: assign({ pendingClaim: null }) },
 				START: {
 					actions: assign({
 						attemptId: ({ event }) => event.id,
@@ -294,11 +294,27 @@ async function acquireRequest(
 	if (request.host !== hostname()) {
 		throw new Error(`Request ${saved.id} is not bound to this host`);
 	}
+	await readWorkflowCompletion(runtime, saved.assignment, saved.context.identity);
 	let record = store.advanceRequest(repository.root, saved, { type: "READY" });
 	for (const id of record.context.taskIds) {
 		record = store.advanceRequest(repository.root, record, { id, type: "INTEND" });
 		// eslint-disable-next-line no-await-in-loop -- Persist each acquisition before the next task can be claimed.
-		const outcome = await acquireClaim(runtime, record.context.identity, id, evidence);
+		const outcome = await acquireClaim(
+			runtime,
+			{ identity: record.context.identity, assignment: record.assignment },
+			id,
+			evidence,
+		);
+		if (typeof outcome !== "string") {
+			record = store.advanceRequest(repository.root, record, {
+				message: outcome.message,
+				outcome: outcome.outcome,
+				type: "SETTLE",
+			});
+			// eslint-disable-next-line no-await-in-loop -- A terminal anchor ends acquisition before process reservation.
+			await finishSettlement(runtime, record, evidence);
+			return null;
+		}
 		if (outcome === "conflict") {
 			record = store.advanceRequest(repository.root, record, {
 				message: `Task ${id} changed reservation during acquisition`,
@@ -311,23 +327,7 @@ async function acquireRequest(
 			await finishSettlement(runtime, record, evidence);
 			return null;
 		}
-		/* eslint-disable-next-line unicorn/prefer-ternary --
-		 * Explicit machine events keep claim and closed-task paths visible.
-		 */
-		if (outcome === "claimed") {
-			record = store.advanceRequest(repository.root, record, { id, type: "ACQUIRED" });
-		} else {
-			record = store.advanceRequest(repository.root, record, { type: "SKIP" });
-		}
-	}
-	if (record.context.claims.length === ZERO) {
-		record = store.advanceRequest(repository.root, record, {
-			message: "All related tasks closed during acquisition",
-			outcome: "completed",
-			type: "SETTLE",
-		});
-		await finishSettlement(runtime, record, evidence);
-		return null;
+		record = store.advanceRequest(repository.root, record, { id, type: "ACQUIRED" });
 	}
 	return record;
 }
@@ -395,6 +395,14 @@ async function reconcileRequest(
 					),
 				);
 				const unfinished = tasks.filter(({ status }) => status !== "closed");
+				let completion: WorkflowCompletion | undefined = undefined;
+				if (report?.outcome !== "blocked") {
+					completion = await readWorkflowCompletion(
+						runtime,
+						record.assignment,
+						record.context.identity,
+					);
+				}
 				let outcome: RequestContext["outcome"] = null;
 				let message = "Execution stopped with unfinished work";
 				if (report?.outcome === "blocked") {
@@ -403,9 +411,9 @@ async function reconcileRequest(
 						`Self-report blocked; attempt ${attempt.id}; unfinished tasks: ` +
 						`${unfinished.map(({ id }) => id).join(", ")}; reason: ` +
 						`${report.reason}`;
-				} else if (unfinished.length === ZERO) {
-					outcome = "completed";
-					message = `Execution finished with all tasks closed; attempt ${attempt.id}`;
+				} else if (completion?.kind === "terminal") {
+					({ outcome } = completion);
+					message = `${completion.message}; attempt ${attempt.id}`;
 				} else if (report?.outcome === "success") {
 					message = `Self-report success with unfinished work; attempt ${attempt.id}`;
 				}
@@ -415,26 +423,41 @@ async function reconcileRequest(
 					type: "SETTLE",
 				});
 			} else if (attempt.state === "running") {
+				evidence.step("tracker.show-related", record.id);
+				const completion = await readWorkflowCompletion(
+					runtime,
+					record.assignment,
+					record.context.identity,
+				);
+				if (completion.kind === "terminal" && completion.outcome !== "completed") {
+					record = store.advanceRequest(repository.root, record, {
+						message: completion.message,
+						outcome: completion.outcome,
+						type: "SETTLE",
+					});
+				}
 				evidence.step("stdout.publish", record.id);
 				await publishStdoutActivity(runtime, attempt.receipt);
-				evidence.step("observation.publish", record.id);
-				await publishObservation(
-					runtime,
-					record.id,
-					`running: attempt ${attempt.receipt.attemptNumber}`,
-				);
+				if (record.state === "executing") {
+					evidence.step("observation.publish", record.id);
+					await publishObservation(
+						runtime,
+						record.id,
+						`running: attempt ${attempt.receipt.attemptNumber}`,
+					);
+				}
 			}
 		} else {
 			evidence.step("tracker.show-related", record.id);
-			const tasks = await Promise.all(
-				record.context.taskIds.map((id) =>
-					beads.show(trackerScope(repository, record.context.identity), id),
-				),
+			const completion = await readWorkflowCompletion(
+				runtime,
+				record.assignment,
+				record.context.identity,
 			);
-			if (tasks.length > ZERO && tasks.every(({ status }) => status === "closed")) {
+			if (completion.kind === "terminal") {
 				record = store.advanceRequest(repository.root, record, {
-					message: "All related tasks are closed",
-					outcome: "completed",
+					message: completion.message,
+					outcome: completion.outcome,
 					type: "SETTLE",
 				});
 			}

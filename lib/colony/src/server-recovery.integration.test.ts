@@ -45,6 +45,10 @@ function unexpected(): never {
 	throw new Error("Disabled fixture operation");
 }
 await serve(target, beads, {
+	workflows: { inspect: unexpected },
+	observe: unexpected,
+	host: "fixture",
+	now: unexpected,
 	loadActivity: () =>
 		Promise.resolve({
 			state: "awake",

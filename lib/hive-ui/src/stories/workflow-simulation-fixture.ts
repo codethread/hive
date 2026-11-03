@@ -9,6 +9,7 @@ import {
 	steps,
 } from "./workflow-explorer-data.ts";
 import { commandSchemas, inputSchema, machine } from "../../../../.workflows/land/workflow.ts";
+import { sampleLifecycle, sampleWorkflowView } from "./workflow-lifecycle-fixture.ts";
 import { samplePreview, workflowSamples } from "./workflow-samples.ts";
 import type { LandSnapshot } from "./workflow-explorer-data.ts";
 import type { WorkflowSample } from "./workflow-samples.ts";
@@ -20,7 +21,13 @@ export function workflowHandlers(samples: WorkflowSample[] = workflowSamples) {
 	return [
 		http.get("/api/colonies/:colony/workflow/:id", ({ params }) => {
 			const selected = samples.find((entry) => entry.card.id === params["id"])!;
-			return HttpResponse.json(samplePreview(selected));
+			const preview = samplePreview(selected);
+			const native = sampleLifecycle(preview);
+			native.nativeStatus = selected.card.status;
+			if (selected.card.status === "closed") {
+				native.lifecycle = { kind: "unavailable", reason: "unclassified_closure" };
+			}
+			return HttpResponse.json(sampleWorkflowView(preview, native));
 		}),
 		http.post("/api/colonies/:colony/workflow/:id/simulate", async ({ params, request }) => {
 			try {

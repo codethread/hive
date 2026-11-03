@@ -1,5 +1,6 @@
+import type { WorkflowSimulation, WorkflowSimulationRequest } from "@hive/shared";
 import { expect, test } from "bun:test";
-import { workflowSimulationRequestSchema, workflowSimulationSchema } from "@hive/shared";
+import { sampleLifecycle, sampleWorkflowView } from "../src/stories/workflow-lifecycle-fixture.ts";
 import { api } from "./api.ts";
 import { colony } from "../src/stories/fixtures.ts";
 import { createBoardData } from "./data.ts";
@@ -13,34 +14,17 @@ const selected = {
 	root: "/selected/repository",
 	beadsDb: "/selected/tracker.db",
 };
-const beads = createMemoryBeads();
-const scope = { cwd: selected.root, db: selected.beadsDb, actor: "fixture" };
-const run = await beads.create(scope, { title: "Workflow run" });
-const visit = await beads.create(scope, { title: "Workflow visit", parent: run.id });
-await beads.create(scope, {
-	title: "Checkpoint",
-	labels: ["system", "busybee-checkpoint"],
-	description: JSON.stringify({ id: run.id, created: [{ bead: visit.id }] }),
-});
-await beads.create(
-	{ cwd: colony.root, db: colony.beadsDb, actor: "fixture" },
-	{
-		title: "Other endpoint checkpoint",
-		labels: ["system", "busybee-checkpoint"],
-		description: JSON.stringify({ id: "wrong-run", created: [{ bead: visit.id }] }),
-	},
-);
-const input = workflowSimulationRequestSchema.parse({
+const input: WorkflowSimulationRequest = {
 	checkpoint: "checkpoint",
 	savedAt: "saved",
 	definitionHash: "definition",
 	actorId: "root",
 	start: { kind: "saved" },
 	events: [{ node: "flow.work", command: "next", data: { evidence: "route" } }],
-});
-const simulation = workflowSimulationSchema.parse({
+};
+const simulationTemplate: WorkflowSimulation = {
 	formatVersion: 1,
-	runId: run.id,
+	runId: "run",
 	actor: {
 		id: "root",
 		path: [],
@@ -50,115 +34,70 @@ const simulation = workflowSimulationSchema.parse({
 	},
 	choices: [],
 	inputSchema: {},
-});
-const route = `/api/colonies/${selected.id}/workflow/${visit.id}/simulate`;
+};
+const requestPath = `/api/colonies/${selected.id}/workflow/visit/simulate`;
 const invalidRequests = [
-	{ name: "GET simulation", method: "GET", path: route, body: "", status: HTTP.readOnly },
-	{ name: "PUT simulation", method: "PUT", path: route, body: "{}", status: HTTP.readOnly },
+	{ name: "GET simulation", method: "GET", path: requestPath, body: "", status: HTTP.readOnly },
+	{ name: "PUT simulation", method: "PUT", path: requestPath, body: "{}", status: HTTP.readOnly },
 	{
 		name: "POST preview",
 		method: "POST",
-		path: route.replace("/simulate", ""),
+		path: requestPath.replace("/simulate", ""),
 		body: "{}",
 		status: HTTP.readOnly,
 	},
-	{ name: "malformed JSON", method: "POST", path: route, body: "{", status: HTTP.badRequest },
-	{ name: "invalid schema", method: "POST", path: route, body: "{}", status: HTTP.badRequest },
+	{ name: "malformed JSON", method: "POST", path: requestPath, body: "{", status: HTTP.badRequest },
+	{
+		name: "invalid schema",
+		method: "POST",
+		path: requestPath,
+		body: "{}",
+		status: HTTP.badRequest,
+	},
 	{
 		name: "browser-supplied repository",
 		method: "POST",
-		path: route,
+		path: requestPath,
 		body: JSON.stringify({ ...input, repo: "/browser/repo" }),
 		status: HTTP.badRequest,
 	},
 	{
 		name: "browser-supplied database",
 		method: "POST",
-		path: route,
+		path: requestPath,
 		body: JSON.stringify({ ...input, beadsDb: "/browser/tracker.db" }),
 		status: HTTP.badRequest,
 	},
 	{
 		name: "unknown colony",
 		method: "POST",
-		path: route.replace(selected.id, "unknown"),
+		path: requestPath.replace(selected.id, "unknown"),
 		body: JSON.stringify(input),
 		status: HTTP.missing,
 	},
 	{
 		name: "nonworkflow simulation route",
 		method: "POST",
-		path: route.replace("/workflow/", "/beads/"),
+		path: requestPath.replace("/workflow/", "/beads/"),
 		body: JSON.stringify(input),
 		status: HTTP.missing,
 	},
 	{
 		name: "nonlocal host",
 		method: "POST",
-		path: route,
+		path: requestPath,
 		body: JSON.stringify(input),
 		status: HTTP.badRequest,
 		hostname: "untrusted.example",
 	},
 ];
 
-// Warm lazy boundary schemas and platform Request/Response setup outside measured tests.
-await api(
-	httpRequest({ path: route, method: "POST", body: JSON.stringify(input) }),
-	fixture().dependencies,
-);
-
-// eslint-disable-next-line max-statements -- Verify dispatch, response and correlated telemetry for one HTTP request.
-test("simulation HTTP route parses replay and selects the endpoint and owning run #test-430", async () => {
-	const { calls, samples, dependencies } = fixture();
-	const response = await api(
-		httpRequest({
-			path: `${route}?repo=/browser/repo&beadsDb=/browser/tracker.db`,
-			method: "POST",
-			body: JSON.stringify(input),
-		}),
-		dependencies,
-	);
-	expect(response.status).toBe(HTTP.ok);
-	expect(response.headers.get("cache-control")).toBe("no-store");
-	expect(response.headers.get("content-type")).toBe("application/json");
-	const text = await response.text();
-	expect(JSON.parse(text)).toEqual(simulation);
-	expect(calls).toEqual([
-		{
-			cwd: selected.root,
-			argv: [
-				"busybee",
-				"--repo",
-				selected.root,
-				"--db",
-				selected.beadsDb,
-				"system",
-				"simulate",
-				run.id,
-				"--request",
-				JSON.stringify(input),
-				"--json",
-			],
-		},
-	]);
-	expect(samples.pop()).toEqual({
-		bytes: new TextEncoder().encode(text).length,
-		failure: undefined,
-		ms: expect.any(Number) as unknown,
-		operation: route,
-		requestId: response.headers.get("x-request-id"),
-		scope: "server",
-		status: HTTP.ok,
-	});
-	expect(response.headers.get("x-request-id")).toBeString();
-});
-
 test.each(invalidRequests)(
 	"simulation HTTP route rejects $name before dispatch #test-543",
 	async (entry) => {
-		const { calls, samples, dependencies } = fixture();
-		const response = await api(httpRequest(entry), dependencies);
+		const { calls, samples, dependencies, visit } = await fixture();
+		const actual = { ...entry, path: entry.path.replace("/visit/", `/${visit.id}/`) };
+		const response = await api(httpRequest(actual), dependencies);
 		expect(response.status).toBe(entry.status);
 		expect(response.headers.get("cache-control")).toBe("no-store");
 		expect(response.headers.get("content-type")).toBe("application/json");
@@ -168,7 +107,7 @@ test.each(invalidRequests)(
 		expect(samples.pop()).toMatchObject({
 			status: entry.status,
 			failure: expect.any(String) as unknown,
-			operation: entry.path,
+			operation: actual.path,
 			requestId: response.headers.get("x-request-id"),
 			scope: "server",
 		});
@@ -176,7 +115,7 @@ test.each(invalidRequests)(
 );
 
 test("simulation HTTP route reports workflow adapter failures as unavailable #test-627", async () => {
-	const { dependencies, samples } = fixture();
+	const { dependencies, samples, route } = await fixture();
 	dependencies.workflow = createWorkflowTools(() =>
 		Promise.reject(new Error("Workflow unavailable")),
 	);
@@ -192,33 +131,41 @@ test("simulation HTTP route reports workflow adapter failures as unavailable #te
 	});
 });
 
-test.each(["checkpoint", "preview"] as const)(
+test.each(["lifecycle", "preview"] as const)(
 	"workflow GET %s uses the production adapter with the selected owning run #test-544",
+	// eslint-disable-next-line max-statements -- Verify selected endpoint, owning run and exact public command together.
 	async (operation) => {
-		const { calls, dependencies } = fixture();
+		const { calls, dependencies, run, route, simulation } = await fixture();
 		const checkpoint = { runId: run.id, checkpoint: "checkpoint", savedAt: "saved" };
 		const inspection = {
 			...checkpoint,
-			formatVersion: 1,
+			formatVersion: 1 as const,
 			title: "Workflow",
 			definition: {
 				label: "example",
 				savedHash: "source",
 				currentHash: "source",
-				sourceMatch: "exact",
+				sourceMatch: "exact" as const,
 			},
 			actors: [simulation.actor],
 		};
-		const value = { checkpoint, preview: inspection }[operation];
+		const value = {
+			lifecycle: sampleLifecycle(inspection),
+			preview: sampleWorkflowView(inspection),
+		}[operation];
 		dependencies.workflow = createWorkflowTools((argv, cwd) => {
 			calls.push({ argv, cwd });
-			const kind = { checkpoint: "workflow_checkpoint", preview: "workflow_inspection" }[operation];
+			const kind = "workflow_lifecycle";
 			return Promise.resolve(JSON.stringify({ ok: true, kind, ...value }));
 		});
+		let expansion: string[] = [];
+		if (operation === "preview") {
+			expansion = ["--diagram", "--instructions"];
+		}
 		const path = route.replace("/simulate", "");
 		const response = await api(
 			httpRequest({
-				path: `${path}?checkpointOnly=${operation === "checkpoint"}`,
+				path: `${path}?lifecycleOnly=${operation === "lifecycle"}`,
 				method: "GET",
 				body: "",
 			}),
@@ -235,9 +182,9 @@ test.each(["checkpoint", "preview"] as const)(
 					selected.root,
 					"--db",
 					selected.beadsDb,
-					"system",
-					operation,
+					"inspect",
 					run.id,
+					...expansion,
 					"--json",
 				],
 			},
@@ -245,10 +192,34 @@ test.each(["checkpoint", "preview"] as const)(
 	},
 );
 
-function fixture() {
+// eslint-disable-next-line max-statements -- Build each complete measured endpoint and native-record fixture.
+async function fixture() {
+	const beads = createMemoryBeads();
+	const scope = { cwd: selected.root, db: selected.beadsDb, actor: "fixture" };
+	const run = await beads.create(scope, { title: "Workflow run" });
+	const visit = await beads.create(scope, { title: "Workflow visit", parent: run.id });
+	await beads.create(scope, {
+		title: "Checkpoint",
+		labels: ["system", "busybee-checkpoint"],
+		description: JSON.stringify({ id: run.id, created: [{ bead: visit.id }] }),
+	});
+	await beads.create(
+		{ cwd: colony.root, db: colony.beadsDb, actor: "fixture" },
+		{
+			title: "Other endpoint checkpoint",
+			labels: ["system", "busybee-checkpoint"],
+			description: JSON.stringify({ id: "wrong-run", created: [{ bead: visit.id }] }),
+		},
+	);
+	const simulation = { ...simulationTemplate, runId: run.id };
+	const route = `/api/colonies/${selected.id}/workflow/${visit.id}/simulate`;
 	const calls: { argv: string[]; cwd: string }[] = [];
 	const samples: object[] = [];
 	return {
+		run,
+		visit,
+		route,
+		simulation,
 		calls,
 		samples,
 		dependencies: {

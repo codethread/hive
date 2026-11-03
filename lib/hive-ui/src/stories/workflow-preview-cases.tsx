@@ -18,6 +18,7 @@ import type { ExampleWorkflow } from "./workflow-examples.ts";
 import { WorkflowExamples } from "./workflow-example-view.tsx";
 import { WorkflowExplorer } from "./workflow-explorer.tsx";
 import { WorkflowIndicator } from "../workflow-preview.tsx";
+import { sampleWorkflowView } from "./workflow-lifecycle-fixture.ts";
 import { workflowSimulationRequestSchema } from "../../contracts.ts";
 
 export type PreviewArgs = ComponentProps<typeof WorkflowIndicator> & { workflow: ExampleWorkflow };
@@ -276,7 +277,7 @@ function recoveryHandlers() {
 		handlers: [
 			http.get("/api/colonies/:colony/workflow/:id", ({ request }) => {
 				const preview = samplePreview(workflowSamples[0]!);
-				if (new URL(request.url).searchParams.get("checkpointOnly") !== "true") {
+				if (new URL(request.url).searchParams.get("lifecycleOnly") !== "true") {
 					reads += 1;
 				}
 				if (reads === FAILED_READ) {
@@ -286,7 +287,7 @@ function recoveryHandlers() {
 					preview.savedAt = "2026-10-17T15:00:00Z";
 					preview.actors[0]!.snapshot.value = "review";
 				}
-				return HttpResponse.json(preview);
+				return HttpResponse.json(sampleWorkflowView(preview));
 			}),
 		],
 	};
@@ -339,7 +340,7 @@ function retirementHandlers() {
 				} else {
 					preview.savedAt = "2026-10-17T15:00:00Z";
 				}
-				return HttpResponse.json(preview);
+				return HttpResponse.json(sampleWorkflowView(preview));
 			}),
 			http.post("/api/colonies/:colony/workflow/:id/simulate", async ({ request }) => {
 				const body = workflowSimulationRequestSchema.parse(await request.json());
@@ -362,20 +363,22 @@ function pollingHandlers() {
 		handlers: [
 			http.get("/api/colonies/:colony/workflow/:id", ({ request }) => {
 				const original = samplePreview(workflowSamples[0]!);
-				if (new URL(request.url).searchParams.get("checkpointOnly") === "true") {
+				if (new URL(request.url).searchParams.get("lifecycleOnly") === "true") {
 					changed = true;
 				}
 				if (!changed) {
-					return HttpResponse.json(original);
+					return HttpResponse.json(sampleWorkflowView(original));
 				}
-				return HttpResponse.json({
-					...original,
-					savedAt: "2026-10-17T15:00:00Z",
-					actors: original.actors.map((actor) => ({
-						...actor,
-						snapshot: { value: "review", status: "active" },
-					})),
-				});
+				return HttpResponse.json(
+					sampleWorkflowView({
+						...original,
+						savedAt: "2026-10-17T15:00:00Z",
+						actors: original.actors.map((actor) => ({
+							...actor,
+							snapshot: { value: "review", status: "active" },
+						})),
+					}),
+				);
 			}),
 		],
 	};

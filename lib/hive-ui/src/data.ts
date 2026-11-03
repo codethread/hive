@@ -18,9 +18,9 @@ import {
 	inventoryKey,
 	provenanceSchema,
 	requestInventorySchema,
-	workflowCheckpointSchema,
-	workflowInspectionSchema,
+	workflowLifecycleSchema,
 	workflowSimulationSchema,
+	workflowViewSchema,
 } from "../contracts.ts";
 import type {
 	BoardFilter,
@@ -30,9 +30,10 @@ import type {
 	Hierarchy,
 	InventoryFilter,
 	Navigation,
-	WorkflowCheckpoint,
 	WorkflowInspection,
+	WorkflowLifecycle,
 	WorkflowSimulationRequest,
+	WorkflowView,
 } from "../contracts.ts";
 import { beadFamilies } from "../hierarchy.ts";
 import { createStore } from "zustand/vanilla";
@@ -40,8 +41,8 @@ import type { z } from "zod";
 
 const CACHE_MS = 10_000;
 const workflowReads = {
-	inspect: (path: string) => request(path, workflowInspectionSchema),
-	checkpoint: (path: string) => request(`${path}?checkpointOnly=true`, workflowCheckpointSchema),
+	inspect: (path: string) => request(path, workflowViewSchema),
+	lifecycle: (path: string) => request(`${path}?lifecycleOnly=true`, workflowLifecycleSchema),
 };
 let lastLoadKeys = { page: "", bead: "", ancestry: "" };
 export type Resource<Value> =
@@ -51,6 +52,12 @@ export type Resource<Value> =
 	| { kind: "stale"; data: Value }
 	| { kind: "failed"; previous: Value | null; message: string };
 export const EMPTY = { kind: "empty" } as const;
+export interface WorkflowSnapshot {
+	/** Latest successful native read, independent of graph expansion and simulation. */
+	native: WorkflowLifecycle;
+	/** Current diagram read, retaining the last display snapshot on expansion failure. */
+	diagram: Resource<WorkflowInspection>;
+}
 interface ResourceState<Value> {
 	/** One snapshot per exact colony/resource/filter key. */
 	entries: Record<string, Resource<Value>>;
@@ -88,7 +95,7 @@ export const preferences = createStore<Preferences>(() => ({
 	views: {},
 }));
 
-/** Open/manual reads inspect unconditionally; automatic polls check the checkpoint first. */
+/** Open/manual reads inspect unconditionally; automatic polls read native lifecycle first. */
 export function loadWorkflow(colony: string, id: string, conditional = false): Promise<void> {
 	return workflows.load(
 		`${colony}/${id}`,
@@ -100,16 +107,16 @@ export function loadWorkflow(colony: string, id: string, conditional = false): P
 /** Workflow reads coalesce and keep the displayed snapshot during background refresh. */
 export function createWorkflowResource(
 	read: {
-		inspect: (path: string) => Promise<WorkflowInspection>;
-		checkpoint: (path: string) => Promise<WorkflowCheckpoint>;
+		inspect: (path: string) => Promise<WorkflowView>;
+		lifecycle: (path: string) => Promise<WorkflowLifecycle>;
 	} = workflowReads,
 ) {
-	const store = createStore<ResourceState<WorkflowInspection>>(() => ({ entries: {} }));
+	const store = createStore<ResourceState<WorkflowSnapshot>>(() => ({ entries: {} }));
 	const pending = new Map<string, { work: Promise<void>; selection: { full: boolean } }>();
-	const put = (key: string, value: Resource<WorkflowInspection>) => {
+	const put = (key: string, value: Resource<WorkflowSnapshot>) => {
 		store.setState((state) => ({ entries: { ...state.entries, [key]: value } }));
 	};
-	// eslint-disable-next-line max-statements -- Own coalescing, checkpoint checks and snapshot retention.
+	// eslint-disable-next-line max-statements -- Own coalescing, native freshness and snapshot retention.
 	const load = (key: string, path: string, conditional = false): Promise<void> => {
 		const active = pending.get(key);
 		if (active) {
@@ -122,22 +129,36 @@ export function createWorkflowResource(
 		if (saved === null) {
 			put(key, { kind: "loading", previous: null });
 		}
-		// eslint-disable-next-line max-statements -- Keep checkpoint comparison and recovery within one read.
+		// eslint-disable-next-line max-statements -- Keep lifecycle refresh and diagram recovery within one read.
 		const refresh = async () => {
+			let data = saved;
 			try {
-				let data = saved;
 				if (!selection.full && saved !== null) {
-					const checkpoint = await read.checkpoint(path);
+					const native = await read.lifecycle(path);
 					if (
-						checkpoint.runId !== saved.runId ||
-						checkpoint.checkpoint !== saved.checkpoint ||
-						checkpoint.savedAt !== saved.savedAt
+						native.runId !== saved.native.runId ||
+						native.publication.checkpoint !== saved.native.publication.checkpoint ||
+						native.publication.savedAt !== saved.native.publication.savedAt ||
+						saved.diagram.kind === "failed"
 					) {
 						selection.full = true;
 					}
+					if (JSON.stringify(native) !== JSON.stringify(saved.native)) {
+						data = { native, diagram: saved.diagram };
+						put(key, { kind: "ready", data, receivedAt: Date.now() });
+					}
 				}
 				if (selection.full || saved === null) {
-					data = await read.inspect(path);
+					const { diagram, ...native } = await read.inspect(path);
+					const graph: Resource<WorkflowInspection> =
+						diagram.kind === "available"
+							? { kind: "ready", data: diagram.data, receivedAt: Date.now() }
+							: {
+									kind: "failed",
+									message: diagram.message,
+									previous: saved === null ? null : snapshot(saved.diagram),
+								};
+					data = { native, diagram: graph };
 				}
 				if (data !== saved || previous.kind !== "ready") {
 					put(key, { kind: "ready", data: data!, receivedAt: Date.now() });
@@ -145,7 +166,7 @@ export function createWorkflowResource(
 			} catch (error) {
 				put(key, {
 					kind: "failed",
-					previous: saved,
+					previous: data,
 					message: error instanceof Error ? error.message : String(error),
 				});
 			} finally {

@@ -1,5 +1,11 @@
 import type { BeadRecord, BeadsScope, BeadsService, UpdateBead } from "@hive/beads";
 import { CommandError, createNativeBeads } from "@hive/beads";
+import type {
+	ExecutionClearance,
+	ExecutionClearanceSelection,
+	WorkflowClosure,
+} from "@hive/shared";
+import { execute as executeProcess, executionClearanceSchema } from "@hive/shared";
 // eslint-disable-next-line import/no-nodejs-modules -- Filesystem access is injected at this native adapter.
 import { mkdir, readdir, stat, writeFile } from "node:fs/promises";
 import defaultManifest from "../../../.workflows/do-work/busybee.toml" with { type: "text" };
@@ -8,13 +14,13 @@ import defaultManifest from "../../../.workflows/do-work/busybee.toml" with { ty
 // eslint-disable-next-line import/default
 import defaultSource from "../../../.workflows/do-work/workflow.ts" with { type: "text" };
 import { dependencies } from "../package.json";
-import { execute as executeProcess } from "@hive/shared";
 // eslint-disable-next-line import/no-nodejs-modules -- Author modules are trusted and loaded at the I/O seam.
 import { pathToFileURL } from "node:url";
 // eslint-disable-next-line import/no-nodejs-modules -- Lock identities are generated at the native boundary.
 import { randomUUID } from "node:crypto";
 // eslint-disable-next-line import/no-nodejs-modules -- Resolve caller-selected execution paths.
 import { resolve } from "node:path";
+import { z } from "zod";
 
 const CONFLICT = 6;
 const INDENT = 2;
@@ -70,6 +76,11 @@ export interface Services {
 	pid: number;
 	/** Captured native output; errors retain command exit status. */
 	execute: (argv: string[], cwd: string) => Promise<string>;
+	/** Owning Colony observes the full run inventory through its public command. */
+	executionClearance: (
+		selection: ExecutionClearanceSelection,
+		endpoint: Endpoint,
+	) => Promise<ExecutionClearance>;
 	/** Trusted author module loading. */
 	importModule: (source: string) => Promise<unknown>;
 	/** Ordinary package resolution from an authoring directory; missing packages return false. */
@@ -120,6 +131,30 @@ export function createServices(): Services {
 		canResolve: canResolvePackage,
 		cwd: process.cwd(),
 		execute: (argv, cwd) => executeProcess(argv, cwd, process.env),
+		executionClearance: async (selection, endpoint) => {
+			const output = await executeProcess(
+				[
+					"colony",
+					"system",
+					"execution-clearance",
+					selection.runId,
+					"--anchors",
+					JSON.stringify(selection.anchorIds),
+					"--repo",
+					endpoint.repo,
+					"--beads-db",
+					endpoint.db,
+					"--json",
+				],
+				endpoint.repo,
+				process.env,
+			);
+			const document: unknown = JSON.parse(output);
+			const { ok: _ok, ...observation } = executionClearanceSchema
+				.extend({ ok: z.literal(true) })
+				.parse(document);
+			return observation;
+		},
 		importModule: (source) => import(pathToFileURL(source).href) as Promise<unknown>,
 		installWorkflow: installWorkflowFiles,
 		isFile: async (path) => {
@@ -208,16 +243,30 @@ export async function createTask(
 
 export async function closeTask(
 	endpoint: MutationEndpoint,
-	id: string,
+	closure: { id: string; fact: WorkflowClosure },
 	services: Services,
 ): Promise<void> {
+	const { id, fact } = closure;
 	const task = await readBead(endpoint, id, services);
 	if (task.status !== "closed") {
-		services.beforeWrite();
-		await services.beads.close({ actor: endpoint.actor, cwd: endpoint.repo, db: endpoint.db }, id, {
-			reason: "Completed: XState step finished.",
-		});
+		await closeObservedTask({ endpoint, task, fact }, services);
 	}
+}
+
+/** Close a freshly inspected task through ordinary native policy; native close has no revision condition. */
+export async function closeObservedTask(
+	input: { endpoint: MutationEndpoint; task: BeadRecord; fact: WorkflowClosure },
+	services: Services,
+): Promise<void> {
+	const { endpoint, task, fact } = input;
+	services.beforeWrite();
+	await services.beads.close(
+		{ actor: endpoint.actor, cwd: endpoint.repo, db: endpoint.db },
+		task.id,
+		{
+			reason: JSON.stringify(fact),
+		},
+	);
 }
 
 export async function conditionalUpdate(

@@ -27,6 +27,6 @@ bee spawn worker --parent EXISTING_WORK_ID --source lib/busybee/examples/bee-dri
 { "worktree": "/path/to/checkout", "request": "The caller assignment" }
 ```
 
-Source and input paths resolve in the submitting directory. `--cwd` supplies execution and catalogue discovery; workflow input remains separate schema data. Initial submission also returns `workflow.parentId`. Inspect `request.id` with `bee status`, and `workflow.runId` with `busybee show` and `discover`. Busy Bee owns run closure. See [Bee submission](../../../colony/README.md#create-requests) for retries, same-run attachment, Bee-dispatched workers and partial effects.
+Source and input paths resolve in the submitting directory. `--cwd` supplies execution and catalogue discovery; workflow input remains separate schema data. Initial submission also returns `workflow.parentId`. Inspect `request.id` with `bee status`, and `workflow.runId` with `busybee inspect --work`. Busy Bee owns run closure. See [Bee submission](../../../colony/README.md#create-requests) for retries, same-run attachment, Bee-dispatched workers and partial effects.
 
-Follow the [completion and collection flow](../../README.md#delegate-a-workflow-to-bee) for worker delivery and driver progression.
+Follow the [completion and advancement flow](../../README.md#delegate-a-workflow-to-bee) for worker delivery and driver progression.

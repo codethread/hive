@@ -7,6 +7,7 @@ import publication from "../skills/repository-setup/references/publication.md" w
 import recovery from "../skills/tracker-recovery/SKILL.md" with { type: "text" };
 import setup from "../skills/repository-setup/SKILL.md" with { type: "text" };
 import setupMigration from "../skills/repository-setup/references/setup-migration.md" with { type: "text" };
+import workflowAdoption from "../skills/repository-setup/references/workflow-adoption.md" with { type: "text" };
 
 /** Embed setup and recovery guidance in the standalone executable. */
 export function createBundledSkills(): SkillProvider {
@@ -26,6 +27,7 @@ export function createBundledSkills(): SkillProvider {
 					"references/publication.md",
 					"references/hook-migration.md",
 					"references/setup-migration.md",
+					"references/workflow-adoption.md",
 				],
 			},
 			{
@@ -40,6 +42,7 @@ export function createBundledSkills(): SkillProvider {
 				"references/publication.md": publication,
 				"references/hook-migration.md": migration,
 				"references/setup-migration.md": setupMigration,
+				"references/workflow-adoption.md": workflowAdoption,
 			},
 			[parsedRecovery.data.name]: {
 				"references/manual-recovery.md": manualRecovery,

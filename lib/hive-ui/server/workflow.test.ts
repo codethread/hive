@@ -56,25 +56,35 @@ test("simulation adapter pins the selected endpoint and passes replay as one JSO
 	]);
 });
 
-test("simulation adapter retains the CLI failure as its cause and rejects malformed success", async () => {
-	const failure = new CommandError("busybee", {
-		code: 1,
-		stdout: JSON.stringify({
-			ok: false,
-			reason: "simulation_stale_baseline",
-			message: "Refresh the workflow",
-		}),
-		stderr: "",
-	});
-	const failed = createWorkflowTools(() => Promise.reject(failure));
-	const result = await failed.simulate(colony, "run", request).catch((error: unknown) => error);
-	expect(result).toBeInstanceOf(Error);
-	expect(result).toMatchObject({ cause: failure });
-	const malformed = createWorkflowTools(() =>
-		Promise.resolve(JSON.stringify({ ok: true, kind: "workflow_simulation" })),
-	);
-	const rejected = await malformed
-		.simulate(colony, "run", request)
-		.catch((error: unknown) => error);
-	expect(rejected).toBeInstanceOf(Error);
-});
+test.each(["simulation", "preview", "lifecycle"])(
+	"%s adapter retains native failures and rejects malformed success",
+	async (operation) => {
+		const failure = new CommandError("busybee", {
+			code: 1,
+			stdout: JSON.stringify({
+				ok: false,
+				reason: "simulation_stale_baseline",
+				message: "Refresh the workflow",
+			}),
+			stderr: "",
+		});
+		const failed = createWorkflowTools(() => Promise.reject(failure));
+		const read = (tools: ReturnType<typeof createWorkflowTools>) => {
+			if (operation === "preview") {
+				return tools.preview(colony, "run");
+			}
+			if (operation === "lifecycle") {
+				return tools.lifecycle(colony, "run");
+			}
+			return tools.simulate(colony, "run", request);
+		};
+		const result = await read(failed).catch((error: unknown) => error);
+		expect(result).toBeInstanceOf(Error);
+		expect(result).toMatchObject({ cause: failure });
+		const malformed = createWorkflowTools(() =>
+			Promise.resolve(JSON.stringify({ ok: true, kind: "workflow_simulation" })),
+		);
+		const rejected = await read(malformed).catch((error: unknown) => error);
+		expect(rejected).toBeInstanceOf(Error);
+	},
+);

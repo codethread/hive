@@ -129,6 +129,7 @@ async function invoke(command: string, args: string[]) {
 		config: unexpected,
 		dispatchStage: unexpected,
 		events: unexpected,
+		executionClearance: unexpected,
 		explain: unexpected,
 		finish: unexpected,
 		init: unexpected,

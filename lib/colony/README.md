@@ -28,6 +28,8 @@ Users open direct conversations with `bee run KIND`; agents delegate through `be
 
 Use `bee spawn --help` to select a task-appropriate workflow, supply its input and choose execution settings. It also covers partial-submission recovery. Submission creates `original work -> workflow run -> stages`; the original parent's claim and completion remain separate. Drivers coordinate runs; dispatched workers execute stages. [Busy Bee](../busybee/README.md#delegate-a-workflow-to-bee) owns progression and group/run closure.
 
+Colony consumes Busy Bee's public `inspect`, `inspect --work` and `advance --prepare-driver` operations for lifecycle, attachment and admission. Driver instructions use `inspect --work`, `complete` and `advance`; admission preparation leaves saved results for the driver.
+
 Bee adds [delivery guidance](../../docs/agents/responses.md#runtime-guidance) at launch. Captured recipes retain the original role; receipts retain the actual invocation. The [spawn contract](../../docs/agents/spawn-requests.md#facts-and-authority) owns host binding and native lifecycle authority.
 
 ## Kind files
@@ -62,7 +64,7 @@ Use `colony --help` for membership and daemon commands, then focused help for re
 
 `daemon stop` stops the selected server and pauses all its colonies. Detached workers survive sleep, removal and daemon stop; use repository sleep to pause one colony while keeping the others awake.
 
-For native startup prerequisites, an installed runtime update, or resuming an interrupted restart, follow `colony daemon restart --help`. Its default retry finishes a recorded replacement in place; `--replace-retained` explicitly selects one additional replacement within the same unfinished restart. The help owns admission, retained phases, retry limitations and the result contract; retain the selected state/socket throughout.
+Before a coordinated Busy Bee/Bee/Colony cutover, follow [workflow tool adoption](../beeswax/README.md#workflow-tool-adoption). For native startup prerequisites, an installed runtime update, or resuming an interrupted restart, follow `colony daemon restart --help`. Its default retry finishes a recorded replacement in place; `--replace-retained` explicitly selects one additional replacement within the same unfinished restart. The help owns admission, retained phases, retry limitations and the result contract; retain the selected state/socket throughout.
 
 Native service registration carries the caller's explicit `PATH`, `CODEX_HOME`, `XDG_CONFIG_HOME`, `XDG_DATA_HOME`, `XDG_CACHE_HOME` and `XDG_STATE_HOME` values into launchd or systemd. These select tool and configuration locations, including where a harness reads its existing authentication. Registration copies neither credential files nor arbitrary session/attempt environment. After changing these paths, deliberately restart the selected daemon from an environment containing the intended values; an already-running daemon keeps its previous environment.
 
@@ -114,6 +116,8 @@ Foreground `daemon serve --json` emits its result when the server exits. Check r
 
 The captured execution directory defaults to the canonical worktree. Selecting another directory changes execution only; configuration and tracker authority remain tied to the selected repository.
 
+Manual launch records a request marker before its final workflow admission check. The [execution-clearance contract](../../docs/architecture.md#workflow-settlement-and-execution-clearance) refuses that marked scope because daemon history cannot prove the manual execution stopped. Use `colony system execution-clearance --help` for the public observation interface and offline schema discovery.
+
 ## Harness formulas
 
 Run `colony skills file operations references/configuration.md` for matching formulas, token rendering and role/execution delivery in interactive and managed invocations.
@@ -124,7 +128,7 @@ Hive's [configured formulas](../../.hive/bees.toml) show Codex and Pi role deliv
 
 ## Scheduling
 
-All unfinished linked work must be ready and available to the request identity. Closed work counts as satisfied; an all-closed request completes without launch. Requests use their highest task urgency, P0 before P1.
+Unfinished linked work must be ready and available to the request identity. Closed workflow anchors use their [native disposition](../../docs/agents/spawn-requests.md#workflow-anchors) to settle without launch. Pending publication locks and settlement intents fence launch admission. Requests use their highest task urgency, P0 before P1.
 
 Within a priority tier, default `bv-pagerank` uses the best linked task's score from the complete visible graph, including closed/ephemeral tasks and unflushed edits. The [BV boundary](../../docs/integrations.md#bee-and-colony-runtime) owns database authority and completeness. Its native multi-query read is not atomic across concurrent commits. `ranking = "fifo"` orders ties by creation time, then ID, without BV.
 
@@ -152,7 +156,7 @@ Canonical loads record their source without inventing an author. Configuration c
 
 ## Verification
 
-Repository test commands and gates are indexed in [repository commands](../../docs/repository-commands.md#test-selection). Current smoke tests under [`src/`](src/) exercise real filesystem, tracker, socket and process boundaries. Scripted workers make failure cases reproducible; they do not prove authenticated provider launches. Removed timing-heavy checks and restoration pointers remain in the [Colony coverage record](../../docs/test-cases/colony.md).
+Repository test commands and gates are indexed in [repository commands](../../docs/repository-commands.md#test-selection). Current smoke tests under [`src/`](src/) exercise real filesystem, private SQLite storage, socket and process boundaries. Scripted workers make failure cases reproducible; they do not prove authenticated provider launches. Removed timing-heavy checks and restoration pointers remain in the [Colony coverage record](../../docs/test-cases/colony.md); the later [lifecycle removal record](../../docs/test-cases/lifecycle-slow-test-removal.md) accounts for the deleted clearance, recovery, claims and workflow-consumer checks.
 
 For a real authenticated native harness, read `bun run lib/colony/scripts/native-smoke.ts --help`. The opt-in probe requires Bun, Git, br, Honeycomb and an absolute native executable. It creates a private new output directory, isolated repository/tracker/daemon and a bounded native run, retaining evidence on success or failure. Cleanup cancels and reconciles owned work before stopping the private daemon. It supplies no account access, Scent setup or service installation.
 

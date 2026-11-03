@@ -60,44 +60,43 @@ busybee run groceries --parent EXISTING_WORK_ID --owner ct --json
 
 For workflows requiring initial values, add `--input-file FILE` with the JSON input described by `input-schema`; omitted input is `{}`. The response contains the run `id`, `active` tasks and their bead IDs, `created` visit records, and XState `status`.
 
-Use the returned IDs to inspect the work and its choices:
+Use the returned IDs to inspect the work and its choices. Require pending native lifecycle and `work.kind: available`; a terminal run may retain active actor history without permission to resume:
 
 ```sh
 RUN=example-run-id
 TASK=example-active-task-id
 br show "$RUN" --json
-busybee show "$RUN" --json
-busybee discover "$RUN"
+busybee inspect "$RUN" --work --json
 br show "$TASK" --json
 ```
 
-Read the full native run and task briefs on entry, including caller completion instructions; refresh them when relevant scope, state or authority changes. Use compact run views between those reads; `busybee show --help` describes their fields and optional frozen instructions.
+Read the full native run brief once and each task brief once per visit, including caller completion instructions; refresh them when relevant scope, state or authority changes. Use bare `inspect` for lifecycle reads and explicit `--work` for frozen briefs, dispatch requests and outcome schemas. See `busybee inspect --help` for expansion availability and execution limits.
 
 The groceries example first asks about the week ahead. After doing that work and completing any child tasks, complete the task with its original outcome payload, then collect it as the driver:
 
 ```sh
 busybee complete "$RUN" "$TASK" busy --data '{"meals":4}' --json
-busybee collect "$RUN" --json
+busybee advance "$RUN" --json
 ```
 
-Read `busybee complete --help` for payload options, closure refusal and retries. `record-result` remains available for saving without closure; `choice --help` covers direct submission of closed driver-handled work. A choice named `next` can require data; use its discovered schema.
+Read `busybee complete --help` for payload options, closure refusal and retries. `record-result` remains available for saving without closure. Every outcome, including one named `next`, uses its discovered schema and the same completion path.
 
-Repeat until `status` is `done`. A closed task stays active until Busy Bee accepts its result. Workers close their own tasks after satisfying native Beads acceptance and child-completion gates; Busy Bee closes grouping beads and the run. [The walkthrough](./POV.md) shows parallel tasks and example responses.
+Advance returns IDs and status; use `inspect --work` for the next briefs. Repeat until `status` is `done`. A closed task stays active until Busy Bee accepts its result. Workers close their own tasks after satisfying native Beads acceptance and child-completion gates; Busy Bee closes grouping beads and the run. [The walkthrough](./POV.md) shows parallel tasks and example responses.
 
 ## Commands
 
 Use `busybee --help` for the command flow and global options, then focused help to choose a read:
 
-| Need                                                       | Help                          |
-| ---------------------------------------------------------- | ----------------------------- |
-| Bundled agent guidance                                     | `busybee skills --help`       |
-| Creation input                                             | `busybee input-schema --help` |
-| Run status, active visits and optional frozen instructions | `busybee show --help`         |
-| Outcome choices and payload schemas                        | `busybee discover --help`     |
-| Saved diagrams and state for active or completed runs      | `busybee preview --help`      |
-| Tooling inspection, simulation and Bee driver admission    | `busybee system --help`       |
+| Need | Help |
+| --- | --- |
+| Bundled agent guidance | `busybee skills --help` |
+| Creation input | `busybee input-schema --help` |
+| Native run lifecycle, active work or saved diagrams | `busybee inspect --help` |
+| Cancel or fail unfinished scope; acknowledge or replace an unsuccessful run | `busybee settle --help` |
+| Consume saved results or prepare driver admission | `busybee advance --help` |
+| Checkpoint freshness, inspection and simulation for integrations | `busybee system --help` |
 
-The [preview contract](./SPEC.md#saved-state-preview) distinguishes structural preview from tooling inspection with frozen briefs and rendered instruction previews. [Simulation](./SPEC.md#simulation) evaluates temporary outcomes without advancing the saved run; use `busybee system simulate --help` for requests and schema discovery. [Hive UI](../hive-ui/README.md#workflow-preview) presents both Saved and Simulate modes. The [authoring guide](../../docs/busybee-workflows.md) covers definitions and validation limits.
+Default inspection reads native lifecycle without workflow source. Requested diagram expansion reports its own availability, so an unavailable graph leaves lifecycle visible. The [lifecycle contract](./SPEC.md#native-lifecycle) owns closure classification; the [preview contract](./SPEC.md#saved-state-preview) owns structure, instruction provenance and trusted-code limits. [Simulation](./SPEC.md#simulation) evaluates temporary outcomes without advancing the saved run; use `busybee system simulate --help` for requests and schema discovery. [Hive UI](../hive-ui/README.md#workflow-preview) presents native lifecycle alongside Saved and Simulate modes. The [authoring guide](../../docs/busybee-workflows.md) covers definitions and validation limits.
 
 Before updating a named workflow, check the selected tracker's existing unfinished runs:
 
@@ -121,7 +120,7 @@ Both driver-handled and Bee-dispatched worker visits are workflow auto beads: Bu
 
 A definition can request a Bee kind for a task. Entering that task submits a Bee request immediately; an awake Colony executes it through the [Bee and Colony interface](../colony/README.md).
 
-The worker follows the [delegation and result flow](#delegate-a-workflow-to-bee). Closure means the work finished: a review result can still request changes.
+The worker follows the [delegation and result flow](#delegate-a-workflow-to-bee). A review result can request changes and still complete that visit successfully.
 
 ## Examples
 
@@ -167,11 +166,11 @@ Named runs resolve their saved name in the current checkout and can resume there
 
 Named fingerprints record provenance; manifest versions determine resume compatibility. Explicit-path runs retain their source path and require the entry-file hash to match before import. See the [provenance contract](./SPEC.md#contracts-and-authority) for included files and dependency limits.
 
-Engine checkpoints use `formatVersion: 1`, independently of workflow SemVer. The engine validates the checkpoint header and trusts its own stored snapshot and visit body. Old or unknown checkpoint formats are rejected with fresh-run guidance; there is no migration. See the [checkpoint contract](./SPEC.md#checkpoint-and-failure-boundary).
+Engine checkpoints use `formatVersion: 1`, independently of workflow SemVer. The engine validates the checkpoint header and trusts its own stored snapshot and visit body. Old or unknown checkpoint formats are rejected with fresh-run guidance; there is no migration. See the [checkpoint contract](./SPEC.md#checkpoint-and-failure-boundary). For coordinated tool cutover, frozen briefs and supported retirement/replacement, follow [workflow adoption](../beeswax/README.md#workflow-tool-adoption).
 
-For an incompatible named workflow that still exists, a bee may start a fresh run of the **same name for the same already-authorized scope without asking the user again**. Inspect `br show RUN --json` to recover its native parent and visit links, then `busybee input-schema NAME`. Prepare input for the current schema and use `busybee run NAME --parent ORIGINAL_PARENT --input-file FILE --owner HUMAN` with the retained repository, database and assignment options. Preserve the original request and authorization, source/target, scope, owner/assignment intent, tracker and old run/task/evidence references. Inspect completed and uncertain effects before execution; use the current workflow's triage and current evidence to continue remaining work without blindly replaying completed effects or bypassing checks and reviews. Retain the old run as history; starting fresh does not decide its closure.
+A fresh run of the same existing name may continue the same already-authorized scope after compatibility failure. Preserve parentage and evidence, inspect completed effects and use current triage. The [compatibility contract](./SPEC.md#contracts-and-authority) defines this authority; [workflow adoption](../beeswax/README.md#workflow-tool-adoption) owns clearance and cutover ordering. A new run alone does not retire its predecessor.
 
-For abandoned, incompatible or uncertain partial work, inspect the retained run, visits, request IDs and comments (`br show ID --json`, `br comments ID --json`, and `bee status REQUEST --json`). Record completed effects, saved results, remaining acceptance and the next operator action in comments on unfinished work. Leave unfinished visits and runs open for an explicit handoff; a completed replacement does not satisfy an old sibling or allow their shared parent to close. Do not force-close unfinished work, detach history or steal a checkpoint lock to make completion appear successful. Busy Bee reports retained visit/request IDs and accepted-result references for incompatible runs, and an inspection command for partial writes.
+For abandoned, incompatible or uncertain partial work, inspect the retained run, visits, request IDs and comments (`br show ID --json`, `br comments ID --json`, and `bee status REQUEST --json`). Record completed effects, saved results, remaining acceptance and the next operator action in comments on unfinished work. For explicit retirement or follow-up, use `busybee settle --help`; the [settlement contract](./SPEC.md#unsuccessful-settlement) owns eligibility and publication recovery. Uncertain or ineligible scope stays open for a handoff. A completed replacement alone does not dispose of its predecessor or satisfy their parent's acceptance. Busy Bee reports retained visit/request IDs and accepted-result references for incompatible runs, and an inspection command for partial writes.
 
 If the saved workflow name no longer exists, **stop and ask the user which workflow to use**. Do not infer a replacement. A missing/malformed manifest in an existing workflow folder, invalid entry or unrelated I/O failure needs diagnosis of that failure. Busy Bee reports these separately from a missing name. It does not create a replacement run or migrate the saved snapshot. Explicit-file runs continue to identify their saved source file; the same-name recovery policy applies to named runs.
 
@@ -181,8 +180,8 @@ Concurrent submissions require one live database. Tracker synchronization does n
 
 Read `bee spawn --help` to submit a workflow assignment. Drivers coordinate the run; Bee-dispatched workers own their assigned stage. Use `bee result --help` to retrieve worker answers. [Response delivery](../../docs/agents/responses.md) routes complete answers separately from workflow outcomes.
 
-Follow `busybee complete --help` for stage completion and `busybee collect --help` for driver progression, including interrupted deliveries. The [work and progression contract](./SPEC.md#work-and-progression) owns lifecycle rules. Bee-dispatched workers leave collection/navigation to the driver.
+Follow `busybee complete --help` for stage completion and `busybee advance --help` for driver progression, including interrupted deliveries. The [work and progression contract](./SPEC.md#work-and-progression) owns lifecycle rules. Bee-dispatched workers leave collection/navigation to the driver.
 
-Bee prepares driver admission through `busybee system prepare-driver`; its focused help owns the integration contract. Use `bee attach-workflow --help` after inspecting an orphan run and confirming absent driver publication. For a failed driver or stage, or deliberate cancellation resumption, follow `bee retry --help`. Retry retains the saved assignment; collection follows the [replacement provenance](../../docs/agents/spawn-requests.md#transitions-and-resolution) for dispatched stages. These operations retain the same saved workflow input and version compatibility contract.
+Bee prepares driver admission through `busybee advance RUN --prepare-driver`; `busybee advance --help` owns the integration contract. Use `bee attach-workflow --help` after inspecting an orphan run and confirming absent driver publication. For a failed driver or stage, or deliberate cancellation resumption, follow `bee retry --help`. Retry retains the saved assignment; advancement follows the [replacement provenance](../../docs/agents/spawn-requests.md#transitions-and-resolution) for dispatched stages. These operations retain the same saved workflow input and version compatibility contract.
 
 The driver reacquires unfinished unassigned driver-handled visits under its current identity, preserving other identities and human/HITL reservations. Closed visits with saved results are collected once. Bee-dispatched workers keep their stage claims; neither handoff nor retry reassigns the whole hierarchy.

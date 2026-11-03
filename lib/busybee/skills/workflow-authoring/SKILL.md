@@ -69,7 +69,7 @@ Optional exports: `validateCommand(entry, command, data)` rejects context-depend
 
 Use `busybee validate --help` for initialization checks. Before changing a named definition with unfinished runs, follow `busybee preflight --help`.
 
-Exercise outcomes, branches, joins and loops in a disposable tracker. Inspect the visualizer, `busybee show RUN --instructions --json`, `busybee discover RUN --json` and native briefs alongside Prime and the Bee role; remove repeated guidance from composed instructions.
+Exercise outcomes, branches, joins and loops in a disposable tracker. Inspect the visualizer, `busybee inspect RUN --work --diagram --instructions --json` and native briefs alongside Prime and the Bee role; remove repeated guidance from composed instructions.
 
 ## Evolve existing runs
 
