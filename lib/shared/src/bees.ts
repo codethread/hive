@@ -82,13 +82,7 @@ export const beesConfigSchema = z.strictObject({
 		.default(null),
 	formulas: z.record(z.string(), formulaSchema),
 	humans: z.array(z.string().min(NONEMPTY)),
-	/** Named kind used for one-shot reviews after fifteen minutes without stdout; null disables reviews. */
-	// eslint-disable-next-line unicorn/no-null -- No configured drone means inactivity review is disabled.
-	inactivity_drone: z.string().min(NONEMPTY).nullable().default(null),
 	kinds: z.record(z.string(), kindSchema).default({}),
-	/** Named advisory inspector for settled launched requests; null disables enrollment. */
-	// eslint-disable-next-line unicorn/no-null -- Optional advisory execution is disabled by default.
-	post_run_drone: z.string().min(NONEMPTY).nullable().default(null),
 	limits: limitsSchema.prefault({}),
 	max_retries: z.number().int().min(MINIMUM_CAPACITY).default(DEFAULT_RETRIES),
 	owner: z.string().min(NONEMPTY),
@@ -134,14 +128,6 @@ export function validateBeesConfig(config: BeesConfig): void {
 			if (selector !== "#self" && !Object.hasOwn(config.kinds, selector)) {
 				throw new Error(`Unknown kind selector ${selector} in ${name}`);
 			}
-		}
-	}
-	if (config.post_run_drone !== null) {
-		const inspector = config.kinds[config.post_run_drone];
-		if (!inspector || !config.formulas[inspector.harness]) {
-			throw new Error(
-				`Post-run drone ${config.post_run_drone} requires a configured kind and formula`,
-			);
 		}
 	}
 	for (const formula of Object.values(config.formulas)) {

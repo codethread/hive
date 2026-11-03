@@ -463,12 +463,10 @@ async function fixture() {
 		const handlers: BeeDependencies = {
 			setup: unused,
 			ack: unused,
-			assess: unused,
 			attachWorkflow: unused,
 			dispatchStage: unused,
 			finish: unused,
 			kinds: unused,
-			report: unused,
 			retry: unused,
 			run: unused,
 			spawn: unused,

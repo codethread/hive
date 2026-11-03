@@ -79,13 +79,10 @@ export async function runKind(
 	runtime.replace(invocation, {
 		...runtime.env,
 		...agentEnvironment(createIdentity(), recipe),
-		HIVE_ASSESSMENT_ID: undefined,
 		HIVE_ATTEMPT_ID: undefined,
 		HIVE_ATTEMPT_NUMBER: undefined,
 		HIVE_ATTEMPT_TOKEN: undefined,
 		HIVE_COLONY_STATE: undefined,
-		HIVE_DRONE_REVIEW_ID: undefined,
-		HIVE_DRONE_TARGET_ATTEMPT_ID: undefined,
 		HIVE_SPAWN_ID: undefined,
 	});
 }

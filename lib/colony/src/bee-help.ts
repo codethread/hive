@@ -7,7 +7,7 @@ Markers grant no extra authority; role and assignment limits still apply.`;
 
 export const HELP = {
 	system: `
-Busy Bee calls dispatch-stage; Colony injects authority for assess and report.
+Busy Bee calls dispatch-stage to submit a workflow visit.
 For ordinary delegation use bee spawn; assigned workers complete with bee finish.
 `,
 	response: `
@@ -112,11 +112,6 @@ Users may open an interactive harness with bee run; agents use bee spawn.
 --repo selects configuration, --cwd execution, --beads-db/BEADS_DB the tracker.
 --actor/BD_ACTOR supplies attribution. --json emits one success/error document;
 inspect ok, kind and reason. Use bee COMMAND --help for details.
-`,
-	report: `
-Only for a Colony-launched inactivity drone with injected review context.
-Report active or inactive for the supplied target. Colony owns cleanup and retry
-decisions. Ordinary task completion uses bee finish instead.
 `,
 	retry: `
 Replace a failed unresolved request after fixing its blocker. To deliberately

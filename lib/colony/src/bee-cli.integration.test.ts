@@ -88,40 +88,6 @@ test("retry forwards explicit cancellation resumption independently of recipe ov
 
 test.each([
 	{
-		args: ["system", "assess", "--file", "report.json"],
-		response: { ok: true, kind: "assessment_submitted", assessmentId: "assessment-1" },
-	},
-	{
-		args: ["system", "report", "request-1", "active"],
-		response: {
-			ok: true,
-			kind: "drone_verdict_submitted",
-			requestId: "request-1",
-			attemptId: "attempt-1",
-			reviewId: "review-1",
-		},
-	},
-])("$args submits the injected protocol and emits one JSON receipt", async ({ args, response }) => {
-	const result = await invoke([...args, "--json"], SUCCESS, {
-		assess: (file) => {
-			expect(file).toBe("report.json");
-			return Promise.resolve({ kind: "assessment_submitted", assessmentId: "assessment-1" });
-		},
-		report: (id, verdict) => {
-			expect([id, verdict]).toEqual(["request-1", "active"]);
-			return Promise.resolve({
-				kind: "drone_verdict_submitted",
-				requestId: id,
-				attemptId: "attempt-1",
-				reviewId: "review-1",
-			});
-		},
-	});
-	expect(JSON.parse(result.stdout)).toEqual(response);
-});
-
-test.each([
-	{
 		args: ["spawn", "worker", "--parent", "work-1", "--input-file", "work.json"],
 		creation: { parentId: "work-1" },
 	},
@@ -278,12 +244,10 @@ async function invoke(
 		responseHistory: unusedResponseCommand,
 		result: unusedResponseCommand,
 		ack: unexpected,
-		assess: unexpected,
 		attachWorkflow: workflowResult,
 		dispatchStage: () => Promise.resolve({ kind: "spawn_created", request: native }),
 		finish: unexpected,
 		kinds: unexpected,
-		report: unexpected,
 		retry: () => Promise.resolve({ kind: "spawn_created", request: native }),
 		run: unexpected,
 		spawn: (kind, options) => {

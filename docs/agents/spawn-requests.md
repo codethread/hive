@@ -56,12 +56,6 @@ Colony injects request/attempt identity, token and private state location. Prese
 
 `finish_submitted` acknowledges durable submission. Colony accepts only its recorded current attempt; stale reports cannot affect a replacement. Cancellation takes precedence. A sleeping daemon consumes the report after wake, and checkpointed settlement survives interruption.
 
-## Report an inactivity verdict
-
-Only a Colony-launched inactivity drone uses `bee system report`; read its help. Injected review/target context and the recorded executing attempt authorize one immutable `verdict.json`. Every duplicate is rejected, including an identical repeat. Stale, mismatched, replaced, settling or late reports are rejected; malformed/invalid artifacts remain evidence without affecting the target.
-
-The inactivity drone reports active/inactive only. Colony owns task claims, process cleanup and retry decisions. The [runtime guide](../../lib/colony/README.md#review-quiet-bees-with-a-drone) owns trigger, deadline and missing-verdict policy; [`drone.ts`](../../lib/colony/src/drone.ts) owns report validation.
-
 ## Find requests with native Beads
 
 Use the selected `BEADS_DB` with focused filters and bounded output. Repeated `--label` filters are ANDed. Failed requests are closed, so attention/history queries need `--all`. For example:

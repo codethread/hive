@@ -5,13 +5,7 @@ import { validateFormula } from "@hive/shared";
 
 export type PolicySnapshot = Pick<
 	BeesConfig,
-	| "post_run_drone"
-	| "formulas"
-	| "inactivity_drone"
-	| "limits"
-	| "max_retries"
-	| "ranking"
-	| "retry_delay_ms"
+	"formulas" | "limits" | "max_retries" | "ranking" | "retry_delay_ms"
 >;
 export interface ActivePolicy {
 	/** Loaded configuration retained only for this live colony. */
@@ -40,8 +34,6 @@ export function policyView({ config, revisionId }: ActivePolicy): PolicyView {
 	return {
 		autoWorkReviews: config.auto_work_reviews,
 		formulas: Object.keys(config.formulas).toSorted(),
-		inactivityDrone: config.inactivity_drone,
-		postRunDrone: config.post_run_drone,
 		limits: config.limits,
 		maxRetries: config.max_retries,
 		ranking: config.ranking,
@@ -51,19 +43,9 @@ export function policyView({ config, revisionId }: ActivePolicy): PolicyView {
 }
 /** The history snapshot contains scheduling/execution policy, never a recipe-default authority. */
 export function policySnapshot(config: BeesConfig): PolicySnapshot {
-	const {
-		post_run_drone,
-		formulas,
-		inactivity_drone,
-		limits,
-		max_retries,
-		ranking,
-		retry_delay_ms,
-	} = config;
+	const { formulas, limits, max_retries, ranking, retry_delay_ms } = config;
 	return {
-		post_run_drone,
 		formulas,
-		inactivity_drone,
 		limits,
 		max_retries,
 		ranking,

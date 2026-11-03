@@ -447,7 +447,6 @@ async function invokeExplanation() {
 	const code = await runCli(["explain", target, "--json"], {
 		workReview: unexpectedRead,
 		add: unexpectedRead,
-		assessments: unexpectedRead,
 		config: unexpectedRead,
 		events: unexpectedRead,
 		explain: (id) => explainRequest(id, tracker, serverTarget),

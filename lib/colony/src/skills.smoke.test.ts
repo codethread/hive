@@ -125,8 +125,6 @@ async function invoke(command: string, args: string[]) {
 	const deps = {
 		ack: unexpected,
 		add: unexpected,
-		assess: unexpected,
-		assessments: unexpected,
 		attachWorkflow: unexpected,
 		config: unexpected,
 		dispatchStage: unexpected,
@@ -139,7 +137,6 @@ async function invoke(command: string, args: string[]) {
 		launch: unexpected,
 		list: unexpected,
 		remove: unexpected,
-		report: unexpected,
 		responseGet: unexpected,
 		responseHistory: unexpected,
 		responsePublish: unexpected,

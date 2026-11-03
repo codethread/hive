@@ -15,6 +15,6 @@ Start with `bee --help` for delegation and `bee result --help` for request IDs, 
 
 ## Runtime guidance
 
-Bee appends its [delivery protocol](../../lib/colony/src/response-protocol.ts) to the selected kind role. The execution assignment supplies the response target through [Shared](../../lib/shared/src/response-protocol.ts): the driver's run or the dispatched worker's stage. Direct conversations answer the user; private assessments and inactivity verdicts use separate protocols.
+Bee appends its [delivery protocol](../../lib/colony/src/response-protocol.ts) to the selected kind role. The execution assignment supplies the response target through [Shared](../../lib/shared/src/response-protocol.ts): the driver's run or the dispatched worker's stage. Direct conversations answer the user.
 
 Filing a response neither completes work nor grants authority over examined tasks or specialist evidence labels.

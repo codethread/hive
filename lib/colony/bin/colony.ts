@@ -40,7 +40,6 @@ import { launchedResultSchema } from "../src/output.ts";
 import { loadBeesConfig } from "../src/config.ts";
 import { match } from "ts-pattern";
 import { observeProcess } from "../src/processes.ts";
-import { readAssessments } from "../src/assessments.ts";
 import { readHistory } from "../src/history.ts";
 import { requestServer } from "../src/client.ts";
 import { resolveServerTarget } from "../src/server-target.ts";
@@ -117,13 +116,6 @@ process.exitCode = await runCli(Bun.argv.slice(USER_ARGUMENTS_START), {
 				lifecycle,
 			),
 		),
-	assessments: async (options) =>
-		readAssessments(target(options).state, {
-			limit: options.limit,
-			repository: await resolveRepository(options.repo, options.beadsDb),
-			request: options.request,
-			source: options.source,
-		}),
 	config: async (options) =>
 		requestServer(target(options), {
 			command: await configurationCommand(options),
