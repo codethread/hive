@@ -1,0 +1,70 @@
+[
+  {
+    "name": "file-default",
+    "args": [
+      "./defaults.test.ts",
+      "-t",
+      "file default async"
+    ],
+    "exit": 1,
+    "output": "bun test v1.4.2 (744846f84)\n\ndefaults.test.ts:\n(fail) file default async [11.81ms]\n  ^ this test timed out after 10ms.\n\n 0 pass\n 1 filtered out\n 1 fail\nRan 1 test across 1 file. [15.00ms]\n"
+  },
+  {
+    "name": "file-default-vs-cli",
+    "args": [
+      "./defaults.test.ts",
+      "--timeout=100",
+      "-t",
+      "file default async"
+    ],
+    "exit": 1,
+    "output": "bun test v1.4.2 (744846f84)\n\ndefaults.test.ts:\n(fail) file default async [10.49ms]\n  ^ this test timed out after 10ms.\n\n 0 pass\n 1 filtered out\n 1 fail\nRan 1 test across 1 file. [12.00ms]\n"
+  },
+  {
+    "name": "file-override",
+    "args": [
+      "./defaults.test.ts",
+      "--timeout=10",
+      "-t",
+      "file default override"
+    ],
+    "exit": 0,
+    "output": "bun test v1.4.2 (744846f84)\n\ndefaults.test.ts:\n(pass) file default override [31.24ms]\n\n 1 pass\n 1 filtered out\n 0 fail\nRan 1 test across 1 file. [33.00ms]\n"
+  },
+  {
+    "name": "fraction-test",
+    "args": [
+      "./fraction.test.ts"
+    ],
+    "exit": 1,
+    "output": "bun test v1.4.2 (744846f84)\n\nfraction.test.ts:\n(fail) fraction override [1.04ms]\n  ^ this test timed out after 1ms.\n\n 0 pass\n 1 fail\nRan 1 test across 1 file. [3.00ms]\n"
+  },
+  {
+    "name": "slow-hooks",
+    "args": [
+      "./hooks.test.ts",
+      "--timeout=10"
+    ],
+    "exit": 1,
+    "output": "bun test v1.4.2 (744846f84)\n\nhooks.test.ts:\n(fail) fast body slow hooks [22.07ms]\n  ^ a beforeEach/afterEach hook timed out for this test.\n\n 0 pass\n 1 fail\nRan 1 test across 1 file. [24.00ms]\n"
+  },
+  {
+    "name": "native-block",
+    "args": [
+      "./sleep-sync.test.ts",
+      "--timeout=10"
+    ],
+    "exit": 1,
+    "output": "bun test v1.4.2 (744846f84)\n\nsleep-sync.test.ts:\n(fail) native blocking sleep [40.09ms]\n  ^ this test timed out after 10ms.\n\n 0 pass\n 1 fail\nRan 1 test across 1 file. [42.00ms]\n"
+  },
+  {
+    "name": "parallel",
+    "args": [
+      "./probe.test.ts",
+      "--timeout=10",
+      "--parallel=6"
+    ],
+    "exit": 1,
+    "output": "bun test v1.4.2 (744846f84) 6x PARALLEL\n\nprobe.test.ts:\n(fail) sync busy 30ms [30.18ms]\n  ^ this test timed out after 10ms.\n(fail) async sleep 30ms [11.03ms]\n  ^ this test timed out after 10ms.\n(pass) explicit override 100ms [32.10ms]\n\n 1 pass\n 2 fail\n 3 expect() calls\nRan 3 tests across 1 file. [76.00ms]\n"
+  }
+]

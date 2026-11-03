@@ -1,0 +1,48 @@
+[
+  {
+    "name": "config-explicit",
+    "args": [
+      "--config=./bunfig.toml",
+      "test",
+      "./probe.test.ts",
+      "-t",
+      "async sleep"
+    ],
+    "exit": 0,
+    "output": "bun test v1.4.2 (744846f84)\n\nprobe.test.ts:\n(pass) async sleep 30ms [32.13ms]\n\n 1 pass\n 2 filtered out\n 0 fail\n 1 expect() calls\nRan 1 test across 1 file. [34.00ms]\n"
+  },
+  {
+    "name": "preload-default",
+    "args": [
+      "--config=./preload-config.toml",
+      "test",
+      "./probe.test.ts",
+      "-t",
+      "async sleep"
+    ],
+    "exit": 1,
+    "output": "bun test v1.4.2 (744846f84)\n\nprobe.test.ts:\n(fail) async sleep 30ms [12.01ms]\n  ^ this test timed out after 10ms.\n\n 0 pass\n 2 filtered out\n 1 fail\nRan 1 test across 1 file. [14.00ms]\n"
+  },
+  {
+    "name": "preload-override",
+    "args": [
+      "--config=./preload-config.toml",
+      "test",
+      "./probe.test.ts",
+      "-t",
+      "explicit override"
+    ],
+    "exit": 0,
+    "output": "bun test v1.4.2 (744846f84)\n\nprobe.test.ts:\n(pass) explicit override 100ms [32.22ms]\n\n 1 pass\n 2 filtered out\n 0 fail\n 1 expect() calls\nRan 1 test across 1 file. [35.00ms]\n"
+  },
+  {
+    "name": "separate-hook-body",
+    "args": [
+      "test",
+      "./setup.test.ts",
+      "--timeout=40"
+    ],
+    "exit": 0,
+    "output": "bun test v1.4.2 (744846f84)\n\nsetup.test.ts:\n(pass) hook 30 body 30 separate [64.21ms]\n\n 1 pass\n 0 fail\nRan 1 test across 1 file. [66.00ms]\n"
+  }
+]

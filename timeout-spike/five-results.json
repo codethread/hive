@@ -1,0 +1,12 @@
+[
+  {
+    "name": "normal",
+    "exit": 1,
+    "output": "bun test v1.4.2 (744846f84)\n\nfive.test.ts:\n(pass) passing case 1 [0.02ms]\n(pass) passing case 2\n(pass) passing case 3\n(pass) passing case 4\n(fail) one timeout [11.99ms]\n  ^ this test timed out after 10ms.\n\n 4 pass\n 1 fail\n 4 expect() calls\nRan 5 tests across 1 file. [15.00ms]\n"
+  },
+  {
+    "name": "only-failures",
+    "exit": 1,
+    "output": "bun test v1.4.2 (744846f84)\n\nfive.test.ts:\n(fail) one timeout [12.01ms]\n  ^ this test timed out after 10ms.\n\n 4 pass\n 1 fail\n 4 expect() calls\nRan 5 tests across 1 file. [14.00ms]\n"
+  }
+]

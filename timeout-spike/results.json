@@ -1,0 +1,61 @@
+[
+  {
+    "name": "cli10-sync",
+    "args": [
+      "--timeout=10",
+      "-t",
+      "sync busy"
+    ],
+    "exit": 1,
+    "output": "bun test v1.4.2 (744846f84)\n\nprobe.test.ts:\n(fail) sync busy 30ms [30.12ms]\n  ^ this test timed out after 10ms.\n\n 0 pass\n 2 filtered out\n 1 fail\n 1 expect() calls\nRan 1 test across 1 file. [34.00ms]\n"
+  },
+  {
+    "name": "cli10-async",
+    "args": [
+      "--timeout=10",
+      "-t",
+      "async sleep"
+    ],
+    "exit": 1,
+    "output": "bun test v1.4.2 (744846f84)\n\nprobe.test.ts:\n(fail) async sleep 30ms [12.04ms]\n  ^ this test timed out after 10ms.\n\n 0 pass\n 2 filtered out\n 1 fail\nRan 1 test across 1 file. [14.00ms]\n"
+  },
+  {
+    "name": "cli10-override",
+    "args": [
+      "--timeout=10",
+      "-t",
+      "explicit override"
+    ],
+    "exit": 0,
+    "output": "bun test v1.4.2 (744846f84)\n\nprobe.test.ts:\n(pass) explicit override 100ms [32.15ms]\n\n 1 pass\n 2 filtered out\n 0 fail\n 1 expect() calls\nRan 1 test across 1 file. [34.00ms]\n"
+  },
+  {
+    "name": "fractional",
+    "args": [
+      "--timeout=1.5",
+      "-t",
+      "async sleep"
+    ],
+    "exit": 1,
+    "output": "error: Invalid timeout: \"1.5\"\n"
+  },
+  {
+    "name": "config10",
+    "args": [
+      "-t",
+      "async sleep"
+    ],
+    "exit": 0,
+    "output": "bun test v1.4.2 (744846f84)\n\nprobe.test.ts:\n(pass) async sleep 30ms [32.14ms]\n\n 1 pass\n 2 filtered out\n 0 fail\n 1 expect() calls\nRan 1 test across 1 file. [34.00ms]\n"
+  },
+  {
+    "name": "cli-over-config",
+    "args": [
+      "--timeout=100",
+      "-t",
+      "async sleep"
+    ],
+    "exit": 0,
+    "output": "bun test v1.4.2 (744846f84)\n\nprobe.test.ts:\n(pass) async sleep 30ms [32.13ms]\n\n 1 pass\n 2 filtered out\n 0 fail\n 1 expect() calls\nRan 1 test across 1 file. [34.00ms]\n"
+  }
+]

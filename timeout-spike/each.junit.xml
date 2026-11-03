@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites name="bun test" tests="6" assertions="3" failures="1" skipped="0" time="0.079548">
+  <testsuite name="each.test.ts" file="each.test.ts" tests="6" assertions="3" failures="1" skipped="0" time="0.075254" hostname="ct.local">
+    <testcase name="row 1 under budget" classname="" time="0.017196" file="each.test.ts" line="2" assertions="1" />
+    <testcase name="row 2 under budget" classname="" time="0.015095" file="each.test.ts" line="2" assertions="1" />
+    <testcase name="row 3 under budget" classname="" time="0.017041" file="each.test.ts" line="2" assertions="1" />
+    <testcase name="mixed row 2" classname="" time="0.002577" file="each.test.ts" line="6" assertions="0" />
+    <testcase name="mixed row 50" classname="" time="0.020157" file="each.test.ts" line="6" assertions="0">
+      <failure type="TimeoutError" message="test timed out" />
+    </testcase>
+    <testcase name="mixed row 2" classname="" time="0.002522" file="each.test.ts" line="6" assertions="0" />
+  </testsuite>
+</testsuites>
