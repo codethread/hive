@@ -2,14 +2,15 @@
 
 ## Native contract tests
 
-Run `bun run test:contracts` for Beads, BV and Honeycomb local Git ref contracts, including after changing installed `br`, `bv` or `git` outside Git and before adopting a new native dependency pin.
+Run `bun run test:contracts` for four native suites: Beads, BV, Honeycomb local Git refs and review Git scopes. Run them after changing installed `br`, `bv` or `git` outside Git and before adopting a new native dependency pin.
 
 `test:all` and `test:changed` select native contracts independently of ordinary Bun discovery:
 
 - Beads source or manifest changes select Beads contracts and BV's Beads-dependent fixture.
 - BV implementation/tests, its execution helper or Shared manifest/runtime configuration select BV contracts.
-- Honeycomb contracts are selected by these paths under `lib/honeycomb/`: `src/application/branches.ts`, `src/services.ts`, `src/errors.ts`, `src/git/{error,executor,worktrees}.ts`, `tests/integration/{lifecycle-helpers,support}.ts`, `package.json` and `tsconfig.json`.
-- Contract-directory changes select their own suite; root dependency/runtime and test-runner/selection changes select all three.
+- Honeycomb branch/ref implementation, its execution and fixture helpers, or package/runtime configuration select Honeycomb contracts.
+- Review Git/scope helpers, their execution helper or Busy Bee package/runtime configuration select review Git contracts.
+- Contract-directory changes select their own suite; root dependency/runtime and test-runner/selection changes select all four.
 
 Consumer-only changes do not select native contracts. Selected suites run in full regardless of ordinary-suite file/name filters. [`test-selection.ts`](src/test-selection.ts) owns the exact inputs; [`test-runner.ts`](src/test-runner.ts) owns comparison references and argument handling. Selection does not grant a [timing allowance](#allowed-slow-tests).
 
@@ -24,6 +25,10 @@ The [BV native contract](../shared/tests/contract/bv.test.ts) covers selected SQ
 ### Honeycomb contract tests
 
 The [local Git ref contract](../honeycomb/tests/contract/local-git-refs.test.ts) checks live/fixture parity for default designation, exact ref presence and commit resolution, including annotated tags and missing/non-commit refs. It also checks invalid default namespaces and Git read errors. Offline policy tests use the [typed fixture](../honeycomb/tests/contract/local-git-refs-fixture.ts); [native add tests](../honeycomb/tests/integration/add-offline.test.ts) retain checkout, canonical safety and missing-object boundaries.
+
+### Review Git contract tests
+
+The [review scope contract](../busybee/tests/contract/domain-review.test.ts) checks the workflow's real Git adapter and scope resolver together: checkout-root discovery from a subdirectory, caller-selected worktree bases, commit and merge-base ranges, whole-file selection, renames, deletions and untracked paths. Setup and cleanup are included in its measured test.
 
 ## Test timing report and landing gate
 

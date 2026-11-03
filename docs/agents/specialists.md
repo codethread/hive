@@ -21,7 +21,15 @@ Librarian consultation is optional. Use it to locate or explain established guid
 | A final diff departs from an established decision. | Librarian cites the rule and required repair; a proposed rule change goes to Architect. |
 | Agents repeatedly cannot find or interpret the guidance. | Librarian catalogs the questions and evidence; Architect resolves any new design decision and Bookworm encodes accepted guidance. |
 
-Forward the original request, corrections and rationale, relevant revisions, prior advice and known evidence ID. Keep accepted decisions in the implementation task's design and return decisions/outcomes to the same [Librarian evidence thread](../../.hive/bees/librarian/system_prompt.md#architectural-evidence-records). Recurring confusion is evidence of a guidance gap, not authority to invent a rule. Give Bookworm settled intent and explicit files for prose changes. Reviewer retains code-style and test-quality review.
+Forward the original request, corrections and rationale, relevant revisions, prior advice and known evidence ID. Keep accepted decisions in the implementation task's design and return decisions/outcomes to the same [Librarian evidence thread](../../.hive/bees/librarian/system_prompt.md#architectural-evidence-records). Recurring confusion is evidence of a guidance gap, not authority to invent a rule. Give Bookworm settled intent and explicit files for prose changes.
+
+## Standards and specification review
+
+Reviewer audits code style and test quality, plus read-only documentation correctness when assigned. Bookworm remains the prose writing/editing owner; a Docs audit does not replace its pass. Librarian retains architectural conformity review. The [standalone review workflow](../../.workflows/review/README.md) separates Code, Tests and Docs standards audits from an independent Spec audit.
+
+For whole-change or gate review, confirm that applicable Bookworm and Librarian reviews cover the final base and content. Establish the producing role from native run/stage/request/response provenance, not report headings or model names. Preserve independent reports without inventing managed request IDs.
+
+For a scoped domain audit, the caller verifies those prerequisites once and supplies the receipt. The domain Reviewer audits only its assigned concern, uses that receipt and reports contradictions to the caller; it neither repeats gate discovery nor delegates further reviews. The caller owns checks and overall approval. A completed review run with findings or incomplete coverage is not approval of the examined work.
 
 ## Operational architecture
 

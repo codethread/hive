@@ -1,6 +1,14 @@
 const emptySelectionCount = 0;
 const beadsContractDirectory = "lib/beads/tests/contract/";
 const bvContractDirectory = "lib/shared/tests/contract/";
+const reviewContractDirectory = "lib/busybee/tests/contract/";
+const reviewDependencyInputs = new Set([
+	".workflows/review/git.ts",
+	".workflows/review/scope.ts",
+	"lib/shared/src/bees-io.ts",
+	"lib/busybee/package.json",
+	"lib/busybee/tsconfig.json",
+]);
 const honeycombContractDirectory = "lib/honeycomb/tests/contract/";
 const honeycombDependencyInputs = new Set([
 	"lib/honeycomb/src/services.ts",
@@ -43,7 +51,12 @@ export interface TestSelection {
 
 /** Select native contracts from their own inputs, never from consumer imports. */
 export function selectTestRuns(mode: TestMode, changedPaths: readonly string[]): TestSelection[] {
-	const directories = [beadsContractDirectory, bvContractDirectory, honeycombContractDirectory];
+	const directories = [
+		beadsContractDirectory,
+		bvContractDirectory,
+		honeycombContractDirectory,
+		reviewContractDirectory,
+	];
 	if (mode === "contracts") {
 		return [
 			{ suite: "contracts", args: directories.map((path) => `./${path}`), timingMode: "all" },
@@ -61,10 +74,13 @@ export function selectTestRuns(mode: TestMode, changedPaths: readonly string[]):
 	const selected = directories.filter(
 		(directory) =>
 			globalChanged ||
-			(nativeBeadsChanged && directory !== honeycombContractDirectory) ||
+			(nativeBeadsChanged &&
+				(directory === beadsContractDirectory || directory === bvContractDirectory)) ||
 			changedPaths.some((path) => path.startsWith(directory)) ||
 			(directory === honeycombContractDirectory &&
 				changedPaths.some((path) => honeycombDependencyInputs.has(path))) ||
+			(directory === reviewContractDirectory &&
+				changedPaths.some((path) => reviewDependencyInputs.has(path))) ||
 			(directory === bvContractDirectory &&
 				changedPaths.some((path) => bvDependencyInputs.has(path))),
 	);

@@ -4,9 +4,13 @@ import { selectTestRuns } from "./test-selection.ts";
 const last = -1;
 const beads = "./lib/beads/tests/contract/";
 const bv = "./lib/shared/tests/contract/";
+const review = "./lib/busybee/tests/contract/";
 const honeycomb = "./lib/honeycomb/tests/contract/";
 
 test.each([
+	{ path: ".workflows/review/git.ts", expected: [review] },
+	{ path: ".workflows/review/scope.ts", expected: [review] },
+	{ path: "lib/busybee/tests/contract/domain-review.test.ts", expected: [review] },
 	{ path: "lib/beads/src/native.ts", expected: [beads, bv] },
 	{ path: "lib/beads/src/memory.ts", expected: [beads, bv] },
 	{ path: "lib/beads/src/types.ts", expected: [beads, bv] },
@@ -15,17 +19,17 @@ test.each([
 	{ path: "lib/beads/package.json", expected: [beads, bv] },
 	{ path: "lib/shared/src/bv.ts", expected: [bv] },
 	{ path: "lib/shared/src/bv.test.ts", expected: [bv] },
-	{ path: "lib/shared/src/bees-io.ts", expected: [bv] },
+	{ path: "lib/shared/src/bees-io.ts", expected: [bv, review] },
 	{ path: "lib/shared/package.json", expected: [bv] },
 	{ path: "lib/shared/tsconfig.json", expected: [bv] },
 	{ path: "lib/shared/tests/contract/bv.test.ts", expected: [bv] },
 	{ path: "lib/shared/tests/contract/fixtures.ts", expected: [bv] },
-	{ path: "package.json", expected: [beads, bv, honeycomb] },
-	{ path: "bun.lock", expected: [beads, bv, honeycomb] },
-	{ path: "bunfig.toml", expected: [beads, bv, honeycomb] },
-	{ path: "mise.toml", expected: [beads, bv, honeycomb] },
-	{ path: "lib/tooling/src/test-selection.ts", expected: [beads, bv, honeycomb] },
-	{ path: "lib/tooling/src/test-runner.ts", expected: [beads, bv, honeycomb] },
+	{ path: "package.json", expected: [beads, bv, honeycomb, review] },
+	{ path: "bun.lock", expected: [beads, bv, honeycomb, review] },
+	{ path: "bunfig.toml", expected: [beads, bv, honeycomb, review] },
+	{ path: "mise.toml", expected: [beads, bv, honeycomb, review] },
+	{ path: "lib/tooling/src/test-selection.ts", expected: [beads, bv, honeycomb, review] },
+	{ path: "lib/tooling/src/test-runner.ts", expected: [beads, bv, honeycomb, review] },
 	{ path: "lib/honeycomb/src/application/branches.ts", expected: [honeycomb] },
 	{ path: "lib/honeycomb/src/services.ts", expected: [honeycomb] },
 	{ path: "lib/honeycomb/src/errors.ts", expected: [honeycomb] },
@@ -51,6 +55,7 @@ test.each([
 
 test.each([
 	{ paths: [] },
+	{ paths: [".workflows/review/workflow.ts", ".workflows/review/README.md"] },
 	{ paths: ["lib/honeycomb/src/commands/add-worktree.ts"] },
 	{ paths: ["lib/colony/src/ranking.ts", "lib/busybee/src/runtime.ts"] },
 	{ paths: ["lib/beeswax/src/beads/setup.ts", "lib/hive-ui/server/index.ts"] },
@@ -70,7 +75,7 @@ test.each([
 
 test("explicit contracts run independently even with no changed inputs", () => {
 	expect(selectTestRuns("contracts", [])).toEqual([
-		{ suite: "contracts", args: [beads, bv, honeycomb], timingMode: "all" },
+		{ suite: "contracts", args: [beads, bv, honeycomb, review], timingMode: "all" },
 	]);
 });
 

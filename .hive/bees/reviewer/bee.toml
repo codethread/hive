@@ -1,5 +1,5 @@
 name = "reviewer"
-description = "mutation-scope: read-only; Review code style and test quality against repository standards. Calling workflows own checks; bookworm owns prose. Report findings without fixing code."
+description = "mutation-scope: read-only; Audit code, tests, assigned documentation and specification against supplied scope. Caller owns checks and approval; Bookworm owns prose edits."
 harness = "pi"
 model = "openai-codex/gpt-6-luna"
 effort = "high"

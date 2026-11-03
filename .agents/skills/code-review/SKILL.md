@@ -1,91 +1,49 @@
 ---
 name: code-review
-description: 'Review the changes since a fixed point (commit, branch, tag, or merge-base) along two axes: Standards (does the code follow this repo''s documented coding standards?) and Spec (does the code match what the originating issue/spec asked for?). Runs both reviews in parallel sub-agents and reports them side by side. Use when the user wants to review a branch, a PR, work-in-progress changes, or asks to "review since X".'
+description: "Review files, work-in-progress changes, commits or ranges through Hive’s bounded domain review workflow. Use for branch or PR review and “review since X”."
 ---
 
-Two-axis review of the diff between `HEAD` and a fixed point the user supplies:
+# Code review
 
-- **Standards**: does the code conform to this repo's documented coding standards?
-- **Spec**: does the code faithfully implement the originating issue / spec?
+Keep two independent axes: **Standards** checks repository rules; **Spec** checks the originating request, acceptance and corrections. Passing one does not compensate for failing the other.
 
-Both axes run as **parallel sub-agents** so they don't pollute each other's context, then this skill aggregates their findings.
+```text
+Assigned a domain audit? -- yes --> Audit its supplied scope; report to the caller
+        |
+        no
+        v
+Prepare or resume one review run --> Collect audits --> Synthesize both axes
+```
 
-The calling workflow owns check execution and test-run evidence. Review code and test quality from source rather than rerunning checks or requesting that evidence.
+## Assigned domain audit
 
-The issue tracker should have been provided to you. If `docs/agents/issue-tracker.md` is missing, tell the user to run `/setup-matt-pocock-skills`.
+Follow the active brief, not the caller procedure below. Audit only the assigned concern and paths; read surrounding contracts as context. Use the caller's supplied prior-gate receipt and report contradictions to the caller. Do not launch another review or rediscover unrelated gate identities.
 
-## Process
+Review source and supplied check evidence. The caller owns check execution; Bookworm owns prose edits and Librarian owns architectural conformity. Apply the [specialist protocol](../../../docs/agents/specialists.md) and the applicable review guidance below. Deliver under the stage's outcome contract.
 
-### 1. Pin the fixed point
+## Caller procedure
 
-Whatever the user said is the fixed point (a commit SHA, branch name, tag, `main`, `HEAD~5`, etc.). If they didn't specify one, ask for it.
+1. **Select scope and evidence.** Read the [review workflow usage](../../../.workflows/review/README.md) for the helper's four scope meanings and input contract. Ask when the intended base or scope is ambiguous; do not silently turn worktree review into a `HEAD`-only range. Supply the source task, content identity, check receipts and accepted architecture evidence. For Spec, use the supplied request/acceptance and corrections; ask for missing intent rather than inventing a spec. Advisory review may explicitly omit Spec; final-gate review requires it.
+2. **Verify final-gate prerequisites.** Apply the specialist protocol to the complete intended candidate. Record native Bookworm/Librarian provenance once in the input; domain audits consume that receipt. Select an explicit final-gate worktree base that includes prior branch commits.
+3. **Prepare and start once.** Use the submission helper's `--dry-run` to inspect paths, omitted domains and unmatched coverage. Correct an unintended scope before publication. Start one `review` run beneath the authorized work and retain its ID. If a run is already supplied or recorded, resume it instead.
+4. **Drive the saved run.** Follow `busybee skills get workflow-execution` and the active briefs. Collect saved closed-stage results, including interrupted deliveries, and read worker answers through `bee result --help`. The workflow dispatches its own fixed audits; the caller performs synthesis. Pending or failed workers are not completed coverage.
+5. **Synthesize independently.** File the run's answer with exact scope/content and worker request/stage/response references. Show selected, omitted and unmatched coverage. Keep `## Standards` and `## Spec` separate, retaining attribution, required repairs, suggestions and gaps. Mark absent advisory Spec `not_requested`; do not manufacture approval from a completed run. Follow the native delivery and completion instructions rather than adding another reporting protocol.
 
-Capture the diff command once: `git diff <fixed-point>...HEAD` (three-dot, so the comparison is against the merge-base). Also note the list of commits via `git log <fixed-point>..HEAD --oneline`.
+The caller owns concurrent edits. Resolved refs and content receipts identify the review; they do not promise an isolated or unchanged checkout. Findings return to the implementation owner. Changed candidates need the applicable checks and reviews, not automatic repair within this workflow.
 
-Before going further, confirm the fixed point resolves (`git rev-parse <fixed-point>`) and the diff is non-empty. A bad ref or empty diff should fail here, not inside two parallel sub-agents.
+## Review guidance
 
-### 2. Identify the spec source
+Read root and affected package instructions, then load only guidance relevant to the assigned concern:
 
-Look for the originating spec, in this order:
+- **Code:** [TypeScript](../typescript/SKILL.md), [agent CLIs](../agent-clis/SKILL.md) and the available robustness skill when applicable.
+- **Tests:** [testing](../testing/SKILL.md) and [I/O dependency seams](../io-dependency-seams/SKILL.md). Assess missing coverage even when only production files changed.
+- **Docs:** [docs style](../docs-styleguide/SKILL.md), plus [writing for agents](../writing-for-agents/SKILL.md) and [hotpath review](../agent-docs-hotpath/SKILL.md) for agent-facing prose. Verify claims against implementation and actual help; report only.
+- **Spec:** compare the complete selected scope with the supplied request, acceptance and corrections for missing, incorrect or unrequested behavior. Keep standards findings in their own axis.
 
-1. Issue references in the commit messages (`#123`, `Closes #45`, GitLab `!67`, etc.), fetched via the workflow in `docs/agents/issue-tracker.md`.
-2. A path the user passed as an argument.
-3. A spec file under `docs/`, `specs/`, or `.scratch/` matching the branch name or feature.
-4. If nothing is found, ask the user where the spec is. If they say there isn't one, the **Spec** sub-agent will skip and report "no spec available".
+For each required finding, cite severity, `path:line`, the governing rule or requirement and a concrete repair. Missing access or evidence is an explicit gap, not a pass. Suggestions alone do not block approval.
 
-### 3. Identify the standards sources
+### Heuristics are not rules
 
-Anything in the repo that documents how code should be written, such as `CODING_STANDARDS.md` or `CONTRIBUTING.md`.
+Fowler's code smells can prompt investigation: mysterious names, duplicated code, feature envy, data clumps, primitive obsession, repeated switches, shotgun surgery, divergent change, speculative generality, message chains, middle men and refused bequests. Label such observations as heuristics—for example, “possible Feature Envy”—unless a governing repository rule establishes a violation. Explain the local cost before proposing a change; do not prescribe abstraction merely because a smell has a name.
 
-On top of whatever the repo documents, the Standards axis always carries the **smell baseline** below: a fixed set of Fowler code smells (_Refactoring_, ch.3) that applies even when a repo documents nothing. Two rules bind it:
-
-- **The repo overrides.** A documented repo standard always wins; where it endorses something the baseline would flag, suppress the smell.
-- **Always a judgement call.** Each smell is a labelled heuristic ("possible Feature Envy"), never a hard violation. Like any standard here, skip anything tooling already enforces.
-
-Each smell reads _what it is_ → _how to fix_; match it against the diff:
-
-- **Mysterious Name**: a function, variable, or type whose name doesn't reveal what it does or holds. → rename it; if no honest name comes, the design's murky.
-- **Duplicated Code**: the same logic shape appears in more than one hunk or file in the change. → extract the shared shape, call it from both.
-- **Feature Envy**: a method that reaches into another object's data more than its own. → move the method onto the data it envies.
-- **Data Clumps**: the same few fields or params keep travelling together (a type wanting to be born). → bundle them into one type, pass that.
-- **Primitive Obsession**: a primitive or string standing in for a domain concept that deserves its own type. → give the concept its own small type.
-- **Repeated Switches**: the same `switch`/`if`-cascade on the same type recurs across the change. → replace with polymorphism, or one map both sites share.
-- **Shotgun Surgery**: one logical change forces scattered edits across many files in the diff. → gather what changes together into one module.
-- **Divergent Change**: one file or module is edited for several unrelated reasons. → split so each module changes for one reason.
-- **Speculative Generality**: abstraction, parameters, or hooks added for needs the spec doesn't have. → delete it; inline back until a real need shows.
-- **Message Chains**: long `a.b().c().d()` navigation the caller shouldn't depend on. → hide the walk behind one method on the first object.
-- **Middle Man**: a class or function that mostly just delegates onward. → cut it, call the real target direct.
-- **Refused Bequest**: a subclass or implementer that ignores or overrides most of what it inherits. → drop the inheritance, use composition.
-
-### 4. Spawn both sub-agents in parallel
-
-Use Bee's delegation flow from root `AGENTS.md`: discover a suitable kind for each axis, create a separate report task, and submit both with kind defaults. Put the review brief and examined task IDs on each report task; normally omit prompt overrides so the kind keeps its protocol.
-
-**Standards report task** should include:
-
-- The full diff command and commit list.
-- The list of standards-source files you found in step 3, **plus the smell baseline from step 3** pasted in full (the sub-agent has no other access to it).
-- The brief: "Report, per file/hunk where relevant, (a) every place the diff violates a documented standard: cite the standard (file + the rule); and (b) any baseline smell you spot: name it and quote the hunk. Distinguish hard violations from judgement calls: documented-standard breaches can be hard, but baseline smells are always judgement calls, and a documented repo standard overrides the baseline. Skip anything tooling enforces. Under 400 words."
-
-**Spec report task** should include:
-
-- The diff command and commit list.
-- The path or fetched contents of the spec.
-- The brief: "Report: (a) requirements the spec asked for that are missing or partial; (b) behaviour in the diff that wasn't asked for (scope creep); (c) requirements that look implemented but where the implementation looks wrong. Quote the spec line for each finding. Under 400 words."
-
-If the spec is missing, skip the Spec sub-agent and note this in the final report.
-
-### 5. Aggregate
-
-Present the two reports under `## Standards` and `## Spec` headings, verbatim or lightly cleaned. Do **not** merge or rerank findings, because the two axes are deliberately separate (see _Why two axes_).
-
-End with a one-line summary: total findings per axis, and the worst issue _within each axis_ (if any). Don't pick a single winner across axes: that's the reranking the separation exists to prevent.
-
-## Why two axes
-
-A change can pass one axis and fail the other:
-
-- Code that follows every standard but implements the wrong thing → **Standards pass, Spec fail.**
-- Code that does exactly what the issue asked but breaks the project's conventions → **Spec pass, Standards fail.**
-
-Reporting them separately stops one axis from masking the other.
+Repository guidance overrides these heuristics, including its tolerance for small duplication. Skip findings already enforced by tooling. Preserve each axis's conclusion rather than ranking one axis as the overall winner.

@@ -1,0 +1,3 @@
+description = "Audit code, tests, documentation and specification in bounded parallel reviews"
+version = "1.0.0"
+run = "./workflow.ts"
