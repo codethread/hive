@@ -1,4 +1,4 @@
-description = "Triage and finish authorized work or a PR, integrate, refresh local tools and record evidence; the caller closes proven tasks and publishes after the run is done."
-# Earlier runs already past verify cannot satisfy the mandatory local-update prerequisite.
-version = "3.0.0"
+description = "Finish authorized work or a PR with Bee-dispatched review, integrate and refresh local tools; the caller closes proven tasks and publishes after the run is done."
+# Compatible dispatch change: published visits remain frozen.
+version = "3.1.0"
 run = "./workflow.ts"

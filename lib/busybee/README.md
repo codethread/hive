@@ -135,6 +135,8 @@ The demo creates its original work bead and prints `repo`, `db`, `parent`, `inpu
 
 The repository's [Land workflow](../../.workflows/land/workflow.ts) owns triage, completion checks, review, integration, local tool refresh and cleanup. It requires an explicit user request to land the agreed scope. Read `busybee input-schema land`, then the run and active stage briefs; starting a workflow does not grant landing authority.
 
+Entering `review` automatically dispatches a `reviewer` bee for a read-only assessment of the complete change. The driver retains the other stages, including check execution and its evidence; Bookworm and librarian consultations depend on the changed scope. The driver reads the review response and collects its saved outcome through the [delegation and result flow](#delegate-a-workflow-to-bee): `approved` carries a receipt for the exact reviewed diff, while `changes` returns to implementation. Published visits retain their frozen briefs and dispatch; new review visits use the current definition.
+
 Land retains the authorized task IDs, canonical checkout and tracker endpoint through cleanup. Its run brief assigns post-done task closure and tracker publication to the authorized caller/driver. Follow that retained brief even after the feature checkout is removed. Busy Bee validates transitions and payloads; workers verify external Git/PR/review evidence.
 
 The [Land integration tests](./tests/integration/land.test.ts) exercise saved states and navigation without real merges, publication or GitHub actions.
@@ -157,7 +159,7 @@ Concurrent submissions require one live database. Tracker synchronization does n
 
 ## Delegate a workflow to Bee
 
-Read `bee spawn --help` to submit a workflow assignment. Drivers coordinate the run; Bee-dispatched workers own their assigned stage. [Response delivery](../../docs/agents/responses.md) routes complete answers separately from workflow outcomes.
+Read `bee spawn --help` to submit a workflow assignment. Drivers coordinate the run; Bee-dispatched workers own their assigned stage. Use `bee result --help` to retrieve worker answers. [Response delivery](../../docs/agents/responses.md) routes complete answers separately from workflow outcomes.
 
 Follow `busybee record-result --help` for durable stage results and `busybee collect --help` for driver progression, including interrupted deliveries. The [work and progression contract](./SPEC.md#work-and-progression) owns lifecycle rules. Bee-dispatched workers leave collection/navigation to the driver.
 
