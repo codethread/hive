@@ -1,7 +1,14 @@
 import { z } from "zod";
 
 export const READY_WINDOW_MS = 30_000;
-export const EXIT = { success: 0, failure: 1, usage: 2, gone: 3, queued: 75 } as const;
+export const EXIT = {
+	success: 0,
+	failure: 1,
+	usage: 2,
+	gone: 3,
+	queued: 75,
+	runtimeTimeout: 124,
+} as const;
 const FIRST_ID = 1;
 const HEAD = 0;
 
@@ -91,6 +98,8 @@ export type FailureReason =
 	| "not_ready"
 	| "timed_out"
 	| "execution_failed"
+	| "execution_timed_out"
+	| "invalid_config"
 	| "repository_lookup_failed"
 	| "queue_busy";
 

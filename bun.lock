@@ -155,8 +155,12 @@
         "@hive/shared": "workspace:*",
         "commander": "^15.0.0",
         "gray-matter": "^4.0.3",
+        "ms": "^2.1.3",
         "skills-handler": "^0.1.2",
         "zod": "^4.6.5",
+      },
+      "devDependencies": {
+        "@types/ms": "^2.1.0",
       },
     },
     "lib/scent": {

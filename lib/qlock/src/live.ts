@@ -1,17 +1,33 @@
 import { Database, SQLiteError } from "bun:sqlite";
 import type { Dependencies, LockTarget, QueueStore } from "./run.ts";
 import { EXIT, QlockError, emptyQueue, parseQueue } from "./queue.ts";
+import { configPath, parseConfig } from "./config.ts";
+// eslint-disable-next-line import/no-nodejs-modules -- Resolve user configuration and conventional signal statuses.
+import { constants, homedir } from "node:os";
+// eslint-disable-next-line import/no-nodejs-modules -- Read user configuration and create queue directories.
+import { mkdir, readFile } from "node:fs/promises";
+import type { ChildExecution } from "./process.ts";
 import type { QueueState } from "./queue.ts";
-// eslint-disable-next-line import/no-nodejs-modules -- Queue directory creation is a native filesystem boundary.
-import { mkdir } from "node:fs/promises";
+import type { RuntimeLimit } from "./config.ts";
+import { executeChild } from "./process.ts";
+import { normalizeError } from "./run.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Resolve caller-selected queue and database paths.
 import { resolve } from "node:path";
+// eslint-disable-next-line import/no-nodejs-modules -- Own a Unix process group with foreground supervision.
+import { spawn } from "node:child_process";
 import { z } from "zod";
 
 const BUSY_TIMEOUT_MS = 5000;
 const PROBE_SIGNAL = 0;
 const NONEMPTY = 1;
 const SIGNALS = ["SIGINT", "SIGTERM", "SIGHUP"] as const;
+const GROUP_POLL_MS = 20;
+const SIGNAL_EXIT_BASE = 128;
+const CLEANUP_RETRY_MS = 1000;
+const groupMemberSchema = z.tuple([
+	z.coerce.number().int().nonnegative(),
+	z.string().min(NONEMPTY),
+]);
 const rowSchema = z.strictObject({ snapshot: z.string() });
 
 export function createLiveDependencies(): Dependencies {
@@ -21,7 +37,16 @@ export function createLiveDependencies(): Dependencies {
 		now: Date.now,
 		sleep: (milliseconds) => Bun.sleep(milliseconds),
 		isAlive,
-		execute: executeChild,
+		loadRuntimeLimit: () => readRuntimeLimit(configPath(homedir(), process.env.XDG_CONFIG_HOME)),
+		execute: (command, limit) =>
+			executeChild(command, limit, {
+				start: startChild,
+				onInterrupt,
+				schedule: (milliseconds, expire) => {
+					const timer = setTimeout(expire, milliseconds);
+					return () => clearTimeout(timer);
+				},
+			}),
 		pid: process.pid,
 		cwd: process.cwd(),
 		stdout: (text) => {
@@ -74,6 +99,24 @@ export async function openQueue(lock: string): Promise<QueueStore> {
 	}
 }
 
+/** Missing configuration is unlimited; unreadable or malformed configuration fails visibly. */
+export async function readRuntimeLimit(path: string): Promise<RuntimeLimit> {
+	let text = "";
+	try {
+		text = await readFile(path, "utf8");
+	} catch (error) {
+		if (error instanceof Error && "code" in error && error.code === "ENOENT") {
+			return { kind: "unlimited" };
+		}
+		throw new QlockError("invalid_config", `Cannot read ${path}: ${String(error)}`, EXIT.usage);
+	}
+	try {
+		return parseConfig(text);
+	} catch (error) {
+		throw new QlockError("invalid_config", `${path}: ${String(error)}`, EXIT.usage);
+	}
+}
+
 // --- Private functions ---
 
 // Validate the destination and resolve repository identity in one command boundary.
@@ -110,19 +153,122 @@ function isAlive(pid: number): boolean {
 	}
 }
 
-async function executeChild(command: string[]): Promise<number> {
-	const child = Bun.spawn(command, { stdin: "inherit", stdout: "inherit", stderr: "inherit" });
-	const forward = () => child.kill("SIGTERM");
+function startChild(command: string[]): ChildExecution {
+	const [file, ...args] = command;
+	if (file === undefined) {
+		throw new Error("Missing executable");
+	}
+	const child = spawn(file, args, { detached: true, stdio: "inherit" });
+	const exited = Promise.withResolvers<number>();
+	child.once("error", exited.reject);
+	child.once("exit", (code, signal) => {
+		let status = code ?? EXIT.failure;
+		if (signal !== null) {
+			status = SIGNAL_EXIT_BASE + constants.signals[signal];
+		}
+		exited.resolve(status);
+	});
+	return {
+		exited: awaitChildGroupExit(exited.promise, child.pid),
+		signal: (signal) => {
+			if (child.pid !== undefined) {
+				try {
+					signalGroup(child.pid, signal);
+				} catch (error) {
+					process.stderr.write(
+						`qlock: Cannot signal process group ${child.pid}; retaining ownership: ${String(error)}\n`,
+					);
+					throw error;
+				}
+			}
+		},
+	};
+}
+
+async function awaitChildGroupExit(
+	exited: Promise<number>,
+	pid: number | undefined,
+): Promise<number> {
+	const code = await exited;
+	if (pid !== undefined) {
+		await verifyGroupCleanup(pid);
+	}
+	return code;
+}
+
+/** An observation failure is never permission to admit the next command. */
+// eslint-disable-next-line max-statements -- Preserve the first failure while retaining and verifying ownership.
+async function verifyGroupCleanup(pid: number): Promise<void> {
+	let failure: QlockError | undefined = undefined;
+	for (;;) {
+		try {
+			// eslint-disable-next-line no-await-in-loop -- Recheck after an explicitly retained cleanup failure.
+			await awaitGroupExit(pid);
+			break;
+		} catch (error) {
+			if (failure === undefined) {
+				failure = normalizeError(error);
+				process.stderr.write(
+					`qlock: Cannot verify process group ${pid}; retaining ownership and attempting SIGKILL: ${failure.message}\n`,
+				);
+			}
+			try {
+				signalGroup(pid, "SIGKILL");
+			} catch (signalError) {
+				process.stderr.write(
+					`qlock: Group cleanup failed; ownership retained: ${String(signalError)}\n`,
+				);
+			}
+			// eslint-disable-next-line no-await-in-loop -- Retain the live owner until cleanup can be established.
+			await Bun.sleep(CLEANUP_RETRY_MS);
+		}
+	}
+	if (failure !== undefined) {
+		throw failure;
+	}
+}
+
+function onInterrupt(forward: () => void): () => void {
 	for (const signal of SIGNALS) {
 		process.on(signal, forward);
 	}
-	try {
-		return await child.exited;
-	} finally {
+	return () => {
 		for (const signal of SIGNALS) {
 			process.off(signal, forward);
 		}
+	};
+}
+
+function signalGroup(pid: number, signal: NodeJS.Signals | number): boolean {
+	try {
+		process.kill(-pid, signal);
+		return true;
+	} catch (error) {
+		if (error instanceof Error && "code" in error && error.code === "ESRCH") {
+			return false;
+		}
+		throw error;
 	}
+}
+
+async function awaitGroupExit(pid: number): Promise<void> {
+	// eslint-disable-next-line no-await-in-loop -- Retain queue ownership until no live group members remain.
+	while (signalGroup(pid, PROBE_SIGNAL) && (await hasLiveGroupMembers(pid))) {
+		// eslint-disable-next-line no-await-in-loop -- Yield only while waiting for foreground descendants to exit.
+		await Bun.sleep(GROUP_POLL_MS);
+	}
+}
+
+async function hasLiveGroupMembers(pid: number): Promise<boolean> {
+	const result = await capture(["ps", "-axo", "pgid=,stat="]);
+	if (result.code !== EXIT.success) {
+		throw new Error(`Cannot inspect process group ${pid}: ${result.stderr}`);
+	}
+	const members = result.stdout
+		.split("\n")
+		.filter((line) => line.trim() !== "")
+		.map((line) => groupMemberSchema.parse(line.trim().split(/\s+/u)));
+	return members.some(([group, state]) => group === pid && !state.startsWith("Z"));
 }
 
 async function capture(argv: string[]) {

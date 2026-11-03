@@ -22,19 +22,19 @@ const SECONDS = 1000;
 // eslint-disable-next-line unicorn/no-null -- The public queue contract uses null for the ordinary FIFO lane.
 const ORDINARY = null;
 const HELP = `
-Merge queue (instead of --lock):
+Merge queue (instead of --lock; child must target the same branch):
   qlock exec --merge-target main -w 180 -- honeycomb finish --json
-The child merge command must target the same branch; --merge-target selects only the queue.
 `;
 const EXEC_HELP = `
-Example: wait, timeout, resume
   qlock exec --lock /tmp/check.lock -w 180 -- bun run check
   # Queue wait timeout (-w, not command runtime): exit 75; stderr:
   qlock: Ticket 42 still queued (#2/2); resume with --ticket 42 before --
-  # Run again with the reported ID (here 42), same queue and command
   qlock exec --lock /tmp/check.lock -w 180 --ticket 42 -- bun run check
---ticket keeps your place; omit it to join again.
-No background execution. Ready tickets expire after 30s.
+--ticket keeps your place; omit it to join again. No background execution. Ready tickets expire after 30s.
+Runtime: \${XDG_CONFIG_HOME:-~/.config}/hive/qlock.toml: timeout = "4m"
+Absent file/timeout: unlimited. Timer starts at spawn, not queue wait (-w/-E).
+Expiry sends immediate SIGKILL to the child and descendants still in its process group; exit 124.
+No warning/grace; slot retained until child and live group members exit. New groups/sessions escape.
 `;
 
 interface TargetOptions {
@@ -140,7 +140,7 @@ function createProgram(
 		.argument("[args...]", "Arguments passed to the command")
 		.addHelpText(
 			"after",
-			`${EXEC_HELP}A gone ticket exits 3; a queue timeout exits 75 unless --timeout-code overrides it.
+			`${EXEC_HELP}A gone ticket exits 3; -E changes only the queue wait-timeout exit status.
 Child exit codes pass through and can overlap these codes; use qlock's diagnostic to distinguish them.`,
 		)
 		.requiredOption(
@@ -150,7 +150,7 @@ Child exit codes pass through and can overlap these codes; use qlock's diagnosti
 		)
 		.option(
 			"-E, --timeout-code <code>",
-			"Wait-timeout exit status",
+			"Queue wait-timeout exit status",
 			(value) => integer(value, AFTER_FIRST, MAX_EXIT_CODE),
 			EXIT.queued,
 		)

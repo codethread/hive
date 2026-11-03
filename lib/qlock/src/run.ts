@@ -1,5 +1,6 @@
 import { EXIT, QlockError, advanceQueue, enqueue, finish, reserve, ticketById } from "./queue.ts";
 import type { QueueState, Ticket } from "./queue.ts";
+import type { RuntimeLimit } from "./config.ts";
 
 const POLL_MS = 1000;
 const PROGRESS_MS = 15_000;
@@ -80,8 +81,10 @@ export interface Dependencies {
 	sleep: (milliseconds: number) => Promise<void>;
 	/** Check whether a recorded qlock PID is still alive; unknown errors propagate. */
 	isAlive: (pid: number) => boolean;
-	/** Run a foreground child, forwarding signals and preserving its exit status. */
-	execute: (command: string[]) => Promise<number>;
+	/** Load global runtime policy before joining or resuming a queue. */
+	loadRuntimeLimit: () => Promise<RuntimeLimit>;
+	/** Supervise the owned process group, including any configured runtime deadline. */
+	execute: (command: string[], limit: RuntimeLimit) => Promise<number>;
 	/** Current qlock process identity. */
 	pid: number;
 	/** Original calling directory, recorded with new tickets. */
@@ -119,6 +122,10 @@ export async function runRequest(request: Request, deps: Dependencies): Promise<
 	}
 	let lock: string | undefined = undefined;
 	try {
+		let limit: RuntimeLimit = { kind: "unlimited" };
+		if (operation.kind === "exec") {
+			limit = await deps.loadRuntimeLimit();
+		}
 		lock = await deps.resolveLock(request.target);
 		const store = await deps.openQueue(lock);
 		try {
@@ -135,7 +142,7 @@ export async function runRequest(request: Request, deps: Dependencies): Promise<
 			const ticket = id;
 			await reserveTurn(store, deps, { ...operation, ticket });
 			try {
-				return { kind: "executed", code: await deps.execute(operation.command) };
+				return { kind: "executed", code: await deps.execute(operation.command, limit) };
 			} finally {
 				store.update((state) => finish(state, ticket));
 			}

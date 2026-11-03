@@ -1,6 +1,6 @@
 import { advanceQueue, enqueue } from "../../src/queue.ts";
 import { afterAll, afterEach, beforeAll, beforeEach, expect, test } from "bun:test";
-import { createLiveDependencies, openQueue } from "../../src/live.ts";
+import { createLiveDependencies, openQueue, readRuntimeLimit } from "../../src/live.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Isolated filesystem fixtures exercise a compiled CLI.
 import { mkdir, mkdtemp, realpath, rm } from "node:fs/promises";
 import { Database } from "bun:sqlite";
@@ -183,7 +183,7 @@ test(
 				"-c",
 				'printf ready; read -r answer; printf "%s" "$answer"',
 			],
-			{ cwd: directory, stdin: "pipe", stdout: "pipe", stderr: "pipe" },
+			{ cwd: directory, env: testEnvironment(), stdin: "pipe", stdout: "pipe", stderr: "pipe" },
 		);
 		const reader = runner.stdout.getReader();
 		try {
@@ -273,7 +273,7 @@ test(
 					"-c",
 					"printf ready; read -r answer",
 				],
-				{ cwd: directory, stdin: "pipe", stdout: "pipe", stderr: "pipe" },
+				{ cwd: directory, env: testEnvironment(), stdin: "pipe", stdout: "pipe", stderr: "pipe" },
 			),
 		);
 		const readers = competitors.map((child) => child.stdout.getReader());
@@ -318,7 +318,7 @@ test(
 				'process.on("SIGTERM", () => console.log("terminating")); ' +
 					'console.log("ready"); await Bun.stdin.text(); process.exit(23);',
 			],
-			{ cwd: directory, stdin: "pipe", stdout: "pipe", stderr: "pipe" },
+			{ cwd: directory, env: testEnvironment(), stdin: "pipe", stdout: "pipe", stderr: "pipe" },
 		);
 		const reader = runner.stdout.getReader();
 		try {
@@ -455,7 +455,11 @@ function timeoutTicket(stderr: string): string {
 }
 
 function qlock(args: readonly string[]) {
-	return command([executable, ...args], { ...process.env, WK_ROOT: undefined });
+	return command([executable, ...args], testEnvironment());
+}
+
+function testEnvironment() {
+	return { ...process.env, WK_ROOT: undefined, XDG_CONFIG_HOME: resolve(directory, "config") };
 }
 
 // Status and quiet-child ordering use real SQLite; qlock itself stays in this process.
@@ -464,6 +468,7 @@ async function liveQlock(args: readonly string[]) {
 	let stderr = "";
 	const code = await runCli(args, {
 		...createLiveDependencies(),
+		loadRuntimeLimit: () => readRuntimeLimit(resolve(directory, "config/hive/qlock.toml")),
 		cwd: directory,
 		stdout: (text) => {
 			stdout += text;

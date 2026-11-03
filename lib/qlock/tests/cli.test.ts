@@ -177,6 +177,40 @@ test("spawn failure releases the reservation and does not mistake a flag value f
 	expect(harness.closed).toBe(1);
 });
 
+test("invalid runtime configuration fails before admitting a ticket", async () => {
+	const harness = fixture();
+	harness.deps.loadRuntimeLimit = () =>
+		Promise.reject(new QlockError("invalid_config", "bad config", 2));
+	expect(await runCli(["exec", "-w", "0", "--lock", "/lock", "--", "child"], harness.deps)).toBe(2);
+	expect(harness.opened).toBe(0);
+	expect(harness.commands).toEqual([]);
+});
+
+test("runtime limit reaches execution after admission and timeout releases the ticket", async () => {
+	const harness = fixture();
+	const limit = { kind: "timeout", milliseconds: 240_000 } as const;
+	harness.deps.loadRuntimeLimit = () => Promise.resolve(limit);
+	harness.deps.execute = (_command, received) => {
+		expect(received).toEqual(limit);
+		expect(harness.queue.tickets).toMatchObject([{ state: "running" }]);
+		return Promise.reject(new QlockError("execution_timed_out", "runtime timeout", 124));
+	};
+	expect(await runCli(["exec", "-w", "0", "--lock", "/lock", "--", "child"], harness.deps)).toBe(
+		124,
+	);
+	expect(harness.queue.tickets).toEqual([]);
+	expect(harness.closed).toBe(1);
+});
+
+test("metadata and help never load runtime configuration", async () => {
+	const harness = fixture();
+	harness.deps.loadRuntimeLimit = () => {
+		throw new Error("configuration must not be read");
+	};
+	expect(await runCli(["status", "--json", "--lock", "/lock"], harness.deps)).toBe(0);
+	expect(await runCli(["--help"], harness.deps)).toBe(0);
+});
+
 test.each(
 	[
 		["run", "-w", "0", "/lock", "child"],
@@ -284,12 +318,20 @@ test.each([
 	const harness = fixture();
 	expect(await runCli(argv, harness.deps)).toBe(0);
 	const help = harness.out.join("");
-	expect(help).toContain("qlock exec --lock /tmp/check.lock -w 180 -- bun run check");
-	expect(help).toContain("Queue wait timeout (-w, not command runtime)");
-	expect(help).toContain("qlock: Ticket 42 still queued (#2/2); resume with --ticket 42 before --");
-	expect(help).toContain("qlock exec --lock /tmp/check.lock -w 180 --ticket 42 -- bun run check");
-	expect(help).toContain("--ticket keeps your place; omit it to join again");
-	expect(help).toContain("No background execution. Ready tickets expire after 30s");
+	for (const snippet of [
+		"qlock exec --lock /tmp/check.lock -w 180 -- bun run check",
+		"Queue wait timeout (-w, not command runtime)",
+		"qlock: Ticket 42 still queued (#2/2); resume with --ticket 42 before --",
+		"qlock exec --lock /tmp/check.lock -w 180 --ticket 42 -- bun run check",
+		"--ticket keeps your place; omit it to join again",
+		"No background execution. Ready tickets expire after 30s",
+		`\${XDG_CONFIG_HOME:-~/.config}/hive/qlock.toml: timeout = "4m"`,
+		"Absent file/timeout: unlimited. Timer starts at spawn, not queue wait (-w/-E)",
+		"immediate SIGKILL to the child and descendants still in its process group; exit 124",
+		"slot retained until child and live group members exit",
+	]) {
+		expect(help).toContain(snippet);
+	}
 });
 
 test.each([
@@ -377,6 +419,7 @@ function fixture(queue = emptyQueue()) {
 			return Promise.resolve();
 		},
 		isAlive: () => true,
+		loadRuntimeLimit: () => Promise.resolve({ kind: "unlimited" }),
 		execute: (command) => {
 			state.commands.push(command);
 			return Promise.resolve(23);
