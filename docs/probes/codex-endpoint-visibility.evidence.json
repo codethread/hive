@@ -1,0 +1,748 @@
+{
+	"schemaVersion": 1,
+	"runId": "hv-xyhyg1.1.1",
+	"sourceId": "hv-xyhyg1.1",
+	"codexVersion": "0.163.0",
+	"vendorOid": "e597169e9a783156e50ae9765d891a3dd74df064",
+	"brVersion": "0.7.4",
+	"miseVersion": "2026.10.4",
+	"beeVersion": "0.7.1",
+	"busybeeVersion": "0.7.1",
+	"launchMode": "CLI exec --no-daemon --ephemeral",
+	"sandbox": "read-only",
+	"osHomeUnchanged": true,
+	"simulatedUserRoots": "two disposable CODEX_HOME roots sharing existing authentication through symlinks, same OS account",
+	"trust": "fixture projects trusted, hooks reviewed/trusted using ordinary TUI; no trust/sandbox bypass",
+	"nativeGui": "UNVERIFIED: computer-use denied com.openai.codex; not retried",
+	"cases": [
+		{
+			"case": {
+				"name": "conflicting-aliases",
+				"user": "user-b",
+				"project": "dots-fixture",
+				"inherit": "all",
+				"ambient": "${FIXTURE_ROOT}/user-b/hive-fixture-tracker/.beads/beads.db",
+				"aliases": true,
+				"endpoint": "${FIXTURE_ROOT}/user-b/hive-fixture-tracker/.beads/beads.db"
+			},
+			"nonce": "11c5ca64eb6781b5a199",
+			"nonceAbsentFromPrompt": true,
+			"modelReceivedNonce": true,
+			"hook": {
+				"event": "SessionStart",
+				"cwd": "${FIXTURE_ROOT}/user-b/dots-fixture",
+				"environment": {
+					"BEADS_DB": "${FIXTURE_ROOT}/user-b/hive-fixture-tracker/.beads/beads.db",
+					"BD_DB": "${FIXTURE_ROOT}/user-b/dots-fixture-tracker/.beads/beads.db",
+					"BD_DATABASE": "${FIXTURE_ROOT}/user-a/hive-fixture-tracker/.beads/beads.db"
+				},
+				"case": "conflicting-aliases"
+			},
+			"commands": [
+				{
+					"command": "/bin/zsh -c \"/usr/bin/python3 -c 'import os,json; print(json.dumps({\\\"cwd\\\":os.getcwd(),\\\"BEADS_DB\\\":os.environ.get(\\\"BEADS_DB\\\"),\\\"BD_DB\\\":os.environ.get(\\\"BD_DB\\\"),\\\"BD_DATABASE\\\":os.environ.get(\\\"BD_DATABASE\\\")}))'\"",
+					"exitCode": 0,
+					"observations": [
+						{
+							"cwd": "${FIXTURE_ROOT}/user-b/dots-fixture",
+							"BEADS_DB": "${FIXTURE_ROOT}/user-b/hive-fixture-tracker/.beads/beads.db",
+							"BD_DB": "${FIXTURE_ROOT}/user-b/dots-fixture-tracker/.beads/beads.db",
+							"BD_DATABASE": "${FIXTURE_ROOT}/user-a/hive-fixture-tracker/.beads/beads.db"
+						}
+					]
+				},
+				{
+					"command": "/bin/zsh -lc \"/usr/bin/python3 -c 'import os,json; print(json.dumps({\\\"cwd\\\":os.getcwd(),\\\"BEADS_DB\\\":os.environ.get(\\\"BEADS_DB\\\"),\\\"BD_DB\\\":os.environ.get(\\\"BD_DB\\\"),\\\"BD_DATABASE\\\":os.environ.get(\\\"BD_DATABASE\\\")}))'\"",
+					"exitCode": 0,
+					"observations": [
+						{
+							"cwd": "${FIXTURE_ROOT}/user-b/dots-fixture",
+							"BEADS_DB": "${FIXTURE_ROOT}/user-b/hive-fixture-tracker/.beads/beads.db",
+							"BD_DB": "${FIXTURE_ROOT}/user-b/dots-fixture-tracker/.beads/beads.db",
+							"BD_DATABASE": "${FIXTURE_ROOT}/user-a/hive-fixture-tracker/.beads/beads.db"
+						}
+					]
+				},
+				{
+					"command": "/bin/zsh -c '/opt/homebrew/bin/br info --json --no-auto-import --no-auto-flush'",
+					"exitCode": 0,
+					"observations": [
+						{
+							"warningCode": "sync_merge_pending_unknown"
+						},
+						{
+							"database_path": "${FIXTURE_ROOT}/user-b/dots-fixture-tracker/.beads/beads.db"
+						}
+					]
+				},
+				{
+					"command": "/bin/zsh -c '/opt/homebrew/bin/br --db ${FIXTURE_ROOT}/user-b/hive-fixture-tracker/.beads/beads.db info --json --no-auto-import --no-auto-flush'",
+					"exitCode": 0,
+					"observations": [
+						{
+							"warningCode": "sync_merge_pending_unknown"
+						},
+						{
+							"database_path": "${FIXTURE_ROOT}/user-b/hive-fixture-tracker/.beads/beads.db"
+						}
+					]
+				},
+				{
+					"command": "/bin/zsh -c 'env -u BD_DB /opt/homebrew/bin/br info --json --no-auto-import --no-auto-flush'",
+					"exitCode": 0,
+					"observations": [
+						{
+							"warningCode": "sync_merge_pending_unknown"
+						},
+						{
+							"database_path": "${FIXTURE_ROOT}/user-a/hive-fixture-tracker/.beads/beads.db"
+						}
+					]
+				},
+				{
+					"command": "/bin/zsh -c '/opt/homebrew/bin/br --db ${FIXTURE_ROOT}/user-b/hive-fixture-tracker/.beads/beads.db info --json --no-auto-import --no-auto-flush'",
+					"exitCode": 0,
+					"observations": [
+						{
+							"warningCode": "sync_merge_pending_unknown"
+						},
+						{
+							"database_path": "${FIXTURE_ROOT}/user-b/hive-fixture-tracker/.beads/beads.db"
+						}
+					]
+				}
+			],
+			"rawEventsSha256": "0a6d600caf8cd99d6d4ab6790b0cafa04c1f788e4673f8f51a2ffb0da24b99de"
+		},
+		{
+			"case": {
+				"name": "foreign-assignment-mise-reentry",
+				"user": "user-a",
+				"project": "dots-fixture",
+				"inherit": "all",
+				"ambient": "${ASSIGNMENT_DB}",
+				"mise": true,
+				"endpoint": "${ASSIGNMENT_DB}",
+				"live": true
+			},
+			"nonce": "00fc1d4e71f62bca33f4",
+			"nonceAbsentFromPrompt": true,
+			"modelReceivedNonce": true,
+			"hook": {
+				"event": "SessionStart",
+				"cwd": "${FIXTURE_ROOT}/user-a/dots-fixture",
+				"environment": {
+					"BEADS_DB": "${FIXTURE_ROOT}/user-a/dots-fixture-tracker/.beads/beads.db",
+					"BD_DB": null,
+					"BD_DATABASE": null
+				},
+				"case": "foreign-assignment-mise-reentry"
+			},
+			"commands": [
+				{
+					"command": "/bin/zsh -c \"/usr/bin/python3 -c 'import os; print(\\\"cwd=\\\" + os.getcwd()); [print(k + \\\"=\\\" + repr(os.environ.get(k))) for k in (\\\"BEADS_DB\\\", \\\"BD_DB\\\", \\\"BD_DATABASE\\\")]' \"",
+					"exitCode": 0,
+					"observations": [
+						"cwd=${FIXTURE_ROOT}/user-a/dots-fixture",
+						"BEADS_DB='${FIXTURE_ROOT}/user-a/dots-fixture-tracker/.beads/beads.db'",
+						"BD_DB=None",
+						"BD_DATABASE=None"
+					]
+				},
+				{
+					"command": "/bin/zsh -lc \"/usr/bin/python3 -c 'import os; print(\\\"cwd=\\\" + os.getcwd()); [print(k + \\\"=\\\" + repr(os.environ.get(k))) for k in (\\\"BEADS_DB\\\", \\\"BD_DB\\\", \\\"BD_DATABASE\\\")]' \"",
+					"exitCode": 0,
+					"observations": [
+						"cwd=${FIXTURE_ROOT}/user-a/dots-fixture",
+						"BEADS_DB='${FIXTURE_ROOT}/user-a/dots-fixture-tracker/.beads/beads.db'",
+						"BD_DB=None",
+						"BD_DATABASE=None"
+					]
+				},
+				{
+					"command": "/bin/zsh -c '/opt/homebrew/bin/br info --json --no-auto-import --no-auto-flush'",
+					"exitCode": 0,
+					"observations": [
+						{
+							"warningCode": "sync_merge_pending_unknown"
+						},
+						{
+							"database_path": "${FIXTURE_ROOT}/user-a/dots-fixture-tracker/.beads/beads.db"
+						}
+					]
+				},
+				{
+					"command": "/bin/zsh -c '/opt/homebrew/bin/br info --json --no-auto-import --no-auto-flush --db ${ASSIGNMENT_DB}'",
+					"exitCode": 0,
+					"observations": [
+						{
+							"warningCode": "sync_merge_pending_unknown"
+						},
+						{
+							"database_path": "${ASSIGNMENT_DB}"
+						}
+					]
+				},
+				{
+					"command": "/bin/zsh -c '/opt/homebrew/bin/br info --json --no-auto-import --no-auto-flush --db ${ASSIGNMENT_DB}'",
+					"exitCode": 0,
+					"observations": [
+						{
+							"warningCode": "sync_merge_pending_unknown"
+						},
+						{
+							"database_path": "${ASSIGNMENT_DB}"
+						}
+					]
+				},
+				{
+					"command": "/bin/zsh -c '${USER_HOME}/.local/bin/bee status hv-af72ks --repo ${CANONICAL_ROOT} --beads-db ${ASSIGNMENT_DB} --json'",
+					"exitCode": 1,
+					"observations": [
+						{
+							"kind": "error",
+							"message": "br show exited 7: CONFIG_ERROR: Configuration error: Failed to open workspace write lock at ${CANONICAL_ROOT}/.worktrees/tracker--state/.beads/.write.lock: Operation not permitted (os error 1)",
+							"reason": 7,
+							"ok": false
+						}
+					]
+				}
+			],
+			"rawEventsSha256": "f161ecc3e9243abcb6c5446be82289166102e6ee2d00c0ed601e4a98160317a2",
+			"busybeeSupplement": {
+				"rawEventsSha256": "4104406bd11c269b500163782ecbb263212a431bc7d989a70fb8474b60fd616b",
+				"completedItems": [
+					{
+						"id": "item_0",
+						"type": "agent_message",
+						"text": "PROBE_NONCE: 00fc1d4e71f62bca33f4\nSelected endpoint: ${ASSIGNMENT_DB}"
+					},
+					{
+						"id": "item_1",
+						"type": "agent_message",
+						"text": "{\n  \"message\": \"br show exited 7: CONFIG_ERROR: Configuration error: Failed to open workspace write lock at ${CANONICAL_ROOT}/.worktrees/tracker--state/.beads/.write.lock: Operation not permitted (os error 1)\",\n  \"ok\": false,\n  \"reason\": \"command_failed\",\n  \"kind\": \"show\",\n  \"target\": \"hv-xyhyg1.1.1\"\n}"
+					}
+				],
+				"independentCommandReceipt": false
+			}
+		},
+		{
+			"case": {
+				"name": "inherited-core-filtered",
+				"user": "user-a",
+				"project": "hive-fixture",
+				"inherit": "core",
+				"ambient": "${FIXTURE_ROOT}/user-a/hive-fixture-tracker/.beads/beads.db",
+				"endpoint": "${FIXTURE_ROOT}/user-a/hive-fixture-tracker/.beads/beads.db"
+			},
+			"nonce": "7697900122768cdb07f4",
+			"nonceAbsentFromPrompt": true,
+			"modelReceivedNonce": true,
+			"hook": {
+				"event": "SessionStart",
+				"cwd": "${FIXTURE_ROOT}/user-a/hive-fixture",
+				"environment": {
+					"BEADS_DB": "${FIXTURE_ROOT}/user-a/hive-fixture-tracker/.beads/beads.db",
+					"BD_DB": null,
+					"BD_DATABASE": null
+				},
+				"case": "inherited-core-filtered"
+			},
+			"commands": [
+				{
+					"command": "/bin/zsh -c \"/usr/bin/python3 -c 'import os; print(\\\"cwd=\\\" + os.getcwd()); [print(k + \\\"=\\\" + repr(os.environ.get(k))) for k in (\\\"BEADS_DB\\\", \\\"BD_DB\\\", \\\"BD_DATABASE\\\")]' \"",
+					"exitCode": 0,
+					"observations": [
+						"cwd=${FIXTURE_ROOT}/user-a/hive-fixture",
+						"BEADS_DB=None",
+						"BD_DB=None",
+						"BD_DATABASE=None"
+					]
+				},
+				{
+					"command": "/bin/zsh -lc \"/usr/bin/python3 -c 'import os; print(\\\"cwd=\\\" + os.getcwd()); [print(k + \\\"=\\\" + repr(os.environ.get(k))) for k in (\\\"BEADS_DB\\\", \\\"BD_DB\\\", \\\"BD_DATABASE\\\")]' \"",
+					"exitCode": 0,
+					"observations": [
+						"cwd=${FIXTURE_ROOT}/user-a/hive-fixture",
+						"BEADS_DB=None",
+						"BD_DB=None",
+						"BD_DATABASE=None"
+					]
+				},
+				{
+					"command": "/bin/zsh -c '/opt/homebrew/bin/br info --json --no-auto-import --no-auto-flush'",
+					"exitCode": 2,
+					"observations": [
+						{
+							"error": {
+								"code": "NOT_INITIALIZED",
+								"message": "Beads not initialized: run 'br init' first",
+								"hint": "Run: br init",
+								"retryable": false,
+								"context": null
+							}
+						}
+					]
+				},
+				{
+					"command": "/bin/zsh -c '/opt/homebrew/bin/br info --json --no-auto-import --no-auto-flush --db ${FIXTURE_ROOT}/user-a/hive-fixture-tracker/.beads/beads.db'",
+					"exitCode": 0,
+					"observations": [
+						{
+							"warningCode": "sync_merge_pending_unknown"
+						},
+						{
+							"database_path": "${FIXTURE_ROOT}/user-a/hive-fixture-tracker/.beads/beads.db"
+						}
+					]
+				},
+				{
+					"command": "/bin/zsh -c '/opt/homebrew/bin/br info --json --no-auto-import --no-auto-flush --db ${FIXTURE_ROOT}/user-a/hive-fixture-tracker/.beads/beads.db'",
+					"exitCode": 0,
+					"observations": [
+						{
+							"warningCode": "sync_merge_pending_unknown"
+						},
+						{
+							"database_path": "${FIXTURE_ROOT}/user-a/hive-fixture-tracker/.beads/beads.db"
+						}
+					]
+				}
+			],
+			"rawEventsSha256": "ddc6f6acca38cfc80573ce5617c1791a5eaebf15507862a3ba4b594a85be9c71"
+		},
+		{
+			"case": {
+				"name": "inherited-mise",
+				"user": "user-a",
+				"project": "hive-fixture",
+				"inherit": "all",
+				"mise": true,
+				"endpoint": "${FIXTURE_ROOT}/user-a/hive-fixture-tracker/.beads/beads.db"
+			},
+			"nonce": "e70eaa2986f468338619",
+			"nonceAbsentFromPrompt": true,
+			"modelReceivedNonce": true,
+			"hook": {
+				"event": "SessionStart",
+				"cwd": "${FIXTURE_ROOT}/user-a/hive-fixture",
+				"environment": {
+					"BEADS_DB": "${FIXTURE_ROOT}/user-a/hive-fixture-tracker/.beads/beads.db",
+					"BD_DB": null,
+					"BD_DATABASE": null
+				},
+				"case": "inherited-mise"
+			},
+			"commands": [
+				{
+					"command": "/bin/zsh -c \"/usr/bin/python3 -c 'import os,json; print(json.dumps({\\\"cwd\\\":os.getcwd(),\\\"BEADS_DB\\\":os.environ.get(\\\"BEADS_DB\\\"),\\\"BD_DB\\\":os.environ.get(\\\"BD_DB\\\"),\\\"BD_DATABASE\\\":os.environ.get(\\\"BD_DATABASE\\\")}))' \"",
+					"exitCode": 0,
+					"observations": [
+						{
+							"cwd": "${FIXTURE_ROOT}/user-a/hive-fixture",
+							"BEADS_DB": "${FIXTURE_ROOT}/user-a/hive-fixture-tracker/.beads/beads.db",
+							"BD_DB": null,
+							"BD_DATABASE": null
+						}
+					]
+				},
+				{
+					"command": "/bin/zsh -lc \"/usr/bin/python3 -c 'import os,json; print(json.dumps({\\\"cwd\\\":os.getcwd(),\\\"BEADS_DB\\\":os.environ.get(\\\"BEADS_DB\\\"),\\\"BD_DB\\\":os.environ.get(\\\"BD_DB\\\"),\\\"BD_DATABASE\\\":os.environ.get(\\\"BD_DATABASE\\\")}))' \"",
+					"exitCode": 0,
+					"observations": [
+						{
+							"cwd": "${FIXTURE_ROOT}/user-a/hive-fixture",
+							"BEADS_DB": "${FIXTURE_ROOT}/user-a/hive-fixture-tracker/.beads/beads.db",
+							"BD_DB": null,
+							"BD_DATABASE": null
+						}
+					]
+				},
+				{
+					"command": "/bin/zsh -c '/opt/homebrew/bin/br info --json --no-auto-import --no-auto-flush'",
+					"exitCode": 0,
+					"observations": [
+						{
+							"warningCode": "sync_merge_pending_unknown"
+						},
+						{
+							"database_path": "${FIXTURE_ROOT}/user-a/hive-fixture-tracker/.beads/beads.db"
+						}
+					]
+				},
+				{
+					"command": "/bin/zsh -c '/opt/homebrew/bin/br --db ${FIXTURE_ROOT}/user-a/hive-fixture-tracker/.beads/beads.db info --json --no-auto-import --no-auto-flush'",
+					"exitCode": 0,
+					"observations": [
+						{
+							"warningCode": "sync_merge_pending_unknown"
+						},
+						{
+							"database_path": "${FIXTURE_ROOT}/user-a/hive-fixture-tracker/.beads/beads.db"
+						}
+					]
+				},
+				{
+					"command": "/bin/zsh -c '/opt/homebrew/bin/br --db ${FIXTURE_ROOT}/user-a/hive-fixture-tracker/.beads/beads.db info --json --no-auto-import --no-auto-flush'",
+					"exitCode": 0,
+					"observations": [
+						{
+							"warningCode": "sync_merge_pending_unknown"
+						},
+						{
+							"database_path": "${FIXTURE_ROOT}/user-a/hive-fixture-tracker/.beads/beads.db"
+						}
+					]
+				}
+			],
+			"rawEventsSha256": "720612232f01554c5e8a11636f0d9924869985ce1c7373556b81704251416b76"
+		},
+		{
+			"case": {
+				"name": "no-endpoint",
+				"user": "user-a",
+				"project": "dots-fixture",
+				"inherit": "core",
+				"endpoint": "${FIXTURE_ROOT}/user-a/dots-fixture-tracker/.beads/beads.db"
+			},
+			"nonce": "faf355dd560bf4f71643",
+			"nonceAbsentFromPrompt": true,
+			"modelReceivedNonce": true,
+			"hook": {
+				"event": "SessionStart",
+				"cwd": "${FIXTURE_ROOT}/user-a/dots-fixture",
+				"environment": {
+					"BEADS_DB": null,
+					"BD_DB": null,
+					"BD_DATABASE": null
+				},
+				"case": "no-endpoint"
+			},
+			"commands": [
+				{
+					"command": "/bin/zsh -c \"/usr/bin/python3 -c 'import os; print(\\\"cwd=\\\" + os.getcwd()); [print(k + \\\"=\\\" + repr(os.environ.get(k))) for k in (\\\"BEADS_DB\\\", \\\"BD_DB\\\", \\\"BD_DATABASE\\\")]'\"",
+					"exitCode": 0,
+					"observations": [
+						"cwd=${FIXTURE_ROOT}/user-a/dots-fixture",
+						"BEADS_DB=None",
+						"BD_DB=None",
+						"BD_DATABASE=None"
+					]
+				},
+				{
+					"command": "/bin/zsh -lc \"/usr/bin/python3 -c 'import os; print(\\\"cwd=\\\" + os.getcwd()); [print(k + \\\"=\\\" + repr(os.environ.get(k))) for k in (\\\"BEADS_DB\\\", \\\"BD_DB\\\", \\\"BD_DATABASE\\\")]'\"",
+					"exitCode": 0,
+					"observations": [
+						"cwd=${FIXTURE_ROOT}/user-a/dots-fixture",
+						"BEADS_DB=None",
+						"BD_DB=None",
+						"BD_DATABASE=None"
+					]
+				},
+				{
+					"command": "/bin/zsh -c '/opt/homebrew/bin/br info --json --no-auto-import --no-auto-flush'",
+					"exitCode": 2,
+					"observations": [
+						{
+							"error": {
+								"code": "NOT_INITIALIZED",
+								"message": "Beads not initialized: run 'br init' first",
+								"hint": "Run: br init",
+								"retryable": false,
+								"context": null
+							}
+						}
+					]
+				},
+				{
+					"command": "/bin/zsh -c '/opt/homebrew/bin/br --db ${FIXTURE_ROOT}/user-a/dots-fixture-tracker/.beads/beads.db info --json --no-auto-import --no-auto-flush'",
+					"exitCode": 0,
+					"observations": [
+						{
+							"warningCode": "sync_merge_pending_unknown"
+						},
+						{
+							"database_path": "${FIXTURE_ROOT}/user-a/dots-fixture-tracker/.beads/beads.db"
+						}
+					]
+				},
+				{
+					"command": "/bin/zsh -c '/opt/homebrew/bin/br --db ${FIXTURE_ROOT}/user-a/dots-fixture-tracker/.beads/beads.db info --json --no-auto-import --no-auto-flush'",
+					"exitCode": 0,
+					"observations": [
+						{
+							"warningCode": "sync_merge_pending_unknown"
+						},
+						{
+							"database_path": "${FIXTURE_ROOT}/user-a/dots-fixture-tracker/.beads/beads.db"
+						}
+					]
+				}
+			],
+			"rawEventsSha256": "791a6f41d8158f09a262562a7b8bcbc1602d5ada19b35eccdd8f2c573ee43bcc"
+		},
+		{
+			"case": {
+				"name": "policy-set-only",
+				"user": "user-a",
+				"project": "hive-fixture",
+				"inherit": "core",
+				"set": "${FIXTURE_ROOT}/user-a/hive-fixture-tracker/.beads/beads.db",
+				"endpoint": "${FIXTURE_ROOT}/user-a/hive-fixture-tracker/.beads/beads.db"
+			},
+			"nonce": "cf820ba16f6e5b69c7c7",
+			"nonceAbsentFromPrompt": true,
+			"modelReceivedNonce": true,
+			"hook": {
+				"event": "SessionStart",
+				"cwd": "${FIXTURE_ROOT}/user-a/hive-fixture",
+				"environment": {
+					"BEADS_DB": null,
+					"BD_DB": null,
+					"BD_DATABASE": null
+				},
+				"case": "policy-set-only"
+			},
+			"commands": [
+				{
+					"command": "/bin/zsh -c \"/usr/bin/python3 -c 'import os,json; print(json.dumps({\\\"cwd\\\":os.getcwd(),\\\"BEADS_DB\\\":os.environ.get(\\\"BEADS_DB\\\"),\\\"BD_DB\\\":os.environ.get(\\\"BD_DB\\\"),\\\"BD_DATABASE\\\":os.environ.get(\\\"BD_DATABASE\\\")}))'\"",
+					"exitCode": 0,
+					"observations": [
+						{
+							"cwd": "${FIXTURE_ROOT}/user-a/hive-fixture",
+							"BEADS_DB": "${FIXTURE_ROOT}/user-a/hive-fixture-tracker/.beads/beads.db",
+							"BD_DB": null,
+							"BD_DATABASE": null
+						}
+					]
+				},
+				{
+					"command": "/bin/zsh -lc \"/usr/bin/python3 -c 'import os,json; print(json.dumps({\\\"cwd\\\":os.getcwd(),\\\"BEADS_DB\\\":os.environ.get(\\\"BEADS_DB\\\"),\\\"BD_DB\\\":os.environ.get(\\\"BD_DB\\\"),\\\"BD_DATABASE\\\":os.environ.get(\\\"BD_DATABASE\\\")}))'\"",
+					"exitCode": 0,
+					"observations": [
+						{
+							"cwd": "${FIXTURE_ROOT}/user-a/hive-fixture",
+							"BEADS_DB": "${FIXTURE_ROOT}/user-a/hive-fixture-tracker/.beads/beads.db",
+							"BD_DB": null,
+							"BD_DATABASE": null
+						}
+					]
+				},
+				{
+					"command": "/bin/zsh -c '/opt/homebrew/bin/br info --json --no-auto-import --no-auto-flush'",
+					"exitCode": 0,
+					"observations": [
+						{
+							"warningCode": "sync_merge_pending_unknown"
+						},
+						{
+							"database_path": "${FIXTURE_ROOT}/user-a/hive-fixture-tracker/.beads/beads.db"
+						}
+					]
+				},
+				{
+					"command": "/bin/zsh -c '/opt/homebrew/bin/br info --json --no-auto-import --no-auto-flush --db ${FIXTURE_ROOT}/user-a/hive-fixture-tracker/.beads/beads.db'",
+					"exitCode": 0,
+					"observations": [
+						{
+							"warningCode": "sync_merge_pending_unknown"
+						},
+						{
+							"database_path": "${FIXTURE_ROOT}/user-a/hive-fixture-tracker/.beads/beads.db"
+						}
+					]
+				},
+				{
+					"command": "/bin/zsh -c '/opt/homebrew/bin/br info --json --no-auto-import --no-auto-flush --db ${FIXTURE_ROOT}/user-a/hive-fixture-tracker/.beads/beads.db'",
+					"exitCode": 0,
+					"observations": [
+						{
+							"warningCode": "sync_merge_pending_unknown"
+						},
+						{
+							"database_path": "${FIXTURE_ROOT}/user-a/hive-fixture-tracker/.beads/beads.db"
+						}
+					]
+				}
+			],
+			"rawEventsSha256": "568ec26b3b19c6eaa7e79f35a5fccd253e0f87a7742368f2e6262feeffada19f"
+		},
+		{
+			"case": {
+				"name": "second-project-custom",
+				"user": "user-b",
+				"project": "dots-fixture",
+				"inherit": "all",
+				"ambient": "${FIXTURE_ROOT}/user-b/dots-fixture-tracker/.beads/beads.db",
+				"endpoint": "${FIXTURE_ROOT}/user-b/dots-fixture-tracker/.beads/beads.db"
+			},
+			"nonce": "208eb417677770f1c177",
+			"nonceAbsentFromPrompt": true,
+			"modelReceivedNonce": true,
+			"hook": {
+				"event": "SessionStart",
+				"cwd": "${FIXTURE_ROOT}/user-b/dots-fixture",
+				"environment": {
+					"BEADS_DB": "${FIXTURE_ROOT}/user-b/dots-fixture-tracker/.beads/beads.db",
+					"BD_DB": null,
+					"BD_DATABASE": null
+				},
+				"case": "second-project-custom"
+			},
+			"commands": [
+				{
+					"command": "/bin/zsh -c \"/usr/bin/python3 -c 'import os,json; print(json.dumps({\\\"cwd\\\":os.getcwd(), **{k:os.environ.get(k) for k in (\\\"BEADS_DB\\\",\\\"BD_DB\\\",\\\"BD_DATABASE\\\")}}))' \"",
+					"exitCode": 0,
+					"observations": [
+						{
+							"cwd": "${FIXTURE_ROOT}/user-b/dots-fixture",
+							"BEADS_DB": "${FIXTURE_ROOT}/user-b/dots-fixture-tracker/.beads/beads.db",
+							"BD_DB": null,
+							"BD_DATABASE": null
+						}
+					]
+				},
+				{
+					"command": "/bin/zsh -lc \"/usr/bin/python3 -c 'import os,json; print(json.dumps({\\\"cwd\\\":os.getcwd(), **{k:os.environ.get(k) for k in (\\\"BEADS_DB\\\",\\\"BD_DB\\\",\\\"BD_DATABASE\\\")}}))' \"",
+					"exitCode": 0,
+					"observations": [
+						{
+							"cwd": "${FIXTURE_ROOT}/user-b/dots-fixture",
+							"BEADS_DB": "${FIXTURE_ROOT}/user-b/dots-fixture-tracker/.beads/beads.db",
+							"BD_DB": null,
+							"BD_DATABASE": null
+						}
+					]
+				},
+				{
+					"command": "/bin/zsh -c '/opt/homebrew/bin/br info --json --no-auto-import --no-auto-flush'",
+					"exitCode": 0,
+					"observations": [
+						{
+							"warningCode": "sync_merge_pending_unknown"
+						},
+						{
+							"database_path": "${FIXTURE_ROOT}/user-b/dots-fixture-tracker/.beads/beads.db"
+						}
+					]
+				},
+				{
+					"command": "/bin/zsh -c '/opt/homebrew/bin/br info --json --no-auto-import --no-auto-flush --db ${FIXTURE_ROOT}/user-b/dots-fixture-tracker/.beads/beads.db'",
+					"exitCode": 0,
+					"observations": [
+						{
+							"warningCode": "sync_merge_pending_unknown"
+						},
+						{
+							"database_path": "${FIXTURE_ROOT}/user-b/dots-fixture-tracker/.beads/beads.db"
+						}
+					]
+				},
+				{
+					"command": "/bin/zsh -c '/opt/homebrew/bin/br info --json --no-auto-import --no-auto-flush --db ${FIXTURE_ROOT}/user-b/dots-fixture-tracker/.beads/beads.db'",
+					"exitCode": 0,
+					"observations": [
+						{
+							"warningCode": "sync_merge_pending_unknown"
+						},
+						{
+							"database_path": "${FIXTURE_ROOT}/user-b/dots-fixture-tracker/.beads/beads.db"
+						}
+					]
+				}
+			],
+			"rawEventsSha256": "fac11a4f1b3a2d66b18ed06ee5b19feff4c0ccf87abfe68a3c162a7a9301d89d"
+		},
+		{
+			"case": {
+				"name": "second-user-mise",
+				"user": "user-b",
+				"project": "hive-fixture",
+				"inherit": "all",
+				"mise": true,
+				"endpoint": "${FIXTURE_ROOT}/user-b/hive-fixture-tracker/.beads/beads.db"
+			},
+			"nonce": "6c4006060fd35bcc242a",
+			"nonceAbsentFromPrompt": true,
+			"modelReceivedNonce": true,
+			"hook": {
+				"event": "SessionStart",
+				"cwd": "${FIXTURE_ROOT}/user-b/hive-fixture",
+				"environment": {
+					"BEADS_DB": "${FIXTURE_ROOT}/user-b/hive-fixture-tracker/.beads/beads.db",
+					"BD_DB": null,
+					"BD_DATABASE": null
+				},
+				"case": "second-user-mise"
+			},
+			"commands": [
+				{
+					"command": "/bin/zsh -c \"/usr/bin/python3 -c 'import os,json; print(json.dumps({\\\"cwd\\\":os.getcwd(),\\\"BEADS_DB\\\":os.environ.get(\\\"BEADS_DB\\\"),\\\"BD_DB\\\":os.environ.get(\\\"BD_DB\\\"),\\\"BD_DATABASE\\\":os.environ.get(\\\"BD_DATABASE\\\")}))'\"",
+					"exitCode": 0,
+					"observations": [
+						{
+							"cwd": "${FIXTURE_ROOT}/user-b/hive-fixture",
+							"BEADS_DB": "${FIXTURE_ROOT}/user-b/hive-fixture-tracker/.beads/beads.db",
+							"BD_DB": null,
+							"BD_DATABASE": null
+						}
+					]
+				},
+				{
+					"command": "/bin/zsh -lc \"/usr/bin/python3 -c 'import os,json; print(json.dumps({\\\"cwd\\\":os.getcwd(),\\\"BEADS_DB\\\":os.environ.get(\\\"BEADS_DB\\\"),\\\"BD_DB\\\":os.environ.get(\\\"BD_DB\\\"),\\\"BD_DATABASE\\\":os.environ.get(\\\"BD_DATABASE\\\")}))'\"",
+					"exitCode": 0,
+					"observations": [
+						{
+							"cwd": "${FIXTURE_ROOT}/user-b/hive-fixture",
+							"BEADS_DB": "${FIXTURE_ROOT}/user-b/hive-fixture-tracker/.beads/beads.db",
+							"BD_DB": null,
+							"BD_DATABASE": null
+						}
+					]
+				},
+				{
+					"command": "/bin/zsh -c '/opt/homebrew/bin/br info --json --no-auto-import --no-auto-flush'",
+					"exitCode": 0,
+					"observations": [
+						{
+							"warningCode": "sync_merge_pending_unknown"
+						},
+						{
+							"database_path": "${FIXTURE_ROOT}/user-b/hive-fixture-tracker/.beads/beads.db"
+						}
+					]
+				},
+				{
+					"command": "/bin/zsh -c '/opt/homebrew/bin/br info --json --no-auto-import --no-auto-flush --db ${FIXTURE_ROOT}/user-b/hive-fixture-tracker/.beads/beads.db'",
+					"exitCode": 0,
+					"observations": [
+						{
+							"warningCode": "sync_merge_pending_unknown"
+						},
+						{
+							"database_path": "${FIXTURE_ROOT}/user-b/hive-fixture-tracker/.beads/beads.db"
+						}
+					]
+				},
+				{
+					"command": "/bin/zsh -c '/opt/homebrew/bin/br info --json --no-auto-import --no-auto-flush --db ${FIXTURE_ROOT}/user-b/hive-fixture-tracker/.beads/beads.db'",
+					"exitCode": 0,
+					"observations": [
+						{
+							"warningCode": "sync_merge_pending_unknown"
+						},
+						{
+							"database_path": "${FIXTURE_ROOT}/user-b/hive-fixture-tracker/.beads/beads.db"
+						}
+					]
+				}
+			],
+			"rawEventsSha256": "ea74a53faf8da6d67a7f583c9c633f605defcb28f0a0f47965b212fee7121635"
+		}
+	],
+	"nativeGuiVerified": false,
+	"guidanceSuppressionTested": false,
+	"toolTripletSuccess": false,
+	"nestedCwdVerification": "model-report-only",
+	"independentNestedCwdReceipt": false
+}
