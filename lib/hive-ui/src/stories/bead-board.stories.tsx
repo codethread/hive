@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import { WorkflowSourcePreview, workflowPreviewHandlers } from "./workflow-source-preview.tsx";
 import { board, hierarchy } from "./fixtures.ts";
 import { BeadBoard } from "../bead-board.tsx";
 
@@ -13,3 +14,12 @@ export const FamiliesAndColumns: Story = {};
 export const WithoutHierarchy: Story = { args: { hierarchy: null } };
 export const Empty: Story = { args: { board: { ...board, cards: [] } } };
 export const Paper: Story = { globals: { theme: "paper" } };
+
+export const WorkflowSources: Story = {
+	render: () => <WorkflowSourcePreview />,
+	parameters: { navigation: { bead: "hv-land-ui" }, msw: { handlers: workflowPreviewHandlers } },
+};
+export const WorkflowSourcesPaper: Story = {
+	...WorkflowSources,
+	globals: { theme: "paper" },
+};
