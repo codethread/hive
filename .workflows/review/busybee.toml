@@ -1,0 +1,2 @@
+description = "Deterministic scoped specialist reviews with separate Standards and Spec reports"
+run = "./workflow.ts"

@@ -3,12 +3,22 @@ name: code-review
 description: 'Review the changes since a fixed point (commit, branch, tag, or merge-base) along two axes: Standards (does the code follow this repo''s documented coding standards?) and Spec (does the code match what the originating issue/spec asked for?). Runs both reviews in parallel sub-agents and reports them side by side. Use when the user wants to review a branch, a PR, work-in-progress changes, or asks to "review since X".'
 ---
 
-Two-axis review of the diff between `HEAD` and a fixed point the user supplies:
+Review a whole change or a caller-selected scope along two independent axes:
 
 - **Standards**: does the code conform to this repo's documented coding standards?
 - **Spec**: does the code faithfully implement the originating issue / spec?
 
-Both axes run as **parallel sub-agents** so they don't pollute each other's context, then this skill aggregates their findings.
+Both axes run independently so they don't pollute each other's context, then their findings are reported separately.
+
+## Scoped specialist workflow
+
+For incremental reviews of files, worktree edits, one commit or a range, use the repository's `review` workflow instead of the whole-change procedure below. Run `bun run review --help` for scope selectors, preview with `--dry-run`, then submit with the caller's actor and human owner. Supply `--spec FILE` for the Spec axis; without it, the report explicitly says `not_requested` rather than passing that axis.
+
+The [concern index](concerns.toml) maps repository-relative globs to focused briefs and authoritative source rules. All matching concerns run; unmatched files remain visible as incomplete coverage. To change selection, edit this index, not a duplicate checklist in bee prompts. Rules themselves remain in their source skills.
+
+The caller manages concurrent edits. Reviewers report only; the caller chooses fixes and submits another scope when useful. Use `busybee collect RUN` to accept closed reviewers' results and advance; `show RUN` only reads saved status. A completed run exposes separate Standards/Spec findings in `output`; completion is not approval. Failed requests need caller attention, not a manufactured clean result.
+
+## Whole-change review
 
 The issue tracker should have been provided to you. If `docs/agents/issue-tracker.md` is missing, tell the user to run `/setup-matt-pocock-skills`.
 

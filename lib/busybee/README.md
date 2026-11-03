@@ -43,7 +43,7 @@ busybee input-schema groceries
 busybee run groceries --owner ct --json
 ```
 
-For workflows requiring initial values, add `--input-file FILE` with the JSON input described by `input-schema`; omitted input is `{}`. The response contains the run `id`, `active` tasks and their bead IDs, `created` visit records, and XState `status`.
+For workflows requiring initial values, add `--input-file FILE` with the JSON input described by `input-schema`; omitted input is `{}`. The response contains the run `id`, `active` tasks and their bead IDs, `created` visit records, and XState `status`. Completed machines that define a final output also expose `output` through run, submission, `collect` and `show` responses. Active machines and machines without output omit the field.
 
 Use the returned IDs to inspect the work and its choices:
 
@@ -105,6 +105,7 @@ The worker writes a JSON result containing `choice` and its payload fields to th
 | [Parallel work](./examples/parallel/workflow.ts) | Sequences, nested groups, concurrent tasks, joins and loop visits |
 | [Groceries](./examples/groceries/workflow.ts) | Context, guards, branching and replanning |
 | [Change review](./examples/change-review/workflow.ts) | Planner-authored briefs, dynamic reviewers, revision-aware results and repair loops |
+| [Scoped review](../../.workflows/review/README.md) | Deterministic file/commit/range routing, parallel specialists and a final report; caller owns edits |
 | [Land](../../.workflows/land/workflow.ts) | One triage entry for unfinished work, reviewed changes or existing PRs; implementation/review and PR feedback loops |
 
 To prepare a disposable change-review repository and stop at its first planner task:

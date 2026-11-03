@@ -1,0 +1,77 @@
+# Routing and focus only. The linked skills/documents own the actual standards.
+# All matching concerns run; paths are repository-relative Bun glob patterns.
+
+[[concerns]]
+id = "documentation"
+title = "Documentation accuracy and audience"
+kind = "reviewer"
+patterns = ["**/*.md", "**/*.mdx"]
+sources = [".agents/skills/docs-styleguide/SKILL.md"]
+focus = "Verify the changed documentation against actual commands and behaviour, audience/placement, and links. For agent instructions or skills, also load the writing-for-agents and agent-docs-hotpath skills. Report evidence, not wording preferences."
+
+[[concerns]]
+id = "typescript-structure"
+title = "TypeScript functions and module structure"
+kind = "reviewer"
+patterns = ["**/*.ts", "**/*.tsx"]
+sources = [".agents/skills/typescript/SKILL.md — Functions; Module layout and locality"]
+focus = "Inspect the applicable function and module-layout rules. Skip mechanically enforced lint/type errors; architectural modelling and dependency decisions belong to the architecture concern."
+
+[[concerns]]
+id = "test-quality"
+title = "Test quality and behavioural coverage"
+kind = "reviewer"
+patterns = ["**/*.ts", "**/*.tsx", "**/tests/**", "**/fixtures/**"]
+sources = [".agents/skills/testing/SKILL.md — Writing tests; Integration testing"]
+focus = "Inspect behavioural coverage, assertions, fixtures and test seams for the selected change, including missing tests when only implementation changed. Read existing nearby tests. Separate missing evidence from demonstrated defects."
+
+[[concerns]]
+id = "test-timing"
+title = "Test timing and timeout evidence"
+kind = "reviewer"
+patterns = [
+	"**/*.test.ts",
+	"**/*.spec.ts",
+	"**/tests/**",
+	"**/fixtures/**",
+	"**/bunfig.toml",
+	"**/package.json",
+]
+sources = [".agents/skills/testing/SKILL.md — Timing"]
+focus = "Inspect changed tests, fixture waits and timeout configuration. Obtain runner-reported timings for applicable new/edited unit tests and check required authorisation. A timeout constant is not duration evidence. Prefer focused verification; do not independently run the full suite."
+
+[[concerns]]
+id = "cli-contract"
+title = "CLI and configuration contracts"
+kind = "reviewer"
+patterns = [
+	"**/cli.ts",
+	"**/main.ts",
+	"**/bin/**",
+	"**/commands/**",
+	"**/config*.ts",
+	"**/*.toml",
+	"**/package.json",
+	".workflows/**/submit.ts",
+]
+sources = [".agents/skills/agent-clis/SKILL.md", "docs/architecture.md — CLI output contract"]
+focus = "Inspect changed arguments, flags, discovery/help, configuration precedence, JSON envelopes, stdout/stderr and exit codes. Verify public behaviour rather than assuming a filename establishes a defect."
+
+[[concerns]]
+id = "architecture"
+title = "Domain modelling and responsibility ownership"
+kind = "librarian"
+patterns = [
+	"lib/*/src/**/*.ts",
+	".workflows/**/*.ts",
+	"**/AGENTS.md",
+	"GLOSSARY.md",
+	"docs/architecture.md",
+	"docs/adr/**",
+]
+sources = [
+	"docs/architecture.md",
+	".agents/skills/typescript/SKILL.md — Data modelling",
+	".agents/skills/codebase-design/SKILL.md",
+]
+focus = "Review mode: assess domain meaning, state representations, ownership, dependency direction, I/O seams and module depth. Apply supplied repository contracts; label advice without a governing rule as a suggestion. Leave style/test quality to the other concerns. Read-only consultation: no curation edits."

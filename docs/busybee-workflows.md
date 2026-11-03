@@ -20,6 +20,8 @@ Export the following from a JavaScript or TypeScript module:
 
 A non-final state with `meta.title` creates a bead. Every such state supplies `meta.task({context})`, returning instructions and optional metadata overrides such as title or `bee: {kind}`. Worker states map outcome names to events in `meta.commands`; containers omit commands. Final states create no worker beads, even when titled. Runner command names such as `show` and `collect` are valid author outcomes too.
 
+For a final result, define the root machine's XState `output`. Keep it JSON-serializable: Busy Bee returns that output only after completion and restores it for later `show` or `collect` calls. Workflow-owned output is the public result; checkpoint history remains private.
+
 Spawned actors set their input/context `group` to the containing state node ID. Keep actor references in `workers`, which Busy Bee excludes from task context; keep other exposed context JSON-serializable. Persistence includes child-actor state. Use branch-specific events so one parallel worker's `next` does not advance another branch.
 
 Workflow modules and callbacks must leave stdout and stderr to Busy Bee. They execute as trusted Bun code, without an I/O sandbox.

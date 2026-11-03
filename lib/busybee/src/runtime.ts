@@ -92,6 +92,7 @@ export const runViewSchema = z.object({
 	active: z.array(viewEntrySchema),
 	created: z.array(visitSchema),
 	id: text,
+	output: z.unknown().optional(),
 	status: text,
 });
 export type RunView = z.infer<typeof runViewSchema>;
@@ -893,7 +894,13 @@ async function spawnBee(
 }
 
 function view(run: Run, actor: WorkflowActor): RunView {
+	const snapshot = actor.getSnapshot();
+	const output: { output?: unknown } = {};
+	if (snapshot.status === "done" && snapshot.output !== undefined) {
+		output.output = snapshot.output as unknown;
+	}
 	return {
+		...output,
 		active: run.active.map((entry) => ({
 			bead: entry.bead,
 			commands: Object.keys(entry.meta.commands ?? {}),

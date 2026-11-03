@@ -26,12 +26,15 @@
 		"waggle": "bun run ./lib/waggle/bin/waggle.ts",
 		"busybee": "bun run ./lib/busybee/bin/busybee.ts",
 		"ui": "bun run --cwd lib/hive-ui start",
-		"ui:dev": "bun run --cwd lib/hive-ui dev"
+		"ui:dev": "bun run --cwd lib/hive-ui dev",
+		"review": "bun run ./.workflows/review/submit.ts"
 	},
 	"devDependencies": {
 		"@commitlint/cli": "^21.2.3",
 		"@commitlint/config-conventional": "^21.2.3",
 		"@earendil-works/pi-coding-agent": "1.0.0",
+		"@hive/busybee": "workspace:*",
+		"@hive/shared": "workspace:*",
 		"@types/bun": "^1.4.2",
 		"husky": "^9.1.7",
 		"lint-staged": "^17.6.0",
