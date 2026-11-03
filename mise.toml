@@ -120,4 +120,4 @@ experimental = true
 [daemons.colony-watchdog]
 run = 'export PATH="$HOME/.local/bin:$PATH"; exec colony-watchdog'
 retry = true
-boot_start = true
+boot_start = false
