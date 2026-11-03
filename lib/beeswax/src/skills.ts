@@ -1,5 +1,6 @@
 import { createStaticProvider, validateSkillFrontmatter } from "skills-handler";
 import type { SkillProvider } from "skills-handler";
+import manualHooks from "../skills/repository-setup/references/manual-hooks.md" with { type: "text" };
 import manualRecovery from "../skills/tracker-recovery/references/manual-recovery.md" with { type: "text" };
 import matter from "gray-matter";
 import migration from "../skills/repository-setup/references/hook-migration.md" with { type: "text" };
@@ -25,6 +26,7 @@ export function createBundledSkills(): SkillProvider {
 					"SKILL.md",
 					"references/publication.md",
 					"references/hook-migration.md",
+					"references/manual-hooks.md",
 					"references/setup-migration.md",
 				],
 			},
@@ -39,6 +41,7 @@ export function createBundledSkills(): SkillProvider {
 			[parsed.data.name]: {
 				"references/publication.md": publication,
 				"references/hook-migration.md": migration,
+				"references/manual-hooks.md": manualHooks,
 				"references/setup-migration.md": setupMigration,
 			},
 			[parsedRecovery.data.name]: {

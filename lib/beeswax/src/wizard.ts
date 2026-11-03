@@ -1,9 +1,9 @@
 import { BeeswaxError, EXIT } from "./errors.ts";
-import type { HookAdapter, OnboardingFlags } from "./config.ts";
-import type { SetupFlags, SetupOptions, TrackerMode } from "./setup.ts";
+import type { SetupFlags, SetupHook, SetupOptions, TrackerMode } from "./setup.ts";
 import { confirm, intro, isCancel, multiselect, outro, select, text } from "@clack/prompts";
 import type { CANCEL_SYMBOL } from "@clack/prompts";
 import type { OnboardingConfig } from "./onboarding.ts";
+import type { OnboardingFlags } from "./config.ts";
 import { selectHookConfig } from "./config.ts";
 
 const EMPTY = 0;
@@ -12,6 +12,33 @@ const EMPTY = 0;
 // eslint-disable-next-line max-statements -- Keep this ordered CLI operation and its result together.
 export async function setupWizard(flags: SetupFlags, defaults: SetupOptions): Promise<SetupFlags> {
 	intro("Set up this repository with Beeswax");
+	const hooks =
+		flags.hooks ??
+		take(
+			await select<SetupHook>({
+				message: "Git hook setup",
+				initialValue: defaults.hooks,
+				options: [
+					{ value: "husky", label: "Husky", hint: "bundled runner, no app dependency" },
+					{
+						value: "hk",
+						label: "hk",
+						hint: "hk >=2.8.1, Git >=2.54, application-owned Pkl",
+					},
+					{ value: "git", label: "Git hooks directly" },
+					{ value: "none", label: "Install validation only; skip framework bootstrap" },
+					{
+						value: "manual",
+						label: "Manual integration guidance",
+						hint: "print instructions without changing this repository",
+					},
+				],
+			}),
+		);
+	if (hooks === "manual") {
+		outro("Printing manual integration guidance; no setup changes");
+		return { ...flags, hooks };
+	}
 	const tracker =
 		flags.tracker ??
 		take(
@@ -22,11 +49,11 @@ export async function setupWizard(flags: SetupFlags, defaults: SetupOptions): Pr
 					{ value: "init", label: "Initialize this repository's first tracker" },
 					{ value: "bootstrap", label: "Bootstrap the published tracker/state branch" },
 					{ value: "adopt", label: "Use an existing tracker database" },
-					{ value: "none", label: "Configure Git hooks and merge driver only" },
+					{ value: "none", label: "Skip tracker operations; continue repository setup" },
 				],
 			}),
 		);
-	const selected: SetupFlags = { ...flags, tracker };
+	const selected: SetupFlags = { ...flags, hooks, tracker };
 	if (selected.tracker === "init") {
 		selected.prefix =
 			flags.prefix ??
@@ -58,38 +85,27 @@ export async function setupWizard(flags: SetupFlags, defaults: SetupOptions): Pr
 				}),
 			);
 	}
-	selected.hooks =
-		flags.hooks ??
-		take(
-			await select<HookAdapter>({
-				message: "Git hook bootstrap",
-				initialValue: defaults.hooks,
-				options: [
-					{ value: "husky", label: "Husky", hint: "bundled runner, no app dependency" },
-					{ value: "git", label: "Git hooks directly" },
-					{ value: "none", label: "Use configured hook paths without framework bootstrap" },
-				],
-			}),
-		);
-	const hookConfig = selectHookConfig(defaults.config, selected.hooks);
-	selected.preCommit =
-		flags.preCommit ??
-		take(
-			await text({
-				message: "Commit hook file",
-				defaultValue: hookConfig.hooks.pre_commit,
-				placeholder: hookConfig.hooks.pre_commit,
-			}),
-		);
-	selected.preMergeCommit =
-		flags.preMergeCommit ??
-		take(
-			await text({
-				message: "Merge hook file",
-				defaultValue: hookConfig.hooks.pre_merge_commit,
-				placeholder: hookConfig.hooks.pre_merge_commit,
-			}),
-		);
+	if (hooks !== "hk") {
+		const hookConfig = selectHookConfig(defaults.config, hooks);
+		selected.preCommit =
+			flags.preCommit ??
+			take(
+				await text({
+					message: "Commit hook file",
+					defaultValue: hookConfig.hooks.pre_commit,
+					placeholder: hookConfig.hooks.pre_commit,
+				}),
+			);
+		selected.preMergeCommit =
+			flags.preMergeCommit ??
+			take(
+				await text({
+					message: "Merge hook file",
+					defaultValue: hookConfig.hooks.pre_merge_commit,
+					placeholder: hookConfig.hooks.pre_merge_commit,
+				}),
+			);
+	}
 	if (selected.tracker !== "none") {
 		selected.environment =
 			flags.environment ??

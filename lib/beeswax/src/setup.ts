@@ -3,9 +3,11 @@ import { BeeswaxError, EXIT, errorMessage } from "./errors.ts";
 import type { HookAdapter, OnboardingFlags, ProjectConfig } from "./config.ts";
 // eslint-disable-next-line import/no-nodejs-modules -- Setup paths and inferred issue prefix.
 import { basename, join, resolve } from "node:path";
+import { bootstrapHooks, preflightHookBootstrap } from "./hook-bootstrap.ts";
 import {
 	configSchema,
 	defaultProjectConfig,
+	hookAdapterSchema,
 	readProjectConfig,
 	selectHookConfig,
 	selectOnboardingConfig,
@@ -31,7 +33,6 @@ import type { OnboardingConfig } from "./onboarding.ts";
 import type { WorkspaceIO } from "./services.ts";
 import { applyOnboarding } from "./onboarding.ts";
 import { bindCheckout } from "./binding.ts";
-import { bootstrapHooks } from "./husky.ts";
 import { bvRecipeFiles } from "./bv-recipe-source.ts";
 import { installBvRecipes } from "./bv-recipes.ts";
 import { setupReadiness } from "./readiness.ts";
@@ -42,6 +43,8 @@ const NONEMPTY = 1;
 
 export const trackerSchema = z.enum(["init", "bootstrap", "adopt", "none"]);
 export const integrationSchema = z.enum(["mise", "none"]);
+export const setupHookSchema = z.enum([...hookAdapterSchema.options, "manual"]);
+export type SetupHook = z.infer<typeof setupHookSchema>;
 export type TrackerMode = z.infer<typeof trackerSchema>;
 
 export interface SetupFlags extends OnboardingFlags {
@@ -57,8 +60,8 @@ export interface SetupFlags extends OnboardingFlags {
 	owner?: string;
 	/** New issue prefix; defaults to the repository directory name. */
 	prefix?: string;
-	/** Hook adapter; Husky is the default. */
-	hooks?: HookAdapter;
+	/** Installed preset or guidance-only manual; defaults to the saved adapter, then Husky. */
+	hooks?: SetupHook;
 	/** Optional environment integration, independent of application dependencies. */
 	environment?: "mise" | "none";
 	/** Generate Codex's local tracker environment configuration. */
@@ -94,13 +97,17 @@ export interface SetupOptions {
 	environment: "mise" | "none";
 	/** Whether Codex's local tracker environment is generated. */
 	codex: boolean;
-	/** Hook adapter for Beeswax requirements; application hook bodies stay application-owned. */
+	/** Installed hook adapter; application shell and Pkl policy stay application-owned. */
 	hooks: HookAdapter;
 	/** Shared Git hook files, bootstrap preset and optional harness onboarding. */
 	config: ProjectConfig;
 	/** Optional targets for this setup invocation only. */
 	workflowSkill: ReturnType<typeof planWorkflowSkill>;
 }
+
+export type SetupPlan =
+	| { kind: "manual"; repository: string }
+	| { kind: "configure"; options: SetupOptions };
 
 export interface SetupOperations {
 	/** Check init conflicts before any setup files are written. */
@@ -132,14 +139,17 @@ export interface SetupDependencies extends WorkspaceIO {
 	operations: SetupOperations;
 }
 
-/** Resolve defaults before effects; headless and interactive callers share one setup operation. */
+/** Resolve guidance or configuration before effects; explicit manual skips repository discovery. */
 // eslint-disable-next-line max-statements -- Keep this ordered CLI operation and its result together.
 export async function resolveSetup(
 	flags: SetupFlags,
 	json: boolean,
 	deps: SetupDependencies,
-): Promise<SetupOptions> {
+): Promise<SetupPlan> {
 	const cwd = resolve(flags.repo ?? deps.context.cwd);
+	if (flags.hooks === "manual") {
+		return { kind: "manual", repository: cwd };
+	}
 	const root = await deps.command(["git", "rev-parse", "--show-toplevel"], cwd);
 	const existing = await readProjectConfig(root, deps);
 	const common = await deps.command(
@@ -201,6 +211,14 @@ export async function setupRepository(options: SetupOptions, deps: SetupDependen
 			requireProjectConfig(lock, options.config);
 			requireProjectGeneration(lock, options.config);
 		}
+		let hookDatabase: string | undefined = options.beadsDb;
+		if (options.tracker === "none") {
+			hookDatabase = undefined;
+		}
+		await preflightHookBootstrap(
+			{ root: options.repo, adapter: options.config.bootstrap.hooks, database: hookDatabase },
+			deps,
+		);
 		if (options.workflowSkill) {
 			await preflightWorkflowSkill(options.repo, options.workflowSkill, deps);
 		}
@@ -295,7 +313,10 @@ export async function setupRepository(options: SetupOptions, deps: SetupDependen
 
 // --- Private functions ---
 
-function applyFlags(defaults: SetupOptions, flags: SetupFlags): SetupOptions {
+function applyFlags(defaults: SetupOptions, flags: SetupFlags): SetupPlan {
+	if (flags.hooks === "manual") {
+		return { kind: "manual", repository: defaults.repo };
+	}
 	const database = resolve(flags.beadsDb ?? defaults.beadsDb);
 	let config = selectHookConfig(defaults.config, flags.hooks);
 	config = {
@@ -307,33 +328,36 @@ function applyFlags(defaults: SetupOptions, flags: SetupFlags): SetupOptions {
 	};
 	config = configSchema.parse(selectOnboardingConfig(config, flags));
 	return {
-		...defaults,
-		actor: z
-			.string()
-			.trim()
-			.min(NONEMPTY)
-			.parse(flags.actor ?? defaults.actor),
-		tracker: flags.tracker ?? defaults.tracker,
-		beadsDb: database,
-		owner: z
-			.string()
-			.trim()
-			.min(NONEMPTY)
-			.parse(flags.owner ?? defaults.owner),
-		prefix: z
-			.string()
-			.regex(/^[a-z][a-z\d-]*$/u)
-			.parse(flags.prefix ?? defaults.prefix),
-		executable: z
-			.string()
-			.trim()
-			.min(NONEMPTY)
-			.parse(flags.executable ?? defaults.executable),
-		environment: flags.environment ?? defaults.environment,
-		codex: flags.codex ?? defaults.codex,
-		hooks: flags.hooks ?? defaults.hooks,
-		config,
-		workflowSkill: planWorkflowSkill(flags.installWorkflowSkill ?? false, config.onboarding),
+		kind: "configure",
+		options: {
+			...defaults,
+			actor: z
+				.string()
+				.trim()
+				.min(NONEMPTY)
+				.parse(flags.actor ?? defaults.actor),
+			tracker: flags.tracker ?? defaults.tracker,
+			beadsDb: database,
+			owner: z
+				.string()
+				.trim()
+				.min(NONEMPTY)
+				.parse(flags.owner ?? defaults.owner),
+			prefix: z
+				.string()
+				.regex(/^[a-z][a-z\d-]*$/u)
+				.parse(flags.prefix ?? defaults.prefix),
+			executable: z
+				.string()
+				.trim()
+				.min(NONEMPTY)
+				.parse(flags.executable ?? defaults.executable),
+			environment: flags.environment ?? defaults.environment,
+			codex: flags.codex ?? defaults.codex,
+			hooks: flags.hooks ?? defaults.hooks,
+			config,
+			workflowSkill: planWorkflowSkill(flags.installWorkflowSkill ?? false, config.onboarding),
+		},
 	};
 }
 

@@ -31,7 +31,7 @@ const wrapper = '#!/usr/bin/env sh\n. "$(dirname "$0")/h"';
 // eslint-disable-next-line max-statements -- Preflight the concrete bootstrap before activating Git configuration.
 export async function bootstrapHooks(
 	root: string,
-	adapter: HookAdapter,
+	adapter: Exclude<HookAdapter, "hk">,
 	io: WorkspaceIO,
 ): Promise<void> {
 	if (adapter === "none") {

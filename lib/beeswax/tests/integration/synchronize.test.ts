@@ -42,6 +42,23 @@ test(
 	},
 );
 
+test.each([false, true])(
+	"hk preflight fails before synchronization writes, update=%j",
+	async (update) => {
+		const fx = fixture();
+		await writeProjectConfig(root, defaultProjectConfig("hk"), fx.deps);
+		await writeProjectLock(root, fx.deps);
+		const before = new Map(fx.files);
+		await expect(
+			synchronizeProject({ root, executable: "/opt/bin/beeswax", update }, fx.deps),
+		).rejects.toMatchObject({
+			reason: "hk_integration_required",
+			context: { completed: [] },
+		});
+		expect(fx.files).toEqual(before);
+	},
+);
+
 test("same-version update accepts BV recipes and reports available changelog commands #test-389", async () => {
 	const fx = withoutBvContract();
 	fx.deps.commandAvailable = (name, cwd) => name === "beeswax" && cwd === root;
@@ -233,7 +250,9 @@ test("an invalid selected tracker cannot receive BV recipes", async () => {
 		return command(argv, cwd);
 	};
 
-	expect(await runCli(["sync", "--json"], fx.deps)).toBe(failure);
+	await expect(
+		synchronizeProject({ root, executable: "/opt/bin/beeswax", update: false }, fx.deps),
+	).rejects.toMatchObject({ reason: "migration_required" });
 	expect(fx.files.has("/selected/.bv/recipes.yaml")).toBe(false);
 	expect(fx.files.has("/repo/.bv/recipes.yaml")).toBe(false);
 });
@@ -242,11 +261,14 @@ test("later synchronization failures retain confirmed BV output in the receipt",
 	const fx = configured();
 	fx.files.set("/repo/.pi/extensions/beeswax.js", "// beeswax:begin onboarding v2\n");
 
-	expect(await runCli(["sync", "--json"], fx.deps)).toBe(failure);
-	expect(JSON.parse(fx.output.join(""))).toMatchObject({
+	await expect(
+		synchronizeProject({ root, executable: "/opt/bin/beeswax", update: false }, fx.deps),
+	).rejects.toMatchObject({
 		reason: "onboarding_ambiguous",
-		bvRecipes: ["/repo/.bv/recipes.yaml"],
-		completed: expect.arrayContaining(["bv_recipes"]),
+		context: {
+			bvRecipes: ["/repo/.bv/recipes.yaml"],
+			completed: expect.arrayContaining(["bv_recipes"]),
+		},
 	});
 });
 

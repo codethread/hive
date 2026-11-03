@@ -2,12 +2,15 @@
 /* eslint-disable require-await -- Test doubles return the production promise contract without real IO. */
 import { BeeswaxError, EXIT } from "../../src/errors.ts";
 import { expect, test } from "bun:test";
+import { resolveSetup, setupRepository } from "../../src/setup.ts";
 import { fixture } from "../support.ts";
 import { hookSection } from "../../src/templates.ts";
+import { manualHookInstructions } from "../../src/commands.ts";
 import { runCli } from "../../src/cli.ts";
 
 const SINGLE = 1;
 const EMPTY = 0;
+const guidance = "Manual hook integration instructions";
 
 test("headless setup uses explicit flags, shared defaults and one silent JSON receipt #test-349", async () => {
 	const fx = preparedHead();
@@ -125,6 +128,20 @@ test("interactive choices and explicit options reach the same deterministic setu
 	expect(fx.files.get("/repo/.husky/pre-commit")).toContain("git rev-parse --git-path beeswax/cli");
 	expect(fx.files.get("/repo/.husky/_/h")).toContain("node_modules/.bin");
 	expect(fx.commands).toContainEqual(["git", "config", "--local", "core.hooksPath", ".husky/_"]);
+});
+
+test("hk preflight failure leaves setup and tracker state untouched", async () => {
+	const fx = fixture();
+	const before = new Map(fx.files);
+	const plan = await resolveSetup({ hooks: "hk", tracker: "init" }, true, fx.deps);
+	if (plan.kind !== "configure") {
+		throw new Error("Expected hk configuration plan");
+	}
+	const failure = await setupRepository(plan.options, fx.deps).catch((error: unknown) => error);
+	expect(failure).toBeInstanceOf(BeeswaxError);
+	expect(failure).toMatchObject({ context: { cause: "hk_integration_required", completed: [] } });
+	expect(fx.files).toEqual(before);
+	expect(fx.trackers).toEqual([]);
 });
 
 test("headless setup with no known tracker asks for a concrete flag before writes #test-515", async () => {
@@ -374,7 +391,10 @@ test("cancelled wizard does not start setup effects", async () => {
 	fx.deps.wizard = async () => {
 		throw new BeeswaxError("cancelled", "Cancelled", { exitCode: EXIT.cancelled });
 	};
-	expect(await runCli(["setup"], fx.deps)).toBe(EXIT.cancelled);
+	await expect(resolveSetup({}, false, fx.deps)).rejects.toMatchObject({
+		reason: "cancelled",
+		exitCode: EXIT.cancelled,
+	});
 	expect(fx.files.size).toBe(EXIT.success);
 	expect(fx.trackers).toEqual([]);
 });
@@ -421,11 +441,17 @@ test("hook migration prints user-guided outcomes without performing repository o
 
 test("initialization refuses an unprepared canonical HEAD before any setup effects", async () => {
 	const fx = fixture();
-	expect(await runCli(["setup", "--tracker", "init", "--json"], fx.deps)).toBe(EXIT.failure);
-	expect(JSON.parse(fx.output.join(""))).toMatchObject({
-		nextCommand: "beeswax migrate hooks",
-		requiresUser: true,
-		completed: [],
+	const plan = await resolveSetup({ tracker: "init" }, true, fx.deps);
+	if (plan.kind !== "configure") {
+		throw new Error("Expected tracker configuration plan");
+	}
+	await expect(setupRepository(plan.options, fx.deps)).rejects.toMatchObject({
+		exitCode: EXIT.failure,
+		context: {
+			nextCommand: "beeswax migrate hooks",
+			requiresUser: true,
+			completed: [],
+		},
 	});
 	expect(fx.trackers).toEqual([]);
 	expect(fx.files.size).toBe(EMPTY);
@@ -474,6 +500,88 @@ test("git packing failure preserves its native diagnostics in one JSON document"
 		stderr: "original Git diagnostics",
 	});
 });
+
+test.each([
+	{ args: ["setup", "--hooks", "manual", "--json"] },
+	{
+		args: ["setup", "--hooks", "manual", "--tracker", "init", "--install-workflow-skill", "--json"],
+	},
+	{ args: ["beads", "init", "--hooks", "manual", "--json"] },
+	{ args: ["beads", "bootstrap", "--hooks", "manual", "--json"] },
+])("$args returns a manual handoff without repository operations", async ({ args }) => {
+	const fx = manualFixture();
+	fx.deps.context.cwd = "/not-a-repository";
+	const unexpected = (): Promise<never> =>
+		Promise.reject(new Error("Unexpected repository operation"));
+	Object.assign(fx.deps, { read: unexpected, exists: unexpected, command: unexpected });
+	expect(await runCli(args, fx.deps)).toBe(EXIT.success);
+	expect(fx.output).toHaveLength(SINGLE);
+	expect(JSON.parse(fx.output.join(""))).toEqual({
+		ok: true,
+		kind: "hook_setup_instructions",
+		mode: "manual",
+		repository: "/not-a-repository",
+		configured: false,
+		content: guidance,
+	});
+	expect(fx.errors).toEqual([]);
+	expect(fx.files.size).toBe(EMPTY);
+	expect(fx.trackers).toEqual([]);
+});
+
+test("manual setup delivers its bundled resource without repository discovery", async () => {
+	const fx = fixture();
+	const content = await fx.deps.skills.getSkillFile(
+		"repository-setup",
+		"references/manual-hooks.md",
+	);
+	expect(
+		await runCli(["setup", "--hooks", "manual", "--repo", "/outside", "--json"], fx.deps),
+	).toBe(EXIT.success);
+	expect(JSON.parse(fx.output.join(""))).toMatchObject({ configured: false, content });
+	expect(content).toContain("--hooks none");
+	expect(fx.commands).toEqual([]);
+});
+
+test("manual guidance is readable text outside JSON mode", async () => {
+	const fx = manualFixture();
+	expect(await runCli(["setup", "--hooks", "manual"], fx.deps)).toBe(EXIT.success);
+	expect(fx.output).toEqual([`${guidance}\n`]);
+	expect(fx.commands).toEqual([]);
+	expect(fx.files.size).toBe(EMPTY);
+});
+
+test("a wizard's manual choice leaves setup and hook policy unchanged", async () => {
+	const fx = manualFixture();
+	fx.files.set("/repo/hk.pkl", "project-owned policy");
+	const before = new Map(fx.files);
+	fx.deps.context.tty = true;
+	fx.deps.wizard = () => Promise.resolve({ hooks: "manual" });
+	expect(await runCli(["setup"], fx.deps)).toBe(EXIT.success);
+	expect(fx.output).toEqual([`${guidance}\n`]);
+	expect(fx.files).toEqual(before);
+	expect(fx.trackers).toEqual([]);
+	expect(fx.commands.every((argv) => argv.includes("rev-parse"))).toBe(true);
+});
+
+test("missing manual guidance fails rather than reporting configured hooks", async () => {
+	const fx = fixture();
+	// eslint-disable-next-line unicorn/no-null -- skills-handler returns null for an absent resource.
+	const skills = { ...fx.deps.skills, getSkillFile: () => Promise.resolve(null) };
+	await expect(manualHookInstructions("/repo", skills)).rejects.toBeInstanceOf(BeeswaxError);
+});
+
+function manualFixture() {
+	const fx = fixture();
+	fx.deps.skills = {
+		...fx.deps.skills,
+		getSkillFile: (name, path) => {
+			expect([name, path]).toEqual(["repository-setup", "references/manual-hooks.md"]);
+			return Promise.resolve(guidance);
+		},
+	};
+	return fx;
+}
 
 function preparedHead() {
 	const fx = fixture();

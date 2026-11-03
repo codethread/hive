@@ -5,8 +5,9 @@ import { EXIT } from "./errors.ts";
 import type { ProjectConfig } from "./config.ts";
 import type { WorkspaceIO } from "./services.ts";
 import { bindCheckout } from "./binding.ts";
-import { bootstrapHooks } from "./husky.ts";
+import { bootstrapHooks } from "./hook-bootstrap.ts";
 import { parseDatabase } from "./beads/environment.ts";
+import { preflightHkCheckout } from "./hk.ts";
 
 /** Require exact sections in canonical HEAD for checkout-resident hooks before setup effects. */
 export async function verifyTrackerInitialization(
@@ -86,6 +87,11 @@ export async function installTrackerHooks(
 				"Prepare the current validation section in the configured tracker hooks before binding.",
 			);
 		}
+	}
+	if (config.bootstrap.hooks === "hk") {
+		await preflightHkCheckout(root, io);
+		await bindCheckout(root, executable, io);
+		return;
 	}
 	await bindCheckout(root, executable, io);
 	await bootstrapHooks(root, config.bootstrap.hooks, io);

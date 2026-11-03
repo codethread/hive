@@ -48,6 +48,7 @@ export async function setupReadiness(
 		execution: "not_verified",
 		honeycomb,
 		next: [
+			...hkReadiness(options),
 			{
 				area: "repository_policy",
 				command: ["beeswax", "skills", "get", "repository-setup"],
@@ -97,6 +98,23 @@ export async function setupReadiness(
 			},
 		],
 	};
+}
+
+function hkReadiness(options: SetupOptions) {
+	if (options.config.bootstrap.hooks !== "hk") {
+		return [];
+	}
+	return [
+		{
+			area: "hk_tracker_policy",
+			command: ["hk", "validate", "--json"],
+			action:
+				"Inspect effective hk policy in both checkouts; a nested tracker can inherit ancestor Pkl. " +
+				"Then verify pre-commit and pre-merge-commit accept valid and reject invalid staged snapshots, " +
+				"without application dependencies, and test ordinary application commits and real merges. " +
+				"hk validate and setup receipts alone do not prove execution readiness.",
+		},
+	];
 }
 
 async function inspectHoneycomb(repository: string, io: Pick<WorkspaceIO, "exec">) {

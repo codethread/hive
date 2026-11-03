@@ -39,9 +39,33 @@ For Hive-owned CLI improvements, breaking changes and adoption actions, follow p
 
 ## Configure a repository
 
-Run `beeswax setup` in the consuming repository. The interactive wizard handles tracker selection, permanent tracker prerequisites, Git integration and harness onboarding. Read `beeswax setup --help` for headless options and first-initialization prerequisites. Setup stays local; `beeswax beads sync` receives and publishes tracker changes.
+Run `beeswax setup` in the consuming repository. The interactive wizard handles hook and tracker selection, permanent tracker prerequisites and harness onboarding. Read `beeswax setup --help` for headless options and first-initialization prerequisites. Setup stays local; `beeswax beads sync` receives and publishes tracker changes.
 
 Setup's readiness receipt separates configured artifacts from pending execution checks and reports effective [Honeycomb configuration](../honeycomb/README.md#config) for review. Preserve valid existing policy. For managed workers, continue with [Bee and Colony setup](../colony/README.md#install-and-try-it); repository plumbing alone does not establish runtime readiness.
+
+### Choose hook setup
+
+`--hooks` retains the configured adapter by default, or uses `husky` for a new project. Selecting another option is explicit; Beeswax does not detect and migrate frameworks automatically.
+
+| Choice | Effect |
+| --- | --- |
+| `husky` | Bootstrap the bundled runner without a Node or Husky application dependency. |
+| `hk` | Install native hk registrations for application-owned Pkl policy, alongside independent Beeswax validation. |
+| `git` | Use Git's default hook lookup. |
+| `none` | Install managed validation sections at the configured paths without framework bootstrap. |
+| `manual` | Print the complete integration handoff and make no setup changes. |
+
+For guidance only, run `beeswax setup --hooks manual`. It needs neither a Git repository nor `--tracker`. Other syntactically valid setup options do not partly execute: tracker, config/lock, hooks, harness and workflow-skill setup are all skipped. Manual is not persisted, so an existing contract still governs later sync/update; a fresh handoff creates no contract. Read setup help for the JSON receipt.
+
+#### Native hk
+
+Choose `--hooks hk` with the intended tracker and onboarding options from an application checkout. Install standalone **hk >=2.8.1** and **Git >=2.54** first, and provide a valid application-local hk Pkl configuration with at least one installable Git event. Beeswax validates it and runs `hk install`; it neither creates nor rewrites Pkl, installs tools, nor adds Node, Husky or Cargo application dependencies.
+
+hk owns application policy and repository-local native registrations. Beeswax owns marked validation sections in the fixed `.git/hooks/pre-commit` and `.git/hooks/pre-merge-commit` files, resolved through Git's common directory. Git runs native hk policy before these validators; Beeswax does not modify hk-generated shims. Both validation events are installed even when Pkl defines no `pre-merge-commit` policy. `HK=0` skips hk, not the independent validators.
+
+The supported topology excludes effective `core.hooksPath` overrides, global/system/worktree hk registrations, legacy shims, altered or ambiguous ownership, disabled required events and concurrent merge-hook dispatch. These require deliberate migration or manual integration, not force flags or automatic rewriting. Use `beeswax migrate hooks` for conflicts or `beeswax setup --hooks manual` to choose another integration. Changing existing hook paths also requires a reviewed migration.
+
+hk installation runs only from the application checkout. The permanent tracker binds the same common-directory validators without rewriting its tracked hooks or history. **Snapshot-safe hk policy remains your responsibility:** a nested tracker can inherit an ancestor's hk configuration even without its own `hk.pkl`. Verify both events with valid and invalid staged snapshots, without application dependencies, and verify ordinary application and merge checks separately. Setup reports execution as `not_verified`; it does not prove arbitrary Pkl is safe for tracker commits.
 
 ## Install a customizable workflow
 
@@ -92,9 +116,9 @@ Commit `.hive/beeswax/config.toml`, `.hive/beeswax/meta/lock.json`, `.bv/recipes
 
 Beeswax owns only the marked `tracker-validation` section in each configured hook, preserving surrounding bytes and file mode. It validates snapshot-only commits on `tracker/state`, then returns to the surrounding hook. Application checks, commit-message policy and any snapshot exemption remain application-owned.
 
-The permanent tracker uses the same configured hook pair. Those files must already contain the exact validation section before setup binds the installed CLI and bootstraps the framework; setup leaves tracked tracker hooks unchanged.
+The permanent tracker uses the same configured hook pair. Those files must contain the exact validation section before setup binds the installed CLI. Checkout-resident hooks must be prepared in the tracker; common-directory hooks are shared. Setup leaves tracked tracker hooks unchanged. For hk's application-only bootstrap and tracker-policy requirements, see [Native hk](#native-hk).
 
-`beeswax sync` reproduces the committed contract locally; `beeswax update` advances it after review. Each checkout gets a launcher and observation receipt in Git metadata. The committed contract is authoritative; receipts describe local outputs. Run sync in each checkout and after relocating a clone.
+`beeswax sync` reproduces the committed contract locally; `beeswax update` advances it after review. Each checkout gets a launcher and observation receipt in Git metadata. The committed contract is authoritative; receipts describe local outputs. Run sync in each application checkout and after relocating a clone; it also binds the selected permanent tracker.
 
 Setup, sync and update replace recognized versioned hook and onboarding sections automatically, preserving surrounding hook content, unrelated JSON settings and code outside Pi's markers. Beeswax owns identity command entries marked `Beeswax identity v1` and the versioned identity section in Pi's Scent loader. The permanent tracker prerequisites above still apply. `beeswax update --harness none --yes` removes recognized primer, alert and identity adapters. Unfamiliar commands, execution options or ambiguous markers stop with the affected path, observed state, intended result and guidance for an agent to resolve with you.
 

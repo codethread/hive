@@ -55,6 +55,7 @@ test.each([
 test.each([
 	{ adapter: "husky" as const, paths: ["HEAD:.husky/pre-commit", "HEAD:.husky/pre-merge-commit"] },
 	{ adapter: "git" as const, paths: [] },
+	{ adapter: "hk" as const, paths: [] },
 ])(
 	"initialization checks canonical HEAD for $adapter without writing files",
 	async ({ adapter, paths }) => {

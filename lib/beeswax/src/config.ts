@@ -16,15 +16,24 @@ const pathSchema = z
 		(path) => !isAbsolute(path) && !path.split(/[\\/]/u).includes(".."),
 		"Hook paths must stay inside the checkout or its .git directory",
 	);
-export const hookAdapterSchema = z.enum(["husky", "git", "none"]);
+export const hookAdapterSchema = z.enum(["husky", "hk", "git", "none"]);
 export type HookAdapter = z.infer<typeof hookAdapterSchema>;
 const hooksSchema = z.strictObject({ pre_commit: pathSchema, pre_merge_commit: pathSchema });
-export const configSchema = z.strictObject({
-	bootstrap: z.strictObject({ hooks: hookAdapterSchema }),
-	hooks: hooksSchema,
-	onboarding: onboardingSchema.optional(),
-	beads: z.strictObject({ lock_timeout: z.number().int().nonnegative().safe() }).optional(),
-});
+export const configSchema = z
+	.strictObject({
+		bootstrap: z.strictObject({ hooks: hookAdapterSchema }),
+		hooks: hooksSchema,
+		onboarding: onboardingSchema.optional(),
+		beads: z.strictObject({ lock_timeout: z.number().int().nonnegative().safe() }).optional(),
+	})
+	.refine(
+		(config) =>
+			config.bootstrap.hooks !== "hk" ||
+			(config.hooks.pre_commit === ".git/hooks/pre-commit" &&
+				config.hooks.pre_merge_commit === ".git/hooks/pre-merge-commit"),
+		"hk requires .git/hooks/pre-commit and .git/hooks/pre-merge-commit; " +
+			"use beeswax setup --hooks manual for a different integration",
+	);
 export type ProjectConfig = z.infer<typeof configSchema>;
 export const configPath = ".hive/beeswax/config.toml";
 
@@ -68,7 +77,7 @@ export async function writeProjectConfig(
 
 export function defaultProjectConfig(adapter: HookAdapter): ProjectConfig {
 	let directory = ".husky";
-	if (adapter === "git") {
+	if (adapter === "git" || adapter === "hk") {
 		directory = ".git/hooks";
 	}
 	return {
@@ -80,7 +89,7 @@ export function defaultProjectConfig(adapter: HookAdapter): ProjectConfig {
 	};
 }
 
-/** Reset hook paths only when switching to Husky or Git. */
+/** Reset paths when switching installed presets; none preserves the configured paths. */
 export function selectHookConfig(config: ProjectConfig, adapter?: HookAdapter): ProjectConfig {
 	if (adapter === undefined || adapter === config.bootstrap.hooks) {
 		return config;

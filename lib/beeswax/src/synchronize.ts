@@ -1,5 +1,6 @@
 /* eslint-disable import/max-dependencies -- Compose synchronization phases and version discovery receipt. */
 import { BeeswaxError, errorMessage } from "./errors.ts";
+import { bootstrapHooks, preflightHookBootstrap } from "./hook-bootstrap.ts";
 import { installHooks, installMergeDriver } from "./hooks.ts";
 import {
 	projectMigration,
@@ -18,7 +19,6 @@ import type { WorkspaceIO } from "./services.ts";
 import { applyOnboarding } from "./onboarding.ts";
 import { applyTrackerPolicy } from "./beads/setup.ts";
 import { bindCheckout } from "./binding.ts";
-import { bootstrapHooks } from "./husky.ts";
 import { bvRecipeFiles } from "./bv-recipe-source.ts";
 import { installBvRecipes } from "./bv-recipes.ts";
 import { installTrackerHooks } from "./tracker-hooks.ts";
@@ -64,6 +64,13 @@ export async function synchronizeProject(
 			requireBvRecipesContract(lock);
 		}
 		requireProjectGeneration(lock, config);
+		const common = await io.command(
+			["git", "rev-parse", "--path-format=absolute", "--git-common-dir"],
+			root,
+		);
+		const database =
+			io.context.beadsDb || resolve(common, "../.worktrees/tracker--state/.beads/beads.db");
+		await preflightHookBootstrap({ root, adapter: config.bootstrap.hooks, database }, io);
 		await verifyExecutable(root, executable, io);
 		const hooks = await installHooks({ root, config }, io);
 		completed.push("hook_sections");
@@ -71,12 +78,6 @@ export async function synchronizeProject(
 		completed.push("local_binding");
 		await installMergeDriver(root, executable, io);
 		completed.push("merge_driver");
-		const common = await io.command(
-			["git", "rev-parse", "--path-format=absolute", "--git-common-dir"],
-			root,
-		);
-		const database =
-			io.context.beadsDb || resolve(common, "../.worktrees/tracker--state/.beads/beads.db");
 		const checkouts = [root];
 		if (await io.exists(database)) {
 			await installTrackerHooks({ repository: root, database, executable, config }, io);

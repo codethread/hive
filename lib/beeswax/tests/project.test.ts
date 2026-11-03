@@ -1,4 +1,9 @@
-import { defaultProjectConfig, selectHookConfig, writeProjectConfig } from "../src/config.ts";
+import {
+	configSchema,
+	defaultProjectConfig,
+	selectHookConfig,
+	writeProjectConfig,
+} from "../src/config.ts";
 import { expect, test } from "bun:test";
 import {
 	readProjectLock,
@@ -98,4 +103,28 @@ test("framework defaults preserve pinned paths when bootstrap is retained or dis
 		bootstrap: { hooks: "git" },
 		hooks: defaultProjectConfig("git").hooks,
 	});
+	expect(selectHookConfig(custom, "hk")).toEqual({
+		...custom,
+		bootstrap: { hooks: "hk" },
+		hooks: defaultProjectConfig("git").hooks,
+	});
 });
+
+test.each([
+	{ adapter: "hk", directory: ".git/hooks", valid: true },
+	{ adapter: "hk", directory: ".husky", valid: false },
+	{ adapter: "none", directory: "custom", valid: true },
+	{ adapter: "manual", directory: ".git/hooks", valid: false },
+])(
+	"persisted $adapter configuration at $directory is valid: $valid",
+	({ adapter, directory, valid }) => {
+		const parsed = configSchema.safeParse({
+			bootstrap: { hooks: adapter },
+			hooks: {
+				pre_commit: `${directory}/pre-commit`,
+				pre_merge_commit: `${directory}/pre-merge-commit`,
+			},
+		});
+		expect(parsed.success).toBe(valid);
+	},
+);

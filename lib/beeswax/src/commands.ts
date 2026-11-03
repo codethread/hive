@@ -21,7 +21,7 @@ import { trackerRecoverySchema } from "./beads/alerts-publication.ts";
 export function addBeads(
 	program: Command,
 	deps: Dependencies,
-	emit: (value: object) => void,
+	emit: (value: object, text?: string) => void,
 ): void {
 	const beads = program
 		.command("beads")
@@ -79,12 +79,13 @@ export function addBeads(
 		setupOptions(beads.command(entry.name).description(entry.description)).action(
 			async function materialize(this: Command) {
 				const flags = this.optsWithGlobals<Options>();
-				const options = await resolveSetup(
-					{ ...flags, tracker: entry.name, yes: true },
-					true,
-					deps,
-				);
-				const result = await materializeTracker(entry.name, options, deps);
+				const plan = await resolveSetup({ ...flags, tracker: entry.name, yes: true }, true, deps);
+				if (plan.kind === "manual") {
+					const guidance = await manualHookInstructions(plan.repository, deps.skills);
+					emit(guidance, guidance.content);
+					return;
+				}
+				const result = await materializeTracker(entry.name, plan.options, deps);
 				emit({ ok: true, kind: entry.kind, result });
 			},
 		);
@@ -207,6 +208,24 @@ export function addSkills(
 	};
 	skills.command("get <name>").action((name: string) => read(name, "SKILL.md"));
 	skills.command("file <name> <path>").action(read);
+}
+
+export async function manualHookInstructions(repository: string, skills: Dependencies["skills"]) {
+	const content = await skills.getSkillFile("repository-setup", "references/manual-hooks.md");
+	if (content === null) {
+		throw new BeeswaxError(
+			"skill_resource_missing",
+			"Bundled manual hook instructions are missing",
+		);
+	}
+	return {
+		ok: true,
+		kind: "hook_setup_instructions",
+		mode: "manual",
+		repository,
+		configured: false,
+		content,
+	};
 }
 
 /** Migration tasks hand interpretation to an agent working with the user; they have no setup effects. */

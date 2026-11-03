@@ -8,6 +8,7 @@ import {
 	addProjectCommands,
 	addSessionStart,
 	addSkills,
+	manualHookInstructions,
 } from "./commands.ts";
 import {
 	changelogHistorySchema,
@@ -16,8 +17,13 @@ import {
 	queryChangelog,
 	renderChangelog,
 } from "@hive/shared/changelog";
-import { configSchema, hookAdapterSchema } from "./config.ts";
-import { integrationSchema, resolveSetup, setupRepository, trackerSchema } from "./setup.ts";
+import {
+	integrationSchema,
+	resolveSetup,
+	setupHookSchema,
+	setupRepository,
+	trackerSchema,
+} from "./setup.ts";
 import { isTrackerSnapshot, validateTrackerHook } from "./hooks.ts";
 import { trackerAlertObservationSchema, trackerRecoveryHandoffSchema } from "./beads/alerts.ts";
 import type { MergePaths } from "./git/merge.ts";
@@ -30,6 +36,7 @@ import type { TrackerRecovery } from "./beads/alerts-publication.ts";
 import { addAlertHooks } from "./harness-alerts.ts";
 import { addPrime } from "./prime.ts";
 import changelog from "../changelog.json";
+import { configSchema } from "./config.ts";
 import { lockSchema } from "./project.ts";
 import { version } from "../package.json";
 import { z } from "zod";
@@ -227,7 +234,7 @@ or search local checkouts.
 	setupOptions(
 		program
 			.command("setup")
-			.description("Configure a repository through a wizard or explicit flags")
+			.description("Configure a repository, or print manual hook guidance without setup effects")
 			.option(
 				"--install-workflow-skill",
 				"Install the optional hive skill for selected harnesses; see prerequisites below",
@@ -235,7 +242,8 @@ or search local checkouts.
 	)
 		.addHelpText(
 			"after",
-			"\nJSON, non-TTY and --yes runs never prompt. Without a known database, choose --tracker explicitly.\n" +
+			"\nJSON, non-TTY and --yes runs never prompt. Except for --hooks manual,\n" +
+				"choose --tracker explicitly when no database is known.\n" +
 				"Adopt uses the selected database; bootstrap imports accepted origin/tracker/state history only\n" +
 				"when its database is absent. Init creates the first tracker; none skips tracker changes.\n" +
 				"\nFirst tracker with versioned hooks (run in the canonical checkout):\n" +
@@ -246,9 +254,7 @@ or search local checkouts.
 				"Init checks configured versioned hooks, existing stores and inherited exports before setup writes.\n" +
 				"Paths under .git/ use shared Git metadata and need no commit.\n" +
 				"First snapshot and upstream: beeswax skills file repository-setup references/publication.md\n" +
-				"\nHooks: husky bootstraps the bundled runner; git retains Git's default hook lookup.\n" +
-				"None skips framework bootstrap but still installs validation sections. Custom frameworks must invoke\n" +
-				"the --pre-commit/--pre-merge-commit files. Inspect formats with beeswax schema.\n" +
+				"\nInspect project configuration and lock formats with beeswax schema.\n" +
 				"BV: setup, update and sync maintain a Beeswax-marked section in .bv/recipes.yaml in the\n" +
 				"caller and selected permanent tracker checkout when available. Required views: _hive_work excludes\n" +
 				"system and busybee-workflow; _hive_system selects system; _hive_workflows selects busybee-workflow.\n" +
@@ -274,12 +280,17 @@ or search local checkouts.
 				"The install request is not saved; prime, hooks, sync and update never install or update the skill.\n",
 		)
 		.action(async function setup(this: Command) {
-			const options = await resolveSetup(
+			const plan = await resolveSetup(
 				this.optsWithGlobals<Options>(),
 				Boolean(program.opts<Options>().json),
 				deps,
 			);
-			emit(await setupRepository(options, deps));
+			if (plan.kind === "manual") {
+				const guidance = await manualHookInstructions(plan.repository, deps.skills);
+				emit(guidance, guidance.content);
+				return;
+			}
+			emit(await setupRepository(plan.options, deps));
 		});
 	system
 		.command("prepare")
@@ -428,8 +439,8 @@ export function setupOptions(command: Command): Command {
 		.addOption(
 			new Option(
 				"--hooks <adapter>",
-				"Bootstrap preset; default configured adapter or husky",
-			).choices(hookAdapterSchema.options),
+				"Hook setup or manual guidance; default configured adapter or husky",
+			).choices(setupHookSchema.options),
 		)
 		.addOption(
 			new Option("--environment <provider>", "Shell integration; default none").choices(
@@ -444,7 +455,24 @@ export function setupOptions(command: Command): Command {
 		)
 		.option("--pre-commit <path>", "POSIX-shell commit hook; saved in project configuration")
 		.option("--pre-merge-commit <path>", "POSIX-shell merge hook; saved in project configuration")
-		.option("-y, --yes", "Accept inferred defaults; never prompt");
+		.option("-y, --yes", "Accept inferred defaults; never prompt")
+		.addHelpText(
+			"after",
+			"\nHooks: husky uses the bundled runner; git retains Git's default hook lookup.\n" +
+				"None installs managed validation sections without framework bootstrap. Custom frameworks\n" +
+				"must invoke the configured --pre-commit/--pre-merge-commit shell files.\n" +
+				"hk requires installed hk >=2.8.1, Git >=2.54 and valid application-local Pkl. Beeswax runs\n" +
+				"hk install from the application checkout only; it neither edits Pkl nor installs tools.\n" +
+				"hk owns native registrations; Beeswax validates independently through fixed common-directory\n" +
+				".git/hooks/pre-commit and pre-merge-commit files. Snapshot-safe hk policy remains project-owned;\n" +
+				"a nested tracker can inherit ancestor Pkl. Verify both events without application dependencies.\n" +
+				"\nManual prints the full integration handoff and stops this whole command without setup effects,\n" +
+				"even with other valid options. It needs no Git repository or --tracker and is never persisted.\n" +
+				"JSON returns kind: hook_setup_instructions, mode: manual, repository, content and configured: false;\n" +
+				"false means this invocation configured nothing, not that prior repository setup is absent.\n" +
+				"Hook ownership, unsupported hk topology and verification guidance:\n" +
+				"  beeswax skills file repository-setup references/manual-hooks.md\n",
+		);
 }
 
 export function onboardingOptions(command: Command): Command {
