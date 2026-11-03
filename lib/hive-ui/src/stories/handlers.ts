@@ -35,6 +35,7 @@ export const handlers = [
 			filter.exclude.length > 0;
 		return HttpResponse.json({
 			kind: "loaded",
+			inferred: [],
 			bees: candidates.filter(
 				(bee) =>
 					!narrowed ||

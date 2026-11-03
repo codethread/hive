@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { ancestry, bees, outcomeBees, worker } from "./fixtures.ts";
+import { ancestry, bees, outcomeBees, parentBee, reviewer, worker } from "./fixtures.ts";
 import { BeeGraph } from "../bee-graph.tsx";
 import type { GraphProps } from "../graph-loader.ts";
 import { beeScene } from "../bee-scene.ts";
@@ -24,7 +24,7 @@ const meta = {
 		);
 	},
 	args: {
-		scene: beeScene(bees, "", null),
+		scene: beeScene({ bees, inferred: [] }, "", null),
 		selected: undefined,
 		onSelect: fn<(id: string) => void>(),
 		theme: "moss",
@@ -39,9 +39,10 @@ const meta = {
 			description: {
 				component:
 					"Bee graph: automatically arranged request cards. Solid edges show " +
-					"recorded requester attribution; dashed edges show explicitly loaded " +
-					"inferred ancestry. Click a card to select it; pan, zoom and Fit use " +
-					"the real React Flow viewport.",
+					"recorded requester attribution; dashed edges show inferred parent links. " +
+					"Nested Requests connects loaded requests automatically; Inferred Ancestry " +
+					"adds context beyond the page. Click a card to select it; pan, zoom and Fit " +
+					"use the real React Flow viewport.",
 			},
 		},
 	},
@@ -50,28 +51,50 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const RecordedRequesters: Story = {};
+export const NestedRequests: Story = {
+	args: {
+		scene: beeScene(
+			{
+				bees: [parentBee, worker, { ...reviewer, requester: worker.identity }],
+				inferred: [
+					{ parent: parentBee.id, child: worker.id },
+					{ parent: worker.id, child: reviewer.id },
+				],
+			},
+			"",
+			null,
+		),
+	},
+};
 export const InferredAncestry: Story = {
-	args: { scene: beeScene(bees, "", ancestry), selected: worker.id },
+	args: { scene: beeScene({ bees, inferred: [] }, "", ancestry), selected: worker.id },
 };
 export const HistoricalContext: Story = {
-	args: { scene: beeScene(bees, "amber", ancestry), selected: worker.id },
+	args: { scene: beeScene({ bees, inferred: [] }, "amber", ancestry), selected: worker.id },
 };
-export const Outcomes: Story = { args: { scene: beeScene(outcomeBees, "", null) } };
-export const NoMatches: Story = { args: { scene: beeScene(bees, "no-such-bee", null) } };
+export const Outcomes: Story = {
+	args: { scene: beeScene({ bees: outcomeBees, inferred: [] }, "", null) },
+};
+export const NoMatches: Story = {
+	args: { scene: beeScene({ bees, inferred: [] }, "no-such-bee", null) },
+};
 export const Paper: Story = {
 	globals: { theme: "paper" },
-	args: { scene: beeScene(bees, "", ancestry), selected: worker.id },
+	args: { scene: beeScene({ bees, inferred: [] }, "", ancestry), selected: worker.id },
 };
 export const LongIdentity: Story = {
 	args: {
 		scene: beeScene(
-			[
-				{
-					...worker,
-					identity: "amber-quiet-otter-with-an-unusually-long-friendly-name",
-					taskIds: [],
-				},
-			],
+			{
+				bees: [
+					{
+						...worker,
+						identity: "amber-quiet-otter-with-an-unusually-long-friendly-name",
+						taskIds: [],
+					},
+				],
+				inferred: [],
+			},
 			"",
 			null,
 		),

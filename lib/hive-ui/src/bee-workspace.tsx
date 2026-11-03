@@ -31,8 +31,8 @@ export function BeeWorkspace({
 	);
 	const ancestry = snapshot(ancestryResource);
 	const scene = useMemo(
-		() => beeScene(inventory.bees, search.beeQuery, ancestry),
-		[inventory.bees, search.beeQuery, ancestry],
+		() => beeScene(inventory, search.beeQuery, ancestry),
+		[inventory, search.beeQuery, ancestry],
 	);
 
 	const selected = scene.requests.find((bee) => bee.id === search.request);

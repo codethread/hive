@@ -82,6 +82,24 @@ export function createBoardData(readTopology: ReadTopology, now: () => number = 
 	// A refresh cutoff is shared by its inventory, board and detail requests. Zero uses the normal TTL.
 	const inventories = new Map<string, SourceSnapshot<Inventory>>();
 	const pendingInventories = new Map<string, Promise<Inventory>>();
+	const inventoryParents = new WeakMap<Inventory, Promise<Inventory["inferred"]>>();
+	const parents = async (
+		context: ReadContext,
+		source: Inventory,
+	): Promise<Inventory["inferred"]> => {
+		const active = inventoryParents.get(source);
+		if (active) {
+			return active;
+		}
+		const pending = requestParents(context, source.bees);
+		inventoryParents.set(source, pending);
+		try {
+			return await pending;
+		} catch (error) {
+			inventoryParents.delete(source);
+			throw error;
+		}
+	};
 	const workflows = cachedRead(workflowRuns, observe, now);
 	const merges = cachedRead(taskMerges, observe, now);
 	const branches = new Map<string, { startedAt: number; value: Hierarchy }>();
@@ -330,7 +348,13 @@ export function createBoardData(readTopology: ReadTopology, now: () => number = 
 			refreshAfter: number,
 		): Promise<RequestInventory> => {
 			const current = await inventory(context, filter, refreshAfter);
-			return filterInventory(context, filter, current.value);
+			if (current.value.kind === "not_requested") {
+				return current.value;
+			}
+			return filterInventory(context, filter, {
+				...current.value,
+				inferred: await parents(context, current.value),
+			});
 		},
 		hierarchy: (context: ReadContext, ids: string[], refreshAfter: number) =>
 			hierarchy(context, ids, { direction: "family", refreshAfter }),
@@ -690,13 +714,60 @@ async function readInventory(context: ReadContext, scope: BoardScope): Promise<I
 			context.beads.showMany(readScope(context), ids),
 		);
 	}
+	const bees = requests.map((request) => bee(request));
 	return {
-		bees: requests.map((request) => bee(request)),
+		bees,
+		inferred: [],
 		total: requests.length,
 		hasMore: issues.length > limit,
 		kind: "loaded",
 		readAt: new Date().toISOString(),
 	};
+}
+
+// eslint-disable-next-line max-statements -- Keep bounded native identity resolution and its edge projection together.
+async function requestParents(context: ReadContext, bees: Bee[]): Promise<Inventory["inferred"]> {
+	const identities = new Set(bees.map((item) => item.identity));
+	const requesters = [
+		...new Set(
+			bees.flatMap((item) => {
+				if (item.requester !== null && identities.has(item.requester)) {
+					return [item.requester];
+				}
+				return [];
+			}),
+		),
+	];
+	// A loaded identity is only a candidate: closed history can make its name ambiguous.
+	const parents = new Map<string, string>();
+	for (let offset = 0; offset < requesters.length; offset += METADATA_CONCURRENCY) {
+		const batch = requesters.slice(offset, offset + METADATA_CONCURRENCY);
+		// eslint-disable-next-line no-await-in-loop
+		const candidates = await Promise.all(
+			batch.map((assignee) => {
+				const selection = { labels: ["system", "bee"], assignee, all: true, limit: 2 };
+				const fields = ["id"] as const;
+				return read(context, [...formatBeadsQuery(selection), "--fields", fields.join(",")], () =>
+					context.beads.listProjected(readScope(context), selection, fields),
+				);
+			}),
+		);
+		for (const [index, result] of candidates.entries()) {
+			if (result.issues.length === 1) {
+				parents.set(batch[index]!, result.issues[0]!.id);
+			}
+		}
+	}
+	const inferred: Inventory["inferred"] = [];
+	for (const item of bees) {
+		if (item.requester !== null) {
+			const parent = parents.get(item.requester);
+			if (parent !== undefined) {
+				inferred.push({ parent, child: item.id });
+			}
+		}
+	}
+	return inferred;
 }
 
 function bee(bead: BeadRecord): Bee {

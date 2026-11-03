@@ -212,6 +212,15 @@ export const requestInventorySchema = z.discriminatedUnion("kind", [
 	z.object({
 		/** Requests in the selected, bounded inventory page. */
 		bees: z.array(beeSchema),
+		/** Requester-name links verified across request history before filtering; render only loaded endpoints. */
+		inferred: z.array(
+			z.object({
+				/** Native request ID uniquely matched to the child's recorded requester. */
+				parent: z.string(),
+				/** Native request ID whose requester supplied the name match. */
+				child: z.string(),
+			}),
+		),
 		/** Candidate requests on this history page before task filtering. */
 		total: z.number().int().nonnegative(),
 		/** Lookahead found another completed request page. */

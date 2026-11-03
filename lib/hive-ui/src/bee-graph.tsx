@@ -157,8 +157,9 @@ function GraphInfo({ theme }: Pick<GraphProps, "theme">) {
 								<i aria-hidden="true" className="inferred" /> Inferred parent
 							</dt>
 							<dd className="mt-1 text-muted">
-								A dashed line links a requester name to a historical bee request. Cards marked “From
-								ancestry” were added when ancestry was loaded.
+								A dashed line connects requests by a uniquely matched requester name. Loaded
+								requests connect automatically; use Load ancestry to add missing ancestors. Cards
+								marked “From ancestry” are added context.
 							</dd>
 						</div>
 						<div>

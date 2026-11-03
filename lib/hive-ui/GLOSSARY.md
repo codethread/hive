@@ -14,7 +14,7 @@ Presentation vocabulary nested under the [shared Hive glossary](../../GLOSSARY.m
 
 **Recorded requester**: The attributed identity that requested a Bee, without an inferred parent request.
 
-**Inferred parent**: A historical request matched to a recorded requester identity through explicitly loaded ancestry.
+**Inferred parent**: A request uniquely matched to another request's recorded requester identity across request history, distinct from a recorded parent relationship.
 
 ## Beads
 

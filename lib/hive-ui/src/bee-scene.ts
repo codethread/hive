@@ -1,24 +1,27 @@
-import type { Bee, Provenance } from "../contracts.ts";
+import type { Bee, Provenance, RequestInventory } from "../contracts.ts";
 
 const LAST = -1;
 
 export interface BeeScene {
 	/** Matching requests from the current inventory page. */
 	matches: Bee[];
-	/** Matching requests plus explicitly loaded historical context, keyed by native ID. */
+	/** Matching requests plus explicitly loaded ancestry context, deduplicated by native ID. */
 	requests: Bee[];
-	/** Name matches verified by the bounded ancestry query; still not recorded parent IDs. */
+	/** Verified inventory and ancestry links between displayed requests; not recorded parent IDs. */
 	inferred: { parent: string; child: string }[];
 	/** Historical requests do not inflate the number of matches. */
 	contextIds: Set<string>;
 }
 
-/** Render only loaded evidence; never infer uniqueness from one inventory page. */
-// Merge only explicit ancestry evidence and retain the match/context distinction.
+/** Merge verified loaded links; explicit ancestry takes precedence for each visited child. */
 // eslint-disable-next-line max-statements
-export function beeScene(bees: Bee[], query: string, ancestry: Provenance | null): BeeScene {
+export function beeScene(
+	inventory: Pick<Extract<RequestInventory, { kind: "loaded" }>, "bees" | "inferred">,
+	query: string,
+	ancestry: Provenance | null,
+): BeeScene {
 	const text = query.toLocaleLowerCase();
-	const matches = bees.filter((bee) =>
+	const matches = inventory.bees.filter((bee) =>
 		[bee.id, bee.identity, bee.kind, bee.requester ?? "", ...bee.taskIds].some((value) =>
 			value.toLocaleLowerCase().includes(text),
 		),
@@ -39,6 +42,17 @@ export function beeScene(bees: Bee[], query: string, ancestry: Provenance | null
 	if (ancestry?.end.kind === "cycle") {
 		const child = ancestry.chain.at(LAST)!;
 		inferred.push({ child: child.id, parent: ancestry.end.id });
+	}
+	const inferredChildren = new Set((ancestry?.chain ?? []).map((item) => item.id));
+	for (const edge of inventory.inferred) {
+		if (
+			requests.has(edge.parent) &&
+			requests.has(edge.child) &&
+			!inferredChildren.has(edge.child)
+		) {
+			inferred.push(edge);
+			inferredChildren.add(edge.child);
+		}
 	}
 	return { contextIds, inferred, matches, requests: [...requests.values()] };
 }

@@ -1,16 +1,21 @@
-import type { BeadsScope, DependencySelection } from "@hive/beads";
+import type { BeadsScope, BeadsService, DependencySelection } from "@hive/beads";
 import { boardFilterSchema, inventoryFilterSchema } from "../contracts.ts";
 import { expect, test } from "bun:test";
 import { samplePreview, workflowSamples } from "../src/stories/workflow-samples.ts";
+import { beeScene } from "../src/bee-scene.ts";
 import { colony } from "../src/stories/fixtures.ts";
 import { createBoardData } from "./data.ts";
 import { createMemoryBeads } from "@hive/beads";
 
 const scope = { cwd: colony.root, db: colony.beadsDb, actor: "fixture" };
 const filter = boardFilterSchema.parse({ view: "beads", closed: true });
+const requestFilter = inventoryFilterSchema.parse({ view: "open" });
 const COLD_AND_RECOVERY_READS = 2;
 const seeded = await workflowFixture();
 const linked = await mergeFixture();
+const nested = await requestTreeFixture(false);
+const ambiguous = await requestTreeFixture(true);
+const refreshing = await requestPairFixture();
 const emptyRequest = await linked.beads.create(scope, {
 	title: "Request without tasks",
 	labels: ["system", "bee", "agent:worker"],
@@ -52,6 +57,65 @@ async function mergeFixture() {
 	});
 	await beads.dep.add(scope, invalid.id, task.id, "relates-to");
 	return { beads, task, merged, invalid };
+}
+
+// eslint-disable-next-line max-statements -- Build a request family and its optional historical collision together.
+async function requestTreeFixture(duplicate: boolean) {
+	const beads = createMemoryBeads();
+	const recipe = JSON.stringify({ harness: "codex", kind: "worker", model: "fixture" });
+	const create = (identity: string, requester: string) =>
+		beads.create(
+			{ ...scope, actor: requester },
+			{
+				title: identity,
+				assignee: identity,
+				labels: ["system", "bee", "agent:worker"],
+				description: recipe,
+			},
+		);
+	const parent = await create("pink-boring-penguin", "apricot-logical-smelt");
+	const child = await create("sapphire-shivering-turkey", "pink-boring-penguin");
+	const grandchild = await create("nested-worker", "sapphire-shivering-turkey");
+	await create("green-interesting-takin", "apricot-logical-smelt");
+	const task = await beads.create(scope, {
+		title: "Nested work",
+		status: "in_progress",
+		assignee: child.assignee,
+	});
+	await beads.dep.add(scope, child.id, task.id, "related");
+	if (duplicate) {
+		const previous = await create("pink-boring-penguin", "historic-requester");
+		await beads.close(scope, previous.id, { reason: "completed" });
+	}
+	return {
+		context: { beads, colony, requestId: "test", log: async () => {} },
+		parent,
+		child,
+		grandchild,
+		task,
+	};
+}
+
+async function requestPairFixture() {
+	const beads = createMemoryBeads();
+	const fields = {
+		labels: ["system", "bee", "agent:worker"],
+		description: JSON.stringify({ harness: "codex", kind: "worker", model: "fixture" }),
+	};
+	const parent = await beads.create(scope, {
+		...fields,
+		title: "pink-boring-penguin",
+		assignee: "pink-boring-penguin",
+	});
+	const child = await beads.create(
+		{ ...scope, actor: parent.assignee },
+		{
+			...fields,
+			title: "sapphire-shivering-turkey",
+			assignee: "sapphire-shivering-turkey",
+		},
+	);
+	return { context: { beads, colony, requestId: "test", log: async () => {} }, parent, child };
 }
 
 // eslint-disable-next-line max-statements -- One request fixture verifies both public projections.
@@ -205,4 +269,65 @@ test("failed graph validation never seeds the complete-family cache", async () =
 	expect(reads).toBe(COLD_AND_RECOVERY_READS);
 	expect(cached).toEqual(fresh);
 	expect(cached.fetchedAt).toBe(fetchedAt);
+});
+
+test("inventory resolves a nested request tree without an explicit ancestry read", async () => {
+	const result = await createBoardData(unrequestedTopology).inventory(
+		nested.context,
+		inventoryFilterSchema.parse({ view: "open" }),
+		0,
+	);
+	if (result.kind !== "loaded") {
+		throw new Error("Expected request inventory");
+	}
+	const scene = beeScene(result, "", null);
+	expect(scene.inferred).toContainEqual({ parent: nested.parent.id, child: nested.child.id });
+	expect(scene.inferred).toContainEqual({ parent: nested.child.id, child: nested.grandchild.id });
+});
+
+test("a closed duplicate identity prevents automatic parenting from the open page", async () => {
+	const result = await createBoardData(unrequestedTopology).inventory(
+		ambiguous.context,
+		inventoryFilterSchema.parse({ view: "open" }),
+		0,
+	);
+	if (result.kind !== "loaded") {
+		throw new Error("Expected request inventory");
+	}
+	expect(result.inferred).toEqual([{ parent: ambiguous.child.id, child: ambiguous.grandchild.id }]);
+});
+
+test("assignment annotations do not resolve the request hierarchy", async () => {
+	const beads: BeadsService = {
+		...nested.context.beads,
+		listProjected: (tracker, selection, fields) => {
+			if (selection.assignee !== undefined) {
+				throw new Error("Assignment icons must not query requester ancestry");
+			}
+			return nested.context.beads.listProjected(tracker, selection, fields);
+		},
+	};
+	const annotations = await createBoardData(unrequestedTopology).annotations(
+		{ ...nested.context, beads },
+		[nested.task.id],
+		0,
+	);
+	expect(annotations.cards[0]?.beeAssignments.map(({ id }) => id)).toEqual([nested.child.id]);
+});
+
+test("inventory refresh replaces cached parent evidence when history becomes ambiguous", async () => {
+	let now = 0;
+	const data = createBoardData(unrequestedTopology, () => now);
+	const before = {
+		inferred: [{ parent: refreshing.parent.id, child: refreshing.child.id }],
+	};
+	expect(await data.inventory(refreshing.context, requestFilter, 0)).toMatchObject(before);
+	await refreshing.context.beads.update(scope, [refreshing.child.id], {
+		assignee: refreshing.parent.assignee,
+	});
+	expect(await data.inventory(refreshing.context, requestFilter, 0)).toMatchObject(before);
+	now++;
+	expect(await data.inventory(refreshing.context, requestFilter, now)).toMatchObject({
+		inferred: [],
+	});
 });
